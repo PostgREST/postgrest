@@ -120,17 +120,15 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
+
+
       when (actualPgVersion >= pgVersion110) $
         it "should not throw and return location header for partitioned tables when selecting without PK" $
           request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
             [json|{"id":5,"name":"first"}|] `shouldRespondWith` ""
             { matchStatus  = 201
-            , matchHeaders =
-                if actualPgVersion >= pgVersion110 then
-                  [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
-                  , "Content-Range" <:> "*/*" ]
-                else
-                  [ matchHeaderAbsent hLocation ]
+            , matchHeaders = [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
+                             , "Content-Range" <:> "*/*" ]
             }
 
     context "requesting no representation" $
