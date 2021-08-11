@@ -134,7 +134,7 @@ main = do
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.SingularSpec"            , Feature.SingularSpec.spec)
         , ("Feature.UpdateSpec"              , Feature.UpdateSpec.spec)
-        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
+        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec actualPgVersion)
         ]
 
   hspec $ do
