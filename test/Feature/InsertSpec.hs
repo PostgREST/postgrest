@@ -120,8 +120,6 @@ spec actualPgVersion = do
                            , "Content-Range" <:> "*/*" ]
           }
 
-
-
       when (actualPgVersion >= pgVersion110) $
         it "should not throw and return location header for partitioned tables when selecting without PK" $
           request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
