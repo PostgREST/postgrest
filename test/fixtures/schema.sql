@@ -2196,6 +2196,11 @@ DO $do$BEGIN
         name varchar(64) not null
       ) partition by list (name);
 
+      comment on table test.partitioned_a is
+      $$A partitioned table
+
+A test for partitioned tables$$;
+
       create table test.first_partition_a partition of test.partitioned_a
         for values in ('first');
 

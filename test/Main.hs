@@ -127,7 +127,7 @@ main = do
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
         , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec)
+        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec actualPgVersion)
         , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)

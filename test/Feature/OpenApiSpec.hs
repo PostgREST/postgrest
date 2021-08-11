@@ -11,12 +11,15 @@ import Network.HTTP.Types
 import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion110)
+
 import PostgREST.Version (docsVersion)
 import Protolude         hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec = describe "OpenAPI" $ do
+spec :: PgVersion -> SpecWith ((), Application)
+spec actualPgVersion = describe "OpenAPI" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
     request methodHead "/" (acceptHdrs "application/openapi+json") ""
@@ -194,6 +197,32 @@ spec = describe "OpenAPI" $ do
               { "$ref": "#/parameters/preferCount" }
             ]
           |]
+
+  when (actualPgVersion >= pgVersion100) $ do
+    describe "Partitioned table" $
+
+      it "includes partitioned table properties" $ do
+        r <- simpleBody <$> get "/"
+
+        let method s = key "paths" . key "/partitioned_a" . key s
+            getSummary = r ^? method "get" . key "summary"
+            getDescription = r ^? method "get" . key "description"
+            getParameterId = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
+            getParameterName = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
+            getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
+
+        liftIO $ do
+
+          getSummary `shouldBe` Just "A partitioned table"
+
+          getDescription `shouldBe` Just "A test for partitioned tables"
+
+          getParameterId `shouldBe` Just "#/parameters/rowFilter.partitioned_a.id"
+
+          getParameterName `shouldBe` Just "#/parameters/rowFilter.partitioned_a.name"
+
+          when (actualPgVersion >= pgVersion110) $
+            getParameterRef `shouldBe` Just "#/parameters/rowFilter.partitioned_a.id_ref"
 
   describe "Materialized view" $
 
