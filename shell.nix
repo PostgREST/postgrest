@@ -2,16 +2,12 @@
 # disabled by default. You can activate them by passing arguments to nix-shell,
 # e.g.:
 #
-#    nix-shell --arg release true
-#
-# This will provide you with a shell where the `postgrest-release-*` scripts
-# are available.
+#    nix-shell --arg docker true
 #
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
 { docker ? false
 , memory ? false
-, release ? false
 }:
 let
   postgrest =
@@ -31,10 +27,10 @@ let
       postgrest.style
       postgrest.tests
       postgrest.withTools
+      postgrest.release
     ]
     ++ lib.optional docker postgrest.docker
-    ++ lib.optional memory postgrest.memory
-    ++ lib.optional release postgrest.release;
+    ++ lib.optional memory postgrest.memory;
 
 in
 lib.overrideDerivation postgrest.env (
