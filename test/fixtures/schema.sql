@@ -2188,9 +2188,9 @@ create table private.rollen (
 
 -- Tables used for testing embedding between partitioned tables
 
-DO $do$BEGIN
+do $do$begin
     -- partitioned tables using the PARTITION syntax are supported from pg v10
-    IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
+    if (select current_setting('server_version_num')::int >= 100000) then
       create table test.partitioned_a(
         id int not null,
         name varchar(64) not null
@@ -2206,20 +2206,20 @@ A test for partitioned tables$$;
 
       create table test.second_partition_a partition of test.partitioned_a
         for values in ('second');
-    END IF;
+    end if;
 
     -- primary keys for partitioned tables are supported from pg v11
-    IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
+    if (select current_setting('server_version_num')::int >= 110000) then
       create table test.reference_from_partitioned (
         id int primary key
       );
 
       alter table test.partitioned_a add primary key (id, name);
       alter table test.partitioned_a add column id_ref int references test.reference_from_partitioned(id);
-    END IF;
+    end if;
 
     -- foreign keys referencing partitioned tables are supported from pg v12
-    IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
+    if (select current_setting('server_version_num')::int >= 120000) then
       create table test.partitioned_b(
         id int not null,
         name varchar(64) not null,
@@ -2241,5 +2241,5 @@ A test for partitioned tables$$;
         name_a varchar(64),
         foreign key (id_a, name_a) references test.partitioned_a (id, name)
       );
-    END IF;
-END$do$;
+    end if;
+end$do$;

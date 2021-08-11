@@ -666,25 +666,25 @@ INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méc
 
 DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    insert into test.partitioned_a(id, name) values (1,'first');
-    insert into test.partitioned_a(id, name) values (2,'first');
-    insert into test.partitioned_a(id, name) values (3,'second');
-    insert into test.partitioned_a(id, name) values (4,'second');
+    INSERT INTO test.partitioned_a(id, name) VALUES (1,'first');
+    INSERT INTO test.partitioned_a(id, name) VALUES (2,'first');
+    INSERT INTO test.partitioned_a(id, name) VALUES (3,'second');
+    INSERT INTO test.partitioned_a(id, name) VALUES (4,'second');
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    insert into test.reference_from_partitioned(id) values (1),(2);
+    INSERT INTO test.reference_from_partitioned(id) VALUES (1),(2);
 
-    update test.partitioned_a set id_ref = 1 where id = 1;
+    UPDATE test.partitioned_a SET id_ref = 1 WHERE id = 1;
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
-    insert into test.partitioned_b(id, name) values (1,'first_b');
-    insert into test.partitioned_b(id, name, id_a, name_a) values (2,'first_b', 2, 'first');
-    insert into test.partitioned_b(id, name) values (3,'second_b');
-    insert into test.partitioned_b(id, name, id_a, name_a) values (4,'second_b', 4, 'second');
+    INSERT INTO test.partitioned_b(id, name) VALUES (1,'first_b');
+    INSERT INTO test.partitioned_b(id, name, id_a, name_a) VALUES (2,'first_b', 2, 'first');
+    INSERT INTO test.partitioned_b(id, name) VALUES (3,'second_b');
+    INSERT INTO test.partitioned_b(id, name, id_a, name_a) VALUES (4,'second_b', 4, 'second');
 
-    insert into test.reference_to_partitioned(id) values (1);
-    insert into test.reference_to_partitioned(id, id_a, name_a) values (2, 2, 'first');
+    INSERT INTO test.reference_to_partitioned(id) VALUES (1);
+    INSERT INTO test.reference_to_partitioned(id, id_a, name_a) VALUES (2, 2, 'first');
   END IF;
 END$do$;

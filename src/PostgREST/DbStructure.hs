@@ -325,7 +325,7 @@ accessibleTables =
       (
         c.relkind IN ('r','p')
         OR (
-          c.relkind in ('v','f')
+          c.relkind IN ('v','f')
           AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
           OR EXISTS (
             SELECT 1
