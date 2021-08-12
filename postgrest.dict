@@ -16,6 +16,7 @@ cd
 centric
 changelog
 ClojureScript
+cloudfared
 config
 CORS
 cryptographically
@@ -27,6 +28,7 @@ disjoined
 dockerize
 DoS
 eq
+EveryLayout
 Fenko
 Fernandes
 filename
@@ -145,6 +147,7 @@ stdout
 Stolarz
 subselect
 SuperAgent
+SvelteKit
 syslog
 systemd
 Tcl

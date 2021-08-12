@@ -32,6 +32,7 @@ Example Apps
 * `pgrst-dev-setup <https://github.com/Qu4tro/pgrst-dev-setup>`_ - docker-compose and tmuxp setup for experimentation.
 * `postgrest-demo <https://github.com/SMRxT/postgrest-demo>`_ - multi-tenant logging system
 * `postgrest-example <https://github.com/begriffs/postgrest-example>`_ - sqitch versioning for API
+* `postgres-postgrest-cloudflared-example <https://github.com/cloudflare/postgres-postgrest-cloudflared-example>`_ - docker-compose setup exposing PostgREST using cloudfared
 * `postgrest-sessions-example <https://github.com/monacoremo/postgrest-sessions-example>`_ - example for cookie-based sessions
 * `postgrest-starter-kit <https://github.com/subzerocloud/postgrest-starter-kit>`_ - boilerplate for new project
 * `postgrest-translation-proxy <https://github.com/NikolayS/postgrest-translation-proxy>`_ - calling to external translation service
@@ -39,6 +40,7 @@ Example Apps
 * `postgrest-vercel <https://github.com/seveibar/postgrest-vercel>`_ - run PostgREST on Vercel (Serverless/AWS Lambda)
 * `PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
 * `PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
+* `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth
 
 .. _eco_external_notification:
 
