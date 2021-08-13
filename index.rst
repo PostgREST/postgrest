@@ -234,7 +234,6 @@ Here are some companies that use PostgREST in production.
 * `Catarse <https://www.catarse.me>`_
 * `Datrium <https://www.datrium.com>`_
 * `Drip Depot <https://www.dripdepot.com>`_
-* `eGull <http://www.egull.co>`_
 * `Image-charts <https://www.image-charts.com>`_
 * `Moat <https://moat.com>`_
 * `MotionDynamic - Fast highly dynamic video generation at scale <https://motiondynamic.tech>`_
@@ -245,6 +244,9 @@ Here are some companies that use PostgREST in production.
 * `Redsmin <https://www.redsmin.com>`_
 * `Sompani <https://www.sompani.com>`_
 * `Supabase <https://supabase.io>`_
+
+.. Certs are failing
+  * `eGull <http://www.egull.co>`_
 
 Testimonials
 ------------

@@ -651,6 +651,49 @@ Embedded resources can be aliased and filters can be applied on these aliases:
 
   GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
 
+.. _embedding_partitioned_tables:
+
+Embedding Partitioned Tables
+----------------------------
+
+Embedding can also be done between `partitioned tables <https://www.postgresql.org/docs/current/ddl-partitioning.html>`_ and other tables.
+
+For example, let's create the ``box_office`` partitioned table that has the gross daily revenue of a film:
+
+.. code-block:: postgres
+
+  CREATE TABLE box_office (
+    bo_date DATE NOT NULL,
+    film_id INT REFERENCES test.films NOT NULL,
+    gross_revenue DECIMAL(12,2) NOT NULL,
+    PRIMARY KEY (bo_date, film_id)
+  ) PARTITION BY RANGE (bo_date);
+
+  -- Let's also create partitions for each month of 2021
+
+  CREATE TABLE box_office_2021_01 PARTITION OF test.box_office
+  FOR VALUES FROM ('2021-01-01') TO ('2021-01-31');
+
+  CREATE TABLE box_office_2021_02 PARTITION OF test.box_office
+  FOR VALUES FROM ('2021-02-01') TO ('2021-02-28');
+
+  -- and so until december 2021
+
+Since it contains the ``films_id`` foreign key, it is possible to embed ``box_office`` and ``films``:
+
+.. code-block:: http
+
+  GET /box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000 HTTP/1.1
+
+Embedding is also possible between ``box_office`` partitions and the ``films`` table:
+
+.. code-block:: http
+
+  GET /films?select=title,box_office_2021_02(bo_date,gross_revenue)&rating=gt.8 HTTP/1.1
+
+.. note::
+  Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
+
 .. _embedding_views:
 
 Embedding Views
