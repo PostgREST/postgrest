@@ -179,3 +179,23 @@ REVOKE EXECUTE ON FUNCTION privileged_hello(text) FROM PUBLIC; -- All functions 
 GRANT EXECUTE ON FUNCTION privileged_hello(text) TO postgrest_test_author;
 
 GRANT USAGE ON SCHEMA test TO postgrest_test_default_role;
+
+
+DO $do$BEGIN
+  IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
+    GRANT ALL ON TABLE test.partitioned_a TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.first_partition_a TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.second_partition_a TO postgrest_test_anonymous;
+  END IF;
+
+  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
+    GRANT ALL ON TABLE test.reference_from_partitioned TO postgrest_test_anonymous;
+  END IF;
+
+  IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
+    GRANT ALL ON TABLE test.partitioned_b TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.first_partition_b TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.second_partition_b TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.reference_to_partitioned TO postgrest_test_anonymous;
+  END IF;
+END$do$;

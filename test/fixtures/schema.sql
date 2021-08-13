@@ -2185,3 +2185,61 @@ create table private.rollen (
   foreign key (film_id) references test.filme(id),
   foreign key (rolle_id) references test.schauspieler(id)
 );
+
+-- Tables used for testing embedding between partitioned tables
+
+do $do$begin
+    -- partitioned tables using the PARTITION syntax are supported from pg v10
+    if (select current_setting('server_version_num')::int >= 100000) then
+      create table test.partitioned_a(
+        id int not null,
+        name varchar(64) not null
+      ) partition by list (name);
+
+      comment on table test.partitioned_a is
+      $$A partitioned table
+
+A test for partitioned tables$$;
+
+      create table test.first_partition_a partition of test.partitioned_a
+        for values in ('first');
+
+      create table test.second_partition_a partition of test.partitioned_a
+        for values in ('second');
+    end if;
+
+    -- primary keys for partitioned tables are supported from pg v11
+    if (select current_setting('server_version_num')::int >= 110000) then
+      create table test.reference_from_partitioned (
+        id int primary key
+      );
+
+      alter table test.partitioned_a add primary key (id, name);
+      alter table test.partitioned_a add column id_ref int references test.reference_from_partitioned(id);
+    end if;
+
+    -- foreign keys referencing partitioned tables are supported from pg v12
+    if (select current_setting('server_version_num')::int >= 120000) then
+      create table test.partitioned_b(
+        id int not null,
+        name varchar(64) not null,
+        id_a int,
+        name_a varchar(64),
+        primary key (id, name),
+        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      ) partition by list (name);
+
+      create table test.first_partition_b partition of test.partitioned_b
+        for values in ('first_b');
+
+      create table test.second_partition_b partition of test.partitioned_b
+        for values in ('second_b');
+
+      create table test.reference_to_partitioned (
+        id int not null primary key,
+        id_a int,
+        name_a varchar(64),
+        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      );
+    end if;
+end$do$;

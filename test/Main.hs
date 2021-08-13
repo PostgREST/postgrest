@@ -127,14 +127,14 @@ main = do
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
         , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec)
-        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec)
+        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec actualPgVersion)
+        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec actualPgVersion)
         , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
         , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
         , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
         , ("Feature.SingularSpec"            , Feature.SingularSpec.spec)
         , ("Feature.UpdateSpec"              , Feature.UpdateSpec.spec)
-        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec)
+        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec actualPgVersion)
         ]
 
   hspec $ do

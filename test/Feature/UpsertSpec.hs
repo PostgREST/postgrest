@@ -7,11 +7,13 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
+import PostgREST.Config.PgVersion (PgVersion, pgVersion110)
+
 import Protolude  hiding (get, put)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+spec :: PgVersion -> SpecWith ((), Application)
+spec actualPgVersion =
   describe "UPSERT" $ do
     context "with POST" $ do
       context "when Prefer: resolution=merge-duplicates is specified" $ do
@@ -42,6 +44,20 @@ spec =
             { matchStatus = 201
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
             }
+
+        when (actualPgVersion >= pgVersion110) $
+          it "INSERTs and UPDATEs rows on composite pk conflict for partitioned tables" $
+            request methodPost "/partitioned_a" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+              [json| [
+                { "id": 4, "name": "second", "id_ref": 2},
+                { "id": 6, "name": "first", "id_ref": 1 }
+              ]|] `shouldRespondWith` [json| [
+                { "id": 4, "name": "second", "id_ref": 2 },
+                { "id": 6, "name": "first", "id_ref": 1 }
+              ]|]
+              { matchStatus = 201
+              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+              }
 
         it "succeeds when the payload has no elements" $
           request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
@@ -98,6 +114,19 @@ spec =
             { matchStatus = 201
             , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
             }
+
+        when (actualPgVersion >= pgVersion110) $
+          it "INSERTs and ignores rows on composite pk conflict for partitioned tables" $
+            request methodPost "/partitioned_a" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+              [json| [
+                { "id": 4, "name": "second", "id_ref": 1 },
+                { "id": 7, "name": "second", "id_ref": 2 }
+              ]|] `shouldRespondWith` [json| [
+                { "id": 7, "name": "second", "id_ref": 2 }
+              ]|]
+              { matchStatus = 201
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+              }
 
         it "INSERTs and ignores rows on single unique key conflict" $
           request methodPost "/single_unique?on_conflict=unique_key"
@@ -264,6 +293,19 @@ spec =
             `shouldRespondWith`
               [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
 
+        when (actualPgVersion >= pgVersion110) $
+          it "succeeds on a partitioned table with composite pk" $ do
+            -- assert that the next request will indeed be an insert
+            get "/partitioned_a?id=eq.8&name=eq.first"
+              `shouldRespondWith`
+                [json|[]|]
+
+            request methodPut "/partitioned_a?id=eq.8&name=eq.first"
+                [("Prefer", "return=representation")]
+                [json| [ { "id": 8, "name": "first" } ]|]
+              `shouldRespondWith`
+                [json| [ { "id": 8, "name": "first", "id_ref": null } ]|]
+
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an insert
           get "/only_pk?id=eq.10"
@@ -314,6 +356,19 @@ spec =
               [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "60000", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
               [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "$60,000.00", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
+
+        when (actualPgVersion >= pgVersion110) $
+          it "succeeds on a partitioned table with composite pk" $ do
+            -- assert that the next request will indeed be an update
+            get "/partitioned_a?id=eq.2&name=eq.first"
+              `shouldRespondWith`
+                [json| [ { "id": 2, "name": "first", "id_ref": null } ]|]
+
+            request methodPut "/partitioned_a?id=eq.2&name=eq.first"
+                [("Prefer", "return=representation")]
+                [json| [ { "id": 2, "name": "first", "id_ref": 1 } ]|]
+              `shouldRespondWith`
+                [json| [ { "id": 2, "name": "first", "id_ref": 1 } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an update

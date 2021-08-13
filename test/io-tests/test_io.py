@@ -709,12 +709,14 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
 
         postgrest.session.post("/rpc/reset_invalid_role_claim_key")
 
+
 def test_db_prepared_statements_enable(defaultenv):
     "Should use prepared statements when the setting is enabled."
 
     with run(env=defaultenv) as postgrest:
         response = postgrest.session.post("/rpc/uses_prepared_statements")
         assert response.text == "true"
+
 
 def test_db_prepared_statements_disable(defaultenv):
     "Should not use any prepared statements when the setting is disabled."
