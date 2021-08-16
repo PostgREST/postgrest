@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1783, Include partitioned tables into the schema cache. Allows embedding, UPSERT, INSERT with Location response, OPTIONS request and OpenAPI support for partitioned tables - @laurenceisla
 
+ - #1878, Add Retry-After hint when in recovery mode
+ 
 ### Fixed
 
 ## [8.0.0] - 2021-07-25

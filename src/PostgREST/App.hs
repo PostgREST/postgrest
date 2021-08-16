@@ -152,13 +152,19 @@ postgrest logLev appState connWorker =
           runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
-
       -- Launch the connWorker when the connection is down.  The postgrest
       -- function can respond successfully (with a stale schema cache) before
       -- the connWorker is done.
-      when (Wai.responseStatus response == HTTP.status503) connWorker
+      let isPGAway = Wai.responseStatus response == HTTP.status503
+      when isPGAway connWorker
+      resp <- addRetryHint isPGAway appState response
+      respond resp
 
-      respond response
+addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
+addRetryHint shouldAdd appState response = do
+  delay <- AppState.getRetryNextIn appState
+  let h = ("Retry-After", BS8.pack $ show delay)
+  return $ Wai.mapResponseHeaders (\hs -> if shouldAdd then h:hs else hs) response
 
 postgrestResponse
   :: AppConfig

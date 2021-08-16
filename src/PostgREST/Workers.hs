@@ -144,6 +144,7 @@ connectionStatus appState =
         "Attempting to reconnect to the database in "
         <> (show delay::Text)
         <> " seconds..."
+      when itShould $ AppState.putRetryNextIn appState delay
       return itShould
 
 -- | Load the DbStructure by using a connection from the pool.

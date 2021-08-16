@@ -10,6 +10,7 @@ module PostgREST.AppState
   , getPgVersion
   , getPool
   , getTime
+  , getRetryNextIn
   , init
   , initWithPool
   , logWithZTime
@@ -18,6 +19,7 @@ module PostgREST.AppState
   , putIsWorkerOn
   , putJsonDbS
   , putPgVersion
+  , putRetryNextIn
   , releasePool
   , signalListener
   , waitListener
@@ -60,6 +62,8 @@ data AppState = AppState
   , stateGetZTime     :: IO ZonedTime
   -- | Used for killing the main thread in case a subthread fails
   , stateMainThreadId :: ThreadId
+  -- | Keeps track of when the next retry for connecting to database is scheduled
+  , stateRetryNextIn  :: IORef Int
   }
 
 init :: AppConfig -> IO AppState
@@ -79,6 +83,7 @@ initWithPool newPool conf =
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
     <*> myThreadId
+    <*> newIORef 0
 
 initPool :: AppConfig -> IO P.Pool
 initPool AppConfig{..} =
@@ -114,6 +119,12 @@ getIsWorkerOn = readIORef . stateIsWorkerOn
 
 putIsWorkerOn :: AppState -> Bool -> IO ()
 putIsWorkerOn = atomicWriteIORef . stateIsWorkerOn
+
+getRetryNextIn :: AppState -> IO Int
+getRetryNextIn = readIORef . stateRetryNextIn
+
+putRetryNextIn :: AppState -> Int -> IO ()
+putRetryNextIn = atomicWriteIORef . stateRetryNextIn
 
 getConfig :: AppState -> IO AppConfig
 getConfig = readIORef . stateConf
