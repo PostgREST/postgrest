@@ -23,7 +23,7 @@ import Data.Tree (Tree (..))
 
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier (..))
-import PostgREST.DbStructure.Proc         (PgArg (..))
+import PostgREST.DbStructure.Proc         (ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Table (..))
@@ -118,34 +118,34 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
   (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
   H.sql (returningF mainQi returnings)
 
-requestToCallProcQuery :: QualifiedIdentifier -> [PgArg] -> Maybe PayloadJSON -> Bool -> Maybe PreferParameters -> [FieldName] -> H.Snippet
-requestToCallProcQuery qi pgArgs pj returnsScalar preferParams returnings =
-  argsCTE <> sourceBody
+requestToCallProcQuery :: QualifiedIdentifier -> [ProcParam] -> Maybe PayloadJSON -> Bool -> Maybe PreferParameters -> [FieldName] -> H.Snippet
+requestToCallProcQuery qi procParams pj returnsScalar preferParams returnings =
+  prmsCTE <> sourceBody
   where
     body = pjRaw <$> pj
     paramsAsSingleObject    = preferParams == Just SingleObject
     paramsAsMultipleObjects = preferParams == Just MultipleObjects
 
-    (argsCTE, args)
-      | null pgArgs = (mempty, mempty)
+    (prmsCTE, args)
+      | null procParams = (mempty, mempty)
       | paramsAsSingleObject = ("WITH pgrst_args AS (SELECT NULL)", jsonPlaceHolder body)
       | otherwise = (
           "WITH " <> normalizedBody body <> ", " <>
           H.sql (
             BS.unwords [
             "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtArgs (const mempty) (\a -> " " <> encodeUtf8 (pgaType a)) <> ")",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
             ")"])
          , H.sql $ if paramsAsMultipleObjects
-             then fmtArgs varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (pgaName a))
-             else fmtArgs varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (pgaName a) <> " FROM pgrst_args LIMIT 1)")
+             then fmtParams varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
+             else fmtParams varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
         )
 
-    fmtArgs :: (PgArg -> SqlFragment) -> (PgArg -> SqlFragment) -> SqlFragment
-    fmtArgs argFragPre argFragSuf = BS.intercalate ", " ((\a -> argFragPre a <> pgFmtIdent (pgaName a) <> argFragSuf a) <$> pgArgs)
+    fmtParams :: (ProcParam -> SqlFragment) -> (ProcParam -> SqlFragment) -> SqlFragment
+    fmtParams prmFragPre prmFragSuf = BS.intercalate ", " ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> procParams)
 
-    varadicPrefix :: PgArg -> SqlFragment
-    varadicPrefix a = if pgaVar a then "VARIADIC " else mempty
+    varadicPrefix :: ProcParam -> SqlFragment
+    varadicPrefix a = if ppVar a then "VARIADIC " else mempty
 
     sourceBody :: H.Snippet
     sourceBody

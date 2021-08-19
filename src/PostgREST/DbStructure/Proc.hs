@@ -2,16 +2,16 @@
 {-# LANGUAGE DeriveGeneric  #-}
 
 module PostgREST.DbStructure.Proc
-  ( PgArg(..)
-  , PgType(..)
+  ( PgType(..)
   , ProcDescription(..)
+  , ProcParam(..)
   , ProcVolatility(..)
   , ProcsMap
   , RetType(..)
   , procReturnsScalar
   , procReturnsSingle
   , procTableName
-  , specifiedProcArgs
+  , specifiedProcParams
   ) where
 
 import qualified Data.Aeson          as JSON
@@ -23,15 +23,6 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema, TableName)
 
 import Protolude
-
-
-data PgArg = PgArg
-  { pgaName :: Text
-  , pgaType :: Text
-  , pgaReq  :: Bool
-  , pgaVar  :: Bool
-  }
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data PgType
   = Scalar
@@ -53,19 +44,27 @@ data ProcDescription = ProcDescription
   { pdSchema      :: Schema
   , pdName        :: Text
   , pdDescription :: Maybe Text
-  , pdArgs        :: [PgArg]
+  , pdParams      :: [ProcParam]
   , pdReturnType  :: RetType
   , pdVolatility  :: ProcVolatility
   , pdHasVariadic :: Bool
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
--- Order by least number of args in the case of overloaded functions
+data ProcParam = ProcParam
+  { ppName :: Text
+  , ppType :: Text
+  , ppReq  :: Bool
+  , ppVar  :: Bool
+  }
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
+
+-- Order by least number of params in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription schema1 name1 des1 args1 rt1 vol1 hasVar1 `compare` ProcDescription schema2 name2 des2 args2 rt2 vol2 hasVar2
-    | schema1 == schema2 && name1 == name2 && length args1 < length args2  = LT
-    | schema2 == schema2 && name1 == name2 && length args1 > length args2  = GT
-    | otherwise = (schema1, name1, des1, args1, rt1, vol1, hasVar1) `compare` (schema2, name2, des2, args2, rt2, vol2, hasVar2)
+  ProcDescription schema1 name1 des1 prms1 rt1 vol1 hasVar1 `compare` ProcDescription schema2 name2 des2 prms2 rt2 vol2 hasVar2
+    | schema1 == schema2 && name1 == name2 && length prms1 < length prms2  = LT
+    | schema2 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
+    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.
@@ -75,9 +74,9 @@ type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
   Search the procedure parameters by matching them with the specified keys.
   If the key doesn't match a parameter, a parameter with a default type "text" is assumed.
 -}
-specifiedProcArgs :: S.Set FieldName -> ProcDescription -> [PgArg]
-specifiedProcArgs keys proc =
-  (\k -> fromMaybe (PgArg k "text" True False) (find ((==) k . pgaName) (pdArgs proc))) <$> S.toList keys
+specifiedProcParams :: S.Set FieldName -> ProcDescription -> [ProcParam]
+specifiedProcParams keys proc =
+  (\k -> fromMaybe (ProcParam k "text" True False) (find ((==) k . ppName) (pdParams proc))) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of

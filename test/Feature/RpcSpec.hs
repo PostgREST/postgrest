@@ -107,7 +107,7 @@ spec actualPgVersion =
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
-          "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+          "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
           "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
@@ -119,8 +119,8 @@ spec actualPgVersion =
           [json|{}|]
         `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
-            "message":"Could not find the test.sayhello function with a single json or jsonb argument in the schema cache" } |]
+            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+            "message":"Could not find the test.sayhello function with a single json or jsonb parameter in the schema cache" } |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -128,24 +128,24 @@ spec actualPgVersion =
       it "should fail with 404 for overloaded functions with unknown args" $ do
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
             "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache" } |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
             "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache" } |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
 
-    context "ambiguous overloaded functions with same arguments but different types" $ do
-      it "should fail with 300 Multiple Choices without explicit argument type casts" $
+    context "ambiguous overloaded functions with same parameters' names but different types" $ do
+      it "should fail with 300 Multiple Choices without explicit type casts" $
         get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
           [json| {
-            "hint":"Overloaded functions with the same argument name but different types are not supported",
+            "hint":"Overloaded functions with the same parameter name but different types are not supported",
             "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)" } |]
           { matchStatus  = 300
           , matchHeaders = [matchContentTypeJson]

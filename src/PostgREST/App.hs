@@ -442,7 +442,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (returnsSingle iTarget)
         (QueryBuilder.requestToCallProcQuery
           (QualifiedIdentifier (pdSchema proc) (pdName proc))
-          (Proc.specifiedProcArgs iColumns proc)
+          (Proc.specifiedProcParams iColumns proc)
           iPayload
           (returnsScalar iTarget)
           iPreferParameters

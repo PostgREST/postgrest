@@ -51,9 +51,8 @@ import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.DbStructure.Proc        (PgArg (..),
-                                          ProcDescription (..),
-                                          ProcsMap)
+import PostgREST.DbStructure.Proc        (ProcDescription (..),
+                                          ProcParam (..), ProcsMap)
 import PostgREST.Error                   (ApiRequestError (..))
 import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -119,15 +118,15 @@ instance JSON.ToJSON RpcParamValue where
   toJSON (Variadic v) = JSON.toJSON v
 
 toRpcParamValue :: ProcDescription -> (Text, Text) -> (Text, RpcParamValue)
-toRpcParamValue proc (k, v) | argIsVariadic k = (k, Variadic [v])
+toRpcParamValue proc (k, v) | prmIsVariadic k = (k, Variadic [v])
                             | otherwise       = (k, Fixed v)
   where
-    argIsVariadic arg = isJust $ find (\PgArg{pgaName, pgaVar} -> pgaName == arg && pgaVar) $ pdArgs proc
+    prmIsVariadic prm = isJust $ find (\ProcParam{ppName, ppVar} -> ppName == prm && ppVar) $ pdParams proc
 
 -- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 jsonRpcParams :: ProcDescription -> [(Text, Text)] -> PayloadJSON
 jsonRpcParams proc prms =
-  if not $ pdHasVariadic proc then -- if proc has no variadic arg, save steps and directly convert to json
+  if not $ pdHasVariadic proc then -- if proc has no variadic param, save steps and directly convert to json
     ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
   else
     let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
@@ -135,7 +134,7 @@ jsonRpcParams proc prms =
   where
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
-    mergeParams v _                       = v -- repeated params for non-variadic arguments are not merged
+    mergeParams v _                       = v -- repeated params for non-variadic parameters are not merged
 
 targetToJsonRpcParams :: Maybe Target -> [(Text, Text)] -> Maybe PayloadJSON
 targetToJsonRpcParams target params =
@@ -480,37 +479,33 @@ rawContentTypes AppConfig{..} =
   (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
 
 {-|
-  Search a pg procedure by its parameters. Since a function can be overloaded, the name is not enough to find it.
-  An overloaded function can have a different volatility or even a different return type.
+  Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
+  the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
 -}
 findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> Either ApiRequestError ProcDescription
-findProc qi payloadKeys paramsAsSingleObject allProcs =
-  case bestMatch of
-    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList payloadKeys) paramsAsSingleObject
+findProc qi argumentsKeys paramsAsSingleObject allProcs =
+  case matchProc of
+    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject
     [proc] -> Right proc
     procs  -> Left $ AmbiguousRpc (toList procs)
   where
-    bestMatch =
-      case M.lookup qi allProcs of
-        Nothing     -> []
-        Just [proc] -> [proc | matches proc]
-        Just procs  -> filter matches procs
-    -- Find the exact arguments match
-    matches proc
-      | paramsAsSingleObject = case pdArgs proc of
-                               [arg] -> pgaType arg `elem` ["json", "jsonb"]
-                               _     -> False
-      | otherwise            = case pdArgs proc of
-                               []   -> null payloadKeys
-                               args -> matchesArg args
-    matchesArg args =
-      -- The function's required arguments are separated from the ones with a default value assigned.
-      -- The set of names of those arguments is compared to the set of keys supplied by the client
-      -- 1. If only required arguments are found, the keys must be exactly the same as those arguments
-      -- 2. If only optional arguments are found, the keys must be a subset of those arguments
-      -- 3. If both required and optional arguments are found, the result of taking away the optional arguments
-      --    from the keys must be exactly the same as the required arguments
-      case L.partition pgaReq args of
-        (reqArgs, [])      -> payloadKeys == S.fromList (pgaName <$> reqArgs)
-        ([], defArgs)      -> payloadKeys `S.isSubsetOf` S.fromList (pgaName <$> defArgs)
-        (reqArgs, defArgs) -> payloadKeys `S.difference` S.fromList (pgaName <$> defArgs) == S.fromList (pgaName <$> reqArgs)
+    matchProc = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchesParams proc =
+      let params = pdParams proc in
+      -- here we don't match by argument key(there isn't one) but by the single parameter type
+      if paramsAsSingleObject then
+        case params of
+          [prm] -> ppType prm `elem` ["json", "jsonb"]
+          _     -> False
+      -- A function has optional and required parameters. Optional parameters have a default value and
+      -- don't require arguments for the function to be executed, required parameters must have an argument present.
+      else case L.partition ppReq params of
+      -- If the function has no parameters, the arguments keys must be empty as well
+        ([], [])               -> null argumentsKeys
+      -- If the function only has required parameters, the arguments keys must match those parameters
+        (reqParams, [])        -> argumentsKeys == S.fromList (ppName <$> reqParams)
+      -- If the function only has optional parameters, the arguments keys can match none or any of them(a subset)
+        ([], optParams)        -> argumentsKeys `S.isSubsetOf` S.fromList (ppName <$> optParams)
+      -- If the function has required and optional parameters, the arguments keys have to match the required parameters
+      -- and can match any or none of the default parameters.
+        (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)

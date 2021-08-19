@@ -29,8 +29,8 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ContentType (ContentType (..))
 import qualified PostgREST.ContentType as ContentType
 
-import PostgREST.DbStructure.Proc         (PgArg (..),
-                                           ProcDescription (..))
+import PostgREST.DbStructure.Proc         (ProcDescription (..),
+                                           ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
@@ -99,11 +99,15 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
-    "hint"    .= ("Overloaded functions with the same argument name but different types are not supported" :: Text),
-    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [pgaName a <> " => " <> pgaType a | a <- pdArgs p] <> ")" | p <- procs])]
+    "hint"    .= ("Overloaded functions with the same parameter name but different types are not supported" :: Text),
+    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs])]
   toJSON (NoRpc schema procName payloadKeys hasPreferSingleObject)  = JSON.object [
-    "hint"    .= ("If a new function was created in the database with this name and arguments, try reloading the schema cache." :: Text),
-    "message" .= ("Could not find the " <> schema <> "." <> procName <> (if hasPreferSingleObject then " function with a single json or jsonb argument" else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function") <> " in the schema cache")]
+    "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text),
+    "message" .= ("Could not find the " <> schema <> "." <> procName <>
+      (if hasPreferSingleObject
+        then " function with a single json or jsonb parameter"
+        else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function") <>
+      " in the schema cache")]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [
