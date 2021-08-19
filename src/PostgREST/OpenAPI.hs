@@ -27,8 +27,8 @@ import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
 import PostgREST.DbStructure              (DbStructure (..),
                                            tableCols, tablePKCols)
-import PostgREST.DbStructure.Proc         (PgArg (..),
-                                           ProcDescription (..))
+import PostgREST.DbStructure.Proc         (ProcDescription (..),
+                                           ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            PrimaryKey (..),
                                            Relationship (..))
@@ -130,11 +130,11 @@ makeProcSchema pd =
   (mempty :: Schema)
   & description .~ pdDescription pd
   & type_ ?~ SwaggerObject
-  & properties .~ fromList (fmap makeProcProperty (pdArgs pd))
-  & required .~ fmap pgaName (filter pgaReq (pdArgs pd))
+  & properties .~ fromList (fmap makeProcProperty (pdParams pd))
+  & required .~ fmap ppName (filter ppReq (pdParams pd))
 
-makeProcProperty :: PgArg -> (Text, Referenced Schema)
-makeProcProperty (PgArg n t _ _) = (n, Inline s)
+makeProcProperty :: ProcParam -> (Text, Referenced Schema)
+makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ ?~ toSwaggerType t

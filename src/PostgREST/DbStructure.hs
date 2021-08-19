@@ -43,8 +43,9 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
-import PostgREST.DbStructure.Proc         (PgArg (..), PgType (..),
+import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcDescription (..),
+                                           ProcParam (..),
                                            ProcVolatility (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
@@ -192,7 +193,7 @@ decodeProcs =
               <*> column HD.text
               <*> nullableColumn HD.text
               <*> compositeArrayColumn
-                  (PgArg
+                  (ProcParam
                   <$> compositeField HD.text
                   <*> compositeField HD.text
                   <*> compositeField HD.bool
