@@ -11,15 +11,12 @@ module PostgREST.DbStructure.Proc
   , procReturnsScalar
   , procReturnsSingle
   , procTableName
-  , specifiedProcParams
   ) where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
-import qualified Data.Set            as S
 
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
 
 import Protolude
@@ -69,14 +66,6 @@ instance Ord ProcDescription where
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.
 type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
-
-{-|
-  Search the procedure parameters by matching them with the specified keys.
-  If the key doesn't match a parameter, a parameter with a default type "text" is assumed.
--}
-specifiedProcParams :: S.Set FieldName -> ProcDescription -> [ProcParam]
-specifiedProcParams keys proc =
-  (\k -> fromMaybe (ProcParam k "text" True False) (find ((==) k . ppName) (pdParams proc))) <$> S.toList keys
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of

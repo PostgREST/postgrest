@@ -18,7 +18,7 @@ resource.
 module PostgREST.Request.DbRequestBuilder
   ( readRequest
   , mutateRequest
-  , returningCols
+  , callRequest
   ) where
 
 import qualified Data.HashMap.Strict as M
@@ -33,6 +33,9 @@ import Data.Tree               (Tree (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
                                            Schema, TableName)
+import PostgREST.DbStructure.Proc         (ProcDescription (..),
+                                           ProcParam (..),
+                                           procReturnsScalar)
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
@@ -342,6 +345,23 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
     body = pjRaw <$> iPayload apiRequest
+
+callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest
+callRequest proc apiReq readReq = FunctionCall {
+  funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
+, funCParams = specifiedParams
+, funCArgs = pjRaw <$> iPayload apiReq
+, funCScalar = procReturnsScalar proc
+, funCMultipleCall = iPreferParameters apiReq == Just MultipleObjects
+, funCSingleParam = paramsAsSingleObject
+, funCReturning = returningCols readReq []
+}
+  where
+    paramsAsSingleObject = iPreferParameters apiReq == Just SingleObject
+    specifiedParams =
+      if paramsAsSingleObject
+        then pdParams proc
+        else filter (\x -> ppName x `S.member` iColumns apiReq) $ pdParams proc
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols

@@ -6,6 +6,8 @@ module PostgREST.Request.Types
   , EmbedPath
   , Field
   , Filter(..)
+  , CallQuery(..)
+  , CallRequest
   , JoinCondition(..)
   , JsonOperand(..)
   , JsonOperation(..)
@@ -38,6 +40,7 @@ import qualified GHC.Show (show)
 
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
+import PostgREST.DbStructure.Proc         (ProcParam)
 import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.Request.Preferences      (PreferResolution)
@@ -47,6 +50,7 @@ import Protolude
 
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
+type CallRequest = CallQuery
 
 type ReadNode =
   (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe EmbedHint, Depth))
@@ -120,6 +124,16 @@ data MutateQuery
       , where_    :: [LogicTree]
       , returning :: [FieldName]
       }
+
+data CallQuery = FunctionCall
+  { funCQi           :: QualifiedIdentifier
+  , funCParams       :: [ProcParam]
+  , funCArgs         :: Maybe BL.ByteString
+  , funCScalar       :: Bool
+  , funCMultipleCall :: Bool
+  , funCSingleParam  :: Bool
+  , funCReturning    :: [FieldName]
+  }
 
 -- | The select value in `/tbl?select=alias:field::cast`
 type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)

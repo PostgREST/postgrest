@@ -21,15 +21,12 @@ import qualified Hasql.DynamicStatements.Snippet as H
 
 import Data.Tree (Tree (..))
 
-import PostgREST.DbStructure.Identifiers  (FieldName,
-                                           QualifiedIdentifier (..))
+import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Table (..))
-import PostgREST.Request.ApiRequest       (PayloadJSON (..))
-import PostgREST.Request.Preferences      (PreferParameters (..),
-                                           PreferResolution (..))
+import PostgREST.Request.Preferences      (PreferResolution (..))
 
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Types
@@ -118,38 +115,34 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
   (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
   H.sql (returningF mainQi returnings)
 
-requestToCallProcQuery :: QualifiedIdentifier -> [ProcParam] -> Maybe PayloadJSON -> Bool -> Maybe PreferParameters -> [FieldName] -> H.Snippet
-requestToCallProcQuery qi procParams pj returnsScalar preferParams returnings =
-  prmsCTE <> sourceBody
+requestToCallProcQuery :: CallRequest -> H.Snippet
+requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall singleParam returnings) =
+  prmsCTE <> argsBody
   where
-    body = pjRaw <$> pj
-    paramsAsSingleObject    = preferParams == Just SingleObject
-    paramsAsMultipleObjects = preferParams == Just MultipleObjects
-
-    (prmsCTE, args)
-      | null procParams = (mempty, mempty)
-      | paramsAsSingleObject = ("WITH pgrst_args AS (SELECT NULL)", jsonPlaceHolder body)
+    (prmsCTE, argFrag)
+      | null params = (mempty, mempty)
+      | singleParam = ("WITH pgrst_args AS (SELECT NULL)", jsonPlaceHolder args)
       | otherwise = (
-          "WITH " <> normalizedBody body <> ", " <>
+          "WITH " <> normalizedBody args <> ", " <>
           H.sql (
             BS.unwords [
             "pgrst_args AS (",
               "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
             ")"])
-         , H.sql $ if paramsAsMultipleObjects
+         , H.sql $ if multipleCall
              then fmtParams varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
              else fmtParams varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
         )
 
     fmtParams :: (ProcParam -> SqlFragment) -> (ProcParam -> SqlFragment) -> SqlFragment
-    fmtParams prmFragPre prmFragSuf = BS.intercalate ", " ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> procParams)
+    fmtParams prmFragPre prmFragSuf = BS.intercalate ", " ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> params)
 
     varadicPrefix :: ProcParam -> SqlFragment
     varadicPrefix a = if ppVar a then "VARIADIC " else mempty
 
-    sourceBody :: H.Snippet
-    sourceBody
-      | paramsAsMultipleObjects =
+    argsBody :: H.Snippet
+    argsBody
+      | multipleCall =
           if returnsScalar
             then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
             else "SELECT pgrst_lat_args.* FROM pgrst_args, " <>
@@ -160,7 +153,7 @@ requestToCallProcQuery qi procParams pj returnsScalar preferParams returnings =
             else "SELECT " <> returnedColumns <> " FROM " <> callIt
 
     callIt :: H.Snippet
-    callIt = H.sql (fromQi qi) <> "(" <> args <> ")"
+    callIt = H.sql (fromQi qi) <> "(" <> argFrag <> ")"
 
     returnedColumns :: H.Snippet
     returnedColumns
