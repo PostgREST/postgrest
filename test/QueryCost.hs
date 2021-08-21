@@ -15,11 +15,10 @@ import Protolude      hiding (get, toS)
 import Protolude.Conv (toS)
 
 import PostgREST.Query.QueryBuilder (requestToCallProcQuery)
-import PostgREST.Request.ApiRequest (PayloadJSON (..))
+import PostgREST.Request.Types      (CallQuery (..))
 
 import PostgREST.DbStructure.Identifiers
 import PostgREST.DbStructure.Proc
-import PostgREST.Request.Preferences
 
 import SpecHelper (getEnvVarWithDefault)
 
@@ -34,29 +33,30 @@ main = do
     context "call proc query" $ do
       it "should not exceed cost when calling setof composite proc" $ do
         cost <- exec pool $
-          requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [ProcParam "id" "int" True False]
-          (Just $ RawJSON [str| {"id": 3} |]) False Nothing []
+          requestToCallProcQuery (FunctionCall (QualifiedIdentifier "test" "get_projects_below") [ProcParam "id" "int" True False]
+          (Just [str| {"id": 3} |]) False False False [])
         liftIO $
           cost `shouldSatisfy` (< Just 40)
 
       it "should not exceed cost when calling setof composite proc with empty params" $ do
         cost <- exec pool $
-          requestToCallProcQuery (QualifiedIdentifier "test" "getallprojects") [] Nothing False Nothing []
+          requestToCallProcQuery (FunctionCall (QualifiedIdentifier "test" "getallprojects") [] Nothing False False False [])
         liftIO $
           cost `shouldSatisfy` (< Just 30)
 
       it "should not exceed cost when calling scalar proc" $ do
         cost <- exec pool $
-          requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [ProcParam "a" "int" True False, ProcParam "b" "int" True False]
-          (Just $ RawJSON [str| {"a": 3, "b": 4} |]) True Nothing []
+          requestToCallProcQuery (FunctionCall (QualifiedIdentifier "test" "add_them")
+          [ProcParam "a" "int" True False, ProcParam "b" "int" True False]
+          (Just [str| {"a": 3, "b": 4} |]) True False False [])
         liftIO $
           cost `shouldSatisfy` (< Just 10)
 
       context "params=multiple-objects" $ do
         it "should not exceed cost when calling setof composite proc" $ do
           cost <- exec pool $
-            requestToCallProcQuery (QualifiedIdentifier "test" "get_projects_below") [ProcParam "id" "int" True False]
-            (Just $ RawJSON [str| [{"id": 1}, {"id": 4}] |]) False (Just MultipleObjects) []
+            requestToCallProcQuery (FunctionCall (QualifiedIdentifier "test" "get_projects_below") [ProcParam "id" "int" True False]
+            (Just [str| [{"id": 1}, {"id": 4}] |]) False True False [])
           liftIO $ do
             -- lower bound needed for now to make sure that cost is not Nothing
             cost `shouldSatisfy` (> Just 2000)
@@ -64,8 +64,9 @@ main = do
 
         it "should not exceed cost when calling scalar proc" $ do
           cost <- exec pool $
-            requestToCallProcQuery (QualifiedIdentifier "test" "add_them") [ProcParam "a" "int" True False, ProcParam "b" "int" True False]
-            (Just $ RawJSON [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |]) True Nothing []
+            requestToCallProcQuery (FunctionCall (QualifiedIdentifier "test" "add_them")
+            [ProcParam "a" "int" True False, ProcParam "b" "int" True False]
+            (Just [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |]) True False False [])
           liftIO $
             cost `shouldSatisfy` (< Just 10)
 

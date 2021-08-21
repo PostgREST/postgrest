@@ -429,25 +429,17 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-    returnsSingle (ApiRequest.TargetProc target _) = Proc.procReturnsSingle target
-    returnsSingle _                                = False
-
   req <- readRequest identifier context
   bField <- binaryField context req
+
+  let callReq = ReqBuilder.callRequest proc ctxApiRequest req
 
   (tableTotal, queryTotal, body, gucHeaders, gucStatus) <-
     lift . SQL.statement mempty $
       Statements.callProcStatement
-        (returnsScalar iTarget)
-        (returnsSingle iTarget)
-        (QueryBuilder.requestToCallProcQuery
-          (QualifiedIdentifier (pdSchema proc) (pdName proc))
-          (Proc.specifiedProcParams iColumns proc)
-          iPayload
-          (returnsScalar iTarget)
-          iPreferParameters
-          (ReqBuilder.returningCols req [])
-        )
+        (Proc.procReturnsScalar proc)
+        (Proc.procReturnsSingle proc)
+        (QueryBuilder.requestToCallProcQuery callReq)
         (QueryBuilder.readRequestToQuery req)
         (QueryBuilder.readRequestToCountQuery req)
         (shouldCount iPreferCount)
