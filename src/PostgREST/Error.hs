@@ -60,7 +60,7 @@ data ApiRequestError
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
-  | NoRpc Text Text [Text] Bool
+  | NoRpc Text Text [Text] Bool ContentType Bool
   | InvalidFilters
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
@@ -99,14 +99,18 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
-    "hint"    .= ("Overloaded functions with the same parameter name but different types are not supported" :: Text),
+    "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text),
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs])]
-  toJSON (NoRpc schema procName payloadKeys hasPreferSingleObject)  = JSON.object [
+  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
+    let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text),
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
-      (if hasPreferSingleObject
-        then " function with a single json or jsonb parameter"
-        else "(" <> T.intercalate ", " payloadKeys <> ")" <> " function") <>
+      (case (hasPreferSingleObject, isInvPost, contentType) of
+        (True, _, _)                 -> " function with a single json or jsonb parameter"
+        (_, True, CTTextPlain)       -> " function with a single unnamed text parameter"
+        (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
+        (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
+        _                            -> prms <> " function") <>
       " in the schema cache")]
   toJSON UnsupportedVerb = JSON.object [
     "message" .= ("Unsupported HTTP verb" :: Text)]

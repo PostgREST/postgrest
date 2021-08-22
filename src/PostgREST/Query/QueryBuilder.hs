@@ -116,26 +116,27 @@ mutateRequestToQuery (Delete mainQi logicForest returnings) =
   H.sql (returningF mainQi returnings)
 
 requestToCallProcQuery :: CallRequest -> H.Snippet
-requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall singleParam returnings) =
+requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
   prmsCTE <> argsBody
   where
-    (prmsCTE, argFrag)
-      | null params = (mempty, mempty)
-      | singleParam = ("WITH pgrst_args AS (SELECT NULL)", jsonPlaceHolder args)
-      | otherwise = (
+    (prmsCTE, argFrag) = case params of
+      OnePosParam prm -> ("WITH pgrst_args AS (SELECT NULL)", singleParameter args (encodeUtf8 $ ppType prm))
+      KeyParams []    -> (mempty, mempty)
+      KeyParams prms  -> (
           "WITH " <> normalizedBody args <> ", " <>
           H.sql (
             BS.unwords [
             "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
+              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams prms (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
             ")"])
          , H.sql $ if multipleCall
-             then fmtParams varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
-             else fmtParams varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
+             then fmtParams prms varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
+             else fmtParams prms varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
         )
 
-    fmtParams :: (ProcParam -> SqlFragment) -> (ProcParam -> SqlFragment) -> SqlFragment
-    fmtParams prmFragPre prmFragSuf = BS.intercalate ", " ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> params)
+    fmtParams :: [ProcParam] -> (ProcParam -> SqlFragment) -> (ProcParam -> SqlFragment) -> SqlFragment
+    fmtParams prms prmFragPre prmFragSuf = BS.intercalate ", "
+      ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> prms)
 
     varadicPrefix :: ProcParam -> SqlFragment
     varadicPrefix a = if ppVar a then "VARIADIC " else mempty

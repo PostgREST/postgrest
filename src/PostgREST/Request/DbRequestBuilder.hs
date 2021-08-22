@@ -48,7 +48,7 @@ import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            restrictRange)
 import PostgREST.Request.ApiRequest       (Action (..),
                                            ApiRequest (..),
-                                           PayloadJSON (..))
+                                           Payload (..))
 
 import PostgREST.Request.Parsers
 import PostgREST.Request.Preferences
@@ -344,24 +344,25 @@ mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
     -- update/delete filters can be only on the root table
     (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
     onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
-    body = pjRaw <$> iPayload apiRequest
+    body = payRaw <$> iPayload apiRequest -- the body is assumed to be json at this stage(ApiRequest validates)
 
 callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest
 callRequest proc apiReq readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
-, funCParams = specifiedParams
-, funCArgs = pjRaw <$> iPayload apiReq
+, funCParams = callParams
+, funCArgs = payRaw <$> iPayload apiReq
 , funCScalar = procReturnsScalar proc
 , funCMultipleCall = iPreferParameters apiReq == Just MultipleObjects
-, funCSingleParam = paramsAsSingleObject
 , funCReturning = returningCols readReq []
 }
   where
     paramsAsSingleObject = iPreferParameters apiReq == Just SingleObject
-    specifiedParams =
-      if paramsAsSingleObject
-        then pdParams proc
-        else filter (\x -> ppName x `S.member` iColumns apiReq) $ pdParams proc
+    callParams = case pdParams proc of
+      [prm] | paramsAsSingleObject -> OnePosParam prm
+            | ppName prm == mempty -> OnePosParam prm
+            | otherwise            -> KeyParams $ specifiedParams [prm]
+      prms  -> KeyParams $ specifiedParams prms
+    specifiedParams params = filter (\x -> ppName x `S.member` iColumns apiReq) params
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols
