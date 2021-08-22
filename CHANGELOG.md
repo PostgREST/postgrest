@@ -9,10 +9,17 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1783, Include partitioned tables into the schema cache. Allows embedding, UPSERT, INSERT with Location response, OPTIONS request and OpenAPI support for partitioned tables - @laurenceisla
  - #1878, Add Retry-After hint header when in recovery mode - @gautam1168
- 
+ - #1735, Allow calling function with single unnamed param through RPC POST. - @steve-chavez
+   + Enables calling a function with a single json parameter without using `Prefer: params=single-object`
+   + Enables uploading bytea to a function with `Content-Type: application/octet-stream`
+   + Enables uploading raw text to a function with `Content-Type: text/plain`
+
 ### Fixed
 
  - #1871, Fix OpenAPI missing default values for String types and identify Array types as "array" instead of "string" - @laurenceisla
+### Changed
+
+ - #1927, Overloaded Functions: If there's a function "my_func" having a single unnamed json param and other overloaded pairs(with any number of params), PostgREST won't be able to resolve a POST request to "my_func". For solving this, you can name the unnamed json param `my_func(json) -> my_func(prm json)`.
 
 ## [8.0.0] - 2021-07-25
 

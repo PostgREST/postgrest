@@ -7,6 +7,7 @@ module PostgREST.Request.Types
   , Field
   , Filter(..)
   , CallQuery(..)
+  , CallParams(..)
   , CallRequest
   , JoinCondition(..)
   , JsonOperand(..)
@@ -40,7 +41,7 @@ import qualified GHC.Show (show)
 
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
-import PostgREST.DbStructure.Proc         (ProcParam)
+import PostgREST.DbStructure.Proc         (ProcParam (..))
 import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.Request.Preferences      (PreferResolution)
@@ -127,13 +128,16 @@ data MutateQuery
 
 data CallQuery = FunctionCall
   { funCQi           :: QualifiedIdentifier
-  , funCParams       :: [ProcParam]
+  , funCParams       :: CallParams
   , funCArgs         :: Maybe BL.ByteString
   , funCScalar       :: Bool
   , funCMultipleCall :: Bool
-  , funCSingleParam  :: Bool
   , funCReturning    :: [FieldName]
   }
+
+data CallParams
+  = KeyParams [ProcParam] -- ^ Call with key params: func(a := val1, b:= val2)
+  | OnePosParam ProcParam -- ^ Call with positional params(only one supported): func(val)
 
 -- | The select value in `/tbl?select=alias:field::cast`
 type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)

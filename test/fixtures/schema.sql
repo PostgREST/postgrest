@@ -1050,7 +1050,7 @@ create function test.ret_point_overloaded(x int, y int) returns test.point_2d as
   select row(x, y)::test.point_2d;
 $$ language sql;
 
-create function test.ret_point_overloaded(json) returns json as $$
+create function test.ret_point_overloaded(x json) returns json as $$
   select $1;
 $$ language sql;
 
@@ -2252,3 +2252,27 @@ A test for partitioned tables$$;
       );
     end if;
 end$do$;
+
+create or replace function test.unnamed_json_param(json) returns json as $$
+  select $1;
+$$ language sql;
+
+create or replace function test.unnamed_text_param(text) returns text as $$
+  select $1;
+$$ language sql ;
+
+create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
+  select $1::bytea;
+$$ language sql ;
+
+create or replace function test.unnamed_int_param(int) returns int as $$
+  select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param(json) returns int as $$
+  select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param(x int, y int) returns int as $$
+  select x + y;
+$$ language sql;

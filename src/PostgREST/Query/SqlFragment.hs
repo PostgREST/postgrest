@@ -16,7 +16,6 @@ module PostgREST.Query.SqlFragment
   , countF
   , fromQi
   , ftsOperators
-  , jsonPlaceHolder
   , limitOffsetF
   , locationF
   , normalizedBody
@@ -31,6 +30,7 @@ module PostgREST.Query.SqlFragment
   , responseStatusF
   , returningF
   , selectBody
+  , singleParameter
   , sourceCTEName
   , unknownEncoder
   , intercalateSnippet
@@ -105,9 +105,10 @@ ftsOperators = HM.fromList [
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
 -- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
 -- We do this in SQL to avoid processing the JSON in application code
+-- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 normalizedBody :: Maybe BL.ByteString -> H.Snippet
 normalizedBody body =
-  "pgrst_payload AS (SELECT " <> jsonPlaceHolder body <> " AS json_data), " <>
+  "pgrst_payload AS (SELECT " <> jsonPlaceHolder <> " AS json_data), " <>
   H.sql (BS.unwords [
     "pgrst_body AS (",
       "SELECT",
@@ -116,12 +117,14 @@ normalizedBody body =
           "ELSE json_build_array(json_data)",
         "END AS val",
       "FROM pgrst_payload)"])
+  where
+    jsonPlaceHolder = H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::json"
 
--- | Equivalent to "$1::json"
--- | TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-jsonPlaceHolder :: Maybe BL.ByteString -> H.Snippet
-jsonPlaceHolder body =
-  H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::json"
+singleParameter :: Maybe BL.ByteString -> ByteString -> H.Snippet
+singleParameter body typ =
+  if typ == "bytea"
+    then H.encoderAndParam (HE.nullable HE.bytea) (toS <$> body) -- needed because bytea fails with HE.unknown(pg tries to utf8 encode)
+    else H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::" <> H.sql typ
 
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"

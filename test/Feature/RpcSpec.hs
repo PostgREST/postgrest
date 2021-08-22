@@ -1,11 +1,12 @@
 module Feature.RpcSpec where
 
-import qualified Data.ByteString.Lazy as BL (empty)
+import qualified Data.ByteString.Lazy as BL (empty, readFile)
 
 import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
+import System.IO.Unsafe    (unsafePerformIO)
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -145,8 +146,8 @@ spec actualPgVersion =
       it "should fail with 300 Multiple Choices without explicit type casts" $
         get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
           [json| {
-            "hint":"Overloaded functions with the same parameter name but different types are not supported",
-            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)" } |]
+            "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
+            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)"}|]
           { matchStatus  = 300
           , matchHeaders = [matchContentTypeJson]
           }
@@ -1059,3 +1060,76 @@ spec actualPgVersion =
             { matchStatus  = 500
             , matchHeaders = [ matchContentTypeJson ]
             }
+
+      context "single unnamed param" $ do
+        it "can insert json directly" $
+          post "/rpc/unnamed_json_param"
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
+              [json|{"A": 1, "B": 2, "C": 3}|]
+
+        it "can insert text directly" $
+          request methodPost "/rpc/unnamed_text_param"
+            [("Content-Type", "text/plain"), ("Accept", "text/plain")]
+            [str|unnamed text arg|]
+            `shouldRespondWith`
+            [str|unnamed text arg|]
+
+        it "can insert bytea directly" $ do
+          let file = unsafePerformIO $ BL.readFile "test/C.png"
+          r <- request methodPost "/rpc/unnamed_bytea_param"
+            [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
+            file
+          liftIO $ do
+            let respBody = simpleBody r
+            respBody `shouldBe` file
+
+        it "will err when no function with single unnamed json parameter exists and application/json is specified" $
+          request methodPost "/rpc/unnamed_int_param" [("Content-Type", "application/json")]
+              [json|{"x": 1, "y": 2}|]
+            `shouldRespondWith`
+              [json|{
+                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "message": "Could not find the test.unnamed_int_param(x, y) function or the test.unnamed_int_param function with a single unnamed json or jsonb parameter in the schema cache"
+              }|]
+              { matchStatus  = 404
+              , matchHeaders = [ matchContentTypeJson ]
+              }
+
+        it "will err when no function with single unnamed text parameter exists and text/plain is specified" $
+          request methodPost "/rpc/unnamed_int_param"
+              [("Content-Type", "text/plain")]
+              [str|a simple text|]
+            `shouldRespondWith`
+              [json|{
+                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache"
+              }|]
+              { matchStatus  = 404
+              , matchHeaders = [ matchContentTypeJson ]
+              }
+
+        it "will err when no function with single unnamed bytea parameter exists and application/octet-stream is specified" $
+          let file = unsafePerformIO $ BL.readFile "test/C.png" in
+          request methodPost "/rpc/unnamed_int_param"
+              [("Content-Type", "application/octet-stream")]
+              file
+          `shouldRespondWith`
+            [json|{
+              "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+              "message": "Could not find the test.unnamed_int_param function with a single unnamed bytea parameter in the schema cache"
+            }|]
+            { matchStatus  = 404
+            , matchHeaders = [ matchContentTypeJson ]
+            }
+
+        it "will not be able to resolve when a single unnamed json parameter exists and other overloaded functions exist" $
+          request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
+              [json|{"x": 1, "y": 2}|]
+            `shouldRespondWith`
+              [json| {
+                "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
+                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_param( => json), test.overloaded_unnamed_param(x => integer, y => integer)"}|]
+              { matchStatus  = 300
+              , matchHeaders = [matchContentTypeJson]
+              }
