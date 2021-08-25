@@ -65,7 +65,20 @@ toSwaggerType "bigint"            = SwaggerInteger
 toSwaggerType "numeric"           = SwaggerNumber
 toSwaggerType "real"              = SwaggerNumber
 toSwaggerType "double precision"  = SwaggerNumber
+toSwaggerType "ARRAY"             = SwaggerArray
 toSwaggerType _                   = SwaggerString
+
+parseDefault :: Text -> Text -> Text
+parseDefault colType colDefault =
+  case toSwaggerType colType of
+    -- TODO: Parse default values for json and jsonb types
+    SwaggerString -> wrapInQuotations $ case T.stripSuffix ("::" <> colType) colDefault of
+      Just def -> T.dropAround (=='\'')  def
+      Nothing -> colDefault
+    SwaggerArray -> wrapInQuotations $ fromMaybe colDefault (T.stripPrefix "ARRAY" colDefault)
+    _ -> colDefault
+  where
+    wrapInQuotations text = "\"" <> text <> "\""
 
 makeTableDef :: [Relationship] -> [PrimaryKey] -> (Table, [Column], [Text]) -> (Text, Schema)
 makeTableDef rels pks (t, cs, _) =
@@ -107,7 +120,7 @@ makeProperty rels pks c = (colName c, Inline s)
         colDescription c
     s =
       (mempty :: Schema)
-        & default_ .~ (JSON.decode . toS =<< colDefault c)
+        & default_ .~ (JSON.decode . toS . parseDefault (colType c) =<< colDefault c)
         & description .~ d
         & enum_ .~ e
         & format ?~ colType c

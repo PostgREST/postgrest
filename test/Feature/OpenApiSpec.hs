@@ -425,6 +425,71 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
+  describe "Detects default values" $ do
+
+    it "text" $ do
+      r <- simpleBody <$> get "/"
+
+      let defaultValue = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "text" . key "default"
+
+      liftIO $
+
+        defaultValue `shouldBe` Just "default"
+
+    it "boolean" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "boolean" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just (Bool False)
+
+    it "integer" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "integer" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just (Number 42)
+
+    it "numeric" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "numeric" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just (Number 42.2)
+
+    it "date" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "date" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just "1900-01-01"
+
+    it "time" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "time" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just "13:00:00"
+
+    it "array" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "array" . key "default"
+
+      liftIO $
+
+        types `shouldBe` Just "['a'::character varying, 'b'::character varying]"
+
   describe "RPC" $ do
 
     it "includes function summary/description and body schema for arguments" $ do
