@@ -74,7 +74,7 @@ parseDefault colType colDefault =
     -- TODO: Parse default values for json and jsonb types
     SwaggerString -> wrapInQuotations $ case T.stripSuffix ("::" <> colType) colDefault of
       Just def -> T.dropAround (=='\'')  def
-      Nothing -> colDefault
+      Nothing  -> colDefault
     SwaggerArray -> wrapInQuotations $ fromMaybe colDefault (T.stripPrefix "ARRAY" colDefault)
     _ -> colDefault
   where
