@@ -12,6 +12,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  
 ### Fixed
 
+ - #1871, Default values for String and Array types are now detected by OpenAPI - @laurenceisla
+
 ## [8.0.0] - 2021-07-25
 
 ### Added
