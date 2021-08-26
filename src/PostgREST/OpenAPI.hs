@@ -71,11 +71,9 @@ toSwaggerType _                   = SwaggerString
 parseDefault :: Text -> Text -> Text
 parseDefault colType colDefault =
   case toSwaggerType colType of
-    -- TODO: Parse default values for json and jsonb types
     SwaggerString -> wrapInQuotations $ case T.stripSuffix ("::" <> colType) colDefault of
       Just def -> T.dropAround (=='\'')  def
       Nothing  -> colDefault
-    SwaggerArray -> wrapInQuotations $ fromMaybe colDefault (T.stripPrefix "ARRAY" colDefault)
     _ -> colDefault
   where
     wrapInQuotations text = "\"" <> text <> "\""

@@ -1757,8 +1757,7 @@ CREATE TABLE test.openapi_defaults(
   "integer" integer default 42,
   "numeric" numeric default 42.2,
   "date" date default '1900-01-01'::date,
-  "time" time default '13:00:00'::time without time zone,
-  "array" character varying[] DEFAULT array['a','b']::varchar[]
+  "time" time default '13:00:00'::time without time zone
 );
 
 create function add_them(a integer, b integer)

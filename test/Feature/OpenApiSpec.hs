@@ -481,15 +481,6 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
         types `shouldBe` Just "13:00:00"
 
-    it "array" $ do
-      r <- simpleBody <$> get "/"
-
-      let types = r ^? key "definitions" . key "openapi_defaults" . key "properties" . key "array" . key "default"
-
-      liftIO $
-
-        types `shouldBe` Just "['a'::character varying, 'b'::character varying]"
-
   describe "RPC" $ do
 
     it "includes function summary/description and body schema for arguments" $ do
