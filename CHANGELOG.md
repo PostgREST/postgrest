@@ -12,7 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  
 ### Fixed
 
- - #1871, Default values for String and Array types are now detected by OpenAPI - @laurenceisla
+ - #1871, OpenAPI fix: Show missing default values for String types and identify Array types as "array" instead of "string" - @laurenceisla
 
 ## [8.0.0] - 2021-07-25
 
