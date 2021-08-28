@@ -115,6 +115,7 @@ GRANT ALL ON TABLE
     , pgrst_reserved_chars
     , authors_w_entities
     , openapi_types
+    , openapi_defaults
     , getallprojects_view
     , get_projects_above_view
     , web_content

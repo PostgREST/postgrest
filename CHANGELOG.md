@@ -12,6 +12,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  
 ### Fixed
 
+ - #1871, Fix OpenAPI missing default values for String types and identify Array types as "array" instead of "string" - @laurenceisla
+
 ## [8.0.0] - 2021-07-25
 
 ### Added
