@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Enables calling a function with a single json parameter without using `Prefer: params=single-object`
    + Enables uploading bytea to a function with `Content-Type: application/octet-stream`
    + Enables uploading raw text to a function with `Content-Type: text/plain`
+ - #1121, Allow `limit=0` to get an empty result - @gautam1168 
 
 ### Fixed
 

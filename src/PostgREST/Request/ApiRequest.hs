@@ -34,8 +34,7 @@ import Data.List                 (last, lookup, partition, union)
 import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Boundaries    (Boundary (..))
-import Data.Ranged.Ranges        (Range (..), emptyRange,
-                                  rangeIntersection)
+import Data.Ranged.Ranges        (Range (..), rangeIntersection)
 import Network.HTTP.Base         (urlEncodeVars)
 import Network.HTTP.Types.Header (hAuthorization, hCookie)
 import Network.HTTP.Types.URI    (parseQueryReplacePlus,
@@ -183,7 +182,7 @@ userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either A
 userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
-  | topLevelRange == emptyRange = Left InvalidRange
+  | invalidLimit = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
@@ -392,6 +391,20 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
           l = fromMaybe 0 $ rangeLimit rl
           o = rangeOffset ro
   ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" urlRange))) urlRange
+
+  limitFromQparams :: [(Text, Maybe ByteString)] -> [Maybe Integer]
+  limitFromQparams [] = []
+  limitFromQparams ((k, v):qs) = if isLimitQueryParameter then (readMaybe . toS =<< v):remainingLimits else remainingLimits
+    where isLimitQueryParameter = isJust v && endingIn ["limit"] k
+          remainingLimits = limitFromQparams qs
+
+  invalidLimit :: Bool
+  invalidLimit = foldl trueIfNegative False limits
+    where limits = limitFromQparams qParams
+          trueIfNegative = \ acc lim
+                              -> case lim of
+                                  Just n  -> (n < 0) || acc
+                                  Nothing -> acc
 
 {-|
   Find the best match from a list of content types accepted by the

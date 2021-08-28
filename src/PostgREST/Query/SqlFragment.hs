@@ -44,6 +44,7 @@ import qualified Hasql.DynamicStatements.Snippet as H
 import qualified Hasql.Encoders                  as HE
 
 import Data.Foldable                 (foldr1)
+import Data.Ranged.Ranges            (emptyRange)
 import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.Config.PgVersion        (PgVersion, pgVersion96)
@@ -290,8 +291,10 @@ returningF qi returnings =
     else "RETURNING " <> BS.intercalate ", " (pgFmtColumn qi <$> returnings)
 
 limitOffsetF :: NonnegRange -> H.Snippet
-limitOffsetF range =
-  if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
+limitOffsetF range
+  | range == allRange = mempty
+  | range == emptyRange = "LIMIT 0"
+  | otherwise = "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)

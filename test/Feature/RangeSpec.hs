@@ -79,11 +79,6 @@ spec = do
             simpleStatus r `shouldBe` ok200
 
       context "of invalid range" $ do
-        it "fails with 416 for offside range" $
-          request methodPost  "/rpc/getitemrange"
-                  (rangeHdrs $ ByteRangeFromTo 1 0) emptyRange
-            `shouldRespondWith` 416
-
         it "refuses a range with nonzero start when there are no items" $
           request methodPost "/rpc/getitemrange"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) emptyRange
@@ -181,17 +176,38 @@ spec = do
             [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
             { matchHeaders = ["Content-Range" <:> "0-14/*"] }
 
-      it "fails if limit equals 0" $
+      it "returns blank array when limit is 0" $
         get "/items?select=id&limit=0"
-          `shouldRespondWith` [json|{"message":"HTTP Range error"}|]
-          { matchStatus  = 416
+          `shouldRespondWith` [json|[]|]
+          { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
 
       it "fails if limit is negative" $
-        get "/items?select=id&limit=-1"
-          `shouldRespondWith` [json|{"message":"HTTP Range error"}|]
+        get "/items?select=id&limit=-1" `shouldRespondWith`
+          [json|{"message":"HTTP Range error"}|]
           { matchStatus  = 416
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "fails if limit is negative in an embedded resource" $
+        get "/clients?select=id,projects(id,tasks(id))&order=id.asc&limit=1&projects.order=id.asc&projects.limit=-1&projects.tasks.order=id.asc&projects.tasks.limit=1" `shouldRespondWith`
+          [json|{"message":"HTTP Range error"}|]
+          { matchStatus  = 416
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "fails if limit is negative in an embedded resource at any level" $
+        get "/clients?select=id,projects(id,tasks(id))&order=id.asc&limit=1&projects.order=id.asc&projects.limit=2&projects.tasks.order=id.asc&projects.tasks.limit=-1" `shouldRespondWith`
+          [json|{"message":"HTTP Range error"}|]
+          { matchStatus  = 416
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "treats an empty limit parameter as no limit parameter being passed" $
+        get "/items?select=id&limit=" `shouldRespondWith`
+          [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
+          { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
 
@@ -330,11 +346,6 @@ spec = do
             simpleStatus r `shouldBe` ok200
 
       context "of invalid range" $ do
-        it "fails with 416 for offside range" $
-          request methodGet  "/items"
-                  (rangeHdrs $ ByteRangeFromTo 1 0) ""
-            `shouldRespondWith` 416
-
         it "refuses a range with nonzero start when there are no items" $
           request methodGet "/menagerie"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) ""
