@@ -1203,6 +1203,14 @@ create function test.many_inout_params(INOUT num int, INOUT str text, INOUT b bo
   select num, str, b;
 $$ language sql;
 
+create function test.single_column_table_return () returns table (a text) AS $$
+  select 'A'::text;
+$$ language sql;
+
+create function test.multi_column_table_return () returns table (a text, b text) AS $$
+  select 'A'::text, 'B'::text;
+$$ language sql;
+
 CREATE FUNCTION test.variadic_param(VARIADIC v TEXT[] DEFAULT '{}') RETURNS text[]
 IMMUTABLE
 LANGUAGE SQL AS $$
