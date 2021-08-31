@@ -572,6 +572,17 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{"num":1,"str":"two","b":false}|]
 
+    context "procs with TABLE return" $ do
+      it "returns an object result when there is a single-column TABLE return type" $
+        get "/rpc/single_column_table_return"
+          `shouldRespondWith`
+            [json|[{"a": "A"}]|]
+
+      it "returns an object result when there is a multi-column TABLE return type" $
+        get "/rpc/multi_column_table_return"
+          `shouldRespondWith`
+            [json|[{"a": "A", "b": "B"}]|]
+
     context "procs with VARIADIC params" $ do
       when (actualPgVersion < pgVersion100) $
         it "works with POST (Postgres < 10)" $

@@ -17,6 +17,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #1871, Fix OpenAPI missing default values for String types and identify Array types as "array" instead of "string" - @laurenceisla
+ - #1930, Fix RPC return type handling for `RETURNS TABLE` with a single column. Regression of #1615. - @wolfgangwalther
+
 ### Changed
 
  - #1927, Overloaded Functions: If there's a function "my_func" having a single unnamed json param and other overloaded pairs(with any number of params), PostgREST won't be able to resolve a POST request to "my_func". For solving this, you can name the unnamed json param `my_func(json) -> my_func(prm json)`.

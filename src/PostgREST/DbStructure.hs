@@ -284,10 +284,8 @@ procsSqlQuery = [q|
     COALESCE(comp.relname, t.typname) AS name,
     p.proretset AS rettype_is_setof,
     (t.typtype = 'c'
-     -- Only pg pseudo type that is a row type is 'record'
-     or t.typtype = 'p' and t.typname = 'record'
-     -- if any INOUT or OUT arguments present, treat as composite
-     or COALESCE(proargmodes::text[] && '{b,o}', false)
+     -- if any TABLE, INOUT or OUT arguments present, treat as composite
+     or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
     p.provolatile,
     p.provariadic > 0 as hasvariadic
