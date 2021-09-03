@@ -93,7 +93,6 @@ Client-Side Libraries
 * `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
 * `postgrest-kt <https://github.com/supabase/postgrest-kt>`_ - Kotlin
 * `postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
-* `postgrest-pyclient <https://github.com/datrium/postgrest-pyclient>`_ - Python
 * `postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
 * `postgrest-rs <https://github.com/supabase/postgrest-rs>`_ - Rust
 * `postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp

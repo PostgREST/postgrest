@@ -5,6 +5,9 @@
 Upcoming
 ========
 
+These are changes yet unreleased. If you'd like to try them out before a new official release, access `the list of CI runs <https://github.com/PostgREST/postgrest/actions/workflows/ci.yaml?query=branch%3Amain>`_
+and select the newest commit, then download the build from the Artifacts section at the bottom of the page (you'll need a GitHub account to download it).
+
 Added
 -----
 
