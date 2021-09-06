@@ -158,11 +158,7 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    hint <- optionMaybe (
-        try ( char '!' *> pFieldName) <|>
-        -- deprecated, remove in next major version
-        try ( char '.' *> pFieldName)
-      )
+    hint <- optionMaybe $ char '!' *> pFieldName
     return (fld, Nothing, alias, hint)
   )
 
