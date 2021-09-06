@@ -423,16 +423,6 @@ spec =
                  "refereeds":[]}]
             }]|] { matchHeaders = [matchContentTypeJson] }
 
-    -- TODO Remove in next major version
-    describe "old dot '.' symbol, deprecated" $
-      it "still works" $ do
-        get "/clients?id=eq.1&select=id,projects:projects.client_id(id,tasks(id))" `shouldRespondWith`
-          [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1},{"id":2}]},{"id":2,"tasks":[{"id":3},{"id":4}]}]}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tasks?select=id,users:users.users_tasks(id)" `shouldRespondWith`
-          [json|[{"id":1,"users":[{"id":1},{"id":3}]},{"id":2,"users":[{"id":1}]},{"id":3,"users":[{"id":1}]},{"id":4,"users":[{"id":1}]},{"id":5,"users":[{"id":2},{"id":3}]},{"id":6,"users":[{"id":2}]},{"id":7,"users":[{"id":2}]},{"id":8,"users":[]}]|]
-          { matchHeaders = [matchContentTypeJson] }
-
     context "m2m embed when there's a junction in an internal schema" $ do
       -- https://github.com/PostgREST/postgrest/issues/1736
       it "works with no ambiguity when there's an exposed view of the junction" $ do
