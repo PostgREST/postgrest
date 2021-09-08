@@ -14,6 +14,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Enables uploading bytea to a function with `Content-Type: application/octet-stream`
    + Enables uploading raw text to a function with `Content-Type: text/plain`
 - #1938, Allow escaping inside double quotes with a backslash, e.g. `?col=in.("Double\"Quote")`, `?col=in.("Back\\slash")` - @steve-chavez
+- #1075, Allow filtering top-level resource based on embedded resources filters - @steve-chavez, @Iced-Sun
+   + This is enabled by adding `!inner` to the embedded resource, e.g. `/projects?select=*,clients!inner(*)&clients.id=eq.12`
+   + This behavior can be enabled by default with the `db-embed-default-join='inner'` config option, which saves the need for specifying `!inner` on every request. In this case, you can go back to the previous behavior per request by specifying `!left`  on the embedded resource, e.g `/projects?select=*,clients!left(*)&clients.id=eq.12`
 
 ### Fixed
 

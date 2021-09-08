@@ -57,6 +57,7 @@ import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, toQi)
+import PostgREST.Request.Types           (JoinType (..))
 
 import Protolude      hiding (Proxy, toList, toS)
 import Protolude.Conv (toS)
@@ -79,6 +80,7 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
+  , configDbEmbedDefaultJoin    :: JoinType
   , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
@@ -132,6 +134,7 @@ toText conf =
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
+      ,("db-embed-default-join",     q . show . configDbEmbedDefaultJoin)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
@@ -222,6 +225,7 @@ parser optPath env dbSettings =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> reqString "db-uri"
+    <*> parseEmbedDefaultJoin "db-embed-default-join"
     <*> pure optPath
     <*> pure Nothing
     <*> parseJwtAudience "jwt-aud"
@@ -303,6 +307,14 @@ parser optPath env dbSettings =
         Just "rollback"                -> pure $ f (True,       False)
         Just "rollback-allow-override" -> pure $ f (True,       True)
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
+
+    parseEmbedDefaultJoin :: C.Key -> C.Parser C.Config JoinType
+    parseEmbedDefaultJoin k =
+      optString k >>= \case
+        Nothing      -> pure JTLeft
+        Just "left"  -> pure JTLeft
+        Just "inner" -> pure JTInner
+        Just _       -> fail "Invalid db-embed-default-join. Check your configuration."
 
     parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath
     parseRoleClaimKey k al =

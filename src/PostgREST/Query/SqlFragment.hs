@@ -206,11 +206,11 @@ pgFmtField :: QualifiedIdentifier -> Field -> H.Snippet
 pgFmtField table (c, jp) = H.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> H.Snippet
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> H.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> H.sql (pgFmtAs fName jp alias)
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> H.sql (encodeUtf8 cast) <> " )" <> H.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _, _) = "CAST (" <> pgFmtField table f <> " AS " <> H.sql (encodeUtf8 cast) <> " )" <> H.sql (pgFmtAs fName jp alias)
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> H.Snippet
 pgFmtOrderTerm qi ot =

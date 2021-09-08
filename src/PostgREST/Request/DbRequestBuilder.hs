@@ -61,11 +61,11 @@ import Protolude hiding (from)
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequest -> Either Error ReadRequest
-readRequest schema rootTableName maxRows allRels apiRequest  =
+readRequest :: Schema -> TableName -> Maybe Integer -> JoinType -> [Relationship] -> ApiRequest -> Either Error ReadRequest
+readRequest schema rootTableName maxRows defJoinType allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
-  augmentRequestWithJoin schema rootRels =<<
+  augmentRequestWithJoin schema rootRels defJoinType =<<
   (addFiltersOrdersRanges apiRequest . initReadRequest rootName =<< pRequestSelect sel)
   where
     sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
@@ -100,16 +100,16 @@ initReadRequest rootQi =
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, rootDepth)) []
+    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
     treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry depth (Node fld@((fn, _),_,alias, embedHint) fldForest) (Node (q, i) rForest) =
+    treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node (q, i) rForest) =
       let nxtDepth = succ depth in
       case fldForest of
         [] -> Node (q {select=fld:select q}, i) rForest
         _  -> Node (q, i) $
               foldr (treeEntry nxtDepth)
               (Node (Select [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] [] allRange,
-                (fn, Nothing, alias, embedHint, nxtDepth)) [])
+                (fn, Nothing, alias, hint, joinType, nxtDepth)) [])
               fldForest:rForest
 
 -- | Enforces the `max-rows` config on the result
@@ -119,26 +119,26 @@ treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augmentRequestWithJoin :: Schema -> [Relationship] -> ReadRequest -> Either ApiRequestError ReadRequest
-augmentRequestWithJoin schema allRels request =
-  addRels schema allRels Nothing request
+augmentRequestWithJoin :: Schema -> [Relationship] -> JoinType -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin schema allRels defJoinType request =
+  addRels schema allRels Nothing defJoinType request
   >>= addJoinConditions Nothing
 
-addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, depth)) forest) =
+addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> JoinType -> ReadRequest -> Either ApiRequestError ReadRequest
+addRels schema allRels parentNode defJoinType (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
       let newFrom r = if qiName tbl == nodeName then tableQi (relForeignTable r) else tbl
-          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, Nothing, depth))) <$> rel
+          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType <|> Just defJoinType, depth))) <$> rel
           rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
       in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
     _ ->
-      let rn = (query, (nodeName, Nothing, alias, Nothing, depth)) in
+      let rn = (query, (nodeName, Nothing, alias, Nothing, joinType, depth)) in
       Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
-    updateForest rq = addRels schema allRels rq `traverse` forest
+    updateForest rq = addRels schema allRels rq defJoinType `traverse` forest
 
 -- Finds a relationship between an origin and a target in the request:
 -- /origin?select=target(*) If more than one relationship is found then the
@@ -150,7 +150,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- target = table / view / constraint / column-from-origin
 -- hint   = table / view / constraint / column-from-origin / column-from-target
 -- (hint can take table / view values to aid in finding the junction in an m2m relationship)
-findRel :: Schema -> [Relationship] -> NodeName -> NodeName -> Maybe EmbedHint -> Either ApiRequestError Relationship
+findRel :: Schema -> [Relationship] -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rel of
     []  -> Left $ NoRelBetween origin target
@@ -210,7 +210,7 @@ findRel schema allRels origin target hint =
 
 -- previousAlias is only used for the case of self joins
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, depth)) forest) =
+addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, _, depth)) forest) =
   case rel of
     Just r@Relationship{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
@@ -307,7 +307,7 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
     Nothing -> Node rn forest -- the property is silenty dropped in the Request does not contain the required path
     Just tn -> Node rn (addProperty f (remainingPath, a) tn:delete tn forest)
   where
-    pathNode = find (\(Node (_,(nodeName,_,alias,_,_)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
+    pathNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
 mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
 mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
@@ -379,7 +379,7 @@ returningCols rr@(Node _ forest) pkCols
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relationship{relColumns=cols}, _, _, _)) _ -> Just cols
+        Node (_, (_, Just Relationship{relColumns=cols}, _, _, _, _)) _ -> Just cols
         _                                                        -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to

@@ -2284,3 +2284,30 @@ $$ language sql;
 create or replace function test.overloaded_unnamed_param(x int, y int) returns int as $$
   select x + y;
 $$ language sql;
+
+create table products(
+  id int primary key
+, name text
+);
+
+create table suppliers(
+  id int primary key
+, name text
+);
+
+create table products_suppliers(
+  product_id int references products(id),
+  supplier_id int references suppliers(id),
+  primary key (product_id, supplier_id)
+);
+
+create table trade_unions(
+  id int primary key
+, name text
+);
+
+create table suppliers_trade_unions(
+  supplier_id int references suppliers(id),
+  trade_union_id int references trade_unions(id),
+  primary key (supplier_id, trade_union_id)
+);

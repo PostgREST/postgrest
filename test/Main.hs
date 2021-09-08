@@ -30,6 +30,7 @@ import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.DisabledOpenApiSpec
 import qualified Feature.EmbedDisambiguationSpec
+import qualified Feature.EmbedInnerJoinSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.IgnorePrivOpenApiSpec
@@ -94,6 +95,7 @@ main = do
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
+      embedInnerJoinApp    = app testEmbedInnerJoinCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
       proxyApp             = app testProxyCfg
       noJwtApp             = app testCfgNoJWT
@@ -125,6 +127,7 @@ main = do
         , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"              , Feature.DeleteSpec.spec)
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.EmbedInnerJoinSpec"      , Feature.EmbedInnerJoinSpec.spec)
         , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec actualPgVersion)
@@ -206,6 +209,10 @@ main = do
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
       describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
+
+    -- this test runs with db-embed-default-join = inner
+    before embedInnerJoinApp $
+      describe "Feature.EmbedInnerJoinSpecNotDefaultConfig" Feature.EmbedInnerJoinSpec.notDefaultConfig
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

@@ -158,9 +158,23 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    hint <- optionMaybe $ char '!' *> pFieldName
-    return (fld, Nothing, alias, hint)
+    prm1 <- optionMaybe pEmbedParam
+    prm2 <- optionMaybe pEmbedParam
+    return (fld, Nothing, alias, embedParamHint prm1 <|> embedParamHint prm2, embedParamJoin prm1 <|> embedParamJoin prm2)
   )
+  where
+    pEmbedParam :: Parser EmbedParam
+    pEmbedParam =
+      char '!' *> (
+        try (string "left"  $> EPJoinType JTLeft)  <|>
+        try (string "inner" $> EPJoinType JTInner) <|>
+        try (EPHint <$> pFieldName))
+    embedParamHint prm = case prm of
+      Just (EPHint hint) -> Just hint
+      _                  -> Nothing
+    embedParamJoin prm = case prm of
+      Just (EPJoinType jt) -> Just jt
+      _                    -> Nothing
 
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
@@ -169,11 +183,11 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many letter)
-      return (fld, toS <$> cast', alias, Nothing)
+      return (fld, toS <$> cast', alias, Nothing, Nothing)
   )
   <|> do
     s <- pStar
-    return ((s, []), Nothing, Nothing, Nothing)
+    return ((s, []), Nothing, Nothing, Nothing, Nothing)
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
