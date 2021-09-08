@@ -7,12 +7,12 @@ build_task:
 
   stack_cache:
     folders: /.stack
-    fingerprint_script: cat stack.yaml.lock
+    fingerprint_script: cat postgrest.cabal stack.yaml.lock
     reupload_on_changes: false
 
   stack_work_cache:
     folders: .stack-work
-    fingerprint_script: cat stack.yaml.lock
+    fingerprint_script: cat postgrest.cabal stack.yaml.lock
     reupload_on_changes: false
 
   build_script: stack build -j 1 --local-bin-path . --copy-bins
