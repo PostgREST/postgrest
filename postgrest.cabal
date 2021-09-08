@@ -176,6 +176,7 @@ test-suite spec
                       Feature.DeleteSpec
                       Feature.DisabledOpenApiSpec
                       Feature.EmbedDisambiguationSpec
+                      Feature.EmbedInnerJoinSpec
                       Feature.ExtraSearchPathSpec
                       Feature.HtmlRawOutputSpec
                       Feature.InsertSpec

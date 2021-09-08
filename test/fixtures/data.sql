@@ -692,3 +692,18 @@ DO $do$BEGIN
     INSERT INTO test.reference_to_partitioned(id, id_a, name_a) VALUES (2, 2, 'first');
   END IF;
 END$do$;
+
+TRUNCATE TABLE test.products CASCADE;
+INSERT INTO test.products (id, name) VALUES (1,'product-1'), (2,'product-2'), (3,'product-3');
+
+TRUNCATE TABLE test.suppliers CASCADE;
+INSERT INTO test.suppliers (id, name) VALUES (1,'supplier-1'), (2,'supplier-2'), (3, 'supplier-3');
+
+TRUNCATE TABLE test.products_suppliers CASCADE;
+INSERT INTO test.products_suppliers (product_id, supplier_id) VALUES (1,1), (1,2), (2,1), (2,3);
+
+TRUNCATE TABLE test.trade_unions CASCADE;
+INSERT INTO test.trade_unions (id, name) VALUES (1,'union-1'), (2,'union-2'), (3, 'union-3'), (4, 'union-4');
+
+TRUNCATE TABLE test.suppliers_trade_unions CASCADE;
+INSERT INTO test.suppliers_trade_unions (supplier_id, trade_union_id) VALUES (1,1), (1,2), (2,3), (2,4);
