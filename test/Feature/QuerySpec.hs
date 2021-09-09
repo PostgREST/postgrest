@@ -953,6 +953,25 @@ spec actualPgVersion = do
         [json| [{"name":"Double O Seven(007)"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    context "escaped chars" $ do
+      it "accepts escaped double quotes" $
+        get "/w_or_wo_comma_names?name=in.(\"Double\\\"Quote\\\"McGraw\\\"\")" `shouldRespondWith`
+          [json| [ { "name": "Double\"Quote\"McGraw\"" } ] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "accepts escaped backslashes" $ do
+        get "/w_or_wo_comma_names?name=in.(\"\\\\\")" `shouldRespondWith`
+          [json| [{ "name": "\\" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/w_or_wo_comma_names?name=in.(\"/\\\\Slash/\\\\Beast/\\\\\")" `shouldRespondWith`
+          [json| [ { "name": "/\\Slash/\\Beast/\\" } ] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "passes any escaped char as the same char" $
+        get "/w_or_wo_comma_names?name=in.(\"D\\a\\vid W\\h\\ite\")" `shouldRespondWith`
+          [json| [{ "name": "David White" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
   describe "IN values without quotes" $ do
     it "accepts single double quotes as values" $ do
       get "/w_or_wo_comma_names?name=in.(\")" `shouldRespondWith`

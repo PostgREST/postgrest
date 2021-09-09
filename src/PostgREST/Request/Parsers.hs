@@ -207,7 +207,9 @@ pListElement :: Parser Text
 pListElement = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> (toS <$> many (noneOf ",)"))
 
 pQuotedValue :: Parser Text
-pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"')
+pQuotedValue = toS <$> (char '"' *> many pCharsOrSlashed <* char '"')
+  where
+    pCharsOrSlashed = noneOf "\\\"" <|> (char '\\' *> anyChar)
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
