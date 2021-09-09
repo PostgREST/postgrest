@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1871, Fix OpenAPI missing default values for String types and identify Array types as "array" instead of "string" - @laurenceisla
  - #1930, Fix RPC return type handling for `RETURNS TABLE` with a single column. Regression of #1615. - @wolfgangwalther
+ - #1938, Fix using single double quotes(`"`) and backslashes(`/`) as values on the "in" operator - @steve-chavez
 
 ### Changed
 

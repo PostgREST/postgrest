@@ -345,6 +345,10 @@ INSERT INTO w_or_wo_comma_names VALUES ('Smith, Joseph');
 INSERT INTO w_or_wo_comma_names VALUES ('David White');
 INSERT INTO w_or_wo_comma_names VALUES ('Larry Thompson');
 INSERT INTO w_or_wo_comma_names VALUES ('Double O Seven(007)');
+INSERT INTO w_or_wo_comma_names VALUES ('"');
+INSERT INTO w_or_wo_comma_names VALUES ('Double"Quote"McGraw"');
+INSERT INTO w_or_wo_comma_names VALUES ('\');
+INSERT INTO w_or_wo_comma_names VALUES ('/\Slash/\Beast/\');
 
 TRUNCATE TABLE items_with_different_col_types CASCADE;
 INSERT INTO items_with_different_col_types VALUES (1, null, null, null, null, null, null, null);

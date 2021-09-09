@@ -938,25 +938,37 @@ spec actualPgVersion = do
       get "/w_or_wo_comma_names?name=in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
         { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"David White"},{"name":"Larry Thompson"},{"name":"Double O Seven(007)"}] |]
+      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")&limit=3" `shouldRespondWith`
+        [json| [ { "name": "David White" }, { "name": "Larry Thompson" }, { "name": "Double O Seven(007)" }] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "succeeds w/ and w/o quoted values" $ do
       get "/w_or_wo_comma_names?name=in.(David White,\"Hebdon, John\")" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"David White"}] |]
         { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"Williams, Mary"},{"name":"David White"},{"name":"Double O Seven(007)"}] |]
+      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\")&limit=3" `shouldRespondWith`
+        [json| [ { "name": "Williams, Mary" }, { "name": "David White" }, { "name": "Double O Seven(007)" }] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=in.(\"Double O Seven(007)\")" `shouldRespondWith`
         [json| [{"name":"Double O Seven(007)"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "fails on malformed quoted values" $ do
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\")" `shouldRespondWith` 400
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\"\"Mary)" `shouldRespondWith` 400
-      get "/w_or_wo_comma_names?name=in.(Williams\"Hebdon, John\")" `shouldRespondWith` 400
+  describe "IN values without quotes" $ do
+    it "accepts single double quotes as values" $ do
+      get "/w_or_wo_comma_names?name=in.(\")" `shouldRespondWith`
+        [json| [{ "name": "\"" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.(Double\"Quote\"McGraw\")" `shouldRespondWith`
+        [json| [ { "name": "Double\"Quote\"McGraw\"" } ] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "accepts backslashes as values" $ do
+      get "/w_or_wo_comma_names?name=in.(\\)" `shouldRespondWith`
+        [json| [{ "name": "\\" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.(/\\Slash/\\Beast/\\)" `shouldRespondWith`
+        [json| [ { "name": "/\\Slash/\\Beast/\\" } ] |]
+        { matchHeaders = [matchContentTypeJson] }
 
   describe "IN and NOT IN empty set" $ do
     context "returns an empty result for IN when no value is present" $ do
