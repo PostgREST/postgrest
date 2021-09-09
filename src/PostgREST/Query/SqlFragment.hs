@@ -123,7 +123,8 @@ normalizedBody body =
 singleParameter :: Maybe BL.ByteString -> ByteString -> H.Snippet
 singleParameter body typ =
   if typ == "bytea"
-    then H.encoderAndParam (HE.nullable HE.bytea) (toS <$> body) -- needed because bytea fails with HE.unknown(pg tries to utf8 encode)
+    -- TODO: Hasql fails when using HE.unknown with bytea(pg tries to utf8 encode).
+    then H.encoderAndParam (HE.nullable HE.bytea) (toS <$> body)
     else H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::" <> H.sql typ
 
 selectBody :: SqlFragment
@@ -137,6 +138,15 @@ pgFmtLit x =
  encodeUtf8 $ if "\\" `T.isInfixOf` escaped
    then "E" <> slashed
    else slashed
+
+-- Here we build the pg array literal, e.g '{"Hebdon, John","Other","Another"}', manually.
+-- This is necessary to pass an "unknown" array and let pg infer the type.
+pgFmtArrayLit :: [Text] -> Text
+pgFmtArrayLit vals =
+ let trimmed = trimNullChars
+     slashed = T.replace "\\" "\\\\" . trimmed
+     escaped x = "\"" <> T.replace "\"" "\\\"" (slashed x) <> "\"" in
+ "{" <> T.intercalate "," (escaped <$> vals) <> "}"
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SqlFragment
@@ -220,12 +230,9 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
    -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
-   In vals -> pgFmtField table fld <> " " <>
-    case vals of
+   In vals -> pgFmtField table fld <> " " <> case vals of
       [""] -> "= ANY('{}') "
-      -- Here we build the pg array, e.g '{"Hebdon, John","Other","Another"}', manually. We quote the values to prevent the "," being treated as an element separator.
-      -- TODO: Ideally this would be done on Hasql with an encoder, but the "array unknown" is not working(Hasql doesn't pass any value).
-      _    -> "= ANY (" <> unknownLiteral ("{" <> T.intercalate "," ((\x -> "\"" <> x <> "\"") <$> vals) <> "}") <> ")"
+      _    -> "= ANY (" <> unknownLiteral (pgFmtArrayLit vals) <> ") "
 
    Fts op lang val ->
      pgFmtFieldOp op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
