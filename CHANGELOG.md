@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1783, Include partitioned tables into the schema cache. Allows embedding, UPSERT, INSERT with Location response, OPTIONS request and OpenAPI support for partitioned tables - @laurenceisla
  - #1878, Add Retry-After hint header when in recovery mode - @gautam1168
+ - #1917, Add error codes with the prefix `"PGRST"` to the error response body to differentiate PostgREST errors from PostgreSQL errors - @laurenceisla
+   
  - #1735, Allow calling function with single unnamed param through RPC POST. - @steve-chavez
    + Enables calling a function with a single json parameter without using `Prefer: params=single-object`
    + Enables uploading bytea to a function with `Content-Type: application/octet-stream`
