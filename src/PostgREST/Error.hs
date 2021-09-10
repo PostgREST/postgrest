@@ -401,8 +401,7 @@ invalidTokenHeader m =
 singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger
 
--- Error codes are defined following the order of the process:
--- Connection -> API Requests -> Auth -> DB Queries
+-- Error codes are grouped by common modules or characteristics
 data ErrorCode
   -- PostgreSQL connection errors
   = ConnectionErrorCode00
@@ -441,10 +440,11 @@ data ErrorCode
   | GeneralErrorCode05
   | GeneralErrorCode06
 
--- The prefixes should go according to the process order:
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
 
+-- New group of errors will be added at the end of all the groups and will have the next prefix in the sequence
+-- New errors are added at the end of the group they belong to and will have the next code in the sequence
 buildErrorCode :: ErrorCode -> Text
 buildErrorCode code = "PGRST" <> case code of
   ConnectionErrorCode00  -> "000"
