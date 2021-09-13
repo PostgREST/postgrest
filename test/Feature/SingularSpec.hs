@@ -68,7 +68,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -84,7 +84,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 4 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -99,7 +99,7 @@ spec =
         request methodPatch "/items?id=gt.0&id=lt.0"
                 [singular] [json|{"id":1}|]
           `shouldRespondWith`
-                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeSingular]
                   }
@@ -108,7 +108,7 @@ spec =
         request methodPatch "/items?id=gt.0&id=lt.0"
                 [("Prefer", "return=representation"), singular] [json|{"id":1}|]
           `shouldRespondWith`
-                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeSingular]
                   }
@@ -138,7 +138,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -154,7 +154,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
             [json| [ { id: 202, address: "xxx" }, { id: 203, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -170,7 +170,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=minimal"), singular]
             [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -186,7 +186,7 @@ spec =
                 [singular]
                 [json| [ ] |]
           `shouldRespondWith`
-                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeSingular]
                   }
@@ -196,7 +196,7 @@ spec =
                 [("Prefer", "return=representation"), singular]
                 [json| [ ] |]
           `shouldRespondWith`
-                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                  [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeSingular]
                   }
@@ -219,7 +219,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             ""
           `shouldRespondWith`
-            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -237,7 +237,7 @@ spec =
         request methodDelete "/items?id=gt.5&id=lt.11"
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular] ""
           `shouldRespondWith`
-            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]
@@ -254,7 +254,7 @@ spec =
         request methodDelete "/items?id=lt.0"
                 [singular] ""
           `shouldRespondWith`
-                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeSingular]
                 }
@@ -263,7 +263,7 @@ spec =
         request methodDelete "/items?id=lt.0"
                 [("Prefer", "return=representation"), singular] ""
           `shouldRespondWith`
-                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeSingular]
                 }
@@ -273,7 +273,7 @@ spec =
         request methodPost "/rpc/getproject"
                 [singular] [json|{ "id": 9999999}|]
           `shouldRespondWith`
-                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                [json|{"details":"Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeSingular]
                 }
@@ -296,7 +296,7 @@ spec =
         request methodPost "/rpc/getallprojects"
                 [singular] "{}"
           `shouldRespondWith`
-                [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+                [json|{"details":"Results contain 5 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeSingular]
                 }
@@ -311,7 +311,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
           `shouldRespondWith`
-            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned"}|]
+            [json|{"details":"Results contain 2 rows, application/vnd.pgrst.object+json requires 1 row","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST506","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeSingular
                              , "Preference-Applied" <:> "tx=commit" ]

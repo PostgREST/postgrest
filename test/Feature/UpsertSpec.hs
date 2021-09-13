@@ -199,73 +199,73 @@ spec actualPgVersion =
           request methodPut "/tiobe_pls?name=eq.Javascript" [("Range", "0-5")]
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST504","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if limit is specified" $
           put "/tiobe_pls?name=eq.Javascript&limit=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST504","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if offset is specified" $
           put "/tiobe_pls?name=eq.Javascript&offset=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT"}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST504","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "rejects every other filter than pk cols eq's" $ do
           put "/tiobe_pls?rank=eq.19"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
           put "/tiobe_pls?id=not.eq.Java"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/tiobe_pls?id=in.(Go)"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/tiobe_pls?and=(id.eq.Go)"
             [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if not all composite key cols are specified as eq filters" $ do
           put "/employees?first_name=eq.Susan"
             [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
           put "/employees?last_name=eq.Heidt"
             [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
-            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+            [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
             { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
       it "fails if the uri primary key doesn't match the payload primary key" $ do
         put "/tiobe_pls?name=eq.MATLAB" [json| [ { "name": "Perl", "rank": 17 } ]|]
           `shouldRespondWith`
-          [json|{"message":"Payload values do not match URL in primary key column(s)"}|]
+          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST505","details":null,"hint":null}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
         put "/employees?first_name=eq.Wendy&last_name=eq.Anderson"
           [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
           `shouldRespondWith`
-          [json|{"message":"Payload values do not match URL in primary key column(s)"}|]
+          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST505","details":null,"hint":null}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
       it "fails if the table has no PK" $
         put "/no_pk?a=eq.one&b=eq.two" [json| [ { "a": "one", "b": "two" } ]|]
           `shouldRespondWith`
-          [json|{"message":"Filters must include all and only primary key columns with 'eq' operators"}|]
+          [json|{"message":"Filters must include all and only primary key columns with 'eq' operators","code":"PGRST105","details":null,"hint":null}|]
           { matchStatus = 405 , matchHeaders = [matchContentTypeJson] }
 
       context "Inserting row" $ do

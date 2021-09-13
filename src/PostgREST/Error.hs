@@ -58,14 +58,14 @@ data ApiRequestError
   | ActionInappropriate
   | InvalidBody ByteString
   | InvalidRange
-  | UnsupportedVerb                -- Unreachable?
+  | UnsupportedVerb -- Unreachable?
   | InvalidFilters
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
   | NoRelBetween Text Text
   | AmbiguousRelBetween Text Text [Relationship]
-  | NoRpc Text Text [Text] Bool ContentType Bool  
-  | AmbiguousRpc [ProcDescription]  
+  | NoRpc Text Text [Text] Bool ContentType Bool
+  | AmbiguousRpc [ProcDescription]
 
 instance PgrstError ApiRequestError where
   status (ParseRequestError _ _) = HT.status400
@@ -134,7 +134,7 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= SchemaCacheErrorCode02,
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels),
-    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text)]  
+    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "code"    .= SchemaCacheErrorCode04,
@@ -459,7 +459,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode05  -> "105"
   ApiRequestErrorCode06  -> "106"
   ApiRequestErrorCode07  -> "107"
-  
+
   SchemaCacheErrorCode01 -> "200"
   SchemaCacheErrorCode02 -> "201"
   SchemaCacheErrorCode03 -> "202"

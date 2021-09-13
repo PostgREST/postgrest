@@ -32,7 +32,8 @@ spec =
                 }
               ],
               "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
-              "message": "More than one relationship was found for message and sender"
+              "message": "More than one relationship was found for message and sender",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -64,7 +65,8 @@ spec =
                 }
               ],
               "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
-              "message": "More than one relationship was found for sites and big_projects"
+              "message": "More than one relationship was found for sites and big_projects",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -90,7 +92,8 @@ spec =
                 }
               ],
               "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
-              "message": "More than one relationship was found for agents and departments"
+              "message": "More than one relationship was found for agents and departments",
+              "code": "PGRST201"
             }
            |]
           { matchStatus  = 300
@@ -131,7 +134,8 @@ spec =
                 }
               ],
               "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
-              "message": "More than one relationship was found for whatev_sites and whatev_projects"
+              "message": "More than one relationship was found for whatev_sites and whatev_projects",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -186,7 +190,9 @@ spec =
           get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
             [json|{
               "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-              "message":"Could not find a relationship between message and person in the schema cache"}|]
+              "message":"Could not find a relationship between message and person in the schema cache",
+              "code": "PGRST200",
+              "details": null}|]
             { matchStatus = 400
             , matchHeaders = [matchContentTypeJson] }
 
@@ -447,7 +453,9 @@ spec =
         get "/end_1?select=end_2(*)" `shouldRespondWith`
           [json|{
             "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-            "message":"Could not find a relationship between end_1 and end_2 in the schema cache"}|]
+            "message":"Could not find a relationship between end_1 and end_2 in the schema cache",
+            "code":"PGRST200",
+            "details": null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
       it "shouldn't try to embed if the private junction has an exposed homonym" $
@@ -456,6 +464,8 @@ spec =
         get "/schauspieler?select=filme(*)" `shouldRespondWith`
           [json|{
             "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-            "message":"Could not find a relationship between schauspieler and filme in the schema cache"}|]
+            "message":"Could not find a relationship between schauspieler and filme in the schema cache",
+            "code":"PGRST200",
+            "details": null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }

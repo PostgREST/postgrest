@@ -240,15 +240,21 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         get "/json_arr?select=data->>-78xy" `shouldRespondWith`
           [json|
             {"details": "unexpected 'x' expecting digit, \"->\", \"::\" or end of input",
-             "message": "\"failed to parse select parameter (data->>-78xy)\" (line 1, column 11)"} |]
+             "message": "\"failed to parse select parameter (data->>-78xy)\" (line 1, column 11)",
+             "code": "PGRST100",
+             "hint": null} |]
           { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
         get "/json_arr?select=data->>--34" `shouldRespondWith`
           [json|
             {"details": "unexpected \"-\" expecting digit",
-             "message": "\"failed to parse select parameter (data->>--34)\" (line 1, column 9)"} |]
+             "message": "\"failed to parse select parameter (data->>--34)\" (line 1, column 9)",
+             "code": "PGRST100",
+             "hint": null} |]
           { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
         get "/json_arr?select=data->>-xy-4" `shouldRespondWith`
           [json|
             {"details":"unexpected \"x\" expecting digit",
-             "message":"\"failed to parse select parameter (data->>-xy-4)\" (line 1, column 9)"} |]
+             "message":"\"failed to parse select parameter (data->>-xy-4)\" (line 1, column 9)",
+             "code": "PGRST100",
+             "hint": null} |]
           { matchStatus = 400, matchHeaders = [matchContentTypeJson] }

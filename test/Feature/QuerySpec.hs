@@ -229,7 +229,9 @@ spec actualPgVersion = do
       get "/clients?select=id,projects(id,tasks2(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
         [json| {
           "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-          "message":"Could not find a relationship between projects and tasks2 in the schema cache"}|]
+          "message":"Could not find a relationship between projects and tasks2 in the schema cache",
+          "code":"PGRST200",
+          "details":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -748,44 +750,44 @@ spec actualPgVersion = do
     context "order syntax errors" $ do
       it "gives meaningful error messages when asc/desc/nulls{first,last} are misspelled" $ do
         get "/items?order=id.ac" `shouldRespondWith`
-          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.descc" `shouldRespondWith`
-          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.nulsfist" `shouldRespondWith`
-          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)"}|]
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 
       it "gives meaningful error messages when nulls{first,last} are misspelled after asc/desc" $ do
         get "/items?order=id.asc.nlsfst" `shouldRespondWith`
-          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)"}|]
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.asc.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
@@ -795,7 +797,7 @@ spec actualPgVersion = do
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype") ""
         `shouldRespondWith`
-        [json|{"message":"None of these Content-Types are available: text/unknowntype"}|]
+        [json|{"message":"None of these Content-Types are available: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
         { matchStatus  = 415
         , matchHeaders = [matchContentTypeJson]
         }
@@ -864,7 +866,7 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","message":"\"failed to parse filter (0)\" (line 1, column 1)","code":"PGRST100","hint":null} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -906,21 +908,21 @@ spec actualPgVersion = do
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST503","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?select=*&name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST503","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST503","details":null,"hint":null} |]
           { matchStatus = 406 }
 
     it "concatenates results if more than one row is returned" $

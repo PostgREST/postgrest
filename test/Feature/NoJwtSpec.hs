@@ -21,7 +21,7 @@ spec = describe "server started without JWT secret" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjk5OTk5OTk5OTksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.Dpss-QoLYjec5OTsOaAc3FNVsSjA89wACoV-0ra3ClA"
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith`
-      [json|{"message":"Server lacks JWT secret"}|]
+      [json|{"message":"Server lacks JWT secret","code":"PGRST300","details":null,"hint":null}|]
       { matchStatus  = 500
       , matchHeaders = [ matchContentTypeJson ]
       }

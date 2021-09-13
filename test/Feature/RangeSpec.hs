@@ -183,14 +183,14 @@ spec = do
 
       it "fails if limit equals 0" $
         get "/items?select=id&limit=0"
-          `shouldRespondWith` [json|{"message":"HTTP Range error"}|]
+          `shouldRespondWith` [json|{"message":"HTTP Range error","code":"PGRST103","details":null,"hint":null}|]
           { matchStatus  = 416
           , matchHeaders = [matchContentTypeJson]
           }
 
       it "fails if limit is negative" $
         get "/items?select=id&limit=-1"
-          `shouldRespondWith` [json|{"message":"HTTP Range error"}|]
+          `shouldRespondWith` [json|{"message":"HTTP Range error","code":"PGRST103","details":null,"hint":null}|]
           { matchStatus  = 416
           , matchHeaders = [matchContentTypeJson]
           }

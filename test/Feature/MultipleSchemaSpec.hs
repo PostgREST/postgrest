@@ -70,7 +70,7 @@ spec actualPgVersion =
 
       it "fails trying to read table from unkown schema" $
         request methodGet "/parents" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2"}|]
+          [json|{"message":"The schema must be one of the following: v1, v2","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }
@@ -113,7 +113,7 @@ spec actualPgVersion =
         request methodPost "/children" [("Content-Profile", "unknown")]
           [json|{"name": "child 4", "parent_id": 4}|]
           `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2"}|]
+          [json|{"message":"The schema must be one of the following: v1, v2","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }
@@ -328,7 +328,7 @@ spec actualPgVersion =
 
       it "fails trying to read definitions from unkown schema" $
         request methodGet "/" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2"}|]
+          [json|{"message":"The schema must be one of the following: v1, v2","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }
