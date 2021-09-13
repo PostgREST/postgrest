@@ -126,18 +126,18 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= JSON.Null]
 
   toJSON (NoRelBetween parent child) = JSON.object [
-    "code"    .= SchemaCacheErrorCode01,
+    "code"    .= SchemaCacheErrorCode00,
     "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "code"    .= SchemaCacheErrorCode02,
+    "code"    .= SchemaCacheErrorCode01,
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels),
     "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
-    "code"    .= SchemaCacheErrorCode04,
+    "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
           (case (hasPreferSingleObject, isInvPost, contentType) of
             (True, _, _)                 -> " function with a single json or jsonb parameter"
@@ -211,27 +211,27 @@ instance JSON.ToJSON H.CommandError where
         "hint"    .= (fmap toS h :: Maybe Text)]
 
   toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
-    "code"    .= HasqlErrorCode01,
+    "code"    .= HasqlErrorCode00,
     "message" .= (m :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
-    "code"    .= HasqlErrorCode02,
+    "code"    .= HasqlErrorCode01,
     "message" .= ("Row error: end of input" :: Text),
     "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (H.ResultError (H.RowError i H.UnexpectedNull)) = JSON.object [
-    "code"    .= HasqlErrorCode03,
+    "code"    .= HasqlErrorCode02,
     "message" .= ("Row error: unexpected null" :: Text),
     "details" .= ("Attempt to parse a NULL as some value." :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (H.ResultError (H.RowError i (H.ValueError d))) = JSON.object [
-    "code"    .= HasqlErrorCode04,
+    "code"    .= HasqlErrorCode03,
     "message" .= ("Row error: Wrong value parser used" :: Text),
     "details" .= d,
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (H.ResultError (H.UnexpectedAmountOfRows i)) = JSON.object [
-    "code"    .= HasqlErrorCode05,
+    "code"    .= HasqlErrorCode04,
     "message" .= ("Unexpected amount of rows" :: Text),
     "details" .= i,
     "hint"    .= JSON.Null]
@@ -358,34 +358,34 @@ instance JSON.ToJSON Error where
       "hint"    .= JSON.Null]
 
   toJSON GucHeadersError           = JSON.object [
-    "code"    .= GeneralErrorCode01,
+    "code"    .= GeneralErrorCode00,
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON GucStatusError           = JSON.object [
-    "code"    .= GeneralErrorCode02,
+    "code"    .= GeneralErrorCode01,
     "message" .= ("response.status guc must be a valid status code" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (BinaryFieldError ct)          = JSON.object [
-    "code"    .= GeneralErrorCode03,
+    "code"    .= GeneralErrorCode02,
     "message" .= ((toS (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON PutRangeNotAllowedError   = JSON.object [
-    "code"    .= GeneralErrorCode04,
+    "code"    .= GeneralErrorCode03,
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON PutMatchingPkError        = JSON.object [
-    "code"    .= GeneralErrorCode05,
+    "code"    .= GeneralErrorCode04,
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON (SingularityError n)      = JSON.object [
-    "code"    .= GeneralErrorCode06,
+    "code"    .= GeneralErrorCode05,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", toS (ContentType.toMime CTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
@@ -417,10 +417,10 @@ data ErrorCode
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
   -- Schema Cache errors
+  | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
   | SchemaCacheErrorCode02
   | SchemaCacheErrorCode03
-  | SchemaCacheErrorCode04
   -- JWT authentication errors
   | JWTErrorCode00
   | JWTErrorCode01
@@ -430,7 +430,6 @@ data ErrorCode
   | HasqlErrorCode02
   | HasqlErrorCode03
   | HasqlErrorCode04
-  | HasqlErrorCode05
   -- Uncategorized errors that are not related to a single module
   | GeneralErrorCode00
   | GeneralErrorCode01
@@ -438,7 +437,6 @@ data ErrorCode
   | GeneralErrorCode03
   | GeneralErrorCode04
   | GeneralErrorCode05
-  | GeneralErrorCode06
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -460,10 +458,10 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode06  -> "106"
   ApiRequestErrorCode07  -> "107"
 
-  SchemaCacheErrorCode01 -> "200"
-  SchemaCacheErrorCode02 -> "201"
-  SchemaCacheErrorCode03 -> "202"
-  SchemaCacheErrorCode04 -> "203"
+  SchemaCacheErrorCode00 -> "200"
+  SchemaCacheErrorCode01 -> "201"
+  SchemaCacheErrorCode02 -> "202"
+  SchemaCacheErrorCode03 -> "203"
 
   JWTErrorCode00         -> "300"
   JWTErrorCode01         -> "301"
@@ -473,7 +471,6 @@ buildErrorCode code = "PGRST" <> case code of
   HasqlErrorCode02       -> "402"
   HasqlErrorCode03       -> "403"
   HasqlErrorCode04       -> "404"
-  HasqlErrorCode05       -> "405"
 
   GeneralErrorCode00     -> "500"
   GeneralErrorCode01     -> "501"
@@ -481,4 +478,3 @@ buildErrorCode code = "PGRST" <> case code of
   GeneralErrorCode03     -> "503"
   GeneralErrorCode04     -> "504"
   GeneralErrorCode05     -> "505"
-  GeneralErrorCode06     -> "506"
