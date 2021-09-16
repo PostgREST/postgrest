@@ -47,6 +47,14 @@ Example Apps
 * `prospector <https://github.com/sfcta/prospector>`_ - data warehouse and visualization platform
 * `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth
 
+.. _dev_ops:
+
+DevOps
+------
+
+* `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
+* `cloudstark/helm-charts <https://github.com/cloudstark/helm-charts/tree/master/postgrest>`_ - helm chart to deploy PostgREST to a Kubernetes cluster via a Deployment and Service
+
 .. _eco_external_notification:
 
 External Notification
