@@ -178,11 +178,11 @@ spec actualPgVersion =
           { matchHeaders = [matchContentTypeJson] }
 
       it "can limit proc results" $ do
-        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
+        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1" [json| {} |]
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
              { matchStatus = 200
              , matchHeaders = ["Content-Range" <:> "1-2/*"] }
-        get "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1"
+        get "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1"
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
              { matchStatus = 200
              , matchHeaders = ["Content-Range" <:> "1-2/*"] }
