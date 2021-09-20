@@ -118,7 +118,7 @@ rec {
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie withTools; };
 
   # Docker images and loading script.
   docker =
