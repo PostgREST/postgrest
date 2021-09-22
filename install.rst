@@ -213,7 +213,7 @@ You can build PostgREST from source with `Stack <https://github.com/commercialha
   =====================  =======================================
   Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev
   CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
-  BSD                    postgresql95-client
+  BSD                    postgresql12-client
   OS X                   libpq, gmp
   =====================  =======================================
 
