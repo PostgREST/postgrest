@@ -12,7 +12,7 @@ TODO: Currently, createReadStatement is not using prepared statements. See https
 module PostgREST.Query.Statements
   ( createWriteStatement
   , createReadStatement
-  , callProcStatement
+  , callRoutineStatement
   , createExplainStatement
   ) where
 
@@ -131,10 +131,10 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
-callProcStatement :: Bool -> Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
+callRoutineStatement :: Bool -> Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
                      Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
                      H.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField pgVer =
+callRoutineStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField pgVer =
   H.dynamicallyParameterized snippet decodeProc
   where
     snippet =

@@ -436,7 +436,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 
   (tableTotal, queryTotal, body, gucHeaders, gucStatus) <-
     lift . SQL.statement mempty $
-      Statements.callProcStatement
+      Statements.callRoutineStatement
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
         (QueryBuilder.requestToCallProcQuery callReq)

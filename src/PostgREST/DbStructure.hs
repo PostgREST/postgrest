@@ -47,6 +47,7 @@ import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcDescription (..),
                                            ProcParam (..),
                                            ProcVolatility (..),
+                                           ProcKind (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
@@ -205,6 +206,7 @@ decodeProcs =
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
+              <*> (parseKind <$> column HD.char)
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -223,6 +225,10 @@ decodeProcs =
     parseVolatility v | v == 'i' = Immutable
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
+
+    parseKind :: Char -> ProcKind
+    parseKind k | k == 'p' = StoredProcedure
+                | otherwise = Function
 
 allProcs :: Bool -> H.Statement [Schema] ProcsMap
 allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
@@ -288,7 +294,8 @@ procsSqlQuery = [q|
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
     p.provolatile,
-    p.provariadic > 0 as hasvariadic
+    p.provariadic > 0 as hasvariadic,
+    p.prokind as proc_kind
   FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
