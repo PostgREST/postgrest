@@ -89,7 +89,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
-  , configDbUri                 = mempty  
+  , configDbUri                 = mempty
   , configDbEmbedDefaultJoin    = JTLeft
   , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing
