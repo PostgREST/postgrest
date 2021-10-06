@@ -1,7 +1,14 @@
 name: CI
+
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
 
 jobs:
   Lint-Style:
@@ -239,10 +246,10 @@ jobs:
             echo "::set-output name=version::$cabal_version"
           fi
 
-          if [[ "$cabal_version" != *-* ]]; then
-            echo "Version is for a full release (no '-' in version)"
+          if [[ "$cabal_version" != *.*.*.* ]]; then
+            echo "Version is for a full release (version does not have four components)"
           else
-            echo "Version is for a pre-release (version contains a '-', as in v1.0.0-a2)"
+            echo "Version is for a pre-release (version has four components, e.g., 1.1.1.1)"
             echo "::set-output name=isprerelease::1"
           fi
       - name: Identify changes from CHANGELOG.md
@@ -282,22 +289,24 @@ jobs:
           path: artifacts
       - name: Create release bundle with archives for all builds
         run: |
+          find artifacts -type f -iname postgrest -exec chmod +x {} \; 
+
           mkdir -p release-bundle
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.xz" \
             -C artifacts/postgrest-linux-static-x64 postgrest
 
           # No need to release Ubuntu, as the static Linux binary built with Nix
           # covers all Linux use-cases
-          #tar cfvz "release-bundle/postgrest-v$VERSION-ubuntu-x64.tar.gz" \
+          #tar cfJv "release-bundle/postgrest-v$VERSION-ubuntu-x64.tar.xz" \
           #  -C artifacts/postgrest-ubuntu-x64 postgrest
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-macos-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
             -C artifacts/postgrest-freebsd-x64 postgrest
-          
+
           zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
             artifacts/postgrest-windows-x64/postgrest.exe
 
@@ -320,7 +329,7 @@ jobs:
             -F artifacts/release-changes/CHANGES.md \
             ${isprerelease:+"--prerelease"} \
             release-bundle/*
-  
+
   Release-Docker:
     name: Release on Docker Hub
     runs-on: ubuntu-latest
@@ -358,4 +367,10 @@ jobs:
       - name: Update descriptions on Docker Hub
         env:
           DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-        run: postgrest-release-dockerhub-description
+        run: |
+          if [[ -z "$ISPRERELEASE" ]]; then
+            echo "Updating description on Docker Hub..."
+            postgrest-release-dockerhub-description
+          else
+            echo "Skipping updating description for pre-release..."
+          fi

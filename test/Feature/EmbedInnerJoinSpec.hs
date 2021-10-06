@@ -1,0 +1,260 @@
+module Feature.EmbedInnerJoinSpec where
+
+import Network.Wai (Application)
+
+import Test.Hspec
+import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
+
+import Protolude  hiding (get)
+import SpecHelper
+
+spec :: SpecWith ((), Application)
+spec =
+  describe "Embedding with an inner join" $ do
+    context "many-to-one relationships" $ do
+      it "ignores null embeddings while the default left join doesn't" $ do
+        get "/projects?select=id,clients!inner(id)" `shouldRespondWith`
+          [json|[
+            {"id":1,"clients":{"id":1}}, {"id":2,"clients":{"id":1}},
+            {"id":3,"clients":{"id":2}}, {"id":4,"clients":{"id":2}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/projects?select=id,clients!left(id)" `shouldRespondWith`
+          [json|[
+            {"id":1,"clients":{"id":1}}, {"id":2,"clients":{"id":1}},
+            {"id":3,"clients":{"id":2}}, {"id":4,"clients":{"id":2}},
+            {"id":5,"clients":null}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when the embedded table is filtered" $ do
+        get "/projects?select=id,clients!inner(id)&clients.id=eq.1" `shouldRespondWith`
+          [json|[
+            {"id":1,"clients":{"id":1}},
+            {"id":2,"clients":{"id":1}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/projects?select=id,clients!inner(id)&clients.id=eq.2" `shouldRespondWith`
+          [json|[
+            {"id":3,"clients":{"id":2}},
+            {"id":4,"clients":{"id":2}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/projects?select=id,clients!inner(id)&clients.id=eq.0" `shouldRespondWith`
+          [json|[]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when a two levels below embedded table is filtered" $ do
+        get "/tasks?select=id,projects!inner(id,clients!inner(id))&projects.clients.id=eq.1" `shouldRespondWith`
+          [json|[
+            {"id":1,"projects":{"id":1,"clients":{"id":1}}},
+            {"id":2,"projects":{"id":1,"clients":{"id":1}}},
+            {"id":3,"projects":{"id":2,"clients":{"id":1}}},
+            {"id":4,"projects":{"id":2,"clients":{"id":1}}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/tasks?select=id,projects!inner(id,clients!inner(id))&projects.clients.id=eq.2" `shouldRespondWith`
+          [json|[
+            {"id":5,"projects":{"id":3,"clients":{"id":2}}},
+            {"id":6,"projects":{"id":3,"clients":{"id":2}}},
+            {"id":7,"projects":{"id":4,"clients":{"id":2}}},
+            {"id":8,"projects":{"id":4,"clients":{"id":2}}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "only affects the source table rows if his direct embedding is an inner join" $
+        get "/tasks?select=id,projects(id,clients!inner(id))&projects.clients.id=eq.2" `shouldRespondWith`
+          [json|[
+            {"id":1,"projects":null},
+            {"id":2,"projects":null},
+            {"id":3,"projects":null},
+            {"id":4,"projects":null},
+            {"id":5,"projects":{"id":3,"clients":{"id":2}}},
+            {"id":6,"projects":{"id":3,"clients":{"id":2}}},
+            {"id":7,"projects":{"id":4,"clients":{"id":2}}},
+            {"id":8,"projects":{"id":4,"clients":{"id":2}}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views" $
+        get "/books?select=title,authors!inner(name)&authors.name=eq.George%20Orwell" `shouldRespondWith`
+          [json| [{"title":"1984","authors":{"name":"George Orwell"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+    context "one-to-many relationships" $ do
+      it "ignores empty array embeddings while the default left join doesn't" $ do
+        get "/entities?select=id,child_entities!inner(id)" `shouldRespondWith`
+          [json|[
+            {"id":1,"child_entities":[{"id":1}, {"id":2}, {"id":4}, {"id":5}]},
+            {"id":2,"child_entities":[{"id":3}, {"id":6}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/entities?select=id,child_entities!left(id)" `shouldRespondWith`
+          [json| [
+            {"id":1,"child_entities":[{"id":1}, {"id":2}, {"id":4}, {"id":5}]},
+            {"id":2,"child_entities":[{"id":3}, {"id":6}]},
+            {"id":3,"child_entities":[]},
+            {"id":4,"child_entities":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when the embedded table is filtered" $ do
+        get "/entities?select=id,child_entities!inner(id)&child_entities.id=eq.1" `shouldRespondWith`
+          [json|[{"id":1,"child_entities":[{"id":1}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/entities?select=id,child_entities!inner(id)&child_entities.id=eq.3" `shouldRespondWith`
+          [json|[{"id":2,"child_entities":[{"id":3}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/entities?select=id,child_entities!inner(id)&child_entities.id=eq.0" `shouldRespondWith`
+          [json|[]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when a two levels below embedded table is filtered" $ do
+        get "/entities?select=id,child_entities!inner(id,grandchild_entities!inner(id))&child_entities.grandchild_entities.id=in.(1,5)"
+          `shouldRespondWith`
+          [json|[
+            {
+              "id": 1,
+              "child_entities": [
+                { "id": 1, "grandchild_entities": [ { "id": 1 } ] },
+                { "id": 2, "grandchild_entities": [ { "id": 5 } ] }]
+            }
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/entities?select=id,child_entities!inner(id,grandchild_entities!inner(id))&child_entities.grandchild_entities.id=eq.2" `shouldRespondWith`
+          [json|[
+            {
+              "id": 1,
+              "child_entities": [
+                { "id": 1, "grandchild_entities": [ { "id": 2 } ] } ]
+            }
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "only affects the source table rows if his direct embedding is an inner join" $
+        get "/entities?select=id,child_entities!inner(id,grandchild_entities(id))&child_entities.grandchild_entities.id=eq.2" `shouldRespondWith`
+          [json|[
+            {
+              "id": 1,
+              "child_entities": [
+                { "id": 1, "grandchild_entities": [ { "id": 2 } ] },
+                { "id": 2, "grandchild_entities": [] },
+                { "id": 4, "grandchild_entities": [] },
+                { "id": 5, "grandchild_entities": [] } ]
+            },
+            {
+              "id": 2,
+              "child_entities": [
+                { "id": 3, "grandchild_entities": [] },
+                { "id": 6, "grandchild_entities": [] } ]
+            }
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views" $
+        get "/authors?select=*,books!inner(*)&books.title=eq.1984" `shouldRespondWith`
+          [json| [{"id":1,"name":"George Orwell","books":[{"id":1,"title":"1984","publication_year":1949,"author_id":1}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+    context "many-to-many relationships" $ do
+      it "ignores empty array embeddings while the default left join doesn't" $ do
+        get "/products?select=id,suppliers!inner(id)" `shouldRespondWith`
+          [json| [
+            {"id":1,"suppliers":[{"id":1}, {"id":2}]},
+            {"id":2,"suppliers":[{"id":1}, {"id":3}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/products?select=id,suppliers!left(id)" `shouldRespondWith`
+          [json| [
+            {"id":1,"suppliers":[{"id":1}, {"id":2}]},
+            {"id":2,"suppliers":[{"id":1}, {"id":3}]},
+            {"id":3,"suppliers":[]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when the embedded table is filtered" $ do
+        get "/products?select=id,suppliers!inner(id)&suppliers.id=eq.2" `shouldRespondWith`
+          [json| [{"id":1,"suppliers":[{"id":2}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/products?select=id,suppliers!inner(id)&suppliers.id=eq.3" `shouldRespondWith`
+          [json| [{"id":2,"suppliers":[{"id":3}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/products?select=id,suppliers!inner(id)&suppliers.id=eq.0" `shouldRespondWith`
+          [json| [] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "filters source tables when a two levels below embedded table is filtered" $ do
+        get "/products?select=id,suppliers!inner(id,trade_unions!inner(id))&suppliers.trade_unions.id=eq.3"
+          `shouldRespondWith`
+          [json|[{"id":1,"suppliers":[{"id":2,"trade_unions":[{"id":3}]}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/products?select=id,suppliers!inner(id,trade_unions!inner(id))&suppliers.trade_unions.id=eq.4"
+          `shouldRespondWith`
+          [json|[{"id":1,"suppliers":[{"id":2,"trade_unions":[{"id":4}]}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "only affects the source table rows if his direct embedding is an inner join" $
+        get "/products?select=id,suppliers!inner(id,trade_unions(id))&suppliers.trade_unions.id=eq.3" `shouldRespondWith`
+          [json|[
+            {"id":1,"suppliers":[{"id":1,"trade_unions":[]}, {"id":2,"trade_unions":[{"id":3}]}]},
+            {"id":2,"suppliers":[{"id":1,"trade_unions":[]}, {"id":3,"trade_unions":[]}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with views" $ do
+        get "/actors?select=*,films!inner(*)&films.title=eq.douze%20commandements" `shouldRespondWith`
+          [json| [{"id":1,"name":"john","films":[{"id":12,"title":"douze commandements"}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/films?select=*,actors!inner(*)&actors.name=eq.john" `shouldRespondWith`
+          [json| [{"id":12,"title":"douze commandements","actors":[{"id":1,"name":"john"}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+    it "works with m2o and m2m relationships combined" $
+      get "/projects?select=name,clients!inner(name),users!inner(name)" `shouldRespondWith`
+        [json| [
+          {"name":"Windows 7","clients":{"name":"Microsoft"},"users":[{"name":"Angela Martin"}, {"name":"Dwight Schrute"}]},
+          {"name":"Windows 10","clients":{"name":"Microsoft"},"users":[{"name":"Angela Martin"}]},
+          {"name":"IOS","clients":{"name":"Apple"},"users":[{"name":"Michael Scott"}, {"name":"Dwight Schrute"}]},
+          {"name":"OSX","clients":{"name":"Apple"},"users":[{"name":"Michael Scott"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works with rpc" $
+      get "/rpc/getallprojects?select=id,clients!inner(id)&clients.id=eq.1" `shouldRespondWith`
+        [json| [{"id":1,"clients":{"id":1}}, {"id":2,"clients":{"id":1}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works when using hints" $ do
+      get "/projects?select=id,clients!client!inner(id)&clients.id=eq.2" `shouldRespondWith`
+        [json| [{"id":3,"clients":{"id":2}}, {"id":4,"clients":{"id":2}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/projects?select=id,client!inner(id)&client.id=eq.2" `shouldRespondWith`
+        [json| [{"id":3,"client":{"id":2}}, {"id":4,"client":{"id":2}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+notDefaultConfig :: SpecWith ((), Application)
+notDefaultConfig =
+  describe "Embedding with a default inner join(db-embed-default-join = 'inner')" $ do
+    it "works on many-to-one relationships" $
+      get "/tasks?select=id,projects(id,clients(id))&projects.clients.id=eq.1" `shouldRespondWith`
+        [json|[
+          {"id":1,"projects":{"id":1,"clients":{"id":1}}},
+          {"id":2,"projects":{"id":1,"clients":{"id":1}}},
+          {"id":3,"projects":{"id":2,"clients":{"id":1}}},
+          {"id":4,"projects":{"id":2,"clients":{"id":1}}}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works on one-to-many relationships" $
+      get "/entities?select=id,child_entities(id,grandchild_entities(id))&child_entities.grandchild_entities.id=in.(1,5)"
+        `shouldRespondWith`
+        [json|[
+          {
+            "id": 1,
+            "child_entities": [
+              { "id": 1, "grandchild_entities": [ { "id": 1 } ] },
+              { "id": 2, "grandchild_entities": [ { "id": 5 } ] }]
+          }
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works on many-to-many relationships" $
+      get "/products?select=id,suppliers(id,trade_unions(id))&suppliers.trade_unions.id=eq.3"
+        `shouldRespondWith`
+        [json|[{"id":1,"suppliers":[{"id":2,"trade_unions":[{"id":3}]}]}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "can restore default left join behavior" $
+      get "/projects?select=id,clients!left(id)" `shouldRespondWith`
+        [json|[
+          {"id":1,"clients":{"id":1}}, {"id":2,"clients":{"id":1}},
+          {"id":3,"clients":{"id":2}}, {"id":4,"clients":{"id":2}},
+          {"id":5,"clients":null}]|]
+        { matchHeaders = [matchContentTypeJson] }

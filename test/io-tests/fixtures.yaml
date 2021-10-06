@@ -179,3 +179,8 @@ invalidopenapimodes:
   - 'follow-'
   - 'ignore-'
   - '.#$$%&$%/'
+
+invalidjointypes:
+  - 'left!'
+  - 'right'
+  - '.#$$%&$%/'

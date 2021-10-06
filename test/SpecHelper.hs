@@ -28,6 +28,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..),
                                           parseSecret)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
+import PostgREST.Request.Types           (JoinType (..))
 import Protolude                         hiding (toS)
 import Protolude.Conv                    (toS)
 
@@ -88,7 +89,8 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
-  , configDbUri                 = mempty
+  , configDbUri                 = mempty  
+  , configDbEmbedDefaultJoin    = JTLeft
   , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing
   , configJWKS                  = parseSecret <$> secret
@@ -125,6 +127,9 @@ testUnicodeCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["
 
 testMaxRowsCfg :: Text -> AppConfig
 testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
+
+testEmbedInnerJoinCfg :: Text -> AppConfig
+testEmbedInnerJoinCfg testDbConn = (testCfg testDbConn) { configDbEmbedDefaultJoin = JTInner }
 
 testDisabledOpenApiCfg :: Text -> AppConfig
 testDisabledOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OADisabled }

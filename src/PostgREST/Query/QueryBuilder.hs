@@ -50,22 +50,31 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([H.Snippet], [H.Snippet]) -> ([H.Snippet], [H.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, _)) _) (j,s) =
+getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, Just joinType, _)) _) (j,s) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
           sel = H.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
-          joi = " LEFT JOIN LATERAL( " <> subquery <> " ) AS " <> H.sql localTableName <> " ON TRUE " in
+          joi = (if joinType == JTInner then " INNER" else " LEFT")
+            <> " JOIN LATERAL( " <> subquery <> " ) AS " <> H.sql localTableName <> " ON TRUE " in
       (joi:j,sel:s)
-    _ ->
-      let sel = "COALESCE (("
-             <> "SELECT json_agg(" <> H.sql (pgFmtIdent table) <> ".*) "
-             <> "FROM (" <> subquery <> ") " <> H.sql (pgFmtIdent table) <> " "
-             <> "), '[]') AS " <> H.sql (pgFmtIdent (fromMaybe name alias)) in
-      (j,sel:s)
-getJoinsSelects (Node (_, (_, Nothing, _, _, _)) _) _ = ([], [])
+    _ -> case joinType of
+      JTInner ->
+        let aliasOrName = fromMaybe name alias
+            localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
+            sel = H.sql $ localTableName <> "._ AS " <> pgFmtIdent aliasOrName
+            joi = "INNER JOIN LATERAL( SELECT json_agg(_) AS _ FROM (" <> subquery <> " ) _) AS " <>
+                  H.sql localTableName <> " ON " <> H.sql localTableName <> "IS NOT NULL" in
+        (joi:j,sel:s)
+      JTLeft ->
+        let sel = "COALESCE (("
+               <> "SELECT json_agg(" <> H.sql (pgFmtIdent table) <> ".*) "
+               <> "FROM (" <> subquery <> ") " <> H.sql (pgFmtIdent table) <> " "
+               <> "), '[]') AS " <> H.sql (pgFmtIdent (fromMaybe name alias)) in
+        (j,sel:s)
+getJoinsSelects _ _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> H.Snippet
 mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
