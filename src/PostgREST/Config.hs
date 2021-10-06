@@ -79,6 +79,7 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
+  , configDbUseLegacyGucs       :: Bool
   , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
@@ -132,6 +133,7 @@ toText conf =
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
+      ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
@@ -222,6 +224,7 @@ parser optPath env dbSettings =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> reqString "db-uri"
+    <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
     <*> parseJwtAudience "jwt-aud"

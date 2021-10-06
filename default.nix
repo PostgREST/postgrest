@@ -36,6 +36,7 @@ let
       allOverlays.gitignore
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
+      allOverlays.postgresql-future
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -45,6 +46,7 @@ let
 
   postgresqlVersions =
     [
+      { name = "postgresql-14"; postgresql = pkgs.postgresql_14; }
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13; }
       { name = "postgresql-12"; postgresql = pkgs.postgresql_12; }
       { name = "postgresql-11"; postgresql = pkgs.postgresql_11; }

@@ -35,6 +35,7 @@ import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.IgnorePrivOpenApiSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
+import qualified Feature.LegacyGucsSpec
 import qualified Feature.MultipleSchemaSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
@@ -87,6 +88,7 @@ main = do
           (configDbSchemas config)
           (configDbExtraSearchPath config)
       appState <- AppState.initWithPool pool config
+      AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState customDbStructure
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
@@ -106,6 +108,7 @@ main = do
       responseHeadersApp   = app testCfgResponseHeaders
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
+      testCfgLegacyGucsApp = app testCfgLegacyGucs
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -206,6 +209,10 @@ main = do
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
       describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
+
+    -- this test runs with db-uses-legacy-gucs = false
+    parallel $ before testCfgLegacyGucsApp $
+      describe "Feature.LegacyGucsSpec" Feature.LegacyGucsSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

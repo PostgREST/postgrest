@@ -166,6 +166,10 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
+      |## Determine if GUC request settings for headers, cookies and jwt.claims use the legacy String values instead of JSON.
+      |## For PostgreSQL v14 and up, this setting will be ignored.
+      |db-use-legacy-gucs = true
+      |
       |## how to terminate database transactions
       |## possible values are:
       |## commit (default)

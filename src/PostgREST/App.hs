@@ -198,7 +198,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
 
   runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
     Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS
+      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS pgVer
 
 runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
 runDbHandler pool mode jwtClaims prepared handler = do

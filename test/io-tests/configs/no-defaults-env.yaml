@@ -14,6 +14,7 @@ PGRST_DB_SCHEMAS: multi,   tenant,setup
 PGRST_DB_CONFIG: false
 PGRST_DB_TX_END: rollback-allow-override
 PGRST_DB_URI: tmp_db
+PGRST_DB_USE_LEGACY_GUCS: false
 PGRST_JWT_AUD: 'https://postgrest.org'
 PGRST_JWT_ROLE_CLAIM_KEY: '.user[0]."real-role"'
 PGRST_JWT_SECRET: c2VjdXJpdHl0aHJvdWdob2JzY3VyaXR5
