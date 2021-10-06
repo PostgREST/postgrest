@@ -34,13 +34,16 @@ jobs:
       - name: Install testing scripts
         run: nix-env -f default.nix -iA tests withTools
 
-      - name: Run coverage (IO tests and Spec tests against PostgreSQL 13)
+      - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@v2
         with:
           files: ./coverage/codecov.json
 
+      - name: Run the spec tests against PostgreSQL 13
+        if: always()
+        run: postgrest-with-postgresql-13 postgrest-test-spec
       - name: Run the spec tests against PostgreSQL 12
         if: always()
         run: postgrest-with-postgresql-12 postgrest-test-spec
