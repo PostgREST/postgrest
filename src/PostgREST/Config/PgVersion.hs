@@ -23,7 +23,7 @@ data PgVersion = PgVersion
   { pgvNum  :: Int32
   , pgvName :: Text
   }
-  deriving (Eq, Generic, JSON.ToJSON)
+  deriving (Eq, Generic, JSON.ToJSON, Show)
 
 instance Ord PgVersion where
   (PgVersion v1 _) `compare` (PgVersion v2 _) = v1 `compare` v2

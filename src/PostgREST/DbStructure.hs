@@ -41,12 +41,14 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion110)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcDescription (..),
                                            ProcParam (..),
                                            ProcVolatility (..),
+                                           ProcKind (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
@@ -83,15 +85,15 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
-queryDbStructure schemas extraSearchPath prepared = do
+queryDbStructure :: [Schema] -> [Schema] -> Bool -> PgVersion -> HT.Transaction DbStructure
+queryDbStructure schemas extraSearchPath prepared pgVer = do
   HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   tabs    <- HT.statement mempty $ allTables prepared
   cols    <- HT.statement schemas $ allColumns tabs prepared
   srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
   m2oRels <- HT.statement mempty $ allM2ORels tabs cols prepared
   keys    <- HT.statement mempty $ allPrimaryKeys tabs prepared
-  procs   <- HT.statement schemas $ allProcs prepared
+  procs   <- HT.statement schemas $ allProcs pgVer prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       keys' = addViewPrimaryKeys srcCols keys
@@ -205,6 +207,7 @@ decodeProcs =
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
+              <*> (parseKind <$> column HD.char)
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -224,18 +227,24 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: Bool -> H.Statement [Schema] ProcsMap
-allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
-  where
-    sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
+    parseKind :: Char -> ProcKind
+    parseKind k | k == 'p' = StoredProcedure
+                | otherwise = Function
 
-accessibleProcs :: Bool -> H.Statement Schema ProcsMap
-accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs
+allProcs :: PgVersion -> Bool -> H.Statement [Schema] ProcsMap
+allProcs pgVer = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = procsSqlQuery pgVer <> " WHERE pn.nspname = ANY($1)"
 
-procsSqlQuery :: SqlQuery
-procsSqlQuery = [q|
+accessibleProcs :: PgVersion -> Bool -> H.Statement Schema ProcsMap
+accessibleProcs pgVer = H.Statement (toS sql) (param HE.text) decodeProcs
+  where
+    sql = procsSqlQuery pgVer <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+
+procsSqlQuery :: PgVersion -> SqlQuery
+procsSqlQuery pgVer =
+  let procKindColumn = if pgVer >= pgVersion110 then "p.prokind" else "'f'" <> " as proc_kind " in
+  [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -288,8 +297,11 @@ procsSqlQuery = [q|
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
     p.provolatile,
-    p.provariadic > 0 as hasvariadic
-  FROM pg_proc p
+    p.provariadic > 0 as hasvariadic,
+  |]
+  <> procKindColumn <>
+  [q|
+    FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
   JOIN base_types bt ON bt.oid = p.prorettype

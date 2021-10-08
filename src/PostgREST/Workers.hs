@@ -151,10 +151,11 @@ connectionStatus appState =
 loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
+  actualPgVersion <- AppState.getPgVersion appState
   result <-
     let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
     P.use (AppState.getPool appState) . transaction HT.ReadCommitted HT.Read $
-      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
+      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements actualPgVersion  
   case result of
     Left e -> do
       let
