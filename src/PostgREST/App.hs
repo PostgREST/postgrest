@@ -462,13 +462,13 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       (if invMethod == InvHead then mempty else toS body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
+handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
   body <-
     lift $ case configOpenApiMode of
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
            <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
