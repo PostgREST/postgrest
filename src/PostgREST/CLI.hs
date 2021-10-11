@@ -166,7 +166,7 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
-      |## Determine if GUC request settings for headers, cookies and jwt.claims use the legacy String values instead of JSON.
+      |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
       |## For PostgreSQL v14 and up, this setting will be ignored.
       |db-use-legacy-gucs = true
       |
