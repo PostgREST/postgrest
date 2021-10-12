@@ -14,6 +14,7 @@ module PostgREST.Middleware
 
 import qualified Data.Aeson                           as JSON
 import qualified Data.ByteString.Char8                as BS
+import qualified Data.ByteString.Lazy.Char8           as BSL
 import qualified Data.CaseInsensitive                 as CI
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Text                            as T
@@ -30,6 +31,8 @@ import qualified Network.Wai.Middleware.Gzip          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
 import qualified Network.Wai.Middleware.Static        as Wai
 
+import Control.Arrow ((***))
+
 import Data.Function             (id)
 import Data.List                 (lookup)
 import Data.Scientific           (FPFormat (..), formatScientific,
@@ -40,6 +43,7 @@ import System.IO.Unsafe          (unsafePerformIO)
 import System.Log.FastLogger     (toLogStr)
 
 import PostgREST.Config             (AppConfig (..), LogLevel (..))
+import PostgREST.Config.PgVersion   (PgVersion (..), pgVersion140)
 import PostgREST.Error              (Error, errorResponseFor)
 import PostgREST.GucHeader          (addHeadersIfNotIncluded)
 import PostgREST.Query.SqlFragment  (fromQi, intercalateSnippet,
@@ -54,8 +58,8 @@ import Protolude.Conv (toS)
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
                (ApiRequest -> ExceptT Error H.Transaction Wai.Response) ->
-               ApiRequest  -> ByteString -> ExceptT Error H.Transaction Wai.Response
-runPgLocals conf claims app req jsonDbS = do
+               ApiRequest  -> ByteString -> PgVersion -> ExceptT Error H.Transaction Wai.Response
+runPgLocals conf claims app req jsonDbS actualPgVersion = do
   lift $ H.statement mempty $ H.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
@@ -64,12 +68,18 @@ runPgLocals conf claims app req jsonDbS = do
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
     pathSql = setConfigLocal mempty ("request.path", iPath req)
-    headersSql = setConfigLocal "request.header." <$> iHeaders req
-    cookiesSql = setConfigLocal "request.cookie." <$> iCookies req
+    headersSql = if usesLegacyGucs
+                   then setConfigLocal "request.header." <$> iHeaders req
+                   else setConfigLocalJson "request.headers" (iHeaders req)
+    cookiesSql = if usesLegacyGucs
+                   then setConfigLocal "request.cookie." <$> iCookies req
+                   else setConfigLocalJson "request.cookies" (iCookies req)
     claimsWithRole =
       let anon = JSON.String . toS $ configDbAnonRole conf in -- role claim defaults to anon if not specified in jwt
       M.union claims (M.singleton "role" anon)
-    claimsSql = setConfigLocal "request.jwt.claim." <$> [(toS c, toS $ unquoted v) | (c,v) <- M.toList claimsWithRole]
+    claimsSql = if usesLegacyGucs
+                  then setConfigLocal "request.jwt.claim." <$> [(toS c, toS $ unquoted v) | (c,v) <- M.toList claimsWithRole]
+                  else [setConfigLocal mempty ("request.jwt.claims", BSL.toStrict $ JSON.encode claimsWithRole)]
     roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", toS $ unquoted x)) <$> M.lookup "role" claimsWithRole
     appSettingsSql = setConfigLocal mempty <$> (join bimap toS <$> configAppSettings conf)
     searchPathSql =
@@ -79,10 +89,7 @@ runPgLocals conf claims app req jsonDbS = do
     specSql = case iTarget req of
       TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
       _                             -> mempty
-    -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-    setConfigLocal :: ByteString -> (ByteString, ByteString) -> H.Snippet
-    setConfigLocal prefix (k, v) =
-      "set_config(" <> unknownEncoder (prefix <> k) <> ", " <> unknownEncoder v <> ", true)"
+    usesLegacyGucs = configDbUseLegacyGucs conf && actualPgVersion < pgVersion140
 
 -- | Log in apache format. Only requests that have a status greater than minStatus are logged.
 -- | There's no way to filter logs in the apache format on wai-extra: https://hackage.haskell.org/package/wai-extra-3.0.29.2/docs/Network-Wai-Middleware-RequestLogger.html#t:OutputFormat.
@@ -181,3 +188,18 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
             [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
       | otherwise =
           identity
+
+-- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
+setConfigLocal :: ByteString -> (ByteString, ByteString) -> H.Snippet
+setConfigLocal prefix (k, v) =
+  "set_config(" <> unknownEncoder (prefix <> k) <> ", " <> unknownEncoder v <> ", true)"
+
+-- | Starting from PostgreSQL v14, some characters are not allowed for config names (mostly affecting headers with "-").
+-- | A JSON format string is used to avoid this problem. See https://github.com/PostgREST/postgrest/issues/1857
+setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [H.Snippet]
+setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal keyVals)]
+  where
+    gucJsonVal :: [(ByteString, ByteString)] -> ByteString
+    gucJsonVal = BSL.toStrict . JSON.encode . M.fromList . arrayByteStringToText
+    arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
+    arrayByteStringToText keyVal = (toS *** toS) <$> keyVal

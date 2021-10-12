@@ -81,6 +81,7 @@ data AppConfig = AppConfig
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
   , configDbEmbedDefaultJoin    :: JoinType
+  , configDbUseLegacyGucs       :: Bool
   , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
@@ -135,6 +136,7 @@ toText conf =
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("db-embed-default-join",     q . show . configDbEmbedDefaultJoin)
+      ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
@@ -226,6 +228,7 @@ parser optPath env dbSettings =
     <*> parseTxEnd "db-tx-end" fst
     <*> reqString "db-uri"
     <*> parseEmbedDefaultJoin "db-embed-default-join"
+    <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
     <*> parseJwtAudience "jwt-aud"

@@ -91,6 +91,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbConfig              = False
   , configDbUri                 = mempty
   , configDbEmbedDefaultJoin    = JTLeft
+  , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing
   , configJWKS                  = parseSecret <$> secret
   , configJwtAudience           = Nothing
@@ -189,6 +190,9 @@ testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = 
 
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["v1", "v2"] }
+
+testCfgLegacyGucs :: Text -> AppConfig
+testCfgLegacyGucs testDbConn = (testCfg testDbConn) { configDbUseLegacyGucs = False }
 
 resetDb :: Text -> IO ()
 resetDb dbConn = loadFixture dbConn "data"

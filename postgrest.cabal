@@ -182,6 +182,7 @@ test-suite spec
                       Feature.InsertSpec
                       Feature.IgnorePrivOpenApiSpec
                       Feature.JsonOperatorSpec
+                      Feature.LegacyGucsSpec
                       Feature.MultipleSchemaSpec
                       Feature.NoJwtSpec
                       Feature.NonexistentSchemaSpec
