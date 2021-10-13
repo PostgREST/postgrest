@@ -50,6 +50,7 @@ db-channel-enabled       Boolean True
 db-prepared-statements   Boolean True
 db-tx-end                String  commit
 db-config                Boolean True
+db-use-legacy-gucs       Boolean True
 server-host              String  !4
 server-port              Int     3000
 server-unix-socket       String
@@ -198,6 +199,15 @@ db-config
 ---------
 
    Enables the in-database configuration.
+
+.. _db-use-legacy-gucs:
+
+db-use-legacy-gucs
+------------------
+
+  Determine if GUC request settings for headers, cookies and jwt claims use the `legacy names <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the :ref:`new names <guc_req_headers_cookies_claims>` (string without dashes, valid on all PostgreSQL versions) with json values.
+
+  On PostgreSQL versions 14 and above, this parameter is ignored.
 
 .. _server-host:
 
