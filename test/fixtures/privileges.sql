@@ -156,6 +156,9 @@ GRANT ALL ON TABLE
     , products_suppliers
     , trade_unions
     , suppliers_trade_unions
+    , client
+    , clientinfo
+    , contact
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
