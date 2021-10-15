@@ -166,6 +166,10 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
+      |## Determines the default embedding type between tables or views when none is specified in the request.
+      |## Admitted values: left, inner
+      |db-embed-default-join = "left"
+      |
       |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
       |## For PostgreSQL v14 and up, this setting will be ignored.
       |db-use-legacy-gucs = true
