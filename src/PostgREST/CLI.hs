@@ -166,7 +166,7 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
-      |## Determines the default embedding type between tables or views when none is specified in the request.
+      |## Determines the default join type when resource embedding
       |## Admitted values: left, inner
       |db-embed-default-join = "left"
       |
