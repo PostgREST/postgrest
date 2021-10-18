@@ -220,6 +220,26 @@ spec =
         [json| [{"id":3,"client":{"id":2}}, {"id":4,"client":{"id":2}}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "works with many one-to-many relationships" $ do
+      -- https://github.com/PostgREST/postgrest/issues/1977
+      get "/client?select=id,name,contact!inner(name),clientinfo!inner(other)" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart","contact":[{"name":"Wally Walton"}, {"name":"Wilma Wellers"}],"clientinfo":[{"other":"123 Main St"}]},
+          {"id":2,"name":"Target", "contact":[{"name":"Tabby Targo"}],"clientinfo":[{"other":"456 South 3rd St"}]},
+          {"id":3,"name":"Big Lots","contact":[{"name":"Bobby Bots"}, {"name":"Bonnie Bits"}, {"name":"Billy Boats"}],"clientinfo":[{"other":"789 Palm Tree Ln"}]}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/client?select=id,name,contact!inner(name),clientinfo!inner(other)&contact.name=eq.Wally%20Walton" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart","contact":[{"name":"Wally Walton"}],"clientinfo":[{"other":"123 Main St"}]}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/client?select=id,name,contact!inner(name),clientinfo!inner(other)&clientinfo.other=eq.456%20South%203rd%20St" `shouldRespondWith`
+        [json|[
+          {"id":2,"name":"Target","clientinfo":[{"other":"456 South 3rd St"}],"contact":[{"name":"Tabby Targo"}]}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
 notDefaultConfig :: SpecWith ((), Application)
 notDefaultConfig =
   describe "Embedding with a default inner join(db-embed-default-join = 'inner')" $ do

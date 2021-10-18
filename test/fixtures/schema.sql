@@ -2348,3 +2348,21 @@ create table suppliers_trade_unions(
   trade_union_id int references trade_unions(id),
   primary key (supplier_id, trade_union_id)
 );
+
+
+CREATE TABLE client (
+  id int primary key
+, name text
+);
+
+CREATE TABLE contact (
+  id int primary key
+, name text
+, clientid int references client(id)
+);
+
+CREATE TABLE clientinfo (
+  id serial primary key
+, clientid int unique references client(id)
+, other text
+);

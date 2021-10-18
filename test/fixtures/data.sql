@@ -707,3 +707,12 @@ INSERT INTO test.trade_unions (id, name) VALUES (1,'union-1'), (2,'union-2'), (3
 
 TRUNCATE TABLE test.suppliers_trade_unions CASCADE;
 INSERT INTO test.suppliers_trade_unions (supplier_id, trade_union_id) VALUES (1,1), (1,2), (2,3), (2,4);
+
+TRUNCATE TABLE test.client CASCADE;
+INSERT INTO test.client (id,name) values (1,'Walmart'),(2,'Target'),(3,'Big Lots');
+
+TRUNCATE TABLE test.contact CASCADE;
+INSERT INTO test.contact (id,name, clientid) values (1,'Wally Walton',1),(2,'Wilma Wellers',1),(3,'Tabby Targo',2),(4,'Bobby Bots',3),(5,'Bonnie Bits',3),(6,'Billy Boats',3) returning *;
+
+TRUNCATE TABLE test.clientinfo CASCADE;
+INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2,'456 South 3rd St'),(3,3,'789 Palm Tree Ln');
