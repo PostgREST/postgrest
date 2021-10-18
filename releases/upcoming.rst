@@ -21,3 +21,7 @@ Added
   + Managed to avoid a breaking change thanks to `@robertsosinski <https://github.com/robertsosinski>`_ who reported the bug that only one ``.`` character was allowed in GUC keys to the PostgreSQL team. See the `full discussion <https://www.postgresql.org/message-id/17045-6a4a9f0d1513f72b%40postgresql.org>`_.
 
   -- `@laurenceisla <https://github.com/laurenceisla>`_
+
+* Documentation improvements
+
+  + Added :ref:`nested_embedding` to the :ref:`resource_embedding` section.
