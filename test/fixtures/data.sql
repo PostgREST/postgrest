@@ -712,7 +712,7 @@ TRUNCATE TABLE test.client CASCADE;
 INSERT INTO test.client (id,name) values (1,'Walmart'),(2,'Target'),(3,'Big Lots');
 
 TRUNCATE TABLE test.contact CASCADE;
-INSERT INTO test.contact (id,name, clientid) values (1,'A',1),(2,'B',1),(3,'C',2),(4,'D',3),(5,'E',3),(6,'F',3) returning *;
+INSERT INTO test.contact (id,name, clientid) values (1,'Wally Walton',1),(2,'Wilma Wellers',1),(3,'Tabby Targo',2),(4,'Bobby Bots',3),(5,'Bonnie Bits',3),(6,'Billy Boats',3) returning *;
 
 TRUNCATE TABLE test.clientinfo CASCADE;
-INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'something'),(2,2,'else'),(3,3,'here');
+INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2,'456 South 3rd St'),(3,3,'789 Palm Tree Ln');
