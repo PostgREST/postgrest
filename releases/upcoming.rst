@@ -29,6 +29,15 @@ Added
 
   -- `@laurenceisla <https://github.com/laurenceisla>`_
 
+* Allow escaping inside double quotes with a backslash, e.g. ``?col=in.("Double\"Quote")``, ``?col=in.("Back\\slash")``. See :ref:`reserved-chars`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Documentation improvements
 
   + Added :ref:`nested_embedding` to the :ref:`resource_embedding` section.
+
+Fixed
+-----
+
+* Fix using single double quotes (``"``) and backslashes (``/``) as values on the "in" operator
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
