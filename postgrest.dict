@@ -8,6 +8,7 @@ aud
 Auth
 auth
 authenticator
+backoff
 balancer
 Beles
 Bouscal
@@ -123,6 +124,7 @@ Rafaj
 RDS
 reallyreallyreallyreallyverysafe
 Rechkemmer
+reconnection
 Redux
 refactor
 Remo

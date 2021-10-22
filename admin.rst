@@ -188,6 +188,17 @@ A great way to inspect incoming HTTP requests including headers and query parame
 
 The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the :ref:`configuration` section. The ngrep output isn't particularly pretty, but it's legible.
 
+.. _automatic_recovery:
+
+Automatic Connection Recovery
+-----------------------------
+
+When PostgREST loses the connection to the database, it retries the connection using capped exponential backoff, with 32 seconds being the maximum backoff time.
+
+This retry behavior is triggered immediately after the connection is lost if :ref:`db-channel-enabled` is set to true (this is the default behavior), otherwise it will be activated once a request is made.
+
+To notify the client when the next reconnection attempt will be, PostgREST responds with ``503 Service Unavailable`` and the ``Retry-After: x`` header, where ``x`` is the number of seconds programmed for the next retry.
+
 Database Logs
 -------------
 
