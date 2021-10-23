@@ -12,8 +12,7 @@ very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
-  ( containsRole
-  , jwtClaims
+  ( jwtClaims
   , JWTClaims
   ) where
 
@@ -76,7 +75,3 @@ claimsMap jspath claims =
     walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (M.lookup key o) rest
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
     walkJSPath _                      _                 = Nothing
-
--- | Whether a response from jwtClaims contains a role claim
-containsRole :: JWTClaims -> Bool
-containsRole = M.member "role"

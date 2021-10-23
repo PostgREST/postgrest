@@ -10,6 +10,8 @@ module PostgREST.Middleware
   , defaultCorsPolicy
   , corsPolicy
   , optionalRollback
+  , getJwtClaims
+  , getRoleClaim
   ) where
 
 import qualified Data.Aeson                           as JSON
@@ -19,11 +21,13 @@ import qualified Data.CaseInsensitive                 as CI
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Text                            as T
 import qualified Data.Text.Encoding                   as T
+import qualified Data.Vault.Lazy                      as Vault
 import qualified Hasql.Decoders                       as HD
 import qualified Hasql.DynamicStatements.Snippet      as SQL hiding
                                                              (sql)
 import qualified Hasql.DynamicStatements.Statement    as SQL
 import qualified Hasql.Transaction                    as SQL
+import qualified Network.HTTP.Types.Header            as HTTP
 import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Logger                   as Wai
 import qualified Network.Wai.Middleware.Cors          as Wai
@@ -31,17 +35,20 @@ import qualified Network.Wai.Middleware.Gzip          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
 import qualified Network.Wai.Middleware.Static        as Wai
 
+
 import Control.Arrow ((***))
 
 import Data.Function             (id)
 import Data.List                 (lookup)
 import Data.Scientific           (FPFormat (..), formatScientific,
                                   isInteger)
-import Network.HTTP.Types.Status (Status, status400, status500,
+import Network.HTTP.Types.Status (Status, status200, status400, status500,
                                   statusCode)
 import System.IO.Unsafe          (unsafePerformIO)
 import System.Log.FastLogger     (toLogStr)
 
+import PostgREST.AppState           (AppState, getConfig, getTime)
+import PostgREST.Auth               (JWTClaims, jwtClaims)
 import PostgREST.Config             (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion   (PgVersion (..), pgVersion140)
 import PostgREST.Error              (Error, errorResponseFor)
@@ -99,7 +106,9 @@ pgrstFormat minStatus date req status responseSize =
   if status < minStatus
     then mempty
   else toLogStr (getSourceFromSocket req)
-    <> " - - ["
+    <> " - "
+    <> toLogStr (maybe "-" unquoted (getRoleClaim req))
+    <> " ["
     <> toLogStr date
     <> "] \""
     <> toLogStr (Wai.requestMethod req)
@@ -119,17 +128,18 @@ pgrstFormat minStatus date req status responseSize =
   where
     getSourceFromSocket = BS.pack . Wai.showSockAddr . Wai.remoteHost
 
-pgrstMiddleware :: LogLevel -> Wai.Application -> Wai.Application
-pgrstMiddleware logLevel =
-    logger
+pgrstMiddleware :: LogLevel -> AppState -> Wai.Application -> Wai.Application
+pgrstMiddleware logLevel appState =
+    authMiddleware appState logLevel
+  . loggerMiddleware logLevel
   . Wai.cors corsPolicy
   . Wai.staticPolicy (Wai.only [("favicon.ico", "static/favicon.ico")])
-  where
-    logger = case logLevel of
-      LogCrit  -> id
-      LogError -> unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status500}
-      LogWarn  -> unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status400}
-      LogInfo  -> Wai.logStdout
+
+loggerMiddleware :: LogLevel -> Wai.Application -> Wai.Application
+loggerMiddleware LogCrit  = id
+loggerMiddleware LogError = unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status500}
+loggerMiddleware LogWarn  = unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status400}
+loggerMiddleware LogInfo  = unsafePerformIO $ Wai.mkRequestLogger Wai.def { Wai.outputFormat = Wai.CustomOutputFormat $ pgrstFormat status200}
 
 defaultCorsPolicy :: Wai.CorsResourcePolicy
 defaultCorsPolicy =  Wai.CorsResourcePolicy Nothing
@@ -202,3 +212,33 @@ setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal k
     gucJsonVal = LBS.toStrict . JSON.encode . M.fromList . arrayByteStringToText
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
     arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
+
+-- | Validate authorization header.
+--   Parse and store JWT claims for future use in the request.
+authMiddleware :: AppState -> LogLevel -> Wai.Application -> Wai.Application
+authMiddleware appState app req respond = do
+  conf <- getConfig appState
+  time <- getTime appState
+
+  let auth = fromMaybe "" $ lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let tokenStr = case BS.split ' ' auth of
+        ("Bearer" : t : _) -> t
+        ("bearer" : t : _) -> t
+        _                  -> ""
+
+  mclaims <- runExceptT $ jwtClaims conf (LBS.fromStrict tokenStr) time
+  case mclaims of
+    Right claims ->
+      let req' = req { Wai.vault = Vault.insert jwtKey claims $ Wai.vault req }
+      in app req' respond
+    Left error -> loggerMiddleware logLevel (\_req' respond' -> respond' $ errorResponseFor error) req respond
+
+jwtKey :: Vault.Key JWTClaims
+jwtKey = unsafePerformIO Vault.newKey
+{-# NOINLINE jwtKey #-}
+
+getJwtClaims :: Wai.Request -> Maybe JWTClaims
+getJwtClaims = Vault.lookup jwtKey . Wai.vault
+
+getRoleClaim :: Wai.Request -> Maybe JSON.Value
+getRoleClaim req = M.lookup "role" =<< getJwtClaims req

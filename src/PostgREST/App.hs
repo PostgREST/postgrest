@@ -21,7 +21,6 @@ import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.List                (union)
 import Data.String              (IsString (..))
-import Data.Time.Clock          (UTCTime)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
@@ -41,7 +40,6 @@ import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Handler.Warp        as Warp
 
 import qualified PostgREST.AppState                 as AppState
-import qualified PostgREST.Auth                     as Auth
 import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
 import qualified PostgREST.Middleware               as Middleware
@@ -138,9 +136,8 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLev appState connWorker =
-  Middleware.pgrstMiddleware logLev $
+  Middleware.pgrstMiddleware logLev appState $
     \req respond -> do
-      time <- AppState.getTime appState
       conf <- AppState.getConfig appState
       maybeDbStructure <- AppState.getDbStructure appState
       pgVer <- AppState.getPgVersion appState
@@ -149,7 +146,7 @@ postgrest logLev appState connWorker =
       let
         eitherResponse :: IO (Either Error Wai.Response)
         eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
+          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
       -- Launch the connWorker when the connection is down.  The postgrest
@@ -172,10 +169,9 @@ postgrestResponse
   -> ByteString
   -> PgVersion
   -> SQL.Pool
-  -> UTCTime
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
+postgrestResponse conf maybeDbStructure jsonDbS pgVer pool req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -185,30 +181,29 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       Nothing ->
         throwError Error.ConnectionLostError
 
-  apiRequest@ApiRequest{..} <-
+  apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf dbStructure req body
 
-  -- The JWT must be checked before touching the db
-  jwtClaims <- Auth.jwtClaims conf (toUtf8Lazy iJWT) time
 
   let
+    jwtClaims = fromMaybe mempty $ Middleware.getJwtClaims req
     handleReq apiReq =
       handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
+  runDbHandler pool (txMode apiRequest) (configDbPreparedStatements conf) .
     Middleware.optionalRollback conf apiRequest $
       Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS pgVer
 
-runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
-runDbHandler pool mode jwtClaims prepared handler = do
+runDbHandler :: SQL.Pool -> SQL.Mode -> Bool -> DbHandler a -> Handler IO a
+runDbHandler pool mode prepared handler = do
   dbResp <-
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
     lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
-      mapLeft (Error.PgError $ Auth.containsRole jwtClaims) dbResp
+      mapLeft (Error.PgError True) dbResp
 
   liftEither resp
 
