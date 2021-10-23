@@ -20,8 +20,8 @@ module PostgREST.App
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.List                (union)
+import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
-import Data.Time.Clock          (UTCTime)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
@@ -56,6 +56,7 @@ import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
 import PostgREST.AppState                (AppState)
+import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..))
@@ -149,28 +150,32 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLevel appState connWorker =
-  Logger.middleware logLevel .
-  Cors.middleware $
-    \req respond -> do
-      time <- AppState.getTime appState
-      conf <- AppState.getConfig appState
-      maybeDbStructure <- AppState.getDbStructure appState
-      pgVer <- AppState.getPgVersion appState
-      jsonDbS <- AppState.getJsonDbS appState
+  Cors.middleware .
+  Auth.middleware appState .
+  Logger.middleware logLevel $
+    -- fromJust can be used, because the auth middleware will **always** add
+    -- some AuthResult to the vault.
+    \req respond -> case fromJust $ Auth.getResult req of
+      Left err -> respond $ Error.errorResponseFor err
+      Right authResult -> do
+        conf <- AppState.getConfig appState
+        maybeDbStructure <- AppState.getDbStructure appState
+        pgVer <- AppState.getPgVersion appState
+        jsonDbS <- AppState.getJsonDbS appState
 
-      let
-        eitherResponse :: IO (Either Error Wai.Response)
-        eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
+        let
+          eitherResponse :: IO (Either Error Wai.Response)
+          eitherResponse =
+            runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) authResult req
 
-      response <- either Error.errorResponseFor identity <$> eitherResponse
-      -- Launch the connWorker when the connection is down.  The postgrest
-      -- function can respond successfully (with a stale schema cache) before
-      -- the connWorker is done.
-      let isPGAway = Wai.responseStatus response == HTTP.status503
-      when isPGAway connWorker
-      resp <- addRetryHint isPGAway appState response
-      respond resp
+        response <- either Error.errorResponseFor identity <$> eitherResponse
+        -- Launch the connWorker when the connection is down.  The postgrest
+        -- function can respond successfully (with a stale schema cache) before
+        -- the connWorker is done.
+        let isPGAway = Wai.responseStatus response == HTTP.status503
+        when isPGAway connWorker
+        resp <- addRetryHint isPGAway appState response
+        respond resp
 
 addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
 addRetryHint shouldAdd appState response = do
@@ -184,10 +189,10 @@ postgrestResponse
   -> ByteString
   -> PgVersion
   -> SQL.Pool
-  -> UTCTime
+  -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
+postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthResult{..} req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -197,30 +202,25 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       Nothing ->
         throwError Error.NoSchemaCacheError
 
-  apiRequest@ApiRequest{..} <-
+  apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf dbStructure req body
 
-  -- The JWT must be checked before touching the db
-  jwtClaims <- Auth.jwtClaims conf (toUtf8Lazy iJWT) time
+  let handleReq apiReq = handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  let
-    handleReq apiReq =
-      handleRequest $ RequestContext conf dbStructure apiReq pgVer
-
-  runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
+  runDbHandler pool (txMode apiRequest) (authRole /= configDbAnonRole) configDbPreparedStatements .
     Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS pgVer
+      Middleware.runPgLocals conf authClaims authRole handleReq apiRequest jsonDbS pgVer
 
-runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
-runDbHandler pool mode jwtClaims prepared handler = do
+runDbHandler :: SQL.Pool -> SQL.Mode -> Bool -> Bool -> DbHandler a -> Handler IO a
+runDbHandler pool mode authenticated prepared handler = do
   dbResp <-
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
     lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
-      mapLeft (Error.PgError $ Auth.containsRole jwtClaims) dbResp
+      mapLeft (Error.PgError authenticated) dbResp
 
   liftEither resp
 

@@ -25,7 +25,6 @@ import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
 import qualified Data.List.NonEmpty    as NonEmptyList
 import qualified Data.Set              as S
-import qualified Data.Text             as T
 import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
 
@@ -34,7 +33,7 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup, union)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection)
-import Network.HTTP.Types.Header (hAuthorization, hCookie)
+import Network.HTTP.Types.Header (hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
@@ -157,7 +156,6 @@ data ApiRequest = ApiRequest {
   , iPreferTransaction    :: Maybe PreferTransaction          -- ^ Whether the clients wants to commit or rollback the transaction
   , iQueryParams          :: QueryParams.QueryParams
   , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
-  , iJWT                  :: Text                             -- ^ JSON Web Token
   , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
@@ -195,7 +193,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       , iPreferTransaction = preferTransaction
       , iQueryParams = queryparams
       , iColumns = payloadColumns
-      , iJWT = tokenStr
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
       , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
@@ -324,11 +321,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   hdrs            = requestHeaders req
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
-  auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (T.decodeUtf8 auth) of
-    ("Bearer" : t : _) -> t
-    ("bearer" : t : _) -> t
-    _                  -> ""
   headerRange = rangeRequested hdrs
 
   ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" qsRanges))) qsRanges

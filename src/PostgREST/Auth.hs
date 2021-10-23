@@ -12,40 +12,54 @@ very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
-  ( containsRole
-  , jwtClaims
-  , JWTClaims
+  ( AuthResult (..)
+  , getResult
+  , getRole
+  , middleware
   ) where
 
-import qualified Crypto.JWT          as JWT
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as M
-import qualified Data.Vector         as V
+import qualified Crypto.JWT                      as JWT
+import qualified Data.Aeson                      as JSON
+import qualified Data.Aeson.Types                as JSON
+import qualified Data.ByteString.Lazy.Char8      as LBS
+import qualified Data.HashMap.Strict             as M
+import qualified Data.Text.Encoding              as T
+import qualified Data.Vault.Lazy                 as Vault
+import qualified Data.Vector                     as V
+import qualified Network.HTTP.Types.Header       as HTTP
+import qualified Network.Wai                     as Wai
+import qualified Network.Wai.Middleware.HttpAuth as Wai
 
 import Control.Lens            (set)
 import Control.Monad.Except    (liftEither)
-import Data.Either.Combinators (mapLeft)
+import Data.Either.Combinators (mapLeft, mapRight)
+import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime)
+import System.IO.Unsafe        (unsafePerformIO)
 
-import PostgREST.Config (AppConfig (..), JSPath, JSPathExp (..))
-import PostgREST.Error  (Error (..))
+import PostgREST.AppState (AppState, getConfig, getTime)
+import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
+import PostgREST.Error    (Error (..))
 
 import Protolude
 
 
-type JWTClaims = M.HashMap Text JSON.Value
+data AuthResult = AuthResult
+  { authClaims :: M.HashMap Text JSON.Value
+  , authRole   :: Text
+  }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
--- map of JWT claims.
-jwtClaims :: Monad m =>
-  AppConfig -> LByteString -> UTCTime -> ExceptT Error m JWTClaims
-jwtClaims _ "" _ = return M.empty
-jwtClaims AppConfig{..} payload time = do
+-- JSON object of JWT claims.
+parseToken :: Monad m =>
+  AppConfig -> LByteString -> UTCTime -> ExceptT Error m JSON.Value
+parseToken _ "" _ = return JSON.emptyObject
+parseToken AppConfig{..} token time = do
   secret <- liftEither . maybeToRight JwtTokenMissing $ configJWKS
   eitherClaims <-
     lift . runExceptT $
-      JWT.verifyClaimsAt validation secret time =<< JWT.decodeCompact payload
-  liftEither . mapLeft jwtClaimsError $ claimsMap configJwtRoleClaimKey <$> eitherClaims
+      JWT.verifyClaimsAt validation secret time =<< JWT.decodeCompact token
+  liftEither . mapLeft jwtClaimsError $ JSON.toJSON <$> eitherClaims
   where
     validation =
       JWT.defaultJWTValidationSettings audienceCheck & set JWT.allowedSkew 1
@@ -57,19 +71,15 @@ jwtClaims AppConfig{..} payload time = do
     jwtClaimsError JWT.JWTExpired = JwtTokenInvalid "JWT expired"
     jwtClaimsError e              = JwtTokenInvalid $ show e
 
--- | Turn JWT ClaimSet into something easier to work with.
---
--- Also, here the jspath is applied to put the "role" in the map.
-claimsMap :: JSPath -> JWT.ClaimsSet -> JWTClaims
-claimsMap jspath claims =
-  case JSON.toJSON claims of
-    val@(JSON.Object o) ->
-      M.delete "role" o `M.union` role val
-    _ ->
-      M.empty
+parseClaims :: AppConfig -> JSON.Value -> AuthResult
+parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) =
+  AuthResult
+  { authClaims = mclaims & M.insert "role" (JSON.toJSON role)
+  , authRole = role
+  }
   where
-    role value =
-      maybe M.empty (M.singleton "role") $ walkJSPath (Just value) jspath
+    -- role defaults to anon if not specified in jwt
+    role = maybe configDbAnonRole unquoted (walkJSPath (Just jclaims) configJwtRoleClaimKey)
 
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
     walkJSPath x                      []                = x
@@ -77,6 +87,33 @@ claimsMap jspath claims =
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
     walkJSPath _                      _                 = Nothing
 
--- | Whether a response from jwtClaims contains a role claim
-containsRole :: JWTClaims -> Bool
-containsRole = M.member "role"
+    unquoted :: JSON.Value -> Text
+    unquoted (JSON.String t) = t
+    unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
+-- impossible case - just added to please -Wincomplete-patterns
+parseClaims _ _ = AuthResult { authClaims = M.empty, authRole = mempty }
+
+-- | Validate authorization header.
+--   Parse and store JWT claims for future use in the request.
+middleware :: AppState -> Wai.Middleware
+middleware appState app req respond = do
+  conf <- getConfig appState
+  time <- getTime appState
+
+  let token = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  claims <- runExceptT $ parseToken conf (LBS.fromStrict token) time
+
+  let
+    authResult = mapRight (parseClaims conf) claims
+    req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+  app req' respond
+
+authResultKey :: Vault.Key (Either Error AuthResult)
+authResultKey = unsafePerformIO Vault.newKey
+{-# NOINLINE authResultKey #-}
+
+getResult :: Wai.Request -> Maybe (Either Error AuthResult)
+getResult = Vault.lookup authResultKey . Wai.vault
+
+getRole :: Wai.Request -> Maybe Text
+getRole req = authRole <$> (rightToMaybe =<< getResult req)
