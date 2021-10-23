@@ -847,6 +847,10 @@ def test_log_level(level, has_output, defaultenv):
 
     env = {**defaultenv, "PGRST_LOG_LEVEL": level}
 
+    # expired token to test 500 response for "JWT expired"
+    claim = {"role": "postgrest_test_author", "exp": 0}
+    headers = jwtauthheader(claim, SECRET)
+
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
         assert response.status_code == 200
@@ -864,10 +868,10 @@ def test_log_level(level, has_output, defaultenv):
                 postgrest.process.stdout.readline().decode(),
             )
 
-        response = postgrest.session.get("/rpc/raise_bad_pt")
+        response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 500
         if has_output[2]:
             assert re.match(
-                r'unknownSocket - - \[.+\] "GET /rpc/raise_bad_pt HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'unknownSocket - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
                 postgrest.process.stdout.readline().decode(),
             )

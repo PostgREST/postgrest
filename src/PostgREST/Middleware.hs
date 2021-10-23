@@ -20,6 +20,7 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Network.Wai                       as Wai
 
+
 import Control.Arrow ((***))
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
@@ -37,10 +38,10 @@ import PostgREST.Request.Preferences
 import Protolude
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
-runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
+runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value -> Text ->
                (ApiRequest -> ExceptT Error SQL.Transaction Wai.Response) ->
                ApiRequest  -> ByteString -> PgVersion -> ExceptT Error SQL.Transaction Wai.Response
-runPgLocals conf claims app req jsonDbS actualPgVersion = do
+runPgLocals conf claims role app req jsonDbS actualPgVersion = do
   lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
@@ -55,13 +56,10 @@ runPgLocals conf claims app req jsonDbS actualPgVersion = do
     cookiesSql = if usesLegacyGucs
                    then setConfigLocal "request.cookie." <$> iCookies req
                    else setConfigLocalJson "request.cookies" (iCookies req)
-    claimsWithRole =
-      let anon = JSON.String . toS $ configDbAnonRole conf in -- role claim defaults to anon if not specified in jwt
-      M.union claims (M.singleton "role" anon)
     claimsSql = if usesLegacyGucs
-                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 c, toUtf8 $ unquoted v) | (c,v) <- M.toList claimsWithRole]
-                  else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claimsWithRole)]
-    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", toUtf8 $ unquoted x)) <$> M.lookup "role" claimsWithRole
+                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 c, toUtf8 $ unquoted v) | (c,v) <- M.toList claims]
+                  else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
+    roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
     searchPathSql =
       let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
