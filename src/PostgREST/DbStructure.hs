@@ -814,8 +814,8 @@ pfkSourceColumns cols =
                ','               , ''
             -- The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
             -- We remove the escaped ones, which might be part of column names again.
-            ), '\{'              , ''
-            ), '\}'              , ''
+            ), E'\\{'            , ''
+            ), E'\\}'            , ''
             -- The fields we need are formatted as json manually to protect them from the regex.
             ), ' :targetList '   , ',"targetList":'
             ), ' :resno '        , ',"resno":'
