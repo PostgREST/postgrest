@@ -492,7 +492,9 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
   case matchProc of
     []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
     [proc] -> Right proc
-    procs  -> Left $ AmbiguousRpc (toList procs)
+    procs  -> case procs of  
+                [proc1,proc2] -> if length (pdParams proc1) == 1 && (ppType <$> headMay (pdParams proc1)) `elem` [Just "json", Just "jsonb"] && (ppName <$> headMay (pdParams proc1)) == Just mempty then Right proc2 else Left $ AmbiguousRpc (toList procs) 
+                _             -> Left $ AmbiguousRpc (toList procs)
   where
     matchProc = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
     matchesParams proc =
