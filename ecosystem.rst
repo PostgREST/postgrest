@@ -14,6 +14,14 @@ Community Tutorials
 * `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>`_ -
   A step-by-step tutorial for using PostgREST with KeyCloak(hosted on a managed service).
 
+.. _templates:
+
+Templates
+---------
+
+* `compose-postgrest <https://github.com/mattddowney/compose-postgrest>`_ - docker-compose setup with Nginx and HTML example
+* `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth - `blog post <https://www.webgma.co.il/Articles/rapid-prototyping-with-postgrest-and-svelte/en/>`_
+
 .. _eco_example_apps:
 
 Example Apps
@@ -22,7 +30,6 @@ Example Apps
 * `chronicle <https://github.com/srid/chronicle>`_ - tracking a tree of personal memories
 * `cloudgov-demo-postgrest <https://github.com/GSA/cloudgov-demo-postgrest>`_ - demo for a federally-compliant REST API on cloud.gov
 * `code-du-travail-backoffice <https://github.com/SocialGouv/code-du-travail-backoffice>`_ - data administration portal for the official French Labor Code and Agreements
-* `compose-postgrest <https://github.com/mattddowney/compose-postgrest>`_ - docker-compose setup with Nginx and HTML example
 * `delibrium-postgrest <https://gitlab.com/delibrium/delibrium-postgrest/>`_ - example school API and front-end in Vue.js
 * `elm-workshop <https://github.com/diogob/elm-workshop>`_ - building a simple database query UI
 * `ember-postgrest-dynamic-ui <https://github.com/benoror/ember-postgrest-dynamic-ui>`_ - generating Ember forms to edit data
@@ -45,7 +52,6 @@ Example Apps
 * `PostgrestSkeleton <https://github.com/Recmo/PostgrestSkeleton>`_ - Docker Compose, PostgREST, Nginx and Auth0
 * `PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
 * `prospector <https://github.com/sfcta/prospector>`_ - data warehouse and visualization platform
-* `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth
 
 .. _dev_ops:
 
