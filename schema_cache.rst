@@ -41,9 +41,15 @@ Stale Foreign Key Relationships
 
 Suppose you add a ``cities`` table to your database and define a foreign key that references an existing ``countries`` table. Then, you make a request to get the ``cities`` and their belonging ``countries``.
 
-.. code-block:: http
+.. tabs::
 
-  GET /cities?select=name,country:countries(id,name) HTTP/1.1
+  .. code-tab:: http
+
+    GET /cities?select=name,country:countries(id,name) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/cities?select=name,country:countries(id,name)"
 
 The result will be an error:
 
@@ -70,9 +76,15 @@ The same issue will occur on newly created functions on a running PostgREST.
    SELECT num + 1;
   $$ LANGUAGE SQL IMMUTABLE;
 
-.. code-block:: http
+.. tabs::
 
-  GET /rpc/plus_one?num=1 HTTP/1.1
+  .. code-tab:: http
+
+    GET /rpc/plus_one?num=1 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/plus_one?num=1"
 
 .. code-block:: json
 

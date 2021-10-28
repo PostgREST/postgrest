@@ -150,10 +150,17 @@ Client Auth
 
 To make an authenticated request the client must include an :code:`Authorization` HTTP header with the value :code:`Bearer <jwt>`. For instance:
 
-.. code:: http
+.. tabs::
 
-  GET /foo HTTP/1.1
-  Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImV4cCI6MTQ3NTUxNjI1MH0.GYDZV3yM0gqvuEtJmfpplLBXSGYnke_Pvnl0tbKAjB4
+  .. code-tab:: http
+
+    GET /foo HTTP/1.1
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImV4cCI6MTQ3NTUxNjI1MH0.GYDZV3yM0gqvuEtJmfpplLBXSGYnke_Pvnl0tbKAjB4
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/foo" \
+      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiamRvZSIsImV4cCI6MTQ3NTUxNjI1MH0.GYDZV3yM0gqvuEtJmfpplLBXSGYnke_Pvnl0tbKAjB4"
 
 The ``Bearer`` header value can be used with or without capitalization(``bearer``).
 
@@ -422,11 +429,19 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
 
 An API request to call this function would look like:
 
-.. code:: http
+.. tabs::
 
-  POST /rpc/login HTTP/1.1
+  .. code-tab:: http
 
-  { "email": "foo@bar.com", "pass": "foobar" }
+    POST /rpc/login HTTP/1.1
+
+    { "email": "foo@bar.com", "pass": "foobar" }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/login" \
+      -X POST -H "Content-Type: application/json" \
+      -d '{ "email": "foo@bar.com", "pass": "foobar" }'
 
 The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`reallyreallyreallyreallyverysafe` as specified in the SQL code above. You'll want to change this secret in your app!)
 
