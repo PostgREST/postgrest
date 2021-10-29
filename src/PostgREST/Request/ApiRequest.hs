@@ -492,11 +492,13 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
   case matchProc of
     []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
     [proc] -> Right proc
-    procs  -> case procs of  
-                [proc1,proc2] -> if length (pdParams proc1) == 1 && (ppType <$> headMay (pdParams proc1)) `elem` [Just "json", Just "jsonb"] && (ppName <$> headMay (pdParams proc1)) == Just mempty then Right proc2 else Left $ AmbiguousRpc (toList procs) 
-                _             -> Left $ AmbiguousRpc (toList procs)
+    procs  -> Left $ AmbiguousRpc (toList procs)
   where
-    matchProc = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    hasSingleUnnamedJsonParam proc = case proc of
+          ProcDescription{pdParams=[ProcParam ppName ppType _ _]} -> T.null ppName && ppType `elem` ["json", "jsonb"]
+          _ -> False
+    matchProc = if null matchProc' && isInvPost then filter hasSingleUnnamedJsonParam (M.lookupDefault mempty qi allProcs) else matchProc'
+    matchProc' = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
     matchesParams proc =
       let params = pdParams proc in
       -- exceptional case for Prefer: params=single-object
@@ -509,8 +511,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       -- it can be called depending on content type and the parameter type
       else if isInvPost && length params == 1 && (ppName <$> headMay params) == Just mempty
         then case headMay params of
-          Just prm | contentType == CTApplicationJSON -> ppType prm `elem` ["json", "jsonb"]
-                   | contentType == CTTextPlain       -> ppType prm == "text"
+          Just prm | contentType == CTTextPlain       -> ppType prm == "text"
                    | contentType == CTOctetStream     -> ppType prm == "bytea"
                    | otherwise                        -> False
           Nothing  -> False
