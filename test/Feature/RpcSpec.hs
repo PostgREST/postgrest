@@ -1164,13 +1164,38 @@ spec actualPgVersion =
             , matchHeaders = [ matchContentTypeJson ]
             }
 
-        it "will not be able to resolve when a single unnamed json parameter exists and other overloaded functions exist" $
-          request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
+        it "should be able to resolve when a single unnamed json parameter exists and other overloaded functions are called" $ do
+          request methodPost "/rpc/overloaded_unnamed_json_param" [("Content-Type", "application/json")]
+              [json|{}|]
+            `shouldRespondWith`
+              [json| 1 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+          request methodPost "/rpc/overloaded_unnamed_json_param" [("Content-Type", "application/json")]
               [json|{"x": 1, "y": 2}|]
+            `shouldRespondWith`
+              [json| 3 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should be able to fallback to the single unnamed json parameter function when other overloaded functions exist" $
+          request methodPost "/rpc/overloaded_unnamed_json_param" [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
+              [json|{"A": 1, "B": 2, "C": 3}|]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should fail with multiple choices when exists two fallback functions with single unnamed json and jsonb parameters" $
+          request methodPost "/rpc/overloaded_unnamed_json_jsonb_param" [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
             `shouldRespondWith`
               [json| {
                 "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
-                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_param( => json), test.overloaded_unnamed_param(x => integer, y => integer)"}|]
+                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_json_jsonb_param( => json), test.overloaded_unnamed_json_jsonb_param( => jsonb)"}|]
               { matchStatus  = 300
               , matchHeaders = [matchContentTypeJson]
               }

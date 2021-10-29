@@ -2314,12 +2314,28 @@ create or replace function test.unnamed_int_param(int) returns int as $$
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_param(json) returns int as $$
+create or replace function test.overloaded_unnamed_json_param(json) returns json as $$
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_param(x int, y int) returns int as $$
+create or replace function test.overloaded_unnamed_json_param() returns int as $$
+select 1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_param(x int, y int) returns int as $$
   select x + y;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(json) returns json as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(jsonb) returns jsonb as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(x int, y int) returns int as $$
+select x + y;
 $$ language sql;
 
 create table products(
