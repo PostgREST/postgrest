@@ -1,4 +1,4 @@
-resolver: lts-18.2 # 2021-07-10, GHC 8.10.4
+resolver: lts-18.14 # 2021-10-24, GHC 8.10.7
 
 nix:
   packages:

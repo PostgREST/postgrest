@@ -27,7 +27,7 @@ packages:
     hackage: ptr-0.16.8.1@sha256:525219ec5f5da5c699725f7efcef91b00a7d44120fc019878b85c09440bf51d6,2686
 snapshots:
 - completed:
-    size: 585392
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/2.yaml
-    sha256: 7abb45c0cc5eb349448b66d8753655542d45d387ad26970419282eab3d860724
-  original: lts-18.2
+    size: 586069
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/14.yaml
+    sha256: 87842ecbaa8ca9cee59a7e6be52369dbed82ed075cb4e0d152614a627e8fd488
+  original: lts-18.14
