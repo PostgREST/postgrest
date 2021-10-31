@@ -110,7 +110,7 @@ rec {
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      ghcWithPackages = pkgs.haskell.packages.ghc884.ghcWithPackages;
+      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
     };
 
   ### Tools
