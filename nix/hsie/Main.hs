@@ -17,6 +17,7 @@ module Main (main) where
 import qualified Data.Aeson                              as JSON
 import qualified Data.ByteString.Lazy.Char8              as LBS8
 import qualified Data.Csv                                as Csv
+import qualified Data.List                               as List
 import qualified Data.Map                                as Map
 import qualified Data.Set                                as Set
 import qualified Data.Text                               as T
@@ -27,13 +28,14 @@ import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
 import qualified Options.Applicative                     as O
 import qualified System.FilePath                         as FP
 
+import Bag                        (bagToList)
 import Data.Aeson.Encode.Pretty   (encodePretty)
 import Data.Function              ((&))
 import Data.List                  (intercalate)
 import Data.Maybe                 (catMaybes, mapMaybe)
 import Data.Text                  (Text)
 import GHC.Generics               (Generic)
-import HsExtension                (GhcPs)
+import GHC.Hs.Extension           (GhcPs)
 import Module                     (moduleNameString)
 import OccName                    (occNameString)
 import RdrName                    (rdrNameOcc)
@@ -201,8 +203,9 @@ parseModule filepath = do
   case result of
     Right (_, hsmod) ->
       return $ GHC.unLoc hsmod
-    Left (loc, err) ->
-      fail $ "Error with " <> show filepath <> " at " <> show loc <> ": " <> err
+    Left errs ->
+      fail $ "Errors with " <> show filepath <> ":\n    "
+        <> List.intercalate "\n    " (show <$> bagToList errs)
 
 -- | Symbols imported in an import declaration.
 --
@@ -223,7 +226,7 @@ importSymbols source filepath GHC.ImportDecl{..} =
         , impSource = source
         , impFromModule = T.pack $ moduleFromPath filepath
         , impModule = T.pack . moduleNameString . GHC.unLoc $ ideclName
-        , impQualified = if ideclQualified then Qualified else NotQualified
+        , impQualified = if ideclQualified /= GHC.NotQualified then Qualified else NotQualified
         , impAlias = T.pack . moduleNameString . GHC.unLoc <$> ideclAs
         , impInternal = External
         , impType = hiding
