@@ -494,11 +494,21 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
     [proc] -> Right proc
     procs  -> Left $ AmbiguousRpc (toList procs)
   where
-    hasSingleUnnamedJsonParam proc = case proc of
-          ProcDescription{pdParams=[ProcParam ppName ppType _ _]} -> T.null ppName && ppType `elem` ["json", "jsonb"]
-          _ -> False
-    matchProc = if null matchProc' && isInvPost then filter hasSingleUnnamedJsonParam (M.lookupDefault mempty qi allProcs) else matchProc'
-    matchProc' = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchProc =
+      if null (fst findProcPartition) && isInvPost && contentType == CTApplicationJSON
+        then snd findProcPartition -- use the fallback function if none is found with the provided parameters
+        else fst findProcPartition
+    findProcPartition = overloadedProcPartition $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    -- The partition obtained has the form (overloadedProcs,fallbackProcs)
+    -- where fallbackProcs are functions with a single unnamed parameter of type json or jsonb
+    overloadedProcPartition procs = foldr select ([],[]) procs
+    select proc ~(ts,fs)
+      | matchesParams proc             = (proc:ts,fs)
+      | hasSingleUnnamedJsonParam proc = (ts,proc:fs)
+      | otherwise                      = (ts,fs)
+    hasSingleUnnamedJsonParam proc = case pdParams proc of
+      [ProcParam ppName ppType _ _] -> T.null ppName && ppType `elem` ["json", "jsonb"]
+      _ -> False
     matchesParams proc =
       let params = pdParams proc in
       -- exceptional case for Prefer: params=single-object
