@@ -6,6 +6,7 @@
 , nixpkgs-fmt
 , shellcheck
 , silver-searcher
+, statix
 , stylish-haskell
 }:
 let
@@ -18,6 +19,7 @@ let
       }
       ''
         # Format Nix files
+        ${statix}/bin/statix fix
         ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
 
         # Format Haskell files
