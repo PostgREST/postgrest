@@ -2,8 +2,7 @@
 
 self: super:
 let
-  lib =
-    self.haskell.lib;
+  inherit (self.haskell) lib;
 
   overrides =
     final: prev:

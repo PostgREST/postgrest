@@ -14,13 +14,13 @@ let
     "postgrest-nixpkgs-upgrade";
 
   refUrl =
-    https://api.github.com/repos/nixos/nixpkgs/git/ref/heads/nixpkgs-unstable;
+    "https://api.github.com/repos/nixos/nixpkgs/git/ref/heads/nixpkgs-unstable";
 
   githubV3Header =
     "Accept: application/vnd.github.v3+json";
 
   tarballUrlBase =
-    https://github.com/nixos/nixpkgs/archive/;
+    "https://github.com/nixos/nixpkgs/archive/";
 
   upgrade =
     checkedShellScript
