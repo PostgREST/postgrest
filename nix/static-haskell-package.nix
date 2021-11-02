@@ -39,16 +39,29 @@ let
 
   overlays =
     [
+      allOverlays.postgresql-future
+      allOverlays.postgresql-default
       (allOverlays.haskell-packages { inherit compiler extraOverrides; })
+      # Disable failing tests for postgresql on musl that should have no impact
+      # on the libpq that we need (collate.icu.utf8 and foreign regression
+      # tests)
+      (self: super:
+        { postgresql = super.postgresql.overrideAttrs (_: { doCheck = false; }); }
+      )
     ];
 
   # Apply our overlay to the given pkgs.
   normalPkgs =
     import patchedNixpkgs { inherit overlays; };
 
+  defaultCabalPackageVersionComingWithGhc =
+    {
+      ghc8107 = "Cabal_3_2_1_0";
+    }."${compiler}";
+
   # The static-haskell-nix 'survey' derives a full static set of Haskell
   # packages, applying fixes where necessary.
   survey =
-    import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler; };
+    import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
 survey.haskellPackages."${name}"

@@ -13,11 +13,9 @@ let
   postgrest =
     import ./default.nix;
 
-  pkgs =
-    postgrest.pkgs;
+  inherit (postgrest) pkgs;
 
-  lib =
-    pkgs.lib;
+  inherit (pkgs) lib;
 
   toolboxes =
     [
