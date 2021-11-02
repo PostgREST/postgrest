@@ -80,8 +80,7 @@ let
       }
     );
 
-  lib =
-    pkgs.haskell.lib;
+  inherit (pkgs.haskell) lib;
 in
 rec {
   inherit nixpkgs pkgs;
@@ -104,13 +103,12 @@ rec {
       )
     );
 
-  env =
-    postgrest.env;
+  inherit (postgrest) env;
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      ghcWithPackages = pkgs.haskell.packages."${compiler}".ghcWithPackages;
+      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
     };
 
   ### Tools
@@ -147,7 +145,7 @@ rec {
     pkgs.callPackage nix/tools/tests.nix {
       inherit postgrest devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
-      hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
+      inherit (pkgs.haskell.packages."${compiler}") hpc-codecov;
     };
 
   withTools =
