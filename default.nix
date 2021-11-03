@@ -138,7 +138,7 @@ rec {
 
   # Linting and styling tools.
   style =
-    pkgs.callPackage nix/tools/style.nix { };
+    pkgs.callPackage nix/tools/style.nix { inherit hsie; };
 
   # Scripts for running tests.
   tests =

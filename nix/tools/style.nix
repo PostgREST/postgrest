@@ -3,6 +3,7 @@
 , checkedShellScript
 , git
 , hlint
+, hsie
 , nixpkgs-fmt
 , shellcheck
 , silver-searcher
@@ -53,12 +54,16 @@ let
         inRootDir = true;
       }
       ''
-        # Lint Haskell files
+        echo "Checking consistency of import aliases in Haskell code..."
+        ${hsie} check-aliases main src
+
+
+        echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
 
-        # Lint bash scripts
+        echo "Linting bash scripts..."
         ${shellcheck}/bin/shellcheck test/with_tmp_db
       '';
 
