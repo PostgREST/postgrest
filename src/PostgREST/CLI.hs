@@ -8,10 +8,10 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
-import qualified Data.Aeson                 as Aeson
+import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Lazy       as LBS
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
 import qualified Protolude.Conv             as Conv
 
@@ -54,19 +54,19 @@ dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
-    let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
-    P.use (AppState.getPool appState) $
-      transaction HT.ReadCommitted HT.Read $
+    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+    SQL.use (AppState.getPool appState) $
+      transaction SQL.ReadCommitted SQL.Read $
         queryDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
           configDbPreparedStatements
-  P.release $ AppState.getPool appState
+  SQL.release $ AppState.getPool appState
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
       exitFailure
-    Right dbStructure -> return $ Aeson.encode dbStructure
+    Right dbStructure -> return $ JSON.encode dbStructure
 
 -- | Command line interface options
 data CLI = CLI

@@ -9,13 +9,13 @@ module PostgREST.Workers
 
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
-import qualified Hasql.Connection           as C
-import qualified Hasql.Notifications        as N
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Notifications        as SQL
+import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Transaction.Sessions as SQL
 
-import Control.Retry (RetryStatus, capDelay, exponentialBackoff,
-                      retrying, rsPreviousDelay)
+import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,
+                         retrying, rsPreviousDelay)
+import Hasql.Connection (acquire)
 
 import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
@@ -108,7 +108,7 @@ connectionWorker appState = do
 connectionStatus :: AppState -> IO ConnectionStatus
 connectionStatus appState =
   retrying retrySettings shouldRetry $
-    const $ P.release pool >> getConnectionStatus
+    const $ SQL.release pool >> getConnectionStatus
   where
     pool = AppState.getPool appState
     retrySettings = capDelay delayMicroseconds $ exponentialBackoff backoffMicroseconds
@@ -117,7 +117,7 @@ connectionStatus appState =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- P.use pool queryPgVersion
+      pgVersion <- SQL.use pool queryPgVersion
       case pgVersion of
         Left e -> do
           let err = PgError False e
@@ -152,8 +152,8 @@ loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
-    let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
-    P.use (AppState.getPool appState) . transaction HT.ReadCommitted HT.Read $
+    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+    SQL.use (AppState.getPool appState) . transaction SQL.ReadCommitted SQL.Read $
       queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
@@ -194,12 +194,12 @@ listener appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel) $ do
-    dbOrError <- C.acquire $ toS configDbUri
+    dbOrError <- acquire $ toS configDbUri
     case dbOrError of
       Right db -> do
         AppState.logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
-        N.listen db $ N.toPgIdentifier dbChannel
-        N.waitForNotifications handleNotification db
+        SQL.listen db $ SQL.toPgIdentifier dbChannel
+        SQL.waitForNotifications handleNotification db
       _ ->
         die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
   where

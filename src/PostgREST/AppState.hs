@@ -25,7 +25,7 @@ module PostgREST.AppState
   , waitListener
   ) where
 
-import qualified Hasql.Pool as P
+import qualified Hasql.Pool as SQL
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -44,7 +44,7 @@ import Protolude.Conv (toS)
 
 
 data AppState = AppState
-  { statePool         :: P.Pool -- | Connection pool, either a 'Connection' or a 'ConnectionError'
+  { statePool         :: SQL.Pool -- | Connection pool, either a 'Connection' or a 'ConnectionError'
   , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateDbStructure  :: IORef (Maybe DbStructure)
@@ -71,7 +71,7 @@ init conf = do
   newPool <- initPool conf
   initWithPool newPool conf
 
-initWithPool :: P.Pool -> AppConfig -> IO AppState
+initWithPool :: SQL.Pool -> AppConfig -> IO AppState
 initWithPool newPool conf =
   AppState newPool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -85,15 +85,15 @@ initWithPool newPool conf =
     <*> myThreadId
     <*> newIORef 0
 
-initPool :: AppConfig -> IO P.Pool
+initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  P.acquire (configDbPoolSize, configDbPoolTimeout, toS configDbUri)
+  SQL.acquire (configDbPoolSize, configDbPoolTimeout, toS configDbUri)
 
-getPool :: AppState -> P.Pool
+getPool :: AppState -> SQL.Pool
 getPool = statePool
 
 releasePool :: AppState -> IO ()
-releasePool AppState{..} = P.release statePool >> throwTo stateMainThreadId UserInterrupt
+releasePool AppState{..} = SQL.release statePool >> throwTo stateMainThreadId UserInterrupt
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion

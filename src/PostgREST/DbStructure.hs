@@ -33,8 +33,8 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
-import qualified Hasql.Statement     as H
-import qualified Hasql.Transaction   as HT
+import qualified Hasql.Statement     as SQL
+import qualified Hasql.Transaction   as SQL
 
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
@@ -83,15 +83,15 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
+queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
 queryDbStructure schemas extraSearchPath prepared = do
-  HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- HT.statement mempty $ allTables prepared
-  cols    <- HT.statement schemas $ allColumns tabs prepared
-  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- HT.statement mempty $ allM2ORels tabs cols prepared
-  keys    <- HT.statement mempty $ allPrimaryKeys tabs prepared
-  procs   <- HT.statement schemas $ allProcs prepared
+  SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  tabs    <- SQL.statement mempty $ allTables prepared
+  cols    <- SQL.statement schemas $ allColumns tabs prepared
+  srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
+  m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
+  keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
+  procs   <- SQL.statement schemas $ allProcs prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       keys' = addViewPrimaryKeys srcCols keys
@@ -224,13 +224,13 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: Bool -> H.Statement [Schema] ProcsMap
-allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
+allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
+allProcs = SQL.Statement (toS sql) (arrayParam HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
-accessibleProcs :: Bool -> H.Statement Schema ProcsMap
-accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs
+accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
+accessibleProcs = SQL.Statement (toS sql) (param HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
@@ -299,9 +299,9 @@ procsSqlQuery = [q|
   LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
 |]
 
-schemaDescription :: Bool -> H.Statement Schema (Maybe Text)
+schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
-    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
+    SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
   where
     sql = [q|
       select
@@ -312,9 +312,9 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: Bool -> H.Statement Schema [Table]
+accessibleTables :: Bool -> SQL.Statement Schema [Table]
 accessibleTables =
-  H.Statement sql (param HE.text) decodeTables
+  SQL.Statement sql (param HE.text) decodeTables
  where
   sql = [q|
     select
@@ -446,9 +446,9 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
   pk : viewPks)
 
-allTables :: Bool -> H.Statement () [Table]
+allTables :: Bool -> SQL.Statement () [Table]
 allTables =
-  H.Statement sql HE.noParams decodeTables
+  SQL.Statement sql HE.noParams decodeTables
  where
   sql = [q|
     SELECT
@@ -488,9 +488,9 @@ allTables =
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> Bool -> H.Statement [Schema] [Column]
+allColumns :: [Table] -> Bool -> SQL.Statement [Schema] [Column]
 allColumns tabs =
- H.Statement sql (arrayParam HE.text) (decodeColumns tabs)
+ SQL.Statement sql (arrayParam HE.text) (decodeColumns tabs)
  where
   sql = [q|
     SELECT DISTINCT
@@ -621,9 +621,9 @@ columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: [Table] -> [Column] -> Bool -> H.Statement () [Relationship]
+allM2ORels :: [Table] -> [Column] -> Bool -> SQL.Statement () [Relationship]
 allM2ORels tabs cols =
-  H.Statement sql HE.noParams (decodeRels tabs cols)
+  SQL.Statement sql HE.noParams (decodeRels tabs cols)
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -659,9 +659,9 @@ relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> Bool -> H.Statement () [PrimaryKey]
+allPrimaryKeys :: [Table] -> Bool -> SQL.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
-  H.Statement sql HE.noParams (decodePks tabs)
+  SQL.Statement sql HE.noParams (decodePks tabs)
  where
   sql = [q|
     -- CTE to replace information_schema.table_constraints to remove owner limit
@@ -740,9 +740,9 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 -- returns all the primary and foreign key columns which are referenced in views
-pfkSourceColumns :: [Column] -> Bool -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns :: [Column] -> Bool -> SQL.Statement ([Schema], [Schema]) [SourceColumn]
 pfkSourceColumns cols =
-  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
+  SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089

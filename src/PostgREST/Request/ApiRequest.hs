@@ -19,7 +19,7 @@ module PostgREST.Request.ApiRequest
 
 import qualified Data.Aeson           as JSON
 import qualified Data.ByteString      as BS
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Csv             as CSV
 import qualified Data.HashMap.Strict  as M
@@ -72,11 +72,11 @@ import Protolude      hiding (head, toS)
 import Protolude.Conv (toS)
 
 
-type RequestBody = BL.ByteString
+type RequestBody = LBS.ByteString
 
 data Payload
   = ProcessedJSON -- ^ Cached attributes of a JSON payload
-      { payRaw  :: BL.ByteString
+      { payRaw  :: LBS.ByteString
       -- ^ This is the raw ByteString that comes from the request body.  We
       -- cache this instead of an Aeson Value because it was detected that for
       -- large payloads the encoding had high memory usage, see
@@ -85,8 +85,8 @@ data Payload
       -- ^ Keys of the object or if it's an array these keys are guaranteed to
       -- be the same across all its objects
       }
-  | RawJSON { payRaw  :: BL.ByteString }
-  | RawPay  { payRaw  :: BL.ByteString }
+  | RawJSON { payRaw  :: LBS.ByteString }
+  | RawPay  { payRaw  :: LBS.ByteString }
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
@@ -273,7 +273,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
-               =<< if BL.null reqBody && isTargetingProc
+               =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
                      else JSON.eitherDecode reqBody
     CTTextCSV -> do
@@ -406,7 +406,7 @@ mutuallyAgreeable sProduces cAccepts =
      then listToMaybe sProduces
      else exact
 
-type CsvData = V.Vector (M.HashMap Text BL.ByteString)
+type CsvData = V.Vector (M.HashMap Text LBS.ByteString)
 
 {-|
   Converts CSV like

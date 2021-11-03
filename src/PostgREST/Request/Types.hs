@@ -34,7 +34,7 @@ module PostgREST.Request.Types
   , fstFieldNames
   ) where
 
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Set             as S
 
 import Data.Tree (Tree (..))
@@ -110,7 +110,7 @@ data MutateQuery
   = Insert
       { in_        :: QualifiedIdentifier
       , insCols    :: S.Set FieldName
-      , insBody    :: Maybe BL.ByteString
+      , insBody    :: Maybe LBS.ByteString
       , onConflict :: Maybe (PreferResolution, [FieldName])
       , where_     :: [LogicTree]
       , returning  :: [FieldName]
@@ -118,7 +118,7 @@ data MutateQuery
   | Update
       { in_       :: QualifiedIdentifier
       , updCols   :: S.Set FieldName
-      , updBody   :: Maybe BL.ByteString
+      , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
       , returning :: [FieldName]
       }
@@ -131,7 +131,7 @@ data MutateQuery
 data CallQuery = FunctionCall
   { funCQi           :: QualifiedIdentifier
   , funCParams       :: CallParams
-  , funCArgs         :: Maybe BL.ByteString
+  , funCArgs         :: Maybe LBS.ByteString
   , funCScalar       :: Bool
   , funCMultipleCall :: Bool
   , funCReturning    :: [FieldName]
