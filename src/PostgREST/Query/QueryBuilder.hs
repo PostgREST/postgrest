@@ -17,7 +17,7 @@ module PostgREST.Query.QueryBuilder
 
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.Set                        as S
-import qualified Hasql.DynamicStatements.Snippet as H
+import qualified Hasql.DynamicStatements.Snippet as SQL
 
 import Data.Tree (Tree (..))
 
@@ -33,11 +33,11 @@ import PostgREST.Request.Types
 
 import Protolude
 
-readRequestToQuery :: ReadRequest -> H.Snippet
+readRequestToQuery :: ReadRequest -> SQL.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <>
-  "FROM " <> H.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
+  "FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null joinConditions_ then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
   <> " " <>
@@ -49,16 +49,16 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
-getJoinsSelects :: ReadRequest -> ([H.Snippet], [H.Snippet]) -> ([H.Snippet], [H.Snippet])
+getJoinsSelects :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, Just joinType, _)) _) (joins,selects) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
-          sel = H.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
+          sel = SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
           joi = (if joinType == JTInner then " INNER" else " LEFT")
-            <> " JOIN LATERAL( " <> subquery <> " ) AS " <> H.sql localTableName <> " ON TRUE " in
+            <> " JOIN LATERAL( " <> subquery <> " ) AS " <> SQL.sql localTableName <> " ON TRUE " in
       (joi:joins,sel:selects)
     _ -> case joinType of
       JTInner ->
@@ -66,29 +66,29 @@ getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTab
             locTblName = table <> "_" <> aliasOrName
             localTableName = pgFmtIdent locTblName
             internalTableName = pgFmtIdent $ "_" <> locTblName
-            sel = H.sql $ localTableName <> "." <> internalTableName <> " AS " <> pgFmtIdent aliasOrName
+            sel = SQL.sql $ localTableName <> "." <> internalTableName <> " AS " <> pgFmtIdent aliasOrName
             joi = "INNER JOIN LATERAL(" <>
-                    "SELECT json_agg(" <> H.sql internalTableName <> ") AS " <> H.sql internalTableName <>
-                    "FROM (" <> subquery <> " ) AS " <> H.sql internalTableName <>
-                  ") AS " <> H.sql localTableName <> " ON " <> H.sql localTableName <> "IS NOT NULL" in
+                    "SELECT json_agg(" <> SQL.sql internalTableName <> ") AS " <> SQL.sql internalTableName <>
+                    "FROM (" <> subquery <> " ) AS " <> SQL.sql internalTableName <>
+                  ") AS " <> SQL.sql localTableName <> " ON " <> SQL.sql localTableName <> "IS NOT NULL" in
         (joi:joins,sel:selects)
       JTLeft ->
         let sel = "COALESCE (("
-               <> "SELECT json_agg(" <> H.sql (pgFmtIdent table) <> ".*) "
-               <> "FROM (" <> subquery <> ") " <> H.sql (pgFmtIdent table) <> " "
-               <> "), '[]') AS " <> H.sql (pgFmtIdent (fromMaybe name alias)) in
+               <> "SELECT json_agg(" <> SQL.sql (pgFmtIdent table) <> ".*) "
+               <> "FROM (" <> subquery <> ") " <> SQL.sql (pgFmtIdent table) <> " "
+               <> "), '[]') AS " <> SQL.sql (pgFmtIdent (fromMaybe name alias)) in
         (joins,sel:selects)
 getJoinsSelects _ _ = ([], [])
 
-mutateRequestToQuery :: MutateRequest -> H.Snippet
+mutateRequestToQuery :: MutateRequest -> SQL.Snippet
 mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
   "WITH " <> normalizedBody body <> " " <>
-  "INSERT INTO " <> H.sql (fromQi mainQi) <> H.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
-  "SELECT " <> H.sql cols <> " " <>
-  H.sql ("FROM json_populate_recordset (null::" <> fromQi mainQi <> ", " <> selectBody <> ") _ ") <>
+  "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
+  "SELECT " <> SQL.sql cols <> " " <>
+  SQL.sql ("FROM json_populate_recordset (null::" <> fromQi mainQi <> ", " <> selectBody <> ") _ ") <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
-  H.sql (BS.unwords [
+  SQL.sql (BS.unwords [
     maybe "" (\(oncDo, oncCols) ->
       if null oncCols then
         mempty
@@ -110,13 +110,13 @@ mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
-    then H.sql ("SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false")
+    then SQL.sql ("SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false")
     else
       "WITH " <> normalizedBody body <> " " <>
-      "UPDATE " <> H.sql (fromQi mainQi) <> " SET " <> H.sql cols <> " " <>
-      "FROM (SELECT * FROM json_populate_recordset (null::" <> H.sql (fromQi mainQi) <> " , " <> H.sql selectBody <> " )) _ " <>
+      "UPDATE " <> SQL.sql (fromQi mainQi) <> " SET " <> SQL.sql cols <> " " <>
+      "FROM (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) _ " <>
       (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)) <> " " <>
-      H.sql (returningF mainQi returnings)
+      SQL.sql (returningF mainQi returnings)
   where
     cols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
     emptyBodyReturnedColumns :: SqlFragment
@@ -124,11 +124,11 @@ mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
       | null returnings = "NULL"
       | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
 mutateRequestToQuery (Delete mainQi logicForest returnings) =
-  "DELETE FROM " <> H.sql (fromQi mainQi) <> " " <>
+  "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
   (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
-  H.sql (returningF mainQi returnings)
+  SQL.sql (returningF mainQi returnings)
 
-requestToCallProcQuery :: CallRequest -> H.Snippet
+requestToCallProcQuery :: CallRequest -> SQL.Snippet
 requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
   prmsCTE <> argsBody
   where
@@ -137,12 +137,12 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
       KeyParams []    -> (mempty, mempty)
       KeyParams prms  -> (
           "WITH " <> normalizedBody args <> ", " <>
-          H.sql (
+          SQL.sql (
             BS.unwords [
             "pgrst_args AS (",
               "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams prms (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
             ")"])
-         , H.sql $ if multipleCall
+         , SQL.sql $ if multipleCall
              then fmtParams prms varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
              else fmtParams prms varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
         )
@@ -154,7 +154,7 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
     varadicPrefix :: ProcParam -> SqlFragment
     varadicPrefix a = if ppVar a then "VARIADIC " else mempty
 
-    argsBody :: H.Snippet
+    argsBody :: SQL.Snippet
     argsBody
       | multipleCall =
           if returnsScalar
@@ -166,23 +166,23 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
             then "SELECT " <> callIt <> " AS pgrst_scalar"
             else "SELECT " <> returnedColumns <> " FROM " <> callIt
 
-    callIt :: H.Snippet
-    callIt = H.sql (fromQi qi) <> "(" <> argFrag <> ")"
+    callIt :: SQL.Snippet
+    callIt = SQL.sql (fromQi qi) <> "(" <> argFrag <> ")"
 
-    returnedColumns :: H.Snippet
+    returnedColumns :: SQL.Snippet
     returnedColumns
       | null returnings = "*"
-      | otherwise       = H.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
+      | otherwise       = SQL.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
 
 
 -- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
 -- SELECT 1 is done instead of SELECT * to prevent doing expensive operations(like functions based on the columns)
 -- inside the FROM target.
-readRequestToCountQuery :: ReadRequest -> H.Snippet
+readRequestToCountQuery :: ReadRequest -> SQL.Snippet
 readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
- "SELECT 1 " <> "FROM " <> H.sql (fromQi qi) <> " " <>
+ "SELECT 1 " <> "FROM " <> SQL.sql (fromQi qi) <> " " <>
  if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest)
 
-limitedQuery :: H.Snippet -> Maybe Integer -> H.Snippet
-limitedQuery query maxRows = query <> H.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
+limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
+limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)

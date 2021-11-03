@@ -19,10 +19,10 @@ import qualified Data.CaseInsensitive                 as CI
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Text                            as T
 import qualified Hasql.Decoders                       as HD
-import qualified Hasql.DynamicStatements.Snippet      as H hiding
-                                                           (sql)
-import qualified Hasql.DynamicStatements.Statement    as H
-import qualified Hasql.Transaction                    as H
+import qualified Hasql.DynamicStatements.Snippet      as SQL hiding
+                                                             (sql)
+import qualified Hasql.DynamicStatements.Statement    as SQL
+import qualified Hasql.Transaction                    as SQL
 import qualified Network.HTTP.Types.Header            as HTTP
 import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Logger                   as Wai
@@ -57,13 +57,13 @@ import Protolude.Conv (toS)
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
-               (ApiRequest -> ExceptT Error H.Transaction Wai.Response) ->
-               ApiRequest  -> ByteString -> PgVersion -> ExceptT Error H.Transaction Wai.Response
+               (ApiRequest -> ExceptT Error SQL.Transaction Wai.Response) ->
+               ApiRequest  -> ByteString -> PgVersion -> ExceptT Error SQL.Transaction Wai.Response
 runPgLocals conf claims app req jsonDbS actualPgVersion = do
-  lift $ H.statement mempty $ H.dynamicallyParameterized
+  lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
-  lift $ traverse_ H.sql preReqSql
+  lift $ traverse_ SQL.sql preReqSql
   app req
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
@@ -167,12 +167,12 @@ unquoted v = toS $ JSON.encode v
 optionalRollback
   :: AppConfig
   -> ApiRequest
-  -> ExceptT Error H.Transaction Wai.Response
-  -> ExceptT Error H.Transaction Wai.Response
+  -> ExceptT Error SQL.Transaction Wai.Response
+  -> ExceptT Error SQL.Transaction Wai.Response
 optionalRollback AppConfig{..} ApiRequest{..} transaction = do
   resp <- catchError transaction $ return . errorResponseFor
   when (shouldRollback || (configDbTxRollbackAll && not shouldCommit))
-    (lift H.condemn)
+    (lift SQL.condemn)
   return $ Wai.mapResponseHeaders preferenceApplied resp
   where
     shouldCommit =
@@ -190,13 +190,13 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
           identity
 
 -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: ByteString -> (ByteString, ByteString) -> H.Snippet
+setConfigLocal :: ByteString -> (ByteString, ByteString) -> SQL.Snippet
 setConfigLocal prefix (k, v) =
   "set_config(" <> unknownEncoder (prefix <> k) <> ", " <> unknownEncoder v <> ", true)"
 
 -- | Starting from PostgreSQL v14, some characters are not allowed for config names (mostly affecting headers with "-").
 -- | A JSON format string is used to avoid this problem. See https://github.com/PostgREST/postgrest/issues/1857
-setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [H.Snippet]
+setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [SQL.Snippet]
 setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal keyVals)]
   where
     gucJsonVal :: [(ByteString, ByteString)] -> ByteString

@@ -26,10 +26,10 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.ByteString.Char8           as BS8
+import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.HashMap.Strict             as Map
-import qualified Data.Set                        as Set
+import qualified Data.HashMap.Strict             as M
+import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Pool                      as SQL
 import qualified Hasql.Transaction               as SQL
@@ -163,7 +163,7 @@ postgrest logLev appState connWorker =
 addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
 addRetryHint shouldAdd appState response = do
   delay <- AppState.getRetryNextIn appState
-  let h = ("Retry-After", BS8.pack $ show delay)
+  let h = ("Retry-After", BS.pack $ show delay)
   return $ Wai.mapResponseHeaders (\hs -> if shouldAdd then h:hs else hs) response
 
 postgrestResponse
@@ -271,7 +271,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       , ( "Content-Location"
         , "/"
             <> toS (qiName identifier)
-            <> if BS8.null iCanonicalQS then mempty else "?" <> toS iCanonicalQS
+            <> if BS.null iCanonicalQS then mempty else "?" <> toS iCanonicalQS
         )
       ]
       ++ contentTypeHeaders context
@@ -322,7 +322,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
         , if null pkCols && isNothing iOnConflict then
             Nothing
           else
-            (\x -> ("Preference-Applied", BS8.pack $ show x)) <$> iPreferResolution
+            (\x -> ("Preference-Applied", BS.pack $ show x)) <$> iPreferResolution
         ]
 
   failNotSingular iAcceptContentType resQueryTotal $
@@ -338,7 +338,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   let
     response = gucResponse resGucStatus resGucHeaders
     fullRepr = iPreferRepresentation == Full
-    updateIsNoOp = Set.null iColumns
+    updateIsNoOp = S.null iColumns
     status
       | resQueryTotal == 0 && not updateIsNoOp = HTTP.status404
       | fullRepr = HTTP.status200
@@ -406,7 +406,7 @@ handleInfo identifier RequestContext{..} =
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
-      , BS8.intercalate "," $
+      , BS.intercalate "," $
           ["OPTIONS,GET,HEAD"]
           ++ ["POST" | tableInsertable table]
           ++ ["PUT" | tableInsertable table && tableUpdatable table && hasPK]
@@ -473,7 +473,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
               (filter (\x -> tableSchema x == tSchema) $ DbStructure.dbTables dbStructure)
-              (Map.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
+              (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
           <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OADisabled ->
         pure mempty
@@ -609,6 +609,6 @@ profileHeader ApiRequest{..} =
 
 splitKeyValue :: ByteString -> (ByteString, ByteString)
 splitKeyValue kv =
-  (k, BS8.tail v)
+  (k, BS.tail v)
   where
-    (k, v) = BS8.break (== '=') kv
+    (k, v) = BS.break (== '=') kv

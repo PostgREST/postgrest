@@ -29,9 +29,8 @@ module PostgREST.Config
 import qualified Crypto.JOSE.Types      as JOSE
 import qualified Crypto.JWT             as JWT
 import qualified Data.Aeson             as JSON
-import qualified Data.ByteString        as B
+import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Char8  as BS
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
@@ -86,12 +85,12 @@ data AppConfig = AppConfig
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
   , configJwtRoleClaimKey       :: JSPath
-  , configJwtSecret             :: Maybe B.ByteString
+  , configJwtSecret             :: Maybe BS.ByteString
   , configJwtSecretIsBase64     :: Bool
   , configLogLevel              :: LogLevel
   , configOpenApiMode           :: OpenAPIMode
   , configOpenApiServerProxyUri :: Maybe Text
-  , configRawMediaTypes         :: [B.ByteString]
+  , configRawMediaTypes         :: [BS.ByteString]
   , configServerHost            :: Text
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
@@ -144,7 +143,7 @@ toText conf =
       ,("log-level",                 q . show . configLogLevel)
       ,("openapi-mode",              q . show . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
+      ,("raw-media-types",           q . toS . BS.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)

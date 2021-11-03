@@ -20,9 +20,9 @@ import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.Lens                   as L
 import qualified Data.ByteString.Char8             as BS
 import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Snippet   as H
-import qualified Hasql.DynamicStatements.Statement as H
-import qualified Hasql.Statement                   as H
+import qualified Hasql.DynamicStatements.Snippet   as SQL
+import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.Statement                   as SQL
 
 import Control.Lens              ((^?))
 import Data.Maybe                (fromJust)
@@ -46,15 +46,15 @@ import Protolude.Conv (toS)
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
-createWriteStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool ->
+createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->
                         PreferRepresentation -> [Text] -> PgVersion -> Bool ->
-                        H.Statement () ResultsWithCount
+                        SQL.Statement () ResultsWithCount
 createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
-  H.dynamicallyParameterized snippet decodeStandard
+  SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
-    "WITH " <> H.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
-    H.sql (
+    "WITH " <> SQL.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
+    SQL.sql (
     "SELECT " <>
       "'' AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
@@ -82,23 +82,23 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
-    | rep `elem` [None, HeadersOnly] = H.sql ("SELECT * FROM " <> sourceCTEName)
+    | rep `elem` [None, HeadersOnly] = SQL.sql ("SELECT * FROM " <> sourceCTEName)
     | otherwise                      = selectQuery
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: H.Snippet -> H.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
-                       H.Statement () ResultsWithCount
+createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
+                       SQL.Statement () ResultsWithCount
 createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField pgVer =
-  H.dynamicallyParameterized snippet decodeStandard
+  SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
     "WITH " <>
-    H.sql sourceCTEName <> " AS ( " <> selectQuery <> " ) " <>
+    SQL.sql sourceCTEName <> " AS ( " <> selectQuery <> " ) " <>
     countCTEF <> " " <>
-    H.sql ("SELECT " <>
+    SQL.sql ("SELECT " <>
       countResultF <> " AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       noLocationF <> " AS header, " <>
@@ -131,16 +131,16 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
-callProcStatement :: Bool -> Bool -> H.Snippet -> H.Snippet -> H.Snippet -> Bool ->
+callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                      Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
-                     H.Statement () ProcResults
+                     SQL.Statement () ProcResults
 callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField pgVer =
-  H.dynamicallyParameterized snippet decodeProc
+  SQL.dynamicallyParameterized snippet decodeProc
   where
     snippet =
-      "WITH " <> H.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
+      "WITH " <> SQL.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
       countCTEF <>
-      H.sql (
+      SQL.sql (
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
         "pg_catalog.count(_postgrest_t) AS page_total, " <>
@@ -170,9 +170,9 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
                          <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
                          <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
 
-createExplainStatement :: H.Snippet -> Bool -> H.Statement () (Maybe Int64)
+createExplainStatement :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 createExplainStatement countQuery =
-  H.dynamicallyParameterized snippet decodeExplain
+  SQL.dynamicallyParameterized snippet decodeExplain
   where
     snippet = "EXPLAIN (FORMAT JSON) " <> countQuery
     -- |

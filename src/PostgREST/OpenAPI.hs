@@ -9,7 +9,7 @@ module PostgREST.OpenAPI (encode) where
 
 import qualified Data.Aeson           as JSON
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.HashMap.Strict  as HashMap
+import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet.InsOrd  as Set
 import qualified Data.Text            as T
 
@@ -40,12 +40,12 @@ import PostgREST.ContentType
 import Protolude      hiding (Proxy, get, toS)
 import Protolude.Conv (toS)
 
-encode :: AppConfig -> DbStructure -> [Table] -> HashMap.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode :: AppConfig -> DbStructure -> [Table] -> M.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
 encode conf dbStructure tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
       (dbRelationships dbStructure)
-      (concat $ HashMap.elems procs)
+      (concat $ M.elems procs)
       (openApiTableInfo dbStructure <$> tables)
       (proxyUri conf)
       schemaDescription

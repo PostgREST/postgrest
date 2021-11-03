@@ -9,31 +9,31 @@ import PostgREST.Config.PgVersion (PgVersion (..))
 
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Session              as H
-import qualified Hasql.Statement            as H
-import qualified Hasql.Transaction          as HT
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                 as SQL
+import           Hasql.Session              (Session, statement)
+import qualified Hasql.Statement            as SQL
+import qualified Hasql.Transaction          as SQL
+import qualified Hasql.Transaction.Sessions as SQL
 
 import Text.InterpolatedString.Perl6 (q)
 
 import Protolude
 
-queryPgVersion :: H.Session PgVersion
-queryPgVersion = H.statement mempty $ H.Statement sql HE.noParams versionRow False
+queryPgVersion :: Session PgVersion
+queryPgVersion = statement mempty $ SQL.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-queryDbSettings :: P.Pool -> Bool -> IO (Either P.UsageError [(Text, Text)])
+queryDbSettings :: SQL.Pool -> Bool -> IO (Either SQL.UsageError [(Text, Text)])
 queryDbSettings pool prepared =
-  let transaction = if prepared then HT.transaction else HT.unpreparedTransaction in
-  P.use pool . transaction HT.ReadCommitted HT.Read $
-    HT.statement mempty dbSettingsStatement
+  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  SQL.use pool . transaction SQL.ReadCommitted SQL.Read $
+    SQL.statement mempty dbSettingsStatement
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
-dbSettingsStatement :: H.Statement () [(Text, Text)]
-dbSettingsStatement = H.Statement sql HE.noParams decodeSettings False
+dbSettingsStatement :: SQL.Statement () [(Text, Text)]
+dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings False
   where
     sql = [q|
       with
