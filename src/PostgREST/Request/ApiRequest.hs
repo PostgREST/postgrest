@@ -490,24 +490,30 @@ rawContentTypes AppConfig{..} =
 findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ContentType -> Bool -> Either ApiRequestError ProcDescription
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
   case matchProc of
-    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
-    [proc] -> Right proc
-    procs  -> Left $ AmbiguousRpc (toList procs)
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
+    -- If there are no procedures with named arguments, fallback to the single unnamed argument procedure
+    ([], [proc]) -> Right proc
+    ([], procs)  -> Left $ AmbiguousRpc (toList procs)
+    -- Matches the procedures with named arguments
+    ([proc], _)  -> Right proc
+    (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
-    matchProc =
-      if null (fst findProcPartition) && isInvPost && contentType == CTApplicationJSON
-        then snd findProcPartition -- use the fallback function if none is found with the provided parameters
-        else fst findProcPartition
-    findProcPartition = overloadedProcPartition $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchProc = overloadedProcPartition $ M.lookupDefault mempty qi allProcs -- first find the proc by name
     -- The partition obtained has the form (overloadedProcs,fallbackProcs)
-    -- where fallbackProcs are functions with a single unnamed parameter of type json or jsonb
+    -- where fallbackProcs are functions with a single unnamed parameter
     overloadedProcPartition procs = foldr select ([],[]) procs
     select proc ~(ts,fs)
-      | matchesParams proc             = (proc:ts,fs)
-      | hasSingleUnnamedJsonParam proc = (ts,proc:fs)
-      | otherwise                      = (ts,fs)
-    hasSingleUnnamedJsonParam proc = case pdParams proc of
-      [ProcParam ppName ppType _ _] -> T.null ppName && ppType `elem` ["json", "jsonb"]
+      | matchesParams proc         = (proc:ts,fs)
+      | hasSinglaUnnamedParam proc = (ts,proc:fs)
+      | otherwise                  = (ts,fs)
+    -- If the function is called with post and has a single unnamed parameter
+    -- it can be called depending on content type and the parameter type
+    hasSinglaUnnamedParam proc = isInvPost && case pdParams proc of
+      [ProcParam "" ppType _ _]
+        | contentType == CTApplicationJSON -> ppType `elem` ["json", "jsonb"]
+        | contentType == CTTextPlain       -> ppType == "text"
+        | contentType == CTOctetStream     -> ppType == "bytea"
+        | otherwise                        -> False
       _ -> False
     matchesParams proc =
       let params = pdParams proc in
@@ -517,14 +523,6 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
         then null argumentsKeys
-      -- If the function is called with post and has a single unnamed parameter
-      -- it can be called depending on content type and the parameter type
-      else if isInvPost && length params == 1 && (ppName <$> headMay params) == Just mempty
-        then case headMay params of
-          Just prm | contentType == CTTextPlain       -> ppType prm == "text"
-                   | contentType == CTOctetStream     -> ppType prm == "bytea"
-                   | otherwise                        -> False
-          Nothing  -> False
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of
