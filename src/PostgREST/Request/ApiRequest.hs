@@ -504,11 +504,11 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
     overloadedProcPartition procs = foldr select ([],[]) procs
     select proc ~(ts,fs)
       | matchesParams proc         = (proc:ts,fs)
-      | hasSinglaUnnamedParam proc = (ts,proc:fs)
+      | hasSingleUnnamedParam proc = (ts,proc:fs)
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSinglaUnnamedParam proc = isInvPost && case pdParams proc of
+    hasSingleUnnamedParam proc = isInvPost && case pdParams proc of
       [ProcParam "" ppType _ _]
         | contentType == CTApplicationJSON -> ppType `elem` ["json", "jsonb"]
         | contentType == CTTextPlain       -> ppType == "text"
