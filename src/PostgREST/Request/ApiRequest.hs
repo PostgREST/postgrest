@@ -491,10 +491,10 @@ findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ContentType
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
   case matchProc of
     ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
-    -- If there are no procedures with named arguments, fallback to the single unnamed argument procedure
+    -- If there are no functions with named arguments, fallback to the single unnamed argument function
     ([], [proc]) -> Right proc
     ([], procs)  -> Left $ AmbiguousRpc (toList procs)
-    -- Matches the procedures with named arguments
+    -- Matches the functions with named arguments
     ([proc], _)  -> Right proc
     (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
