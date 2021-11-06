@@ -52,6 +52,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
+                                          OrderNulls(..), OrderDirection(..), LogicOperator(..),
                                           JoinCondition (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
@@ -216,8 +217,15 @@ pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
   pgFmtField qi (otTerm ot) <> " " <>
   SQL.sql (BS.unwords [
-    BS.pack $ maybe mempty show $ otDirection ot,
-    BS.pack $ maybe mempty show $ otNullOrder ot])
+    maybe mempty direction $ otDirection ot,
+    maybe mempty nullOrder $ otNullOrder ot])
+  where
+    direction OrderAsc  = "ASC"
+    direction OrderDesc = "DESC"
+
+    nullOrder OrderNullsFirst = "NULLS FIRST"
+    nullOrder OrderNullsLast  = "NULLS LAST"
+
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
@@ -255,8 +263,12 @@ pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
   SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SQL.Snippet
-pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (" " <> BS.pack (show op) <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
-  where notOp =  if hasNot then "NOT" else mempty
+pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
+  where
+    notOp =  if hasNot then "NOT" else mempty
+
+    opSql And = " AND "
+    opSql Or = " OR "
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SQL.Snippet

@@ -134,7 +134,7 @@ toText conf =
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("db-embed-default-join",     q . show . configDbEmbedDefaultJoin)
+      ,("db-embed-default-join",     q . innerJoin . configDbEmbedDefaultJoin)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
@@ -167,6 +167,9 @@ toText conf =
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
+
+    innerJoin JTInner = "inner"
+    innerJoin JTLeft = "left"
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures

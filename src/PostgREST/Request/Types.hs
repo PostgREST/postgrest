@@ -39,8 +39,6 @@ import qualified Data.Set             as S
 
 import Data.Tree (Tree (..))
 
-import qualified GHC.Show (show)
-
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
 import PostgREST.DbStructure.Proc         (ProcParam (..))
@@ -93,18 +91,10 @@ data OrderDirection
   | OrderDesc
   deriving (Eq)
 
-instance Show OrderDirection where
-  show OrderAsc  = "ASC"
-  show OrderDesc = "DESC"
-
 data OrderNulls
   = OrderNullsFirst
   | OrderNullsLast
   deriving (Eq)
-
-instance Show OrderNulls where
-  show OrderNullsFirst = "NULLS FIRST"
-  show OrderNullsLast  = "NULLS LAST"
 
 data MutateQuery
   = Insert
@@ -160,9 +150,6 @@ data JoinType
   = JTInner
   | JTLeft
   deriving Eq
-instance Show JoinType where
-  show JTInner = "inner"
-  show JTLeft  = "left"
 
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path
 -- ["clients", "projects"]
@@ -208,10 +195,6 @@ data LogicOperator
   = And
   | Or
   deriving Eq
-
-instance Show LogicOperator where
-  show And = "AND"
-  show Or  = "OR"
 
 data Filter = Filter
   { field  :: Field
