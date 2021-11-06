@@ -2304,25 +2304,33 @@ $$ language sql;
 
 create or replace function test.unnamed_text_param(text) returns text as $$
   select $1;
-$$ language sql ;
+$$ language sql;
 
 create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
   select $1::bytea;
-$$ language sql ;
+$$ language sql;
 
 create or replace function test.unnamed_int_param(int) returns int as $$
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_json_param(json) returns json as $$
+create or replace function test.overloaded_unnamed_param(json) returns json as $$
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_json_param() returns int as $$
+create or replace function test.overloaded_unnamed_param(bytea) returns bytea as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param(text) returns text as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param() returns int as $$
 select 1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_json_param(x int, y int) returns int as $$
+create or replace function test.overloaded_unnamed_param(x int, y int) returns int as $$
   select x + y;
 $$ language sql;
 
