@@ -23,7 +23,6 @@ import qualified Hasql.DynamicStatements.Snippet      as SQL hiding
                                                              (sql)
 import qualified Hasql.DynamicStatements.Statement    as SQL
 import qualified Hasql.Transaction                    as SQL
-import qualified Network.HTTP.Types.Header            as HTTP
 import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Logger                   as Wai
 import qualified Network.Wai.Middleware.Cors          as Wai
@@ -182,10 +181,10 @@ optionalRollback AppConfig{..} ApiRequest{..} transaction = do
     preferenceApplied
       | shouldCommit =
           addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Commit))]
+            [toAppliedHeader Commit]
       | shouldRollback =
           addHeadersIfNotIncluded
-            [(HTTP.hPreferenceApplied, BS.pack (show Rollback))]
+            [toAppliedHeader Rollback]
       | otherwise =
           identity
 

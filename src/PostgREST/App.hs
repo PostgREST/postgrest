@@ -76,7 +76,8 @@ import PostgREST.Request.ApiRequest      (Action (..),
                                           Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
-                                          PreferRepresentation (..))
+                                          PreferRepresentation (..),
+                                          toAppliedHeader)
 import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
@@ -322,7 +323,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
         , if null pkCols && isNothing iOnConflict then
             Nothing
           else
-            (\x -> ("Preference-Applied", BS.pack $ show x)) <$> iPreferResolution
+            toAppliedHeader <$> iPreferResolution
         ]
 
   failNotSingular iAcceptContentType resQueryTotal $

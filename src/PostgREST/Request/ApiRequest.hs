@@ -3,7 +3,6 @@ Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 {-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -67,6 +66,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferTransaction (..))
 
 import qualified PostgREST.ContentType as ContentType
+import qualified PostgREST.Request.Preferences as Preferences
 
 import Protolude      hiding (head, toS)
 import Protolude.Conv (toS)
@@ -195,20 +195,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
-      , iPreferRepresentation = representation
-      , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
-                                | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
-                                | otherwise                         -> Nothing
-      , iPreferCount       = if | hasPrefer (show ExactCount)       -> Just ExactCount
-                                | hasPrefer (show PlannedCount)     -> Just PlannedCount
-                                | hasPrefer (show EstimatedCount)   -> Just EstimatedCount
-                                | otherwise                         -> Nothing
-      , iPreferResolution  = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
-                                | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
-                                | otherwise                         -> Nothing
-      , iPreferTransaction = if | hasPrefer (show Commit)           -> Just Commit
-                                | hasPrefer (show Rollback)         -> Just Rollback
-                                | otherwise                         -> Nothing
+      , iPreferRepresentation = preferRepresentation
+      , iPreferParameters = preferParameters
+      , iPreferCount = preferCount
+      , iPreferResolution = preferResolution
+      , iPreferTransaction = preferTransaction
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS <$> join (lookup "select" qParams)
@@ -325,7 +316,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   target =
     let
       callFindProc procSch procNam = findProc
-        (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) (dbProcs dbStructure)
+        (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
         contentType (action == ActionInvoke InvPost)
     in
     case path of
@@ -359,16 +350,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   hdrs            = requestHeaders req
   qParams         = [(toS k, v)|(k,v) <- qString]
   lookupHeader    = flip lookup hdrs
-  hasPrefer :: Text -> Bool
-  hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
-    where
-        split :: BS.ByteString -> [Text]
-        split = map T.strip . T.split (==',') . toS
-  representation
-    | hasPrefer (show Full)        = Full
-    | hasPrefer (show None)        = None
-    | hasPrefer (show HeadersOnly) = HeadersOnly
-    | otherwise                    = None
+  Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   auth = fromMaybe "" $ lookupHeader hAuthorization
   tokenStr = case T.split (== ' ') (toS auth) of
     ("Bearer" : t : _) -> t
