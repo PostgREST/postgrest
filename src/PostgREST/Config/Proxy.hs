@@ -8,13 +8,12 @@ module PostgREST.Config.Proxy
   , toURI
   ) where
 
+import qualified Data.Text as T
+
 import Data.Maybe  (fromJust)
-import Data.Text   (pack, toLower)
 import Network.URI (URI (..), URIAuth (..), isAbsoluteURI, parseURI)
 
-import Protolude      hiding (Proxy, dropWhile, get, intercalate,
-                       toLower, toS, (&))
-import Protolude.Conv (toS)
+import Protolude hiding (Proxy)
 
 data Proxy = Proxy
   { proxyScheme :: Text
@@ -48,8 +47,8 @@ fAnd fs x = all ($ x) fs
 
 isSchemeValid :: URI -> Bool
 isSchemeValid URI {uriScheme = s}
-  | toLower (pack s) == "https:" = True
-  | toLower (pack s) == "http:" = True
+  | T.toLower (T.pack s) == "https:" = True
+  | T.toLower (T.pack s) == "http:" = True
   | otherwise = False
 
 isQueryValid :: URI -> Bool
