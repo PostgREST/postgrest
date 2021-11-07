@@ -9,20 +9,20 @@ module PostgREST.Request.Preferences
   , ToAppliedHeader(..)
   ) where
 
-import qualified Data.ByteString as BS
+import qualified Data.ByteString           as BS
+import qualified Data.Map                  as Map
 import qualified Network.HTTP.Types.Header as HTTP
-import qualified Data.Map as Map
 
 import Protolude
 
 
 data Preferences
   = Preferences
-    { preferResolution :: Maybe PreferResolution
+    { preferResolution     :: Maybe PreferResolution
     , preferRepresentation :: PreferRepresentation
-    , preferParameters :: Maybe PreferParameters
-    , preferCount :: Maybe PreferCount
-    , preferTransaction :: Maybe PreferTransaction
+    , preferParameters     :: Maybe PreferParameters
+    , preferCount          :: Maybe PreferCount
+    , preferTransaction    :: Maybe PreferTransaction
     }
 
 fromHeaders :: [HTTP.Header] -> Preferences
