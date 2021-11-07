@@ -17,7 +17,7 @@ module PostgREST.Request.ApiRequest
   ) where
 
 import qualified Data.Aeson           as JSON
-import qualified Data.ByteString      as BS
+import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.CaseInsensitive as CI
 import qualified Data.Csv             as CSV
@@ -25,12 +25,13 @@ import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
 import qualified Data.Set             as S
 import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as T
 import qualified Data.Vector          as V
+import qualified Data.List.NonEmpty   as NonEmptyList
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (last, lookup, partition, union)
-import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Boundaries    (Boundary (..))
 import Data.Ranged.Ranges        (Range (..), emptyRange,
@@ -68,8 +69,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
 import qualified PostgREST.ContentType         as ContentType
 import qualified PostgREST.Request.Preferences as Preferences
 
-import Protolude      hiding (head, toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 type RequestBody = LBS.ByteString
@@ -184,7 +184,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
-  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
      acceptContentType <- findAcceptContentType conf action path accepts
@@ -206,9 +206,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iOnConflict = toS <$> join (lookup "on_conflict" qParams)
       , iColumns = payloadColumns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
-      , iCanonicalQS = toS $ urlEncodeVars
+      , iCanonicalQS = BS.pack $ urlEncodeVars
         . L.sortOn fst
-        . map (join (***) toS . second (fromMaybe BS.empty))
+        . map (join (***) BS.unpack . second (fromMaybe mempty))
         $ qString
       , iJWT = tokenStr
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
@@ -254,11 +254,12 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     case (contentType, action) of
       (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> rpcQParams
       (_, ActionInvoke InvHead) -> S.fromList $ fst <$> rpcQParams
-      (CTUrlEncoded, _)         -> S.fromList $ map (toS . fst) $ parseSimpleQuery $ toS reqBody
+      (CTUrlEncoded, _)         -> S.fromList $ map (T.decodeUtf8 . fst) $ parseSimpleQuery $ LBS.toStrict reqBody
       _ -> case (relevantPayload, fromRight Nothing parsedColumns) of
         (Just ProcessedJSON{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
+  payload :: Either ByteString Payload
   payload = case contentType of
     CTApplicationJSON ->
       if isJust columns
@@ -266,17 +267,17 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
-                     else JSON.eitherDecode reqBody
+                     else first BS.pack $ JSON.eitherDecode reqBody
     CTTextCSV -> do
-      json <- csvToJson <$> CSV.decodeByName reqBody
+      json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
     CTUrlEncoded ->
-      let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> parseSimpleQuery (toS reqBody) in
+      let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
       if isTargetingProc && ct `elem` [CTTextPlain, CTOctetStream]
         then Right $ RawPay reqBody
-        else Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
+        else Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -297,7 +298,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
 
-  defaultSchema = head configDbSchemas
+  defaultSchema = NonEmptyList.head configDbSchemas
   profile
     | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
@@ -310,8 +311,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         ActionInvoke InvPost -> contentProfile
         _                    -> acceptProfile
     where
-      contentProfile = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
-      acceptProfile = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
+      contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
+      acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
   schema = fromMaybe defaultSchema profile
   target =
     let
@@ -334,7 +335,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     -- to store the query string arguments to the function.
     (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
     (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
-    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (toS *** toS) <$> parseSimpleQuery (toS reqBody)
+    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
   path =
@@ -348,11 +349,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
-  qParams         = [(toS k, v)|(k,v) <- qString]
+  qParams         = [(T.decodeUtf8 k, T.decodeUtf8 <$> v)|(k,v) <- qString]
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (toS auth) of
+  tokenStr = case T.split (== ' ') (T.decodeUtf8 auth) of
     ("Bearer" : t : _) -> t
     ("bearer" : t : _) -> t
     _                  -> ""
@@ -410,7 +411,7 @@ csvToJson (_, vals) =
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
-          else JSON.String $ toS str
+          else JSON.String . T.decodeUtf8 $ LBS.toStrict str
       )
 
 payloadAttributes :: RequestBody -> JSON.Value -> Maybe Payload
