@@ -30,15 +30,17 @@ import qualified Crypto.JOSE.Types      as JOSE
 import qualified Crypto.JWT             as JWT
 import qualified Data.Aeson             as JSON
 import qualified Data.ByteString        as BS
+import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
 
 import Control.Lens            (preview)
 import Control.Monad           (fail)
 import Crypto.JWT              (JWK, JWKSet, StringOrURI, stringOrUri)
-import Data.Aeson              (encode, toJSON)
+import Data.Aeson              (toJSON)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
@@ -57,8 +59,7 @@ import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 import PostgREST.Request.Types           (JoinType (..))
 
-import Protolude      hiding (Proxy, toList, toS)
-import Protolude.Conv (toS)
+import Protolude      hiding (Proxy, toList)
 
 
 data AppConfig = AppConfig
@@ -137,14 +138,14 @@ toText conf =
       ,("db-uri",                    q . configDbUri)
       ,("db-embed-default-join",     q . dumpJoin . configDbEmbedDefaultJoin)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
-      ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
+      ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
-      ,("jwt-secret",                q . toS . showJwtSecret)
+      ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("raw-media-types",           q . toS . BS.intercalate "," . configRawMediaTypes)
+      ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
@@ -164,7 +165,7 @@ toText conf =
       ( True , True  ) -> "rollback-allow-override"
     showJwtSecret c
       | configJwtSecretIsBase64 c = B64.encode secret
-      | otherwise                 = toS secret
+      | otherwise                 = secret
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
@@ -438,8 +439,8 @@ parseSecret bytes =
   fromMaybe (maybe secret (\jwk' -> JWT.JWKSet [jwk']) maybeJWK)
     maybeJWKSet
   where
-    maybeJWKSet = JSON.decode (toS bytes) :: Maybe JWKSet
-    maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
+    maybeJWKSet = JSON.decodeStrict bytes :: Maybe JWKSet
+    maybeJWK = JSON.decodeStrict bytes :: Maybe JWK
     secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
     keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
 
