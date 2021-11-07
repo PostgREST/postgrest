@@ -47,8 +47,7 @@ import PostgREST.RangeQuery              (NonnegRange)
 
 import PostgREST.Request.Types
 
-import Protolude      hiding (intercalate, option, replace, toS, try)
-import Protolude.Conv (toS)
+import Protolude hiding (intercalate, option, replace, try)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -73,7 +72,7 @@ pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
     path = fst <$> treePath
     ord' = parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
 
-pRequestRange :: (ByteString, NonnegRange) -> Either ApiRequestError (EmbedPath, NonnegRange)
+pRequestRange :: (Text, NonnegRange) -> Either ApiRequestError (EmbedPath, NonnegRange)
 pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
@@ -117,7 +116,7 @@ pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
                   Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
-pStar = toS <$> (string "*" $> ("*"::ByteString))
+pStar = string "*" $> "*"
 
 pFieldName :: Parser Text
 pFieldName =
