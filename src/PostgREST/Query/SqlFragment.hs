@@ -63,8 +63,7 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           OrderNulls (..),
                                           OrderTerm (..), SelectItem)
 
-import Protolude      hiding (cast, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (cast)
 
 
 -- | A part of a SQL query that cannot be executed independently
@@ -122,14 +121,14 @@ normalizedBody body =
         "END AS val",
       "FROM pgrst_payload)"])
   where
-    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::json"
+    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::json"
 
 singleParameter :: Maybe LBS.ByteString -> ByteString -> SQL.Snippet
 singleParameter body typ =
   if typ == "bytea"
     -- TODO: Hasql fails when using HE.unknown with bytea(pg tries to utf8 encode).
-    then SQL.encoderAndParam (HE.nullable HE.bytea) (toS <$> body)
-    else SQL.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::" <> SQL.sql typ
+    then SQL.encoderAndParam (HE.nullable HE.bytea) (LBS.toStrict <$> body)
+    else SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::" <> SQL.sql typ
 
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"
