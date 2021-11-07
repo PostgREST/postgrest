@@ -4,7 +4,8 @@ module PostgREST.Version
   , prettyVersion
   ) where
 
-import qualified Data.Text as T
+import qualified Data.ByteString as BS
+import qualified Data.Text       as T
 
 import Data.Version       (showVersion, versionBranch)
 import Development.GitRev (gitHash)
@@ -16,15 +17,15 @@ import Protolude
 -- | User friendly version number such as '1.1.1'.
 -- Pre-release versions are tagged as such, e.g., '1.1.1.1 (pre-release)'.
 -- If a git hash is available, it's added to the version, e.g., '1.1.1 (abcdef0)'.
-prettyVersion :: Text
+prettyVersion :: ByteString
 prettyVersion =
-  T.pack (showVersion version) <> preRelease <> gitRev
+  toUtf8 (showVersion version) <> preRelease <> gitRev
   where
     gitRev =
       if $(gitHash) == ("UNKNOWN" :: Text) then
         mempty
       else
-        " (" <> T.take 7 $(gitHash) <> ")"
+        " (" <> BS.take 7 $(gitHash) <> ")"
     preRelease = if isPreRelease then " (pre-release)" else mempty
 
 
