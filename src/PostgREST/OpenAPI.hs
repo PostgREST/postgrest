@@ -12,6 +12,7 @@ import qualified Data.ByteString.Lazy as LBS
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet.InsOrd  as Set
 import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as T
 
 import Control.Arrow              ((&&&))
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
@@ -324,7 +325,7 @@ postgrestSpec rels pds ti (s, h, p, b) sd pks = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']
   & info .~ ((mempty :: Info)
-      & version .~ prettyVersion
+      & version .~ T.decodeUtf8 prettyVersion
       & title .~ "PostgREST API"
       & description ?~ d)
   & externalDocs ?~ ((mempty :: ExternalDocs)

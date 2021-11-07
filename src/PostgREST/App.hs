@@ -85,8 +85,7 @@ import PostgREST.Workers                 (connectionWorker, listener)
 import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc
 
-import Protolude      hiding (Handler, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (Handler)
 
 
 data RequestContext = RequestContext
@@ -134,7 +133,7 @@ serverSettings AppConfig{..} =
   defaultSettings
     & setHost (fromString $ toS configServerHost)
     & setPort configServerPort
-    & setServerName (toS $ "postgrest/" <> prettyVersion)
+    & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
@@ -191,7 +190,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       ApiRequest.userApiRequest conf dbStructure req body
 
   -- The JWT must be checked before touching the db
-  jwtClaims <- Auth.jwtClaims conf (toS iJWT) time
+  jwtClaims <- Auth.jwtClaims conf (toUtf8Lazy iJWT) time
 
   let
     handleReq apiReq =
@@ -271,14 +270,14 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       [ contentRange
       , ( "Content-Location"
         , "/"
-            <> toS (qiName identifier)
-            <> if BS.null iCanonicalQS then mempty else "?" <> toS iCanonicalQS
+            <> toUtf8 (qiName identifier)
+            <> if BS.null iCanonicalQS then mempty else "?" <> iCanonicalQS
         )
       ]
       ++ contentTypeHeaders context
 
   failNotSingular iAcceptContentType queryTotal . response status headers $
-    if headersOnly then mempty else toS body
+    if headersOnly then mempty else LBS.fromStrict body
 
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
@@ -315,7 +314,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
             Just
               ( HTTP.hLocation
               , "/"
-                  <> toS qiName
+                  <> toUtf8 qiName
                   <> HTTP.renderSimpleQuery True (splitKeyValue <$> resFields)
               )
         , Just . RangeQuery.contentRangeH 1 0 $
@@ -328,7 +327,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
   failNotSingular iAcceptContentType resQueryTotal $
     if iPreferRepresentation == Full then
-      response HTTP.status201 (headers ++ contentTypeHeaders context) (toS resBody)
+      response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict resBody)
     else
       response HTTP.status201 headers mempty
 
@@ -350,7 +349,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   failNotSingular iAcceptContentType resQueryTotal $
     if fullRepr then
-      response status (contentTypeHeaders context ++ [contentRangeHeader]) (toS resBody)
+      response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
     else
       response status [contentRangeHeader] mempty
 
@@ -374,7 +373,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   return $
     if iPreferRepresentation == Full then
-      response HTTP.status200 (contentTypeHeaders context) (toS resBody)
+      response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict resBody)
     else
       response HTTP.status204 (contentTypeHeaders context) mempty
 
@@ -392,7 +391,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
     if iPreferRepresentation == Full then
       response HTTP.status200
         (contentTypeHeaders context ++ [contentRangeHeader])
-        (toS resBody)
+        (LBS.fromStrict resBody)
     else
       response HTTP.status204 [contentRangeHeader] mempty
 
@@ -460,7 +459,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
   failNotSingular iAcceptContentType queryTotal $
     response status
       (contentTypeHeaders context ++ [contentRange])
-      (if invMethod == InvHead then mempty else toS body)
+      (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
@@ -482,7 +481,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
   return $
     Wai.responseLBS HTTP.status200
       (ContentType.toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
-      (if headersOnly then mempty else toS body)
+      (if headersOnly then mempty else body)
 
 txMode :: ApiRequest -> SQL.Mode
 txMode ApiRequest{..} =
@@ -606,7 +605,7 @@ rawContentTypes AppConfig{..} =
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
-  (,) "Content-Profile" <$> (toS <$> iProfile)
+  (,) "Content-Profile" <$> (toUtf8 <$> iProfile)
 
 splitKeyValue :: ByteString -> (ByteString, ByteString)
 splitKeyValue kv =

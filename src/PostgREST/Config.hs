@@ -30,8 +30,8 @@ import qualified Crypto.JOSE.Types      as JOSE
 import qualified Crypto.JWT             as JWT
 import qualified Data.Aeson             as JSON
 import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.ByteString.Base64 as B64
+import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
@@ -59,7 +59,7 @@ import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 import PostgREST.Request.Types           (JoinType (..))
 
-import Protolude      hiding (Proxy, toList)
+import Protolude hiding (Proxy, toList)
 
 
 data AppConfig = AppConfig
