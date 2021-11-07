@@ -39,8 +39,7 @@ import PostgREST.Config           (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
 import PostgREST.DbStructure      (DbStructure)
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 data AppState = AppState
@@ -87,7 +86,7 @@ initWithPool newPool conf =
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  SQL.acquire (configDbPoolSize, configDbPoolTimeout, toS configDbUri)
+  SQL.acquire (configDbPoolSize, configDbPoolTimeout, toUtf8 configDbUri)
 
 getPool :: AppState -> SQL.Pool
 getPool = statePool
