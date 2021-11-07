@@ -11,8 +11,7 @@ import Data.Either.Combinators       (mapLeft)
 import Text.ParserCombinators.Parsec ((<?>))
 import Text.Read                     (read)
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 -- | full jspath, e.g. .property[0].attr.detail

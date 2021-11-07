@@ -16,18 +16,18 @@ module PostgREST.Request.ApiRequest
   , userApiRequest
   ) where
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString.Char8      as BS
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.CaseInsensitive as CI
-import qualified Data.Csv             as CSV
-import qualified Data.HashMap.Strict  as M
-import qualified Data.List            as L
-import qualified Data.Set             as S
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as T
-import qualified Data.Vector          as V
-import qualified Data.List.NonEmpty   as NonEmptyList
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.CaseInsensitive  as CI
+import qualified Data.Csv              as CSV
+import qualified Data.HashMap.Strict   as M
+import qualified Data.List             as L
+import qualified Data.List.NonEmpty    as NonEmptyList
+import qualified Data.Set              as S
+import qualified Data.Text             as T
+import qualified Data.Text.Encoding    as T
+import qualified Data.Vector           as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
