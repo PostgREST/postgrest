@@ -35,8 +35,6 @@ import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
 
-import qualified GHC.Show (show)
-
 import Control.Lens            (preview)
 import Control.Monad           (fail)
 import Crypto.JWT              (JWK, JWKSet, StringOrURI, stringOrUri)
@@ -55,7 +53,8 @@ import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
                                           pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, toQi)
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
+                                          toQi)
 import PostgREST.Request.Types           (JoinType (..))
 
 import Protolude      hiding (Proxy, toList, toS)
@@ -99,19 +98,21 @@ data AppConfig = AppConfig
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
-instance Show LogLevel where
-  show LogCrit  = "crit"
-  show LogError = "error"
-  show LogWarn  = "warn"
-  show LogInfo  = "info"
+dumpLogLevel :: LogLevel -> Text
+dumpLogLevel = \case
+  LogCrit -> "crit"
+  LogError -> "error"
+  LogWarn -> "warn"
+  LogInfo -> "info"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
 
-instance Show OpenAPIMode where
-  show OAFollowPriv = "follow-privileges"
-  show OAIgnorePriv = "ignore-privileges"
-  show OADisabled   = "disabled"
+dumpOpenApiMode :: OpenAPIMode -> Text
+dumpOpenApiMode = \case
+  OAFollowPriv -> "follow-privileges"
+  OAIgnorePriv -> "ignore-privileges"
+  OADisabled   -> "disabled"
 
 -- | Dump the config
 toText :: AppConfig -> Text
@@ -127,21 +128,21 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
-      ,("db-pre-request",            q . maybe mempty show . configDbPreRequest)
+      ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
-      ,("db-root-spec",              q . maybe mempty show . configDbRootSpec)
+      ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("db-embed-default-join",     q . innerJoin . configDbEmbedDefaultJoin)
+      ,("db-embed-default-join",     q . dumpJoin . configDbEmbedDefaultJoin)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("log-level",                 q . show . configLogLevel)
-      ,("openapi-mode",              q . show . configOpenApiMode)
+      ,("log-level",                 q . dumpLogLevel . configLogLevel)
+      ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
       ,("raw-media-types",           q . toS . BS.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
@@ -168,8 +169,8 @@ toText conf =
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
 
-    innerJoin JTInner = "inner"
-    innerJoin JTLeft = "left"
+    dumpJoin JTInner = "inner"
+    dumpJoin JTLeft  = "left"
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures

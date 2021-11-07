@@ -65,7 +65,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferResolution (..),
                                           PreferTransaction (..))
 
-import qualified PostgREST.ContentType as ContentType
+import qualified PostgREST.ContentType         as ContentType
 import qualified PostgREST.Request.Preferences as Preferences
 
 import Protolude      hiding (head, toS)

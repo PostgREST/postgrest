@@ -52,12 +52,15 @@ import PostgREST.DbStructure.Identifiers (FieldName,
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
-                                          OrderNulls(..), OrderDirection(..), LogicOperator(..),
                                           JoinCondition (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
-                                          JsonPath, LogicTree (..),
-                                          OpExpr (..), Operation (..),
+                                          JsonPath,
+                                          LogicOperator (..),
+                                          LogicTree (..), OpExpr (..),
+                                          Operation (..),
+                                          OrderDirection (..),
+                                          OrderNulls (..),
                                           OrderTerm (..), SelectItem)
 
 import Protolude      hiding (cast, toS)
@@ -268,7 +271,7 @@ pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalate
     notOp =  if hasNot then "NOT" else mempty
 
     opSql And = " AND "
-    opSql Or = " OR "
+    opSql Or  = " OR "
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SQL.Snippet
