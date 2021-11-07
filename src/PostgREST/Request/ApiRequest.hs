@@ -152,7 +152,7 @@ targetToJsonRpcParams target params =
 -}
 data ApiRequest = ApiRequest {
     iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-  , iRange                :: M.HashMap ByteString NonnegRange -- ^ Requested range of rows within response
+  , iRange                :: M.HashMap Text NonnegRange -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
   , iPayload              :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
@@ -362,9 +362,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
 
   headerRange = rangeRequested hdrs
   replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
-  limitParams :: M.HashMap ByteString NonnegRange
+  limitParams :: M.HashMap Text NonnegRange
   limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe . toS =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
-  offsetParams :: M.HashMap ByteString NonnegRange
+  offsetParams :: M.HashMap Text NonnegRange
   offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe . toS =<< v)) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
   urlRange = M.unionWith f limitParams offsetParams
