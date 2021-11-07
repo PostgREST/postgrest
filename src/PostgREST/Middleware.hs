@@ -14,10 +14,11 @@ module PostgREST.Middleware
 
 import qualified Data.Aeson                           as JSON
 import qualified Data.ByteString.Char8                as BS
-import qualified Data.ByteString.Lazy.Char8           as BSL
+import qualified Data.ByteString.Lazy.Char8           as LBS
 import qualified Data.CaseInsensitive                 as CI
 import qualified Data.HashMap.Strict                  as M
 import qualified Data.Text                            as T
+import qualified Data.Text.Encoding                   as T
 import qualified Hasql.Decoders                       as HD
 import qualified Hasql.DynamicStatements.Snippet      as SQL hiding
                                                              (sql)
@@ -51,8 +52,7 @@ import PostgREST.Request.ApiRequest (ApiRequest (..), Target (..))
 
 import PostgREST.Request.Preferences
 
-import Protolude      hiding (head, toS)
-import Protolude.Conv (toS)
+import Protolude
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value ->
@@ -77,13 +77,13 @@ runPgLocals conf claims app req jsonDbS actualPgVersion = do
       let anon = JSON.String . toS $ configDbAnonRole conf in -- role claim defaults to anon if not specified in jwt
       M.union claims (M.singleton "role" anon)
     claimsSql = if usesLegacyGucs
-                  then setConfigLocal "request.jwt.claim." <$> [(toS c, toS $ unquoted v) | (c,v) <- M.toList claimsWithRole]
-                  else [setConfigLocal mempty ("request.jwt.claims", BSL.toStrict $ JSON.encode claimsWithRole)]
-    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", toS $ unquoted x)) <$> M.lookup "role" claimsWithRole
-    appSettingsSql = setConfigLocal mempty <$> (join bimap toS <$> configAppSettings conf)
+                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 c, toUtf8 $ unquoted v) | (c,v) <- M.toList claimsWithRole]
+                  else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claimsWithRole)]
+    roleSql = maybeToList $ (\x -> setConfigLocal mempty ("role", toUtf8 $ unquoted x)) <$> M.lookup "role" claimsWithRole
+    appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
     searchPathSql =
       let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
-      setConfigLocal mempty ("search_path", toS schemas)
+      setConfigLocal mempty ("search_path", toUtf8 schemas)
     preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
     specSql = case iTarget req of
       TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
@@ -151,15 +151,15 @@ corsPolicy req = case lookup "origin" headers of
   where
     headers = Wai.requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . toS . T.strip . toS) $ BS.split ',' hdrs
-      Nothing -> []
+      Just hdrs -> map (CI.mk . BS.strip) $ BS.split ',' hdrs
+      Nothing   -> []
 
 unquoted :: JSON.Value -> Text
 unquoted (JSON.String t) = t
 unquoted (JSON.Number n) =
   toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
 unquoted (JSON.Bool b) = show b
-unquoted v = toS $ JSON.encode v
+unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 
 -- | Set a transaction to eventually roll back if requested and set respective
 -- headers on the response.
@@ -199,6 +199,6 @@ setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [SQL.Snippet]
 setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal keyVals)]
   where
     gucJsonVal :: [(ByteString, ByteString)] -> ByteString
-    gucJsonVal = BSL.toStrict . JSON.encode . M.fromList . arrayByteStringToText
+    gucJsonVal = LBS.toStrict . JSON.encode . M.fromList . arrayByteStringToText
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
-    arrayByteStringToText keyVal = (toS *** toS) <$> keyVal
+    arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
