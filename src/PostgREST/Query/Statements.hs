@@ -19,6 +19,7 @@ module PostgREST.Query.Statements
 import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.Lens                   as L
 import qualified Data.ByteString.Char8             as BS
+import qualified Data.ByteString.Lazy              as LBS
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL
 import qualified Hasql.DynamicStatements.Statement as SQL
@@ -37,8 +38,7 @@ import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Preferences
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 {-| The generic query result format used by API responses. The location header
     is represented as a list of strings containing variable bindings like
@@ -189,7 +189,7 @@ createExplainStatement countQuery =
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 decodeGucHeaders :: HD.Value (Either Error [GucHeader])
-decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . toS <$> HD.bytea
+decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . LBS.fromStrict <$> HD.bytea
 
 decodeGucStatus :: HD.Value (Either Error (Maybe Status))
 decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
