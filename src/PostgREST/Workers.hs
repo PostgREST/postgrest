@@ -9,6 +9,8 @@ module PostgREST.Workers
 
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
@@ -27,8 +29,7 @@ import PostgREST.Error            (PgError (PgError), checkIsFatal,
 
 import qualified PostgREST.AppState as AppState
 
-import Protolude      hiding (head, toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 -- | Current database connection status data ConnectionStatus
@@ -121,7 +122,7 @@ connectionStatus appState =
       case pgVersion of
         Left e -> do
           let err = PgError False e
-          AppState.logWithZTime appState . toS $ errorPayload err
+          AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
           case checkIsFatal err of
             Just reason ->
               return $ FatalConnectionError reason
@@ -159,7 +160,7 @@ loadSchemaCache appState = do
     Left e -> do
       let
         err = PgError False e
-        putErr = AppState.logWithZTime appState . toS $ errorPayload err
+        putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
       case checkIsFatal err of
         Just hint -> do
           AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
@@ -173,8 +174,8 @@ loadSchemaCache appState = do
 
     Right dbStructure -> do
       AppState.putDbStructure appState dbStructure
-      when (isJust configDbRootSpec) $
-        AppState.putJsonDbS appState $ toS $ JSON.encode dbStructure
+      when (isJust configDbRootSpec) .
+        AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode dbStructure
       AppState.logWithZTime appState "Schema cache loaded"
       return SCLoaded
 
@@ -194,7 +195,7 @@ listener appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel) $ do
-    dbOrError <- acquire $ toS configDbUri
+    dbOrError <- acquire $ toUtf8 configDbUri
     case dbOrError of
       Right db -> do
         AppState.logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
@@ -234,7 +235,7 @@ reReadConfig startingUp appState = do
         Left e -> do
           let
             err = PgError False e
-            putErr = AppState.logWithZTime appState . toS $ errorPayload err
+            putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
           AppState.logWithZTime appState
             "An error ocurred when trying to query database settings for the config parameters"
           case checkIsFatal err of
