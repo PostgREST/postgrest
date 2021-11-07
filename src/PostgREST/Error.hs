@@ -16,7 +16,10 @@ module PostgREST.Error
   ) where
 
 import qualified Data.Aeson                as JSON
+import qualified Data.ByteString.Char8     as BS
 import qualified Data.Text                 as T
+import qualified Data.Text.Encoding        as T
+import qualified Data.Text.Encoding.Error  as T
 import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
@@ -36,8 +39,7 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS, toSL)
+import Protolude
 
 
 class (JSON.ToJSON a) => PgrstError a where
@@ -88,7 +90,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON ActionInappropriate = JSON.object [
     "message" .= ("Bad Request" :: Text)]
   toJSON (InvalidBody errorMessage) = JSON.object [
-    "message" .= (toS errorMessage :: Text)]
+    "message" .= T.decodeUtf8 errorMessage]
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
   toJSON (NoRelBetween parent child) = JSON.object [
@@ -119,7 +121,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (UnacceptableSchema schemas) = JSON.object [
     "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
   toJSON (ContentTypeError cts)    = JSON.object [
-    "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text)]
+    "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts))]
 
 compressedRel :: Relationship -> JSON.Value
 compressedRel Relationship{..} =
@@ -163,23 +165,23 @@ instance JSON.ToJSON SQL.UsageError where
   toJSON (SQL.ConnectionError e) = JSON.object [
     "code"    .= ("" :: Text),
     "message" .= ("Database connection error. Retrying the connection." :: Text),
-    "details" .= (toSL $ fromMaybe "" e :: Text)]
+    "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text)]
   toJSON (SQL.SessionError e) = JSON.toJSON e -- SQL.Error
 
 instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
 instance JSON.ToJSON SQL.CommandError where
-  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = case toS c of
+  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = case BS.unpack c of
     'P':'T':_ -> JSON.object [
-        "details" .= (fmap toS d :: Maybe Text),
-        "hint"    .= (fmap toS h :: Maybe Text)]
+        "details" .= fmap T.decodeUtf8 d,
+        "hint"    .= fmap T.decodeUtf8 h]
 
     _         -> JSON.object [
-        "code"    .= (toS c      :: Text),
-        "message" .= (toS m      :: Text),
-        "details" .= (fmap toS d :: Maybe Text),
-        "hint"    .= (fmap toS h :: Maybe Text)]
+        "code"    .= (T.decodeUtf8 c      :: Text),
+        "message" .= (T.decodeUtf8 m      :: Text),
+        "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
+        "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
   toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
     "message" .= (m :: Text)]
@@ -200,7 +202,7 @@ instance JSON.ToJSON SQL.CommandError where
     "details" .= i]
   toJSON (SQL.ClientError d) = JSON.object [
     "message" .= ("Database client error. Retrying the connection." :: Text),
-    "details" .= (fmap toS d :: Maybe Text)]
+    "details" .= (fmap T.decodeUtf8 d :: Maybe Text)]
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionError _)                                      = HTTP.status503
@@ -208,7 +210,7 @@ pgErrorStatus _      (SQL.SessionError (SQL.QueryError _ _ (SQL.ClientError _)))
 pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rError))) =
   case rError of
     (SQL.ServerError c m _ _) ->
-      case toS c of
+      case BS.unpack c of
         '0':'8':_ -> HTTP.status503 -- pg connection err
         '0':'9':_ -> HTTP.status500 -- triggered action exception
         '0':'L':_ -> HTTP.status403 -- invalid grantor
@@ -245,8 +247,8 @@ checkIsFatal :: PgError -> Maybe Text
 checkIsFatal (PgError _ (SQL.ConnectionError e))
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
-  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS failureMessage
-        failureMessage = fromMaybe mempty e
+  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` failureMessage
+        failureMessage = BS.unpack $ fromMaybe mempty e
 checkIsFatal (PgError _ (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError serverError))))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
@@ -306,7 +308,7 @@ instance JSON.ToJSON Error where
   toJSON GucStatusError           = JSON.object [
     "message" .= ("response.status guc must be a valid status code" :: Text)]
   toJSON (BinaryFieldError ct)          = JSON.object [
-    "message" .= ((toS (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text)]
+    "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text)]
   toJSON ConnectionLostError       = JSON.object [
     "message" .= ("Database connection lost. Retrying the connection." :: Text)]
 
@@ -317,7 +319,7 @@ instance JSON.ToJSON Error where
 
   toJSON (SingularityError n)      = JSON.object [
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", toS (ContentType.toMime CTSingularJSON), "requires 1 row"]]
+    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"]]
 
   toJSON JwtTokenMissing           = JSON.object [
     "message" .= ("Server lacks JWT secret" :: Text)]
