@@ -7,12 +7,13 @@ Description : Generates the OpenAPI output
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.OpenAPI (encode) where
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.HashMap.Strict  as M
-import qualified Data.HashSet.InsOrd  as Set
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as T
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.HashMap.Strict   as M
+import qualified Data.HashSet.InsOrd   as Set
+import qualified Data.Text             as T
+import qualified Data.Text.Encoding    as T
 
 import Control.Arrow              ((&&&))
 import Data.HashMap.Strict.InsOrd (InsOrdHashMap, fromList)
@@ -38,8 +39,7 @@ import PostgREST.Version                  (docsVersion, prettyVersion)
 
 import PostgREST.ContentType
 
-import Protolude      hiding (Proxy, get, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (Proxy, get)
 
 encode :: AppConfig -> DbStructure -> [Table] -> M.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
 encode conf dbStructure tables procs schemaDescription =
@@ -53,7 +53,7 @@ encode conf dbStructure tables procs schemaDescription =
       (dbPrimaryKeys dbStructure)
 
 makeMimeList :: [ContentType] -> MimeList
-makeMimeList cs = MimeList $ fmap (fromString . toS . toMime) cs
+makeMimeList cs = MimeList $ fmap (fromString . BS.unpack . toMime) cs
 
 toSwaggerType :: Text -> SwaggerType t
 toSwaggerType "character varying" = SwaggerString
@@ -119,7 +119,7 @@ makeProperty rels pks c = (colName c, Inline s)
         colDescription c
     s =
       (mempty :: Schema)
-        & default_ .~ (JSON.decode . toS . parseDefault (colType c) =<< colDefault c)
+        & default_ .~ (JSON.decode . toUtf8Lazy . parseDefault (colType c) =<< colDefault c)
         & description .~ d
         & enum_ .~ e
         & format ?~ colType c
