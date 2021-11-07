@@ -54,8 +54,7 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
-import Protolude        hiding (toS)
-import Protolude.Conv   (toS)
+import Protolude
 import Protolude.Unsafe (unsafeHead)
 
 
@@ -225,12 +224,12 @@ decodeProcs =
                       | otherwise = Volatile -- only 'v' can happen here
 
 allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
-allProcs = SQL.Statement (toS sql) (arrayParam HE.text) decodeProcs
+allProcs = SQL.Statement sql (arrayParam HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
 accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
-accessibleProcs = SQL.Statement (toS sql) (param HE.text) decodeProcs
+accessibleProcs = SQL.Statement sql (param HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
