@@ -50,7 +50,7 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
-                                          pRoleClaimKey)
+                                          dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
@@ -100,10 +100,10 @@ data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
 dumpLogLevel :: LogLevel -> Text
 dumpLogLevel = \case
-  LogCrit -> "crit"
+  LogCrit  -> "crit"
   LogError -> "error"
-  LogWarn -> "warn"
-  LogInfo -> "info"
+  LogWarn  -> "warn"
+  LogInfo  -> "info"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
@@ -138,7 +138,7 @@ toText conf =
       ,("db-embed-default-join",     q . dumpJoin . configDbEmbedDefaultJoin)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
-      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
+      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . toS . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
