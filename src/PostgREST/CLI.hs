@@ -9,11 +9,11 @@ module PostgREST.CLI
   ) where
 
 import qualified Data.Aeson                 as JSON
+import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
-import qualified Protolude.Conv             as Conv
 
 import Data.Text.IO (hPutStrLn)
 import Text.Heredoc (str)
@@ -91,7 +91,7 @@ readCLIShowHelp hasEnvironment =
     progDesc =
       O.progDesc $
         "PostgREST "
-        <> Conv.toS prettyVersion
+        <> BS.unpack prettyVersion
         <> " / create a REST API to an existing Postgres database"
 
     footer =
