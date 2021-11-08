@@ -6,36 +6,54 @@ Installation
 The release page has `pre-compiled binaries for Mac OS X, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_ .
 The Linux binary is a static executable that can be run on any Linux distribution.
 
-If you use **macOS Homebrew**, then you can install PostgREST from the `official repo <https://formulae.brew.sh/formula/postgrest>`_.
+You can also use your OS package manager.
 
-.. code:: bash
+.. tabs::
 
-  brew install postgrest
+  .. group-tab:: Mac OSX
 
-If you use **FreeBSD**, then you can install PostgREST from the `official ports <https://www.freshports.org/www/hs-postgrest>`_.
+    You can install PostgREST from the `Homebrew official repo <https://formulae.brew.sh/formula/postgrest>`_.
 
-.. code:: bash
+    .. code:: bash
 
-  pkg install hs-postgrest
+      brew install postgrest
 
-If you use **Arch Linux**, then you can install PostgREST from the `community repo <https://archlinux.org/packages/community/x86_64/postgrest>`_.
+  .. group-tab:: FreeBSD
 
-.. code:: bash
+    You can install PostgREST from the `official ports <https://www.freshports.org/www/hs-postgrest>`_.
 
-  pacman -S postgrest
+    .. code:: bash
 
-If you use **Nix**, then you can install PostgREST from nixpkgs.
+      pkg install hs-postgrest
 
-.. code:: bash
+  .. group-tab:: Linux
 
-  nix-env -i haskellPackages.postgrest
+    .. tabs::
 
-If you use Windows, you can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
+      .. tab:: Arch Linux
 
-.. code:: bash
+        You can install PostgREST from the `community repo <https://archlinux.org/packages/community/x86_64/postgrest>`_.
 
-  choco install postgrest
-  scoop install postgrest
+        .. code:: bash
+
+          pacman -S postgrest
+
+      .. tab:: Nix
+
+        You can install PostgREST from nixpkgs.
+
+        .. code:: bash
+
+          nix-env -i haskellPackages.postgrest
+
+  .. group-tab:: Windows
+
+    You can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
+
+    .. code:: bash
+
+      choco install postgrest
+      scoop install postgrest
 
 Running PostgREST
 =================
