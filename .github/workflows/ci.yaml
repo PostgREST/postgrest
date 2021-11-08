@@ -67,6 +67,14 @@ jobs:
         if: always()
         run: postgrest-with-postgresql-9.5 postgrest-test-spec
 
+      - name: Run query cost tests against all PostgreSQL versions
+        if: always()
+        run: postgrest-with-all postgrest-test-querycost
+
+      - name: Run doctests
+        if: always()
+        run: nix-shell --run postgrest-test-doctests
+
       - name: Check the spec tests for idempotence
         if: always()
         run: postgrest-test-spec-idempotence
@@ -289,7 +297,7 @@ jobs:
           path: artifacts
       - name: Create release bundle with archives for all builds
         run: |
-          find artifacts -type f -iname postgrest -exec chmod +x {} \; 
+          find artifacts -type f -iname postgrest -exec chmod +x {} \;
 
           mkdir -p release-bundle
 
