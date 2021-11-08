@@ -27,7 +27,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
- - #1927, Overloaded Functions: If there's a function "my_func" having a single unnamed json param and other overloaded pairs(with any number of params), PostgREST won't be able to resolve a POST request to "my_func". For solving this, you can name the unnamed json param `my_func(json) -> my_func(prm json)`.
  - #1857, Make GUC names for headers, cookies and jwt claims compatible with PostgreSQL v14 - @laurenceisla, @robertsosinski
    + Getting the value for a header GUC on PostgreSQL 14 is done using `current_setting('request.headers')::json->>'name-of-header'` and in a similar way for `request.cookies` and `request.jwt.claims`
    + PostgreSQL versions below 14 can opt in to the new JSON GUCs by setting the `db-use-legacy-gucs` config option to false (true by default)

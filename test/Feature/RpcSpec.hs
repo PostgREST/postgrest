@@ -1164,13 +1164,60 @@ spec actualPgVersion =
             , matchHeaders = [ matchContentTypeJson ]
             }
 
-        it "will not be able to resolve when a single unnamed json parameter exists and other overloaded functions exist" $
+        it "should be able to resolve when a single unnamed json parameter exists and other overloaded functions are found" $ do
+          request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
+              [json|{}|]
+            `shouldRespondWith`
+              [json| 1 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
           request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
               [json|{"x": 1, "y": 2}|]
             `shouldRespondWith`
+              [json| 3 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should be able to fallback to the single unnamed parameter function when other overloaded functions are not found" $ do
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
+              [json|{"A": 1, "B": 2, "C": 3}|]
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "text/plain"), ("Accept", "text/plain")]
+              [str|unnamed text arg|]
+            `shouldRespondWith`
+              [str|unnamed text arg|]
+          let file = unsafePerformIO $ BL.readFile "test/C.png"
+          r <- request methodPost "/rpc/overloaded_unnamed_param"
+            [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
+            file
+          liftIO $ do
+            let respBody = simpleBody r
+            respBody `shouldBe` file
+
+        it "should fail to fallback to any single unnamed parameter function when using an unsupported Content-Type header" $ do
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "text/csv")]
+              "a,b\n1,2\n4,6\n100,200"
+            `shouldRespondWith`
+              [json| {
+                "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache"}|]
+              { matchStatus  = 404
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should fail with multiple choices when two fallback functions with single unnamed json and jsonb parameters exist" $ do
+          request methodPost "/rpc/overloaded_unnamed_json_jsonb_param" [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
               [json| {
                 "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
-                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_param( => json), test.overloaded_unnamed_param(x => integer, y => integer)"}|]
+                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_json_jsonb_param( => json), test.overloaded_unnamed_json_jsonb_param( => jsonb)"}|]
               { matchStatus  = 300
               , matchHeaders = [matchContentTypeJson]
               }
