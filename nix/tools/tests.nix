@@ -24,7 +24,37 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.latest} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
+        ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+      '';
+
+  testQuerycost =
+    checkedShellScript
+      {
+        name = "postgrest-test-querycost";
+        docs = "Run the Haskell test suite for query costs";
+        inRootDir = true;
+        withEnv = postgrest.env;
+      }
+      ''
+        ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
+      '';
+
+  testDoctests =
+    checkedShellScript
+      {
+        name = "postgrest-test-doctests";
+        docs = "Run the Haskell doctest test suite";
+        inRootDir = true;
+        withEnv = postgrest.env;
+      }
+      ''
+        # For unknown reasons, doctests uses the wrong GHC package database outside
+        # nix-shell and fails, so we set the package path explicitly
+        #ghcWithPackages="$(cat ${postgrest.env})"
+        #ghcVersion="$(ls "$ghcWithPackages/lib")"
+        #export GHC_PACKAGE_PATH="$ghcWithPackages/lib/$ghcVersion/package.conf.d/"
+
+        ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:doctests
       '';
 
   testSpecIdempotence =
@@ -37,8 +67,8 @@ let
       }
       ''
         ${withTools.latest} ${runtimeShell} -c " \
-          ${cabal-install}/bin/cabal v2-test ${devCabalOptions} && \
-          ${cabal-install}/bin/cabal v2-test ${devCabalOptions}"
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec && \
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec"
       '';
 
   ioTestPython =
@@ -101,18 +131,24 @@ let
         rm -rf coverage/*
 
         # build once before running all the tests
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:spec-querycost
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:querycost
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
-        ${withTools.latest} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
+          ${withTools.latest} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
           ${ioTestPython}/bin/pytest -- -v test/io-tests
           
         HPCTIXFILE="$tmpdir"/spec.tix \
-        ${withTools.latest} ${cabal-install}/bin/cabal v2-test ${devCabalOptions}
+          ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+
+        HPCTIXFILE="$tmpdir"/querycost.tix \
+          ${withTools.latest} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
+
+        # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
         # collect all the tix files
-        ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix "$tmpdir"/io*.tix "$tmpdir"/spec.tix
+        ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
+          "$tmpdir"/io*.tix "$tmpdir"/spec.tix "$tmpdir"/querycost.tix
 
         # prepare the overlay
         ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
@@ -163,6 +199,8 @@ buildToolbox
   tools =
     [
       testSpec
+      testQuerycost
+      testDoctests
       testSpecIdempotence
       testIO
       dumpSchema

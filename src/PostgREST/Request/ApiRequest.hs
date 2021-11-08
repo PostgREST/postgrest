@@ -195,7 +195,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
-      , iPreferRepresentation = preferRepresentation
+      , iPreferRepresentation = fromMaybe None preferRepresentation
       , iPreferParameters = preferParameters
       , iPreferCount = preferCount
       , iPreferResolution = preferResolution

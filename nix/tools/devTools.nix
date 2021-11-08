@@ -73,6 +73,8 @@ let
       }
       ''
         ${withTools}/bin/postgrest-with-all ${tests}/bin/postgrest-test-spec
+        ${withTools}/bin/postgrest-with-all ${tests}/bin/postgrest-test-querycost
+        ${tests}/bin/postgrest-test-doctests
         ${tests}/bin/postgrest-test-spec-idempotence
         ${tests}/bin/postgrest-test-io
         ${style}/bin/postgrest-lint

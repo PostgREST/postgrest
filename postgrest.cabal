@@ -238,7 +238,7 @@ test-suite spec
                       -fno-spec-constr -optP-Wno-nonportable-include-path
                       -fno-warn-missing-signatures
 
-test-suite spec-querycost
+test-suite querycost
   type:                exitcode-stdio-1.0
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
@@ -280,4 +280,19 @@ test-suite spec-querycost
                      , wai               >= 3.2.1 && < 3.3
                      , wai-extra         >= 3.0.19 && < 3.2
   ghc-options:         -O0 -Werror -Wall -fwarn-identities
+                       -fno-spec-constr -optP-Wno-nonportable-include-path
+
+test-suite doctests
+  type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
+  default-extensions:  OverloadedStrings
+                       NoImplicitPrelude
+  hs-source-dirs:      test/doctests
+  main-is:             Main.hs
+  build-depends:       base              >= 4.9 && < 4.16
+                     , doctest           >= 0.8
+                     , postgrest
+                     , pretty-simple
+                     , protolude         >= 0.3 && < 0.4
+  ghc-options:         -threaded -O0 -Werror -Wall -fwarn-identities
                        -fno-spec-constr -optP-Wno-nonportable-include-path
