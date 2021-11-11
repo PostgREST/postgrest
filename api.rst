@@ -1848,7 +1848,7 @@ Calling functions with a single unnamed parameter
 
 You can make a POST request to a function with a single unnamed parameter to send raw ``json/jsonb``, ``bytea`` or ``text`` data.
 
-To send raw JSON, you can avoid using the ``Prefer: params=single-object`` header if the function has a single unnamed ``json`` or ``jsonb`` parameter and the header ``Content-Type: application/json`` is included in the request.
+To send raw JSON, the function must have a single unnamed ``json`` or ``jsonb`` parameter and the header ``Content-Type: application/json`` must be included in the request.
 
 .. code-block:: plpgsql
 
@@ -1879,7 +1879,38 @@ To send raw JSON, you can avoid using the ``Prefer: params=single-object`` heade
 
   If an overloaded function has a single ``json`` or ``jsonb`` unnamed parameter, PostgREST will call this function as a fallback provided that no other overloaded function is found with the parameters sent in the POST request.
 
-To send raw binary, the parameter type must be ``bytea`` and the header ``Content-Type: application/octet-stream`` must be included in the request. Similarly, to send raw text, the parameter type must be ``text`` and the header ``Content-Type: text/plain`` must be included in the request.
+To send raw binary, the parameter type must be ``bytea`` and the header ``Content-Type: application/octet-stream`` must be included in the request.
+
+.. code-block:: plpgsql
+
+  CREATE TABLE files(blob bytea);
+
+  CREATE FUNCTION upload_binary(bytea) RETURNS void AS $$
+    INSERT INTO files(blob) VALUES ($1);
+  $$ LANGUAGE SQL;
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /rpc/upload_binary HTTP/1.1
+    Content-Type: application/octet-stream
+
+    file_name.ext
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/upload_binary" \
+      -X POST -H "Content-Type: application/octet-stream" \
+      --data-binary "@file_name.ext"
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+
+  [ ... ]
+
+To send raw text, the parameter type must be ``text`` and the header ``Content-Type: text/plain`` must be included in the request.
 
 .. _s_procs_array:
 
