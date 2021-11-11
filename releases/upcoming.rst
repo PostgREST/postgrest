@@ -35,6 +35,9 @@ Added
 * Add ``Retry-After`` header when recovering the connection. See :ref:`automatic_recovery`.
   |br| -- `@gautam1168 <https://github.com/gautam1168>`_
 
+* Allow calling a function with a :ref:`single unnamed parameter <s_proc_single_unnamed>` to POST raw ``json/jsonb``, ``bytea`` or ``text``.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Documentation improvements
 
   + Added :ref:`nested_embedding` to the :ref:`resource_embedding` section.

@@ -1808,6 +1808,8 @@ Because ``add_them`` is ``IMMUTABLE``, we can alternately call the function with
 
 The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
 
+.. _s_proc_single_json:
+
 Calling functions with a single JSON parameter
 ----------------------------------------------
 
@@ -1838,6 +1840,46 @@ You can also call a function that takes a single parameter of type JSON by sendi
 .. code-block:: json
 
   8
+
+.. _s_proc_single_unnamed:
+
+Calling functions with a single unnamed parameter
+-------------------------------------------------
+
+You can make a POST request to a function with a single unnamed parameter to send raw ``json/jsonb``, ``bytea`` or ``text`` data.
+
+To send raw JSON, you can avoid using the ``Prefer: params=single-object`` header if the function has a single unnamed ``json`` or ``jsonb`` parameter and the header ``Content-Type: application/json`` is included in the request.
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION mult_them(json) RETURNS int AS $$
+    SELECT ($1->>'x')::int * ($1->>'y')::int
+  $$ LANGUAGE SQL;
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /rpc/mult_them HTTP/1.1
+    Content-Type: application/json
+
+    { "x": 4, "y": 2 }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/mult_them" \
+      -X POST -H "Content-Type: application/json" \
+      -d '{ "x": 4, "y": 2 }'
+
+.. code-block:: json
+
+  8
+
+.. note::
+
+  If an overloaded function has a single ``json`` or ``jsonb`` unnamed parameter, PostgREST will call this function as a fallback provided that no other overloaded function is found with the parameters sent in the POST request.
+
+To send raw binary, the parameter type must be ``bytea`` and the header ``Content-Type: application/octet-stream`` must be included in the request. Similarly, to send raw text, the parameter type must be ``text`` and the header ``Content-Type: text/plain`` must be included in the request.
 
 .. _s_procs_array:
 
