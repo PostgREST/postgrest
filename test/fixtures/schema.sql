@@ -2295,6 +2295,34 @@ A test for partitioned tables$$;
         name_a varchar(64),
         foreign key (id_a, name_a) references test.partitioned_a (id, name)
       );
+
+      create table test.partitioned_c (
+        id int not null,
+        name varchar(64) not null,
+        primary key (id, name)
+      ) partition by list (name);
+
+      create table test.first_partition_c partition of test.partitioned_c
+        for values in ('first_c');
+
+      create table test.second_partition_c partition of test.partitioned_c
+        for values in ('second_c');
+
+      create table test.partitioned_a_c (
+        id_a int not null,
+        name_a varchar(64) not null,
+        id_c int not null,
+        name_c varchar(64) not null,
+        name varchar(64) not null,
+        foreign key (id_a, name_a) references test.partitioned_a (id, name),
+        foreign key (id_c, name_c) references test.partitioned_c (id, name)
+      ) partition by list (name);
+
+      create table test.first_partition_a_c partition of test.partitioned_a_c
+        for values in ('first_a_c');
+
+      create table test.second_partition_a_c partition of test.partitioned_a_c
+        for values in ('second_a_c');
     end if;
 end$do$;
 

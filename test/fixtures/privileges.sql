@@ -206,5 +206,11 @@ DO $do$BEGIN
     GRANT ALL ON TABLE test.first_partition_b TO postgrest_test_anonymous;
     GRANT ALL ON TABLE test.second_partition_b TO postgrest_test_anonymous;
     GRANT ALL ON TABLE test.reference_to_partitioned TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.partitioned_c TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.first_partition_c TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.second_partition_c TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.partitioned_a_c TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.first_partition_a_c TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.second_partition_a_c TO postgrest_test_anonymous;
   END IF;
 END$do$;

@@ -351,6 +351,7 @@ accessibleTables =
     where
       c.relkind in ('v','r','m','f','p')
       and n.nspname = $1
+      and not c.relispartition
       and (
         pg_has_role(c.relowner, 'USAGE')
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -485,6 +486,7 @@ allTables =
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f','p')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND not c.relispartition
     ORDER BY table_schema, table_name |]
 
 allColumns :: [Table] -> Bool -> SQL.Statement [Schema] [Column]

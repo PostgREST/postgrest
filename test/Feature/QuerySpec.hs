@@ -442,35 +442,52 @@ spec actualPgVersion = do
                  {"id":4,"name":"second_b","partitioned_a":{"id":4,"name":"second"}}] |]
               { matchHeaders = [matchContentTypeJson] }
 
-          it "can request partitions as children from a partitioned table" $
+          it "can request many to many relationships between partitioned tables ignoring the intermediate table partitions" $
+            get "/partitioned_a?select=id,name,partitioned_c(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                [{"id":1,"name":"first","partitioned_c":[{"id":1,"name":"first_c"}]},
+                 {"id":2,"name":"first","partitioned_c":[]},
+                 {"id":3,"name":"second","partitioned_c":[{"id":2,"name":"second_c"}]},
+                 {"id":4,"name":"second","partitioned_c":[]}] |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+          it "cannot request partitions as children from a partitioned table" $
             get "/partitioned_a?id=in.(1,2,4)&select=id,name,first_partition_b(id)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first","first_partition_b":[]},
-                 {"id":2,"name":"first","first_partition_b":[{"id":2}]},
-                 {"id":4,"name":"second","first_partition_b":[]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "message":"Could not find a relationship between partitioned_a and first_partition_b in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request a partitioned table as parent from a partition" $
+          it "cannot request a partitioned table as parent from a partition" $
             get "/first_partition_b?select=id,name,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first_b","partitioned_a":null},
-                 {"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "message":"Could not find a relationship between first_partition_b and partitioned_a in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request a partition as parent from a partitioned table" $
+          it "cannot request a partition as parent from a partitioned table" $
             get "/partitioned_b?id=in.(1,3,4)&select=id,name,second_partition_a(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first_b","second_partition_a":null},
-                 {"id":3,"name":"second_b","second_partition_a":null},
-                 {"id":4,"name":"second_b","second_partition_a":{"id":4,"name":"second"}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "message":"Could not find a relationship between partitioned_b and second_partition_a in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request partitioned tables as children from a partition" $
+          it "cannot request partitioned tables as children from a partition" $
             get "/second_partition_a?select=id,name,partitioned_b(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":3,"name":"second","partitioned_b":[]},
-                 {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "message":"Could not find a relationship between second_partition_a and partitioned_b in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $

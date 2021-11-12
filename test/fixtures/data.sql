@@ -690,6 +690,12 @@ DO $do$BEGIN
 
     INSERT INTO test.reference_to_partitioned(id) VALUES (1);
     INSERT INTO test.reference_to_partitioned(id, id_a, name_a) VALUES (2, 2, 'first');
+
+    INSERT INTO test.partitioned_c(id, name) VALUES (1,'first_c');
+    INSERT INTO test.partitioned_c(id, name) VALUES (2,'second_c');
+
+    INSERT INTO test.partitioned_a_c(id_a, name_a, id_c, name_c, name) VALUES (1,'first',1,'first_c', 'first_a_c');
+    INSERT INTO test.partitioned_a_c(id_a, name_a, id_c, name_c, name) VALUES (3,'second',2,'second_c', 'second_a_c');
   END IF;
 END$do$;
 
