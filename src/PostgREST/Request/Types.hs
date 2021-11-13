@@ -3,6 +3,7 @@ module PostgREST.Request.Types
   ( Alias
   , Depth
   , EmbedParam(..)
+  , ApiRequestError(..)
   , EmbedPath
   , Field
   , Filter(..)
@@ -26,6 +27,7 @@ module PostgREST.Request.Types
   , OrderDirection(..)
   , OrderNulls(..)
   , OrderTerm(..)
+  , QPError(..)
   , ReadNode
   , ReadQuery(..)
   , ReadRequest
@@ -33,6 +35,8 @@ module PostgREST.Request.Types
   , SingleVal
   , TrileanVal(..)
   , fstFieldNames
+  , SimpleOperator(..)
+  , FtsOperator(..)
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -40,15 +44,35 @@ import qualified Data.Set             as S
 
 import Data.Tree (Tree (..))
 
+import PostgREST.ContentType              (ContentType (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
-import PostgREST.DbStructure.Proc         (ProcParam (..))
+import PostgREST.DbStructure.Proc         (ProcDescription (..),
+                                           ProcParam (..))
 import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.Request.Preferences      (PreferResolution)
 
 import Protolude
 
+
+
+data ApiRequestError
+  = ActionInappropriate
+  | InvalidRange
+  | InvalidBody ByteString
+  | ParseRequestError Text Text
+  | QueryParamError QPError
+  | NoRelBetween Text Text Text
+  | AmbiguousRelBetween Text Text [Relationship]
+  | AmbiguousRpc [ProcDescription]
+  | NoRpc Text Text [Text] Bool ContentType Bool
+  | InvalidFilters
+  | UnacceptableSchema [Text]
+  | ContentTypeError [ByteString]
+  | UnsupportedVerb                -- Unreachable?
+
+data QPError = QPError Text Text
 
 type ReadRequest = Tree ReadNode
 type MutateRequest = MutateQuery
@@ -208,13 +232,12 @@ data OpExpr =
   deriving (Eq)
 
 data Operation
-  = Op Operator SingleVal
+  = Op SimpleOperator SingleVal
   | In ListVal
   | Is TrileanVal
-  | Fts Operator (Maybe Language) SingleVal
+  | Fts FtsOperator (Maybe Language) SingleVal
   deriving (Eq)
 
-type Operator = Text
 type Language = Text
 
 -- | Represents a single value in a filter, e.g. id=eq.singleval
@@ -229,4 +252,31 @@ data TrileanVal
   | TriFalse
   | TriNull
   | TriUnknown
+  deriving Eq
+
+data SimpleOperator
+  = OpEqual
+  | OpGreaterThanEqual
+  | OpGreaterThan
+  | OpLessThanEqual
+  | OpLessThan
+  | OpNotEqual
+  | OpLike
+  | OpILike
+  | OpContains
+  | OpContained
+  | OpOverlap
+  | OpStrictlyLeft
+  | OpStrictlyRight
+  | OpNotExtendsRight
+  | OpNotExtendsLeft
+  | OpAdjacent
+  deriving Eq
+
+-- | Operators for full text search operators
+data FtsOperator
+  = FilterFts
+  | FilterFtsPlain
+  | FilterFtsPhrase
+  | FilterFtsWebsearch
   deriving Eq

@@ -79,6 +79,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
                                           toAppliedHeader)
+import PostgREST.Request.QueryParams     (QueryParams (..))
 import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
@@ -278,7 +279,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       , ( "Content-Location"
         , "/"
             <> toUtf8 (qiName identifier)
-            <> if BS.null iCanonicalQS then mempty else "?" <> iCanonicalQS
+            <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
         )
       ]
       ++ contentTypeHeaders context
@@ -326,7 +327,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
               )
         , Just . RangeQuery.contentRangeH 1 0 $
             if shouldCount iPreferCount then Just resQueryTotal else Nothing
-        , if null pkCols && isNothing iOnConflict then
+        , if null pkCols && isNothing (qsOnConflict iQueryParams) then
             Nothing
           else
             toAppliedHeader <$> iPreferResolution

@@ -8,10 +8,10 @@ import Protolude
 main :: IO ()
 main =
   doctest
-    [ "--verbose"
-    , "-XOverloadedStrings"
+    [ "-XOverloadedStrings"
     , "-XNoImplicitPrelude"
     , "-XStandaloneDeriving"
     , "-isrc"
     , "src/PostgREST/Request/Preferences.hs"
+    , "src/PostgREST/Request/QueryParams.hs"
     ]

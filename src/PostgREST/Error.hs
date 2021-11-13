@@ -29,8 +29,10 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.ContentType (ContentType (..))
-import qualified PostgREST.ContentType as ContentType
+import           PostgREST.ContentType   (ContentType (..))
+import qualified PostgREST.ContentType   as ContentType
+import           PostgREST.Request.Types (ApiRequestError (..),
+                                          QPError (..))
 
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
@@ -52,22 +54,6 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor :: a -> Response
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
-
-
-data ApiRequestError
-  = ActionInappropriate
-  | InvalidRange
-  | InvalidBody ByteString
-  | ParseRequestError Text Text
-  | NoRelBetween Text Text Text
-  | AmbiguousRelBetween Text Text [Relationship]
-  | AmbiguousRpc [ProcDescription]
-  | NoRpc Text Text [Text] Bool ContentType Bool
-  | InvalidFilters
-  | UnacceptableSchema [Text]
-  | ContentTypeError [ByteString]
-  | UnsupportedVerb                -- Unreachable?
-
 instance PgrstError ApiRequestError where
   status InvalidRange            = HTTP.status416
   status InvalidFilters          = HTTP.status405
@@ -75,6 +61,7 @@ instance PgrstError ApiRequestError where
   status UnsupportedVerb         = HTTP.status405
   status ActionInappropriate     = HTTP.status405
   status (ParseRequestError _ _) = HTTP.status400
+  status (QueryParamError _)     = HTTP.status400
   status NoRelBetween{}          = HTTP.status400
   status AmbiguousRelBetween{}   = HTTP.status300
   status (AmbiguousRpc _)        = HTTP.status300
@@ -86,6 +73,8 @@ instance PgrstError ApiRequestError where
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (ParseRequestError message details) = JSON.object [
+    "message" .= message, "details" .= details]
+  toJSON (QueryParamError (QPError message details)) = JSON.object [
     "message" .= message, "details" .= details]
   toJSON ActionInappropriate = JSON.object [
     "message" .= ("Bad Request" :: Text)]

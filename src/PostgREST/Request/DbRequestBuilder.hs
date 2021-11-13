@@ -24,10 +24,8 @@ module PostgREST.Request.DbRequestBuilder
 import qualified Data.HashMap.Strict as M
 import qualified Data.Set            as S
 
-import Control.Arrow           ((***))
 import Data.Either.Combinators (mapLeft)
 import Data.List               (delete)
-import Data.Text               (isInfixOf)
 import Data.Tree               (Tree (..))
 
 import PostgREST.DbStructure.Identifiers  (FieldName,
@@ -41,20 +39,20 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..),
                                            tableQi)
-import PostgREST.Error                    (ApiRequestError (..),
-                                           Error (..))
+import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            restrictRange)
 import PostgREST.Request.ApiRequest       (Action (..),
                                            ApiRequest (..),
+                                           InvokeMethod (..),
                                            Payload (..))
 
-import PostgREST.Request.Parsers
 import PostgREST.Request.Preferences
 import PostgREST.Request.Types
 
 import qualified PostgREST.DbStructure.Relationship as Relationship
+import qualified PostgREST.Request.QueryParams      as QueryParams
 
 import Protolude hiding (from)
 
@@ -66,9 +64,9 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
   augmentRequestWithJoin schema rootRels =<<
-  (addFiltersOrdersRanges apiRequest . initReadRequest rootName =<< pRequestSelect sel)
+  addFiltersOrdersRanges apiRequest (initReadRequest rootName sel)
   where
-    sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
+    sel = QueryParams.qsSelect $ iQueryParams apiRequest
     (rootName, rootRels) = rootWithRels schema rootTableName allRels (iAction apiRequest)
 
 -- Get the root table name with its relationships according to the Action type.
@@ -254,27 +252,22 @@ getJoinConditions previousAlias newAlias (Relationship Table{tableSchema=tSchema
     removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == decodeUtf8 sourceCTEName then mempty else schema) tbl
 
 addFiltersOrdersRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addFiltersOrdersRanges apiRequest rReq = do
-  rFlts <- foldr addFilter rReq <$> filters
-  rOrds <- foldr addOrder rFlts <$> orders
-  rRngs <- foldr addRange rOrds <$> ranges
-  foldr addLogicTree rRngs      <$> logicForest
+addFiltersOrdersRanges ApiRequest{..} rReq = do
+  flip (foldr addLogicTree) qsLogic <$> (foldr addRange rOrds <$> ranges)
   where
-    filters :: Either ApiRequestError [(EmbedPath, Filter)]
-    filters = pRequestFilter `traverse` flts
-    orders :: Either ApiRequestError [(EmbedPath, [OrderTerm])]
-    orders = pRequestOrder `traverse` iOrder apiRequest
+    rFlts = foldr addFilter rReq flts
+    rOrds = foldr addOrder rFlts qsOrder
+    QueryParams.QueryParams{..} = iQueryParams
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = pRequestRange `traverse` M.toList (iRange apiRequest)
-    logicForest :: Either ApiRequestError [(EmbedPath, LogicTree)]
-    logicForest = pRequestLogicTree `traverse` logFrst
-    action = iAction apiRequest
+    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` M.toList iRange
     -- there can be no filters on the root table when we are doing insert/update/delete
-    (flts, logFrst) =
-      case action of
-        ActionInvoke _ -> (iFilters apiRequest, iLogic apiRequest)
-        ActionRead _   -> (iFilters apiRequest, iLogic apiRequest)
-        _              -> join (***) (filter (( "." `isInfixOf` ) . fst)) (iFilters apiRequest, iLogic apiRequest)
+    flts =
+      case iAction of
+        ActionInvoke InvGet  -> qsFilters
+        ActionInvoke InvHead -> qsFilters
+        ActionInvoke _       -> qsFilters
+        ActionRead _         -> qsFilters
+        _                    -> qsFiltersNotRoot
 
 addFilterToNode :: Filter -> ReadRequest -> ReadRequest
 addFilterToNode flt (Node (q@Select {where_=lf}, i) f) = Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f
@@ -310,41 +303,36 @@ addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
     pathNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
 mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
-mutateRequest schema tName apiRequest pkCols readReq = mapLeft ApiRequestError $
-  case action of
-    ActionCreate -> do
-        confCols <- case iOnConflict apiRequest of
-            Nothing    -> pure pkCols
-            Just param -> pRequestOnConflict param
-        pure $ Insert qi (iColumns apiRequest) body ((,) <$> iPreferResolution apiRequest <*> Just confCols) [] returnings
-    ActionUpdate -> Update qi (iColumns apiRequest) body  <$> combinedLogic <*> pure returnings
+mutateRequest schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
+  case iAction of
+    ActionCreate ->
+      Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
+    ActionUpdate -> Right $ Update qi iColumns body combinedLogic returnings
     ActionSingleUpsert ->
-      (\flts ->
-        if null (iLogic apiRequest) &&
-           S.fromList (fst <$> iFilters apiRequest) == S.fromList pkCols &&
+        if null qsLogic &&
+           qsFilterFields == S.fromList pkCols &&
            not (null (S.fromList pkCols)) &&
            all (\case
-              Filter _ (OpExpr False (Op "eq" _)) -> True
-              _                                   -> False) flts
-          then Insert qi (iColumns apiRequest) body (Just (MergeDuplicates, pkCols)) <$> combinedLogic <*> pure returnings
+              Filter _ (OpExpr False (Op OpEqual _)) -> True
+              _                                      -> False) filters
+          then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
-          Left InvalidFilters) =<< filters
-    ActionDelete -> Delete qi <$> combinedLogic <*> pure returnings
+          Left InvalidFilters
+    ActionDelete -> Right $ Delete qi combinedLogic returnings
     _            -> Left UnsupportedVerb
   where
+    confCols = fromMaybe pkCols qsOnConflict
+    QueryParams.QueryParams{..} = iQueryParams
     qi = QualifiedIdentifier schema tName
-    action = iAction apiRequest
     returnings =
-      if iPreferRepresentation apiRequest == None
+      if iPreferRepresentation == None
         then []
         else returningCols readReq pkCols
-    filters = map snd <$> pRequestFilter `traverse` mutateFilters
-    logic = map snd <$> pRequestLogicTree `traverse` logicFilters
-    combinedLogic = foldr addFilterToLogicForest <$> logic <*> filters
     -- update/delete filters can be only on the root table
-    (mutateFilters, logicFilters) = join (***) onlyRoot (iFilters apiRequest, iLogic apiRequest)
-    onlyRoot = filter (not . ( "." `isInfixOf` ) . fst)
-    body = payRaw <$> iPayload apiRequest -- the body is assumed to be json at this stage(ApiRequest validates)
+    filters = map snd qsFiltersRoot
+    logic = map snd qsLogic
+    combinedLogic = foldr addFilterToLogicForest logic filters
+    body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
 
 callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest
 callRequest proc apiReq readReq = FunctionCall {
