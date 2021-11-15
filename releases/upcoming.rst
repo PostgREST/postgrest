@@ -42,6 +42,7 @@ Added
 
   + Added :ref:`nested_embedding` to the :ref:`resource_embedding` section.
   + Added the :ref:`templates` section to the :doc:`Ecosystem </ecosystem>`.
+  + Added the :ref:`logical_operators` section
 
 Fixed
 -----

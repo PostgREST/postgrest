@@ -27,7 +27,7 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, HEAD, POST,
 Horizontal Filtering (Rows)
 ---------------------------
 
-You can filter result rows by adding conditions on columns, each condition a query string parameter. For instance, to return people aged under 13 years old:
+You can filter result rows by adding conditions on columns. For instance, to return people aged under 13 years old:
 
 .. tabs::
 
@@ -39,7 +39,7 @@ You can filter result rows by adding conditions on columns, each condition a que
 
     curl "http://localhost:3000/people?age=lt.13"
 
-Multiple parameters can be logically conjoined by:
+You can evaluate multiple conditions on columns by adding more query string parameters. For instance, to return people who are 18 or older **and** are students:
 
 .. tabs::
 
@@ -50,30 +50,6 @@ Multiple parameters can be logically conjoined by:
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/people?age=gte.18&student=is.true"
-
-Multiple parameters can be logically disjoined by:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?or=(age.gte.14,age.lte.18) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?or=(age.gte.14,age.lte.18)"
-
-Complex logic can also be applied:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null)) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?and=(grade.gte.90,student.is.true,or(age.gte.14,age.is.null))"
 
 .. _operators:
 
@@ -111,10 +87,10 @@ sr            :code:`>>`                strictly right of
 nxr           :code:`&<`                does not extend to the right of, e.g. :code:`?range=nxr.(1,10)`
 nxl           :code:`&>`                does not extend to the left of
 adj           :code:`-|-`               is adjacent to, e.g. :code:`?range=adj.(1,10)`
-not           :code:`NOT`               negates another operator, see below
+not           :code:`NOT`               negates another operator, see :ref:`logical_operators`
+or            :code:`OR`                logical :code:`OR`, see :ref:`logical_operators`
+and           :code:`AND`               logical :code:`AND`, see :ref:`logical_operators`
 ============  ========================  ==================================================================================
-
-To negate any operator, prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
 For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
 
@@ -138,6 +114,37 @@ The view will provide a new endpoint:
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/fresh_stories"
+
+.. _logical_operators:
+
+Logical operators
+~~~~~~~~~~~~~~~~~
+
+Multiple conditions on columns are evaluated using ``AND`` by default, but you can combine them using ``OR`` with the ``or`` operator. For example, to return people under 18 **or** over 21:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?or=(age.lt.18,age.gt.21) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?or=(age.lt.18,age.gt.21)"
+
+To **negate** any operator, you can prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
+
+You can also apply complex logic to the conditions:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17)) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
 
 .. _fts:
 
