@@ -1,7 +1,6 @@
 { buildToolbox
 , checkedShellScript
 , curl
-, ghr
 , jq
 }:
 let
