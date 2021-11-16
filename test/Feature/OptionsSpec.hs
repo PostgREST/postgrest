@@ -25,7 +25,7 @@ spec actualPgVersion = describe "Allow header" $ do
   when (actualPgVersion >= pgVersion100) $
     context "a partitioned table" $ do
       it "includes read/write verbs for writeable partitioned tables" $ do
-        r <- request methodOptions "/partitioned_a" [] ""
+        r <- request methodOptions "/car_models" [] ""
         liftIO $
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" (

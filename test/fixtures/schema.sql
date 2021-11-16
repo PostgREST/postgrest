@@ -2245,84 +2245,84 @@ create table private.rollen (
 do $do$begin
     -- partitioned tables using the PARTITION syntax are supported from pg v10
     if (select current_setting('server_version_num')::int >= 100000) then
-      create table test.partitioned_a(
-        id int not null,
-        name varchar(64) not null
-      ) partition by list (name);
+      create table test.car_models(
+        name varchar(64) not null,
+        year int not null
+      ) partition by list (year);
 
-      comment on table test.partitioned_a is
+      comment on table test.car_models is
       $$A partitioned table
 
 A test for partitioned tables$$;
 
-      create table test.first_partition_a partition of test.partitioned_a
-        for values in ('first');
+      create table test.car_models_2021 partition of test.car_models
+        for values in (2021);
 
-      create table test.second_partition_a partition of test.partitioned_a
-        for values in ('second');
+      create table test.car_models_default partition of test.car_models
+        default;
     end if;
 
     -- primary keys for partitioned tables are supported from pg v11
     if (select current_setting('server_version_num')::int >= 110000) then
-      create table test.reference_from_partitioned (
-        id int primary key
+      create table test.car_brands (
+        name varchar(64) primary key
       );
 
-      alter table test.partitioned_a add primary key (id, name);
-      alter table test.partitioned_a add column id_ref int references test.reference_from_partitioned(id);
+      alter table test.car_models add primary key (name, year);
+      alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
     end if;
 
     -- foreign keys referencing partitioned tables are supported from pg v12
     if (select current_setting('server_version_num')::int >= 120000) then
-      create table test.partitioned_b(
-        id int not null,
-        name varchar(64) not null,
-        id_a int,
-        name_a varchar(64),
-        primary key (id, name),
-        foreign key (id_a, name_a) references test.partitioned_a (id, name)
-      ) partition by list (name);
+      create table test.car_model_sales(
+        date varchar(64) not null,
+        quantity int not null,
+        car_model_name varchar(64),
+        car_model_year int,
+        primary key (date, car_model_name, car_model_year),
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+      ) partition by range (date);
 
-      create table test.first_partition_b partition of test.partitioned_b
-        for values in ('first_b');
+      create table test.car_model_sales_202101 partition of test.car_model_sales
+        for values from ('2021-01-01') to ('2021-01-31');
 
-      create table test.second_partition_b partition of test.partitioned_b
-        for values in ('second_b');
+      create table test.car_model_sales_default partition of test.car_model_sales
+        default;
 
-      create table test.reference_to_partitioned (
-        id int not null primary key,
-        id_a int,
-        name_a varchar(64),
-        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      create table test.car_racers (
+        name varchar(64) not null primary key,
+        car_model_name varchar(64),
+        car_model_year int,
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
       );
 
-      create table test.partitioned_c (
-        id int not null,
+      create table test.car_dealers (
         name varchar(64) not null,
-        primary key (id, name)
-      ) partition by list (name);
+        city varchar(64) not null,
+        primary key (name, city)
+      ) partition by list (city);
 
-      create table test.first_partition_c partition of test.partitioned_c
-        for values in ('first_c');
+      create table test.car_dealers_springfield partition of test.car_dealers
+        for values in ('Springfield');
 
-      create table test.second_partition_c partition of test.partitioned_c
-        for values in ('second_c');
+      create table test.car_dealers_default partition of test.car_dealers
+        default;
 
-      create table test.partitioned_a_c (
-        id_a int not null,
-        name_a varchar(64) not null,
-        id_c int not null,
-        name_c varchar(64) not null,
-        name varchar(64) not null,
-        foreign key (id_a, name_a) references test.partitioned_a (id, name),
-        foreign key (id_c, name_c) references test.partitioned_c (id, name)
-      ) partition by list (name);
+      create table test.car_models_car_dealers (
+        car_model_name varchar(64) not null,
+        car_model_year int not null,
+        car_dealer_name varchar(64) not null,
+        car_dealer_city varchar(64) not null,
+        quantity int not null,
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year),
+        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city)
+      ) partition by range (quantity);
 
-      create table test.first_partition_a_c partition of test.partitioned_a_c
-        for values in ('first_a_c');
+      create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
+        for values from (10) to (20);
 
-      create table test.second_partition_a_c partition of test.partitioned_a_c
-        for values in ('second_a_c');
+      create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
+        default;
     end if;
 end$do$;
 
