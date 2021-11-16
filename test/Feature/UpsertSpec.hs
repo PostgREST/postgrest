@@ -120,9 +120,9 @@ spec actualPgVersion =
             request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
               [json| [
                 { "name": "Murcielago", "year": 2001, "car_brand_name": "Ferrari" },
-                { "name": "Huracán", "year": 2014, "car_brand_name": "Lamborghini" }
+                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
               ]|] `shouldRespondWith` [json| [
-                { "name": "Huracán", "year": 2014, "car_brand_name": "Lamborghini" }
+                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
               ]|]
               { matchStatus = 201
               , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]

@@ -2257,9 +2257,8 @@ A test for partitioned tables$$;
 
       create table test.car_models_2021 partition of test.car_models
         for values in (2021);
-
       create table test.car_models_default partition of test.car_models
-        default;
+        for values in (1981,1997,2001,2013);
     end if;
 
     -- primary keys for partitioned tables are supported from pg v11
