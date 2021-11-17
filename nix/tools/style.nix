@@ -1,4 +1,5 @@
-{ black
+{ actionlint
+, black
 , buildToolbox
 , checkedShellScript
 , git
@@ -50,7 +51,7 @@ let
     checkedShellScript
       {
         name = "postgrest-lint";
-        docs = "Lint all Haskell files and bash scripts.";
+        docs = "Lint all Haskell files, bash scripts and github workflows.";
         inRootDir = true;
       }
       ''
@@ -65,6 +66,9 @@ let
 
         echo "Linting bash scripts..."
         ${shellcheck}/bin/shellcheck test/with_tmp_db
+
+        echo "Linting workflows..."
+        ${actionlint}/bin/actionlint
       '';
 
 in
