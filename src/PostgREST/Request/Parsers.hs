@@ -195,15 +195,22 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
     pOperation =
           Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
       <|> In <$> (try (string "in" *> pDelimiter) *> pListVal)
+      <|> Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
+
+    pTriVal = try (string "null"    $> TriNull)
+          <|> try (string "unknown" $> TriUnknown)
+          <|> try (string "true"    $> TriTrue)
+          <|> try (string "false"   $> TriFalse)
+          <?> "null or trilean value (unknown, true, false)"
 
     pFts = do
       op   <- foldl1 (<|>) (try . string . toS <$> ftsOps)
       lang <- optionMaybe $ try (between (char '(') (char ')') (many (letter <|> digit <|> oneOf "_")))
       pDelimiter >> Fts (toS op) (toS <$> lang) <$> pSVal
 
-    ops = M.filterWithKey (const . flip notElem ("in":ftsOps)) operators
+    ops = M.filterWithKey (const . flip notElem ("in":"is":ftsOps)) operators
     ftsOps = M.keys ftsOperators
 
 pSingleVal :: Parser SingleVal

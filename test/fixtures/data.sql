@@ -716,3 +716,6 @@ INSERT INTO test.contact (id,name, clientid) values (1,'Wally Walton',1),(2,'Wil
 
 TRUNCATE TABLE test.clientinfo CASCADE;
 INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2,'456 South 3rd St'),(3,3,'789 Palm Tree Ln');
+
+TRUNCATE TABLE test.chores CASCADE;
+INSERT INTO test.chores (id, name, done) values (1, 'take out the garbage', true), (2, 'do the laundry', false), (3, 'wash the dishes', null);
