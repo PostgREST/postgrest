@@ -2417,3 +2417,9 @@ CREATE TABLE clientinfo (
 , clientid int unique references client(id)
 , other text
 );
+
+CREATE TABLE chores (
+  id int primary key
+, name text
+, done bool
+);

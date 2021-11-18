@@ -73,6 +73,23 @@ spec actualPgVersion = do
 
       get "/nullable_integer?a=is.null" `shouldRespondWith` [json|[{"a":null}]|]
 
+    it "matches with trilean values" $ do
+      get "/chores?done=is.true" `shouldRespondWith`
+        [json| [{"id": 1, "name": "take out the garbage", "done": true }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.false" `shouldRespondWith`
+        [json| [{"id": 2, "name": "do the laundry", "done": false }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.unknown" `shouldRespondWith`
+        [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "fails if 'is' used and there's no null or trilean value" $ do
+      get "/chores?done=is.nil" `shouldRespondWith` 400
+      get "/chores?done=is.ok"  `shouldRespondWith` 400
+
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`
         [json|[{"k":"xyyx","extra":"u"}]|]

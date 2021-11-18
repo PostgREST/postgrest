@@ -31,6 +31,7 @@ module PostgREST.Request.Types
   , ReadRequest
   , SelectItem
   , SingleVal
+  , TrileanVal(..)
   , fstFieldNames
   ) where
 
@@ -209,6 +210,7 @@ data OpExpr =
 data Operation
   = Op Operator SingleVal
   | In ListVal
+  | Is TrileanVal
   | Fts Operator (Maybe Language) SingleVal
   deriving (Eq)
 
@@ -220,3 +222,11 @@ type SingleVal = Text
 
 -- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)
 type ListVal = [Text]
+
+-- | Three-valued logic values
+data TrileanVal
+  = TriTrue
+  | TriFalse
+  | TriNull
+  | TriUnknown
+  deriving Eq

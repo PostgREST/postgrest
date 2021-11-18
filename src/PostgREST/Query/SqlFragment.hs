@@ -61,7 +61,8 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
-                                          OrderTerm (..), SelectItem)
+                                          OrderTerm (..), SelectItem,
+                                          TrileanVal (..))
 
 import Protolude hiding (cast)
 
@@ -234,8 +235,17 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      "like"  -> unknownLiteral (T.map star val)
      "ilike" -> unknownLiteral (T.map star val)
-     "is"    -> isAllowed val
      _       -> unknownLiteral val
+
+   -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
+   -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
+   -- However that would not accept the TRUE/FALSE/NULL/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
+   -- This is why `IS` operands are whitelisted at the Parsers.hs level
+   Is triVal -> pgFmtField table fld <> " IS " <> case triVal of
+     TriTrue    -> "TRUE"
+     TriFalse   -> "FALSE"
+     TriNull    -> "NULL"
+     TriUnknown -> "UNKNOWN"
 
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
    -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
@@ -252,13 +262,6 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    sqlOperator o = SQL.sql $ M.lookupDefault "=" o operators
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
-   -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
-   -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
-   -- However that would not accept the TRUE/FALSE/NULL keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
-   isAllowed :: Text -> SQL.Snippet
-   isAllowed v = SQL.sql $ maybe
-     (pgFmtLit v <> "::unknown") encodeUtf8
-     (find ((==) . T.toLower $ v) ["null","true","false"])
 
 pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
