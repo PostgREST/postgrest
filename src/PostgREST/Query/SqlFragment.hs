@@ -134,19 +134,14 @@ singleParameter body typ =
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"
 
-pgFmtLit :: Text -> SqlFragment
-pgFmtLit x =
- let trimmed = trimNullChars x
-     escaped = "'" <> T.replace "'" "''" trimmed <> "'"
-     slashed = T.replace "\\" "\\\\" escaped in
- encodeUtf8 $ if "\\" `T.isInfixOf` escaped
-   then "E" <> slashed
-   else slashed
-
 -- Here we build the pg array literal, e.g '{"Hebdon, John","Other","Another"}', manually.
 -- This is necessary to pass an "unknown" array and let pg infer the type.
-pgFmtArrayLit :: [Text] -> Text
-pgFmtArrayLit vals =
+-- There are backslashes here, but since this value is parametrized and is not a string constant
+-- https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS
+-- we don't need to use the E'string' form for C-style escapes
+-- https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS-ESCAPE
+pgBuildArrayLiteral :: [Text] -> Text
+pgBuildArrayLiteral vals =
  let trimmed = trimNullChars
      slashed = T.replace "\\" "\\\\" . trimmed
      escaped x = "\"" <> T.replace "\"" "\\\"" (slashed x) <> "\"" in
@@ -252,7 +247,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
    In vals -> pgFmtField table fld <> " " <> case vals of
       [""] -> "= ANY('{}') "
-      _    -> "= ANY (" <> unknownLiteral (pgFmtArrayLit vals) <> ") "
+      _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
 
    Fts op lang val ->
      pgFmtFieldOp op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
@@ -332,10 +327,10 @@ responseStatusF pgVer =
     then currentSettingF "response.status"
     else "null"
 
-currentSettingF :: Text -> SqlFragment
+currentSettingF :: SqlFragment -> SqlFragment
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
-  "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
+  "nullif(current_setting('" <> setting <> "', true), '')"
 
 -- Hasql Snippet utilities
 unknownEncoder :: ByteString -> SQL.Snippet
