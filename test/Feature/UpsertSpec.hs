@@ -47,13 +47,13 @@ spec actualPgVersion =
 
         when (actualPgVersion >= pgVersion110) $
           it "INSERTs and UPDATEs rows on composite pk conflict for partitioned tables" $
-            request methodPost "/partitioned_a" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
               [json| [
-                { "id": 4, "name": "second", "id_ref": 2},
-                { "id": 6, "name": "first", "id_ref": 1 }
+                { "name": "Murcielago", "year": 2001, "car_brand_name": null},
+                { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
               ]|] `shouldRespondWith` [json| [
-                { "id": 4, "name": "second", "id_ref": 2 },
-                { "id": 6, "name": "first", "id_ref": 1 }
+                { "name": "Murcielago", "year": 2001, "car_brand_name": null},
+                { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
               ]|]
               { matchStatus = 201
               , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
@@ -117,12 +117,12 @@ spec actualPgVersion =
 
         when (actualPgVersion >= pgVersion110) $
           it "INSERTs and ignores rows on composite pk conflict for partitioned tables" $
-            request methodPost "/partitioned_a" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
               [json| [
-                { "id": 4, "name": "second", "id_ref": 1 },
-                { "id": 7, "name": "second", "id_ref": 2 }
+                { "name": "Murcielago", "year": 2001, "car_brand_name": "Ferrari" },
+                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
               ]|] `shouldRespondWith` [json| [
-                { "id": 7, "name": "second", "id_ref": 2 }
+                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
               ]|]
               { matchStatus = 201
               , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
@@ -296,15 +296,15 @@ spec actualPgVersion =
         when (actualPgVersion >= pgVersion110) $
           it "succeeds on a partitioned table with composite pk" $ do
             -- assert that the next request will indeed be an insert
-            get "/partitioned_a?id=eq.8&name=eq.first"
+            get "/car_models?name=eq.Supra&year=eq.2021"
               `shouldRespondWith`
                 [json|[]|]
 
-            request methodPut "/partitioned_a?id=eq.8&name=eq.first"
+            request methodPut "/car_models?name=eq.Supra&year=eq.2021"
                 [("Prefer", "return=representation")]
-                [json| [ { "id": 8, "name": "first" } ]|]
+                [json| [ { "name": "Supra", "year": 2021 } ]|]
               `shouldRespondWith`
-                [json| [ { "id": 8, "name": "first", "id_ref": null } ]|]
+                [json| [ { "name": "Supra", "year": 2021, "car_brand_name": null } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an insert
@@ -360,15 +360,15 @@ spec actualPgVersion =
         when (actualPgVersion >= pgVersion110) $
           it "succeeds on a partitioned table with composite pk" $ do
             -- assert that the next request will indeed be an update
-            get "/partitioned_a?id=eq.2&name=eq.first"
+            get "/car_models?name=eq.DeLorean&year=eq.1981"
               `shouldRespondWith`
-                [json| [ { "id": 2, "name": "first", "id_ref": null } ]|]
+                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": "DMC" } ]|]
 
-            request methodPut "/partitioned_a?id=eq.2&name=eq.first"
+            request methodPut "/car_models?name=eq.DeLorean&year=eq.1981"
                 [("Prefer", "return=representation")]
-                [json| [ { "id": 2, "name": "first", "id_ref": 1 } ]|]
+                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
               `shouldRespondWith`
-                [json| [ { "id": 2, "name": "first", "id_ref": 1 } ]|]
+                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an update

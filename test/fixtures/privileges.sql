@@ -192,19 +192,25 @@ GRANT USAGE ON SCHEMA test TO postgrest_test_default_role;
 
 DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    GRANT ALL ON TABLE test.partitioned_a TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.first_partition_a TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.second_partition_a TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models_2021 TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models_default TO postgrest_test_anonymous;
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    GRANT ALL ON TABLE test.reference_from_partitioned TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_brands TO postgrest_test_anonymous;
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
-    GRANT ALL ON TABLE test.partitioned_b TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.first_partition_b TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.second_partition_b TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.reference_to_partitioned TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_model_sales TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_model_sales_202101 TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_model_sales_default TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_racers TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_dealers TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_dealers_springfield TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_dealers_default TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models_car_dealers TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models_car_dealers_10to20 TO postgrest_test_anonymous;
+    GRANT ALL ON TABLE test.car_models_car_dealers_default TO postgrest_test_anonymous;
   END IF;
 END$do$;

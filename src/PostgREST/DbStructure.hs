@@ -41,6 +41,7 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion100)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
@@ -82,10 +83,10 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
-queryDbStructure schemas extraSearchPath prepared = do
+queryDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> SQL.Transaction DbStructure
+queryDbStructure schemas extraSearchPath pgVer prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- SQL.statement mempty $ allTables prepared
+  tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
   m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
@@ -311,8 +312,8 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: Bool -> SQL.Statement Schema [Table]
-accessibleTables =
+accessibleTables :: PgVersion -> Bool -> SQL.Statement Schema [Table]
+accessibleTables pgVer =
   SQL.Statement sql (param HE.text) decodeTables
  where
   sql = [q|
@@ -350,7 +351,8 @@ accessibleTables =
       left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
       c.relkind in ('v','r','m','f','p')
-      and n.nspname = $1
+      and n.nspname = $1 |]
+      <> relIsNotPartition pgVer <> [q|
       and (
         pg_has_role(c.relowner, 'USAGE')
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -445,8 +447,8 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
   pk : viewPks)
 
-allTables :: Bool -> SQL.Statement () [Table]
-allTables =
+allTables :: PgVersion -> Bool -> SQL.Statement () [Table]
+allTables pgVer =
   SQL.Statement sql HE.noParams decodeTables
  where
   sql = [q|
@@ -484,8 +486,12 @@ allTables =
     JOIN pg_namespace n ON n.oid = c.relnamespace
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f','p')
-      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema') |]
+      <> relIsNotPartition pgVer <> [q|
     ORDER BY table_schema, table_name |]
+
+relIsNotPartition :: PgVersion -> SqlQuery
+relIsNotPartition pgVer = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
 
 allColumns :: [Table] -> Bool -> SQL.Statement [Schema] [Column]
 allColumns tabs =

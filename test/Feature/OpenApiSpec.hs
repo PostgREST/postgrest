@@ -204,11 +204,11 @@ spec actualPgVersion = describe "OpenAPI" $ do
       it "includes partitioned table properties" $ do
         r <- simpleBody <$> get "/"
 
-        let method s = key "paths" . key "/partitioned_a" . key s
+        let method s = key "paths" . key "/car_models" . key s
             getSummary = r ^? method "get" . key "summary"
             getDescription = r ^? method "get" . key "description"
-            getParameterId = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
-            getParameterName = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
+            getParameterName = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
+            getParameterYear = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
             getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
 
         liftIO $ do
@@ -217,12 +217,12 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
           getDescription `shouldBe` Just "A test for partitioned tables"
 
-          getParameterId `shouldBe` Just "#/parameters/rowFilter.partitioned_a.id"
+          getParameterName `shouldBe` Just "#/parameters/rowFilter.car_models.name"
 
-          getParameterName `shouldBe` Just "#/parameters/rowFilter.partitioned_a.name"
+          getParameterYear `shouldBe` Just "#/parameters/rowFilter.car_models.year"
 
           when (actualPgVersion >= pgVersion110) $
-            getParameterRef `shouldBe` Just "#/parameters/rowFilter.partitioned_a.id_ref"
+            getParameterRef `shouldBe` Just "#/parameters/rowFilter.car_models.car_brand_name"
 
   describe "Materialized view" $
 

@@ -30,6 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1857, Make GUC names for headers, cookies and jwt claims compatible with PostgreSQL v14 - @laurenceisla, @robertsosinski
    + Getting the value for a header GUC on PostgreSQL 14 is done using `current_setting('request.headers')::json->>'name-of-header'` and in a similar way for `request.cookies` and `request.jwt.claims`
    + PostgreSQL versions below 14 can opt in to the new JSON GUCs by setting the `db-use-legacy-gucs` config option to false (true by default)
+ - #1783, Partitions (created using `PARTITION OF`) are no longer included in the schema cache. - @laurenceisla
 
 ## [8.0.0] - 2021-07-25
 
