@@ -38,6 +38,9 @@ Added
 * Allow calling a function with a :ref:`single unnamed parameter <s_proc_single_unnamed>` to POST raw ``json/jsonb``, ``bytea`` or ``text``.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
+* Allow specifying ``unknown`` for the ``is`` :ref:`operator <operators>`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
 * Documentation improvements
 
   + Added :ref:`nested_embedding` to the :ref:`resource_embedding` section.

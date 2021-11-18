@@ -72,7 +72,7 @@ ilike         :code:`ILIKE`             ILIKE operator (use * in place of %)
 in            :code:`IN`                one of a list of values, e.g. :code:`?a=in.(1,2,3)`
                                         – also supports commas in quoted strings like
                                         :code:`?a=in.("hi,there","yes,you")`
-is            :code:`IS`                checking for exact equality (null,true,false)
+is            :code:`IS`                checking for exact equality (null,true,false,unknown)
 fts           :code:`@@`                :ref:`fts` using to_tsquery
 plfts         :code:`@@`                :ref:`fts` using plainto_tsquery
 phfts         :code:`@@`                :ref:`fts` using phraseto_tsquery
