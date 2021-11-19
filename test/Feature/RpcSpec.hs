@@ -738,6 +738,36 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|"123"|]
 
+      -- https://github.com/PostgREST/postgrest/issues/1672
+      context "embedding overloaded functions with the same quantity of args and one has a default value" $ do
+        it "overloaded_default(text default)" $ do
+          request methodPost "/rpc/overloaded_default?select=id,name,users(name)"
+              [("Content-Type", "application/json")]
+              [json|{}|]
+            `shouldRespondWith`
+              [json|[{"id": 2, "name": "Code w7", "users": [{"name": "Angela Martin"}]}] |]
+
+        it "overloaded_default(int)" $
+          request methodPost "/rpc/overloaded_default"
+              [("Content-Type", "application/json")]
+              [json|{"must_param":1}|]
+            `shouldRespondWith`
+              [json|{"val":1}|]
+
+        it "overloaded_default(int, text default)" $ do
+          request methodPost "/rpc/overloaded_default?select=id,name,users(name)"
+              [("Content-Type", "application/json")]
+              [json|{"a":4}|]
+            `shouldRespondWith`
+              [json|[{"id": 5, "name": "Design IOS", "users": [{"name": "Michael Scott"}, {"name": "Dwight Schrute"}]}] |]
+
+        it "overloaded_default(int, int)" $
+          request methodPost "/rpc/overloaded_default"
+              [("Content-Type", "application/json")]
+              [json|{"a":2,"must_param":4}|]
+            `shouldRespondWith`
+              [json|{"a":2,"val":4}|]
+
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
         post "/rpc/sayhello?name=John" [json|{name: "John"}|] `shouldRespondWith` 400
