@@ -739,7 +739,7 @@ spec actualPgVersion =
             [json|"123"|]
 
       -- https://github.com/PostgREST/postgrest/issues/1672
-      context "embedding overloaded functions with the same quantity of args and one has a default value" $ do
+      context "embedding overloaded functions with the same signature except for the last param with a default value" $ do
         it "overloaded_default(text default)" $ do
           request methodPost "/rpc/overloaded_default?select=id,name,users(name)"
               [("Content-Type", "application/json")]
