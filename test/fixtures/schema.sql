@@ -1323,6 +1323,22 @@ create or replace function test.overloaded(a text, b text, c text) returns text 
   select a || b || c
 $$ language sql;
 
+create or replace function test.overloaded_default(opt_param text default 'Code w7') returns setof test.tasks as $$
+select * from test.tasks where name like opt_param;
+$$ language sql;
+
+create or replace function test.overloaded_default(must_param int) returns jsonb as $$
+select row_to_json(r)::jsonb from (select must_param as val) as r;
+$$ language sql;
+
+create or replace function test.overloaded_default(a int, opt_param text default 'Design IOS') returns setof test.tasks as $$
+select * from test.tasks where name like opt_param and id > a;
+$$ language sql;
+
+create or replace function test.overloaded_default(a int, must_param int) returns jsonb as $$
+select row_to_json(r)::jsonb from (select a, must_param as val) as r;
+$$ language sql;
+
 create or replace function test.overloaded_html_form() returns setof int as $$
 values (1), (2), (3);
 $$ language sql;
