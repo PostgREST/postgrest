@@ -65,7 +65,10 @@ let
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
 
         echo "Linting bash scripts..."
-        ${shellcheck}/bin/shellcheck test/with_tmp_db
+        ${shellcheck}/bin/shellcheck \
+          .github/get_cirrusci_freebsd \
+          .github/release \
+          test/with_tmp_db
 
         echo "Linting workflows..."
         ${actionlint}/bin/actionlint
