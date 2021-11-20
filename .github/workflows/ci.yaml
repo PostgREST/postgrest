@@ -16,9 +16,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - name: Install linting and styling scripts
-        run: nix-env -f default.nix -iA style
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: style
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
@@ -34,12 +35,10 @@ jobs:
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
-      - name: Install testing scripts
-        run: nix-env -f default.nix -iA tests withTools
+          tools: tests withTools
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
@@ -84,12 +83,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
-      - name: Install testing script
-        run: nix-env -f default.nix -iA memory
+          tools: memory
       - name: Run memory tests
         run: postgrest-test-memory
 
@@ -98,10 +95,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Build static executable
@@ -350,9 +346,10 @@ jobs:
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
       - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - name: Install release scripts
-        run: nix-env -f default.nix -iA release
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: release
       - name: Download Docker image
         uses: actions/download-artifact@v2
         with:
