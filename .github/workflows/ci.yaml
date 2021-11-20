@@ -284,7 +284,8 @@ jobs:
 
   Release-GitHub:
     name: Release on GitHub
-    permissions: write-all
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs: Prepare-Release
     env:
