@@ -133,7 +133,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os:
+        include:
           - name: Linux & test
             runs-on: ubuntu-latest
             cache: |
@@ -164,30 +164,30 @@ jobs:
             # test: true
             artifact: postgrest-windows-x64
 
-    name: Build ${{ matrix.os.name }} (Stack)
-    runs-on: ${{ matrix.os.runs-on }}
+    name: Build ${{ matrix.name }} (Stack)
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v2.4.0
       - name: Stack working files cache
         uses: actions/cache@v2.1.6
         with:
-          path: ${{ matrix.os.cache }}
+          path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
       - name: Install dependencies
-        if: ${{ matrix.os.deps }}
-        run: ${{ matrix.os.deps }}
+        if: ${{ matrix.deps }}
+        run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
       - name: Run Spec tests with Stack
-        if: ${{ matrix.os.test }}
+        if: ${{ matrix.test }}
         run: |
-          postgresql_bin="$(find ${{ matrix.os.pgdir }} -maxdepth 2 -type d -name bin | head -n 1)"
+          postgresql_bin="$(find ${{ matrix.pgdir }} -maxdepth 2 -type d -name bin | head -n 1)"
           echo "Using PostgreSQL binaries at $postgresql_bin ..."
           PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: ${{ matrix.os.artifact }}
+          name: ${{ matrix.artifact }}
           path: |
             result/postgrest
             result/postgrest.exe
