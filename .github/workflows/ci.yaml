@@ -90,7 +90,7 @@ jobs:
       - name: Run memory tests
         run: postgrest-test-memory
 
-  Build-Linux-Nix:
+  Build-Nix:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
     steps:
@@ -125,80 +125,67 @@ jobs:
           nix-env -f default.nix -iA devTools
           postgrest-push-cachix
 
-  Build-Linux-Stack:
-    name: Build Ubuntu & test (Stack)
-    runs-on: ubuntu-latest
+  Build-Stack:
+    strategy:
+      matrix:
+        os:
+          - name: Linux & test
+            runs-on: ubuntu-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            test: true
+            pgdir: /usr/lib/postgresql
+            artifact: postgrest-ubuntu-x64
+
+          - name: MacOS & test
+            runs-on: macos-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            test: true
+            pgdir: /usr/local/Cellar/postgresql
+            artifact: postgrest-macos-x64
+
+          - name: Windows
+            runs-on: windows-latest
+            cache: |
+              ~\AppData\Roaming\stack
+              ~\AppData\Local\Programs\stack
+              .stack-work
+            deps: |
+              stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
+            # We'd need to make test/with_tmp_db run on Windows first
+            # test: true
+            artifact: postgrest-windows-x64
+
+    name: Build ${{ matrix.os.name }} (Stack)
+    runs-on: ${{ matrix.os.runs-on }}
     steps:
       - uses: actions/checkout@v2.4.0
       - name: Stack working files cache
         uses: actions/cache@v2.1.6
         with:
-          path: |
-            ~/.stack
-            .stack-work
+          path: ${{ matrix.os.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
+      - name: Install dependencies
+        if: ${{ matrix.os.deps }}
+        run: ${{ matrix.os.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
       - name: Run Spec tests with Stack
+        if: ${{ matrix.os.test }}
         run: |
-          postgresql_bin="$(find /usr/lib/postgresql -maxdepth 2 -type d -name bin | head -n 1)"
+          postgresql_bin="$(find ${{ matrix.os.pgdir }} -maxdepth 2 -type d -name bin | head -n 1)"
           echo "Using PostgreSQL binaries at $postgresql_bin ..."
           PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v2.2.4
         with:
-          name: postgrest-ubuntu-x64
-          path: result/postgrest
-          if-no-files-found: error
-
-  Build-MacOS-Stack:
-    name: Build MacOS & test (Stack)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Stack working files cache
-        uses: actions/cache@v2
-        with:
+          name: ${{ matrix.os.artifact }}
           path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-      - name: Build with Stack
-        run: stack build --local-bin-path result --copy-bins
-      - name: Run Spec tests with Stack
-        run: |
-          postgresql_bin="$(find /usr/local/Cellar/postgresql -maxdepth 2 -type d -name bin | head -n 1)"
-          echo "Using PostgreSQL binaries at $postgresql_bin ..."
-          PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
-      - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: postgrest-macos-x64
-          path: result/postgrest
-          if-no-files-found: error
-
-  Build-Windows-Stack:
-    name: Build Windows (Stack)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Stack working files cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~\AppData\Roaming\stack
-            ~\AppData\Local\Programs\stack
-            .stack-work
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-      - name: Install dependencies
-        run: stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
-      - name: Build with Stack
-        run: stack build --local-bin-path result --copy-bins
-      - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: postgrest-windows-x64
-          path: result/postgrest.exe
+            result/postgrest
+            result/postgrest.exe
           if-no-files-found: error
 
   Get-FreeBSD-CirrusCI:
@@ -226,10 +213,8 @@ jobs:
       - Lint-Style
       - Test-Nix
       - Test-Memory-Nix
-      - Build-Linux-Nix
-      - Build-Linux-Stack
-      - Build-MacOS-Stack
-      - Build-Windows-Stack
+      - Build-Nix
+      - Build-Stack
       - Get-FreeBSD-CirrusCI
     outputs:
       version: ${{ steps.Identify-Version.outputs.version }}
