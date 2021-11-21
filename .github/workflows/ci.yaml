@@ -25,6 +25,7 @@ jobs:
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
         run: postgrest-style-check
 
+
   Test-Nix:
     name: Test (Nix)
     runs-on: ubuntu-latest
@@ -78,6 +79,7 @@ jobs:
         if: always()
         run: postgrest-test-spec-idempotence
 
+
   Test-Memory-Nix:
     name: Test memory (Nix)
     runs-on: ubuntu-latest
@@ -89,6 +91,7 @@ jobs:
           tools: memory
       - name: Run memory tests
         run: postgrest-test-memory
+
 
   Build-Nix:
     name: Build Linux static (Nix)
@@ -124,6 +127,7 @@ jobs:
           nix-build
           nix-env -f default.nix -iA devTools
           postgrest-push-cachix
+
 
   Build-Stack:
     strategy:
@@ -188,6 +192,7 @@ jobs:
             result/postgrest.exe
           if-no-files-found: error
 
+
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-latest
@@ -204,6 +209,7 @@ jobs:
           name: postgrest-freebsd-x64
           path: postgrest
           if-no-files-found: error
+
 
   Prepare-Release:
     name: Prepare release
@@ -263,6 +269,7 @@ jobs:
           path: CHANGES.md
           if-no-files-found: error
 
+
   Release-GitHub:
     name: Release on GitHub
     permissions:
@@ -319,6 +326,7 @@ jobs:
             -F artifacts/release-changes/CHANGES.md \
             ${isprerelease:+"--prerelease"} \
             release-bundle/*
+
 
   Release-Docker:
     name: Release on Docker Hub
