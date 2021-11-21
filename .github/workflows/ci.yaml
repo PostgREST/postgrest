@@ -131,6 +131,7 @@ jobs:
 
   Build-Stack:
     strategy:
+      fail-fast: false
       matrix:
         os:
           - name: Linux & test
