@@ -97,7 +97,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text),
     "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("According to the relationship needed, try changing the query string to one of the following: " <> relHint rels :: Text),
+    "hint"    .= ("According to the relationship needed, try changing the value in the query string to one of the following: " <> relHint rels :: Text),
     "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
