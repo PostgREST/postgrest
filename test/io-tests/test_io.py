@@ -440,21 +440,6 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
                 print(line)
 
 
-@pytest.mark.parametrize("invalidjointypes", FIXTURES["invalidjointypes"])
-def test_invalid_db_embed_default_join(invalidjointypes, defaultenv):
-    "Given an invalid db-embed-default-join, Postgrest should exit with a non-zero exit code."
-    env = {
-        **defaultenv,
-        "PGRST_DB_EMBED_DEFAULT_JOIN": invalidjointypes,
-    }
-
-    with pytest.raises(PostgrestError):
-        dump = dumpconfig(CONFIGSDIR / "defaults.config", env=env)
-        for line in dump.split("\n"):
-            if line.startswith("db-embed-default-join"):
-                print(line)
-
-
 def test_iat_claim(defaultenv):
     """
     A claim with an 'iat' (issued at) attribute should be successful.

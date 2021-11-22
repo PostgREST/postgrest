@@ -99,7 +99,6 @@ main = do
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
-      embedInnerJoinApp    = app testEmbedInnerJoinCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
       proxyApp             = app testProxyCfg
       noJwtApp             = app testCfgNoJWT
@@ -218,10 +217,6 @@ main = do
     -- this test runs with db-uses-legacy-gucs = false
     parallel $ before testCfgLegacyGucsApp $
       describe "Feature.LegacyGucsSpec" Feature.LegacyGucsSpec.spec
-
-    -- this test runs with db-embed-default-join = inner
-    before embedInnerJoinApp $
-      describe "Feature.EmbedInnerJoinSpecNotDefaultConfig" Feature.EmbedInnerJoinSpec.notDefaultConfig
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

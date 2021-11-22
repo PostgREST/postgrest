@@ -61,11 +61,11 @@ import Protolude hiding (from)
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> JoinType -> [Relationship] -> ApiRequest -> Either Error ReadRequest
-readRequest schema rootTableName maxRows defJoinType allRels apiRequest  =
+readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequest -> Either Error ReadRequest
+readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
-  augmentRequestWithJoin schema rootRels defJoinType =<<
+  augmentRequestWithJoin schema rootRels =<<
   (addFiltersOrdersRanges apiRequest . initReadRequest rootName =<< pRequestSelect sel)
   where
     sel = fromMaybe "*" $ iSelect apiRequest -- default to all columns requested (SELECT *) for a non existent ?select querystring param
@@ -119,17 +119,17 @@ treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augmentRequestWithJoin :: Schema -> [Relationship] -> JoinType -> ReadRequest -> Either ApiRequestError ReadRequest
-augmentRequestWithJoin schema allRels defJoinType request =
-  addRels schema allRels Nothing defJoinType request
+augmentRequestWithJoin :: Schema -> [Relationship] -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin schema allRels request =
+  addRels schema allRels Nothing request
   >>= addJoinConditions Nothing
 
-addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> JoinType -> ReadRequest -> Either ApiRequestError ReadRequest
-addRels schema allRels parentNode defJoinType (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
+addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
       let newFrom r = if qiName tbl == nodeName then tableQi (relForeignTable r) else tbl
-          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType <|> Just defJoinType, depth))) <$> rel
+          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))) <$> rel
           rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
       in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
@@ -138,7 +138,7 @@ addRels schema allRels parentNode defJoinType (Node (query@Select{from=tbl}, (no
       Node rn <$> updateForest (Just $ Node rn forest)
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
-    updateForest rq = addRels schema allRels rq defJoinType `traverse` forest
+    updateForest rq = addRels schema allRels rq `traverse` forest
 
 -- Finds a relationship between an origin and a target in the request:
 -- /origin?select=target(*) If more than one relationship is found then the
