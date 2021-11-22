@@ -572,7 +572,7 @@ returnsScalar _                   = False
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
   liftEither $
-    ReqBuilder.readRequest qiSchema qiName configDbMaxRows configDbEmbedDefaultJoin
+    ReqBuilder.readRequest qiSchema qiName configDbMaxRows
       (dbRelationships dbStructure)
       apiRequest
 

@@ -57,7 +57,6 @@ import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
-import PostgREST.Request.Types           (JoinType (..))
 
 import Protolude hiding (Proxy, toList)
 
@@ -79,7 +78,6 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
-  , configDbEmbedDefaultJoin    :: JoinType
   , configDbUseLegacyGucs       :: Bool
   , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
@@ -136,7 +134,6 @@ toText conf =
       ,("db-config",                 q . T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("db-embed-default-join",     q . dumpJoin . configDbEmbedDefaultJoin)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
@@ -169,9 +166,6 @@ toText conf =
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
-
-    dumpJoin JTInner = "inner"
-    dumpJoin JTLeft  = "left"
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures
@@ -231,7 +225,6 @@ parser optPath env dbSettings =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> reqString "db-uri"
-    <*> parseEmbedDefaultJoin "db-embed-default-join"
     <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
@@ -314,14 +307,6 @@ parser optPath env dbSettings =
         Just "rollback"                -> pure $ f (True,       False)
         Just "rollback-allow-override" -> pure $ f (True,       True)
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
-
-    parseEmbedDefaultJoin :: C.Key -> C.Parser C.Config JoinType
-    parseEmbedDefaultJoin k =
-      optString k >>= \case
-        Nothing      -> pure JTLeft
-        Just "left"  -> pure JTLeft
-        Just "inner" -> pure JTInner
-        Just _       -> fail "Invalid db-embed-default-join. Check your configuration."
 
     parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath
     parseRoleClaimKey k al =

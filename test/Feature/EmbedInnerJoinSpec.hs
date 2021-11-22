@@ -240,38 +240,7 @@ spec =
         ]|]
         { matchHeaders = [matchContentTypeJson] }
 
-notDefaultConfig :: SpecWith ((), Application)
-notDefaultConfig =
-  describe "Embedding with a default inner join(db-embed-default-join = 'inner')" $ do
-    it "works on many-to-one relationships" $
-      get "/tasks?select=id,projects(id,clients(id))&projects.clients.id=eq.1" `shouldRespondWith`
-        [json|[
-          {"id":1,"projects":{"id":1,"clients":{"id":1}}},
-          {"id":2,"projects":{"id":1,"clients":{"id":1}}},
-          {"id":3,"projects":{"id":2,"clients":{"id":1}}},
-          {"id":4,"projects":{"id":2,"clients":{"id":1}}}]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "works on one-to-many relationships" $
-      get "/entities?select=id,child_entities(id,grandchild_entities(id))&child_entities.grandchild_entities.id=in.(1,5)"
-        `shouldRespondWith`
-        [json|[
-          {
-            "id": 1,
-            "child_entities": [
-              { "id": 1, "grandchild_entities": [ { "id": 1 } ] },
-              { "id": 2, "grandchild_entities": [ { "id": 5 } ] }]
-          }
-        ]|]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "works on many-to-many relationships" $
-      get "/products?select=id,suppliers(id,trade_unions(id))&suppliers.trade_unions.id=eq.3"
-        `shouldRespondWith`
-        [json|[{"id":1,"suppliers":[{"id":2,"trade_unions":[{"id":3}]}]}] |]
-        { matchHeaders = [matchContentTypeJson] }
-
-    it "can restore default left join behavior" $
+    it "can use default left join behavior explicitly" $
       get "/projects?select=id,clients!left(id)" `shouldRespondWith`
         [json|[
           {"id":1,"clients":{"id":1}}, {"id":2,"clients":{"id":1}},

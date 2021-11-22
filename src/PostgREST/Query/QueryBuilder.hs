@@ -50,18 +50,18 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, Just joinType, _)) _) (joins,selects) =
+getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, joinType, _)) _) (joins,selects) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
           sel = SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
-          joi = (if joinType == JTInner then " INNER" else " LEFT")
+          joi = (if joinType == Just JTInner then " INNER" else " LEFT")
             <> " JOIN LATERAL( " <> subquery <> " ) AS " <> SQL.sql localTableName <> " ON TRUE " in
       (joi:joins,sel:selects)
     _ -> case joinType of
-      JTInner ->
+      Just JTInner ->
         let aliasOrName = fromMaybe name alias
             locTblName = table <> "_" <> aliasOrName
             localTableName = pgFmtIdent locTblName
@@ -72,13 +72,13 @@ getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTab
                     "FROM (" <> subquery <> " ) AS " <> SQL.sql internalTableName <>
                   ") AS " <> SQL.sql localTableName <> " ON " <> SQL.sql localTableName <> "IS NOT NULL" in
         (joi:joins,sel:selects)
-      JTLeft ->
+      _ ->
         let sel = "COALESCE (("
                <> "SELECT json_agg(" <> SQL.sql (pgFmtIdent table) <> ".*) "
                <> "FROM (" <> subquery <> ") " <> SQL.sql (pgFmtIdent table) <> " "
                <> "), '[]') AS " <> SQL.sql (pgFmtIdent (fromMaybe name alias)) in
         (joins,sel:selects)
-getJoinsSelects _ _ = ([], [])
+getJoinsSelects (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> SQL.Snippet
 mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
