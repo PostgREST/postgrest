@@ -31,7 +31,7 @@ spec =
                     "target": "test.person_detail"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
+              "hint": "According to the relationship needed, try changing the value in the query string to one of the following: person!message_sender_fkey(*), person_detail!message_sender_fkey(*)",
               "message": "More than one relationship was found for message and sender"
             }
           |]
@@ -63,7 +63,7 @@ spec =
                   "target": "test.big_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
+              "hint": "According to the relationship needed, try changing the value in the query string to one of the following: big_projects!main_project(*), big_projects!jobs(*), big_projects!main_jobs(*)",
               "message": "More than one relationship was found for sites and big_projects"
             }
           |]
@@ -89,7 +89,7 @@ spec =
                     "target": "test.departments"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
+              "hint": "According to the relationship needed, try changing the value in the query string to one of the following: departments!agents_department_id_fkey(*), departments!departments_head_id_fkey(*)",
               "message": "More than one relationship was found for agents and departments"
             }
            |]
@@ -130,7 +130,7 @@ spec =
                   "target": "test.whatev_projects"
                 }
               ],
-              "hint": "By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)",
+              "hint": "According to the relationship needed, try changing the value in the query string to one of the following: whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*)",
               "message": "More than one relationship was found for whatev_sites and whatev_projects"
             }
           |]
