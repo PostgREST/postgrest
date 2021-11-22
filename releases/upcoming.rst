@@ -52,3 +52,9 @@ Fixed
 
 * Fix using single double quotes (``"``) and backslashes (``/``) as values on the "in" operator
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+Changed
+-------
+
+* Partitions (created using ``PARTITION OF``) are no longer included in the :ref:`schema_cache`.
+  |br| -- `@laurenceisla <https://github.com/laurenceisla>`_

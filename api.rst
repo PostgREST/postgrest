@@ -720,7 +720,7 @@ Use the Accept request header to specify the acceptable format (or formats) for 
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/people"
+    curl "http://localhost:3000/people" \
       -H "Accept: application/json"
 
 The current possibilities are:
@@ -757,7 +757,7 @@ This can be inconvenient for client code. To return the first result as an objec
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/items?id=eq.1"
+    curl "http://localhost:3000/items?id=eq.1" \
       -H "Accept: application/vnd.pgrst.object+json"
 
 This returns
@@ -1084,20 +1084,9 @@ Since it contains the ``films_id`` foreign key, it is possible to embed ``box_of
 
     curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
 
-Embedding is also possible between ``box_office`` partitions and the ``films`` table:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /films?select=title,box_office_2021_02(bo_date,gross_revenue)&rating=gt.8 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,box_office_2021_02(bo_date,gross_revenue)&rating=gt.8"
-
 .. note::
-  Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
+  * Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
+  * Embedding on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. :ref:`custom_queries` can be used if this is needed.
 
 .. _embedding_views:
 
@@ -1600,8 +1589,8 @@ You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000OST /employees" \
-      -X POST -H "Content-Type: application/json"
+    curl "http://localhost:3000/employees" \
+      -X POST -H "Content-Type: application/json" \
       -H "Prefer: resolution=merge-duplicates" \
       -d @- << EOF
       [
@@ -1639,7 +1628,7 @@ By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/employees?on_conflict=name" \
-      -X POST -H "Content-Type: application/json"
+      -X POST -H "Content-Type: application/json" \
       -H "Prefer: resolution=merge-duplicates" \
       -d @- << EOF
       [
@@ -2042,7 +2031,7 @@ Repeating also works in POST requests with ``Content-Type: application/x-www-for
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/rpc/plus_one" \
-      -X POST -H "Content-Type: application/x-www-form-urlencoded"
+      -X POST -H "Content-Type: application/x-www-form-urlencoded" \
       -d 'v=1&v=2&v=3&v=4'
 
 Scalar functions
