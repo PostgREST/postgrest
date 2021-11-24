@@ -80,8 +80,8 @@ postgrest-coverage                postgrest-with-postgresql-10
 postgrest-lint                    postgrest-with-postgresql-11
 postgrest-run                     postgrest-with-postgresql-12
 postgrest-style                   postgrest-with-postgresql-13
-postgrest-style-check             postgrest-with-postgresql-9.5
-postgrest-test-io                 postgrest-with-postgresql-9.6
+postgrest-style-check             postgrest-with-postgresql-9.6
+postgrest-test-io
 ...
 
 [nix-shell]$
@@ -104,8 +104,8 @@ postgrest-coverage                postgrest-with-postgresql-10
 postgrest-lint                    postgrest-with-postgresql-11
 postgrest-run                     postgrest-with-postgresql-12
 postgrest-style                   postgrest-with-postgresql-13
-postgrest-style-check             postgrest-with-postgresql-9.5
-postgrest-test-io                 postgrest-with-postgresql-9.6
+postgrest-style-check             postgrest-with-postgresql-9.6
+postgrest-test-io
 postgrest-test-memory
 ...
 

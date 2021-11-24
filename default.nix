@@ -52,7 +52,6 @@ let
       { name = "postgresql-11"; postgresql = pkgs.postgresql_11; }
       { name = "postgresql-10"; postgresql = pkgs.postgresql_10; }
       { name = "postgresql-9.6"; postgresql = pkgs.postgresql_9_6; }
-      { name = "postgresql-9.5"; postgresql = pkgs.postgresql_9_5; }
     ];
 
   patches =

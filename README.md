@@ -112,15 +112,6 @@ the connection cannot do anything the user themselves couldn't. Other
 forms of authentication can be built on top of the JWT primitive. See
 the docs for more information.
 
-Since PostgreSQL 9.5 supports true [row-level
-security](http://www.postgresql.org/docs/9.5/static/ddl-rowsecurity.html).
-In previous versions it can be simulated with triggers and
-security-barrier views. Because the possible queries to the database
-are limited to certain templates using
-[leakproof](http://blog.2ndquadrant.com/how-do-postgresql-security_barrier-views-work/)
-functions, the trigger workaround does not compromise row-level
-security.
-
 ## Versioning
 
 A robust long-lived API needs the freedom to exist in multiple

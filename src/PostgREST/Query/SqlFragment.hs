@@ -46,7 +46,6 @@ import qualified Hasql.Encoders                  as HE
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.Config.PgVersion        (PgVersion, pgVersion96)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -315,17 +314,11 @@ limitOffsetF range =
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
 
-responseHeadersF :: PgVersion -> SqlFragment
-responseHeadersF pgVer =
-  if pgVer >= pgVersion96
-    then currentSettingF "response.headers"
-    else "null"
+responseHeadersF :: SqlFragment
+responseHeadersF = currentSettingF "response.headers"
 
-responseStatusF :: PgVersion -> SqlFragment
-responseStatusF pgVer =
-  if pgVer >= pgVersion96
-    then currentSettingF "response.status"
-    else "null"
+responseStatusF :: SqlFragment
+responseStatusF = currentSettingF "response.status"
 
 currentSettingF :: SqlFragment -> SqlFragment
 currentSettingF setting =

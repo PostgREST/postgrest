@@ -9,13 +9,12 @@ import Data.List.NonEmpty (toList)
 
 import Test.Hspec
 
-import PostgREST.App              (postgrest)
-import PostgREST.Config           (AppConfig (..), LogLevel (..))
-import PostgREST.Config.Database  (queryPgVersion)
-import PostgREST.Config.PgVersion (pgVersion96)
-import PostgREST.DbStructure      (queryDbStructure)
-import Protolude                  hiding (toList, toS)
-import Protolude.Conv             (toS)
+import PostgREST.App             (postgrest)
+import PostgREST.Config          (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.DbStructure     (queryDbStructure)
+import Protolude                 hiding (toList, toS)
+import Protolude.Conv            (toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
@@ -203,16 +202,15 @@ main = do
     parallel $ before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
-    when (actualPgVersion >= pgVersion96) $ do
-      -- this test runs with a root spec function override
-      parallel $ before rootSpecApp $
-        describe "Feature.RootSpec" Feature.RootSpec.spec
-      parallel $ before responseHeadersApp $
-        describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
+    -- this test runs with a root spec function override
+    parallel $ before rootSpecApp $
+      describe "Feature.RootSpec" Feature.RootSpec.spec
+    parallel $ before responseHeadersApp $
+      describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
 
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
-      describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
+      describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec
 
     -- this test runs with db-uses-legacy-gucs = false
     parallel $ before testCfgLegacyGucsApp $
