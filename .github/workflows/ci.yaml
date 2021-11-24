@@ -169,7 +169,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.4.0
       - name: Stack working files cache
-        uses: actions/cache@v2.1.6
+        uses: actions/cache@v2.1.7
         with:
           path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
