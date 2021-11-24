@@ -15,7 +15,7 @@ import Text.Heredoc
 import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
                                    pgVersion109, pgVersion110,
                                    pgVersion112, pgVersion114,
-                                   pgVersion140, pgVersion96)
+                                   pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -1005,72 +1005,70 @@ spec actualPgVersion =
                 [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
                 { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion96) $
-        it "should work with the phraseto_tsquery function" $
-          get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
-            [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-            { matchHeaders = [matchContentTypeJson] }
+      it "should work with the phraseto_tsquery function" $
+        get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     it "should work with an argument of custom type in public schema" $
         get "/rpc/test_arg?my_arg=something" `shouldRespondWith`
           [json|"foobar"|]
           { matchHeaders = [matchContentTypeJson] }
 
-    when (actualPgVersion >= pgVersion96) $ do
-      context "GUC headers on function calls" $ do
-        it "succeeds setting the headers" $ do
-          get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
-            `shouldRespondWith` [json|[{"id": 2}]|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
-          get "/rpc/get_int_and_guc_headers?num=1"
-            `shouldRespondWith` [json|1|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
-          post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
-            `shouldRespondWith` [json|1|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
+    context "GUC headers on function calls" $ do
+      it "succeeds setting the headers" $ do
+        get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
+          `shouldRespondWith` [json|[{"id": 2}]|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        get "/rpc/get_int_and_guc_headers?num=1"
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
 
-        it "fails when setting headers with wrong json structure" $ do
-          get "/rpc/bad_guc_headers_1"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          get "/rpc/bad_guc_headers_2"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          get "/rpc/bad_guc_headers_3"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          post "/rpc/bad_guc_headers_1" [json|{}|]
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
+      it "fails when setting headers with wrong json structure" $ do
+        get "/rpc/bad_guc_headers_1"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_2"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_3"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        post "/rpc/bad_guc_headers_1" [json|{}|]
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
 
-        it "can set the same http header twice" $
-          get "/rpc/set_cookie_twice"
-            `shouldRespondWith`
-              "null"
-              { matchHeaders = [ matchContentTypeJson
-                               , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
-                               , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
+      it "can set the same http header twice" $
+        get "/rpc/set_cookie_twice"
+          `shouldRespondWith`
+            "null"
+            { matchHeaders = [ matchContentTypeJson
+                             , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
+                             , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
 
       it "can override the Location header on a trigger" $
         post "/stuff"

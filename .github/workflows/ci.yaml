@@ -63,9 +63,6 @@ jobs:
       - name: Run the spec tests against PostgreSQL 9.6
         if: always()
         run: postgrest-with-postgresql-9.6 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 9.5
-        if: always()
-        run: postgrest-with-postgresql-9.5 postgrest-test-spec
 
       - name: Run query cost tests against all PostgreSQL versions
         if: always()

@@ -30,9 +30,8 @@ import Data.Maybe                (fromJust)
 import Data.Text.Read            (decimal)
 import Network.HTTP.Types.Status (Status)
 
-import PostgREST.Config.PgVersion (PgVersion)
-import PostgREST.Error            (Error (..))
-import PostgREST.GucHeader        (GucHeader)
+import PostgREST.Error     (Error (..))
+import PostgREST.GucHeader (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.Query.SqlFragment
@@ -47,9 +46,9 @@ import Protolude
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->
-                        PreferRepresentation -> [Text] -> PgVersion -> Bool ->
+                        PreferRepresentation -> [Text] -> Bool ->
                         SQL.Statement () ResultsWithCount
-createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys pgVer =
+createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -60,8 +59,8 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       locF <> " AS header, " <>
       bodyF <> " AS body, " <>
-      responseHeadersF pgVer <> " AS response_headers, " <>
-      responseStatusF pgVer  <> " AS response_status "
+      responseHeadersF <> " AS response_headers, " <>
+      responseStatusF  <> " AS response_status "
     ) <>
     "FROM (" <> selectF <> ") _postgrest_t"
 
@@ -89,9 +88,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
+createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
                        SQL.Statement () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField pgVer =
+createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -103,8 +102,8 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       noLocationF <> " AS header, " <>
       bodyF <> " AS body, " <>
-      responseHeadersF pgVer <> " AS response_headers, " <>
-      responseStatusF pgVer <> " AS response_status " <>
+      responseHeadersF <> " AS response_headers, " <>
+      responseStatusF <> " AS response_status " <>
     "FROM ( SELECT * FROM " <> sourceCTEName <> " ) _postgrest_t")
 
   (countCTEF, countResultF) = countF countQuery countTotal
@@ -132,9 +131,9 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Maybe FieldName -> PgVersion -> Bool ->
+                     Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
                      SQL.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField pgVer =
+callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField =
   SQL.dynamicallyParameterized snippet decodeProc
   where
     snippet =
@@ -145,8 +144,8 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
         countResultF <> " AS total_result_set, " <>
         "pg_catalog.count(_postgrest_t) AS page_total, " <>
         bodyF <> " AS body, " <>
-        responseHeadersF pgVer <> " AS response_headers, " <>
-        responseStatusF pgVer <> " AS response_status ") <>
+        responseHeadersF <> " AS response_headers, " <>
+        responseStatusF <> " AS response_status ") <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
     (countCTEF, countResultF) = countF countQuery countTotal

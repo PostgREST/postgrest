@@ -258,7 +258,6 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         (shouldCount iPreferCount)
         (iAcceptContentType == CTTextCSV)
         bField
-        ctxPgVersion
         configDbPreparedStatements
 
   total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
@@ -447,7 +446,6 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (iAcceptContentType == CTTextCSV)
         (iPreferParameters == Just MultipleObjects)
         bField
-        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
@@ -532,7 +530,6 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
         (iAcceptContentType ctxApiRequest == CTTextCSV)
         (iPreferRepresentation ctxApiRequest)
         pkCols
-        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
