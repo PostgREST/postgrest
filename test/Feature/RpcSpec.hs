@@ -494,6 +494,11 @@ spec actualPgVersion =
         liftIO $ do
           simpleStatus p `shouldBe` badRequest400
           isErrorFormat (simpleBody p) `shouldBe` True
+      it "treats plpgsql assert as invalid input" $ do
+        p <- post "/rpc/assert" "{}"
+        liftIO $ do
+          simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
 
     context "unsupported verbs" $ do
       it "DELETE fails" $

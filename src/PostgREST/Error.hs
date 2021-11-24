@@ -241,6 +241,7 @@ pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rErr
         'F':'0':_ -> HTTP.status500 -- conf file error
         'H':'V':_ -> HTTP.status500 -- foreign data wrapper error
         "P0001"   -> HTTP.status400 -- default code for "raise"
+        "P0004"   -> HTTP.status400 -- assert failure
         'P':'0':_ -> HTTP.status500 -- PL/pgSQL Error
         'X':'X':_ -> HTTP.status500 -- internal Error
         "42883"   -> HTTP.status404 -- undefined function
