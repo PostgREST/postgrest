@@ -69,23 +69,10 @@ PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER" --auth=trust \
 
 log "Starting the database cluster..."
 # Instead of listening on a local port, we will listen on a unix domain socket.
-pg_ctl -l "$dblog" start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
+pg_ctl -l "$dblog" -w start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
   >> "$setuplog"
 
-log "Waiting for the database cluster to be ready..."
-# Waiting is required for older versions of Postgres (< 10).
-until pg_isready >> "$setuplog"; do
-  sleep 0.1
-done
-
-stopped=0
 stop() {
-  # cleaning up once is enough; otherwise we get some errors
-  if [ $stopped -eq 1 ]; then
-    return
-  fi
-  stopped=1
-
   log "Stopping the database cluster..."
   pg_ctl stop -m i >> "$setuplog"
 
@@ -96,7 +83,7 @@ stop() {
   fi
 }
 
-trap stop sigint sigterm exit
+trap stop EXIT
 
 log "Loading fixtures..."
 psql -v ON_ERROR_STOP=1 -f test/fixtures/load.sql >> "$setuplog"
@@ -106,4 +93,4 @@ log "Done. Running command..."
 # make sure that the database is shut down and the temporary directory is
 # deleted when the command is done. This is also why we don't `exec` the
 # command - our trap would be lost if we did that.
-"$@"
+("$@")

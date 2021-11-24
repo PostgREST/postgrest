@@ -60,14 +60,8 @@ let
 
         log "Starting the database cluster..."
         # Instead of listening on a local port, we will listen on a unix domain socket.
-        pg_ctl -l "$tmpdir/db.log" start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
+        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -k $PGHOST" \
           >> "$setuplog"
-
-        log "Waiting for the database cluster to be ready..."
-        # Waiting is required for older versions of Postgres (< 10).
-        until pg_isready >> "$setuplog"; do
-          sleep 0.1
-        done
 
         stop () {
           log "Stopping the database cluster..."
