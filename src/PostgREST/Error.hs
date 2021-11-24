@@ -97,8 +97,8 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text),
     "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find your desired relationship in the 'details' key." :: Text),
-    "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
+    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
+    "message" .= ("Could not embed because more than one relationship was found for " <> parent <> " and " <> child :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text),
@@ -133,15 +133,15 @@ compressedRel Relationship{..} =
     ("embedding" .= (tableName relTable <> " with " <> tableName relForeignTable :: Text))
     : case relCardinality of
         M2M Junction{..} -> [
-            "cardinality" .= ("many to many" :: Text)
+            "cardinality" .= ("many-to-many" :: Text)
           , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
           ]
         M2O cons -> [
-            "cardinality" .= ("many to one" :: Text)
+            "cardinality" .= ("many-to-one" :: Text)
           , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
           ]
         O2M cons -> [
-            "cardinality" .= ("one to many" :: Text)
+            "cardinality" .= ("one-to-many" :: Text)
           , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
           ]
 
@@ -149,7 +149,7 @@ relHint :: [Relationship] -> Text
 relHint rels = T.intercalate ", " (hintList <$> rels)
   where
     hintList Relationship{..} =
-      let buildHint rel = tableName relForeignTable <> "!" <> rel <> "(*)" in
+      let buildHint rel = tableName relForeignTable <> "!" <> rel in
       case relCardinality of
         M2M Junction{..} -> buildHint (tableName junTable)
         M2O cons         -> buildHint cons

@@ -19,18 +19,18 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "many to one",
+                    "cardinality": "many-to-one",
                     "relationship": "message_sender_fkey[sender][id]",
                     "embedding": "message with person"
                 },
                 {
-                    "cardinality": "many to one",
+                    "cardinality": "many-to-one",
                     "relationship": "message_sender_fkey[sender][id]",
                     "embedding": "message with person_detail"
                 }
               ],
-              "hint": "Try changing 'sender' to one of the following: person!message_sender_fkey(*), person_detail!message_sender_fkey(*). Find your desired relationship in the 'details' key.",
-              "message": "More than one relationship was found for message and sender"
+              "hint": "Try changing 'sender' to one of the following: person!message_sender_fkey, person_detail!message_sender_fkey. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for message and sender"
             }
           |]
           { matchStatus  = 300
@@ -43,23 +43,23 @@ spec =
             {
               "details": [
                 {
-                  "cardinality": "many to one",
+                  "cardinality": "many-to-one",
                   "relationship": "main_project[main_project_id][big_project_id]",
                   "embedding": "sites with big_projects"
                 },
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
                   "embedding": "sites with big_projects"
                 },
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.main_jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
                   "embedding": "sites with big_projects"
                 }
               ],
-              "hint": "Try changing 'big_projects' to one of the following: big_projects!main_project(*), big_projects!jobs(*), big_projects!main_jobs(*). Find your desired relationship in the 'details' key.",
-              "message": "More than one relationship was found for sites and big_projects"
+              "hint": "Try changing 'big_projects' to one of the following: big_projects!main_project, big_projects!jobs, big_projects!main_jobs. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for sites and big_projects"
             }
           |]
           { matchStatus  = 300
@@ -72,18 +72,18 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "many to one",
+                    "cardinality": "many-to-one",
                     "relationship": "agents_department_id_fkey[department_id][id]",
                     "embedding": "agents with departments"
                 },
                 {
-                    "cardinality": "one to many",
+                    "cardinality": "one-to-many",
                     "relationship": "departments_head_id_fkey[id][head_id]",
                     "embedding": "agents with departments"
                 }
               ],
-              "hint": "Try changing 'departments' to one of the following: departments!agents_department_id_fkey(*), departments!departments_head_id_fkey(*). Find your desired relationship in the 'details' key.",
-              "message": "More than one relationship was found for agents and departments"
+              "hint": "Try changing 'departments' to one of the following: departments!agents_department_id_fkey, departments!departments_head_id_fkey. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for agents and departments"
             }
            |]
           { matchStatus  = 300
@@ -99,28 +99,28 @@ spec =
             {
               "details": [
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_1_fkey]",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_2_fkey]",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_1_fkey]",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
-                  "cardinality": "many to many",
+                  "cardinality": "many-to-many",
                   "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_2_fkey]",
                   "embedding": "whatev_sites with whatev_projects"
                 }
               ],
-              "hint": "Try changing 'whatev_projects' to one of the following: whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*), whatev_projects!whatev_jobs(*). Find your desired relationship in the 'details' key.",
-              "message": "More than one relationship was found for whatev_sites and whatev_projects"
+              "hint": "Try changing 'whatev_projects' to one of the following: whatev_projects!whatev_jobs, whatev_projects!whatev_jobs, whatev_projects!whatev_jobs, whatev_projects!whatev_jobs. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for whatev_sites and whatev_projects"
             }
           |]
           { matchStatus  = 300
