@@ -193,8 +193,6 @@ The :code:`fts` filter mentioned above has a number of options to support flexib
 
     curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
 
-Using phrase search mode requires PostgreSQL of version at least 9.6 and will raise an error in earlier versions of the database.
-
 Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and will raise an error in earlier versions of the database.
 
 .. _v_filter:
@@ -1676,10 +1674,6 @@ A single row UPSERT can be done by using :code:`PUT` and filtering the primary k
       -d '{ "id": 4, "name": "Sara B.", "salary": 60000 }'
 
 All the columns must be specified in the request body, including the primary key columns.
-
-.. note::
-
-  Upsert features are only available starting from PostgreSQL 9.5 since it uses the `ON CONFLICT clause <https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT>`_.
 
 .. _delete:
 

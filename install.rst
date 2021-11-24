@@ -106,7 +106,7 @@ For a complete reference of the configuration file, see :ref:`configuration`.
 PostgreSQL dependency
 ---------------------
 
-To use PostgREST you will need an underlying database. We require PostgreSQL 9.5 or greater. You can use something like `Amazon RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development. You can also run PostgreSQL in a :ref:`docker container<pg-in-docker>`.
+To use PostgREST you will need an underlying database. We require PostgreSQL 9.6 or greater. You can use something like `Amazon RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development. You can also run PostgreSQL in a :ref:`docker container<pg-in-docker>`.
 
 Docker
 ======

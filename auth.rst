@@ -65,7 +65,7 @@ You can use row-level security to flexibly restrict visibility and access for th
 
 We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
 
-PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
+PostgreSQL allows us to set this policy with row-level security:
 
 .. code-block:: postgres
 
