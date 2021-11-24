@@ -50,7 +50,6 @@ db-channel-enabled       Boolean True
 db-prepared-statements   Boolean True
 db-tx-end                String  commit
 db-config                Boolean True
-db-embed-default-join    String  left
 db-use-legacy-gucs       Boolean True
 server-host              String  !4
 server-port              Int     3000
@@ -200,21 +199,6 @@ db-config
 ---------
 
    Enables the in-database configuration.
-
-.. _db-embed-default-join:
-
-db-embed-default-join
----------------------
-
-  Determines the default embedding type between tables or views when none is specified in the request. For more info, see :ref:`embedding_top_level_filter`.
-
-  .. code:: bash
-
-    # Embeds using LEFT JOIN
-    db-embed-default-join = "left"
-
-    # Embeds using INNER JOIN
-    db-embed-default-join = "inner"
 
 .. _db-use-legacy-gucs:
 

@@ -475,9 +475,15 @@ If the value filtered by the ``in`` operator has a double quote (``"``), you can
 
 Here ``Quote:"`` and ``Backslash:\`` are percent-encoded values. Note that ``%5C`` is the percent-encoded backslash.
 
-.. code-block:: http
+.. tabs::
 
-  GET /marks?name=in.(%22Quote:%5C%22%22,%22Backslash:%5C%5C%22) HTTP/1.1
+  .. code-tab:: http
+
+    GET /marks?name=in.(%22Quote:%5C%22%22,%22Backslash:%5C%5C%22) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/marks?name=in.(%22Quote:%5C%22%22,%22Backslash:%5C%5C%22)"
 
 .. note::
 
@@ -992,9 +998,15 @@ Top Level Filtering
 
 By default, embedded filters don't change the top level resource rows at all:
 
-.. code-block:: http
+.. tabs::
 
-  GET /films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
+  .. code-tab:: http
+
+    GET /films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne
 
 .. code-block:: json
 
@@ -1020,9 +1032,15 @@ By default, embedded filters don't change the top level resource rows at all:
 
 In order to filter the top level rows you need to add ``!inner`` to the embedded resource. For instance, to get **only** the films that have an actor named ``Jehanne``:
 
-.. code-block:: http
+.. tabs::
 
-  GET /films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
+  .. code-tab:: http
+
+    GET /films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne"
 
 .. code-block:: json
 
@@ -1037,12 +1055,6 @@ In order to filter the top level rows you need to add ``!inner`` to the embedded
       ]
     }
   ]
-
-If you prefer to work with top level filtering as a default embedding behavior for PostgREST, set the :ref:`db-embed-default-join` configuration parameter to ``"inner"``. This way, you don't need to specify ``!inner`` on every request and, if you need the previous behavior, add ``!left`` to the embedding resource. For instance, this will not filter the films in any way:
-
-.. code-block:: http
-
-  GET /films?select=title,actors!left(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
 
 .. _embedding_partitioned_tables:
 
@@ -1380,9 +1392,15 @@ Similarly to the **target**, the **hint** can be a **table name**, **foreign key
 
 Hints also work alongside ``!inner`` if a top level filtering is needed. From the above example:
 
-.. code-block:: http
+.. tabs::
 
-  GET /orders?select=*,central_addresses!billing_address!inner(*)&central_addresses.code="AB1000" HTTP/1.1
+  .. code-tab:: http
+
+    GET /orders?select=*,central_addresses!billing_address!inner(*)&central_addresses.code=AB1000 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/orders?select=*,central_addresses!billing_address!inner(*)&central_addresses.code=AB1000"
 
 .. _insert_update:
 
@@ -1682,10 +1700,19 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 
 Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
-.. code-block:: HTTP
+.. tabs::
 
-  DELETE /user?id=eq.1 HTTP/1.1
-  Prefer: return=representation
+  .. code-tab:: http
+
+    DELETE /user?id=eq.1 HTTP/1.1
+    Prefer: return=representation
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/user?id=eq.1" -X DELETE \
+      -H "Prefer: return=representation"
+
+.. code-block:: json
 
   {"id": 1, "email": "johndoe@email.com"}
 

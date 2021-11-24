@@ -14,12 +14,8 @@ Added
 * Allow :ref:`embedding <embedding_partitioned_tables>`, UPSERT, INSERT with Location response, OPTIONS request and OpenAPI support for partitioned tables.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
-* Allow filtering top-level resource based on embedded resources filters
-
-  + This is enabled by adding ``!inner`` to the embedded resource. See :ref:`embedding_top_level_filter`.
-  + This behavior can be enabled by default by setting the  :ref:`db-embed-default-join` to ``"inner"``.
-
-  -- `@steve-chavez <https://github.com/steve-chavez>`_
+* Allow filtering top-level resource based on embedded resources filters. This is enabled by adding ``!inner`` to the embedded resource. See :ref:`embedding_top_level_filter`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Make GUC names for headers, cookies and jwt claims compatible with PostgreSQL v14.
 
