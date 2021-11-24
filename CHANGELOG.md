@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This is enabled by adding `!inner` to the embedded resource, e.g. `/projects?select=*,clients!inner(*)&clients.id=eq.12`
    + This behavior can be enabled by default with the `db-embed-default-join='inner'` config option, which saves the need for specifying `!inner` on every request. In this case, you can go back to the previous behavior per request by specifying `!left`  on the embedded resource, e.g `/projects?select=*,clients!left(*)&clients.id=eq.12`
 - #1988, Allow specifying `unknown` for the `is` operator - @steve-chavez
+- #2031, Add clarification and relevant hint examples to the ambiguous embedding error - @laurenceisla
 
 ### Fixed
 
