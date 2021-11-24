@@ -29,8 +29,8 @@ spec =
                     "embedding": "message with person_detail"
                 }
               ],
-              "hint": "Try changing 'sender' to one of the following: person!message_sender_fkey, person_detail!message_sender_fkey. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for message and sender"
+              "hint": "Try changing 'sender' to one of the following: 'person!message_sender_fkey', 'person_detail!message_sender_fkey'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'message' and 'sender'"
             }
           |]
           { matchStatus  = 300
@@ -58,8 +58,8 @@ spec =
                   "embedding": "sites with big_projects"
                 }
               ],
-              "hint": "Try changing 'big_projects' to one of the following: big_projects!main_project, big_projects!jobs, big_projects!main_jobs. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for sites and big_projects"
+              "hint": "Try changing 'big_projects' to one of the following: 'big_projects!main_project', 'big_projects!jobs', 'big_projects!main_jobs'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'"
             }
           |]
           { matchStatus  = 300
@@ -82,8 +82,8 @@ spec =
                     "embedding": "agents with departments"
                 }
               ],
-              "hint": "Try changing 'departments' to one of the following: departments!agents_department_id_fkey, departments!departments_head_id_fkey. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for agents and departments"
+              "hint": "Try changing 'departments' to one of the following: 'departments!agents_department_id_fkey', 'departments!departments_head_id_fkey'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'agents' and 'departments'"
             }
            |]
           { matchStatus  = 300
@@ -119,8 +119,8 @@ spec =
                   "embedding": "whatev_sites with whatev_projects"
                 }
               ],
-              "hint": "Try changing 'whatev_projects' to one of the following: whatev_projects!whatev_jobs, whatev_projects!whatev_jobs, whatev_projects!whatev_jobs, whatev_projects!whatev_jobs. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for whatev_sites and whatev_projects"
+              "hint": "Try changing 'whatev_projects' to one of the following: 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'whatev_sites' and 'whatev_projects'"
             }
           |]
           { matchStatus  = 300

@@ -98,7 +98,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
-    "message" .= ("Could not embed because more than one relationship was found for " <> parent <> " and " <> child :: Text),
+    "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text),
@@ -149,7 +149,7 @@ relHint :: [Relationship] -> Text
 relHint rels = T.intercalate ", " (hintList <$> rels)
   where
     hintList Relationship{..} =
-      let buildHint rel = tableName relForeignTable <> "!" <> rel in
+      let buildHint rel = "'" <> tableName relForeignTable <> "!" <> rel <> "'" in
       case relCardinality of
         M2M Junction{..} -> buildHint (tableName junTable)
         M2O cons         -> buildHint cons
