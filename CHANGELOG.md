@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - #1938, Allow escaping inside double quotes with a backslash, e.g. `?col=in.("Double\"Quote")`, `?col=in.("Back\\slash")` - @steve-chavez
 - #1075, Allow filtering top-level resource based on embedded resources filters. This is enabled by adding `!inner` to the embedded resource, e.g. `/projects?select=*,clients!inner(*)&clients.id=eq.12`- @steve-chavez, @Iced-Sun
 - #1988, Allow specifying `unknown` for the `is` operator - @steve-chavez
+- #2031, Improve error message for ambiguous embedding and add a relevant hint that includes unambiguous embedding suggestions - @laurenceisla
 
 ### Fixed
 
