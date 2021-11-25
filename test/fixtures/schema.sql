@@ -365,6 +365,15 @@ END;
 $$;
 
 
+CREATE FUNCTION assert() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+      ASSERT false, 'bad thing';
+END;
+$$;
+
+
 --
 -- Name: problem(); Type: FUNCTION; Schema: test; Owner: -
 --
