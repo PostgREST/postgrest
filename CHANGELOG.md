@@ -15,6 +15,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Enables uploading raw text to a function with `Content-Type: text/plain`
 - #1938, Allow escaping inside double quotes with a backslash, e.g. `?col=in.("Double\"Quote")`, `?col=in.("Back\\slash")` - @steve-chavez
 - #1075, Allow filtering top-level resource based on embedded resources filters. This is enabled by adding `!inner` to the embedded resource, e.g. `/projects?select=*,clients!inner(*)&clients.id=eq.12`- @steve-chavez, @Iced-Sun
+ - #1857, Make GUC names for headers, cookies and jwt claims compatible with PostgreSQL v14 - @laurenceisla, @robertsosinski
+   + Getting the value for a header GUC on PostgreSQL 14 is done using `current_setting('request.headers')::json->>'name-of-header'` and in a similar way for `request.cookies` and `request.jwt.claims`
+   + PostgreSQL versions below 14 can opt in to the new JSON GUCs by setting the `db-use-legacy-gucs` config option to false (true by default)
 - #1988, Allow specifying `unknown` for the `is` operator - @steve-chavez
 - #2031, Improve error message for ambiguous embedding and add a relevant hint that includes unambiguous embedding suggestions - @laurenceisla
 
@@ -27,9 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
- - #1857, Make GUC names for headers, cookies and jwt claims compatible with PostgreSQL v14 - @laurenceisla, @robertsosinski
-   + Getting the value for a header GUC on PostgreSQL 14 is done using `current_setting('request.headers')::json->>'name-of-header'` and in a similar way for `request.cookies` and `request.jwt.claims`
-   + PostgreSQL versions below 14 can opt in to the new JSON GUCs by setting the `db-use-legacy-gucs` config option to false (true by default)
+ - #1949, Drop support for embedding hints used with '.'(`select=projects.client_id(*)`), '!' should be used instead(`select=projects!client_id(*)`) - @steve-chavez
  - #1783, Partitions (created using `PARTITION OF`) are no longer included in the schema cache. - @laurenceisla
  - #2038, Dropped support for PostgreSQL 9.5 - @wolfgangwalther
 
