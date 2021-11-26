@@ -25,6 +25,7 @@ jobs:
         uses: LouisBrunner/checks-action@v1.2.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          sha: ${{ github.event.workflow_run.head_sha }}
           name: Loadtest Results
           conclusion: neutral
           output: |
