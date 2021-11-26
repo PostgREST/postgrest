@@ -179,10 +179,28 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
 -- SELECT 1 is done instead of SELECT * to prevent doing expensive operations(like functions based on the columns)
 -- inside the FROM target.
+-- If the request contains INNER JOINs, then the COUNT of the root node will change.
+-- For this case, we use a WHERE EXISTS instead of an INNER JOIN on the count query.
+-- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
+-- Only for the nodes that have an INNER JOIN linked to the root level.
 readRequestToCountQuery :: ReadRequest -> SQL.Snippet
-readRequestToCountQuery (Node (Select{from=qi, where_=logicForest}, _) _) =
- "SELECT 1 " <> "FROM " <> SQL.sql (fromQi qi) <> " " <>
- if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest)
+readRequestToCountQuery (Node (Select{from=qi, implicitJoins=implJoins, where_=logicForest, joinConditions=joinConditions_}, _) forest) =
+  "SELECT 1 FROM " <> SQL.sql (BS.intercalate ", " (fromQi qi:(fromQi <$> implJoins))) <>
+  (if null logicForest && null joinConditions_ && null subQueries
+    then mempty
+    else " WHERE " ) <>
+  intercalateSnippet " AND " (
+    map (pgFmtLogicTree qi) logicForest ++
+    map pgFmtJoinCondition joinConditions_ ++
+    subQueries
+  )
+  where
+    subQueries = foldr existsSubquery [] forest
+    existsSubquery :: ReadRequest -> [SQL.Snippet] -> [SQL.Snippet]
+    existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =
+      if joinType == Just JTInner
+        then ("EXISTS (" <> readRequestToCountQuery readReq <> " )"):rest
+        else mempty
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
