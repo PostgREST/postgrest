@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Changed
+
+ - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+
 ## [12.2.0] - 2024-06-11
 
 ### Added

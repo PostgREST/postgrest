@@ -680,14 +680,12 @@ INSERT INTO private.films (id, title) VALUES (12,'douze commandements'), (2001,'
 TRUNCATE TABLE private.personnages CASCADE;
 INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méchant'), (2001,2,'astronaute');
 
-DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    INSERT INTO test.car_models(name, year) VALUES ('DeLorean',1981);
-    INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
-    INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
-    INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
-  END IF;
+INSERT INTO test.car_models(name, year) VALUES ('DeLorean',1981);
+INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
+INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
+INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
 
+DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
     INSERT INTO test.car_brands(name) VALUES ('DMC');
     INSERT INTO test.car_brands(name) VALUES ('Ferrari');
