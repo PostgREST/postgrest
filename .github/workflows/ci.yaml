@@ -39,7 +39,7 @@ jobs:
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
-          tools: tests withTools
+          tools: tests
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
@@ -48,42 +48,6 @@ jobs:
         with:
           files: ./coverage/codecov.json
 
-      - name: Run the spec tests against PostgreSQL 13
-        if: always()
-        run: postgrest-with-postgresql-13 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 12
-        if: always()
-        run: postgrest-with-postgresql-12 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 11
-        if: always()
-        run: postgrest-with-postgresql-11 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 10
-        if: always()
-        run: postgrest-with-postgresql-10 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 9.6
-        if: always()
-        run: postgrest-with-postgresql-9.6 postgrest-test-spec
-
-      - name: Run the IO tests against PostgreSQL 13
-        if: always()
-        run: postgrest-with-postgresql-13 postgrest-test-io
-      - name: Run the IO tests against PostgreSQL 12
-        if: always()
-        run: postgrest-with-postgresql-12 postgrest-test-io
-      - name: Run the IO tests against PostgreSQL 11
-        if: always()
-        run: postgrest-with-postgresql-11 postgrest-test-io
-      - name: Run the IO tests against PostgreSQL 10
-        if: always()
-        run: postgrest-with-postgresql-10 postgrest-test-io
-      - name: Run the IO tests against PostgreSQL 9.6
-        if: always()
-        run: postgrest-with-postgresql-9.6 postgrest-test-io
-
-      - name: Run query cost tests against all PostgreSQL versions
-        if: always()
-        run: postgrest-with-all postgrest-test-querycost
-
       - name: Run doctests
         if: always()
         run: nix-shell --run postgrest-test-doctests
@@ -91,6 +55,38 @@ jobs:
       - name: Check the spec tests for idempotence
         if: always()
         run: postgrest-test-spec-idempotence
+
+
+  Test-Pg-Nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        pgVersion: [9.6, 10, 11, 12, 13, 14]
+    name: Test PG ${{ matrix.pgVersion }} (Nix)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Hack for enabling color output, see:
+        # https://github.com/actions/runner/issues/241#issuecomment-842566950
+        shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: tests withTools
+
+      - name: Run spec tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-spec
+
+      - name: Run IO tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-io
+
+      - name: Run query cost tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-querycost
 
 
   Test-Memory-Nix:
@@ -106,7 +102,7 @@ jobs:
         run: postgrest-test-memory
 
 
-  Build-Nix:
+  Build-Static-Nix:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
     steps:
@@ -232,8 +228,9 @@ jobs:
     needs:
       - Lint-Style
       - Test-Nix
+      - Test-Pg-Nix
       - Test-Memory-Nix
-      - Build-Nix
+      - Build-Static-Nix
       - Build-Stack
       - Get-FreeBSD-CirrusCI
     outputs:
