@@ -47,8 +47,7 @@ import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               pgVersionStatement,
                                               toIsolationLevel)
-import PostgREST.Config.PgVersion            (PgVersion, pgVersion100,
-                                              pgVersion110,
+import PostgREST.Config.PgVersion            (PgVersion, pgVersion110,
                                               pgVersion120)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
@@ -477,8 +476,8 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: PgVersion -> Bool -> SQL.Statement [Schema] AccessSet
-accessibleTables pgVer =
+accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
+accessibleTables =
   SQL.Statement sql (arrayParam HE.text) decodeAccessibleIdentifiers
  where
   sql = [q|
@@ -494,10 +493,9 @@ accessibleTables pgVer =
       pg_has_role(c.relowner, 'USAGE')
       or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
       or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-    ) |] <>
-    relIsPartition <>
-    "ORDER BY table_schema, table_name"
-  relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+    )
+    AND not c.relispartition
+    ORDER BY table_schema, table_name|]
 
 {-
 Adds M2O and O2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
@@ -809,11 +807,10 @@ tablesSqlQuery pgVer =
   LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
   LEFT JOIN columns_agg cols_agg ON n.nspname = cols_agg.table_schema AND c.relname = cols_agg.table_name
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
-  relIsPartition <>
-  "ORDER BY table_schema, table_name"
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND not c.relispartition
+  ORDER BY table_schema, table_name|]
   where
-    relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
     columnDefault -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
       | pgVer >= pgVersion120 = [q|
           CASE
@@ -822,15 +819,10 @@ tablesSqlQuery pgVer =
             WHEN a.attgenerated = 's' THEN null
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
           END|]
-      | pgVer >= pgVersion100 = [q|
+      | otherwise = [q|
           CASE
             WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
             WHEN a.attidentity = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
-      | otherwise  = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
           END|]
 

@@ -40,6 +40,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3256, Fix wrong http status for pg error `42P17 infinite recursion` - @taimoorzaeem
  - #3404, Clarify the `PGRST121` (could not parse RAISE 'PGRST') error message - @laurenceisla
 
+### Changed
+
+ - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+
 ### Deprecated
 
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez
