@@ -18,6 +18,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2815, Build static executable with GSSAPI support - @wolfgangwalther
  - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
 
+### Changed
+
+ - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+
 ### Deprecated
 
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez

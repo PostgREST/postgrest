@@ -176,7 +176,7 @@ openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Ma
 openApiQuery sCache pgVer AppConfig{..} tSchema =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
-      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
+      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
       Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
         <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)

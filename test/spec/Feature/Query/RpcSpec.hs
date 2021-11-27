@@ -11,9 +11,9 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
-                                   pgVersion109, pgVersion110,
-                                   pgVersion112, pgVersion114)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion109,
+                                   pgVersion110, pgVersion112,
+                                   pgVersion114)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -530,66 +530,34 @@ spec actualPgVersion =
             { matchHeaders = [matchContentTypeJson] }
 
     context "proc argument types" $ do
-      -- different syntax for array needed for pg<10
-      when (actualPgVersion < pgVersion100) $
-        it "accepts a variety of arguments (Postgres < 10)" $
-          post "/rpc/varied_arguments"
-              [json| {
-                "double": 3.1,
-                "varchar": "hello",
-                "boolean": true,
-                "date": "20190101",
-                "money": 0,
-                "enum": "foo",
-                "arr": "{a,b,c}",
-                "integer": 43,
-                "json": {"some key": "some value"},
-                "jsonb": {"another key": [1, 2, "3"]}
-              } |]
-            `shouldRespondWith`
-              [json| {
-                "double": 3.1,
-                "varchar": "hello",
-                "boolean": true,
-                "date": "2019-01-01",
-                "money": "$0.00",
-                "enum": "foo",
-                "arr": ["a", "b", "c"],
-                "integer": 43,
-                "json": {"some key": "some value"},
-                "jsonb": {"another key": [1, 2, "3"]}
-              } |]
-              { matchHeaders = [matchContentTypeJson] }
-
-      when (actualPgVersion >= pgVersion100) $
-        it "accepts a variety of arguments (Postgres >= 10)" $
-          post "/rpc/varied_arguments"
-              [json| {
-                "double": 3.1,
-                "varchar": "hello",
-                "boolean": true,
-                "date": "20190101",
-                "money": 0,
-                "enum": "foo",
-                "arr": ["a", "b", "c"],
-                "integer": 43,
-                "json": {"some key": "some value"},
-                "jsonb": {"another key": [1, 2, "3"]}
-              } |]
-            `shouldRespondWith`
-              [json| {
-                "double": 3.1,
-                "varchar": "hello",
-                "boolean": true,
-                "date": "2019-01-01",
-                "money": "$0.00",
-                "enum": "foo",
-                "arr": ["a", "b", "c"],
-                "integer": 43,
-                "json": {"some key": "some value"},
-                "jsonb": {"another key": [1, 2, "3"]}
-              } |]
-              { matchHeaders = [matchContentTypeJson] }
+      it "accepts a variety of arguments (Postgres >= 10)" $
+        post "/rpc/varied_arguments"
+            [json| {
+              "double": 3.1,
+              "varchar": "hello",
+              "boolean": true,
+              "date": "20190101",
+              "money": 0,
+              "enum": "foo",
+              "arr": ["a", "b", "c"],
+              "integer": 43,
+              "json": {"some key": "some value"},
+              "jsonb": {"another key": [1, 2, "3"]}
+            } |]
+          `shouldRespondWith`
+            [json| {
+              "double": 3.1,
+              "varchar": "hello",
+              "boolean": true,
+              "date": "2019-01-01",
+              "money": "$0.00",
+              "enum": "foo",
+              "arr": ["a", "b", "c"],
+              "integer": 43,
+              "json": {"some key": "some value"},
+              "jsonb": {"another key": [1, 2, "3"]}
+            } |]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "accepts a variety of arguments with GET" $
         -- without JSON / JSONB here, because passing those via query string is useless - they just become a "json string" all the time
@@ -634,14 +602,6 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|"object"|]
             { matchHeaders = [matchContentTypeJson] }
-
-      when (actualPgVersion < pgVersion100) $
-        it "parses quoted JSON arguments as JSON (Postgres < 10)" $
-          post "/rpc/json_argument"
-              [json| { "arg": "{ \"key\": 3 }" } |]
-            `shouldRespondWith`
-              [json|"object"|]
-              { matchHeaders = [matchContentTypeJson] }
 
       when ((actualPgVersion >= pgVersion109 && actualPgVersion < pgVersion110)
             || actualPgVersion >= pgVersion114) $
@@ -765,68 +725,59 @@ spec actualPgVersion =
             [json|[{"a": "A", "b": "B"}]|]
 
     context "procs with VARIADIC params" $ do
-      when (actualPgVersion < pgVersion100) $
-        it "works with POST (Postgres < 10)" $
-          post "/rpc/variadic_param"
-              [json| { "v": "{hi,hello,there}" } |]
+      it "works with POST (Postgres >= 10)" $
+        post "/rpc/variadic_param"
+            [json| { "v": ["hi", "hello", "there"] } |]
+          `shouldRespondWith`
+            [json|["hi", "hello", "there"]|]
+
+      context "works with GET and repeated params" $ do
+        it "n=0 (through DEFAULT)" $
+          get "/rpc/variadic_param"
             `shouldRespondWith`
-              [json|["hi", "hello", "there"]|]
+              [json|[]|]
 
-      when (actualPgVersion >= pgVersion100) $ do
-        it "works with POST (Postgres >= 10)" $
-          post "/rpc/variadic_param"
-              [json| { "v": ["hi", "hello", "there"] } |]
+        it "n=1" $
+          get "/rpc/variadic_param?v=hi"
             `shouldRespondWith`
-              [json|["hi", "hello", "there"]|]
+              [json|["hi"]|]
 
-        context "works with GET and repeated params" $ do
-          it "n=0 (through DEFAULT)" $
-            get "/rpc/variadic_param"
-              `shouldRespondWith`
-                [json|[]|]
+        it "n>1" $
+          get "/rpc/variadic_param?v=hi&v=there"
+            `shouldRespondWith`
+              [json|["hi", "there"]|]
 
-          it "n=1" $
-            get "/rpc/variadic_param?v=hi"
-              `shouldRespondWith`
-                [json|["hi"]|]
+      context "works with POST and repeated params from html form" $ do
+        it "n=0 (through DEFAULT)" $
+          request methodPost "/rpc/variadic_param"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              ""
+            `shouldRespondWith`
+              [json|[]|]
 
-          it "n>1" $
-            get "/rpc/variadic_param?v=hi&v=there"
-              `shouldRespondWith`
-                [json|["hi", "there"]|]
+        it "n=1" $
+          request methodPost "/rpc/variadic_param"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "v=hi"
+            `shouldRespondWith`
+              [json|["hi"]|]
 
-        context "works with POST and repeated params from html form" $ do
-          it "n=0 (through DEFAULT)" $
-            request methodPost "/rpc/variadic_param"
-                [("Content-Type", "application/x-www-form-urlencoded")]
-                ""
-              `shouldRespondWith`
-                [json|[]|]
-
-          it "n=1" $
-            request methodPost "/rpc/variadic_param"
-                [("Content-Type", "application/x-www-form-urlencoded")]
-                "v=hi"
-              `shouldRespondWith`
-                [json|["hi"]|]
-
-          it "n>1" $
-            request methodPost "/rpc/variadic_param"
-                [("Content-Type", "application/x-www-form-urlencoded")]
-                "v=hi&v=there"
-              `shouldRespondWith`
-                [json|["hi", "there"]|]
+        it "n>1" $
+          request methodPost "/rpc/variadic_param"
+              [("Content-Type", "application/x-www-form-urlencoded")]
+              "v=hi&v=there"
+            `shouldRespondWith`
+              [json|["hi", "there"]|]
 
     it "returns last value for repeated params without VARIADIC" $
       get "/rpc/sayhello?name=ignored&name=world"
         `shouldRespondWith`
           [json|"Hello, world"|]
 
-    when (actualPgVersion >= pgVersion100) $
-      it "returns last value for repeated non-variadic params in function with other VARIADIC arguments" $
-        get "/rpc/sayhello_variadic?name=ignored&name=world&v=unused"
-          `shouldRespondWith`
-            [json|"Hello, world"|]
+    it "returns last value for repeated non-variadic params in function with other VARIADIC arguments" $
+      get "/rpc/sayhello_variadic?name=ignored&name=world&v=unused"
+        `shouldRespondWith`
+          [json|"Hello, world"|]
 
     it "can handle procs with args that have a DEFAULT value" $ do
       get "/rpc/many_inout_params?num=1&str=two"
