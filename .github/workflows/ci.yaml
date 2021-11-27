@@ -361,13 +361,15 @@ jobs:
           else
             echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
           fi
-      - name: Update descriptions on Docker Hub
-        env:
-          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-        run: |
-          if [[ -z "$ISPRERELEASE" ]]; then
-            echo "Updating description on Docker Hub..."
-            postgrest-release-dockerhub-description
-          else
-            echo "Skipping updating description for pre-release..."
-          fi
+# TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
+# https://github.com/docker/hub-feedback/issues/1927
+#      - name: Update descriptions on Docker Hub
+#        env:
+#          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+#        run: |
+#          if [[ -z "$ISPRERELEASE" ]]; then
+#            echo "Updating description on Docker Hub..."
+#            postgrest-release-dockerhub-description
+#          else
+#            echo "Skipping updating description for pre-release..."
+#          fi
