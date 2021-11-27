@@ -64,6 +64,22 @@ jobs:
         if: always()
         run: postgrest-with-postgresql-9.6 postgrest-test-spec
 
+      - name: Run the IO tests against PostgreSQL 13
+        if: always()
+        run: postgrest-with-postgresql-13 postgrest-test-io
+      - name: Run the IO tests against PostgreSQL 12
+        if: always()
+        run: postgrest-with-postgresql-12 postgrest-test-io
+      - name: Run the IO tests against PostgreSQL 11
+        if: always()
+        run: postgrest-with-postgresql-11 postgrest-test-io
+      - name: Run the IO tests against PostgreSQL 10
+        if: always()
+        run: postgrest-with-postgresql-10 postgrest-test-io
+      - name: Run the IO tests against PostgreSQL 9.6
+        if: always()
+        run: postgrest-with-postgresql-9.6 postgrest-test-io
+
       - name: Run query cost tests against all PostgreSQL versions
         if: always()
         run: postgrest-with-all postgrest-test-querycost
