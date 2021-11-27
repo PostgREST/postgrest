@@ -20,9 +20,4 @@ in
       postgis = prev.postgresql_10.pkgs.postgis.overrideAttrs (_: postgis_3_2_3);
     };
   };
-  postgresql_9_6 = prev.postgresql_9_6.override { this = final.postgresql_11; } // {
-    pkgs = prev.postgresql_9_6.pkgs // {
-      postgis = prev.postgresql_9_6.pkgs.postgis.overrideAttrs (_: postgis_3_2_3);
-    };
-  };
 }

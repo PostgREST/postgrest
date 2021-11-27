@@ -11,8 +11,7 @@ import Network.HTTP.Types
 import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
-                                   pgVersion110)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion110)
 
 import PostgREST.Version (docsVersion)
 import Protolude         hiding (get)
@@ -269,31 +268,30 @@ spec actualPgVersion = describe "OpenAPI" $ do
             ]
           |]
 
-  when (actualPgVersion >= pgVersion100) $ do
-    describe "Partitioned table" $
+  describe "Partitioned table" $
 
-      it "includes partitioned table properties" $ do
-        r <- simpleBody <$> get "/"
+    it "includes partitioned table properties" $ do
+      r <- simpleBody <$> get "/"
 
-        let method s = key "paths" . key "/car_models" . key s
-            getSummary = r ^? method "get" . key "summary"
-            getDescription = r ^? method "get" . key "description"
-            getParameterName = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
-            getParameterYear = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
-            getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
+      let method s = key "paths" . key "/car_models" . key s
+          getSummary = r ^? method "get" . key "summary"
+          getDescription = r ^? method "get" . key "description"
+          getParameterName = r ^? method "get" . key "parameters" . nth 0 . key "$ref"
+          getParameterYear = r ^? method "get" . key "parameters" . nth 1 . key "$ref"
+          getParameterRef = r ^? method "get" . key "parameters" . nth 2 . key "$ref"
 
-        liftIO $ do
+      liftIO $ do
 
-          getSummary `shouldBe` Just "A partitioned table"
+        getSummary `shouldBe` Just "A partitioned table"
 
-          getDescription `shouldBe` Just "A test for partitioned tables"
+        getDescription `shouldBe` Just "A test for partitioned tables"
 
-          getParameterName `shouldBe` Just "#/parameters/rowFilter.car_models.name"
+        getParameterName `shouldBe` Just "#/parameters/rowFilter.car_models.name"
 
-          getParameterYear `shouldBe` Just "#/parameters/rowFilter.car_models.year"
+        getParameterYear `shouldBe` Just "#/parameters/rowFilter.car_models.year"
 
-          when (actualPgVersion >= pgVersion110) $
-            getParameterRef `shouldBe` Just "#/parameters/rowFilter.car_models.car_brand_name"
+        when (actualPgVersion >= pgVersion110) $
+          getParameterRef `shouldBe` Just "#/parameters/rowFilter.car_models.car_brand_name"
 
   describe "Materialized view" $
 

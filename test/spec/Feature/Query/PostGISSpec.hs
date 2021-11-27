@@ -7,13 +7,11 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100)
-
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = describe "PostGIS features" $
+spec :: SpecWith ((), Application)
+spec = describe "PostGIS features" $
   context "GeoJSON output" $ do
     it "works for a table that has a geometry column" $
       request methodGet "/shops"
@@ -56,59 +54,32 @@ spec actualPgVersion = describe "PostGIS features" $
     it "works with resource embedding" $
       request methodGet "/shops?select=*,shop_bles(*)&id=eq.1"
         [("Accept", "application/geo+json")] "" `shouldRespondWith`
-        (if actualPgVersion >= pgVersion100
-          then [json| {
-            "type": "FeatureCollection",
-            "features": [
-              {
-                "type": "Feature",
-                "geometry": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" },
-                "properties": {
-                  "address": "1369 Cambridge St", "id": 1,
-                  "shop_bles": [
-                    { "id": 1, "name": "Beacon-1", "shop_id": 1 ,
-                      "coords": { "coordinates": [ -71.10044, 42.373695 ], "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Point" },
-                      "range_area": {
-                        "coordinates": [ [ [ -71.10045254230499, 42.37387083326593 ], [ -71.10048070549963, 42.37377126199953 ], [ -71.10039688646793, 42.37375838212269 ], [ -71.10037006437777, 42.37385844878863 ], [ -71.10045254230499, 42.37387083326593 ] ] ],
-                        "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Polygon" }
-                    },
-                    { "coords": { "coordinates": [ -71.10044, 42.373695 ], "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Point" },
-                      "id": 2, "name": "Beacon-2", "shop_id": 1,
-                      "range_area": {
-                        "coordinates": [ [ [ -71.10034391283989, 42.37385299961788 ], [ -71.10036939382553, 42.373756895982865 ], [ -71.1002916097641, 42.373745997623224 ], [ -71.1002641171217, 42.37384408279195 ], [ -71.10034391283989, 42.37385299961788 ] ] ],
-                        "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Polygon" }
-                    }
-                  ]
-                }
+        [json| {
+          "type": "FeatureCollection",
+          "features": [
+            {
+              "type": "Feature",
+              "geometry": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" },
+              "properties": {
+                "address": "1369 Cambridge St", "id": 1,
+                "shop_bles": [
+                  { "id": 1, "name": "Beacon-1", "shop_id": 1 ,
+                    "coords": { "coordinates": [ -71.10044, 42.373695 ], "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Point" },
+                    "range_area": {
+                      "coordinates": [ [ [ -71.10045254230499, 42.37387083326593 ], [ -71.10048070549963, 42.37377126199953 ], [ -71.10039688646793, 42.37375838212269 ], [ -71.10037006437777, 42.37385844878863 ], [ -71.10045254230499, 42.37387083326593 ] ] ],
+                      "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Polygon" }
+                  },
+                  { "coords": { "coordinates": [ -71.10044, 42.373695 ], "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Point" },
+                    "id": 2, "name": "Beacon-2", "shop_id": 1,
+                    "range_area": {
+                      "coordinates": [ [ [ -71.10034391283989, 42.37385299961788 ], [ -71.10036939382553, 42.373756895982865 ], [ -71.1002916097641, 42.373745997623224 ], [ -71.1002641171217, 42.37384408279195 ], [ -71.10034391283989, 42.37385299961788 ] ] ],
+                      "crs": { "properties": { "name": "EPSG:4326" }, "type": "name" }, "type": "Polygon" }
+                  }
+                ]
               }
-            ]
-          }|]
-          else [json| {
-            "type": "FeatureCollection",
-            "features": [
-              {
-                "type": "Feature",
-                "geometry": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" },
-                "properties": {
-                  "address": "1369 Cambridge St", "id": 1,
-                  "shop_bles": [
-                    { "id": 1, "name": "Beacon-1", "shop_id": 1 ,
-                      "coords": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" },
-                      "range_area": {
-                        "coordinates": [ [ [ -71.10045254230499, 42.37387083326593 ], [ -71.10048070549963, 42.37377126199953 ], [ -71.10039688646793, 42.37375838212269 ], [ -71.10037006437777, 42.37385844878863 ], [ -71.10045254230499, 42.37387083326593 ] ] ],
-                        "type": "Polygon" }
-                    },
-                    { "coords": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" },
-                      "id": 2, "name": "Beacon-2", "shop_id": 1,
-                      "range_area": {
-                        "coordinates": [ [ [ -71.10034391283989, 42.37385299961788 ], [ -71.10036939382553, 42.373756895982865 ], [ -71.1002916097641, 42.373745997623224 ], [ -71.1002641171217, 42.37384408279195 ], [ -71.10034391283989, 42.37385299961788 ] ] ],
-                        "type": "Polygon" }
-                    }
-                  ]
-                }
-              }
-            ]
-          }|])
+            }
+          ]
+        }|]
         { matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"] }
 
     it "works with RPC" $
@@ -219,14 +190,8 @@ spec actualPgVersion = describe "PostGIS features" $
 
     it "gets the geojson geometry object with the regular application/json output" $
       request methodGet "/shops?id=eq.1" [] "" `shouldRespondWith`
-        (if actualPgVersion >= pgVersion100
-          then [json|[{
-            "id":1,"address":"1369 Cambridge St",
-            "shop_geom":{"type":"Point","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"coordinates":[-71.10044,42.373695]}
-            }]|]
-          else [json|[{
-              "address": "1369 Cambridge St",
-              "id": 1,
-              "shop_geom": { "coordinates": [ -71.10044, 42.373695 ], "type": "Point" }
-            }]|])
+        [json|[{
+          "id":1,"address":"1369 Cambridge St",
+          "shop_geom":{"type":"Point","crs":{"type":"name","properties":{"name":"EPSG:4326"}},"coordinates":[-71.10044,42.373695]}
+          }]|]
         { matchHeaders = [matchContentTypeJson] }

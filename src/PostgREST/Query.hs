@@ -178,7 +178,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ pgVer sCache =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
-      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
+      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
       MaybeDbResult plan . Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
         <$> SQL.statement (tSchema, configDbHoistedTxSettings) (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)

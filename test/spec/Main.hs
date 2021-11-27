@@ -162,7 +162,7 @@ main = do
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
-        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec actualPgVersion)
+        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
         ]
 
@@ -228,7 +228,7 @@ main = do
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $ do
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
-      describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec actualPgVersion
+      describe "Feature.Query.PostGISSpec" Feature.Query.PostGISSpec.spec
 
     -- this test runs with a root spec function override
     parallel $ before rootSpecApp $
