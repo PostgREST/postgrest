@@ -2,6 +2,7 @@
 Module      : PostgREST.Middleware
 Description : Sets CORS policy. Also the PostgreSQL GUCs, role, search_path and pre-request function.
 -}
+{-# LANGUAGE BlockArguments  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Middleware
   ( runPgLocals
@@ -170,8 +171,9 @@ optionalRollback
   -> ExceptT Error SQL.Transaction Wai.Response
 optionalRollback AppConfig{..} ApiRequest{..} transaction = do
   resp <- catchError transaction $ return . errorResponseFor
-  when (shouldRollback || (configDbTxRollbackAll && not shouldCommit))
-    (lift SQL.condemn)
+  when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ lift do
+    SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
+    SQL.condemn
   return $ Wai.mapResponseHeaders preferenceApplied resp
   where
     shouldCommit =
