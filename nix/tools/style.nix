@@ -44,6 +44,8 @@ let
       ''
         ${style}
 
+        trap "echo postgrest-style-check failed. Run postgrest-style to fix issues automatically." ERR
+
         ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix'
       '';
 
