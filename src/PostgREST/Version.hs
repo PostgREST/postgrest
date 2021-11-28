@@ -30,10 +30,12 @@ prettyVersion =
 
 
 -- | Version number used in docs.
+-- Pre-release versions link to the latest docs
 -- Uses only the two first components of the version. Example: 'v1.1'
 docsVersion :: Text
-docsVersion =
-  "v" <> (T.intercalate "." . map show . take 2 $ versionBranch version)
+docsVersion
+  | isPreRelease = "latest"
+  | otherwise    =  "v" <> (T.intercalate "." . map show . take 2 $ versionBranch version)
 
 
 -- | Versions with four components (e.g., '1.1.1.1') are treated as pre-releases.
