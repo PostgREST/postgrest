@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+ - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
+
 ## [9.0.0] - 2021-11-25
 
 ### Added

@@ -25,6 +25,7 @@ GRANT ALL ON TABLE
     , complex_items
     , compound_pk
     , compound_pk_view
+    , deferrable_unique_constraint
     , empty_table
     , has_count_column
     , has_fk

@@ -2448,3 +2448,17 @@ CREATE TABLE chores (
 , name text
 , done bool
 );
+
+CREATE TABLE deferrable_unique_constraint (
+  col INT UNIQUE DEFERRABLE INITIALLY IMMEDIATE
+);
+
+CREATE FUNCTION raise_constraint(deferred BOOL DEFAULT FALSE) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF deferred THEN
+    SET CONSTRAINTS ALL DEFERRED;
+  END IF;
+
+  INSERT INTO deferrable_unique_constraint VALUES (1), (1);
+END$$;
