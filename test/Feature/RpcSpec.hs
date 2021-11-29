@@ -38,10 +38,12 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
-                (rangeHdrs (ByteRangeFromTo 0 0)) ""
-           `shouldRespondWith` ""
+            (rangeHdrs (ByteRangeFromTo 0 0)) ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-0/*" ]
             }
 
       it "includes total count if requested" $ do
@@ -59,10 +61,12 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
-                (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
-           `shouldRespondWith` ""
+            (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 206
-            , matchHeaders = ["Content-Range" <:> "0-0/2"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-0/2" ]
             }
 
       it "returns proper json" $ do
@@ -89,7 +93,8 @@ spec actualPgVersion =
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
                 (acceptHdrs "text/csv") ""
-           `shouldRespondWith` ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 200
             , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
@@ -328,8 +333,7 @@ spec actualPgVersion =
         post "/rpc/ret_void"
             [json|{}|]
           `shouldRespondWith`
-            "null"
-            { matchHeaders = [matchContentTypeJson] }
+            [json|null|]
 
       it "returns null for an integer with null value" $
         post "/rpc/ret_null"
@@ -1081,7 +1085,8 @@ spec actualPgVersion =
           `shouldRespondWith`
             ""
             { matchStatus = 201
-            , matchHeaders = ["Location" <:> "/stuff?id=eq.2&overriden=true"]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/stuff?id=eq.2&overriden=true" ]
             }
 
       -- On https://github.com/PostgREST/postgrest/issues/1427#issuecomment-595907535

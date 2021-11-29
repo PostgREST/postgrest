@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
+ - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
 
 ## [9.0.0] - 2021-11-25
 

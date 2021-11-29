@@ -47,23 +47,33 @@ spec =
 
     context "count=estimated" $ do
       it "uses the query planner guess when query rows > maxRows" $
-        request methodHead "/getallprojects_view" [("Prefer", "count=estimated")] ""
+        request methodHead "/getallprojects_view"
+            [("Prefer", "count=estimated")]
+            ""
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "0-1/2019"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-1/2019" ]
             }
 
       it "gives exact count when query rows <= maxRows" $
-        request methodHead "/getallprojects_view?id=lt.3" [("Prefer", "count=estimated")] ""
+        request methodHead "/getallprojects_view?id=lt.3"
+            [("Prefer", "count=estimated")]
+            ""
           `shouldRespondWith`
             ""
-            { matchHeaders = ["Content-Range" <:> "0-1/2"] }
+            { matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-1/2" ]
+            }
 
       it "only uses the query planner guess if it's indeed greater than the exact count" $
-        request methodHead "/get_projects_above_view" [("Prefer", "count=estimated")] ""
+        request methodHead "/get_projects_above_view"
+            [("Prefer", "count=estimated")]
+            ""
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "0-1/3"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-1/3" ]
             }

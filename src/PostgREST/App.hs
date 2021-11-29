@@ -374,7 +374,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
     if iPreferRepresentation == Full then
       response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict resBody)
     else
-      response HTTP.status204 (contentTypeHeaders context) mempty
+      response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do

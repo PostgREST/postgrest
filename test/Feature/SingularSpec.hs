@@ -11,7 +11,6 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-
 spec :: SpecWith ((), Application)
 spec =
   describe "Requesting singular json object" $ do
@@ -61,7 +60,9 @@ spec =
             [json| { address: "C Street" } |]
           `shouldRespondWith`
             ""
-            { matchStatus  = 204 }
+            { matchStatus  = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
       it "raises an error for multiple rows" $ do
         request methodPatch "/addresses"
@@ -128,9 +129,11 @@ spec =
         request methodPost "/addresses"
             [("Prefer", "return=minimal"), singular]
             [json| [ { id: 103, address: "xxx" } ] |]
-          `shouldRespondWith` ""
+          `shouldRespondWith`
+            ""
             { matchStatus  = 201
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/*" ]
             }
 
       it "raises an error when attempting to create multiple entities" $ do

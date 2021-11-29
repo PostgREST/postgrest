@@ -7,18 +7,23 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
 spec :: SpecWith ((), Application)
 spec =
   describe "Deleting" $ do
     context "existing record" $ do
       it "succeeds with 204 and deletion count" $
-        request methodDelete "/items?id=eq.1" [] ""
-          `shouldRespondWith` ""
-          { matchStatus  = 204
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+        request methodDelete "/items?id=eq.1"
+            []
+            ""
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/*" ]
+            }
 
       it "returns the deleted item and count if requested" $
         request methodDelete "/items?id=eq.2" [("Prefer", "return=representation"), ("Prefer", "count=exact")] ""
@@ -28,16 +33,24 @@ spec =
           }
 
       it "ignores ?select= when return not set or return=minimal" $ do
-        request methodDelete "/items?id=eq.3&select=id" [] ""
-          `shouldRespondWith` ""
-          { matchStatus  = 204
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
-        request methodDelete "/items?id=eq.3&select=id" [("Prefer", "return=minimal")] ""
-          `shouldRespondWith` ""
-          { matchStatus  = 204
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+        request methodDelete "/items?id=eq.3&select=id"
+            []
+            ""
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/*" ]
+            }
+        request methodDelete "/items?id=eq.3&select=id"
+            [("Prefer", "return=minimal")]
+            ""
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/*" ]
+            }
 
       it "returns the deleted item and shapes the response" $
         request methodDelete "/complex_items?id=eq.2&select=id,name" [("Prefer", "return=representation")] ""
@@ -84,9 +97,21 @@ spec =
             }
 
       it "suceeds deleting the row with no explicit select when using return=minimal" $
-        request methodDelete "/app_users?id=eq.2" [("Prefer", "return=minimal")] mempty
-            `shouldRespondWith` 204
+        request methodDelete "/app_users?id=eq.2"
+            [("Prefer", "return=minimal")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
       it "suceeds deleting the row with no explicit select by default" $
-        request methodDelete "/app_users?id=eq.3" [] mempty
-            `shouldRespondWith` 204
+        request methodDelete "/app_users?id=eq.3"
+            []
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }

@@ -7,7 +7,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
 -- two helpers functions to make sure that each test can setup and cleanup properly
 
@@ -18,7 +19,8 @@ postItem =
       [json|{"id":0}|]
     `shouldRespondWith`
       ""
-      { matchStatus  = 201 }
+      { matchStatus  = 201
+      , matchHeaders = [matchHeaderAbsent hContentType]  }
 
 -- removes Items left over from POST, PUT, and PATCH
 deleteItems =
@@ -27,7 +29,8 @@ deleteItems =
       ""
     `shouldRespondWith`
       ""
-      { matchStatus  = 204 }
+      { matchStatus  = 204
+      , matchHeaders = [matchHeaderAbsent hContentType] }
 
 preferDefault  = [("Prefer", "return=representation")]
 preferCommit   = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
@@ -52,7 +55,7 @@ shouldRespondToReads reqHeaders respHeaders = do
         ""
       `shouldRespondWith`
         ""
-        { matchHeaders = respHeaders }
+        { matchHeaders = matchContentTypeJson : respHeaders }
 
   it "responds to GET on RPC" $ do
     request methodGet "/rpc/search?id=1"

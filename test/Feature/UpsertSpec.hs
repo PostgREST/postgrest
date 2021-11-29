@@ -422,6 +422,12 @@ spec actualPgVersion =
             }
 
       it "works with PUT" $ do
-        put "/UnitTest?idUnitTest=eq.1" [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|] `shouldRespondWith` 204
+        put "/UnitTest?idUnitTest=eq.1"
+            [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
         get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]

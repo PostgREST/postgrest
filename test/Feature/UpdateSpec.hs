@@ -22,11 +22,12 @@ spec = do
     context "on an empty table" $
       it "indicates no records found to update by returning 404" $
         request methodPatch "/empty_table" []
-          [json| { "extra":20 } |]
-          `shouldRespondWith` ""
-          { matchStatus  = 404,
-            matchHeaders = []
-          }
+            [json| { "extra":20 } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 404,
+              matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
     context "with invalid json payload" $
       it "fails with 400 and error" $
@@ -53,7 +54,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-0/*" ]
             }
 
       it "returns empty array when no rows updated and return=rep" $
@@ -89,7 +91,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = ["Content-Range" <:> "0-1/*"
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-1/*"
                              , "Preference-Applied" <:> "tx=commit" ]
             }
 
@@ -103,7 +106,10 @@ spec = do
             [("Prefer", "tx=commit")]
             [json| { b: "0" } |]
           `shouldRespondWith`
-            204
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
       it "can set a column to NULL" $ do
         request methodPatch "/no_pk?a=eq.1"
@@ -169,63 +175,86 @@ spec = do
             { matchHeaders = [matchContentTypeJson] }
 
       it "ignores ?select= when return not set or return=minimal" $ do
-        request methodPatch "/items?id=eq.1&select=id" [] [json| { id:1 } |]
-          `shouldRespondWith` ""
-          {
-            matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "0-0/*"]
-          }
-        request methodPatch "/items?id=eq.1&select=id" [("Prefer", "return=minimal")] [json| { id:1 } |]
-          `shouldRespondWith` ""
-          {
-            matchStatus  = 204,
-            matchHeaders = ["Content-Range" <:> "0-0/*"]
-          }
+        request methodPatch "/items?id=eq.1&select=id"
+            [] [json| { id:1 } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-0/*" ]
+            }
+        request methodPatch "/items?id=eq.1&select=id"
+            [("Prefer", "return=minimal")]
+            [json| { id:1 } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-0/*" ]
+            }
 
       context "when patching with an empty body" $ do
         it "makes no updates and returns 204 without return= and without ?select=" $ do
-          request methodPatch "/items" [] [json| {} |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items"
+              []
+              [json| {} |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
-          request methodPatch "/items" [] [json| [] |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items"
+              []
+              [json| [] |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
-          request methodPatch "/items" [] [json| [{}] |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items"
+              []
+              [json| [{}] |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
         it "makes no updates and returns 204 without return= and with ?select=" $ do
-          request methodPatch "/items?select=id" [] [json| {} |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items?select=id"
+              []
+              [json| {} |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
-          request methodPatch "/items?select=id" [] [json| [] |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items?select=id"
+              []
+              [json| [] |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
-          request methodPatch "/items?select=id" [] [json| [{}] |]
-            `shouldRespondWith` ""
-            {
-              matchStatus  = 204,
-              matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+          request methodPatch "/items?select=id"
+              []
+              [json| [{}] |]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/*" ]
+              }
 
         it "makes no updates and returns 200 with return=rep and without ?select=" $
           request methodPatch "/items" [("Prefer", "return=representation")] [json| {} |]
@@ -339,11 +368,21 @@ spec = do
 
   context "table with limited privileges" $ do
     it "succeeds updating row and gives a 204 when using return=minimal" $
-      request methodPatch "/app_users?id=eq.1" [("Prefer", "return=minimal")]
-        [json| { "password": "passxyz" } |]
-          `shouldRespondWith` 204
+      request methodPatch "/app_users?id=eq.1"
+          [("Prefer", "return=minimal")]
+          [json| { "password": "passxyz" } |]
+        `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = [matchHeaderAbsent hContentType]
+          }
 
     it "can update without return=minimal and no explicit select" $
-      request methodPatch "/app_users?id=eq.1" []
-        [json| { "password": "passabc" } |]
-          `shouldRespondWith` 204
+      request methodPatch "/app_users?id=eq.1"
+          []
+          [json| { "password": "passabc" } |]
+        `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = [matchHeaderAbsent hContentType]
+          }
