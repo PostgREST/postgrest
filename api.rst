@@ -910,6 +910,8 @@ If you want to embed through join tables but need more control on the intermedia
 
     curl "http://localhost:3000/actors?select=roles(character,films(title,year))"
 
+.. _embed_filters:
+
 Embedded Filters
 ----------------
 
@@ -991,10 +993,10 @@ The result will show the nested actors named Tom and order them by last name. Al
 
 .. _embedding_top_level_filter:
 
-Top Level Filtering
-~~~~~~~~~~~~~~~~~~~
+Embedding with Top-level Filtering
+----------------------------------
 
-By default, embedded filters don't change the top level resource rows at all:
+By default, :ref:`embed_filters` don't change the top-level resource(``films``) rows at all:
 
 .. tabs::
 
@@ -1095,8 +1097,9 @@ Since it contains the ``films_id`` foreign key, it is possible to embed ``box_of
     curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
 
 .. note::
+  * Embedding on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table(more details at `#1783(comment) <https://github.com/PostgREST/postgrest/issues/1783#issuecomment-959823827>`_). :ref:`custom_queries` can be used if this is needed.
+
   * Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
-  * Embedding on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. :ref:`custom_queries` can be used if this is needed.
 
 .. _embedding_views:
 
@@ -1255,6 +1258,8 @@ For doing resource embedding, PostgREST infers the relationship between two tabl
 However, in cases where there's more than one foreign key between two tables, it's not possible to infer the relationship unambiguously
 by just specifying the tables names.
 
+.. _target_disamb:
+
 Target Disambiguation
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -1280,6 +1285,8 @@ the request is ambiguous and PostgREST will respond with an error:
 .. code-block:: http
 
    HTTP/1.1 300 Multiple Choices
+
+   {..}
 
 If this happens, you need to disambiguate the request by adding precision to the **target**.
 Instead of the **table name**, you can specify the **foreign key constraint name** or the **column name** that is part of the foreign key.
@@ -1343,6 +1350,8 @@ the result more clear.
      }
     }
    ]
+
+.. _hint_disamb:
 
 Hint Disambiguation
 ~~~~~~~~~~~~~~~~~~~
@@ -2430,8 +2439,10 @@ You can also select the schema for :ref:`s_procs` and :ref:`open-api`.
 
    These headers are based on the nascent "Content Negotiation by Profile" spec: https://www.w3.org/TR/dx-prof-conneg
 
-HTTP Logic
-==========
+.. _http_context:
+
+HTTP Context
+============
 
 .. _guc_req_headers_cookies_claims:
 

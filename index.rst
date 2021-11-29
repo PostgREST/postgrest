@@ -94,12 +94,16 @@ The project has a friendly and growing community. Join our `chat room <https://g
 
 .. toctree::
    :glob:
-   :reversed:
    :caption: Release Notes
    :titlesonly:
    :hidden:
 
-   releases/*
+   v9.0.0 <releases/v9.0.0>
+   releases/v8.0.0
+   releases/v7.0.1
+   releases/v7.0.0
+   releases/v6.0.2
+   releases/v5.2.0
 
 Tutorials
 ---------
@@ -212,7 +216,7 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 * :ref:`community_tutorials`
 * :ref:`templates`
 * :ref:`eco_example_apps`
-* :ref:`dev_ops`
+* :ref:`devops`
 * :ref:`eco_external_notification`
 * :ref:`eco_extensions`
 * :ref:`clientside_libraries`
@@ -224,6 +228,7 @@ Release Notes
 Here we'll include the most relevant changes so you can migrate to newer versions easily.
 You can see the full changelog of each release in the `PostgREST repository <https://github.com/PostgREST/postgrest/releases>`_.
 
+- :doc:`releases/v9.0.0`
 - :doc:`releases/v8.0.0`
 - :doc:`releases/v7.0.0`
 - :doc:`releases/v6.0.2`

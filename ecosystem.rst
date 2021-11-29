@@ -28,7 +28,6 @@ Example Apps
 ------------
 
 * `chronicle <https://github.com/srid/chronicle>`_ - tracking a tree of personal memories
-* `cloudgov-demo-postgrest <https://github.com/GSA/cloudgov-demo-postgrest>`_ - demo for a federally-compliant REST API on cloud.gov
 * `code-du-travail-backoffice <https://github.com/SocialGouv/code-du-travail-backoffice>`_ - data administration portal for the official French Labor Code and Agreements
 * `delibrium-postgrest <https://gitlab.com/delibrium/delibrium-postgrest/>`_ - example school API and front-end in Vue.js
 * `elm-workshop <https://github.com/diogob/elm-workshop>`_ - building a simple database query UI
@@ -53,13 +52,14 @@ Example Apps
 * `PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
 * `prospector <https://github.com/sfcta/prospector>`_ - data warehouse and visualization platform
 
-.. _dev_ops:
+.. _devops:
 
 DevOps
 ------
 
-* `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
+* `cloudgov-demo-postgrest <https://github.com/GSA/cloudgov-demo-postgrest>`_ - demo for a federally-compliant REST API on cloud.gov
 * `cloudstark/helm-charts <https://github.com/cloudstark/helm-charts/tree/master/postgrest>`_ - helm chart to deploy PostgREST to a Kubernetes cluster via a Deployment and Service
+* `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
 
 .. _eco_external_notification:
 
