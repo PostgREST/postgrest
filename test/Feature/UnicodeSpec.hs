@@ -7,7 +7,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
 spec :: SpecWith ((), Application)
 spec =
@@ -31,4 +32,7 @@ spec =
           [("Prefer", "tx=commit")]
           ""
         `shouldRespondWith`
-          204
+          ""
+          { matchStatus = 204
+          , matchHeaders = [matchHeaderAbsent hContentType]
+          }

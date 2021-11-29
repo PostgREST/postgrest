@@ -22,8 +22,13 @@ spec :: PgVersion -> SpecWith ((), Application)
 spec actualPgVersion = describe "OpenAPI" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
-    request methodHead "/" (acceptHdrs "application/openapi+json") ""
-      `shouldRespondWith` "" { matchStatus  = 200 }
+    request methodHead "/"
+        (acceptHdrs "application/openapi+json") ""
+      `shouldRespondWith`
+        ""
+        { matchStatus  = 200
+        , matchHeaders = ["Content-Type" <:> "application/openapi+json; charset=utf-8"]
+        }
 
   it "should respond to openapi request on none root path with 415" $
     request methodGet "/items"

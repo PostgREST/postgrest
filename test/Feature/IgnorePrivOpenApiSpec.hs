@@ -19,8 +19,14 @@ spec :: SpecWith ((), Application)
 spec = describe "OpenAPI Ignore Privileges" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
-    request methodHead "/" (acceptHdrs "application/openapi+json") ""
-      `shouldRespondWith` "" { matchStatus  = 200 }
+    request methodHead "/"
+        (acceptHdrs "application/openapi+json")
+        ""
+      `shouldRespondWith`
+        ""
+        { matchStatus  = 200
+        , matchHeaders = [ "Content-Type" <:> "application/openapi+json; charset=utf-8" ]
+        }
 
   describe "table" $ do
 

@@ -7,7 +7,8 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get, put)
+import Protolude  hiding (get, put)
+import SpecHelper
 
 spec :: SpecWith ((), Application)
 spec =
@@ -15,9 +16,11 @@ spec =
     it "succeeds setting the headers on POST" $
       post "/items"
           [json|[{"id": 11111}]|]
-        `shouldRespondWith` ""
+        `shouldRespondWith`
+          ""
           { matchStatus = 201
-          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "X-Custom-Header" <:> "mykey=myval" ]
           }
 
     it "succeeds setting the headers on GET and HEAD" $ do
@@ -33,29 +36,37 @@ spec =
           ""
         `shouldRespondWith`
           ""
-          { matchHeaders = ["Cache-Control" <:> "no-cache, no-store, must-revalidate"] }
+          { matchHeaders = [ matchContentTypeJson
+                           , "Cache-Control" <:> "no-cache, no-store, must-revalidate" ]
+          }
 
       request methodHead "/projects"
           [("Accept", "text/csv")]
           ""
         `shouldRespondWith`
           ""
-          { matchHeaders = ["Content-Disposition" <:> "attachment; filename=projects.csv"] }
+          { matchHeaders = [ "Content-Type" <:> "text/csv; charset=utf-8"
+                           , "Content-Disposition" <:> "attachment; filename=projects.csv" ]
+          }
 
     it "succeeds setting the headers on PATCH" $
         patch "/items?id=eq.1"
             [json|[{"id": 11111}]|]
-          `shouldRespondWith` ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 204
-            , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "X-Custom-Header" <:> "mykey=myval" ]
             }
 
     it "succeeds setting the headers on PUT" $
       put "/items?id=eq.1"
           [json|[{"id": 1}]|]
-        `shouldRespondWith` ""
+        `shouldRespondWith`
+          ""
           { matchStatus = 204
-          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "X-Custom-Header" <:> "mykey=myval" ]
           }
 
     it "succeeds setting the headers on DELETE" $
@@ -63,7 +74,8 @@ spec =
         `shouldRespondWith`
           ""
           { matchStatus = 204
-          , matchHeaders = ["X-Custom-Header" <:> "mykey=myval"]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "X-Custom-Header" <:> "mykey=myval" ]
           }
     it "can override the Content-Type header" $ do
       request methodHead "/clients?id=eq.1"
