@@ -172,10 +172,10 @@ asJsonF returnsScalar
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')::character varying"
   | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
 
-asJsonSingleF :: Bool -> SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
-  | returnsScalar = "coalesce(string_agg(to_json(_postgrest_t.pgrst_scalar)::text, ','), 'null')::character varying"
-  | otherwise     = "coalesce(string_agg(to_json(_postgrest_t)::text, ','), '')::character varying"
+  | returnsScalar = "coalesce((json_agg(_postgrest_t.pgrst_scalar)->0)::text, 'null')"
+  | otherwise     = "coalesce((json_agg(_postgrest_t)->0)::text, 'null')"
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
