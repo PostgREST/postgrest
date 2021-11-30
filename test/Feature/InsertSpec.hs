@@ -379,7 +379,7 @@ spec actualPgVersion = do
               "code": "22023",
               "details": null,
               "hint": null,
-              "message": "argument of json_populate_recordset must be an array of objects"}|]
+              "message": "cannot call populate_composite on a scalar"}|]
           { matchStatus  = 400
           , matchHeaders = []
           }
