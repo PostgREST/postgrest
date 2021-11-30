@@ -10,6 +10,7 @@ module PostgREST.DbStructure.Proc
   , RetType(..)
   , procReturnsScalar
   , procReturnsSingle
+  , procReturnsVoid
   , procTableName
   ) where
 
@@ -42,7 +43,7 @@ data ProcDescription = ProcDescription
   , pdName        :: Text
   , pdDescription :: Maybe Text
   , pdParams      :: [ProcParam]
-  , pdReturnType  :: RetType
+  , pdReturnType  :: Maybe RetType
   , pdVolatility  :: ProcVolatility
   , pdHasVariadic :: Bool
   }
@@ -69,17 +70,22 @@ type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
-  ProcDescription{pdReturnType = (Single Scalar)} -> True
-  ProcDescription{pdReturnType = (SetOf Scalar)}  -> True
-  _                                               -> False
+  ProcDescription{pdReturnType = Just (Single Scalar)} -> True
+  ProcDescription{pdReturnType = Just (SetOf Scalar)}  -> True
+  _                                                    -> False
 
 procReturnsSingle :: ProcDescription -> Bool
 procReturnsSingle proc = case proc of
-  ProcDescription{pdReturnType = (Single _)} -> True
-  _                                          -> False
+  ProcDescription{pdReturnType = Just (Single _)} -> True
+  _                                               -> False
+
+procReturnsVoid :: ProcDescription -> Bool
+procReturnsVoid proc = case proc of
+  ProcDescription{pdReturnType = Nothing} -> True
+  _                                       -> False
 
 procTableName :: ProcDescription -> Maybe TableName
 procTableName proc = case pdReturnType proc of
-  SetOf  (Composite qi) -> Just $ qiName qi
-  Single (Composite qi) -> Just $ qiName qi
-  _                     -> Nothing
+  Just (SetOf  (Composite qi)) -> Just $ qiName qi
+  Just (Single (Composite qi)) -> Just $ qiName qi
+  _                            -> Nothing

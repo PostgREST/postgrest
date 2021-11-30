@@ -630,7 +630,7 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
         # reload config and external file with NOTIFY
         response = postgrest.session.post("/rpc/reload_pgrst_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
         time.sleep(0.1)
 
         response = postgrest.session.get("/authors_only", headers=headers)
@@ -685,7 +685,7 @@ def test_db_schema_notify_reload(defaultenv):
 
         # reset db-schemas config on the db
         response = postgrest.session.post("/rpc/reset_db_schema_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_max_rows_reload(defaultenv):
@@ -714,7 +714,7 @@ def test_max_rows_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_max_rows_notify_reload(defaultenv):
@@ -744,7 +744,7 @@ def test_max_rows_notify_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_invalid_role_claim_key_notify_reload(defaultenv):
@@ -770,7 +770,7 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
         assert "failed to parse role-claim-key value" in output.decode()
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_db_prepared_statements_enable(defaultenv):
@@ -835,7 +835,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv):
         response = postgrest.session.post(
             "/rpc/no_schema_cache_for_limited_authenticator"
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)

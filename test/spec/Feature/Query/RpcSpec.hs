@@ -329,18 +329,20 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{"id": 2}|]
 
-      it "returns null for void" $
+      it "returns 204, no Content-Type header and no content for void" $
         post "/rpc/ret_void"
             [json|{}|]
           `shouldRespondWith`
-            [json|null|]
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
       it "returns null for an integer with null value" $
         post "/rpc/ret_null"
             [json|{}|]
           `shouldRespondWith`
-            "null"
-            { matchHeaders = [matchContentTypeJson] }
+            [json|null|]
 
       context "different types when overloaded" $ do
         it "returns composite type" $
@@ -527,7 +529,10 @@ spec actualPgVersion =
           [("Prefer", "tx=commit")]
           [json|{"name": "callcounter_count", "value": 1}|]
         `shouldRespondWith`
-          [json|""|]
+          ""
+          { matchStatus = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType ]
+          }
 
       -- now the test
       post "/rpc/callcounter"
@@ -1074,10 +1079,12 @@ spec actualPgVersion =
       it "can set the same http header twice" $
         get "/rpc/set_cookie_twice"
           `shouldRespondWith`
-            "null"
-            { matchHeaders = [ matchContentTypeJson
+            ""
+            { matchStatus = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
-                             , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
+                             , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]
+            }
 
       it "can override the Location header on a trigger" $
         post "/stuff"
