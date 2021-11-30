@@ -179,7 +179,10 @@ spec actualPgVersion = do
               [("Prefer", "tx=commit")]
               [json|{"name": "auto_incrementing_pk_id_seq", "value": 2}|]
             `shouldRespondWith`
-              [json|""|]
+              ""
+              { matchStatus = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType ]
+              }
 
           request methodPost "/auto_incrementing_pk"
               [("Prefer", "return=headers-only")]
@@ -357,7 +360,10 @@ spec actualPgVersion = do
             [("Prefer", "tx=commit")]
             [json|{"name": "items2_id_seq", "value": 20}|]
           `shouldRespondWith`
-            [json|""|]
+            ""
+            { matchStatus = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            }
 
         request methodPost "/items2"
             [("Prefer", "return=representation")]
@@ -372,7 +378,10 @@ spec actualPgVersion = do
             [("Prefer", "tx=commit")]
             [json|{"name": "items3_id_seq", "value": 20}|]
           `shouldRespondWith`
-            [json|""|]
+            ""
+            { matchStatus = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            }
 
         request methodPost "/items3?select=id"
             [("Prefer", "return=representation")]

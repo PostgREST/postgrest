@@ -33,6 +33,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
  - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
 
+### Changed
+
+ - #2001, Return 204 No Content without Content-Type for RPCs returning VOID - @wolfgangwalther
+   + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
+
 ## [9.0.0] - 2021-11-25
 
 ### Added

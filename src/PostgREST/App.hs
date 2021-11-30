@@ -469,9 +469,12 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
 
   failNotSingular iAcceptContentType queryTotal $
-    response status
-      (contentTypeHeaders context ++ [contentRange])
-      (if invMethod == InvHead then mempty else LBS.fromStrict body)
+    if Proc.procReturnsVoid proc then
+      response HTTP.status204 [contentRange] mempty
+    else
+      response status
+        (contentTypeHeaders context ++ [contentRange])
+        (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
