@@ -212,7 +212,7 @@ First make a new schema and add the function:
     language plpgsql
     as $$
   begin
-    if current_setting('request.jwt.claim.email', true) =
+    if current_setting('request.jwt.claims', true)::json->>'email' =
        'disgruntled@mycompany.com' then
       raise insufficient_privilege
         using hint = 'Nope, we are on to you';

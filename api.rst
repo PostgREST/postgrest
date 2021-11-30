@@ -2523,7 +2523,7 @@ As an example, let's add some cache headers for all requests that come from an I
 
    create or replace function custom_headers() returns void as $$
    declare
-     user_agent text := current_setting('request.header.user-agent', true);
+     user_agent text := current_setting('request.headers', true)::json->>'user-agent';
    begin
      if user_agent similar to '%MSIE (6.0|7.0)%' then
        perform set_config('response.headers',

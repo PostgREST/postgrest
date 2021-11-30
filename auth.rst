@@ -95,7 +95,7 @@ SQL code can access claims through GUC variables set by PostgREST per request. F
 
 .. code:: sql
 
-  current_setting('request.jwt.claim.email', true)
+  current_setting('request.jwt.claims', true)::json->>'email';
 
 This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this current_setting rather than current_user. The second 'true' argument tells current_setting to return NULL if the setting is missing from the current configuration.
 
