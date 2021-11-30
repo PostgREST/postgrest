@@ -32,6 +32,7 @@ module PostgREST.Query.SqlFragment
   , selectBody
   , singleParameter
   , sourceCTEName
+  , truncateJsonKeysF
   , unknownEncoder
   , intercalateSnippet
   ) where
@@ -179,6 +180,9 @@ asJsonSingleF returnsScalar
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
+
+truncateJsonKeysF :: FieldName -> SqlFragment
+truncateJsonKeysF fieldName = "(SELECT  json_object_agg(substr(key, 0, 64), value) FROM json_each(" <> pgFmtIdent fieldName <> "))"
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys = [qc|(

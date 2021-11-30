@@ -2462,3 +2462,7 @@ BEGIN
 
   INSERT INTO deferrable_unique_constraint VALUES (1), (1);
 END$$;
+
+CREATE TABLE wow(
+  "VeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongName" TEXT
+);

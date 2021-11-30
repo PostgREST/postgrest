@@ -79,6 +79,15 @@ spec actualPgVersion = do
              , matchHeaders = [matchContentTypeJson]
              }
 
+    context "with keys longer than NAMEDATALEN" $
+      it "inserts successfully" $
+        request methodPost "/wow"
+            [("Prefer", "return=representation")]
+            [json|{"VeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongName": "haha"}|]
+          `shouldRespondWith`
+            [json|[{"VeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongNameVer": "haha"}]|]
+            { matchStatus = 201 }
+
     context "requesting full representation" $ do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients(id,name)"
@@ -379,7 +388,7 @@ spec actualPgVersion = do
               "code": "22023",
               "details": null,
               "hint": null,
-              "message": "cannot call populate_composite on a scalar"}|]
+              "message": "cannot deconstruct a scalar"}|]
           { matchStatus  = 400
           , matchHeaders = []
           }

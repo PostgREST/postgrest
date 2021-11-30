@@ -88,7 +88,7 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
   "FROM (" <>
     "SELECT rec.* " <>
     "FROM json_array_elements(" <> SQL.sql selectBody <> ") AS elem, " <>
-         "json_populate_record(null::" <> SQL.sql (fromQi mainQi) <> ", elem) AS rec) _ " <>
+         "json_populate_record(null::" <> SQL.sql (fromQi mainQi) <> ", " <> (SQL.sql $ truncateJsonKeysF "elem") <> ") AS rec) _ " <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -120,7 +120,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
       "FROM (" <>
         "SELECT rec.* " <>
         "FROM json_array_elements(" <> SQL.sql selectBody <> ") AS elem, " <>
-             "json_populate_record(null::" <> SQL.sql (fromQi mainQi) <> ", elem) AS rec) _ " <>
+             "json_populate_record(null::" <> SQL.sql (fromQi mainQi) <> ", " <> (SQL.sql $ truncateJsonKeysF "elem") <> ") AS rec) _ " <>
       (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)) <> " " <>
       SQL.sql (returningF mainQi returnings)
   where

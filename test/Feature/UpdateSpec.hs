@@ -37,6 +37,14 @@ spec = do
             matchHeaders = [matchContentTypeJson]
           }
 
+    context "with keys longer than NAMEDATALEN" $
+      it "inserts successfully" $
+        request methodPatch "/wow"
+            [("Prefer", "return=representation")]
+            [json|{"VeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongName": "haha"}|]
+          `shouldRespondWith`
+            [json|[{"VeryLongNameVeryLongNameVeryLongNameVeryLongNameVeryLongNameVer": "haha"}]|]
+
     context "with no payload" $
       it "fails with 400 and error" $
         request methodPatch "/items" [] ""

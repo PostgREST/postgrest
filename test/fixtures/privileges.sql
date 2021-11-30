@@ -161,6 +161,7 @@ GRANT ALL ON TABLE
     , clientinfo
     , contact
     , chores
+    , wow
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

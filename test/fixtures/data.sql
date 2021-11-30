@@ -730,3 +730,6 @@ INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2
 
 TRUNCATE TABLE test.chores CASCADE;
 INSERT INTO test.chores (id, name, done) values (1, 'take out the garbage', true), (2, 'do the laundry', false), (3, 'wash the dishes', null);
+
+TRUNCATE TABLE test.wow CASCADE;
+INSERT INTO test.wow VALUES ('hello');
