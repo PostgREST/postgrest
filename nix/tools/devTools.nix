@@ -5,6 +5,7 @@
 , devCabalOptions
 , entr
 , graphviz
+, haskellPackages
 , hsie
 , nix
 , silver-searcher

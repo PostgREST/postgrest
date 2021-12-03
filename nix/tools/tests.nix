@@ -5,7 +5,7 @@
 , ghc
 , glibcLocales
 , gnugrep
-, haskell
+, haskellPackages
 , hpc-codecov
 , jq
 , postgrest
@@ -116,7 +116,7 @@ let
     checkedShellScript
       {
         name = "postgrest-coverage";
-        docs = "Run spec and io tests while collecting hpc coverage data.";
+        docs = "Run spec and io tests while collecting hpc coverage data. First runs weeder to detect dead code.";
         args = [ "ARG_LEFTOVERS([hpc report arguments])" ];
         inRootDir = true;
         redirectTixFiles = false;
@@ -132,6 +132,8 @@ let
 
         # build once before running all the tests
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:querycost
+
+        ${haskellPackages.weeder}/bin/weeder --config=./test/weeder.dhall || echo Found dead code: Check file list above.
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
