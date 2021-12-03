@@ -123,7 +123,7 @@ library
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if flag(dev)
-    ghc-options: -O0
+    ghc-options: -O0 -fwrite-ide-info
     if flag(hpc)
       ghc-options: -fhpc -hpcdir .hpc
   else
@@ -152,7 +152,7 @@ executable postgrest
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if flag(dev)
-    ghc-options: -O0
+    ghc-options: -O0 -fwrite-ide-info
     if flag(hpc)
       ghc-options: -fhpc -hpcdir .hpc
   else
@@ -237,6 +237,7 @@ test-suite spec
   ghc-options:        -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
                       -fno-warn-missing-signatures
+                      -fwrite-ide-info
 
 test-suite querycost
   type:                exitcode-stdio-1.0
@@ -281,6 +282,7 @@ test-suite querycost
                      , wai-extra         >= 3.0.19 && < 3.2
   ghc-options:         -O0 -Werror -Wall -fwarn-identities
                        -fno-spec-constr -optP-Wno-nonportable-include-path
+                       -fwrite-ide-info
 
 test-suite doctests
   type:                exitcode-stdio-1.0
