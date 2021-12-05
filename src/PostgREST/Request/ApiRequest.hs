@@ -55,7 +55,8 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
                                           PreferResolution (..),
-                                          PreferTransaction (..))
+                                          PreferTransaction (..),
+                                          Preferences (..))
 import PostgREST.Request.QueryParams     (QueryParams (..))
 import PostgREST.Request.Types           (ApiRequestError (..))
 
@@ -169,11 +170,19 @@ data ApiRequest = ApiRequest {
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf dbStructure req reqBody =
-  apiRequest conf dbStructure req reqBody =<< first QueryParamError (QueryParams.parse (rawQueryString req))
+userApiRequest conf dbStructure req reqBody = do
+  queryParams <- first QueryParamError . parseQueryParams $ rawQueryString req
+  apiRequest conf dbStructure req reqBody preferences queryParams
+  where
+    preferences = Preferences.fromHeaders $ requestHeaders req
+    isUpsert =
+      case (requestMethod req, preferResolution preferences) of
+        ("POST", Just _) -> True
+        _                -> False
+    parseQueryParams = if isUpsert then QueryParams.parseUpsert else QueryParams.parse
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> Either ApiRequestError ApiRequest
-apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..}
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Preferences -> QueryParams.QueryParams -> Either ApiRequestError ApiRequest
+apiRequest conf@AppConfig{..} dbStructure req reqBody Preferences{..} queryparams@QueryParams{..}
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
@@ -323,7 +332,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   method          = requestMethod req
   hdrs            = requestHeaders req
   lookupHeader    = flip lookup hdrs
-  Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   auth = fromMaybe "" $ lookupHeader hAuthorization
   tokenStr = case T.split (== ' ') (T.decodeUtf8 auth) of
     ("Bearer" : t : _) -> t

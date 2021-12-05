@@ -8,6 +8,7 @@
 {-# LANGUAGE TupleSections #-}
 module PostgREST.Request.QueryParams
   ( parse
+  , parseUpsert
   , QueryParams(..)
   , pRequestRange
   ) where
@@ -124,7 +125,14 @@ data QueryParams =
 -- >>> qsFilters <$> parse "a.b=noop.0"
 -- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 6)" "unknown single value operator noop")
 parse :: ByteString -> Either QPError QueryParams
-parse qs =
+parse = parseWith False
+
+-- | Parse query string for upserts with on_conflict as reserved keyword.
+parseUpsert :: ByteString -> Either QPError QueryParams
+parseUpsert = parseWith True
+
+parseWith :: Bool -> ByteString -> Either QPError QueryParams
+parseWith isUpsert qs =
   QueryParams
     canonical
     params
@@ -137,7 +145,7 @@ parse qs =
     <*> pRequestFilter `traverse` filtersRoot
     <*> pRequestFilter `traverse` filtersNotRoot
     <*> pure (S.fromList (fst <$> filters))
-    <*> sequenceA (pRequestOnConflict <$> onConflict)
+    <*> if isUpsert then sequenceA (pRequestOnConflict <$> onConflict) else Right Nothing
   where
     logic = filter (endingIn ["and", "or"] . fst) nonemptyParams
     select = fromMaybe "*" $ lookupParam "select"
@@ -170,7 +178,7 @@ parse qs =
 
     filtersAndParams = filter (isFilterOrParam . fst)  nonemptyParams
     isFilterOrParam k = not (endingIn reservedEmbeddable k) && notElem k reserved
-    reserved = ["select", "columns", "on_conflict"]
+    reserved = ["select", "columns"] ++ ["on_conflict" | isUpsert]
     reservedEmbeddable = ["order", "limit", "offset", "and", "or"]
 
     (filtersNotRoot, filtersRoot) = L.partition isNotRoot filters
