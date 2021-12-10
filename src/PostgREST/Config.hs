@@ -131,7 +131,7 @@ toText conf =
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
-      ,("db-config",                 q . T.toLower . show . configDbConfig)
+      ,("db-config",                     T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
