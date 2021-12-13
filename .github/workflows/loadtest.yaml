@@ -27,7 +27,7 @@ jobs:
           postgrest-loadtest-against main
           postgrest-loadtest-report > loadtest/loadtest.md
       - name: Upload report
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: loadtest.md
           path: loadtest/loadtest.md
