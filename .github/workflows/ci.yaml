@@ -292,7 +292,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2.4.0
       - name: Download all artifacts
-        uses: actions/download-artifact@v2.0.10
+        uses: actions/download-artifact@v2.1.0
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -355,7 +355,7 @@ jobs:
         with:
           tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@v2.0.10
+        uses: actions/download-artifact@v2.1.0
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
