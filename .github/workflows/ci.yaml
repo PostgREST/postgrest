@@ -115,7 +115,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -124,7 +124,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -194,7 +194,7 @@ jobs:
           echo "Using PostgreSQL binaries at $postgresql_bin ..."
           PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -214,7 +214,7 @@ jobs:
           GITHUB_COMMIT: ${{github.event.pull_request.head.sha || github.sha}}
         run: .github/get_cirrusci_freebsd
       - name: Save executable as artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-freebsd-x64
           path: postgrest
@@ -274,7 +274,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: release-changes
           path: CHANGES.md
@@ -319,7 +319,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@v2.2.4
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: release-bundle
           path: release-bundle
