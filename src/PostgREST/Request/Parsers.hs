@@ -199,10 +199,10 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
       <|> pFts
       <?> "operator (eq, gt, ...)"
 
-    pTriVal = try (string "null"    $> TriNull)
-          <|> try (string "unknown" $> TriUnknown)
-          <|> try (string "true"    $> TriTrue)
-          <|> try (string "false"   $> TriFalse)
+    pTriVal = try (ciString "null"    $> TriNull)
+          <|> try (ciString "unknown" $> TriUnknown)
+          <|> try (ciString "true"    $> TriTrue)
+          <|> try (ciString "false"   $> TriFalse)
           <?> "null or trilean value (unknown, true, false)"
 
     pFts = do
@@ -212,6 +212,12 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
 
     ops = M.filterWithKey (const . flip notElem ("in":"is":ftsOps)) operators
     ftsOps = M.keys ftsOperators
+
+    -- case insensitive char and string
+    ciChar :: Char -> GenParser Char state Char
+    ciChar c = char c <|> char (toUpper c)
+    ciString :: [Char] -> GenParser Char state [Char]
+    ciString = traverse ciChar
 
 pSingleVal :: Parser SingleVal
 pSingleVal = toS <$> many anyChar
