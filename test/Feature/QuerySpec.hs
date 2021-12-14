@@ -86,6 +86,10 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "matches with trilean values in upper or mixed case" $ do
+      get "/chores?done=is.NULL" `shouldRespondWith`
+        [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
       get "/chores?done=is.TRUE" `shouldRespondWith`
         [json| [{"id": 1, "name": "take out the garbage", "done": true }] |]
         { matchHeaders = [matchContentTypeJson] }
