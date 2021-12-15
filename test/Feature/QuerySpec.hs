@@ -85,6 +85,23 @@ spec actualPgVersion = do
         [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "matches with trilean values in upper or mixed case" $ do
+      get "/chores?done=is.NULL" `shouldRespondWith`
+        [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.TRUE" `shouldRespondWith`
+        [json| [{"id": 1, "name": "take out the garbage", "done": true }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.FAlSe" `shouldRespondWith`
+        [json| [{"id": 2, "name": "do the laundry", "done": false }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.UnKnOwN" `shouldRespondWith`
+        [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
     it "fails if 'is' used and there's no null or trilean value" $ do
       get "/chores?done=is.nil" `shouldRespondWith` 400
       get "/chores?done=is.ok"  `shouldRespondWith` 400
