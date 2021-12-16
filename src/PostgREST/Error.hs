@@ -97,7 +97,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text),
     "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
+    "hint"    .= if T.null (relHint rels) then ("The embedding cannot be disambiguated." :: Text) else ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels) ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
@@ -146,12 +146,20 @@ compressedRel Relationship{..} =
           ]
 
 relHint :: [Relationship] -> Text
-relHint rels = T.intercalate ", " (hintList <$> rels)
+relHint =  T.intercalate ", " . unique . foldr hint []
   where
-    hintList Relationship{..} =
-      let buildHint rel = "'" <> tableName relForeignTable <> "!" <> rel <> "'" in
+    sg :: Ord a => [a] -> [[a]]
+    sg = group . sort
+    filterByLength :: Ord a => (Int -> Bool) -> [a] -> [[a]]
+    filterByLength p = filter (p . length) . sg
+    unique :: Ord a => [a] -> [a]
+    unique = concat . filterByLength (==1)
+    hint Relationship{..} hintList =
+      let buildHint rel = ("'" <> tableName relForeignTable <> "!" <> rel <> "'"):hintList in
       case relCardinality of
-        M2M Junction{..} -> buildHint (tableName junTable)
+        -- Do not include a M2M self reference case where target and hint are the same table.
+        -- TODO: Omit this conditional when aliases are implemented in the query builder
+        M2M Junction{..} -> if junTable == relForeignTable then hintList else buildHint (tableName junTable)
         M2O cons         -> buildHint cons
         O2M cons         -> buildHint cons
 
