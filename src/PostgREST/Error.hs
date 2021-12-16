@@ -94,8 +94,8 @@ instance JSON.ToJSON ApiRequestError where
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
   toJSON (NoRelBetween parent child schema) = JSON.object [
-    "hint"    .= ("Make sure that the tables '" <> parent <> "' and '" <> child <> "' exist in the database schema '" <> schema <> "' and that there is a foreign key relationship between them. If both conditions are met, try reloading the schema cache." :: Text),
-    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache." :: Text)]
+    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text),
+    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
