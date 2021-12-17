@@ -93,6 +93,7 @@ data RequestContext = RequestContext
   , ctxDbStructure :: DbStructure
   , ctxApiRequest  :: ApiRequest
   , ctxPgVersion   :: PgVersion
+  , ctxListenerOn  :: Bool
   }
 
 type Handler = ExceptT Error
@@ -145,11 +146,12 @@ postgrest logLev appState connWorker =
       maybeDbStructure <- AppState.getDbStructure appState
       pgVer <- AppState.getPgVersion appState
       jsonDbS <- AppState.getJsonDbS appState
+      listenerOn <- AppState.getIsListenerOn appState
 
       let
         eitherResponse :: IO (Either Error Wai.Response)
         eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
+          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time listenerOn req
 
       response <- either Error.errorResponseFor identity <$> eitherResponse
       -- Launch the connWorker when the connection is down.  The postgrest
@@ -173,9 +175,10 @@ postgrestResponse
   -> PgVersion
   -> SQL.Pool
   -> UTCTime
+  -> Bool
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
+postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time listenerOn req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -194,7 +197,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
 
   let
     handleReq apiReq =
-      handleRequest $ RequestContext conf dbStructure apiReq pgVer
+      handleRequest $ RequestContext conf dbStructure apiReq pgVer listenerOn
 
   runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
     Middleware.optionalRollback conf apiRequest $
@@ -213,7 +216,7 @@ runDbHandler pool mode jwtClaims prepared handler = do
   liftEither resp
 
 handleRequest :: RequestContext -> DbHandler Wai.Response
-handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
+handleRequest context@(RequestContext _ _ ApiRequest{..} _ _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
@@ -331,7 +334,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _ _) = do
   WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
@@ -353,7 +356,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       response status [contentRangeHeader] mempty
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _ _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
@@ -377,7 +380,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _ _) = do
   WriteQueryResult{..} <- writeQuery identifier False mempty context
 
   let
@@ -460,7 +463,13 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
+handleOpenApi _ _ (RequestContext _ _ ApiRequest{iPreferRepresentation = None} _ isListenerOn) =
+  return $
+    Wai.responseLBS
+    (if isListenerOn then HTTP.status200 else HTTP.status503)
+    mempty
+    mempty
+handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion _) = do
   body <-
     lift $ case configOpenApiMode of
       OAFollowPriv ->
@@ -567,7 +576,7 @@ returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
 returnsScalar _                   = False
 
 readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
-readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
+readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _ _) =
   liftEither $
     ReqBuilder.readRequest qiSchema qiName configDbMaxRows
       (dbRelationships dbStructure)
