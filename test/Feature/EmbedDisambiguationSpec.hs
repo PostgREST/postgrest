@@ -119,7 +119,7 @@ spec =
                   "embedding": "whatev_sites with whatev_projects"
                 }
               ],
-              "hint": "Try changing 'whatev_projects' to one of the following: 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs'. Find the desired relationship in the 'details' key.",
+              "hint": "The embedding cannot be disambiguated.",
               "message": "Could not embed because more than one relationship was found for 'whatev_sites' and 'whatev_projects'"
             }
           |]

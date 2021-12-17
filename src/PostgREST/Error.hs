@@ -148,20 +148,21 @@ compressedRel Relationship{..} =
 relHint :: [Relationship] -> Text
 relHint =  T.intercalate ", " . unique . foldr hint []
   where
-    sg :: Ord a => [a] -> [[a]]
-    sg = group . sort
-    filterByLength :: Ord a => (Int -> Bool) -> [a] -> [[a]]
-    filterByLength p = filter (p . length) . sg
-    unique :: Ord a => [a] -> [a]
-    unique = concat . filterByLength (==1)
+    unique = concat . filter ((==1) . length) . group
     hint Relationship{..} hintList =
-      let buildHint rel = ("'" <> tableName relForeignTable <> "!" <> rel <> "'"):hintList in
+      let
+        buildHint isSelfM2M isSelfM2O rel
+          -- Do not include a M2M self reference case where target and hint are the same table.
+          -- TODO: Omit this conditional when aliases are implemented in the query builder
+          | isSelfM2M = hintList
+          -- Special self reference case
+          | isSelfM2O = ("'" <> maybe rel colName (headMay relColumns) <> "'"):hintList
+          | otherwise = ("'" <> tableName relForeignTable <> "!" <> rel <> "'"):hintList
+      in
       case relCardinality of
-        -- Do not include a M2M self reference case where target and hint are the same table.
-        -- TODO: Omit this conditional when aliases are implemented in the query builder
-        M2M Junction{..} -> if junTable == relForeignTable then hintList else buildHint (tableName junTable)
-        M2O cons         -> buildHint cons
-        O2M cons         -> buildHint cons
+        M2M Junction{..} -> buildHint (junTable == relForeignTable) False (tableName junTable)
+        M2O cons         -> buildHint False (relTable == relForeignTable) cons
+        O2M cons         -> buildHint False False cons
 
 data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool
