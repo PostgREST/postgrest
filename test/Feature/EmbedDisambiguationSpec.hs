@@ -127,6 +127,64 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
+      it "errs when a self referenced table embeds itself and also has an m2m relationship with itself" $
+        get "/dependencies?select=*,dependencies(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                  "relationship": "dependencies_parent_fk[parent_id][id]",
+                  "embedding": "dependencies with dependencies",
+                  "cardinality": "many-to-one"
+                },
+                {
+                  "relationship": "test.dependency_trade[dependency_trade_from_fk][dependency_trade_to_fk]",
+                  "embedding": "dependencies with dependencies",
+                  "cardinality": "many-to-many"
+                },
+                {
+                  "relationship": "test.dependency_trade[dependency_trade_to_fk][dependency_trade_from_fk]",
+                  "embedding": "dependencies with dependencies",
+                  "cardinality": "many-to-many"
+                },
+                {
+                  "relationship": "dependencies_parent_fk[id][parent_id]",
+                  "embedding": "dependencies with dependencies",
+                  "cardinality": "one-to-many"
+                }
+              ],
+              "hint": "Try changing 'dependencies' to one of the following: 'parent_id', 'dependencies!dependencies_parent_fk'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'dependencies' and 'dependencies'"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "errs when a table embeds a self referencing table" $
+        get "/locations?select=*,dependencies(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                  "relationship": "test.dependencies[dependencies_locations_fk][dependencies_parent_fk]",
+                  "embedding": "locations with dependencies",
+                  "cardinality": "many-to-many"
+                },
+                {
+                  "relationship": "dependencies_locations_fk[id][location_id]",
+                  "embedding": "locations with dependencies",
+                  "cardinality": "one-to-many"
+                }
+              ],
+              "hint": "Try changing 'dependencies' to one of the following: 'dependencies!dependencies_locations_fk'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'locations' and 'dependencies'"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
     context "disambiguating requests with embed hints" $ do
 
       context "using FK to specify the relationship" $ do

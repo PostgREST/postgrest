@@ -2462,3 +2462,27 @@ BEGIN
 
   INSERT INTO deferrable_unique_constraint VALUES (1), (1);
 END$$;
+
+-- Tables and views used for testing special cases of embedding disambiguation involving self referenced tables
+
+CREATE TABLE locations (
+  id INT PRIMARY KEY,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE dependencies (
+  id INT PRIMARY KEY,
+  name TEXT NOT NULL,
+  parent_id INT,
+  location_id INT,
+  CONSTRAINT dependencies_parent_fk FOREIGN KEY (parent_id) REFERENCES dependencies(id),
+  CONSTRAINT dependencies_locations_fk FOREIGN KEY (location_id) REFERENCES locations(id)
+);
+
+CREATE TABLE dependency_trade (
+  from_dependency_id INT NOT NULL,
+  to_dependency_id INT NOT NULL,
+  date date,
+  CONSTRAINT dependency_trade_from_fk FOREIGN KEY (from_dependency_id) REFERENCES  dependencies(id),
+  CONSTRAINT dependency_trade_to_fk FOREIGN KEY (to_dependency_id) REFERENCES  dependencies(id)
+);

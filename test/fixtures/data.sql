@@ -730,3 +730,13 @@ INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2
 
 TRUNCATE TABLE test.chores CASCADE;
 INSERT INTO test.chores (id, name, done) values (1, 'take out the garbage', true), (2, 'do the laundry', false), (3, 'wash the dishes', null);
+
+
+TRUNCATE TABLE test.locations CASCADE;
+INSERT INTO test.locations (id, name) values (1,'North'),(2,'South');
+
+TRUNCATE TABLE test.dependencies CASCADE;
+INSERT INTO test.dependencies (id, name, parent_id, location_id) values (1,'Main Kingdom',null,null),(2,'New Kingdom',1,1),(3,'Old Kingdom',1,2);
+
+TRUNCATE TABLE test.dependency_trade CASCADE;
+INSERT INTO test.dependency_trade (from_dependency_id, to_dependency_id, date) values (2,3,'20210101'),(3,2,'20210102');

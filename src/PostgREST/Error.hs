@@ -156,7 +156,9 @@ relHint =  T.intercalate ", " . unique . foldr hint []
           -- TODO: Omit this conditional when aliases are implemented in the query builder
           | isSelfM2M = hintList
           -- Special self reference case
-          | isSelfM2O = ("'" <> maybe rel colName (headMay relColumns) <> "'"):hintList
+          | isSelfM2O = case relColumns of
+                          [col] -> ("'" <> colName col <> "'"):hintList
+                          _     -> hintList
           | otherwise = ("'" <> tableName relForeignTable <> "!" <> rel <> "'"):hintList
       in
       case relCardinality of
