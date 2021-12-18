@@ -195,7 +195,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
-      , iPreferRepresentation = fromMaybe None preferRepresentation
+      , iPreferRepresentation = fromMaybe (if method `elem` ["GET", "HEAD"] then Full else None) preferRepresentation
       , iPreferParameters = preferParameters
       , iPreferCount = preferCount
       , iPreferResolution = preferResolution
