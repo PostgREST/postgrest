@@ -47,8 +47,7 @@ import PostgREST.RangeQuery              (NonnegRange)
 
 import PostgREST.Request.Types
 
-import Protolude      hiding (intercalate, option, replace, toS, try)
-import Protolude.Conv (toS)
+import Protolude hiding (intercalate, option, replace, try)
 
 pRequestSelect :: Text -> Either ApiRequestError [Tree SelectItem]
 pRequestSelect selStr =
@@ -73,7 +72,7 @@ pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
     path = fst <$> treePath
     ord' = parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
 
-pRequestRange :: (ByteString, NonnegRange) -> Either ApiRequestError (EmbedPath, NonnegRange)
+pRequestRange :: (Text, NonnegRange) -> Either ApiRequestError (EmbedPath, NonnegRange)
 pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
   where
     treePath = parse pTreePath ("failed to parser tree path (" ++ toS k ++ ")") $ toS k
@@ -117,7 +116,7 @@ pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
                   Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
-pStar = toS <$> (string "*" $> ("*"::ByteString))
+pStar = string "*" $> "*"
 
 pFieldName :: Parser Text
 pFieldName =
@@ -158,13 +157,23 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
-    hint <- optionMaybe (
-        try ( char '!' *> pFieldName) <|>
-        -- deprecated, remove in next major version
-        try ( char '.' *> pFieldName)
-      )
-    return (fld, Nothing, alias, hint)
+    prm1 <- optionMaybe pEmbedParam
+    prm2 <- optionMaybe pEmbedParam
+    return (fld, Nothing, alias, embedParamHint prm1 <|> embedParamHint prm2, embedParamJoin prm1 <|> embedParamJoin prm2)
   )
+  where
+    pEmbedParam :: Parser EmbedParam
+    pEmbedParam =
+      char '!' *> (
+        try (string "left"  $> EPJoinType JTLeft)  <|>
+        try (string "inner" $> EPJoinType JTInner) <|>
+        try (EPHint <$> pFieldName))
+    embedParamHint prm = case prm of
+      Just (EPHint hint) -> Just hint
+      _                  -> Nothing
+    embedParamJoin prm = case prm of
+      Just (EPJoinType jt) -> Just jt
+      _                    -> Nothing
 
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
@@ -173,11 +182,11 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many letter)
-      return (fld, toS <$> cast', alias, Nothing)
+      return (fld, toS <$> cast', alias, Nothing, Nothing)
   )
   <|> do
     s <- pStar
-    return ((s, []), Nothing, Nothing, Nothing)
+    return ((s, []), Nothing, Nothing, Nothing, Nothing)
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
@@ -186,15 +195,22 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
     pOperation =
           Op . toS <$> foldl1 (<|>) (try . ((<* pDelimiter) . string) . toS <$> M.keys ops) <*> pSVal
       <|> In <$> (try (string "in" *> pDelimiter) *> pListVal)
+      <|> Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
       <|> pFts
       <?> "operator (eq, gt, ...)"
+
+    pTriVal = try (string "null"    $> TriNull)
+          <|> try (string "unknown" $> TriUnknown)
+          <|> try (string "true"    $> TriTrue)
+          <|> try (string "false"   $> TriFalse)
+          <?> "null or trilean value (unknown, true, false)"
 
     pFts = do
       op   <- foldl1 (<|>) (try . string . toS <$> ftsOps)
       lang <- optionMaybe $ try (between (char '(') (char ')') (many (letter <|> digit <|> oneOf "_")))
       pDelimiter >> Fts (toS op) (toS <$> lang) <$> pSVal
 
-    ops = M.filterWithKey (const . flip notElem ("in":ftsOps)) operators
+    ops = M.filterWithKey (const . flip notElem ("in":"is":ftsOps)) operators
     ftsOps = M.keys ftsOperators
 
 pSingleVal :: Parser SingleVal
@@ -207,7 +223,9 @@ pListElement :: Parser Text
 pListElement = try (pQuotedValue <* notFollowedBy (noneOf ",)")) <|> (toS <$> many (noneOf ",)"))
 
 pQuotedValue :: Parser Text
-pQuotedValue = toS <$> (char '"' *> many (noneOf "\"") <* char '"')
+pQuotedValue = toS <$> (char '"' *> many pCharsOrSlashed <* char '"')
+  where
+    pCharsOrSlashed = noneOf "\\\"" <|> (char '\\' *> anyChar)
 
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"

@@ -1,11 +1,14 @@
-{ black
+{ actionlint
+, black
 , buildToolbox
 , checkedShellScript
 , git
 , hlint
+, hsie
 , nixpkgs-fmt
 , shellcheck
 , silver-searcher
+, statix
 , stylish-haskell
 }:
 let
@@ -18,6 +21,7 @@ let
       }
       ''
         # Format Nix files
+        ${statix}/bin/statix fix
         ${nixpkgs-fmt}/bin/nixpkgs-fmt . > /dev/null 2> /dev/null
 
         # Format Haskell files
@@ -40,6 +44,8 @@ let
       ''
         ${style}
 
+        trap "echo postgrest-style-check failed. Run postgrest-style to fix issues automatically." ERR
+
         ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix'
       '';
 
@@ -47,17 +53,27 @@ let
     checkedShellScript
       {
         name = "postgrest-lint";
-        docs = "Lint all Haskell files and bash scripts.";
+        docs = "Lint all Haskell files, bash scripts and github workflows.";
         inRootDir = true;
       }
       ''
-        # Lint Haskell files
+        echo "Checking consistency of import aliases in Haskell code..."
+        ${hsie} check-aliases main src
+
+
+        echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
 
-        # Lint bash scripts
-        ${shellcheck}/bin/shellcheck test/with_tmp_db
+        echo "Linting bash scripts..."
+        ${shellcheck}/bin/shellcheck \
+          .github/get_cirrusci_freebsd \
+          .github/release \
+          test/with_tmp_db
+
+        echo "Linting workflows..."
+        ${actionlint}/bin/actionlint
       '';
 
 in

@@ -2,14 +2,16 @@
 module PostgREST.Request.Types
   ( Alias
   , Depth
-  , EmbedHint
+  , EmbedParam(..)
   , EmbedPath
   , Field
   , Filter(..)
+  , Hint
   , CallQuery(..)
   , CallParams(..)
   , CallRequest
   , JoinCondition(..)
+  , JoinType(..)
   , JsonOperand(..)
   , JsonOperation(..)
   , JsonPath
@@ -29,15 +31,14 @@ module PostgREST.Request.Types
   , ReadRequest
   , SelectItem
   , SingleVal
+  , TrileanVal(..)
   , fstFieldNames
   ) where
 
-import qualified Data.ByteString.Lazy as BL
+import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Set             as S
 
 import Data.Tree (Tree (..))
-
-import qualified GHC.Show (show)
 
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -54,7 +55,7 @@ type MutateRequest = MutateQuery
 type CallRequest = CallQuery
 
 type ReadNode =
-  (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe EmbedHint, Depth))
+  (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe Hint, Maybe JoinType, Depth))
 
 type NodeName = Text
 type Depth = Integer
@@ -91,24 +92,16 @@ data OrderDirection
   | OrderDesc
   deriving (Eq)
 
-instance Show OrderDirection where
-  show OrderAsc  = "ASC"
-  show OrderDesc = "DESC"
-
 data OrderNulls
   = OrderNullsFirst
   | OrderNullsLast
   deriving (Eq)
 
-instance Show OrderNulls where
-  show OrderNullsFirst = "NULLS FIRST"
-  show OrderNullsLast  = "NULLS LAST"
-
 data MutateQuery
   = Insert
       { in_        :: QualifiedIdentifier
       , insCols    :: S.Set FieldName
-      , insBody    :: Maybe BL.ByteString
+      , insBody    :: Maybe LBS.ByteString
       , onConflict :: Maybe (PreferResolution, [FieldName])
       , where_     :: [LogicTree]
       , returning  :: [FieldName]
@@ -116,7 +109,7 @@ data MutateQuery
   | Update
       { in_       :: QualifiedIdentifier
       , updCols   :: S.Set FieldName
-      , updBody   :: Maybe BL.ByteString
+      , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
       , returning :: [FieldName]
       }
@@ -129,7 +122,7 @@ data MutateQuery
 data CallQuery = FunctionCall
   { funCQi           :: QualifiedIdentifier
   , funCParams       :: CallParams
-  , funCArgs         :: Maybe BL.ByteString
+  , funCArgs         :: Maybe LBS.ByteString
   , funCScalar       :: Bool
   , funCMultipleCall :: Bool
   , funCReturning    :: [FieldName]
@@ -140,16 +133,24 @@ data CallParams
   | OnePosParam ProcParam -- ^ Call with positional params(only one supported): func(val)
 
 -- | The select value in `/tbl?select=alias:field::cast`
-type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe EmbedHint)
+type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe Hint, Maybe JoinType)
 
 type Field = (FieldName, JsonPath)
 type Cast = Text
 type Alias = Text
+type Hint = Text
 
--- | Disambiguates an embedding operation when there's multiple relationships
--- between two tables. Can be the name of a foreign key constraint, column
--- name or the junction in an m2m relationship.
-type EmbedHint = Text
+data EmbedParam
+  -- | Disambiguates an embedding operation when there's multiple relationships
+  -- between two tables. Can be the name of a foreign key constraint, column
+  -- name or the junction in an m2m relationship.
+  = EPHint Hint
+  | EPJoinType JoinType
+
+data JoinType
+  = JTInner
+  | JTLeft
+  deriving Eq
 
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path
 -- ["clients", "projects"]
@@ -176,7 +177,7 @@ data JsonOperand
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
 fstFieldNames :: ReadRequest -> [FieldName]
 fstFieldNames (Node (sel, _) _) =
-  fst . (\(f, _, _, _) -> f) <$> select sel
+  fst . (\(f, _, _, _, _) -> f) <$> select sel
 
 
 -- | Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
@@ -196,10 +197,6 @@ data LogicOperator
   | Or
   deriving Eq
 
-instance Show LogicOperator where
-  show And = "AND"
-  show Or  = "OR"
-
 data Filter = Filter
   { field  :: Field
   , opExpr :: OpExpr
@@ -213,6 +210,7 @@ data OpExpr =
 data Operation
   = Op Operator SingleVal
   | In ListVal
+  | Is TrileanVal
   | Fts Operator (Maybe Language) SingleVal
   deriving (Eq)
 
@@ -224,3 +222,11 @@ type SingleVal = Text
 
 -- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)
 type ListVal = [Text]
+
+-- | Three-valued logic values
+data TrileanVal
+  = TriTrue
+  | TriFalse
+  | TriNull
+  | TriUnknown
+  deriving Eq

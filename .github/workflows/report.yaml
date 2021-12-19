@@ -1,0 +1,33 @@
+name: Upload Reports
+
+on:
+  workflow_run:
+    workflows: ["Loadtest"]
+    types:
+      - completed
+
+jobs:
+  upload:
+    name: Loadtest
+    permissions:
+      checks: write
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Download from Artifacts
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: ${{ github.event.workflow.name }}
+          run_id: ${{github.event.workflow_run.id }}
+          name: loadtest.md
+          path: artifacts
+      - name: Upload to GitHub Checks
+        uses: LouisBrunner/checks-action@v1.2.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sha: ${{ github.event.workflow_run.head_sha }}
+          name: Loadtest Results
+          conclusion: neutral
+          output: |
+            {"summary":""}
+          output_text_description_file: artifacts/loadtest.md

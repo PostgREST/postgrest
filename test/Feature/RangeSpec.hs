@@ -109,11 +109,10 @@ spec = do
       context "when I don't want the count" $ do
         it "returns range Content-Range with /*" $
           request methodGet "/menagerie"
-                  [("Prefer", "count=none")] ""
-            `shouldRespondWith` "[]"
-            { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "*/*"]
-            }
+              [("Prefer", "count=none")] ""
+            `shouldRespondWith`
+              [json|[]|]
+              { matchHeaders = ["Content-Range" <:> "*/*"] }
 
         it "returns range Content-Range with range/*" $
           request methodGet "/items?order=id"
@@ -163,11 +162,15 @@ spec = do
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "2-4/*"]
           }
-        request methodHead "/items?select=id&order=id.asc&limit=3&offset=2" [] mempty
-          `shouldRespondWith` ""
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "2-4/*"]
-          }
+        request methodHead "/items?select=id&order=id.asc&limit=3&offset=2"
+            []
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 200
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "2-4/*" ]
+            }
 
       it "succeeds if offset equals 0 as a no-op" $
         get "/items?select=id&offset=0&order=id"
@@ -231,7 +234,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-14/15"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-14/15" ]
             }
 
         request methodHead "/child_entities"
@@ -240,7 +244,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-5/6"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-5/6" ]
             }
 
         request methodHead "/getallprojects_view"
@@ -249,7 +254,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "0-4/2019"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-4/2019" ]
             }
 
       it "ignores limit/offset on the planned count" $ do
@@ -259,7 +265,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "3-4/15"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "3-4/15" ]
             }
 
         request methodHead "/child_entities?limit=2"
@@ -268,7 +275,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "0-1/6"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-1/6" ]
             }
 
         request methodHead "/getallprojects_view?limit=2"
@@ -277,7 +285,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 206
-            , matchHeaders = ["Content-Range" <:> "0-1/2019"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-1/2019" ]
             }
 
       it "works with two levels" $
@@ -287,7 +296,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "0-5/6"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-5/6" ]
             }
 
     context "with range headers" $ do

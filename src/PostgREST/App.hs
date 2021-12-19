@@ -26,10 +26,10 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.ByteString.Char8           as BS8
+import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.HashMap.Strict             as Map
-import qualified Data.Set                        as Set
+import qualified Data.HashMap.Strict             as M
+import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Pool                      as SQL
 import qualified Hasql.Transaction               as SQL
@@ -76,7 +76,8 @@ import PostgREST.Request.ApiRequest      (Action (..),
                                           Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
-                                          PreferRepresentation (..))
+                                          PreferRepresentation (..),
+                                          toAppliedHeader)
 import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
@@ -84,8 +85,7 @@ import PostgREST.Workers                 (connectionWorker, listener)
 import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc
 
-import Protolude      hiding (Handler, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (Handler)
 
 
 data RequestContext = RequestContext
@@ -133,7 +133,7 @@ serverSettings AppConfig{..} =
   defaultSettings
     & setHost (fromString $ toS configServerHost)
     & setPort configServerPort
-    & setServerName (toS $ "postgrest/" <> prettyVersion)
+    & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
@@ -163,7 +163,7 @@ postgrest logLev appState connWorker =
 addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
 addRetryHint shouldAdd appState response = do
   delay <- AppState.getRetryNextIn appState
-  let h = ("Retry-After", BS8.pack $ show delay)
+  let h = ("Retry-After", BS.pack $ show delay)
   return $ Wai.mapResponseHeaders (\hs -> if shouldAdd then h:hs else hs) response
 
 postgrestResponse
@@ -190,7 +190,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       ApiRequest.userApiRequest conf dbStructure req body
 
   -- The JWT must be checked before touching the db
-  jwtClaims <- Auth.jwtClaims conf (toS iJWT) time
+  jwtClaims <- Auth.jwtClaims conf (toUtf8Lazy iJWT) time
 
   let
     handleReq apiReq =
@@ -198,7 +198,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
 
   runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
     Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS
+      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS pgVer
 
 runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
 runDbHandler pool mode jwtClaims prepared handler = do
@@ -258,7 +258,6 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         (shouldCount iPreferCount)
         (iAcceptContentType == CTTextCSV)
         bField
-        ctxPgVersion
         configDbPreparedStatements
 
   total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
@@ -270,14 +269,14 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       [ contentRange
       , ( "Content-Location"
         , "/"
-            <> toS (qiName identifier)
-            <> if BS8.null iCanonicalQS then mempty else "?" <> toS iCanonicalQS
+            <> toUtf8 (qiName identifier)
+            <> if BS.null iCanonicalQS then mempty else "?" <> iCanonicalQS
         )
       ]
       ++ contentTypeHeaders context
 
   failNotSingular iAcceptContentType queryTotal . response status headers $
-    if headersOnly then mempty else toS body
+    if headersOnly then mempty else LBS.fromStrict body
 
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
@@ -314,7 +313,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
             Just
               ( HTTP.hLocation
               , "/"
-                  <> toS qiName
+                  <> toUtf8 qiName
                   <> HTTP.renderSimpleQuery True (splitKeyValue <$> resFields)
               )
         , Just . RangeQuery.contentRangeH 1 0 $
@@ -322,12 +321,12 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
         , if null pkCols && isNothing iOnConflict then
             Nothing
           else
-            (\x -> ("Preference-Applied", BS8.pack $ show x)) <$> iPreferResolution
+            toAppliedHeader <$> iPreferResolution
         ]
 
   failNotSingular iAcceptContentType resQueryTotal $
     if iPreferRepresentation == Full then
-      response HTTP.status201 (headers ++ contentTypeHeaders context) (toS resBody)
+      response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict resBody)
     else
       response HTTP.status201 headers mempty
 
@@ -338,7 +337,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   let
     response = gucResponse resGucStatus resGucHeaders
     fullRepr = iPreferRepresentation == Full
-    updateIsNoOp = Set.null iColumns
+    updateIsNoOp = S.null iColumns
     status
       | resQueryTotal == 0 && not updateIsNoOp = HTTP.status404
       | fullRepr = HTTP.status200
@@ -349,7 +348,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   failNotSingular iAcceptContentType resQueryTotal $
     if fullRepr then
-      response status (contentTypeHeaders context ++ [contentRangeHeader]) (toS resBody)
+      response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
     else
       response status [contentRangeHeader] mempty
 
@@ -373,9 +372,9 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   return $
     if iPreferRepresentation == Full then
-      response HTTP.status200 (contentTypeHeaders context) (toS resBody)
+      response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict resBody)
     else
-      response HTTP.status204 (contentTypeHeaders context) mempty
+      response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
@@ -391,7 +390,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
     if iPreferRepresentation == Full then
       response HTTP.status200
         (contentTypeHeaders context ++ [contentRangeHeader])
-        (toS resBody)
+        (LBS.fromStrict resBody)
     else
       response HTTP.status204 [contentRangeHeader] mempty
 
@@ -406,7 +405,7 @@ handleInfo identifier RequestContext{..} =
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
-      , BS8.intercalate "," $
+      , BS.intercalate "," $
           ["OPTIONS,GET,HEAD"]
           ++ ["POST" | tableInsertable table]
           ++ ["PUT" | tableInsertable table && tableUpdatable table && hasPK]
@@ -447,7 +446,6 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (iAcceptContentType == CTTextCSV)
         (iPreferParameters == Just MultipleObjects)
         bField
-        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
@@ -459,21 +457,21 @@ handleInvoke invMethod proc context@RequestContext{..} = do
   failNotSingular iAcceptContentType queryTotal $
     response status
       (contentTypeHeaders context ++ [contentRange])
-      (if invMethod == InvHead then mempty else toS body)
+      (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest _) = do
+handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
   body <-
     lift $ case configOpenApiMode of
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
-           <$> SQL.statement tSchema (DbStructure.accessibleTables configDbPreparedStatements)
+           <$> SQL.statement tSchema (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
               (filter (\x -> tableSchema x == tSchema) $ DbStructure.dbTables dbStructure)
-              (Map.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
+              (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
           <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OADisabled ->
         pure mempty
@@ -481,7 +479,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
   return $
     Wai.responseLBS HTTP.status200
       (ContentType.toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
-      (if headersOnly then mempty else toS body)
+      (if headersOnly then mempty else body)
 
 txMode :: ApiRequest -> SQL.Mode
 txMode ApiRequest{..} =
@@ -532,7 +530,6 @@ writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestCon
         (iAcceptContentType ctxApiRequest == CTTextCSV)
         (iPreferRepresentation ctxApiRequest)
         pkCols
-        ctxPgVersion
         (configDbPreparedStatements ctxConfig)
 
   liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
@@ -605,10 +602,10 @@ rawContentTypes AppConfig{..} =
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
-  (,) "Content-Profile" <$> (toS <$> iProfile)
+  (,) "Content-Profile" <$> (toUtf8 <$> iProfile)
 
 splitKeyValue :: ByteString -> (ByteString, ByteString)
 splitKeyValue kv =
-  (k, BS8.tail v)
+  (k, BS.tail v)
   where
-    (k, v) = BS8.break (== '=') kv
+    (k, v) = BS.break (== '=') kv

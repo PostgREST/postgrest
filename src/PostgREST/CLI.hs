@@ -8,12 +8,12 @@ module PostgREST.CLI
   , readCLIShowHelp
   ) where
 
-import qualified Data.Aeson                 as Aeson
+import qualified Data.Aeson                 as JSON
+import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
-import qualified Protolude.Conv             as Conv
 
 import Data.Text.IO (hPutStrLn)
 import Text.Heredoc (str)
@@ -53,20 +53,22 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
+  actualPgVersion <- AppState.getPgVersion appState
   result <-
-    let transaction = if configDbPreparedStatements then HT.transaction else HT.unpreparedTransaction in
-    P.use (AppState.getPool appState) $
-      transaction HT.ReadCommitted HT.Read $
+    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+    SQL.use (AppState.getPool appState) $
+      transaction SQL.ReadCommitted SQL.Read $
         queryDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
+          actualPgVersion
           configDbPreparedStatements
-  P.release $ AppState.getPool appState
+  SQL.release $ AppState.getPool appState
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
       exitFailure
-    Right dbStructure -> return $ Aeson.encode dbStructure
+    Right dbStructure -> return $ JSON.encode dbStructure
 
 -- | Command line interface options
 data CLI = CLI
@@ -91,7 +93,7 @@ readCLIShowHelp hasEnvironment =
     progDesc =
       O.progDesc $
         "PostgREST "
-        <> Conv.toS prettyVersion
+        <> BS.unpack prettyVersion
         <> " / create a REST API to an existing Postgres database"
 
     footer =
@@ -165,6 +167,10 @@ exampleConfigFile =
       |
       |## Enable in-database configuration
       |db-config = true
+      |
+      |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
+      |## For PostgreSQL v14 and up, this setting will be ignored.
+      |db-use-legacy-gucs = true
       |
       |## how to terminate database transactions
       |## possible values are:

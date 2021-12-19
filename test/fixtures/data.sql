@@ -345,6 +345,10 @@ INSERT INTO w_or_wo_comma_names VALUES ('Smith, Joseph');
 INSERT INTO w_or_wo_comma_names VALUES ('David White');
 INSERT INTO w_or_wo_comma_names VALUES ('Larry Thompson');
 INSERT INTO w_or_wo_comma_names VALUES ('Double O Seven(007)');
+INSERT INTO w_or_wo_comma_names VALUES ('"');
+INSERT INTO w_or_wo_comma_names VALUES ('Double"Quote"McGraw"');
+INSERT INTO w_or_wo_comma_names VALUES ('\');
+INSERT INTO w_or_wo_comma_names VALUES ('/\Slash/\Beast/\');
 
 TRUNCATE TABLE items_with_different_col_types CASCADE;
 INSERT INTO items_with_different_col_types VALUES (1, null, null, null, null, null, null, null);
@@ -666,25 +670,63 @@ INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méc
 
 DO $do$BEGIN
   IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    INSERT INTO test.partitioned_a(id, name) VALUES (1,'first');
-    INSERT INTO test.partitioned_a(id, name) VALUES (2,'first');
-    INSERT INTO test.partitioned_a(id, name) VALUES (3,'second');
-    INSERT INTO test.partitioned_a(id, name) VALUES (4,'second');
+    INSERT INTO test.car_models(name, year) VALUES ('DeLorean',1981);
+    INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
+    INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
+    INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    INSERT INTO test.reference_from_partitioned(id) VALUES (1),(2);
+    INSERT INTO test.car_brands(name) VALUES ('DMC');
+    INSERT INTO test.car_brands(name) VALUES ('Ferrari');
+    INSERT INTO test.car_brands(name) VALUES ('Lamborghini');
 
-    UPDATE test.partitioned_a SET id_ref = 1 WHERE id = 1;
+    UPDATE test.car_models SET car_brand_name = 'DMC' WHERE name = 'DeLorean';
+    UPDATE test.car_models SET car_brand_name = 'Ferrari' WHERE name = 'F310-B';
+    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Veneno';
+    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Murcielago';
   END IF;
 
   IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
-    INSERT INTO test.partitioned_b(id, name) VALUES (1,'first_b');
-    INSERT INTO test.partitioned_b(id, name, id_a, name_a) VALUES (2,'first_b', 2, 'first');
-    INSERT INTO test.partitioned_b(id, name) VALUES (3,'second_b');
-    INSERT INTO test.partitioned_b(id, name, id_a, name_a) VALUES (4,'second_b', 4, 'second');
+    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-14',7,'DeLorean',1981);
+    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-15',9,'DeLorean',1981);
+    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-11',1,'Murcielago',2001);
+    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-12',3,'Murcielago',2001);
 
-    INSERT INTO test.reference_to_partitioned(id) VALUES (1);
-    INSERT INTO test.reference_to_partitioned(id, id_a, name_a) VALUES (2, 2, 'first');
+    INSERT INTO test.car_racers(name) VALUES ('Alain Prost');
+    INSERT INTO test.car_racers(name, car_model_name, car_model_year) VALUES ('Michael Schumacher', 'F310-B', 1997);
+
+    INSERT INTO test.car_dealers(name,city) VALUES ('Springfield Cars S.A.','Springfield');
+    INSERT INTO test.car_dealers(name,city) VALUES ('The Best Deals S.A.','Franklin');
+
+    INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('DeLorean',1981,'Springfield Cars S.A.','Springfield',15);
+    INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('Murcielago',2001,'The Best Deals S.A.','Franklin',2);
   END IF;
 END$do$;
+
+TRUNCATE TABLE test.products CASCADE;
+INSERT INTO test.products (id, name) VALUES (1,'product-1'), (2,'product-2'), (3,'product-3');
+
+TRUNCATE TABLE test.suppliers CASCADE;
+INSERT INTO test.suppliers (id, name) VALUES (1,'supplier-1'), (2,'supplier-2'), (3, 'supplier-3');
+
+TRUNCATE TABLE test.products_suppliers CASCADE;
+INSERT INTO test.products_suppliers (product_id, supplier_id) VALUES (1,1), (1,2), (2,1), (2,3);
+
+TRUNCATE TABLE test.trade_unions CASCADE;
+INSERT INTO test.trade_unions (id, name) VALUES (1,'union-1'), (2,'union-2'), (3, 'union-3'), (4, 'union-4');
+
+TRUNCATE TABLE test.suppliers_trade_unions CASCADE;
+INSERT INTO test.suppliers_trade_unions (supplier_id, trade_union_id) VALUES (1,1), (1,2), (2,3), (2,4);
+
+TRUNCATE TABLE test.client CASCADE;
+INSERT INTO test.client (id,name) values (1,'Walmart'),(2,'Target'),(3,'Big Lots');
+
+TRUNCATE TABLE test.contact CASCADE;
+INSERT INTO test.contact (id,name, clientid) values (1,'Wally Walton',1),(2,'Wilma Wellers',1),(3,'Tabby Targo',2),(4,'Bobby Bots',3),(5,'Bonnie Bits',3),(6,'Billy Boats',3) returning *;
+
+TRUNCATE TABLE test.clientinfo CASCADE;
+INSERT INTO test.clientinfo (id,clientid, other) values (1,1,'123 Main St'),(2,2,'456 South 3rd St'),(3,3,'789 Palm Tree Ln');
+
+TRUNCATE TABLE test.chores CASCADE;
+INSERT INTO test.chores (id, name, done) values (1, 'take out the garbage', true), (2, 'do the laundry', false), (3, 'wash the dishes', null);

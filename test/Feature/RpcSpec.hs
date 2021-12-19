@@ -15,7 +15,7 @@ import Text.Heredoc
 import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
                                    pgVersion109, pgVersion110,
                                    pgVersion112, pgVersion114,
-                                   pgVersion96)
+                                   pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -38,10 +38,12 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
-                (rangeHdrs (ByteRangeFromTo 0 0)) ""
-           `shouldRespondWith` ""
+            (rangeHdrs (ByteRangeFromTo 0 0)) ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 200
-            , matchHeaders = ["Content-Range" <:> "0-0/*"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-0/*" ]
             }
 
       it "includes total count if requested" $ do
@@ -59,10 +61,12 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Range" <:> "0-0/2"]
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
-                (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
-           `shouldRespondWith` ""
+            (rangeHdrsWithCount (ByteRangeFromTo 0 0)) ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 206
-            , matchHeaders = ["Content-Range" <:> "0-0/2"]
+            , matchHeaders = [ matchContentTypeJson
+                             , "Content-Range" <:> "0-0/2" ]
             }
 
       it "returns proper json" $ do
@@ -89,7 +93,8 @@ spec actualPgVersion =
             }
         request methodHead "/rpc/getitemrange?min=2&max=4"
                 (acceptHdrs "text/csv") ""
-           `shouldRespondWith` ""
+          `shouldRespondWith`
+            ""
             { matchStatus = 200
             , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
             }
@@ -188,11 +193,11 @@ spec actualPgVersion =
           { matchHeaders = [matchContentTypeJson] }
 
       it "can limit proc results" $ do
-        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1" [json| {} |]
+        post "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1" [json| {} |]
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
              { matchStatus = 200
              , matchHeaders = ["Content-Range" <:> "1-2/*"] }
-        get "/rpc/getallprojects?id=gt.1&id=lt.5&select=id?limit=2&offset=1"
+        get "/rpc/getallprojects?id=gt.1&id=lt.5&select=id&limit=2&offset=1"
           `shouldRespondWith` [json|[{"id":3},{"id":4}]|]
              { matchStatus = 200
              , matchHeaders = ["Content-Range" <:> "1-2/*"] }
@@ -338,8 +343,7 @@ spec actualPgVersion =
         post "/rpc/ret_void"
             [json|{}|]
           `shouldRespondWith`
-            "null"
-            { matchHeaders = [matchContentTypeJson] }
+            [json|null|]
 
       it "returns null for an integer with null value" $
         post "/rpc/ret_null"
@@ -503,6 +507,11 @@ spec actualPgVersion =
         p <- post "/rpc/problem" "{}"
         liftIO $ do
           simpleStatus p `shouldBe` badRequest400
+          isErrorFormat (simpleBody p) `shouldBe` True
+      it "treats plpgsql assert as internal server error" $ do
+        p <- post "/rpc/assert" "{}"
+        liftIO $ do
+          simpleStatus p `shouldBe` internalServerError500
           isErrorFormat (simpleBody p) `shouldBe` True
 
     context "unsupported verbs" $ do
@@ -748,6 +757,36 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|"123"|]
 
+      -- https://github.com/PostgREST/postgrest/issues/1672
+      context "embedding overloaded functions with the same signature except for the last param with a default value" $ do
+        it "overloaded_default(text default)" $ do
+          request methodPost "/rpc/overloaded_default?select=id,name,users(name)"
+              [("Content-Type", "application/json")]
+              [json|{}|]
+            `shouldRespondWith`
+              [json|[{"id": 2, "name": "Code w7", "users": [{"name": "Angela Martin"}]}] |]
+
+        it "overloaded_default(int)" $
+          request methodPost "/rpc/overloaded_default"
+              [("Content-Type", "application/json")]
+              [json|{"must_param":1}|]
+            `shouldRespondWith`
+              [json|{"val":1}|]
+
+        it "overloaded_default(int, text default)" $ do
+          request methodPost "/rpc/overloaded_default?select=id,name,users(name)"
+              [("Content-Type", "application/json")]
+              [json|{"a":4}|]
+            `shouldRespondWith`
+              [json|[{"id": 5, "name": "Design IOS", "users": [{"name": "Michael Scott"}, {"name": "Dwight Schrute"}]}] |]
+
+        it "overloaded_default(int, int)" $
+          request methodPost "/rpc/overloaded_default"
+              [("Content-Type", "application/json")]
+              [json|{"a":2,"must_param":4}|]
+            `shouldRespondWith`
+              [json|{"a":2,"val":4}|]
+
     context "only for POST rpc" $ do
       it "gives a parse filter error if GET style proc args are specified" $
         post "/rpc/sayhello?name=John" [json|{name: "John"}|] `shouldRespondWith` 400
@@ -808,7 +847,12 @@ spec actualPgVersion =
       it "custom header is set" $
         request methodPost "/rpc/get_guc_value"
                   [("Custom-Header", "test")]
-            [json| { "name": "request.header.custom-header" } |]
+            (
+            if actualPgVersion >= pgVersion140 then
+              [json| { "prefix": "request.headers", "name": "custom-header" } |]
+            else
+              [json| { "name": "request.header.custom-header" } |]
+            )
             `shouldRespondWith`
             [json|"test"|]
             { matchStatus  = 200
@@ -817,7 +861,12 @@ spec actualPgVersion =
       it "standard header is set" $
         request methodPost "/rpc/get_guc_value"
                   [("Origin", "http://example.com")]
-            [json| { "name": "request.header.origin" } |]
+            (
+            if actualPgVersion >= pgVersion140 then
+              [json| { "prefix": "request.headers", "name": "origin" } |]
+            else
+              [json| { "name": "request.header.origin" } |]
+            )
             `shouldRespondWith`
             [json|"http://example.com"|]
             { matchStatus  = 200
@@ -825,7 +874,12 @@ spec actualPgVersion =
             }
       it "current role is available as GUC claim" $
         request methodPost "/rpc/get_guc_value" []
-            [json| { "name": "request.jwt.claim.role" } |]
+            (
+            if actualPgVersion >= pgVersion140 then
+              [json| { "prefix": "request.jwt.claims", "name": "role" } |]
+            else
+              [json| { "name": "request.jwt.claim.role" } |]
+            )
             `shouldRespondWith`
             [json|"postgrest_test_anonymous"|]
             { matchStatus  = 200
@@ -833,7 +887,12 @@ spec actualPgVersion =
             }
       it "single cookie ends up as claims" $
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
-          [json| {"name":"request.cookie.acookie"} |]
+          (
+          if actualPgVersion >= pgVersion140 then
+            [json| {"prefix": "request.cookies", "name":"acookie"} |]
+          else
+            [json| {"name":"request.cookie.acookie"} |]
+          )
             `shouldRespondWith`
             [json|"cookievalue"|]
             { matchStatus = 200
@@ -841,7 +900,12 @@ spec actualPgVersion =
             }
       it "multiple cookies ends up as claims" $
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
-          [json| {"name":"request.cookie.secondcookie"} |]
+          (
+          if actualPgVersion >= pgVersion140 then
+            [json| {"prefix": "request.cookies", "name":"secondcookie"} |]
+          else
+            [json| {"name":"request.cookie.secondcookie"} |]
+          )
             `shouldRespondWith`
             [json|"anothervalue"|]
             { matchStatus = 200
@@ -857,7 +921,12 @@ spec actualPgVersion =
             }
       it "gets the Authorization value" $
         request methodPost "/rpc/get_guc_value" [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
-          [json| {"name":"request.header.authorization"} |]
+          (
+          if actualPgVersion >= pgVersion140 then
+            [json| {"prefix": "request.headers", "name":"authorization"} |]
+          else
+            [json| {"name":"request.header.authorization"} |]
+          )
             `shouldRespondWith`
             [json|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
             { matchStatus = 200
@@ -955,72 +1024,70 @@ spec actualPgVersion =
                 [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
                 { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion96) $
-        it "should work with the phraseto_tsquery function" $
-          get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
-            [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-            { matchHeaders = [matchContentTypeJson] }
+      it "should work with the phraseto_tsquery function" $
+        get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
+          [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
     it "should work with an argument of custom type in public schema" $
         get "/rpc/test_arg?my_arg=something" `shouldRespondWith`
           [json|"foobar"|]
           { matchHeaders = [matchContentTypeJson] }
 
-    when (actualPgVersion >= pgVersion96) $ do
-      context "GUC headers on function calls" $ do
-        it "succeeds setting the headers" $ do
-          get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
-            `shouldRespondWith` [json|[{"id": 2}]|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
-          get "/rpc/get_int_and_guc_headers?num=1"
-            `shouldRespondWith` [json|1|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
-          post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
-            `shouldRespondWith` [json|1|]
-            {matchHeaders = [
-                matchContentTypeJson,
-                "X-Test"   <:> "key1=val1; someValue; key2=val2",
-                "X-Test-2" <:> "key1=val1"]}
+    context "GUC headers on function calls" $ do
+      it "succeeds setting the headers" $ do
+        get "/rpc/get_projects_and_guc_headers?id=eq.2&select=id"
+          `shouldRespondWith` [json|[{"id": 2}]|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        get "/rpc/get_int_and_guc_headers?num=1"
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
+        post "/rpc/get_int_and_guc_headers" [json|{"num": 1}|]
+          `shouldRespondWith` [json|1|]
+          {matchHeaders = [
+              matchContentTypeJson,
+              "X-Test"   <:> "key1=val1; someValue; key2=val2",
+              "X-Test-2" <:> "key1=val1"]}
 
-        it "fails when setting headers with wrong json structure" $ do
-          get "/rpc/bad_guc_headers_1"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          get "/rpc/bad_guc_headers_2"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          get "/rpc/bad_guc_headers_3"
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
-          post "/rpc/bad_guc_headers_1" [json|{}|]
-            `shouldRespondWith`
-            [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
-            { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
-            }
+      it "fails when setting headers with wrong json structure" $ do
+        get "/rpc/bad_guc_headers_1"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_2"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        get "/rpc/bad_guc_headers_3"
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
+        post "/rpc/bad_guc_headers_1" [json|{}|]
+          `shouldRespondWith`
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          { matchStatus  = 500
+          , matchHeaders = [ matchContentTypeJson ]
+          }
 
-        it "can set the same http header twice" $
-          get "/rpc/set_cookie_twice"
-            `shouldRespondWith`
-              "null"
-              { matchHeaders = [ matchContentTypeJson
-                               , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
-                               , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
+      it "can set the same http header twice" $
+        get "/rpc/set_cookie_twice"
+          `shouldRespondWith`
+            "null"
+            { matchHeaders = [ matchContentTypeJson
+                             , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
+                             , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]}
 
       it "can override the Location header on a trigger" $
         post "/stuff"
@@ -1028,7 +1095,8 @@ spec actualPgVersion =
           `shouldRespondWith`
             ""
             { matchStatus = 201
-            , matchHeaders = ["Location" <:> "/stuff?id=eq.2&overriden=true"]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/stuff?id=eq.2&overriden=true" ]
             }
 
       -- On https://github.com/PostgREST/postgrest/issues/1427#issuecomment-595907535
@@ -1150,13 +1218,63 @@ spec actualPgVersion =
             , matchHeaders = [ matchContentTypeJson ]
             }
 
-        it "will not be able to resolve when a single unnamed json parameter exists and other overloaded functions exist" $
+        it "should be able to resolve when a single unnamed json parameter exists and other overloaded functions are found" $ do
+          request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
+              [json|{}|]
+            `shouldRespondWith`
+              [json| 1 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
           request methodPost "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")]
               [json|{"x": 1, "y": 2}|]
             `shouldRespondWith`
+              [json| 3 |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should be able to fallback to the single unnamed parameter function when other overloaded functions are not found" $ do
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
+              [json|{"A": 1, "B": 2, "C": 3}|]
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "text/plain"), ("Accept", "text/plain")]
+              [str|unnamed text arg|]
+            `shouldRespondWith`
+              [str|unnamed text arg|]
+          let file = unsafePerformIO $ BL.readFile "test/C.png"
+          r <- request methodPost "/rpc/overloaded_unnamed_param"
+            [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
+            file
+          liftIO $ do
+            let respBody = simpleBody r
+            respBody `shouldBe` file
+
+        it "should fail to fallback to any single unnamed parameter function when using an unsupported Content-Type header" $ do
+          request methodPost "/rpc/overloaded_unnamed_param"
+              [("Content-Type", "text/csv")]
+              "a,b\n1,2\n4,6\n100,200"
+            `shouldRespondWith`
+              [json| {
+                "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache",
+                "code":"PGRST202",
+                "details":null
+              }|]
+              { matchStatus  = 404
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should fail with multiple choices when two fallback functions with single unnamed json and jsonb parameters exist" $ do
+          request methodPost "/rpc/overloaded_unnamed_json_jsonb_param" [("Content-Type", "application/json")]
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
               [json| {
                 "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
-                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_param( => json), test.overloaded_unnamed_param(x => integer, y => integer)",
+                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_json_jsonb_param( => json), test.overloaded_unnamed_json_jsonb_param( => jsonb)",
                 "code":"PGRST203",
                 "details":null
               }|]

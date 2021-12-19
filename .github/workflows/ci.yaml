@@ -1,21 +1,30 @@
 name: CI
+
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
 
 jobs:
   Lint-Style:
     name: Lint & check code style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - name: Install linting and styling scripts
-        run: nix-env -f default.nix -iA style
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: style
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
         run: postgrest-style-check
+
 
   Test-Nix:
     name: Test (Nix)
@@ -26,70 +35,87 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
-      - name: Install testing scripts
-        run: nix-env -f default.nix -iA tests withTools
+          tools: tests
 
-      - name: Run coverage (IO tests and Spec tests against PostgreSQL 13)
+      - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v2.1.0
         with:
           files: ./coverage/codecov.json
 
-      - name: Run the spec tests against PostgreSQL 12
+      - name: Run doctests
         if: always()
-        run: postgrest-with-postgresql-12 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 11
-        if: always()
-        run: postgrest-with-postgresql-11 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 10
-        if: always()
-        run: postgrest-with-postgresql-10 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 9.6
-        if: always()
-        run: postgrest-with-postgresql-9.6 postgrest-test-spec
-      - name: Run the spec tests against PostgreSQL 9.5
-        if: always()
-        run: postgrest-with-postgresql-9.5 postgrest-test-spec
+        run: nix-shell --run postgrest-test-doctests
 
       - name: Check the spec tests for idempotence
         if: always()
         run: postgrest-test-spec-idempotence
 
+
+  Test-Pg-Nix:
+    strategy:
+      fail-fast: false
+      matrix:
+        pgVersion: [9.6, 10, 11, 12, 13, 14]
+    name: Test PG ${{ matrix.pgVersion }} (Nix)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Hack for enabling color output, see:
+        # https://github.com/actions/runner/issues/241#issuecomment-842566950
+        shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: tests withTools
+
+      - name: Run spec tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-spec
+
+      - name: Run IO tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-io
+
+      - name: Run query cost tests
+        if: always()
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-querycost
+
+
   Test-Memory-Nix:
     name: Test memory (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
-      - name: Install testing script
-        run: nix-env -f default.nix -iA memory
+          tools: memory
       - name: Run memory tests
         run: postgrest-test-memory
 
-  Build-Linux-Nix:
+
+  Build-Static-Nix:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - uses: cachix/cachix-action@v10
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
         with:
-          name: postgrest
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
 
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -98,7 +124,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -111,98 +137,89 @@ jobs:
           nix-env -f default.nix -iA devTools
           postgrest-push-cachix
 
-  Build-Linux-Stack:
-    name: Build Ubuntu & test (Stack)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Stack working files cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-      - name: Build with Stack
-        run: stack build --local-bin-path result --copy-bins
-      - name: Run Spec tests with Stack
-        run: |
-          postgresql_bin="$(find /usr/lib/postgresql -maxdepth 2 -type d -name bin | head -n 1)"
-          echo "Using PostgreSQL binaries at $postgresql_bin ..."
-          PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
-      - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: postgrest-ubuntu-x64
-          path: result/postgrest
-          if-no-files-found: error
 
-  Build-MacOS-Stack:
-    name: Build MacOS & test (Stack)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Stack working files cache
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.stack
-            .stack-work
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-      - name: Build with Stack
-        run: stack build --local-bin-path result --copy-bins
-      - name: Run Spec tests with Stack
-        run: |
-          postgresql_bin="$(find /usr/local/Cellar/postgresql -maxdepth 2 -type d -name bin | head -n 1)"
-          echo "Using PostgreSQL binaries at $postgresql_bin ..."
-          PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
-      - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: postgrest-macos-x64
-          path: result/postgrest
-          if-no-files-found: error
+  Build-Stack:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux & test
+            runs-on: ubuntu-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            test: true
+            pgdir: /usr/lib/postgresql
+            artifact: postgrest-ubuntu-x64
 
-  Build-Windows-Stack:
-    name: Build Windows (Stack)
-    runs-on: windows-latest
+          - name: MacOS & test
+            runs-on: macos-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            test: true
+            pgdir: /usr/local/Cellar/postgresql
+            artifact: postgrest-macos-x64
+
+          - name: Windows
+            runs-on: windows-latest
+            cache: |
+              ~\AppData\Roaming\stack
+              ~\AppData\Local\Programs\stack
+              .stack-work
+            deps: |
+              stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
+            # We'd need to make test/with_tmp_db run on Windows first
+            # test: true
+            artifact: postgrest-windows-x64
+
+    name: Build ${{ matrix.name }} (Stack)
+    runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.4.0
       - name: Stack working files cache
-        uses: actions/cache@v2
+        uses: actions/cache@v2.1.7
         with:
-          path: |
-            ~\AppData\Roaming\stack
-            ~\AppData\Local\Programs\stack
-            .stack-work
+          path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
       - name: Install dependencies
-        run: stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
+        if: ${{ matrix.deps }}
+        run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
+      - name: Run Spec tests with Stack
+        if: ${{ matrix.test }}
+        run: |
+          postgresql_bin="$(find ${{ matrix.pgdir }} -maxdepth 2 -type d -name bin | head -n 1)"
+          echo "Using PostgreSQL binaries at $postgresql_bin ..."
+          PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
-          name: postgrest-windows-x64
-          path: result/postgrest.exe
+          name: ${{ matrix.artifact }}
+          path: |
+            result/postgrest
+            result/postgrest.exe
           if-no-files-found: error
+
 
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.4.0
       - name: Get FreeBSD executable from CirrusCI
         env:
           # GITHUB_SHA does weird things for pull request, so we roll our own:
           GITHUB_COMMIT: ${{github.event.pull_request.head.sha || github.sha}}
         run: .github/get_cirrusci_freebsd
       - name: Save executable as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: postgrest-freebsd-x64
           path: postgrest
           if-no-files-found: error
+
 
   Prepare-Release:
     name: Prepare release
@@ -211,17 +228,16 @@ jobs:
     needs:
       - Lint-Style
       - Test-Nix
+      - Test-Pg-Nix
       - Test-Memory-Nix
-      - Build-Linux-Nix
-      - Build-Linux-Stack
-      - Build-MacOS-Stack
-      - Build-Windows-Stack
+      - Build-Static-Nix
+      - Build-Stack
       - Get-FreeBSD-CirrusCI
     outputs:
       version: ${{ steps.Identify-Version.outputs.version }}
       isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.4.0
       - id: Identify-Version
         name: Identify the version to be released
         run: |
@@ -236,10 +252,10 @@ jobs:
             echo "::set-output name=version::$cabal_version"
           fi
 
-          if [[ "$cabal_version" != *-* ]]; then
-            echo "Version is for a full release (no '-' in version)"
+          if [[ "$cabal_version" != *.*.*.* ]]; then
+            echo "Version is for a full release (version does not have four components)"
           else
-            echo "Version is for a pre-release (version contains a '-', as in v1.0.0-a2)"
+            echo "Version is for a pre-release (version has four components, e.g., 1.1.1.1)"
             echo "::set-output name=isprerelease::1"
           fi
       - name: Identify changes from CHANGELOG.md
@@ -258,48 +274,52 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: release-changes
           path: CHANGES.md
           if-no-files-found: error
 
+
   Release-GitHub:
     name: Release on GitHub
-    permissions: write-all
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     needs: Prepare-Release
     env:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2.4.0
       - name: Download all artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v2.1.0
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
         run: |
+          find artifacts -type f -iname postgrest -exec chmod +x {} \;
+
           mkdir -p release-bundle
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.xz" \
             -C artifacts/postgrest-linux-static-x64 postgrest
 
           # No need to release Ubuntu, as the static Linux binary built with Nix
           # covers all Linux use-cases
-          #tar cfvz "release-bundle/postgrest-v$VERSION-ubuntu-x64.tar.gz" \
+          #tar cfJv "release-bundle/postgrest-v$VERSION-ubuntu-x64.tar.xz" \
           #  -C artifacts/postgrest-ubuntu-x64 postgrest
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-macos-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
-          
-          tar cfvz "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.gz" \
+
+          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
             -C artifacts/postgrest-freebsd-x64 postgrest
-          
+
           zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v2.3.0
         with:
           name: release-bundle
           path: release-bundle
@@ -317,7 +337,8 @@ jobs:
             -F artifacts/release-changes/CHANGES.md \
             ${isprerelease:+"--prerelease"} \
             release-bundle/*
-  
+
+
   Release-Docker:
     name: Release on Docker Hub
     runs-on: ubuntu-latest
@@ -328,12 +349,13 @@ jobs:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: cachix/install-nix-action@v13
-      - name: Install release scripts
-        run: nix-env -f default.nix -iA release
+      - uses: actions/checkout@v2.4.0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v2.1.0
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
@@ -352,7 +374,15 @@ jobs:
           else
             echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
           fi
-      - name: Update descriptions on Docker Hub
-        env:
-          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-        run: postgrest-release-dockerhub-description
+# TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
+# https://github.com/docker/hub-feedback/issues/1927
+#      - name: Update descriptions on Docker Hub
+#        env:
+#          DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+#        run: |
+#          if [[ -z "$ISPRERELEASE" ]]; then
+#            echo "Updating description on Docker Hub..."
+#            postgrest-release-dockerhub-description
+#          else
+#            echo "Skipping updating description for pre-release..."
+#          fi

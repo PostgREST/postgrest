@@ -3,7 +3,7 @@ let
     "postgrest";
 
   compiler =
-    "ghc8104";
+    "ghc8107";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as litte as possible, as the files
@@ -36,6 +36,7 @@ let
       allOverlays.gitignore
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
+      allOverlays.postgresql-future
       (allOverlays.haskell-packages { inherit compiler; })
     ];
 
@@ -45,12 +46,12 @@ let
 
   postgresqlVersions =
     [
+      { name = "postgresql-14"; postgresql = pkgs.postgresql_14; }
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13; }
       { name = "postgresql-12"; postgresql = pkgs.postgresql_12; }
       { name = "postgresql-11"; postgresql = pkgs.postgresql_11; }
       { name = "postgresql-10"; postgresql = pkgs.postgresql_10; }
       { name = "postgresql-9.6"; postgresql = pkgs.postgresql_9_6; }
-      { name = "postgresql-9.5"; postgresql = pkgs.postgresql_9_5; }
     ];
 
   patches =
@@ -78,8 +79,7 @@ let
       }
     );
 
-  lib =
-    pkgs.haskell.lib;
+  inherit (pkgs.haskell) lib;
 in
 rec {
   inherit nixpkgs pkgs;
@@ -102,13 +102,12 @@ rec {
       )
     );
 
-  env =
-    postgrest.env;
+  inherit (postgrest) env;
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      ghcWithPackages = pkgs.haskell.packages.ghc884.ghcWithPackages;
+      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
     };
 
   ### Tools
@@ -118,11 +117,15 @@ rec {
 
   # Development tools.
   devTools =
-    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie; };
+    pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie withTools; };
 
   # Docker images and loading script.
   docker =
     pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
+
+  # Load testing tools.
+  loadtest =
+    pkgs.callPackage nix/tools/loadtest.nix { inherit withTools; };
 
   # Script for running memory tests.
   memory =
@@ -138,16 +141,16 @@ rec {
 
   # Linting and styling tools.
   style =
-    pkgs.callPackage nix/tools/style.nix { };
+    pkgs.callPackage nix/tools/style.nix { inherit hsie; };
 
   # Scripts for running tests.
   tests =
     pkgs.callPackage nix/tools/tests.nix {
       inherit postgrest devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
-      hpc-codecov = pkgs.haskell.packages."${compiler}".hpc-codecov;
+      inherit (pkgs.haskell.packages."${compiler}") hpc-codecov;
     };
 
   withTools =
-    pkgs.callPackage nix/tools/withTools.nix { inherit postgresqlVersions; };
+    pkgs.callPackage nix/tools/withTools.nix { inherit devCabalOptions postgresqlVersions postgrest; };
 }

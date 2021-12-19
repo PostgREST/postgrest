@@ -10,8 +10,7 @@ import qualified Data.HashMap.Strict  as M
 
 import Network.HTTP.Types.Header (Header)
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 {-|
@@ -21,11 +20,11 @@ import Protolude.Conv (toS)
 newtype GucHeader = GucHeader (CI.CI ByteString, ByteString)
 
 instance JSON.FromJSON GucHeader where
-  parseJSON (JSON.Object o) = case headMay (M.toList o) of
-    Just (k, JSON.String s) | M.size o == 1 -> pure $ GucHeader (CI.mk $ toS k, toS s)
-                            | otherwise     -> mzero
-    _ -> mzero
-  parseJSON _          = mzero
+  parseJSON (JSON.Object o) =
+    case M.toList o of
+      [(k, JSON.String s)] -> pure $ GucHeader (CI.mk $ toUtf8 k, toUtf8 s)
+      _ -> mzero
+  parseJSON _ = mzero
 
 unwrapGucHeader :: GucHeader -> Header
 unwrapGucHeader (GucHeader (k, v)) = (k, v)

@@ -9,8 +9,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
-                                   pgVersion112, pgVersion121,
-                                   pgVersion96)
+                                   pgVersion112, pgVersion121)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -72,6 +71,23 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
 
       get "/nullable_integer?a=is.null" `shouldRespondWith` [json|[{"a":null}]|]
+
+    it "matches with trilean values" $ do
+      get "/chores?done=is.true" `shouldRespondWith`
+        [json| [{"id": 1, "name": "take out the garbage", "done": true }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.false" `shouldRespondWith`
+        [json| [{"id": 2, "name": "do the laundry", "done": false }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+      get "/chores?done=is.unknown" `shouldRespondWith`
+        [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "fails if 'is' used and there's no null or trilean value" $ do
+      get "/chores?done=is.nil" `shouldRespondWith` 400
+      get "/chores?done=is.ok"  `shouldRespondWith` 400
 
     it "matches with like" $ do
       get "/simple_pk?k=like.*yx" `shouldRespondWith`
@@ -183,34 +199,33 @@ spec actualPgVersion = do
                     {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
                   { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion96) $
-        context "Use of the phraseto_tsquery function" $ do
-          it "finds matches" $
-            get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
-              [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-              { matchHeaders = [matchContentTypeJson] }
+      context "Use of the phraseto_tsquery function" $ do
+        it "finds matches" $
+          get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
+            [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-          it "finds matches with different dictionaries" $
-            get "/tsearch?text_search_vector=phfts(german).Art%20Spass" `shouldRespondWith`
-              [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
-              { matchHeaders = [matchContentTypeJson] }
+        it "finds matches with different dictionaries" $
+          get "/tsearch?text_search_vector=phfts(german).Art%20Spass" `shouldRespondWith`
+            [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-          it "can be negated with not operator" $
-            get "/tsearch?text_search_vector=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
-              [json| [
-                {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-                {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
-                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-              { matchHeaders = [matchContentTypeJson] }
+        it "can be negated with not operator" $
+          get "/tsearch?text_search_vector=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
+            [json| [
+              {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+              {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
-          it "can be used with or query param" $
-            get "/tsearch?or=(text_search_vector.phfts(german).Art%20Spass, text_search_vector.phfts(french).amusant, text_search_vector.fts(english).impossible)" `shouldRespondWith`
-              [json|[
-                {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
-                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
-                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
-              ]|] { matchHeaders = [matchContentTypeJson] }
+        it "can be used with or query param" $
+          get "/tsearch?or=(text_search_vector.phfts(german).Art%20Spass, text_search_vector.phfts(french).amusant, text_search_vector.fts(english).impossible)" `shouldRespondWith`
+            [json|[
+              {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
+              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
+              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
+            ]|] { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`
@@ -401,78 +416,104 @@ spec actualPgVersion = do
     when (actualPgVersion >= pgVersion110) $ do
       describe "partitioned tables embedding" $ do
         it "can request a table as parent from a partitioned table" $
-          get "/partitioned_a?id=in.(1,2)&select=id,name,reference_from_partitioned(id)&order=id.asc" `shouldRespondWith`
+          get "/car_models?name=in.(DeLorean,Murcielago)&select=name,year,car_brands(name)&order=name.asc" `shouldRespondWith`
             [json|
-              [{"id":1,"name":"first","reference_from_partitioned":{"id":1}},
-               {"id":2,"name":"first","reference_from_partitioned":null}] |]
+              [{"name":"DeLorean","year":1981,"car_brands":{"name":"DMC"}},
+               {"name":"Murcielago","year":2001,"car_brands":{"name":"Lamborghini"}}] |]
             { matchHeaders = [matchContentTypeJson] }
 
         it "can request partitioned tables as children from a table" $
-          get "/reference_from_partitioned?select=id,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+          get "/car_brands?select=name,car_models(name,year)&order=name.asc&car_models.order=name.asc" `shouldRespondWith`
             [json|
-              [{"id":1,"partitioned_a":[{"id":1,"name":"first"}]},
-               {"id":2,"partitioned_a":[]}] |]
+              [{"name":"DMC","car_models":[{"name":"DeLorean","year":1981}]},
+               {"name":"Ferrari","car_models":[{"name":"F310-B","year":1997}]},
+               {"name":"Lamborghini","car_models":[{"name":"Murcielago","year":2001},{"name":"Veneno","year":2013}]}] |]
             { matchHeaders = [matchContentTypeJson] }
 
         when (actualPgVersion >= pgVersion121) $ do
           it "can request tables as children from a partitioned table" $
-            get "/partitioned_a?id=in.(1,2)&select=id,name,reference_to_partitioned(id)&order=id.asc" `shouldRespondWith`
+            get "/car_models?name=in.(DeLorean,F310-B)&select=name,year,car_racers(name)&order=name.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first","reference_to_partitioned":[]},
-                 {"id":2,"name":"first","reference_to_partitioned":[{"id":2}]}] |]
+                [{"name":"DeLorean","year":1981,"car_racers":[]},
+                 {"name":"F310-B","year":1997,"car_racers":[{"name":"Michael Schumacher"}]}] |]
               { matchHeaders = [matchContentTypeJson] }
 
           it "can request a partitioned table as parent from a table" $
-            get "/reference_to_partitioned?select=id,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+            get "/car_racers?select=name,car_models(name,year)&order=name.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"partitioned_a":null},
-                 {"id":2,"partitioned_a":{"id":2,"name":"first"}}] |]
+                [{"name":"Alain Prost","car_models":null},
+                 {"name":"Michael Schumacher","car_models":{"name":"F310-B","year":1997}}] |]
               { matchHeaders = [matchContentTypeJson] }
 
           it "can request partitioned tables as children from a partitioned table" $
-            get "/partitioned_a?id=in.(1,2,4)&select=id,name,partitioned_b(id,name)&order=id.asc" `shouldRespondWith`
+            get "/car_models?name=in.(DeLorean,Murcielago,Veneno)&select=name,year,car_model_sales(date,quantity)&order=name.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first","partitioned_b":[]},
-                 {"id":2,"name":"first","partitioned_b":[{"id":2,"name":"first_b"}]},
-                 {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
+                [{"name":"DeLorean","year":1981,"car_model_sales":[{"date":"2021-01-14","quantity":7},{"date":"2021-01-15","quantity":9}]},
+                 {"name":"Murcielago","year":2001,"car_model_sales":[{"date":"2021-02-11","quantity":1},{"date":"2021-02-12","quantity":3}]},
+                 {"name":"Veneno","year":2013,"car_model_sales":[]}] |]
               { matchHeaders = [matchContentTypeJson] }
 
           it "can request a partitioned table as parent from a partitioned table" $ do
-            get "/partitioned_b?id=in.(2,4)&select=id,name,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+            get "/car_model_sales?date=in.(2021-01-15,2021-02-11)&select=date,quantity,car_models(name,year)&order=date.asc" `shouldRespondWith`
               [json|
-                [{"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}},
-                 {"id":4,"name":"second_b","partitioned_a":{"id":4,"name":"second"}}] |]
+                [{"date":"2021-01-15","quantity":9,"car_models":{"name":"DeLorean","year":1981}},
+                 {"date":"2021-02-11","quantity":1,"car_models":{"name":"Murcielago","year":2001}}] |]
               { matchHeaders = [matchContentTypeJson] }
 
-          it "can request partitions as children from a partitioned table" $
-            get "/partitioned_a?id=in.(1,2,4)&select=id,name,first_partition_b(id)&order=id.asc" `shouldRespondWith`
+          it "can request many to many relationships between partitioned tables ignoring the intermediate table partitions" $
+            get "/car_models?select=name,year,car_dealers(name,city)&order=name.asc&limit=4" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first","first_partition_b":[]},
-                 {"id":2,"name":"first","first_partition_b":[{"id":2}]},
-                 {"id":4,"name":"second","first_partition_b":[]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                [{"name":"DeLorean","year":1981,"car_dealers":[{"name":"Springfield Cars S.A.","city":"Springfield"}]},
+                 {"name":"F310-B","year":1997,"car_dealers":[]},
+                 {"name":"Murcielago","year":2001,"car_dealers":[{"name":"The Best Deals S.A.","city":"Franklin"}]},
+                 {"name":"Veneno","year":2013,"car_dealers":[]}] |]
+              { matchStatus  = 200
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request a partitioned table as parent from a partition" $
-            get "/first_partition_b?select=id,name,partitioned_a(id,name)&order=id.asc" `shouldRespondWith`
+          it "cannot request partitions as children from a partitioned table" $
+            get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first_b","partitioned_a":null},
-                 {"id":2,"name":"first_b","partitioned_a":{"id":2,"name":"first"}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
+                 "message":"Could not find a relationship between car_models and car_model_sales_202101 in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request a partition as parent from a partitioned table" $
-            get "/partitioned_b?id=in.(1,3,4)&select=id,name,second_partition_a(id,name)&order=id.asc" `shouldRespondWith`
+          it "cannot request a partitioned table as parent from a partition" $
+            get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":1,"name":"first_b","second_partition_a":null},
-                 {"id":3,"name":"second_b","second_partition_a":null},
-                 {"id":4,"name":"second_b","second_partition_a":{"id":4,"name":"second"}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
+                 "message":"Could not find a relationship between car_model_sales_202101 and car_models in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
-          it "can request partitioned tables as children from a partition" $
-            get "/second_partition_a?select=id,name,partitioned_b(id,name)&order=id.asc" `shouldRespondWith`
+          it "cannot request a partition as parent from a partitioned table" $
+            get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                [{"id":3,"name":"second","partitioned_b":[]},
-                 {"id":4,"name":"second","partitioned_b":[{"id":4,"name":"second_b"}]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
+                 "message":"Could not find a relationship between car_model_sales and car_models_default in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+          it "cannot request partitioned tables as children from a partition" $
+            get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
+              [json|
+                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
+                 "message":"Could not find a relationship between car_models_default and car_model_sales in the schema cache"} |]
+              { matchStatus  = 400
+              , matchHeaders = [matchContentTypeJson]
+              }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $
@@ -940,25 +981,56 @@ spec actualPgVersion = do
       get "/w_or_wo_comma_names?name=in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"Williams, Mary"},{"name":"Smith, Joseph"}] |]
         { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"David White"},{"name":"Larry Thompson"},{"name":"Double O Seven(007)"}] |]
+      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",\"Williams, Mary\",\"Smith, Joseph\")&limit=3" `shouldRespondWith`
+        [json| [ { "name": "David White" }, { "name": "Larry Thompson" }, { "name": "Double O Seven(007)" }] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "succeeds w/ and w/o quoted values" $ do
       get "/w_or_wo_comma_names?name=in.(David White,\"Hebdon, John\")" `shouldRespondWith`
         [json| [{"name":"Hebdon, John"},{"name":"David White"}] |]
         { matchHeaders = [matchContentTypeJson] }
-      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\")" `shouldRespondWith`
-        [json| [{"name":"Williams, Mary"},{"name":"David White"},{"name":"Double O Seven(007)"}] |]
+      get "/w_or_wo_comma_names?name=not.in.(\"Hebdon, John\",Larry Thompson,\"Smith, Joseph\")&limit=3" `shouldRespondWith`
+        [json| [ { "name": "Williams, Mary" }, { "name": "David White" }, { "name": "Double O Seven(007)" }] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/w_or_wo_comma_names?name=in.(\"Double O Seven(007)\")" `shouldRespondWith`
         [json| [{"name":"Double O Seven(007)"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "fails on malformed quoted values" $ do
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\")" `shouldRespondWith` 400
-      get "/w_or_wo_comma_names?name=in.(\"\"Hebdon, John\"\"Mary)" `shouldRespondWith` 400
-      get "/w_or_wo_comma_names?name=in.(Williams\"Hebdon, John\")" `shouldRespondWith` 400
+    context "escaped chars" $ do
+      it "accepts escaped double quotes" $
+        get "/w_or_wo_comma_names?name=in.(\"Double\\\"Quote\\\"McGraw\\\"\")" `shouldRespondWith`
+          [json| [ { "name": "Double\"Quote\"McGraw\"" } ] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "accepts escaped backslashes" $ do
+        get "/w_or_wo_comma_names?name=in.(\"\\\\\")" `shouldRespondWith`
+          [json| [{ "name": "\\" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/w_or_wo_comma_names?name=in.(\"/\\\\Slash/\\\\Beast/\\\\\")" `shouldRespondWith`
+          [json| [ { "name": "/\\Slash/\\Beast/\\" } ] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "passes any escaped char as the same char" $
+        get "/w_or_wo_comma_names?name=in.(\"D\\a\\vid W\\h\\ite\")" `shouldRespondWith`
+          [json| [{ "name": "David White" }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+  describe "IN values without quotes" $ do
+    it "accepts single double quotes as values" $ do
+      get "/w_or_wo_comma_names?name=in.(\")" `shouldRespondWith`
+        [json| [{ "name": "\"" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.(Double\"Quote\"McGraw\")" `shouldRespondWith`
+        [json| [ { "name": "Double\"Quote\"McGraw\"" } ] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "accepts backslashes as values" $ do
+      get "/w_or_wo_comma_names?name=in.(\\)" `shouldRespondWith`
+        [json| [{ "name": "\\" }] |]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/w_or_wo_comma_names?name=in.(/\\Slash/\\Beast/\\)" `shouldRespondWith`
+        [json| [ { "name": "/\\Slash/\\Beast/\\" } ] |]
+        { matchHeaders = [matchContentTypeJson] }
 
   describe "IN and NOT IN empty set" $ do
     context "returns an empty result for IN when no value is present" $ do

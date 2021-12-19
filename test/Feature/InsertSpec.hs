@@ -45,20 +45,30 @@ spec actualPgVersion = do
           }
 
       it "ignores &select when return not set or using return=minimal" $ do
-        request methodPost "/menagerie?select=integer,varchar" []
-          [json| [{
-            "integer": 15, "double": 3.14159, "varchar": "testing!"
-          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
-          , "enum": "foo"
-          }] |] `shouldRespondWith` ""
-          { matchStatus  = 201 }
-        request methodPost "/menagerie?select=integer,varchar" [("Prefer", "return=minimal")]
-          [json| [{
-            "integer": 16, "double": 3.14159, "varchar": "testing!"
-          , "boolean": false, "date": "1900-01-01", "money": "$3.99"
-          , "enum": "foo"
-          }] |] `shouldRespondWith` ""
-          { matchStatus  = 201 }
+        request methodPost "/menagerie?select=integer,varchar"
+            []
+            [json| [{
+              "integer": 15, "double": 3.14159, "varchar": "testing!",
+              "boolean": false, "date": "1900-01-01", "money": "$3.99",
+              "enum": "foo"
+            }] |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
+        request methodPost "/menagerie?select=integer,varchar"
+            [("Prefer", "return=minimal")]
+            [json| [{
+              "integer": 16, "double": 3.14159, "varchar": "testing!",
+              "boolean": false, "date": "1900-01-01", "money": "$3.99",
+              "enum": "foo"
+            }] |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
     context "non uniform json array" $ do
       it "rejects json array that isn't exclusivily composed of objects" $
@@ -113,29 +123,41 @@ spec actualPgVersion = do
 
     context "requesting headers only representation" $ do
       it "should not throw and return location header when selecting without PK" $
-        request methodPost "/projects?select=name,client_id" [("Prefer", "return=headers-only")]
-          [json|{"id":11,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = [ "Location" <:> "/projects?id=eq.11"
-                           , "Content-Range" <:> "*/*" ]
-          }
-
-      when (actualPgVersion >= pgVersion110) $
-        it "should not throw and return location header for partitioned tables when selecting without PK" $
-          request methodPost "/partitioned_a" [("Prefer", "return=headers-only")]
-            [json|{"id":5,"name":"first"}|] `shouldRespondWith` ""
+        request methodPost "/projects?select=name,client_id"
+            [("Prefer", "return=headers-only")]
+            [json|{"id":11,"name":"New Project","client_id":2}|]
+          `shouldRespondWith`
+            ""
             { matchStatus  = 201
-            , matchHeaders = [ "Location" <:> "/partitioned_a?id=eq.5&name=eq.first"
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/projects?id=eq.11"
                              , "Content-Range" <:> "*/*" ]
             }
 
+      when (actualPgVersion >= pgVersion110) $
+        it "should not throw and return location header for partitioned tables when selecting without PK" $
+          request methodPost "/car_models"
+              [("Prefer", "return=headers-only")]
+              [json|{"name":"Enzo","year":2021}|]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 201
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
+                               , "Content-Range" <:> "*/*" ]
+              }
+
     context "requesting no representation" $
       it "should not throw and return no location header when selecting without PK" $
-        request methodPost "/projects?select=name,client_id" []
-          [json|{"id":12,"name":"New Project","client_id":2}|] `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = [ matchHeaderAbsent hLocation ]
-          }
+        request methodPost "/projects?select=name,client_id"
+            []
+            [json|{"id":12,"name":"New Project","client_id":2}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hLocation ]
+            }
 
     context "from an html form" $
       it "accepts disparate json types" $ do
@@ -145,7 +167,9 @@ spec actualPgVersion = do
               "boolean=false&date=1900-01-01&money=$3.99&enum=foo")
           `shouldRespondWith`
             ""
-            { matchStatus = 201 }
+            { matchStatus = 201
+            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            }
 
     context "with no pk supplied" $ do
       context "into a table with auto-incrementing pk" $
@@ -157,12 +181,14 @@ spec actualPgVersion = do
             `shouldRespondWith`
               [json|""|]
 
-          request methodPost "/auto_incrementing_pk" [("Prefer", "return=headers-only")]
+          request methodPost "/auto_incrementing_pk"
+              [("Prefer", "return=headers-only")]
               [json| { "non_nullable_string":"not null"} |]
             `shouldRespondWith`
               ""
               { matchStatus  = 201
-              , matchHeaders = [ "Location" <:> "/auto_incrementing_pk?id=eq.2" ]
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Location" <:> "/auto_incrementing_pk?id=eq.2" ]
               }
 
       context "into a table with simple pk" $
@@ -180,11 +206,13 @@ spec actualPgVersion = do
 
       context "into a table with no pk" $ do
         it "succeeds with 201 but no location header" $ do
-          post "/no_pk" [json| { "a":"foo", "b":"bar" } |]
+          post "/no_pk"
+              [json| { "a":"foo", "b":"bar" } |]
             `shouldRespondWith`
               ""
               { matchStatus  = 201
-              , matchHeaders = [matchHeaderAbsent hLocation]
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hLocation ]
               }
 
         it "returns full details of inserted record if asked" $ do
@@ -231,11 +259,14 @@ spec actualPgVersion = do
         let bulkData = [json| [ {"k1":21, "k2":"hello world"}
                               , {"k1":22, "k2":"bye for now"}]
                             |]
-        request methodPost "/compound_pk" [] bulkData
+        request methodPost "/compound_pk"
+            []
+            bulkData
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [matchHeaderAbsent hLocation]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hLocation ]
             }
 
     context "with invalid json payload" $
@@ -258,7 +289,13 @@ spec actualPgVersion = do
 
     context "with valid json payload" $
       it "succeeds and returns 201 created" $
-        post "/simple_pk" [json| { "k":"k1", "extra":"e1" } |] `shouldRespondWith` 201
+        post "/simple_pk"
+            [json| { "k":"k1", "extra":"e1" } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus = 201
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
     context "attempting to insert a row with the same primary key" $
       it "fails returning a 409 Conflict" $
@@ -293,20 +330,26 @@ spec actualPgVersion = do
 
     context "empty objects" $ do
       it "successfully inserts a row with all-default columns" $ do
-        post "/items" "{}" `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = []
-          }
+        post "/items"
+            [json|{}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
         post "/items" "[{}]" `shouldRespondWith` ""
           { matchStatus  = 201
           , matchHeaders = []
           }
 
       it "successfully inserts two rows with all-default columns" $
-        post "/items" "[{}, {}]" `shouldRespondWith` ""
-          { matchStatus  = 201
-          , matchHeaders = []
-          }
+        post "/items"
+            [json|[{}, {}]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
       it "successfully inserts a row with all-default columns with prefer=rep" $ do
         -- reset pk sequence first to make test repeatable
@@ -455,7 +498,10 @@ spec actualPgVersion = do
             [("Prefer", "tx=commit")]
             ""
           `shouldRespondWith`
-            204
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
@@ -523,7 +569,9 @@ spec actualPgVersion = do
           [json| { "v":"some value" } |]
         `shouldRespondWith`
           ""
-          { matchStatus = 201 }
+          { matchStatus = 201
+          , matchHeaders = [matchHeaderAbsent hContentType]
+          }
 
   describe "Inserting into VIEWs" $ do
     context "requesting no representation" $
@@ -533,7 +581,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [ matchHeaderAbsent hLocation ]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hLocation ]
             }
 
     context "requesting header only representation" $ do
@@ -543,7 +592,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [ "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
                              , "Content-Range" <:> "*/*" ]
             }
 
@@ -553,6 +603,7 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [ "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
                              , "Content-Range" <:> "*/*" ]
             }

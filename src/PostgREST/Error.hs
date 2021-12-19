@@ -16,10 +16,13 @@ module PostgREST.Error
   ) where
 
 import qualified Data.Aeson                as JSON
+import qualified Data.ByteString.Char8     as BS
 import qualified Data.Text                 as T
-import qualified Hasql.Pool                as P
-import qualified Hasql.Session             as H
-import qualified Network.HTTP.Types.Status as HT
+import qualified Data.Text.Encoding        as T
+import qualified Data.Text.Encoding.Error  as T
+import qualified Hasql.Pool                as SQL
+import qualified Hasql.Session             as SQL
+import qualified Network.HTTP.Types.Status as HTTP
 
 import Data.Aeson  ((.=))
 import Network.Wai (Response, responseLBS)
@@ -36,12 +39,11 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS, toSL)
+import Protolude
 
 
 class (JSON.ToJSON a) => PgrstError a where
-  status   :: a -> HT.Status
+  status   :: a -> HTTP.Status
   headers  :: a -> [Header]
 
   errorPayload :: a -> LByteString
@@ -68,18 +70,18 @@ data ApiRequestError
   | AmbiguousRpc [ProcDescription]
 
 instance PgrstError ApiRequestError where
-  status (ParseRequestError _ _) = HT.status400
-  status ActionInappropriate     = HT.status405
-  status (InvalidBody _)         = HT.status400
-  status InvalidRange            = HT.status416
-  status UnsupportedVerb         = HT.status405
-  status InvalidFilters          = HT.status405
-  status (UnacceptableSchema _)  = HT.status406
-  status (ContentTypeError _)    = HT.status415
-  status (NoRelBetween _ _)      = HT.status400
-  status AmbiguousRelBetween{}   = HT.status300
-  status NoRpc{}                 = HT.status404
-  status (AmbiguousRpc _)        = HT.status300
+  status (ParseRequestError _ _) = HTTP.status400
+  status ActionInappropriate     = HTTP.status405
+  status (InvalidBody _)         = HTTP.status400
+  status InvalidRange            = HTTP.status416
+  status UnsupportedVerb         = HTTP.status405
+  status InvalidFilters          = HTTP.status405
+  status (UnacceptableSchema _)  = HTTP.status406
+  status (ContentTypeError _)    = HTTP.status415
+  status (NoRelBetween _ _)      = HTTP.status400
+  status AmbiguousRelBetween{}   = HTTP.status300
+  status NoRpc{}                 = HTTP.status404
+  status (AmbiguousRpc _)        = HTTP.status300
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -96,7 +98,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= JSON.Null]
   toJSON (InvalidBody errorMessage) = JSON.object [
     "code"    .= ApiRequestErrorCode02,
-    "message" .= (toS errorMessage :: Text),
+    "message" .= T.decodeUtf8 errorMessage,
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON InvalidRange = JSON.object [
@@ -121,7 +123,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= JSON.Null]
   toJSON (ContentTypeError cts)    = JSON.object [
     "code"    .= ApiRequestErrorCode07,
-    "message" .= ("None of these Content-Types are available: " <> (toS . intercalate ", " . map toS) cts :: Text),
+    "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
@@ -132,9 +134,9 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "code"    .= SchemaCacheErrorCode01,
-    "message" .= ("More than one relationship was found for " <> parent <> " and " <> child :: Text),
+    "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels),
-    "hint"    .= ("By following the 'details' key, disambiguate the request by changing the url to /origin?select=relationship(*) or /origin?select=target!relationship(*)" :: Text)]
+    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
@@ -160,146 +162,154 @@ compressedRel Relationship{..} =
     fmtTbl Table{..} = tableSchema <> "." <> tableName
     fmtEls els = "[" <> T.intercalate ", " els <> "]"
   in
-  JSON.object $ [
-    "origin"      .= fmtTbl relTable
-  , "target"      .= fmtTbl relForeignTable
-  ] ++
-  case relCardinality of
-    M2M Junction{..} -> [
-        "cardinality" .= ("m2m" :: Text)
-      , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
-      ]
-    M2O cons -> [
-        "cardinality" .= ("m2o" :: Text)
-      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
-      ]
-    O2M cons -> [
-        "cardinality" .= ("o2m" :: Text)
-      , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
-      ]
+  JSON.object $
+    ("embedding" .= (tableName relTable <> " with " <> tableName relForeignTable :: Text))
+    : case relCardinality of
+        M2M Junction{..} -> [
+            "cardinality" .= ("many-to-many" :: Text)
+          , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
+          ]
+        M2O cons -> [
+            "cardinality" .= ("many-to-one" :: Text)
+          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          ]
+        O2M cons -> [
+            "cardinality" .= ("one-to-many" :: Text)
+          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          ]
 
-data PgError = PgError Authenticated P.UsageError
+relHint :: [Relationship] -> Text
+relHint rels = T.intercalate ", " (hintList <$> rels)
+  where
+    hintList Relationship{..} =
+      let buildHint rel = "'" <> tableName relForeignTable <> "!" <> rel <> "'" in
+      case relCardinality of
+        M2M Junction{..} -> buildHint (tableName junTable)
+        M2O cons         -> buildHint cons
+        O2M cons         -> buildHint cons
+
+data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool
 
 instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
   headers err =
-    if status err == HT.status401
+    if status err == HTTP.status401
        then [ContentType.toHeader CTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
        else [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
 
-instance JSON.ToJSON P.UsageError where
-  toJSON (P.ConnectionError e) = JSON.object [
+instance JSON.ToJSON SQL.UsageError where
+  toJSON (SQL.ConnectionError e) = JSON.object [
     "code"    .= ConnectionErrorCode00,
     "message" .= ("Database connection error. Retrying the connection." :: Text),
-    "details" .= (toSL $ fromMaybe "" e :: Text),
+    "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text),
     "hint"    .= JSON.Null]
-  toJSON (P.SessionError e) = JSON.toJSON e -- H.Error
+  toJSON (SQL.SessionError e) = JSON.toJSON e -- SQL.Error
 
-instance JSON.ToJSON H.QueryError where
-  toJSON (H.QueryError _ _ e) = JSON.toJSON e
+instance JSON.ToJSON SQL.QueryError where
+  toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
-instance JSON.ToJSON H.CommandError where
-  toJSON (H.ResultError (H.ServerError c m d h)) = JSON.object [
-        "code"    .= (toS c      :: Text),
-        "message" .= (toS m      :: Text),
-        "details" .= (fmap toS d :: Maybe Text),
-        "hint"    .= (fmap toS h :: Maybe Text)]
+instance JSON.ToJSON SQL.CommandError where
+  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = JSON.object [
+        "code"    .= (T.decodeUtf8 c      :: Text),
+        "message" .= (T.decodeUtf8 m      :: Text),
+        "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
+        "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
-  toJSON (H.ResultError (H.UnexpectedResult m)) = JSON.object [
+  toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
     "code"    .= HasqlErrorCode00,
     "message" .= (m :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON (H.ResultError (H.RowError i H.EndOfInput)) = JSON.object [
+  toJSON (SQL.ResultError (SQL.RowError i SQL.EndOfInput)) = JSON.object [
     "code"    .= HasqlErrorCode01,
     "message" .= ("Row error: end of input" :: Text),
     "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (H.ResultError (H.RowError i H.UnexpectedNull)) = JSON.object [
+  toJSON (SQL.ResultError (SQL.RowError i SQL.UnexpectedNull)) = JSON.object [
     "code"    .= HasqlErrorCode02,
     "message" .= ("Row error: unexpected null" :: Text),
     "details" .= ("Attempt to parse a NULL as some value." :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (H.ResultError (H.RowError i (H.ValueError d))) = JSON.object [
+  toJSON (SQL.ResultError (SQL.RowError i (SQL.ValueError d))) = JSON.object [
     "code"    .= HasqlErrorCode03,
     "message" .= ("Row error: Wrong value parser used" :: Text),
     "details" .= d,
     "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (H.ResultError (H.UnexpectedAmountOfRows i)) = JSON.object [
+  toJSON (SQL.ResultError (SQL.UnexpectedAmountOfRows i)) = JSON.object [
     "code"    .= HasqlErrorCode04,
     "message" .= ("Unexpected amount of rows" :: Text),
     "details" .= i,
     "hint"    .= JSON.Null]
-  toJSON (H.ClientError d) = JSON.object [
+  toJSON (SQL.ClientError d) = JSON.object [
     "code"    .= ConnectionErrorCode01,
     "message" .= ("Database client error. Retrying the connection." :: Text),
-    "details" .= (fmap toS d :: Maybe Text),
+    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
     "hint"    .= JSON.Null]
 
-pgErrorStatus :: Bool -> P.UsageError -> HT.Status
-pgErrorStatus _      (P.ConnectionError _)                                      = HT.status503
-pgErrorStatus _      (P.SessionError (H.QueryError _ _ (H.ClientError _)))      = HT.status503
-pgErrorStatus authed (P.SessionError (H.QueryError _ _ (H.ResultError rError))) =
+pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
+pgErrorStatus _      (SQL.ConnectionError _)                                      = HTTP.status503
+pgErrorStatus _      (SQL.SessionError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
+pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rError))) =
   case rError of
-    (H.ServerError c m _ _) ->
-      case toS c of
-        '0':'8':_ -> HT.status503 -- pg connection err
-        '0':'9':_ -> HT.status500 -- triggered action exception
-        '0':'L':_ -> HT.status403 -- invalid grantor
-        '0':'P':_ -> HT.status403 -- invalid role specification
-        "23503"   -> HT.status409 -- foreign_key_violation
-        "23505"   -> HT.status409 -- unique_violation
-        "25006"   -> HT.status405 -- read_only_sql_transaction
-        '2':'5':_ -> HT.status500 -- invalid tx state
-        '2':'8':_ -> HT.status403 -- invalid auth specification
-        '2':'D':_ -> HT.status500 -- invalid tx termination
-        '3':'8':_ -> HT.status500 -- external routine exception
-        '3':'9':_ -> HT.status500 -- external routine invocation
-        '3':'B':_ -> HT.status500 -- savepoint exception
-        '4':'0':_ -> HT.status500 -- tx rollback
-        '5':'3':_ -> HT.status503 -- insufficient resources
-        '5':'4':_ -> HT.status413 -- too complex
-        '5':'5':_ -> HT.status500 -- obj not on prereq state
-        '5':'7':_ -> HT.status500 -- operator intervention
-        '5':'8':_ -> HT.status500 -- system error
-        'F':'0':_ -> HT.status500 -- conf file error
-        'H':'V':_ -> HT.status500 -- foreign data wrapper error
-        "P0001"   -> HT.status400 -- default code for "raise"
-        'P':'0':_ -> HT.status500 -- PL/pgSQL Error
-        'X':'X':_ -> HT.status500 -- internal Error
-        "42883"   -> HT.status404 -- undefined function
-        "42P01"   -> HT.status404 -- undefined table
-        "42501"   -> if authed then HT.status403 else HT.status401 -- insufficient privilege
-        'P':'T':n -> fromMaybe HT.status500 (HT.mkStatus <$> readMaybe n <*> pure m)
-        _         -> HT.status400
+    (SQL.ServerError c m _ _) ->
+      case BS.unpack c of
+        '0':'8':_ -> HTTP.status503 -- pg connection err
+        '0':'9':_ -> HTTP.status500 -- triggered action exception
+        '0':'L':_ -> HTTP.status403 -- invalid grantor
+        '0':'P':_ -> HTTP.status403 -- invalid role specification
+        "23503"   -> HTTP.status409 -- foreign_key_violation
+        "23505"   -> HTTP.status409 -- unique_violation
+        "25006"   -> HTTP.status405 -- read_only_sql_transaction
+        '2':'5':_ -> HTTP.status500 -- invalid tx state
+        '2':'8':_ -> HTTP.status403 -- invalid auth specification
+        '2':'D':_ -> HTTP.status500 -- invalid tx termination
+        '3':'8':_ -> HTTP.status500 -- external routine exception
+        '3':'9':_ -> HTTP.status500 -- external routine invocation
+        '3':'B':_ -> HTTP.status500 -- savepoint exception
+        '4':'0':_ -> HTTP.status500 -- tx rollback
+        '5':'3':_ -> HTTP.status503 -- insufficient resources
+        '5':'4':_ -> HTTP.status413 -- too complex
+        '5':'5':_ -> HTTP.status500 -- obj not on prereq state
+        '5':'7':_ -> HTTP.status500 -- operator intervention
+        '5':'8':_ -> HTTP.status500 -- system error
+        'F':'0':_ -> HTTP.status500 -- conf file error
+        'H':'V':_ -> HTTP.status500 -- foreign data wrapper error
+        "P0001"   -> HTTP.status400 -- default code for "raise"
+        'P':'0':_ -> HTTP.status500 -- PL/pgSQL Error
+        'X':'X':_ -> HTTP.status500 -- internal Error
+        "42883"   -> HTTP.status404 -- undefined function
+        "42P01"   -> HTTP.status404 -- undefined table
+        "42501"   -> if authed then HTTP.status403 else HTTP.status401 -- insufficient privilege
+        'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)
+        _         -> HTTP.status400
 
-    _                       -> HT.status500
+    _                       -> HTTP.status500
 
 checkIsFatal :: PgError -> Maybe Text
-checkIsFatal (PgError _ (P.ConnectionError e))
+checkIsFatal (PgError _ (SQL.ConnectionError e))
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
-  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` toS failureMessage
-        failureMessage = fromMaybe mempty e
-checkIsFatal (PgError _ (P.SessionError (H.QueryError _ _ (H.ResultError serverError))))
+  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` failureMessage
+        failureMessage = BS.unpack $ fromMaybe mempty e
+checkIsFatal (PgError _ (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError serverError))))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
-      H.ServerError "42601" _ _ _
+      SQL.ServerError "42601" _ _ _
         -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
       -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
       -- This would mean that a connection pooler in transaction mode is being used
       -- while prepared statements are enabled in the PostgREST configuration,
       -- both of which are incompatible with each other.
-      H.ServerError "42P05" _ _ _
+      SQL.ServerError "42P05" _ _ _
         -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
       -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
       -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
-      H.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _
+      SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _
         -> Just "Hint: Connection poolers in statement mode are not supported."
       _ -> Nothing
 checkIsFatal _ = Nothing
@@ -320,16 +330,16 @@ data Error
   | ApiRequestError ApiRequestError
 
 instance PgrstError Error where
-  status ConnectionLostError     = HT.status503
-  status JwtTokenMissing         = HT.status500
-  status (JwtTokenInvalid _)     = HT.unauthorized401
-  status GucHeadersError         = HT.status500
-  status GucStatusError          = HT.status500
-  status (BinaryFieldError _)    = HT.status406
-  status PutMatchingPkError      = HT.status400
-  status PutRangeNotAllowedError = HT.status400
-  status (SingularityError _)    = HT.status406
-  status NotFound                = HT.status404
+  status ConnectionLostError     = HTTP.status503
+  status JwtTokenMissing         = HTTP.status500
+  status (JwtTokenInvalid _)     = HTTP.unauthorized401
+  status GucHeadersError         = HTTP.status500
+  status GucStatusError          = HTTP.status500
+  status (BinaryFieldError _)    = HTTP.status406
+  status PutMatchingPkError      = HTTP.status400
+  status PutRangeNotAllowedError = HTTP.status400
+  status (SingularityError _)    = HTTP.status406
+  status NotFound                = HTTP.status404
   status (PgErr err)             = status err
   status (ApiRequestError err)   = status err
 
@@ -369,7 +379,7 @@ instance JSON.ToJSON Error where
     "hint"    .= JSON.Null]
   toJSON (BinaryFieldError ct)          = JSON.object [
     "code"    .= GeneralErrorCode02,
-    "message" .= ((toS (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
+    "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
@@ -387,7 +397,7 @@ instance JSON.ToJSON Error where
   toJSON (SingularityError n)      = JSON.object [
     "code"    .= GeneralErrorCode05,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", toS (ContentType.toMime CTSingularJSON), "requires 1 row"],
+    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
 
   toJSON NotFound = JSON.object []

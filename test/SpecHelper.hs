@@ -1,6 +1,6 @@
 module SpecHelper where
 
-import qualified Data.ByteString.Base64 as B64 (decodeLenient, encode)
+import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
@@ -89,6 +89,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
   , configDbUri                 = mempty
+  , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing
   , configJWKS                  = parseSecret <$> secret
   , configJwtAudience           = Nothing
@@ -185,16 +186,12 @@ testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = 
 testMultipleSchemaCfg :: Text -> AppConfig
 testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["v1", "v2"] }
 
-resetDb :: Text -> IO ()
-resetDb dbConn = loadFixture dbConn "data"
+testCfgLegacyGucs :: Text -> AppConfig
+testCfgLegacyGucs testDbConn = (testCfg testDbConn) { configDbUseLegacyGucs = False }
 
 analyzeTable :: Text -> Text -> IO ()
 analyzeTable dbConn tableName =
   void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
-
-loadFixture :: Text -> FilePath -> IO()
-loadFixture dbConn name =
-  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-q", "-f", "test/fixtures/" ++ name ++ ".sql"] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
@@ -221,10 +218,6 @@ noProfileHeader headers = isNothing $ find ((== "Content-Profile") . fst) header
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
   (hAuthorization, typ <> " " <> creds)
-
-authHeaderBasic :: BS.ByteString -> BS.ByteString -> Header
-authHeaderBasic u p =
-  authHeader "Basic" $ toS . B64.encode . toS $ u <> ":" <> p
 
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT = authHeader "Bearer"

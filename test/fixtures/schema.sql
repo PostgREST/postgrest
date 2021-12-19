@@ -82,7 +82,10 @@ CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.owner = current_setting('request.jwt.claim.id');
+  NEW.owner = case when current_setting('server_version_num')::int >= 140000
+              then current_setting('request.jwt.claims')::json->>'id'
+              else current_setting('request.jwt.claim.id')
+              end;
   RETURN NEW;
 end
 $$;
@@ -301,7 +304,10 @@ CREATE OR REPLACE FUNCTION switch_role() RETURNS void
 declare
   user_id text;
 Begin
-  user_id = current_setting('request.jwt.claim.id')::text;
+  user_id = case when current_setting('server_version_num')::int >= 140000
+            then (current_setting('request.jwt.claims')::json->>'id')::text
+            else current_setting('request.jwt.claim.id')::text
+            end;
   if user_id = '1'::text then
     execute 'set local role postgrest_test_author';
   elseif user_id = '2'::text then
@@ -329,18 +335,42 @@ CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
       iss text, sub text, exp bigint,
       nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
     )
-    LANGUAGE sql SECURITY DEFINER
+    LANGUAGE plpgsql SECURITY DEFINER
     STABLE
     AS $$
-SELECT current_setting('request.jwt.claim.iss') as iss,
-       current_setting('request.jwt.claim.sub') as sub,
-       current_setting('request.jwt.claim.exp')::bigint as exp,
-       current_setting('request.jwt.claim.nbf')::bigint as nbf,
-       current_setting('request.jwt.claim.iat')::bigint as iat,
-       current_setting('request.jwt.claim.jti') as jti,
-       -- role is not included in the claims list
-       current_setting('request.jwt.claim.http://postgrest.com/foo')::boolean
-         as "http://postgrest.com/foo";
+    BEGIN
+    -- JWT claims are set in JSON format since v14
+    IF (current_setting('server_version_num')::INT >= 140000) THEN
+        RETURN QUERY
+        SELECT current_setting('request.jwt.claims')::json->>'iss' as iss,
+               current_setting('request.jwt.claims')::json->>'sub' as sub,
+               (current_setting('request.jwt.claims')::json->>'exp')::bigint as exp,
+               (current_setting('request.jwt.claims')::json->>'nbf')::bigint as nbf,
+               (current_setting('request.jwt.claims')::json->>'iat')::bigint as iat,
+               current_setting('request.jwt.claims')::json->>'jti' as jti,
+               (current_setting('request.jwt.claims')::json->>'http://postgrest.com/foo')::boolean
+                 as "http://postgrest.com/foo";
+    ELSE
+        RETURN QUERY
+        SELECT current_setting('request.jwt.claim.iss') as iss,
+               current_setting('request.jwt.claim.sub') as sub,
+               current_setting('request.jwt.claim.exp')::bigint as exp,
+               current_setting('request.jwt.claim.nbf')::bigint as nbf,
+               current_setting('request.jwt.claim.iat')::bigint as iat,
+               current_setting('request.jwt.claim.jti') as jti,
+               current_setting('request.jwt.claim.http://postgrest.com/foo')::boolean
+                 as "http://postgrest.com/foo";
+    END IF;
+END;
+$$;
+
+
+CREATE FUNCTION assert() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+      ASSERT false, 'bad thing';
+END;
 $$;
 
 
@@ -1093,6 +1123,11 @@ create function test.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
+-- Get the GUC values for Postgres v14.0 and up
+create function test.get_guc_value(prefix text, name text) returns text as $$
+select nullif(current_setting(prefix)::json->>name, '')::text;
+$$ language sql;
+
 create table w_or_wo_comma_names ( name text );
 
 create table items_with_different_col_types (
@@ -1295,6 +1330,22 @@ $$ language sql;
 
 create or replace function test.overloaded(a text, b text, c text) returns text as $$
   select a || b || c
+$$ language sql;
+
+create or replace function test.overloaded_default(opt_param text default 'Code w7') returns setof test.tasks as $$
+select * from test.tasks where name like opt_param;
+$$ language sql;
+
+create or replace function test.overloaded_default(must_param int) returns jsonb as $$
+select row_to_json(r)::jsonb from (select must_param as val) as r;
+$$ language sql;
+
+create or replace function test.overloaded_default(a int, opt_param text default 'Design IOS') returns setof test.tasks as $$
+select * from test.tasks where name like opt_param and id > a;
+$$ language sql;
+
+create or replace function test.overloaded_default(a int, must_param int) returns jsonb as $$
+select row_to_json(r)::jsonb from (select a, must_param as val) as r;
 $$ language sql;
 
 create or replace function test.overloaded_html_form() returns setof int as $$
@@ -1784,8 +1835,13 @@ openapi json = $$
     }
   }
 $$;
+accept text;
 begin
-case current_setting('request.header.accept', true)
+accept = case when current_setting('server_version_num')::int >= 140000
+         then current_setting('request.headers', true)::json->>'accept'
+         else current_setting('request.header.accept', true)
+         end;
+case accept
   when 'application/openapi+json' then
     return openapi;
   when 'application/json' then
@@ -1958,9 +2014,15 @@ add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift
 -- for a pre-request function
 create or replace function custom_headers() returns void as $$
 declare
-  user_agent text := current_setting('request.header.user-agent', true);
+  user_agent text := case when current_setting('server_version_num')::int >= 140000
+                     then current_setting('request.headers', true)::json->>'user-agent'
+                     else current_setting('request.header.user-agent', true)
+                     end;
   req_path   text := current_setting('request.path', true);
-  req_accept text := current_setting('request.header.accept', true);
+  req_accept text := case when current_setting('server_version_num')::int >= 140000
+                     then current_setting('request.headers', true)::json->>'accept'
+                     else current_setting('request.header.accept', true)
+                     end;
   req_method text := current_setting('request.method', true);
 begin
   if user_agent similar to 'MSIE (6.0|7.0)' then
@@ -2208,56 +2270,83 @@ create table private.rollen (
 do $do$begin
     -- partitioned tables using the PARTITION syntax are supported from pg v10
     if (select current_setting('server_version_num')::int >= 100000) then
-      create table test.partitioned_a(
-        id int not null,
-        name varchar(64) not null
-      ) partition by list (name);
+      create table test.car_models(
+        name varchar(64) not null,
+        year int not null
+      ) partition by list (year);
 
-      comment on table test.partitioned_a is
+      comment on table test.car_models is
       $$A partitioned table
 
 A test for partitioned tables$$;
 
-      create table test.first_partition_a partition of test.partitioned_a
-        for values in ('first');
-
-      create table test.second_partition_a partition of test.partitioned_a
-        for values in ('second');
+      create table test.car_models_2021 partition of test.car_models
+        for values in (2021);
+      create table test.car_models_default partition of test.car_models
+        for values in (1981,1997,2001,2013);
     end if;
 
     -- primary keys for partitioned tables are supported from pg v11
     if (select current_setting('server_version_num')::int >= 110000) then
-      create table test.reference_from_partitioned (
-        id int primary key
+      create table test.car_brands (
+        name varchar(64) primary key
       );
 
-      alter table test.partitioned_a add primary key (id, name);
-      alter table test.partitioned_a add column id_ref int references test.reference_from_partitioned(id);
+      alter table test.car_models add primary key (name, year);
+      alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
     end if;
 
     -- foreign keys referencing partitioned tables are supported from pg v12
     if (select current_setting('server_version_num')::int >= 120000) then
-      create table test.partitioned_b(
-        id int not null,
-        name varchar(64) not null,
-        id_a int,
-        name_a varchar(64),
-        primary key (id, name),
-        foreign key (id_a, name_a) references test.partitioned_a (id, name)
-      ) partition by list (name);
+      create table test.car_model_sales(
+        date varchar(64) not null,
+        quantity int not null,
+        car_model_name varchar(64),
+        car_model_year int,
+        primary key (date, car_model_name, car_model_year),
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+      ) partition by range (date);
 
-      create table test.first_partition_b partition of test.partitioned_b
-        for values in ('first_b');
+      create table test.car_model_sales_202101 partition of test.car_model_sales
+        for values from ('2021-01-01') to ('2021-01-31');
 
-      create table test.second_partition_b partition of test.partitioned_b
-        for values in ('second_b');
+      create table test.car_model_sales_default partition of test.car_model_sales
+        default;
 
-      create table test.reference_to_partitioned (
-        id int not null primary key,
-        id_a int,
-        name_a varchar(64),
-        foreign key (id_a, name_a) references test.partitioned_a (id, name)
+      create table test.car_racers (
+        name varchar(64) not null primary key,
+        car_model_name varchar(64),
+        car_model_year int,
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
       );
+
+      create table test.car_dealers (
+        name varchar(64) not null,
+        city varchar(64) not null,
+        primary key (name, city)
+      ) partition by list (city);
+
+      create table test.car_dealers_springfield partition of test.car_dealers
+        for values in ('Springfield');
+
+      create table test.car_dealers_default partition of test.car_dealers
+        default;
+
+      create table test.car_models_car_dealers (
+        car_model_name varchar(64) not null,
+        car_model_year int not null,
+        car_dealer_name varchar(64) not null,
+        car_dealer_city varchar(64) not null,
+        quantity int not null,
+        foreign key (car_model_name, car_model_year) references test.car_models (name, year),
+        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city)
+      ) partition by range (quantity);
+
+      create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
+        for values from (10) to (20);
+
+      create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
+        default;
     end if;
 end$do$;
 
@@ -2267,20 +2356,109 @@ $$ language sql;
 
 create or replace function test.unnamed_text_param(text) returns text as $$
   select $1;
-$$ language sql ;
+$$ language sql;
 
 create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
   select $1::bytea;
-$$ language sql ;
+$$ language sql;
 
 create or replace function test.unnamed_int_param(int) returns int as $$
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_param(json) returns int as $$
+create or replace function test.overloaded_unnamed_param(json) returns json as $$
   select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param(bytea) returns bytea as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param(text) returns text as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_param() returns int as $$
+select 1;
 $$ language sql;
 
 create or replace function test.overloaded_unnamed_param(x int, y int) returns int as $$
   select x + y;
 $$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(json) returns json as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(jsonb) returns jsonb as $$
+select $1;
+$$ language sql;
+
+create or replace function test.overloaded_unnamed_json_jsonb_param(x int, y int) returns int as $$
+select x + y;
+$$ language sql;
+
+create table products(
+  id int primary key
+, name text
+);
+
+create table suppliers(
+  id int primary key
+, name text
+);
+
+create table products_suppliers(
+  product_id int references products(id),
+  supplier_id int references suppliers(id),
+  primary key (product_id, supplier_id)
+);
+
+create table trade_unions(
+  id int primary key
+, name text
+);
+
+create table suppliers_trade_unions(
+  supplier_id int references suppliers(id),
+  trade_union_id int references trade_unions(id),
+  primary key (supplier_id, trade_union_id)
+);
+
+
+CREATE TABLE client (
+  id int primary key
+, name text
+);
+
+CREATE TABLE contact (
+  id int primary key
+, name text
+, clientid int references client(id)
+);
+
+CREATE TABLE clientinfo (
+  id serial primary key
+, clientid int unique references client(id)
+, other text
+);
+
+CREATE TABLE chores (
+  id int primary key
+, name text
+, done bool
+);
+
+CREATE TABLE deferrable_unique_constraint (
+  col INT UNIQUE DEFERRABLE INITIALLY IMMEDIATE
+);
+
+CREATE FUNCTION raise_constraint(deferred BOOL DEFAULT FALSE) RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+  IF deferred THEN
+    SET CONSTRAINTS ALL DEFERRED;
+  END IF;
+
+  INSERT INTO deferrable_unique_constraint VALUES (1), (1);
+END$$;

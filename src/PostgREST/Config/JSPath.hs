@@ -1,12 +1,7 @@
-{-|
-Module      : PostgREST.Types
-Description : PostgREST common types and functions used by the rest of the modules
--}
-{-# LANGUAGE DuplicateRecordFields #-}
-
 module PostgREST.Config.JSPath
   ( JSPath
   , JSPathExp(..)
+  , dumpJSPath
   , pRoleClaimKey
   ) where
 
@@ -16,10 +11,7 @@ import Data.Either.Combinators       (mapLeft)
 import Text.ParserCombinators.Parsec ((<?>))
 import Text.Read                     (read)
 
-import qualified GHC.Show (show)
-
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
 -- | full jspath, e.g. .property[0].attr.detail
@@ -30,10 +22,10 @@ data JSPathExp
   = JSPKey Text
   | JSPIdx Int
 
-instance Show JSPathExp where
-  -- TODO: this needs to be quoted properly for special chars
-  show (JSPKey k) = "." <> show k
-  show (JSPIdx i) = "[" <> show i <> "]"
+dumpJSPath :: JSPathExp -> Text
+-- TODO: this needs to be quoted properly for special chars
+dumpJSPath (JSPKey k) = "." <> show k
+dumpJSPath (JSPIdx i) = "[" <> show i <> "]"
 
 -- Used for the config value "role-claim-key"
 pRoleClaimKey :: Text -> Either Text JSPath

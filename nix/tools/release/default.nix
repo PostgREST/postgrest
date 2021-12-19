@@ -1,7 +1,6 @@
 { buildToolbox
 , checkedShellScript
 , curl
-, ghr
 , jq
 }:
 let
@@ -27,9 +26,9 @@ let
         # ARG_USE_ENV only adds defaults or docs for environment variables
         # We manually implement a required check here
         # See also: https://github.com/matejak/argbash/issues/80
-        DOCKER_USER="''${DOCKER_USER:?DOCKER_USER is required}"
-        DOCKER_PASS="''${DOCKER_PASS:?DOCKER_PASS is required}"
-        DOCKER_REPO="''${DOCKER_REPO:?DOCKER_REPO is required}"
+        : "''${DOCKER_USER:?DOCKER_USER is required}"
+        : "''${DOCKER_PASS:?DOCKER_PASS is required}"
+        : "''${DOCKER_REPO:?DOCKER_REPO is required}"
 
         echo "Logging in to Docker Hub to get an auth token..."
         token="$(

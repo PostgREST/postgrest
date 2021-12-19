@@ -29,19 +29,18 @@ module PostgREST.Config
 import qualified Crypto.JOSE.Types      as JOSE
 import qualified Crypto.JWT             as JWT
 import qualified Data.Aeson             as JSON
-import qualified Data.ByteString        as B
+import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Char8  as BS
+import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
-
-import qualified GHC.Show (show)
+import qualified Data.Text.Encoding     as T
 
 import Control.Lens            (preview)
 import Control.Monad           (fail)
 import Crypto.JWT              (JWK, JWKSet, StringOrURI, stringOrUri)
-import Data.Aeson              (encode, toJSON)
+import Data.Aeson              (toJSON)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
@@ -53,13 +52,13 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
-                                          pRoleClaimKey)
+                                          dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, toQi)
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
+                                          toQi)
 
-import Protolude      hiding (Proxy, toList, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (Proxy, toList)
 
 
 data AppConfig = AppConfig
@@ -79,16 +78,17 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride     :: Bool
   , configDbTxRollbackAll       :: Bool
   , configDbUri                 :: Text
+  , configDbUseLegacyGucs       :: Bool
   , configFilePath              :: Maybe FilePath
   , configJWKS                  :: Maybe JWKSet
   , configJwtAudience           :: Maybe StringOrURI
   , configJwtRoleClaimKey       :: JSPath
-  , configJwtSecret             :: Maybe B.ByteString
+  , configJwtSecret             :: Maybe BS.ByteString
   , configJwtSecretIsBase64     :: Bool
   , configLogLevel              :: LogLevel
   , configOpenApiMode           :: OpenAPIMode
   , configOpenApiServerProxyUri :: Maybe Text
-  , configRawMediaTypes         :: [B.ByteString]
+  , configRawMediaTypes         :: [BS.ByteString]
   , configServerHost            :: Text
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
@@ -97,19 +97,21 @@ data AppConfig = AppConfig
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
-instance Show LogLevel where
-  show LogCrit  = "crit"
-  show LogError = "error"
-  show LogWarn  = "warn"
-  show LogInfo  = "info"
+dumpLogLevel :: LogLevel -> Text
+dumpLogLevel = \case
+  LogCrit  -> "crit"
+  LogError -> "error"
+  LogWarn  -> "warn"
+  LogInfo  -> "info"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
 
-instance Show OpenAPIMode where
-  show OAFollowPriv = "follow-privileges"
-  show OAIgnorePriv = "ignore-privileges"
-  show OADisabled   = "disabled"
+dumpOpenApiMode :: OpenAPIMode -> Text
+dumpOpenApiMode = \case
+  OAFollowPriv -> "follow-privileges"
+  OAIgnorePriv -> "ignore-privileges"
+  OADisabled   -> "disabled"
 
 -- | Dump the config
 toText :: AppConfig -> Text
@@ -125,21 +127,22 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
-      ,("db-pre-request",            q . maybe mempty show . configDbPreRequest)
+      ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
-      ,("db-root-spec",              q . maybe mempty show . configDbRootSpec)
+      ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
-      ,("db-config",                 q . T.toLower . show . configDbConfig)
+      ,("db-config",                     T.toLower . show . configDbConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("jwt-aud",                       toS . encode . maybe "" toJSON . configJwtAudience)
-      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap show . configJwtRoleClaimKey)
-      ,("jwt-secret",                q . toS . showJwtSecret)
+      ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
+      ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
+      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
+      ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("log-level",                 q . show . configLogLevel)
-      ,("openapi-mode",              q . show . configOpenApiMode)
+      ,("log-level",                 q . dumpLogLevel . configLogLevel)
+      ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("raw-media-types",           q . toS . B.intercalate "," . configRawMediaTypes)
+      ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
@@ -159,7 +162,7 @@ toText conf =
       ( True , True  ) -> "rollback-allow-override"
     showJwtSecret c
       | configJwtSecretIsBase64 c = B64.encode secret
-      | otherwise                 = toS secret
+      | otherwise                 = secret
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
@@ -222,6 +225,7 @@ parser optPath env dbSettings =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> reqString "db-uri"
+    <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
     <*> parseJwtAudience "jwt-aud"
@@ -420,8 +424,8 @@ parseSecret bytes =
   fromMaybe (maybe secret (\jwk' -> JWT.JWKSet [jwk']) maybeJWK)
     maybeJWKSet
   where
-    maybeJWKSet = JSON.decode (toS bytes) :: Maybe JWKSet
-    maybeJWK = JSON.decode (toS bytes) :: Maybe JWK
+    maybeJWKSet = JSON.decodeStrict bytes :: Maybe JWKSet
+    maybeJWK = JSON.decodeStrict bytes :: Maybe JWK
     secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
     keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
 

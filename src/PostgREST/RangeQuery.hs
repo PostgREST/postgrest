@@ -26,8 +26,7 @@ import Data.Ranged.Ranges
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
 
-import Protolude      hiding (toS)
-import Protolude.Conv (toS)
+import Protolude
 
 type NonnegRange = Range Integer
 
@@ -37,7 +36,7 @@ rangeParse range = do
 
   case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
     Just parsedRange ->
-      let [_, mLower, mUpper] = readMaybe . toS <$> parsedRange
+      let [_, mLower, mUpper] = readMaybe . BS.unpack <$> parsedRange
           lower         = maybe emptyRange rangeGeq mLower
           upper         = maybe allRange rangeLeq mUpper in
       rangeIntersection lower upper

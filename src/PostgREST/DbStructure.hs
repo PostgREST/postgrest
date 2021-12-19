@@ -33,14 +33,15 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
-import qualified Hasql.Statement     as H
-import qualified Hasql.Transaction   as HT
+import qualified Hasql.Statement     as SQL
+import qualified Hasql.Transaction   as SQL
 
 import Contravariant.Extras          (contrazip2)
 import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion100)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
@@ -54,8 +55,7 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..))
 
-import Protolude        hiding (toS)
-import Protolude.Conv   (toS)
+import Protolude
 import Protolude.Unsafe (unsafeHead)
 
 
@@ -83,15 +83,15 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> Bool -> HT.Transaction DbStructure
-queryDbStructure schemas extraSearchPath prepared = do
-  HT.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- HT.statement mempty $ allTables prepared
-  cols    <- HT.statement schemas $ allColumns tabs prepared
-  srcCols <- HT.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- HT.statement mempty $ allM2ORels tabs cols prepared
-  keys    <- HT.statement mempty $ allPrimaryKeys tabs prepared
-  procs   <- HT.statement schemas $ allProcs prepared
+queryDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> SQL.Transaction DbStructure
+queryDbStructure schemas extraSearchPath pgVer prepared = do
+  SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  tabs    <- SQL.statement mempty $ allTables pgVer prepared
+  cols    <- SQL.statement schemas $ allColumns tabs prepared
+  srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
+  m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
+  keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
+  procs   <- SQL.statement schemas $ allProcs prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       keys' = addViewPrimaryKeys srcCols keys
@@ -224,13 +224,13 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: Bool -> H.Statement [Schema] ProcsMap
-allProcs = H.Statement (toS sql) (arrayParam HE.text) decodeProcs
+allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
+allProcs = SQL.Statement sql (arrayParam HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
 
-accessibleProcs :: Bool -> H.Statement Schema ProcsMap
-accessibleProcs = H.Statement (toS sql) (param HE.text) decodeProcs
+accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
+accessibleProcs = SQL.Statement sql (param HE.text) decodeProcs
   where
     sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
@@ -299,9 +299,9 @@ procsSqlQuery = [q|
   LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
 |]
 
-schemaDescription :: Bool -> H.Statement Schema (Maybe Text)
+schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
-    H.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
+    SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
   where
     sql = [q|
       select
@@ -312,9 +312,9 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: Bool -> H.Statement Schema [Table]
-accessibleTables =
-  H.Statement sql (param HE.text) decodeTables
+accessibleTables :: PgVersion -> Bool -> SQL.Statement Schema [Table]
+accessibleTables pgVer =
+  SQL.Statement sql (param HE.text) decodeTables
  where
   sql = [q|
     select
@@ -325,44 +325,24 @@ accessibleTables =
         c.relkind IN ('r','p')
         OR (
           c.relkind IN ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-              AND (pg_trigger.tgtype::integer & 69) = 69
-          )
+          -- CMD_INSERT - see allTables query below for explanation
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
         )
       ) AS insertable,
       (
         c.relkind IN ('r','p')
         OR (
           c.relkind IN ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
           -- CMD_UPDATE
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-              and (pg_trigger.tgtype::integer & 81) = 81
-          )
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
         )
       ) as updatable,
       (
         c.relkind IN ('r','p')
         OR (
           c.relkind IN ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
           -- CMD_DELETE
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-              and (pg_trigger.tgtype::integer & 73) = 73
-          )
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
         )
       ) as deletable
     from
@@ -371,7 +351,8 @@ accessibleTables =
       left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
       c.relkind in ('v','r','m','f','p')
-      and n.nspname = $1
+      and n.nspname = $1 |]
+      <> relIsNotPartition pgVer <> [q|
       and (
         pg_has_role(c.relowner, 'USAGE')
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -466,9 +447,9 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
                 filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
   pk : viewPks)
 
-allTables :: Bool -> H.Statement () [Table]
-allTables =
-  H.Statement sql HE.noParams decodeTables
+allTables :: PgVersion -> Bool -> SQL.Statement () [Table]
+allTables pgVer =
+  SQL.Statement sql HE.noParams decodeTables
  where
   sql = [q|
     SELECT
@@ -479,64 +460,42 @@ allTables =
         c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 8) = 8
           -- The function `pg_relation_is_updateable` returns a bitmask where 8
           -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
           -- it's possible to insert into the relation.
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-            AND (pg_trigger.tgtype::integer & 69) = 69
-            -- The trigger type `tgtype` is a bitmask where 69 corresponds to
-            -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_INSERT
-            -- in the PostgreSQL source code.
-          )
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
         )
       ) AS insertable,
       (
         c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 4) = 4
           -- CMD_UPDATE
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-              and (pg_trigger.tgtype::integer & 81) = 81
-              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_UPDATE
-          )
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
         )
       ) AS updatable,
       (
         c.relkind IN ('r','p')
         OR (
           c.relkind in ('v','f')
-          AND (pg_relation_is_updatable(c.oid::regclass, FALSE) & 16) = 16
           -- CMD_DELETE
-          OR EXISTS (
-            SELECT 1
-            FROM pg_trigger
-            WHERE
-              pg_trigger.tgrelid = c.oid
-              and (pg_trigger.tgtype::integer & 73) = 73
-              -- TRIGGER_TYPE_ROW + TRIGGER_TYPE_INSTEAD + TRIGGER_TYPE_DELETE
-          )
+          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
         )
       ) AS deletable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f','p')
-      AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+      AND n.nspname NOT IN ('pg_catalog', 'information_schema') |]
+      <> relIsNotPartition pgVer <> [q|
     ORDER BY table_schema, table_name |]
 
-allColumns :: [Table] -> Bool -> H.Statement [Schema] [Column]
+relIsNotPartition :: PgVersion -> SqlQuery
+relIsNotPartition pgVer = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+
+allColumns :: [Table] -> Bool -> SQL.Statement [Schema] [Column]
 allColumns tabs =
- H.Statement sql (arrayParam HE.text) (decodeColumns tabs)
+ SQL.Statement sql (arrayParam HE.text) (decodeColumns tabs)
  where
   sql = [q|
     SELECT DISTINCT
@@ -667,9 +626,9 @@ columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: [Table] -> [Column] -> Bool -> H.Statement () [Relationship]
+allM2ORels :: [Table] -> [Column] -> Bool -> SQL.Statement () [Relationship]
 allM2ORels tabs cols =
-  H.Statement sql HE.noParams (decodeRels tabs cols)
+  SQL.Statement sql HE.noParams (decodeRels tabs cols)
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -705,9 +664,9 @@ relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
-allPrimaryKeys :: [Table] -> Bool -> H.Statement () [PrimaryKey]
+allPrimaryKeys :: [Table] -> Bool -> SQL.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
-  H.Statement sql HE.noParams (decodePks tabs)
+  SQL.Statement sql HE.noParams (decodePks tabs)
  where
   sql = [q|
     -- CTE to replace information_schema.table_constraints to remove owner limit
@@ -786,9 +745,9 @@ pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
   where table = find (\tbl -> tableSchema tbl == s && tableName tbl == t) tabs
 
 -- returns all the primary and foreign key columns which are referenced in views
-pfkSourceColumns :: [Column] -> Bool -> H.Statement ([Schema], [Schema]) [SourceColumn]
+pfkSourceColumns :: [Column] -> Bool -> SQL.Statement ([Schema], [Schema]) [SourceColumn]
 pfkSourceColumns cols =
-  H.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
+  SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
@@ -860,8 +819,8 @@ pfkSourceColumns cols =
                ','               , ''
             -- The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
             -- We remove the escaped ones, which might be part of column names again.
-            ), '\{'              , ''
-            ), '\}'              , ''
+            ), E'\\{'            , ''
+            ), E'\\}'            , ''
             -- The fields we need are formatted as json manually to protect them from the regex.
             ), ' :targetList '   , ',"targetList":'
             ), ' :resno '        , ',"resno":'

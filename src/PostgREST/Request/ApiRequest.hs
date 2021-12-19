@@ -3,7 +3,6 @@ Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
 {-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -17,21 +16,22 @@ module PostgREST.Request.ApiRequest
   , userApiRequest
   ) where
 
-import qualified Data.Aeson           as JSON
-import qualified Data.ByteString      as BS
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.CaseInsensitive as CI
-import qualified Data.Csv             as CSV
-import qualified Data.HashMap.Strict  as M
-import qualified Data.List            as L
-import qualified Data.Set             as S
-import qualified Data.Text            as T
-import qualified Data.Vector          as V
+import qualified Data.Aeson            as JSON
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.CaseInsensitive  as CI
+import qualified Data.Csv              as CSV
+import qualified Data.HashMap.Strict   as M
+import qualified Data.List             as L
+import qualified Data.List.NonEmpty    as NonEmptyList
+import qualified Data.Set              as S
+import qualified Data.Text             as T
+import qualified Data.Text.Encoding    as T
+import qualified Data.Vector           as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (last, lookup, partition, union)
-import Data.List.NonEmpty        (head)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Boundaries    (Boundary (..))
 import Data.Ranged.Ranges        (Range (..), emptyRange,
@@ -66,17 +66,17 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferResolution (..),
                                           PreferTransaction (..))
 
-import qualified PostgREST.ContentType as ContentType
+import qualified PostgREST.ContentType         as ContentType
+import qualified PostgREST.Request.Preferences as Preferences
 
-import Protolude      hiding (head, toS)
-import Protolude.Conv (toS)
+import Protolude
 
 
-type RequestBody = BL.ByteString
+type RequestBody = LBS.ByteString
 
 data Payload
   = ProcessedJSON -- ^ Cached attributes of a JSON payload
-      { payRaw  :: BL.ByteString
+      { payRaw  :: LBS.ByteString
       -- ^ This is the raw ByteString that comes from the request body.  We
       -- cache this instead of an Aeson Value because it was detected that for
       -- large payloads the encoding had high memory usage, see
@@ -85,8 +85,8 @@ data Payload
       -- ^ Keys of the object or if it's an array these keys are guaranteed to
       -- be the same across all its objects
       }
-  | RawJSON { payRaw  :: BL.ByteString }
-  | RawPay  { payRaw  :: BL.ByteString }
+  | RawJSON { payRaw  :: LBS.ByteString }
+  | RawPay  { payRaw  :: LBS.ByteString }
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
@@ -152,7 +152,7 @@ targetToJsonRpcParams target params =
 -}
 data ApiRequest = ApiRequest {
     iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-  , iRange                :: M.HashMap ByteString NonnegRange -- ^ Requested range of rows within response
+  , iRange                :: M.HashMap Text NonnegRange -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
   , iPayload              :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
@@ -184,7 +184,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
-  | shouldParsePayload && isLeft payload = either (Left . InvalidBody . toS) witness payload
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | isLeft parsedColumns = either Left witness parsedColumns
   | otherwise = do
      acceptContentType <- findAcceptContentType conf action path accepts
@@ -195,29 +195,20 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iRange = ranges
       , iTopLevelRange = topLevelRange
       , iPayload = relevantPayload
-      , iPreferRepresentation = representation
-      , iPreferParameters  = if | hasPrefer (show SingleObject)     -> Just SingleObject
-                                | hasPrefer (show MultipleObjects)  -> Just MultipleObjects
-                                | otherwise                         -> Nothing
-      , iPreferCount       = if | hasPrefer (show ExactCount)       -> Just ExactCount
-                                | hasPrefer (show PlannedCount)     -> Just PlannedCount
-                                | hasPrefer (show EstimatedCount)   -> Just EstimatedCount
-                                | otherwise                         -> Nothing
-      , iPreferResolution  = if | hasPrefer (show MergeDuplicates)  -> Just MergeDuplicates
-                                | hasPrefer (show IgnoreDuplicates) -> Just IgnoreDuplicates
-                                | otherwise                         -> Nothing
-      , iPreferTransaction = if | hasPrefer (show Commit)           -> Just Commit
-                                | hasPrefer (show Rollback)         -> Just Rollback
-                                | otherwise                         -> Nothing
+      , iPreferRepresentation = fromMaybe None preferRepresentation
+      , iPreferParameters = preferParameters
+      , iPreferCount = preferCount
+      , iPreferResolution = preferResolution
+      , iPreferTransaction = preferTransaction
       , iFilters = filters
       , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
       , iSelect = toS <$> join (lookup "select" qParams)
       , iOnConflict = toS <$> join (lookup "on_conflict" qParams)
       , iColumns = payloadColumns
       , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
-      , iCanonicalQS = toS $ urlEncodeVars
+      , iCanonicalQS = BS.pack $ urlEncodeVars
         . L.sortOn fst
-        . map (join (***) toS . second (fromMaybe BS.empty))
+        . map (join (***) BS.unpack . second (fromMaybe mempty))
         $ qString
       , iJWT = tokenStr
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
@@ -263,29 +254,30 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     case (contentType, action) of
       (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> rpcQParams
       (_, ActionInvoke InvHead) -> S.fromList $ fst <$> rpcQParams
-      (CTUrlEncoded, _)         -> S.fromList $ map (toS . fst) $ parseSimpleQuery $ toS reqBody
+      (CTUrlEncoded, _)         -> S.fromList $ map (T.decodeUtf8 . fst) $ parseSimpleQuery $ LBS.toStrict reqBody
       _ -> case (relevantPayload, fromRight Nothing parsedColumns) of
         (Just ProcessedJSON{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
+  payload :: Either ByteString Payload
   payload = case contentType of
     CTApplicationJSON ->
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
-               =<< if BL.null reqBody && isTargetingProc
+               =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
-                     else JSON.eitherDecode reqBody
+                     else first BS.pack $ JSON.eitherDecode reqBody
     CTTextCSV -> do
-      json <- csvToJson <$> CSV.decodeByName reqBody
+      json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
     CTUrlEncoded ->
-      let paramsMap = M.fromList $ (toS *** JSON.String . toS) <$> parseSimpleQuery (toS reqBody) in
+      let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     ct ->
       if isTargetingProc && ct `elem` [CTTextPlain, CTOctetStream]
         then Right $ RawPay reqBody
-        else Left $ toS $ "Content-Type not acceptable: " <> ContentType.toMime ct
+        else Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -306,7 +298,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       "OPTIONS" -> ActionInfo
       _         -> ActionInspect{isHead=False}
 
-  defaultSchema = head configDbSchemas
+  defaultSchema = NonEmptyList.head configDbSchemas
   profile
     | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
@@ -319,13 +311,13 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         ActionInvoke InvPost -> contentProfile
         _                    -> acceptProfile
     where
-      contentProfile = Just $ maybe defaultSchema toS $ lookupHeader "Content-Profile"
-      acceptProfile = Just $ maybe defaultSchema toS $ lookupHeader "Accept-Profile"
+      contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
+      acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
   schema = fromMaybe defaultSchema profile
   target =
     let
       callFindProc procSch procNam = findProc
-        (QualifiedIdentifier procSch procNam) payloadColumns (hasPrefer (show SingleObject)) (dbProcs dbStructure)
+        (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
         contentType (action == ActionInvoke InvPost)
     in
     case path of
@@ -343,7 +335,7 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     -- to store the query string arguments to the function.
     (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
     (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
-    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (toS *** toS) <$> parseSimpleQuery (toS reqBody)
+    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
   path =
@@ -357,20 +349,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
-  qParams         = [(toS k, v)|(k,v) <- qString]
+  qParams         = [(T.decodeUtf8 k, T.decodeUtf8 <$> v)|(k,v) <- qString]
   lookupHeader    = flip lookup hdrs
-  hasPrefer :: Text -> Bool
-  hasPrefer val   = any (\(h,v) -> h == "Prefer" && val `elem` split v) hdrs
-    where
-        split :: BS.ByteString -> [Text]
-        split = map T.strip . T.split (==',') . toS
-  representation
-    | hasPrefer (show Full)        = Full
-    | hasPrefer (show None)        = None
-    | hasPrefer (show HeadersOnly) = HeadersOnly
-    | otherwise                    = None
+  Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (toS auth) of
+  tokenStr = case T.split (== ' ') (T.decodeUtf8 auth) of
     ("Bearer" : t : _) -> t
     ("bearer" : t : _) -> t
     _                  -> ""
@@ -380,9 +363,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
 
   headerRange = rangeRequested hdrs
   replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
-  limitParams :: M.HashMap ByteString NonnegRange
+  limitParams :: M.HashMap Text NonnegRange
   limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe . toS =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
-  offsetParams :: M.HashMap ByteString NonnegRange
+  offsetParams :: M.HashMap Text NonnegRange
   offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe . toS =<< v)) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
   urlRange = M.unionWith f limitParams offsetParams
@@ -406,7 +389,7 @@ mutuallyAgreeable sProduces cAccepts =
      then listToMaybe sProduces
      else exact
 
-type CsvData = V.Vector (M.HashMap Text BL.ByteString)
+type CsvData = V.Vector (M.HashMap Text LBS.ByteString)
 
 {-|
   Converts CSV like
@@ -428,7 +411,7 @@ csvToJson (_, vals) =
     M.map (\str ->
         if str == "NULL"
           then JSON.Null
-          else JSON.String $ toS str
+          else JSON.String . T.decodeUtf8 $ LBS.toStrict str
       )
 
 payloadAttributes :: RequestBody -> JSON.Value -> Maybe Payload
@@ -490,11 +473,31 @@ rawContentTypes AppConfig{..} =
 findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ContentType -> Bool -> Either ApiRequestError ProcDescription
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
   case matchProc of
-    []     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
-    [proc] -> Right proc
-    procs  -> Left $ AmbiguousRpc (toList procs)
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
+    -- If there are no functions with named arguments, fallback to the single unnamed argument function
+    ([], [proc]) -> Right proc
+    ([], procs)  -> Left $ AmbiguousRpc (toList procs)
+    -- Matches the functions with named arguments
+    ([proc], _)  -> Right proc
+    (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
-    matchProc = filter matchesParams $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchProc = overloadedProcPartition $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    -- The partition obtained has the form (overloadedProcs,fallbackProcs)
+    -- where fallbackProcs are functions with a single unnamed parameter
+    overloadedProcPartition procs = foldr select ([],[]) procs
+    select proc ~(ts,fs)
+      | matchesParams proc         = (proc:ts,fs)
+      | hasSingleUnnamedParam proc = (ts,proc:fs)
+      | otherwise                  = (ts,fs)
+    -- If the function is called with post and has a single unnamed parameter
+    -- it can be called depending on content type and the parameter type
+    hasSingleUnnamedParam proc = isInvPost && case pdParams proc of
+      [ProcParam "" ppType _ _]
+        | contentType == CTApplicationJSON -> ppType `elem` ["json", "jsonb"]
+        | contentType == CTTextPlain       -> ppType == "text"
+        | contentType == CTOctetStream     -> ppType == "bytea"
+        | otherwise                        -> False
+      _ -> False
     matchesParams proc =
       let params = pdParams proc in
       -- exceptional case for Prefer: params=single-object
@@ -502,16 +505,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
         then length params == 1 && (ppType <$> headMay params) `elem` [Just "json", Just "jsonb"]
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys
-      -- If the function is called with post and has a single unnamed parameter
-      -- it can be called depending on content type and the parameter type
-      else if isInvPost && length params == 1 && (ppName <$> headMay params) == Just mempty
-        then case headMay params of
-          Just prm | contentType == CTApplicationJSON -> ppType prm `elem` ["json", "jsonb"]
-                   | contentType == CTTextPlain       -> ppType prm == "text"
-                   | contentType == CTOctetStream     -> ppType prm == "bytea"
-                   | otherwise                        -> False
-          Nothing  -> False
+        then null argumentsKeys && contentType `notElem` [CTTextPlain, CTOctetStream]
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of

@@ -9,13 +9,12 @@ import Data.List.NonEmpty (toList)
 
 import Test.Hspec
 
-import PostgREST.App              (postgrest)
-import PostgREST.Config           (AppConfig (..), LogLevel (..))
-import PostgREST.Config.Database  (queryPgVersion)
-import PostgREST.Config.PgVersion (pgVersion96)
-import PostgREST.DbStructure      (queryDbStructure)
-import Protolude                  hiding (toList, toS)
-import Protolude.Conv             (toS)
+import PostgREST.App             (postgrest)
+import PostgREST.Config          (AppConfig (..), LogLevel (..))
+import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.DbStructure     (queryDbStructure)
+import Protolude                 hiding (toList, toS)
+import Protolude.Conv            (toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
@@ -30,11 +29,13 @@ import qualified Feature.CorsSpec
 import qualified Feature.DeleteSpec
 import qualified Feature.DisabledOpenApiSpec
 import qualified Feature.EmbedDisambiguationSpec
+import qualified Feature.EmbedInnerJoinSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.HtmlRawOutputSpec
 import qualified Feature.IgnorePrivOpenApiSpec
 import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
+import qualified Feature.LegacyGucsSpec
 import qualified Feature.MultipleSchemaSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
@@ -67,6 +68,7 @@ main = do
     loadDbStructure pool
       (configDbSchemas $ testCfg testDbConn)
       (configDbExtraSearchPath $ testCfg testDbConn)
+      actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
@@ -86,7 +88,9 @@ main = do
         loadDbStructure pool
           (configDbSchemas config)
           (configDbExtraSearchPath config)
+          actualPgVersion
       appState <- AppState.initWithPool pool config
+      AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState customDbStructure
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
@@ -106,6 +110,7 @@ main = do
       responseHeadersApp   = app testCfgResponseHeaders
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
+      testCfgLegacyGucsApp = app testCfgLegacyGucs
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -125,6 +130,7 @@ main = do
         , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
         , ("Feature.DeleteSpec"              , Feature.DeleteSpec.spec)
         , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
+        , ("Feature.EmbedInnerJoinSpec"      , Feature.EmbedInnerJoinSpec.spec)
         , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
         , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec actualPgVersion)
@@ -196,16 +202,19 @@ main = do
     parallel $ before extraSearchPathApp $
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
 
-    when (actualPgVersion >= pgVersion96) $ do
-      -- this test runs with a root spec function override
-      parallel $ before rootSpecApp $
-        describe "Feature.RootSpec" Feature.RootSpec.spec
-      parallel $ before responseHeadersApp $
-        describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
+    -- this test runs with a root spec function override
+    parallel $ before rootSpecApp $
+      describe "Feature.RootSpec" Feature.RootSpec.spec
+    parallel $ before responseHeadersApp $
+      describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
 
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
-      describe "Feature.MultipleSchemaSpec" $ Feature.MultipleSchemaSpec.spec actualPgVersion
+      describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec
+
+    -- this test runs with db-uses-legacy-gucs = false
+    parallel $ before testCfgLegacyGucsApp $
+      describe "Feature.LegacyGucsSpec" Feature.LegacyGucsSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions
@@ -223,5 +232,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadDbStructure pool schemas extraSearchPath =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)
+    loadDbStructure pool schemas extraSearchPath actualPgVersion =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath actualPgVersion True)

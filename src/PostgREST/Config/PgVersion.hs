@@ -3,7 +3,6 @@
 module PostgREST.Config.PgVersion
   ( PgVersion(..)
   , minimumPgVersion
-  , pgVersion95
   , pgVersion96
   , pgVersion100
   , pgVersion109
@@ -12,6 +11,7 @@ module PostgREST.Config.PgVersion
   , pgVersion114
   , pgVersion121
   , pgVersion130
+  , pgVersion140
   ) where
 
 import qualified Data.Aeson as JSON
@@ -30,10 +30,7 @@ instance Ord PgVersion where
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = pgVersion95
-
-pgVersion95 :: PgVersion
-pgVersion95 = PgVersion 90500 "9.5"
+minimumPgVersion = pgVersion96
 
 pgVersion96 :: PgVersion
 pgVersion96 = PgVersion 90600 "9.6"
@@ -58,3 +55,6 @@ pgVersion121 = PgVersion 120001 "12.1"
 
 pgVersion130 :: PgVersion
 pgVersion130 = PgVersion 130000 "13.0"
+
+pgVersion140 :: PgVersion
+pgVersion140 = PgVersion 140000 "14.0"

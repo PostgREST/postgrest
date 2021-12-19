@@ -37,16 +37,15 @@ module PostgREST.Query.SqlFragment
   ) where
 
 import qualified Data.ByteString.Char8           as BS
-import qualified Data.ByteString.Lazy            as BL
-import qualified Data.HashMap.Strict             as HM
+import qualified Data.ByteString.Lazy            as LBS
+import qualified Data.HashMap.Strict             as M
 import qualified Data.Text                       as T
-import qualified Hasql.DynamicStatements.Snippet as H
+import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
 
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.Config.PgVersion        (PgVersion, pgVersion96)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
@@ -55,12 +54,16 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           JoinCondition (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
-                                          JsonPath, LogicTree (..),
-                                          OpExpr (..), Operation (..),
-                                          OrderTerm (..), SelectItem)
+                                          JsonPath,
+                                          LogicOperator (..),
+                                          LogicTree (..), OpExpr (..),
+                                          Operation (..),
+                                          OrderDirection (..),
+                                          OrderNulls (..),
+                                          OrderTerm (..), SelectItem,
+                                          TrileanVal (..))
 
-import Protolude      hiding (cast, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (cast)
 
 
 -- | A part of a SQL query that cannot be executed independently
@@ -72,8 +75,8 @@ noLocationF = "array[]::text[]"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
-operators :: HM.HashMap Text SqlFragment
-operators = HM.union (HM.fromList [
+operators :: M.HashMap Text SqlFragment
+operators = M.union (M.fromList [
   ("eq", "="),
   ("gte", ">="),
   ("gt", ">"),
@@ -93,8 +96,8 @@ operators = HM.union (HM.fromList [
   ("nxl", "&>"),
   ("adj", "-|-")]) ftsOperators
 
-ftsOperators :: HM.HashMap Text SqlFragment
-ftsOperators = HM.fromList [
+ftsOperators :: M.HashMap Text SqlFragment
+ftsOperators = M.fromList [
   ("fts", "@@ to_tsquery"),
   ("plfts", "@@ plainto_tsquery"),
   ("phfts", "@@ phraseto_tsquery"),
@@ -106,10 +109,10 @@ ftsOperators = HM.fromList [
 -- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
 -- We do this in SQL to avoid processing the JSON in application code
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-normalizedBody :: Maybe BL.ByteString -> H.Snippet
+normalizedBody :: Maybe LBS.ByteString -> SQL.Snippet
 normalizedBody body =
   "pgrst_payload AS (SELECT " <> jsonPlaceHolder <> " AS json_data), " <>
-  H.sql (BS.unwords [
+  SQL.sql (BS.unwords [
     "pgrst_body AS (",
       "SELECT",
         "CASE WHEN json_typeof(json_data) = 'array'",
@@ -118,25 +121,30 @@ normalizedBody body =
         "END AS val",
       "FROM pgrst_payload)"])
   where
-    jsonPlaceHolder = H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::json"
+    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::json"
 
-singleParameter :: Maybe BL.ByteString -> ByteString -> H.Snippet
+singleParameter :: Maybe LBS.ByteString -> ByteString -> SQL.Snippet
 singleParameter body typ =
   if typ == "bytea"
-    then H.encoderAndParam (HE.nullable HE.bytea) (toS <$> body) -- needed because bytea fails with HE.unknown(pg tries to utf8 encode)
-    else H.encoderAndParam (HE.nullable HE.unknown) (toS <$> body) <> "::" <> H.sql typ
+    -- TODO: Hasql fails when using HE.unknown with bytea(pg tries to utf8 encode).
+    then SQL.encoderAndParam (HE.nullable HE.bytea) (LBS.toStrict <$> body)
+    else SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::" <> SQL.sql typ
 
 selectBody :: SqlFragment
 selectBody = "(SELECT val FROM pgrst_body)"
 
-pgFmtLit :: Text -> SqlFragment
-pgFmtLit x =
- let trimmed = trimNullChars x
-     escaped = "'" <> T.replace "'" "''" trimmed <> "'"
-     slashed = T.replace "\\" "\\\\" escaped in
- encodeUtf8 $ if "\\" `T.isInfixOf` escaped
-   then "E" <> slashed
-   else slashed
+-- Here we build the pg array literal, e.g '{"Hebdon, John","Other","Another"}', manually.
+-- This is necessary to pass an "unknown" array and let pg infer the type.
+-- There are backslashes here, but since this value is parametrized and is not a string constant
+-- https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS
+-- we don't need to use the E'string' form for C-style escapes
+-- https://www.postgresql.org/docs/current/sql-syntax-lexical.html#SQL-SYNTAX-STRINGS-ESCAPE
+pgBuildArrayLiteral :: [Text] -> Text
+pgBuildArrayLiteral vals =
+ let trimmed = trimNullChars
+     slashed = T.replace "\\" "\\\\" . trimmed
+     escaped x = "\"" <> T.replace "\"" "\\\"" (slashed x) <> "\"" in
+ "{" <> T.intercalate "," (escaped <$> vals) <> "}"
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SqlFragment
@@ -164,10 +172,10 @@ asJsonF returnsScalar
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')::character varying"
   | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
 
-asJsonSingleF :: Bool -> SqlFragment --TODO! unsafe when the query actually returns multiple rows, used only on inserting and returning single element
+asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
-  | returnsScalar = "coalesce(string_agg(to_json(_postgrest_t.pgrst_scalar)::text, ','), 'null')::character varying"
-  | otherwise     = "coalesce(string_agg(to_json(_postgrest_t)::text, ','), '')::character varying"
+  | returnsScalar = "coalesce((json_agg(_postgrest_t.pgrst_scalar)->0)::text, 'null')"
+  | otherwise     = "coalesce((json_agg(_postgrest_t)->0)::text, 'null')"
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
@@ -192,67 +200,77 @@ pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
-pgFmtField :: QualifiedIdentifier -> Field -> H.Snippet
-pgFmtField table (c, jp) = H.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
+pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
+pgFmtField table (c, jp) = SQL.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> H.Snippet
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _) = pgFmtField table f <> H.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SQL.Snippet
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _) = "CAST (" <> pgFmtField table f <> " AS " <> H.sql (encodeUtf8 cast) <> " )" <> H.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _, _) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
 
-pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> H.Snippet
+pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
   pgFmtField qi (otTerm ot) <> " " <>
-  H.sql (BS.unwords [
-    BS.pack $ maybe mempty show $ otDirection ot,
-    BS.pack $ maybe mempty show $ otNullOrder ot])
+  SQL.sql (BS.unwords [
+    maybe mempty direction $ otDirection ot,
+    maybe mempty nullOrder $ otNullOrder ot])
+  where
+    direction OrderAsc  = "ASC"
+    direction OrderDesc = "DESC"
 
-pgFmtFilter :: QualifiedIdentifier -> Filter -> H.Snippet
+    nullOrder OrderNullsFirst = "NULLS FIRST"
+    nullOrder OrderNullsLast  = "NULLS LAST"
+
+
+pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      "like"  -> unknownLiteral (T.map star val)
      "ilike" -> unknownLiteral (T.map star val)
-     "is"    -> isAllowed val
      _       -> unknownLiteral val
+
+   -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
+   -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
+   -- However that would not accept the TRUE/FALSE/NULL/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
+   -- This is why `IS` operands are whitelisted at the Parsers.hs level
+   Is triVal -> pgFmtField table fld <> " IS " <> case triVal of
+     TriTrue    -> "TRUE"
+     TriFalse   -> "FALSE"
+     TriNull    -> "NULL"
+     TriUnknown -> "UNKNOWN"
 
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
    -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
-   In vals -> pgFmtField table fld <> " " <>
-    case vals of
+   In vals -> pgFmtField table fld <> " " <> case vals of
       [""] -> "= ANY('{}') "
-      -- Here we build the pg array, e.g '{"Hebdon, John","Other","Another"}', manually. We quote the values to prevent the "," being treated as an element separator.
-      -- TODO: Ideally this would be done on Hasql with an encoder, but the "array unknown" is not working(Hasql doesn't pass any value).
-      _    -> "= ANY (" <> unknownLiteral ("{" <> T.intercalate "," ((\x -> "\"" <> x <> "\"") <$> vals) <> "}") <> ")"
+      _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
 
    Fts op lang val ->
      pgFmtFieldOp op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
-   sqlOperator o = H.sql $ HM.lookupDefault "=" o operators
+   sqlOperator o = SQL.sql $ M.lookupDefault "=" o operators
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
-   -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
-   -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
-   -- However that would not accept the TRUE/FALSE/NULL keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
-   isAllowed :: Text -> H.Snippet
-   isAllowed v = H.sql $ maybe
-     (pgFmtLit v <> "::unknown") encodeUtf8
-     (find ((==) . T.toLower $ v) ["null","true","false"])
 
-pgFmtJoinCondition :: JoinCondition -> H.Snippet
+pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
-  H.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
+  SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
-pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> H.Snippet
-pgFmtLogicTree qi (Expr hasNot op forest) = H.sql notOp <> " (" <> intercalateSnippet (" " <> BS.pack (show op) <> " ") (pgFmtLogicTree qi <$> forest) <> ")"
-  where notOp =  if hasNot then "NOT" else mempty
+pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SQL.Snippet
+pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
+  where
+    notOp =  if hasNot then "NOT" else mempty
+
+    opSql And = " AND "
+    opSql Or  = " OR "
 pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
 
-pgFmtJsonPath :: JsonPath -> H.Snippet
+pgFmtJsonPath :: JsonPath -> SQL.Snippet
 pgFmtJsonPath = \case
   []             -> mempty
   (JArrow x:xs)  -> "->" <> pgFmtJsonOperand x <> pgFmtJsonPath xs
@@ -273,7 +291,7 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-countF :: H.Snippet -> Bool -> (H.Snippet, SqlFragment)
+countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SqlFragment)
 countF countQuery shouldCount =
   if shouldCount
     then (
@@ -289,37 +307,31 @@ returningF qi returnings =
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
     else "RETURNING " <> BS.intercalate ", " (pgFmtColumn qi <$> returnings)
 
-limitOffsetF :: NonnegRange -> H.Snippet
+limitOffsetF :: NonnegRange -> SQL.Snippet
 limitOffsetF range =
   if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
 
-responseHeadersF :: PgVersion -> SqlFragment
-responseHeadersF pgVer =
-  if pgVer >= pgVersion96
-    then currentSettingF "response.headers"
-    else "null"
+responseHeadersF :: SqlFragment
+responseHeadersF = currentSettingF "response.headers"
 
-responseStatusF :: PgVersion -> SqlFragment
-responseStatusF pgVer =
-  if pgVer >= pgVersion96
-    then currentSettingF "response.status"
-    else "null"
+responseStatusF :: SqlFragment
+responseStatusF = currentSettingF "response.status"
 
-currentSettingF :: Text -> SqlFragment
+currentSettingF :: SqlFragment -> SqlFragment
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
-  "nullif(current_setting(" <> pgFmtLit setting <> ", true), '')"
+  "nullif(current_setting('" <> setting <> "', true), '')"
 
 -- Hasql Snippet utilities
-unknownEncoder :: ByteString -> H.Snippet
-unknownEncoder = H.encoderAndParam (HE.nonNullable HE.unknown)
+unknownEncoder :: ByteString -> SQL.Snippet
+unknownEncoder = SQL.encoderAndParam (HE.nonNullable HE.unknown)
 
-unknownLiteral :: Text -> H.Snippet
+unknownLiteral :: Text -> SQL.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
 
-intercalateSnippet :: ByteString -> [H.Snippet] -> H.Snippet
+intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
-intercalateSnippet frag snippets = foldr1 (\a b -> a <> H.sql frag <> b) snippets
+intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets

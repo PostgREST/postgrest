@@ -7,7 +7,8 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude hiding (get)
+import Protolude  hiding (get)
+import SpecHelper
 
 -- two helpers functions to make sure that each test can setup and cleanup properly
 
@@ -18,7 +19,8 @@ postItem =
       [json|{"id":0}|]
     `shouldRespondWith`
       ""
-      { matchStatus  = 201 }
+      { matchStatus  = 201
+      , matchHeaders = [matchHeaderAbsent hContentType]  }
 
 -- removes Items left over from POST, PUT, and PATCH
 deleteItems =
@@ -27,7 +29,8 @@ deleteItems =
       ""
     `shouldRespondWith`
       ""
-      { matchStatus  = 204 }
+      { matchStatus  = 204
+      , matchHeaders = [matchHeaderAbsent hContentType] }
 
 preferDefault  = [("Prefer", "return=representation")]
 preferCommit   = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
@@ -52,7 +55,7 @@ shouldRespondToReads reqHeaders respHeaders = do
         ""
       `shouldRespondWith`
         ""
-        { matchHeaders = respHeaders }
+        { matchHeaders = matchContentTypeJson : respHeaders }
 
   it "responds to GET on RPC" $ do
     request methodGet "/rpc/search?id=1"
@@ -69,6 +72,35 @@ shouldRespondToReads reqHeaders respHeaders = do
       `shouldRespondWith`
         [json|[{"id":1}]|]
         { matchHeaders = respHeaders }
+
+shouldRaiseExceptions reqHeaders respHeaders = do
+  it "raises immediate constraints" $ do
+    request methodPost "/rpc/raise_constraint"
+        reqHeaders
+        ""
+      `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":"Key (col)=(1) already exists.",
+          "code":"23505",
+          "message":"duplicate key value violates unique constraint \"deferrable_unique_constraint_col_key\""
+        }|]
+        { matchStatus = 409
+        , matchHeaders = respHeaders }
+
+  it "raises deferred constraints" $ do
+    request methodPost "/rpc/raise_constraint"
+        reqHeaders
+        [json|{"deferred": true}|]
+      `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":"Key (col)=(1) already exists.",
+          "code":"23505",
+          "message":"duplicate key value violates unique constraint \"deferrable_unique_constraint_col_key\""
+        }|]
+        { matchStatus = 409
+        , matchHeaders = respHeaders }
 
 shouldPersistMutations reqHeaders respHeaders = do
   it "does persist post" $ do
@@ -178,28 +210,38 @@ allowed = describe "tx-allow-override = true" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldNotPersistMutations` withoutPreferenceApplied
+    preferDefault `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=commit" $ do
     preferCommit `shouldRespondToReads` withPreferenceCommitApplied
     preferCommit `shouldPersistMutations` withPreferenceCommitApplied
+    -- Exceptions are always without preference applied,
+    -- because they return before the end of the transaction.
+    preferCommit `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=rollback" $ do
     preferRollback `shouldRespondToReads` withPreferenceRollbackApplied
     preferRollback `shouldNotPersistMutations` withPreferenceRollbackApplied
+    -- Exceptions are always without preference applied,
+    -- because they return before the end of the transaction.
+    preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
 
 disallowed :: SpecWith ((), Application)
 disallowed = describe "tx-rollback-all = false, tx-allow-override = false" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldPersistMutations` withoutPreferenceApplied
+    preferDefault `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=commit" $ do
     preferCommit `shouldRespondToReads` withoutPreferenceApplied
     preferCommit `shouldPersistMutations` withoutPreferenceApplied
+    preferCommit `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=rollback" $ do
     preferRollback `shouldRespondToReads` withoutPreferenceApplied
     preferRollback `shouldPersistMutations` withoutPreferenceApplied
+    preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
 
 
 forced :: SpecWith ((), Application)
@@ -207,12 +249,15 @@ forced = describe "tx-rollback-all = true, tx-allow-override = false" $ do
   describe "without Prefer tx" $ do
     preferDefault `shouldRespondToReads` withoutPreferenceApplied
     preferDefault `shouldNotPersistMutations` withoutPreferenceApplied
+    preferDefault `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=commit" $ do
     preferCommit `shouldRespondToReads` withoutPreferenceApplied
     preferCommit `shouldNotPersistMutations` withoutPreferenceApplied
+    preferCommit `shouldRaiseExceptions` withoutPreferenceApplied
 
   describe "Prefer tx=rollback" $ do
     preferRollback `shouldRespondToReads` withoutPreferenceApplied
     preferRollback `shouldNotPersistMutations` withoutPreferenceApplied
+    preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
 
