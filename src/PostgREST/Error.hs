@@ -59,7 +59,7 @@ data ApiRequestError
   | InvalidRange
   | InvalidBody ByteString
   | ParseRequestError Text Text
-  | NoRelBetween Text Text
+  | NoRelBetween Text Text Text
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
   | NoRpc Text Text [Text] Bool ContentType Bool
@@ -75,7 +75,7 @@ instance PgrstError ApiRequestError where
   status UnsupportedVerb         = HTTP.status405
   status ActionInappropriate     = HTTP.status405
   status (ParseRequestError _ _) = HTTP.status400
-  status (NoRelBetween _ _)      = HTTP.status400
+  status NoRelBetween{}          = HTTP.status400
   status AmbiguousRelBetween{}   = HTTP.status300
   status (AmbiguousRpc _)        = HTTP.status300
   status NoRpc{}                 = HTTP.status404
@@ -93,9 +93,9 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= T.decodeUtf8 errorMessage]
   toJSON InvalidRange = JSON.object [
     "message" .= ("HTTP Range error" :: Text)]
-  toJSON (NoRelBetween parent child) = JSON.object [
-    "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text),
-    "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text)]
+  toJSON (NoRelBetween parent child schema) = JSON.object [
+    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text),
+    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),

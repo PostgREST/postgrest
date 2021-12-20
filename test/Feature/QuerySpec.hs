@@ -260,8 +260,8 @@ spec actualPgVersion = do
     it "matches filtering nested items 2" $
       get "/clients?select=id,projects(id,tasks2(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
         [json| {
-          "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-          "message":"Could not find a relationship between projects and tasks2 in the schema cache"}|]
+          "hint":"Verify that 'projects' and 'tasks2' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+          "message":"Could not find a relationship between 'projects' and 'tasks2' in the schema cache"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -489,8 +489,8 @@ spec actualPgVersion = do
           it "cannot request partitions as children from a partitioned table" $
             get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-                 "message":"Could not find a relationship between car_models and car_model_sales_202101 in the schema cache"} |]
+                {"hint":"Verify that 'car_models' and 'car_model_sales_202101' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
@@ -498,8 +498,8 @@ spec actualPgVersion = do
           it "cannot request a partitioned table as parent from a partition" $
             get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-                 "message":"Could not find a relationship between car_model_sales_202101 and car_models in the schema cache"} |]
+                {"hint":"Verify that 'car_model_sales_202101' and 'car_models' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
@@ -507,8 +507,8 @@ spec actualPgVersion = do
           it "cannot request a partition as parent from a partitioned table" $
             get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-                 "message":"Could not find a relationship between car_model_sales and car_models_default in the schema cache"} |]
+                {"hint":"Verify that 'car_model_sales' and 'car_models_default' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
@@ -516,8 +516,8 @@ spec actualPgVersion = do
           it "cannot request partitioned tables as children from a partition" $
             get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-                 "message":"Could not find a relationship between car_models_default and car_model_sales in the schema cache"} |]
+                {"hint":"Verify that 'car_models_default' and 'car_model_sales' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }

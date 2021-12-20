@@ -174,8 +174,8 @@ spec =
         it "fails if the fk is not known" $
           get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
             [json|{
-              "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-              "message":"Could not find a relationship between message and person in the schema cache"}|]
+              "hint":"Verify that 'message' and 'person' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+              "message":"Could not find a relationship between 'message' and 'person' in the schema cache"}|]
             { matchStatus = 400
             , matchHeaders = [matchContentTypeJson] }
 
@@ -425,8 +425,8 @@ spec =
       it "doesn't work if the junction is only internal" $
         get "/end_1?select=end_2(*)" `shouldRespondWith`
           [json|{
-            "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-            "message":"Could not find a relationship between end_1 and end_2 in the schema cache"}|]
+            "hint":"Verify that 'end_1' and 'end_2' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+            "message":"Could not find a relationship between 'end_1' and 'end_2' in the schema cache"}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
       it "shouldn't try to embed if the private junction has an exposed homonym" $
@@ -434,7 +434,7 @@ spec =
         -- Ref: https://github.com/PostgREST/postgrest/issues/1587#issuecomment-734995669
         get "/schauspieler?select=filme(*)" `shouldRespondWith`
           [json|{
-            "hint":"If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-            "message":"Could not find a relationship between schauspieler and filme in the schema cache"}|]
+            "hint":"Verify that 'schauspieler' and 'filme' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+            "message":"Could not find a relationship between 'schauspieler' and 'filme' in the schema cache"}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
