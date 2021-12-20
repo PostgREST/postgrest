@@ -64,7 +64,7 @@ data ApiRequestError
   | InvalidFilters
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
-  | NoRelBetween Text Text
+  | NoRelBetween Text Text Text
   | AmbiguousRelBetween Text Text [Relationship]
   | NoRpc Text Text [Text] Bool ContentType Bool
   | AmbiguousRpc [ProcDescription]
@@ -78,7 +78,7 @@ instance PgrstError ApiRequestError where
   status InvalidFilters          = HTTP.status405
   status (UnacceptableSchema _)  = HTTP.status406
   status (ContentTypeError _)    = HTTP.status415
-  status (NoRelBetween _ _)      = HTTP.status400
+  status NoRelBetween{}          = HTTP.status400
   status AmbiguousRelBetween{}   = HTTP.status300
   status NoRpc{}                 = HTTP.status404
   status (AmbiguousRpc _)        = HTTP.status300
@@ -127,11 +127,11 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON (NoRelBetween parent child) = JSON.object [
+  toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
-    "message" .= ("Could not find a relationship between " <> parent <> " and " <> child <> " in the schema cache" :: Text),
+    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
     "details" .= JSON.Null,
-    "hint"    .= ("If a new foreign key between these entities was created in the database, try reloading the schema cache." :: Text)]
+    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "code"    .= SchemaCacheErrorCode01,
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),

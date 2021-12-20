@@ -153,7 +153,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 findRel :: Schema -> [Relationship] -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rel of
-    []  -> Left $ NoRelBetween origin target
+    []  -> Left $ NoRelBetween origin target schema
     [r] -> Right r
     -- Here we handle a self reference relationship to not cause a breaking
     -- change: In a self reference we get two relationships with the same
