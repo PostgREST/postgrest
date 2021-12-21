@@ -30,9 +30,10 @@ import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as S
-import qualified Hasql.DynamicStatements.Snippet as SQL
+import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Pool                      as SQL
-import qualified Hasql.Transaction               as SQL
+import qualified Hasql.Session                   as SQL (sql)
+import qualified Hasql.Transaction               as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions      as SQL
 import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.HTTP.Types.Status       as HTTP
@@ -116,7 +117,7 @@ run installHandlers maybeRunWithSocket appState = do
 
   whenJust configAdminServerPort $ \adminPort -> do
     AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
-    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) $ adminApp appState
+    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) $ adminApp appState configDbChannelEnabled
 
   case configServerUnixSocket of
     Just socket ->
@@ -142,14 +143,18 @@ serverSettings AppConfig{..} =
     & setPort configServerPort
     & setServerName ("postgrest/" <> prettyVersion)
 
-adminApp :: AppState.AppState -> Wai.Application
-adminApp appState req respond =
+adminApp :: AppState.AppState -> Bool -> Wai.Application
+adminApp appState configDbChannelEnabled req respond  =
   case Wai.pathInfo req of
-    [] -> do
-      listenerOn <- AppState.getIsListenerOn appState
-      if listenerOn
-        then respond $ Wai.responseLBS HTTP.status200 [] mempty
-        else respond $ Wai.responseLBS HTTP.status503 [] mempty
+    [] ->
+      if configDbChannelEnabled then do
+        listenerOn <- AppState.getIsListenerOn appState
+        respond $ Wai.responseLBS (if listenerOn then HTTP.status200 else HTTP.status503) [] mempty
+      else do
+        result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
+        case result of
+          Right _ -> respond $ Wai.responseLBS HTTP.status200 [] mempty
+          Left _  -> respond $ Wai.responseLBS HTTP.status503 [] mempty
     _ -> respond $ Wai.responseLBS HTTP.status404 [] mempty
 
 -- | PostgREST application
