@@ -55,7 +55,7 @@ data AppState = AppState
   , stateIsWorkerOn   :: IORef Bool
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
   , stateListener     :: MVar ()
-  -- | PENDING
+  -- | State of the LISTEN channel, used for health checks
   , stateIsListenerOn :: IORef Bool
   -- | Config that can change at runtime
   , stateConf         :: IORef AppConfig

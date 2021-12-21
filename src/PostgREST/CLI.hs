@@ -199,6 +199,9 @@ exampleConfigFile =
       |## when none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |
+      |## admin server for health checks, it's disabled by default unless a port is specified
+      |# admin-server-port = 3001
+      |
       |## determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely
       |## admitted values: follow-privileges, ignore-privileges, disabled
       |openapi-mode = "follow-privileges"
