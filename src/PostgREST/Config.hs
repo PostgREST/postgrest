@@ -148,7 +148,7 @@ toText conf =
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
-      ,("admin-server-port",             show . configAdminServerPort)
+      ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ]
 
     -- quote all app.settings
