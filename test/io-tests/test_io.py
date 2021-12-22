@@ -729,3 +729,44 @@ def test_db_prepared_statements_disable(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/uses_prepared_statements")
         assert response.text == "false"
+
+
+def test_admin_healthy_w_channel(defaultenv):
+    "Should get a success response from the admin server health endpoint when the LISTEN channel is enabled"
+
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_PORT": "3001",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health")
+        assert response.status_code == 200
+
+
+def test_admin_healthy_wo_channel(defaultenv):
+    "Should get a success response from the admin server health endpoint when the LISTEN channel is disabled"
+
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_PORT": "3001",
+        "PGRST_DB_CHANNEL_ENABLED": "false",
+    }
+
+    with run(env=env) as postgrest:
+        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health")
+        assert response.status_code == 200
+
+
+def test_admin_not_found(defaultenv):
+    "Should get a not found from the admin server"
+
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_PORT": "3001",
+    }
+
+    with run(env=env) as postgrest:
+        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/notfound")
+        assert response.status_code == 404

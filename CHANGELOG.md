@@ -7,6 +7,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+ - #1933, Add a minimal health check endpoint on an admin port at the `<host>:<admin_server_port>/health` endpoint - @steve-chavez
+   + For enabling this, the `admin-server-port` config must be set explictly
+
 ### Fixed
 
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
