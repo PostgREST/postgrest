@@ -114,10 +114,11 @@ run installHandlers maybeRunWithSocket appState = do
   when configDbChannelEnabled $ listener appState
 
   let app = postgrest configLogLevel appState (connectionWorker appState)
+      adminApp = postgrestAdmin appState configDbChannelEnabled
 
   whenJust configAdminServerPort $ \adminPort -> do
     AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
-    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) $ adminApp appState configDbChannelEnabled
+    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) adminApp
 
   case configServerUnixSocket of
     Just socket ->
@@ -143,18 +144,17 @@ serverSettings AppConfig{..} =
     & setPort configServerPort
     & setServerName ("postgrest/" <> prettyVersion)
 
-adminApp :: AppState.AppState -> Bool -> Wai.Application
-adminApp appState configDbChannelEnabled req respond  =
+-- | PostgREST admin application
+postgrestAdmin :: AppState.AppState -> Bool -> Wai.Application
+postgrestAdmin appState configDbChannelEnabled req respond  =
   case Wai.pathInfo req of
-    [] ->
+    ["health"] ->
       if configDbChannelEnabled then do
         listenerOn <- AppState.getIsListenerOn appState
         respond $ Wai.responseLBS (if listenerOn then HTTP.status200 else HTTP.status503) [] mempty
       else do
         result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
-        case result of
-          Right _ -> respond $ Wai.responseLBS HTTP.status200 [] mempty
-          Left _  -> respond $ Wai.responseLBS HTTP.status503 [] mempty
+        respond $ Wai.responseLBS (if isRight result then HTTP.status200 else HTTP.status503) [] mempty
     _ -> respond $ Wai.responseLBS HTTP.status404 [] mempty
 
 -- | PostgREST application
