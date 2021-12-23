@@ -30,9 +30,10 @@ import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as S
-import qualified Hasql.DynamicStatements.Snippet as SQL
+import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Pool                      as SQL
-import qualified Hasql.Transaction               as SQL
+import qualified Hasql.Session                   as SQL (sql)
+import qualified Hasql.Transaction               as SQL hiding (sql)
 import qualified Hasql.Transaction.Sessions      as SQL
 import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.HTTP.Types.Status       as HTTP
@@ -113,6 +114,11 @@ run installHandlers maybeRunWithSocket appState = do
   when configDbChannelEnabled $ listener appState
 
   let app = postgrest configLogLevel appState (connectionWorker appState)
+      adminApp = postgrestAdmin appState configDbChannelEnabled
+
+  whenJust configAdminServerPort $ \adminPort -> do
+    AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
+    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) adminApp
 
   case configServerUnixSocket of
     Just socket ->
@@ -127,6 +133,9 @@ run installHandlers maybeRunWithSocket appState = do
       do
         AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
         Warp.runSettings (serverSettings conf) app
+  where
+    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
+    whenJust mg f = maybe (pure ()) f mg
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
@@ -134,6 +143,19 @@ serverSettings AppConfig{..} =
     & setHost (fromString $ toS configServerHost)
     & setPort configServerPort
     & setServerName ("postgrest/" <> prettyVersion)
+
+-- | PostgREST admin application
+postgrestAdmin :: AppState.AppState -> Bool -> Wai.Application
+postgrestAdmin appState configDbChannelEnabled req respond  =
+  case Wai.pathInfo req of
+    ["health"] ->
+      if configDbChannelEnabled then do
+        listenerOn <- AppState.getIsListenerOn appState
+        respond $ Wai.responseLBS (if listenerOn then HTTP.status200 else HTTP.status503) [] mempty
+      else do
+        result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
+        respond $ Wai.responseLBS (if isRight result then HTTP.status200 else HTTP.status503) [] mempty
+    _ -> respond $ Wai.responseLBS HTTP.status404 [] mempty
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application

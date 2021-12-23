@@ -106,6 +106,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerUnixSocketMode  = 432
   , configDbTxAllowOverride     = True
   , configDbTxRollbackAll       = True
+  , configAdminServerPort       = Nothing
   }
 
 testCfg :: Text -> AppConfig

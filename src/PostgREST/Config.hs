@@ -93,6 +93,7 @@ data AppConfig = AppConfig
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
   , configServerUnixSocketMode  :: FileMode
+  , configAdminServerPort       :: Maybe Int
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
@@ -147,6 +148,7 @@ toText conf =
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
+      ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ]
 
     -- quote all app.settings
@@ -242,6 +244,7 @@ parser optPath env dbSettings =
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
+    <*> optInt "admin-server-port"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value

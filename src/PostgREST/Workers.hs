@@ -200,6 +200,7 @@ listener appState = do
     case dbOrError of
       Right db -> do
         AppState.logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
+        AppState.putIsListenerOn appState True
         SQL.listen db $ SQL.toPgIdentifier dbChannel
         SQL.waitForNotifications handleNotification db
       _ ->
@@ -208,6 +209,7 @@ listener appState = do
     handleFinally dbChannel _ = do
       -- if the thread dies, we try to recover
       AppState.logWithZTime appState $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
+      AppState.putIsListenerOn appState False
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
       -- retry the listener
