@@ -792,8 +792,8 @@ pfkSourceColumns cols =
             replace(
             replace(
             replace(
-            replace(
             regexp_replace(
+            replace(
             replace(
             replace(
             replace(
@@ -814,9 +814,15 @@ pfkSourceColumns cols =
             -- -----------------------------------------------
             -- pattern           | replacement         | flags
             -- -----------------------------------------------
+            -- `<>` in pg_node_tree is the same as `null` in JSON, but due to very poor performance of json_typeof
+            -- we need to make this an empty array here to prevent json_array_elements from throwing an error
+            -- when the targetList is null.
+            -- We'll need to put it first, to make the node protection below work for node lists that start with
+            -- null: `(<> ...`, too. This is the case for coldefexprs, when the first column does not have a default value.
+               '<>'              , '()'
             -- `,` is not part of the pg_node_tree format, but used in the regex.
             -- This removes all `,` that might be part of column names.
-               ','               , ''
+            ), ','               , ''
             -- The same applies for `{` and `}`, although those are used a lot in pg_node_tree.
             -- We remove the escaped ones, which might be part of column names again.
             ), E'\\{'            , ''
@@ -851,10 +857,6 @@ pfkSourceColumns cols =
             ), ')'               , ']'
             -- pg_node_tree has ` ` between list items, but JSON uses `,`
             ), ' '             , ','
-            -- `<>` in pg_node_tree is the same as `null` in JSON, but due to very poor performance of json_typeof
-            -- we need to make this an empty array here to prevent json_array_elements from throwing an error
-            -- when the targetList is null.
-            ), '<>'              , '[]'
           )::json as view_definition
         from views
       ),

@@ -741,7 +741,9 @@ def test_admin_healthy_w_channel(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health")
+        response = requests.get(
+            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health"
+        )
         assert response.status_code == 200
 
 
@@ -755,7 +757,9 @@ def test_admin_healthy_wo_channel(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health")
+        response = requests.get(
+            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health"
+        )
         assert response.status_code == 200
 
 
@@ -768,5 +772,7 @@ def test_admin_not_found(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = requests.get(f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/notfound")
+        response = requests.get(
+            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/notfound"
+        )
         assert response.status_code == 404

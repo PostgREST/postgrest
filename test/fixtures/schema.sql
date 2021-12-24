@@ -2462,3 +2462,21 @@ BEGIN
 
   INSERT INTO deferrable_unique_constraint VALUES (1), (1);
 END$$;
+
+-- This view is not used in any requests but just parsed by the pfkSourceColumns query.
+-- XMLTABLE is only supported from PG 10 on
+DO $do$
+BEGIN
+  IF current_setting('server_version_num')::INT >= 100000 THEN
+    CREATE VIEW test.xml AS
+    SELECT *
+      FROM (SELECT ''::xml AS data) _,
+           XMLTABLE(
+             ''
+             PASSING data
+             COLUMNS id int PATH '@id',
+                     premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified'
+           );
+  END IF;
+END
+$do$;
