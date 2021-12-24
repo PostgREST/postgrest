@@ -440,8 +440,8 @@ For example, you can configure :ref:`db-schema` and :ref:`jwt-secret` like this:
 
 .. code:: postgresql
 
-   ALTER ROLE authenticator SET pgrst.db_schema = "tenant1, tenant2, tenant3"
-   ALTER ROLE authenticator SET pgrst.jwt_secret = "REALLYREALLYREALLYREALLYVERYSAFE"
+   ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.db_schema = "tenant1, tenant2, tenant3"
+   ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.jwt_secret = "REALLYREALLYREALLYREALLYVERYSAFE"
 
 Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config options.
 
