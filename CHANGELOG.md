@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
  - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
  - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
+ - #2024, Fix schema cache loading when views with XMLTABLE and DEFAULT are present - @wolfgangwalther
 
 ## [9.0.0] - 2021-11-25
 
