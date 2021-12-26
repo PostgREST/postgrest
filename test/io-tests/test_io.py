@@ -69,7 +69,8 @@ class PostgrestSession(requests_unixsocket.Session):
 
 @dataclasses.dataclass
 class PostgrestProcess:
-    "Running PostgREST process and its corresponding endpoint."
+    "Running PostgREST process and its corresponding main and admin endpoints."
+    admin: object
     process: object
     session: object
 
@@ -135,7 +136,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None):
+def run(configpath=None, stdin=None, env=None, port=None, adminport=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
 
@@ -148,6 +149,12 @@ def run(configpath=None, stdin=None, env=None, port=None):
             socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
+
+        if adminport:
+            env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
+            adminurl = f"http://localhost:{adminport}"
+        else:
+            adminurl = None
 
         command = [POSTGREST_BIN]
         env["HPCTIXFILE"] = hpctixfile()
@@ -165,7 +172,11 @@ def run(configpath=None, stdin=None, env=None, port=None):
 
             wait_until_ready(baseurl)
 
-            yield PostgrestProcess(process=process, session=PostgrestSession(baseurl))
+            yield PostgrestProcess(
+                process=process,
+                session=PostgrestSession(baseurl),
+                admin=PostgrestSession(adminurl) if adminurl else None,
+            )
         finally:
             process.terminate()
             try:
@@ -736,14 +747,11 @@ def test_admin_healthy_w_channel(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_ADMIN_SERVER_PORT": "3001",
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
-    with run(env=env) as postgrest:
-        response = requests.get(
-            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health"
-        )
+    with run(env=env, adminport=freeport()) as postgrest:
+        response = postgrest.admin.get("/health")
         assert response.status_code == 200
 
 
@@ -752,27 +760,17 @@ def test_admin_healthy_wo_channel(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_ADMIN_SERVER_PORT": "3001",
         "PGRST_DB_CHANNEL_ENABLED": "false",
     }
 
-    with run(env=env) as postgrest:
-        response = requests.get(
-            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health"
-        )
+    with run(env=env, adminport=freeport()) as postgrest:
+        response = postgrest.admin.get("/health")
         assert response.status_code == 200
 
 
 def test_admin_not_found(defaultenv):
     "Should get a not found from the admin server"
 
-    env = {
-        **defaultenv,
-        "PGRST_ADMIN_SERVER_PORT": "3001",
-    }
-
-    with run(env=env) as postgrest:
-        response = requests.get(
-            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/notfound"
-        )
+    with run(env=defaultenv, adminport=freeport()) as postgrest:
+        response = postgrest.admin.get("/notfound")
         assert response.status_code == 404
