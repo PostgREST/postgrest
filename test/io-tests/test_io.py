@@ -7,6 +7,7 @@ from itertools import repeat
 from operator import attrgetter
 import os
 import pathlib
+import re
 import shutil
 import signal
 import socket
@@ -728,3 +729,46 @@ def test_db_prepared_statements_disable(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/uses_prepared_statements")
         assert response.text == "false"
+
+
+@pytest.mark.parametrize(
+    "level, has_output",
+    [
+        ("info", [True, True, True]),
+        ("warn", [False, True, True]),
+        ("error", [False, False, True]),
+        ("crit", [False, False, False]),
+    ],
+)
+def test_log_level(level, has_output, defaultenv):
+    "log_level should filter request logging"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": level
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/")
+        assert response.status_code == 200
+        if has_output[0]:
+            assert re.match(
+                r'unknownSocket - - \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                postgrest.process.stdout.readline().decode(),
+            )
+
+        response = postgrest.session.get("/unknown")
+        assert response.status_code == 404
+        if has_output[1]:
+            assert re.match(
+                r'unknownSocket - - \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                postgrest.process.stdout.readline().decode(),
+            )
+
+        response = postgrest.session.get("/rpc/raise_bad_pt")
+        assert response.status_code == 500
+        if has_output[2]:
+            assert re.match(
+                r'unknownSocket - - \[.+\] "GET /rpc/raise_bad_pt HTTP/1.1" 500 - "" "python-requests/.+"',
+                postgrest.process.stdout.readline().decode(),
+            )
