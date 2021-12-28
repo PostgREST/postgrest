@@ -108,9 +108,8 @@ putPgVersion = atomicWriteIORef . statePgVersion
 getDbStructure :: AppState -> IO (Maybe DbStructure)
 getDbStructure = readIORef . stateDbStructure
 
-putDbStructure :: AppState -> DbStructure -> IO ()
-putDbStructure appState structure =
-  atomicWriteIORef (stateDbStructure appState) $ Just structure
+putDbStructure :: AppState -> Maybe DbStructure -> IO ()
+putDbStructure appState = atomicWriteIORef (stateDbStructure appState)
 
 getJsonDbS :: AppState -> IO ByteString
 getJsonDbS = readIORef . stateJsonDbS

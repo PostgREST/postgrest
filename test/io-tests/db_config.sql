@@ -53,3 +53,11 @@ ALTER ROLE other_authenticator SET pgrst.db_pre_request = 'test.other_custom_hea
 ALTER ROLE other_authenticator SET pgrst.db_max_rows = '100';
 ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensions, other';
 ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';
+
+-- limited authenticator used for failed schema cache loads
+CREATE ROLE limited_authenticator LOGIN NOINHERIT;
+
+create or replace function no_schema_cache_for_limited_authenticator() returns void as $_$
+begin
+  ALTER ROLE limited_authenticator SET statement_timeout to 1;
+end $_$ volatile security definer language plpgsql ;

@@ -21,16 +21,16 @@ import Protolude
 -- | PostgREST admin application
 postgrestAdmin :: AppState.AppState -> AppConfig -> Wai.Application
 postgrestAdmin appState appConfig req respond  = do
-  isMainAppReachable <- isRight <$> reachMainApp appConfig
+  isMainAppReachable  <- isRight <$> reachMainApp appConfig
+  isSchemaCacheLoaded <- isJust <$> AppState.getDbStructure appState
+  isConnectionUp      <-
+    if configDbChannelEnabled appConfig
+      then AppState.getIsListenerOn appState
+      else isRight <$> SQL.use (AppState.getPool appState) (SQL.sql "SELECT 1")
 
   case Wai.pathInfo req of
     ["ready"] ->
-      if configDbChannelEnabled appConfig then do
-        listenerOn <- AppState.getIsListenerOn appState
-        respond $ Wai.responseLBS (if listenerOn && isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
-      else do
-        result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
-        respond $ Wai.responseLBS (if isRight result && isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+      respond $ Wai.responseLBS (if isMainAppReachable && isConnectionUp && isSchemaCacheLoaded then HTTP.status200 else HTTP.status503) [] mempty
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
     _ ->

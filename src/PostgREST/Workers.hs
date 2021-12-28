@@ -91,6 +91,7 @@ connectionWorker appState = do
               -- do nothing and proceed if the load was successful
               return ()
             SCOnRetry ->
+              -- retry reloading the schema cache
               work
             SCFatalFail ->
               -- die if our schema cache query has an error
@@ -169,12 +170,13 @@ loadSchemaCache appState = do
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
+          AppState.putDbStructure appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
           putErr
           return SCOnRetry
 
     Right dbStructure -> do
-      AppState.putDbStructure appState dbStructure
+      AppState.putDbStructure appState (Just dbStructure)
       when (isJust configDbRootSpec) .
         AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode dbStructure
       AppState.logWithZTime appState "Schema cache loaded"
@@ -247,7 +249,7 @@ reReadConfig startingUp appState = do
               AppState.logWithZTime appState hint
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
-              AppState.logWithZTime appState $ show e
+              putErr
           pure []
         Right x -> pure x
     else
@@ -257,10 +259,10 @@ reReadConfig startingUp appState = do
       if startingUp then
         panic err -- die on invalid config if the program is starting up
       else
-        AppState.logWithZTime appState $ "Failed re-loading config: " <> err
+        AppState.logWithZTime appState $ "Failed reloading config: " <> err
     Right newConf -> do
       AppState.putConfig appState newConf
       if startingUp then
         pass
       else
-        AppState.logWithZTime appState "Config re-loaded"
+        AppState.logWithZTime appState "Config reloaded"
