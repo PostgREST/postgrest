@@ -76,7 +76,7 @@ main = do
       let config = cfg testDbConn
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
-      AppState.putDbStructure appState baseDbStructure
+      AppState.putDbStructure appState (Just baseDbStructure)
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())
@@ -91,7 +91,7 @@ main = do
           actualPgVersion
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
-      AppState.putDbStructure appState customDbStructure
+      AppState.putDbStructure appState (Just customDbStructure)
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
       return ((), postgrest LogCrit appState $ pure ())

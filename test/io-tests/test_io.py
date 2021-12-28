@@ -768,6 +768,32 @@ def test_admin_ready_wo_channel(defaultenv):
         assert response.status_code == 200
 
 
+def test_admin_ready_includes_schema_cache_state(defaultenv):
+    "Should get a failed response from the admin server ready endpoint when the schema cache is not loaded"
+
+    db_uri = defaultenv["PGRST_DB_URI"].replace(
+        "postgrest_test_authenticator", "limited_authenticator"
+    )
+    env = {
+        **defaultenv,
+        "PGRST_DB_URI": db_uri,
+        "PGRST_DB_ANON_ROLE": "limited_authenticator",
+    }
+
+    with run(env=env, adminport=freeport()) as postgrest:
+
+        # make it impossible to load the schema cache
+        response = postgrest.session.post(
+            "/rpc/no_schema_cache_for_limited_authenticator"
+        )
+        assert response.status_code == 200
+        # force a reconnection so the new role setting is picked up
+        postgrest.process.send_signal(signal.SIGUSR1)
+        time.sleep(0.1)
+        response = postgrest.admin.get("/ready")
+        assert response.status_code == 503
+
+
 def test_admin_not_found(defaultenv):
     "Should get a not found from a undefined endpoint on the admin server"
 
