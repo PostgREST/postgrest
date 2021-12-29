@@ -191,7 +191,7 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       Just dbStructure ->
         return dbStructure
       Nothing ->
-        throwError Error.ConnectionLostError
+        throwError Error.NoSchemaCacheError
 
   apiRequest@ApiRequest{..} <-
     liftEither . mapLeft Error.ApiRequestError $

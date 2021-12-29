@@ -280,7 +280,7 @@ data Error
   = GucHeadersError
   | GucStatusError
   | BinaryFieldError ContentType
-  | ConnectionLostError
+  | NoSchemaCacheError
   | PutMatchingPkError
   | PutRangeNotAllowedError
   | JwtTokenMissing
@@ -294,7 +294,7 @@ instance PgrstError Error where
   status GucHeadersError         = HTTP.status500
   status GucStatusError          = HTTP.status500
   status (BinaryFieldError _)    = HTTP.status406
-  status ConnectionLostError     = HTTP.status503
+  status NoSchemaCacheError      = HTTP.status503
   status PutMatchingPkError      = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
   status JwtTokenMissing         = HTTP.status500
@@ -317,8 +317,8 @@ instance JSON.ToJSON Error where
     "message" .= ("response.status guc must be a valid status code" :: Text)]
   toJSON (BinaryFieldError ct)          = JSON.object [
     "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text)]
-  toJSON ConnectionLostError       = JSON.object [
-    "message" .= ("Database connection lost. Retrying the connection." :: Text)]
+  toJSON NoSchemaCacheError       = JSON.object [
+    "message" .= ("Could not query the database for the schema cache. Retrying." :: Text)]
 
   toJSON PutRangeNotAllowedError   = JSON.object [
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text)]
