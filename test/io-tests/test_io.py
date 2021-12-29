@@ -787,10 +787,15 @@ def test_admin_ready_includes_schema_cache_state(defaultenv):
             "/rpc/no_schema_cache_for_limited_authenticator"
         )
         assert response.status_code == 200
+
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
         time.sleep(0.1)
+
         response = postgrest.admin.get("/ready")
+        assert response.status_code == 503
+
+        response = postgrest.session.get("/projects")
         assert response.status_code == 503
 
 
