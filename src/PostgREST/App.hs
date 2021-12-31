@@ -32,8 +32,7 @@ import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Pool                      as SQL
-import qualified Hasql.Session                   as SQL (sql)
-import qualified Hasql.Transaction               as SQL hiding (sql)
+import qualified Hasql.Transaction               as SQL
 import qualified Hasql.Transaction.Sessions      as SQL
 import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.HTTP.Types.Status       as HTTP
@@ -41,6 +40,7 @@ import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Handler.Warp        as Warp
 
+import qualified PostgREST.Admin                    as Admin
 import qualified PostgREST.AppState                 as AppState
 import qualified PostgREST.Auth                     as Auth
 import qualified PostgREST.DbStructure              as DbStructure
@@ -88,7 +88,6 @@ import qualified PostgREST.DbStructure.Proc as Proc
 
 import Protolude hiding (Handler)
 
-
 data RequestContext = RequestContext
   { ctxConfig      :: AppConfig
   , ctxDbStructure :: DbStructure
@@ -114,7 +113,7 @@ run installHandlers maybeRunWithSocket appState = do
   when configDbChannelEnabled $ listener appState
 
   let app = postgrest configLogLevel appState (connectionWorker appState)
-      adminApp = postgrestAdmin appState configDbChannelEnabled
+      adminApp = Admin.postgrestAdmin appState conf
 
   whenJust configAdminServerPort $ \adminPort -> do
     AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
@@ -143,19 +142,6 @@ serverSettings AppConfig{..} =
     & setHost (fromString $ toS configServerHost)
     & setPort configServerPort
     & setServerName ("postgrest/" <> prettyVersion)
-
--- | PostgREST admin application
-postgrestAdmin :: AppState.AppState -> Bool -> Wai.Application
-postgrestAdmin appState configDbChannelEnabled req respond  =
-  case Wai.pathInfo req of
-    ["health"] ->
-      if configDbChannelEnabled then do
-        listenerOn <- AppState.getIsListenerOn appState
-        respond $ Wai.responseLBS (if listenerOn then HTTP.status200 else HTTP.status503) [] mempty
-      else do
-        result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
-        respond $ Wai.responseLBS (if isRight result then HTTP.status200 else HTTP.status503) [] mempty
-    _ -> respond $ Wai.responseLBS HTTP.status404 [] mempty
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
