@@ -35,6 +35,7 @@ library
                       NoImplicitPrelude
   hs-source-dirs:     src
   exposed-modules:    PostgREST.App
+                      PostgREST.Admin
                       PostgREST.AppState
                       PostgREST.Auth
                       PostgREST.CLI
