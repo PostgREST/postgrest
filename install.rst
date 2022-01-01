@@ -259,7 +259,7 @@ Assuming you're making modifications locally and then pushing to GitHub, it's ea
 
 1. Create a new app on Heroku
 2. In Settings add the following buildpack :code:`https://github.com/PostgREST/postgrest-heroku`
-3. Add the require Config Vars in Heroku (see https://github.com/PostgREST/postgrest/blob/main/app.json for more details)
+3. Add the require Config Vars in Heroku
 4. Modify your ``postgrest.conf`` file as required to match your Config Vars in Heroku
 5. Create your :code:`Procfile` and add :code:`./env-to-config ./postgrest postgrest.conf`
 6. Push your changes to GitHub
