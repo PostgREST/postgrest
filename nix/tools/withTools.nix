@@ -36,7 +36,7 @@ let
       ''
         # avoid starting multiple layers of withTmpDb
         if test -v PGRST_DB_URI; then
-          exec "$@"
+          exec "$_arg_command" "''${_arg_leftovers[@]}"
         fi
 
         setuplog="$tmpdir/setup.log"
