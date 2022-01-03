@@ -138,6 +138,8 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 def run(configpath=None, stdin=None, env=None, port=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
+    env["PGRST_DB_POOL"] = "1"
+    env["PGRST_DB_POOL_TIMEOUT"] = "1"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         if port:
@@ -454,7 +456,7 @@ def test_iat_claim(defaultenv):
             response = postgrest.session.get("/authors_only", headers=headers)
             assert response.status_code == 200
 
-            time.sleep(0.5)
+            time.sleep(0.1)
 
 
 def test_app_settings(defaultenv):
@@ -610,7 +612,7 @@ def test_db_schema_notify_reload(defaultenv):
             "/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"}
         )
 
-        time.sleep(0.5)
+        time.sleep(0.1)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"v1, public"'
