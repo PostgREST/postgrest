@@ -92,8 +92,8 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTools.withPg} \
-          ${ioTestPython}/bin/pytest -- -v test/io-tests "''${_arg_leftovers[@]}"
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io-tests/fixtures.sql \
+          ${ioTestPython}/bin/pytest -v test/io-tests "''${_arg_leftovers[@]}"
       '';
 
   dumpSchema =
@@ -137,8 +137,8 @@ let
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
-          ${withTools.withPg} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
-          ${ioTestPython}/bin/pytest -- -v test/io-tests
+          ${withTools.withPg} -f test/io-tests/fixtures.sql ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- \
+          ${ioTestPython}/bin/pytest -v test/io-tests
           
         HPCTIXFILE="$tmpdir"/spec.tix \
           ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
