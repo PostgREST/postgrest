@@ -47,6 +47,7 @@ let
       ''
         # previously required settings to make this work with older branches
         export PGRST_DB_URI="postgresql://"
+        export PGRST_DB_SCHEMAS="test"
 
         export PGRST_DB_CONFIG="false"
         export PGRST_DB_POOL="1"

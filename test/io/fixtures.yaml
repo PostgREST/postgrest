@@ -27,11 +27,6 @@ cli:
   - name: missing db-anon-role
     expect: error
     env:
-      PGRST_DB_SCHEMAS: required
-  - name: missing db-schemas
-    expect: error
-    env:
-      PGRST_DB_ANON_ROLE: required
 # failures: wrong config values
   - name: invalid server-unix-socket-mode not octal
     expect: error

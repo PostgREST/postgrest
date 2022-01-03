@@ -220,9 +220,8 @@ parser optPath env dbSettings =
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
     <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
                                     (optString "root-spec"))
-    <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
-                                                   (optValue "db-schema")
-                                                   "missing key: either db-schemas or db-schema must be set")
+    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optValue "db-schemas")
+                                                                    (optValue "db-schema"))
     <*> (fromMaybe True <$> optBool "db-config")
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
@@ -316,15 +315,6 @@ parser optPath env dbSettings =
       optWithAlias (optString k) (optString al) >>= \case
         Nothing  -> pure [JSPKey "role"]
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
-
-    reqWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> [Char] -> C.Parser C.Config a
-    reqWithAlias orig alias err =
-      orig >>= \case
-        Just v  -> pure v
-        Nothing ->
-          alias >>= \case
-            Just v  -> pure v
-            Nothing -> fail err
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =

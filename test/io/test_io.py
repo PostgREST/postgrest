@@ -92,7 +92,6 @@ def defaultenv():
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
         "PGUSER": os.environ["PGUSER"],
-        "PGRST_DB_SCHEMAS": "public",
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
         "PGRST_DB_CONFIG": "false",
         "PGRST_LOG_LEVEL": "info",
@@ -641,9 +640,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_SCHEMAS"}
-
-    with run(configfile, env=env) as postgrest:
+    with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"public, public"'
 
