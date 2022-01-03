@@ -35,7 +35,7 @@ let
       }
       ''
         # avoid starting multiple layers of withTmpDb
-        if test -v PGRST_DB_URI; then
+        if test -v PGHOST; then
           exec "$_arg_command" "''${_arg_leftovers[@]}"
         fi
 
@@ -53,7 +53,6 @@ let
         export PGHOST="$tmpdir/socket"
         export PGUSER
         export PGDATABASE
-        export PGRST_DB_URI="postgresql:///$PGDATABASE?host=$PGHOST&user=$PGUSER"
         export PGRST_DB_SCHEMAS
         export PGRST_DB_ANON_ROLE
 

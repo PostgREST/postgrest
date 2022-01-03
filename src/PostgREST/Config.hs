@@ -226,7 +226,7 @@ parser optPath env dbSettings =
     <*> (fromMaybe True <$> optBool "db-config")
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
-    <*> reqString "db-uri"
+    <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing

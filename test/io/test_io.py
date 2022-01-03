@@ -79,14 +79,19 @@ class PostgrestProcess:
 @pytest.fixture
 def dburi():
     "Postgres database connection URI."
-    return os.getenv("PGRST_DB_URI").encode()
+    dbname = os.environ["PGDATABASE"]
+    host = os.environ["PGHOST"]
+    user = os.environ["PGUSER"]
+    return f"postgresql://?dbname={dbname}&host={host}&user={user}".encode()
 
 
 @pytest.fixture
 def defaultenv():
     "Default environment for PostgREST."
     return {
-        "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
+        "PGDATABASE": os.environ["PGDATABASE"],
+        "PGHOST": os.environ["PGHOST"],
+        "PGUSER": os.environ["PGUSER"],
         "PGRST_DB_SCHEMAS": "public",
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
         "PGRST_DB_CONFIG": "false",
@@ -309,20 +314,14 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
 
     config = CONFIGSDIR / "no-defaults.config"
 
-    db_uri = defaultenv["PGRST_DB_URI"].replace(
-        "user=postgrest_test_authenticator", f"user={role}"
-    )
     env = {
         **defaultenv,
-        "PGRST_DB_URI": db_uri,
+        "PGUSER": role,
+        "PGRST_DB_URI": "postgresql://",
         "PGRST_DB_CONFIG": "true",
     }
-    expected = (
-        (CONFIGSDIR / "expected" / expectedconfig)
-        .read_text()
-        .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
-    )
 
+    expected = (CONFIGSDIR / "expected" / expectedconfig).read_text()
     assert dumpconfig(configpath=config, env=env) == expected
 
 
@@ -418,9 +417,26 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         assert response.status_code == 200
 
 
+def test_connect_with_dburi(dburi, defaultenv):
+    "Connecting with db-uri instead of LIPQ* environment variables should work."
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()}
+    with run(env=env):
+        pass
+
+
 def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
     "Reading the dburi from stdin with a single line should work."
-    env = {**defaultenv, "PGRST_DB_URI": "@/dev/stdin"}
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
 
     with run(env=env, stdin=dburi):
         pass
@@ -428,7 +444,12 @@ def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
 
 def test_read_dburi_from_stdin_with_eol(dburi, defaultenv):
     "Reading the dburi from stdin containing a newline should work."
-    env = {**defaultenv, "PGRST_DB_URI": "@/dev/stdin"}
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
 
     with run(env=env, stdin=dburi + b"\n"):
         pass
@@ -802,12 +823,9 @@ def test_admin_ready_wo_channel(defaultenv):
 def test_admin_ready_includes_schema_cache_state(defaultenv):
     "Should get a failed response from the admin server ready endpoint when the schema cache is not loaded"
 
-    db_uri = defaultenv["PGRST_DB_URI"].replace(
-        "postgrest_test_authenticator", "limited_authenticator"
-    )
     env = {
         **defaultenv,
-        "PGRST_DB_URI": db_uri,
+        "PGUSER": "limited_authenticator",
         "PGRST_DB_ANON_ROLE": "limited_authenticator",
     }
 

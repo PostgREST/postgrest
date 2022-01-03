@@ -58,22 +58,19 @@ import qualified Feature.UpsertSpec
 
 main :: IO ()
 main = do
-  testDbConn <- getEnvVarWithDefault "PGRST_DB_URI" "postgres://postgrest_test@localhost/postgrest_test"
-
-  pool <- P.acquire (3, 10, toS testDbConn)
+  pool <- P.acquire (3, 10, toUtf8 $ configDbUri testCfg)
 
   actualPgVersion <- either (panic.show) id <$> P.use pool queryPgVersion
 
   baseDbStructure <-
     loadDbStructure pool
-      (configDbSchemas $ testCfg testDbConn)
-      (configDbExtraSearchPath $ testCfg testDbConn)
+      (configDbSchemas testCfg)
+      (configDbExtraSearchPath testCfg)
       actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
-    app cfg = do
-      let config = cfg testDbConn
+    app config = do
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState (Just baseDbStructure)
@@ -82,8 +79,7 @@ main = do
       return ((), postgrest LogCrit appState $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
-    appDbs cfg = do
-      let config = cfg testDbConn
+    appDbs config = do
       customDbStructure <-
         loadDbStructure pool
           (configDbSchemas config)
@@ -120,8 +116,8 @@ main = do
 
   let analyze :: IO ()
       analyze = do
-        analyzeTable testDbConn "items"
-        analyzeTable testDbConn "child_entities"
+        analyzeTable "items"
+        analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
           ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)

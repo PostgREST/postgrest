@@ -11,8 +11,7 @@ import qualified Hasql.Transaction                 as HT
 import qualified Hasql.Transaction.Sessions        as HT
 import           Text.Heredoc
 
-import Protolude      hiding (get, toS)
-import Protolude.Conv (toS)
+import Protolude hiding (get, toS)
 
 import PostgREST.Query.QueryBuilder (requestToCallProcQuery)
 import PostgREST.Request.Types
@@ -20,14 +19,11 @@ import PostgREST.Request.Types
 import PostgREST.DbStructure.Identifiers
 import PostgREST.DbStructure.Proc
 
-import SpecHelper (getEnvVarWithDefault)
-
 import Test.Hspec
 
 main :: IO ()
 main = do
-  testDbConn <- getEnvVarWithDefault "PGRST_DB_URI" "postgres://postgrest_test@localhost/postgrest_test"
-  pool <- P.acquire (3, 10, toS testDbConn)
+  pool <- P.acquire (3, 10, "postgresql://")
 
   hspec $ describe "QueryCost" $
     context "call proc query" $ do
