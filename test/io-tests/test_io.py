@@ -77,7 +77,7 @@ class PostgrestProcess:
 @pytest.fixture
 def dburi():
     "Postgres database connection URI."
-    return os.getenv("PGRST_DB_URI").encode("utf-8")
+    return os.getenv("PGRST_DB_URI").encode()
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def cli(args, env=None, stdin=None):
         result = process.communicate(timeout=5)[0]
         if process.returncode != 0:
             raise PostgrestError()
-        return result.decode("utf-8")
+        return result.decode()
     finally:
         process.kill()
         process.wait()
