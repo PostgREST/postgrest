@@ -2120,59 +2120,6 @@ returns setof v2.parents as $$
   select * from v2.parents where id < $1;
 $$ language sql;
 
--- Used to test if prepared statements are used
-create function uses_prepared_statements() returns bool as $$
-  select count(name) > 0 from pg_catalog.pg_prepared_statements
-$$ language sql;
-
-create or replace function change_max_rows_config(val int, notify bool default false) returns void as $_$
-begin
-  execute format($$
-    alter role postgrest_test_authenticator set pgrst.db_max_rows = %L;
-  $$, val);
-  if notify then
-    perform pg_notify('pgrst', 'reload config');
-  end if;
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function reset_max_rows_config() returns void as $_$
-begin
-  alter role postgrest_test_authenticator set pgrst.db_max_rows = '1000';
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function change_db_schema_and_full_reload(schemas text) returns void as $_$
-begin
-  execute format($$
-    alter role postgrest_test_authenticator set pgrst.db_schemas = %L;
-  $$, schemas);
-  perform pg_notify('pgrst', 'reload config');
-  perform pg_notify('pgrst', 'reload schema');
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function v1.reset_db_schema_config() returns void as $_$
-begin
-  alter role postgrest_test_authenticator set pgrst.db_schemas = 'test';
-  perform pg_notify('pgrst', 'reload config');
-  perform pg_notify('pgrst', 'reload schema');
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function test.invalid_role_claim_key_reload() returns void as $_$
-begin
-  alter role postgrest_test_authenticator set pgrst.jwt_role_claim_key = 'test';
-  perform pg_notify('pgrst', 'reload config');
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function test.reset_invalid_role_claim_key() returns void as $_$
-begin
-  alter role postgrest_test_authenticator set pgrst.jwt_role_claim_key = '."a"."role"';
-  perform pg_notify('pgrst', 'reload config');
-end $_$ volatile security definer language plpgsql ;
-
-create or replace function test.reload_pgrst_config() returns void as $_$
-begin
-  perform pg_notify('pgrst', 'reload config');
-end $_$ language plpgsql ;
-
 create table private.screens (
   id serial primary key,
   name text not null default 'new screen'

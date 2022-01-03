@@ -85,7 +85,7 @@ def defaultenv():
     "Default environment for PostgREST."
     return {
         "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
-        "PGRST_DB_SCHEMAS": os.environ["PGRST_DB_SCHEMAS"],
+        "PGRST_DB_SCHEMAS": "public",
         "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
         "PGRST_DB_CONFIG": "false",
         "PGRST_LOG_LEVEL": "info",
@@ -288,7 +288,7 @@ def test_expected_config_from_environment():
 @pytest.mark.parametrize(
     "role, expectedconfig",
     [
-        ("postgrest_test_authenticator", "no-defaults-with-db.config"),
+        ("db_config_authenticator", "no-defaults-with-db.config"),
         ("other_authenticator", "no-defaults-with-db-other-authenticator.config"),
     ],
 )
@@ -312,23 +312,6 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
     )
 
     assert dumpconfig(configpath=config, env=env) == expected
-
-
-def test_read_db_setting(defaultenv):
-    """
-    Should be able to read db settings with current_setting.
-
-    See: https://github.com/PostgREST/postgrest/pull/1729#discussion_r572946461
-    """
-    env = {
-        **defaultenv,
-        "PGRST_DB_CONFIG": "true",
-    }
-    with run(env=env) as postgrest:
-        uri = "/rpc/get_guc_value?name=pgrst.jwt_secret"
-        response = postgrest.session.get(uri)
-
-        assert response.text == '"OVERRIDEREALLYREALLYREALLYREALLYVERYSAFE"'
 
 
 @pytest.mark.parametrize(
@@ -590,16 +573,15 @@ def test_db_schema_reload(tmp_path, defaultenv):
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
-    headers = {"Accept-Profile": "v1"}
     env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_SCHEMAS"}
 
     with run(configfile, env=env) as postgrest:
-        response = postgrest.session.get("/parents", headers=headers)
-        assert response.status_code == 404
+        response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
+        assert response.text == '"public, public"'
 
         # change setting
         configfile.write_text(
-            config.replace('db-schemas = "test"', 'db-schemas = "test, v1"')
+            config.replace('db-schemas = "public"', 'db-schemas = "v1"')
         )
 
         # reload config
@@ -610,23 +592,18 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
         time.sleep(0.1)
 
-        response = postgrest.session.get("/parents", headers=headers)
-        assert response.status_code == 200
+        response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
+        assert response.text == '"v1, public"'
 
 
 def test_db_schema_notify_reload(defaultenv):
     "DB schema and config should be reloaded when PostgREST is sent a NOTIFY"
 
-    env = {
-        **defaultenv,
-        "PGRST_DB_CONFIG": "true",
-        "PGRST_DB_CHANNEL_ENABLED": "true",
-        "PGRST_DB_SCHEMAS": "test",
-    }
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_DB_CHANNEL_ENABLED": "true"}
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/parents")
-        assert response.status_code == 404
+        response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
+        assert response.text == '"public, public"'
 
         # change db-schemas config on the db and reload config and cache with notify
         postgrest.session.post(
@@ -635,11 +612,12 @@ def test_db_schema_notify_reload(defaultenv):
 
         time.sleep(0.5)
 
-        response = postgrest.session.get("/parents?select=*,children(*)")
-        assert response.status_code == 200
+        response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
+        assert response.text == '"v1, public"'
 
         # reset db-schemas config on the db
-        postgrest.session.post("/rpc/reset_db_schema_config")
+        response = postgrest.session.post("/rpc/reset_db_schema_config")
+        assert response.status_code == 200
 
 
 def test_max_rows_reload(defaultenv):
@@ -723,10 +701,7 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
                 break
             time.sleep(0.1)
 
-        assert (
-            "failed to parse role-claim-key value"
-            in output.decode()
-        )
+        assert "failed to parse role-claim-key value" in output.decode()
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
         assert response.status_code == 200
