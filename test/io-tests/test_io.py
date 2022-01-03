@@ -186,6 +186,9 @@ def run(configpath=None, stdin=None, env=None, port=None, adminport=None):
                 admin=PostgrestSession(adminurl) if adminurl else None,
             )
         finally:
+            remaining_output = process.stdout.read()
+            if remaining_output:
+                print(remaining_output.decode())
             process.terminate()
             try:
                 process.wait(timeout=1)
@@ -206,6 +209,7 @@ def wait_until_ready(url):
     "Wait for the given HTTP endpoint to return a status of 200."
     session = requests_unixsocket.Session()
 
+    response = None
     for _ in range(10):
         try:
             response = session.get(url, timeout=1)
@@ -216,7 +220,10 @@ def wait_until_ready(url):
 
         time.sleep(0.1)
 
-    raise PostgrestTimedOut()
+    if response:
+        raise PostgrestTimedOut(f"{response.status_code}: {response.text}")
+    else:
+        raise PostgrestTimedOut()
 
 
 def authheader(token):
@@ -492,7 +499,6 @@ def test_app_settings(defaultenv):
         uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
         response = postgrest.session.get(uri)
 
-        assert response.status_code == 200
         assert response.text == '"0123456789abcdef"'
 
 
@@ -505,7 +511,6 @@ def test_app_settings_reload(tmp_path, defaultenv):
 
     with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get(uri)
-        assert response.status_code == 200
         assert response.text == '"John"'
 
         # change setting
@@ -516,7 +521,6 @@ def test_app_settings_reload(tmp_path, defaultenv):
         time.sleep(0.1)
 
         response = postgrest.session.get(uri)
-        assert response.status_code == 200
         assert response.text == '"Jane"'
 
 
@@ -660,6 +664,7 @@ def test_max_rows_reload(defaultenv):
 
     with run(config, env=env) as postgrest:
         response = postgrest.session.head("/projects")
+        assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-4/*"
 
         # change max-rows config on the db
@@ -671,11 +676,12 @@ def test_max_rows_reload(defaultenv):
         time.sleep(0.1)
 
         response = postgrest.session.head("/projects")
-
+        assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-0/*"
 
         # reset max-rows config on the db
-        postgrest.session.post("/rpc/reset_max_rows_config")
+        response = postgrest.session.post("/rpc/reset_max_rows_config")
+        assert response.status_code == 200
 
 
 def test_max_rows_notify_reload(defaultenv):
@@ -689,6 +695,7 @@ def test_max_rows_notify_reload(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.head("/projects")
+        assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-4/*"
 
         # change max-rows config on the db and reload with notify
@@ -699,11 +706,12 @@ def test_max_rows_notify_reload(defaultenv):
         time.sleep(0.1)
 
         response = postgrest.session.head("/projects")
-
+        assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-0/*"
 
         # reset max-rows config on the db
-        postgrest.session.post("/rpc/reset_max_rows_config")
+        response = postgrest.session.post("/rpc/reset_max_rows_config")
+        assert response.status_code == 200
 
 
 def test_invalid_role_claim_key_notify_reload(defaultenv):
@@ -731,7 +739,8 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
             in output.decode()
         )
 
-        postgrest.session.post("/rpc/reset_invalid_role_claim_key")
+        response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
+        assert response.status_code == 200
 
 
 def test_db_prepared_statements_enable(defaultenv):
