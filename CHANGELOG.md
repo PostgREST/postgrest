@@ -9,7 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1933, #2109, Add a minimal health check endpoint - @steve-chavez
    + For enabling this, the `admin-server-port` config must be set explictly
-   + The check is at the `<host>:<admin_server_port>/ready` endpoint
+   + The check is at the `<host>:<admin_server_port>/live` endpoint. A 200 OK status will be returned if postgrest is alive, otherwise a 503 will be returned.
+   + A `<host>:<admin_server_port>/ready` endpoint is available for checking a correct internal state(the database connection plus the schema cache). 200 OK = ready, 503 = not ready.
 
 ### Fixed
 

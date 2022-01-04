@@ -778,15 +778,26 @@ def test_admin_not_found(defaultenv):
 def test_admin_ready_dependent_on_main_app(defaultenv):
     "Should get a failure from the admin ready endpoint if the main app also fails"
 
-    env = {
-        **defaultenv,
-        "PGRST_ADMIN_SERVER_PORT": "3001",
-    }
-
-    with run(env=env, port=None) as postgrest:
+    with run(env=defaultenv, adminport=freeport()) as postgrest:
         # delete the unix socket to make the main app fail
-        os.remove(env["PGRST_SERVER_UNIX_SOCKET"])
-        response = requests.get(
-            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/ready"
-        )
+        os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
+        response = postgrest.admin.get("/ready")
+        assert response.status_code == 503
+
+
+def test_admin_live_good(defaultenv):
+    "Should get a success from the admin live endpoint if the main app is running"
+
+    with run(env=defaultenv, port=freeport(), adminport=freeport()) as postgrest:
+        response = postgrest.admin.get("/live")
+        assert response.status_code == 200
+
+
+def test_admin_live_dependent_on_main_app(defaultenv):
+    "Should get a failure from the admin live endpoint if the main app also fails"
+
+    with run(env=defaultenv, adminport=freeport()) as postgrest:
+        # delete the unix socket to make the main app fail
+        os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
+        response = postgrest.admin.get("/live")
         assert response.status_code == 503
