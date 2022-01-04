@@ -97,6 +97,7 @@ library
                     , lens                      >= 4.14 && < 5.1
                     , lens-aeson                >= 1.0.1 && < 1.2
                     , mtl                       >= 2.2.2 && < 2.3
+                    , network                   >= 2.6 && < 3.2
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.17
                     , parsec                    >= 3.1.11 && < 3.2
@@ -134,7 +135,6 @@ library
     build-depends:
       unix
       , directory >= 1.2.6 && < 1.4
-      , network   >= 2.6 && < 3.2
     exposed-modules:
       PostgREST.Unix
 

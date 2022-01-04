@@ -31,7 +31,10 @@ postgrestAdmin appState appConfig req respond  = do
       else do
         result <- SQL.use (AppState.getPool appState) $ SQL.sql "SELECT 1"
         respond $ Wai.responseLBS (if isRight result && isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
-    _ -> respond $ Wai.responseLBS HTTP.status404 [] mempty
+    ["live"] ->
+      respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+    _ ->
+      respond $ Wai.responseLBS HTTP.status404 [] mempty
 
 -- Try to connect to the main app socket
 -- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
