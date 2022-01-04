@@ -741,8 +741,8 @@ def test_db_prepared_statements_disable(defaultenv):
         assert response.text == "false"
 
 
-def test_admin_healthy_w_channel(defaultenv):
-    "Should get a success response from the admin server health endpoint when the LISTEN channel is enabled"
+def test_admin_ready_w_channel(defaultenv):
+    "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
     env = {
         **defaultenv,
@@ -750,12 +750,12 @@ def test_admin_healthy_w_channel(defaultenv):
     }
 
     with run(env=env, adminport=freeport()) as postgrest:
-        response = postgrest.admin.get("/health")
+        response = postgrest.admin.get("/ready")
         assert response.status_code == 200
 
 
-def test_admin_healthy_wo_channel(defaultenv):
-    "Should get a success response from the admin server health endpoint when the LISTEN channel is disabled"
+def test_admin_ready_wo_channel(defaultenv):
+    "Should get a success response from the admin server ready endpoint when the LISTEN channel is disabled"
 
     env = {
         **defaultenv,
@@ -763,20 +763,20 @@ def test_admin_healthy_wo_channel(defaultenv):
     }
 
     with run(env=env, adminport=freeport()) as postgrest:
-        response = postgrest.admin.get("/health")
+        response = postgrest.admin.get("/ready")
         assert response.status_code == 200
 
 
 def test_admin_not_found(defaultenv):
-    "Should get a not found from the admin server"
+    "Should get a not found from a undefined endpoint on the admin server"
 
     with run(env=defaultenv, adminport=freeport()) as postgrest:
         response = postgrest.admin.get("/notfound")
         assert response.status_code == 404
 
 
-def test_admin_health_dependent_on_main_app(defaultenv):
-    "Should get a failure from the admin health endpoint if the main app also fails"
+def test_admin_ready_dependent_on_main_app(defaultenv):
+    "Should get a failure from the admin ready endpoint if the main app also fails"
 
     env = {
         **defaultenv,
@@ -787,6 +787,6 @@ def test_admin_health_dependent_on_main_app(defaultenv):
         # delete the unix socket to make the main app fail
         os.remove(env["PGRST_SERVER_UNIX_SOCKET"])
         response = requests.get(
-            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/health"
+            f"http://localhost:{env['PGRST_ADMIN_SERVER_PORT']}/ready"
         )
         assert response.status_code == 503

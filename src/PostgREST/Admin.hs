@@ -24,7 +24,7 @@ postgrestAdmin appState appConfig req respond  = do
   isMainAppReachable <- isRight <$> reachMainApp appConfig
 
   case Wai.pathInfo req of
-    ["health"] ->
+    ["ready"] ->
       if configDbChannelEnabled appConfig then do
         listenerOn <- AppState.getIsListenerOn appState
         respond $ Wai.responseLBS (if listenerOn && isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
