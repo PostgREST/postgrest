@@ -128,6 +128,8 @@ corsPolicy req = case lookup "origin" headers of
     headers = Wai.requestHeaders req
     accHeaders = case lookup "access-control-request-headers" headers of
       Just hdrs -> map (CI.mk . BS.strip) $ BS.split ',' hdrs
+       -- Impossible case, Middleware.Cors will not evaluate this when
+       -- the Access-Control-Request-Headers header is not set.
       Nothing   -> []
 
 -- | Set a transaction to eventually roll back if requested and set respective
