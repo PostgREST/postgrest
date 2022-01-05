@@ -44,6 +44,7 @@ library
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.ContentType
+                      PostgREST.Cors
                       PostgREST.DbStructure
                       PostgREST.DbStructure.Identifiers
                       PostgREST.DbStructure.Proc
@@ -51,6 +52,7 @@ library
                       PostgREST.DbStructure.Table
                       PostgREST.Error
                       PostgREST.GucHeader
+                      PostgREST.Logger
                       PostgREST.Middleware
                       PostgREST.OpenAPI
                       PostgREST.Query.QueryBuilder
