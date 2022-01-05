@@ -6,35 +6,25 @@ Description : Sets CORS policy. Also the PostgreSQL GUCs, role, search_path and 
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Middleware
   ( runPgLocals
-  , pgrstMiddleware
   , optionalRollback
   ) where
 
-import qualified Data.Aeson                           as JSON
-import qualified Data.ByteString.Char8                as BS
-import qualified Data.ByteString.Lazy.Char8           as LBS
-import qualified Data.CaseInsensitive                 as CI
-import qualified Data.HashMap.Strict                  as M
-import qualified Data.Text                            as T
-import qualified Data.Text.Encoding                   as T
-import qualified Hasql.Decoders                       as HD
-import qualified Hasql.DynamicStatements.Snippet      as SQL hiding
-                                                             (sql)
-import qualified Hasql.DynamicStatements.Statement    as SQL
-import qualified Hasql.Transaction                    as SQL
-import qualified Network.Wai                          as Wai
-import qualified Network.Wai.Middleware.Cors          as Wai
-import qualified Network.Wai.Middleware.RequestLogger as Wai
+import qualified Data.Aeson                        as JSON
+import qualified Data.ByteString.Lazy.Char8        as LBS
+import qualified Data.HashMap.Strict               as M
+import qualified Data.Text                         as T
+import qualified Data.Text.Encoding                as T
+import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
+import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.Transaction                 as SQL
+import qualified Network.Wai                       as Wai
 
 import Control.Arrow ((***))
 
-import Data.List                 (lookup)
-import Data.Scientific           (FPFormat (..), formatScientific,
-                                  isInteger)
-import Network.HTTP.Types.Status (status400, status500)
-import System.IO.Unsafe          (unsafePerformIO)
+import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
-import PostgREST.Config             (AppConfig (..), LogLevel (..))
+import PostgREST.Config             (AppConfig (..))
 import PostgREST.Config.PgVersion   (PgVersion (..), pgVersion140)
 import PostgREST.Error              (Error, errorResponseFor)
 import PostgREST.GucHeader          (addHeadersIfNotIncluded)
@@ -88,49 +78,6 @@ runPgLocals conf claims app req jsonDbS actualPgVersion = do
       toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
     unquoted (JSON.Bool b) = show b
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
-
-pgrstMiddleware :: LogLevel -> Wai.Middleware
-pgrstMiddleware logLevel =
-    logger logLevel
-  . Wai.cors corsPolicy
-
-logger :: LogLevel -> Wai.Middleware
-logger logLevel = case logLevel of
-  LogInfo  -> requestLogger (const True)
-  LogWarn  -> requestLogger (>= status400)
-  LogError -> requestLogger (>= status500)
-  LogCrit  -> requestLogger (const False)
-  where
-    requestLogger filterStatus = unsafePerformIO $ Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
-      { Wai.outputFormat = Wai.ApacheWithSettings $
-          Wai.defaultApacheSettings
-            & Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res)
-      }
-
--- | CORS policy to be used in by Wai Cors middleware
-corsPolicy :: Wai.Request -> Maybe Wai.CorsResourcePolicy
-corsPolicy req = case lookup "origin" headers of
-  Just origin ->
-    Just Wai.CorsResourcePolicy
-    { Wai.corsOrigins = Just ([origin], True)
-    , Wai.corsMethods = ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"]
-    , Wai.corsRequestHeaders = "Authorization" : accHeaders
-    , Wai.corsExposedHeaders = Just
-      [ "Content-Encoding", "Content-Location", "Content-Range", "Content-Type"
-      , "Date", "Location", "Server", "Transfer-Encoding", "Range-Unit"]
-    , Wai.corsMaxAge = Just $ 60*60*24
-    , Wai.corsVaryOrigin = False
-    , Wai.corsRequireOrigin = False
-    , Wai.corsIgnoreFailures = True
-    }
-  Nothing -> Nothing
-  where
-    headers = Wai.requestHeaders req
-    accHeaders = case lookup "access-control-request-headers" headers of
-      Just hdrs -> map (CI.mk . BS.strip) $ BS.split ',' hdrs
-       -- Impossible case, Middleware.Cors will not evaluate this when
-       -- the Access-Control-Request-Headers header is not set.
-      Nothing   -> []
 
 -- | Set a transaction to eventually roll back if requested and set respective
 -- headers on the response.
