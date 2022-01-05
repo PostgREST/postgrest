@@ -43,8 +43,10 @@ import qualified Network.Wai.Handler.Warp        as Warp
 import qualified PostgREST.Admin                    as Admin
 import qualified PostgREST.AppState                 as AppState
 import qualified PostgREST.Auth                     as Auth
+import qualified PostgREST.Cors                     as Cors
 import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
+import qualified PostgREST.Logger                   as Logger
 import qualified PostgREST.Middleware               as Middleware
 import qualified PostgREST.OpenAPI                  as OpenAPI
 import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
@@ -146,8 +148,9 @@ serverSettings AppConfig{..} =
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLev appState connWorker =
-  Middleware.pgrstMiddleware logLev $
+postgrest logLevel appState connWorker =
+  Logger.middleware logLevel .
+  Cors.middleware $
     \req respond -> do
       time <- AppState.getTime appState
       conf <- AppState.getConfig appState
