@@ -52,8 +52,9 @@ import PostgREST.Request.Types (EmbedParam (..), EmbedPath, Field,
                                 OpExpr (..), Operation (..),
                                 OrderDirection (..), OrderNulls (..),
                                 OrderTerm (..), QPError (..),
-                                SelectItem, SimpleOperator (..),
-                                SingleVal, TrileanVal (..))
+                                SelectItem, SingleVal,
+                                SingleValOperator (..),
+                                TrileanVal (..))
 
 import Protolude hiding (try)
 
@@ -64,7 +65,7 @@ import Protolude hiding (try)
 -- >>> deriving instance Show QPError
 -- >>> deriving instance Show TrileanVal
 -- >>> deriving instance Show FtsOperator
--- >>> deriving instance Show SimpleOperator
+-- >>> deriving instance Show SingleValOperator
 -- >>> deriving instance Show Operation
 -- >>> deriving instance Show OpExpr
 -- >>> deriving instance Show JsonOperand
@@ -206,7 +207,7 @@ parse qs =
         offsetParams =
           M.fromList [(k, maybe allRange rangeGeq (readMaybe $ toS v)) | (k,v) <- offsets]
 
-operator :: Text -> Maybe SimpleOperator
+operator :: Text -> Maybe SingleValOperator
 operator = \case
   "eq"    -> Just OpEqual
   "gte"   -> Just OpGreaterThanEqual

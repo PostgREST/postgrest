@@ -35,7 +35,7 @@ module PostgREST.Request.Types
   , SingleVal
   , TrileanVal(..)
   , fstFieldNames
-  , SimpleOperator(..)
+  , SingleValOperator(..)
   , FtsOperator(..)
   ) where
 
@@ -232,7 +232,7 @@ data OpExpr =
   deriving (Eq)
 
 data Operation
-  = Op SimpleOperator SingleVal
+  = Op SingleValOperator SingleVal
   | In ListVal
   | Is TrileanVal
   | Fts FtsOperator (Maybe Language) SingleVal
@@ -254,7 +254,7 @@ data TrileanVal
   | TriUnknown
   deriving Eq
 
-data SimpleOperator
+data SingleValOperator
   = OpEqual
   | OpGreaterThanEqual
   | OpGreaterThan

@@ -59,7 +59,7 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
                                           OrderTerm (..), SelectItem,
-                                          SimpleOperator (..),
+                                          SingleValOperator (..),
                                           TrileanVal (..))
 
 import Protolude hiding (cast)
@@ -74,7 +74,7 @@ noLocationF = "array[]::text[]"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
-singleValOperator :: SimpleOperator -> SqlFragment
+singleValOperator :: SingleValOperator -> SqlFragment
 singleValOperator = \case
   OpEqual            -> "="
   OpGreaterThanEqual -> ">="
