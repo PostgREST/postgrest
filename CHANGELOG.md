@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + For enabling this, the `admin-server-port` config must be set explictly
    + A `<host>:<admin_server_port>/live` endpoint is available for checking if postgrest is running on its port/socket. 200 OK = alive, 503 = dead.
    + A `<host>:<admin_server_port>/ready` endpoint is available for checking a correct internal state(the database connection plus the schema cache). 200 OK = ready, 503 = not ready.
+ - #1988, Add the current user to the request log on stdout - @DavidLindbom, @wolfgangwalther
 
 ### Fixed
 
