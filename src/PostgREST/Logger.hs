@@ -10,7 +10,8 @@ import qualified Network.Wai.Middleware.RequestLogger as Wai
 import Network.HTTP.Types.Status (status400, status500)
 import System.IO.Unsafe          (unsafePerformIO)
 
-import PostgREST.Config (LogLevel (..))
+import qualified PostgREST.Auth   as Auth
+import           PostgREST.Config (LogLevel (..))
 
 import Protolude
 
@@ -25,4 +26,5 @@ middleware logLevel = case logLevel of
       { Wai.outputFormat = Wai.ApacheWithSettings $
           Wai.defaultApacheSettings
             & Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res)
+            & Wai.setApacheUserGetter (fmap encodeUtf8 . Auth.getRole)
       }
