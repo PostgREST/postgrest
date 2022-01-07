@@ -1,4 +1,4 @@
-module "postgrest-9.0.0.20211220-inplace/PostgREST.Middleware" {
+module "postgrest-9.0.0.20220107-inplace/PostgREST.Middleware" {
   inside "corsPolicy" {
     tick "[]" on line 133;
   }
