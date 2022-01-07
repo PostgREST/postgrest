@@ -226,7 +226,7 @@ Next update :code:`tutorial.conf` and specify the new function:
 
   # add this line to tutorial.conf
 
-  pre-request = "auth.check_token"
+  db-pre-request = "auth.check_token"
 
 Restart PostgREST for the change to take effect. Next try making a request with our original token and then with the revoked one.
 

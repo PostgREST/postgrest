@@ -396,7 +396,7 @@ As mentioned, computed columns do not appear in the output by default. However y
 
 .. important::
 
-  Computed columns must be created under the :ref:`exposed schema <db-schema>` to be used in this way.
+  Computed columns must be created under the :ref:`exposed schema <db-schemas>` to be used in this way.
 
 Unicode support
 ---------------
@@ -666,9 +666,9 @@ In general, when having smaller row-counts, the estimated count should be as clo
 
 To help with these cases, PostgREST can get the exact count up until a threshold and get the planned count when
 that threshold is surpassed. To use this behavior, you can specify the ``Prefer: count=estimated`` header. The **threshold** is
-defined by :ref:`max-rows`.
+defined by :ref:`db-max-rows`.
 
-Here's an example. Suppose we set ``max-rows=1000`` and ``smalltable`` has 321 rows, then we'll get the exact count:
+Here's an example. Suppose we set ``db-max-rows=1000`` and ``smalltable`` has 321 rows, then we'll get the exact count:
 
 .. tabs::
 
@@ -1156,7 +1156,7 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
 Embedding Chains of Views
 -------------------------
 
-Views can also depend on other views, which in turn depend on the actual source table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schema`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the source table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
+Views can also depend on other views, which in turn depend on the actual source table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schemas`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the source table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
 
 .. _s_proc_embed:
 
@@ -2399,7 +2399,7 @@ PostgREST sets highly permissive cross origin resource sharing, that is why it a
 Switching Schemas
 =================
 
-You can switch schemas at runtime with the ``Accept-Profile`` and ``Content-Profile`` headers. You can only switch to a schema that is included in :ref:`db-schema`.
+You can switch schemas at runtime with the ``Accept-Profile`` and ``Content-Profile`` headers. You can only switch to a schema that is included in :ref:`db-schemas`.
 
 For GET or HEAD, the schema to be used can be selected through the ``Accept-Profile`` header:
 
@@ -2516,7 +2516,7 @@ Notice that the variable should be set to an *array* of single-key objects rathe
 Setting headers via pre-request
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-By using a :ref:`pre-request` function, you can add headers to GET/POST/PATCH/PUT/DELETE responses.
+By using a :ref:`db-pre-request` function, you can add headers to GET/POST/PATCH/PUT/DELETE responses.
 As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
 
 .. code-block:: postgresql
@@ -2532,7 +2532,7 @@ As an example, let's add some cache headers for all requests that come from an I
    end; $$ language plpgsql;
 
    -- set this function on postgrest.conf
-   -- pre-request = custom_headers
+   -- db-pre-request = custom_headers
 
 Now when you make a GET request to a table or view, you'll get the cache headers.
 

@@ -3,7 +3,7 @@ Embedding a table from another schema
 
 :author: `steve-chavez <https://github.com/steve-chavez>`_
 
-Suppose you have a **people** table in the ``public`` schema and this schema is exposed through PostgREST's :ref:`db-schema`.
+Suppose you have a **people** table in the ``public`` schema and this schema is exposed through PostgREST's :ref:`db-schemas`.
 
 .. code-block:: postgres
 

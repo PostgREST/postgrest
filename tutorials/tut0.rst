@@ -162,7 +162,7 @@ PostgREST uses a configuration file to tell it how to connect to the database. C
 .. code-block:: ini
 
   db-uri = "postgres://authenticator:mysecretpassword@localhost:5433/postgres"
-  db-schema = "api"
+  db-schemas = "api"
   db-anon-role = "web_anon"
 
 The configuration file has other :ref:`options <configuration>`, but this is all we need. 

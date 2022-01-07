@@ -122,13 +122,13 @@ You can mix the group and individual role policies. For instance we could still 
 Custom Validation
 -----------------
 
-PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens. However it does not enforce any extra constraints. An example of an extra constraint would be to immediately revoke access for a certain user. The configuration file parameter :code:`pre-request` specifies a stored procedure to call immediately after the authenticator switches into a new role and before the main query itself runs.
+PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens. However it does not enforce any extra constraints. An example of an extra constraint would be to immediately revoke access for a certain user. The configuration file parameter :code:`db-pre-request` specifies a stored procedure to call immediately after the authenticator switches into a new role and before the main query itself runs.
 
 Here's an example. In the config file specify a stored procedure:
 
 .. code:: ini
 
-  pre-request = "public.check_user"
+  db-pre-request = "public.check_user"
 
 In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
 
@@ -226,7 +226,7 @@ To use Auth0, create `an application <https://auth0.com/docs/get-started/applica
     function (user, context, callback) {
 
       // Follow the documentations at
-      // https://postgrest.org/en/latest/configuration.html#role-claim-key
+      // https://postgrest.org/en/latest/configuration.html#db-role-claim-key
       // to set a custom role claim on PostgREST
       // and use it as custom claim attribute in this rule
       const myRoleClaim = 'https://myapp.com/role';

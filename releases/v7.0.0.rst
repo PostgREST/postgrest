@@ -10,7 +10,7 @@ You can download this release at the `PostgREST v7.0.0 release page <https://git
 Added
 -----
 
-* Support for :ref:`Switching to a schema <multiple-schemas>` defined in :ref:`db-schema`.
+* Support for :ref:`Switching to a schema <multiple-schemas>` defined in :ref:`db-schemas`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@mahmoudkassem <https://github.com/mahmoudkassem>`_
 
 * Support for :ref:`planned_count` and :ref:`estimated_count`.

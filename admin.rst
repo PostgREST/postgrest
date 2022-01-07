@@ -266,7 +266,7 @@ First, create postgrest configuration in ``/etc/postgrest/config``
 .. code-block:: ini
 
   db-uri = "postgres://<your_user>:<your_password>@localhost:5432/<your_db>"
-  db-schema = "<your_exposed_schema>"
+  db-schemas = "<your_exposed_schema>"
   db-anon-role = "<your_anon_role>"
   db-pool = 10
 
