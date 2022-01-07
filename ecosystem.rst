@@ -105,20 +105,20 @@ Client-Side Libraries
 * `mithril-postgrest <https://github.com/catarse/mithril-postgrest>`_ - JS, Mithril
 * `ng-postgrest <https://github.com/team142/ng-postgrest>`_ - Angular app for browsing, editing data exposed over PostgREST.
 * `postgrest-client <https://github.com/calebmer/postgrest-client>`_ - JS
-* `postgrest-csharp <https://github.com/supabase/postgrest-csharp>`_ - C#
-* `postgrest-dart <https://github.com/supabase/postgrest-dart>`_ - Dart
+* `postgrest-csharp <https://github.com/supabase-community/postgrest-csharp>`_ - C#
+* `postgrest-dart <https://github.com/supabase-community/postgrest-dart>`_ - Dart
 * `postgrest-ex <https://github.com/J0/postgrest-ex>`_ - Elixir
-* `postgrest-go <https://github.com/supabase/postgrest-go>`_ - Go
+* `postgrest-go <https://github.com/supabase-community/postgrest-go>`_ - Go
 * `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
-* `postgrest-kt <https://github.com/supabase/postgrest-kt>`_ - Kotlin
-* `postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
+* `postgrest-kt <https://github.com/supabase-community/postgrest-kt>`_ - Kotlin
+* `postgrest-py <https://github.com/supabase-community/postgrest-py>`_ - Python
 * `postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
-* `postgrest-rs <https://github.com/supabase/postgrest-rs>`_ - Rust
+* `postgrest-rs <https://github.com/supabase-community/postgrest-rs>`_ - Rust
 * `postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
-* `postgrest-swift <https://github.com/supabase/postgrest-kt>`_ - Swift
+* `postgrest-swift <https://github.com/supabase-community/postgrest-kt>`_ - Swift
 * `postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
 * `postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
-* `postgrester <https://github.com/SocialGouv/postgrester>`_ - JS + Typescript
+* `postgrester <https://github.com/ivangabriele/postgrester>`_ - JS + Typescript
 * `postgrestR <https://github.com/clesiemo3/postgrestR>`_ - R
 * `py-postgrest <https://github.com/Kong/py-postgrest>`_ - Python
 * `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.

@@ -63,7 +63,7 @@ Documentation improvements
 Bug fixes
 ---------
 
-* Correct RPC return type handling for RETURNS TABLE with a single column (`#1930 <https://github.com/PostgREST/postgrest/pull/1930>`_).
+* Correct RPC return type handling for RETURNS TABLE with a single column (`#1930 <https://github.com/PostgREST/postgrest/issues/1930>`_).
 
 * Schema Cache query failing with ``standard_conforming_strings = off`` (`#1992 <https://github.com/PostgREST/postgrest/issues/1992>`_).
 
@@ -102,7 +102,7 @@ Big thanks from the `PostgREST team <https://github.com/orgs/PostgREST/people>`_
     :width:  13em
 
   .. image:: ../_static/supabase.png
-    :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
     :width:  13em
 
   .. image:: ../_static/oblivious.jpg

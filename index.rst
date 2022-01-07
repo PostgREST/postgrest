@@ -51,7 +51,7 @@ Sponsors
     :width:  13em
 
   .. image:: _static/supabase.png
-    :target: https://supabase.io/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
     :width:  13em
 
   .. image:: _static/oblivious.jpg
@@ -243,7 +243,7 @@ Here are some companies that use PostgREST in production.
 * `Datrium <https://www.datrium.com>`_
 * `Drip Depot <https://www.dripdepot.com>`_
 * `Image-charts <https://www.image-charts.com>`_
-* `Moat <https://moat.com>`_
+* `Moat <https://www.moat.com>`_
 * `MotionDynamic - Fast highly dynamic video generation at scale <https://motiondynamic.tech>`_
 * `Netwo <https://www.netwo.io>`_
 * `Nimbus <https://www.nimbusforwork.com>`_
@@ -251,7 +251,7 @@ Here are some companies that use PostgREST in production.
 * `OpenBooking <https://www.openbooking.ch>`_
 * `Redsmin <https://www.redsmin.com>`_
 * `Sompani <https://www.sompani.com>`_
-* `Supabase <https://supabase.io>`_
+* `Supabase <https://supabase.com>`_
 
 .. Certs are failing
   * `eGull <http://www.egull.co>`_
