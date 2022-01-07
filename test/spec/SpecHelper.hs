@@ -55,7 +55,7 @@ validateOpenApiResponse headers = do
     respHeaders `shouldSatisfy`
       \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
   let Just body = decode (simpleBody r)
-  Just schema <- liftIO $ decode <$> BL.readFile "test/fixtures/openapi.json"
+  Just schema <- liftIO $ decode <$> BL.readFile "test/spec/fixtures/openapi.json"
   let args :: M.Map Text Value
       args = M.fromList
         [ ( "schema", schema )

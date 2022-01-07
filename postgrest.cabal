@@ -159,7 +159,7 @@ test-suite spec
   default-extensions: OverloadedStrings
                       QuasiQuotes
                       NoImplicitPrelude
-  hs-source-dirs:     test
+  hs-source-dirs:     test/spec
   main-is:            Main.hs
   other-modules:      Feature.AndOrParamsSpec
                       Feature.AsymmetricJwtSpec
@@ -236,7 +236,7 @@ test-suite querycost
   default-extensions:  OverloadedStrings
                        QuasiQuotes
                        NoImplicitPrelude
-  hs-source-dirs:      test
+  hs-source-dirs:      test/spec
   main-is:             QueryCost.hs
   other-modules:       SpecHelper
   build-depends:       base              >= 4.9 && < 4.16
@@ -270,7 +270,7 @@ test-suite doctests
   default-language:    Haskell2010
   default-extensions:  OverloadedStrings
                        NoImplicitPrelude
-  hs-source-dirs:      test/doctests
+  hs-source-dirs:      test/doc
   main-is:             Main.hs
   build-depends:       base              >= 4.9 && < 4.16
                      , doctest           >= 0.8

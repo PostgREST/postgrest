@@ -149,7 +149,7 @@ the PostgREST repo. Paths are resolved relative to the repo root:
 $ cd src
 # Even though the current directory is ./src, the config path must still start
 # from the repo root:
-$ postgrest-run test/io-tests/configs/simple.conf
+$ postgrest-run test/io/configs/simple.conf
 ```
 
 ## Testing
