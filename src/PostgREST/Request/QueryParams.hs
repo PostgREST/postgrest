@@ -52,9 +52,8 @@ import PostgREST.Request.Types (EmbedParam (..), EmbedPath, Field,
                                 OpExpr (..), Operation (..),
                                 OrderDirection (..), OrderNulls (..),
                                 OrderTerm (..), QPError (..),
-                                SelectItem, SingleVal,
-                                SimpleOperator (..),
-                                TrileanVal (..))
+                                SelectItem, SimpleOperator (..),
+                                SingleVal, TrileanVal (..))
 
 import Protolude hiding (try)
 
