@@ -31,7 +31,7 @@ in
         # clean previous build, otherwise some errors might be supressed
         rm -rf _build
 
-        ${python}/bin/sphinx-build -W -b html -a -n . _build
+        ${python}/bin/sphinx-build --color -W -b html -a -n . _build
       '';
 
   serve =
@@ -81,6 +81,6 @@ in
       ''
         set -euo pipefail
 
-        ${python}/bin/sphinx-build -b linkcheck . _build
+        ${python}/bin/sphinx-build --color -b linkcheck . _build
       '';
 }
