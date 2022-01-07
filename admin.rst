@@ -158,12 +158,12 @@ When debugging a problem it's important to verify the PostgREST version. At any 
 Logging
 -------
 
-PostgREST logs basic request information to ``stdout``, including the requesting IP address and user agent, the URL requested, and HTTP response status.
+PostgREST logs basic request information to ``stdout``, including the authenticated user if available, the requesting IP address and user agent, the URL requested, and HTTP response status.
 
 .. code::
 
-   127.0.0.1 - - [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
-   127.0.0.1 - - [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
+   127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
+   127.0.0.1 - anonymous [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
 
 For diagnostic information about the server itself, PostgREST logs to ``stderr``.
 
