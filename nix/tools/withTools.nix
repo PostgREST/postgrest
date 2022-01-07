@@ -19,7 +19,7 @@ let
         docs = "Run the given command in a temporary database with ${name}";
         args =
           [
-            "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from], [test/fixtures/load.sql])"
+            "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from], [test/spec/fixtures/load.sql])"
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_USE_ENV([PGUSER], [postgrest_test_authenticator], [Authenticator PG role])"
