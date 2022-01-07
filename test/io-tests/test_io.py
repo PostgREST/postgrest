@@ -137,7 +137,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None, adminport=None):
+def run(configpath=None, stdin=None, env=None, port=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
     env["PGRST_DB_POOL"] = "1"
@@ -153,11 +153,9 @@ def run(configpath=None, stdin=None, env=None, port=None, adminport=None):
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
-        if adminport:
-            env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
-            adminurl = f"http://localhost:{adminport}"
-        else:
-            adminurl = None
+        adminport = freeport()
+        env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
+        adminurl = f"http://localhost:{adminport}"
 
         command = [POSTGREST_BIN]
         env["HPCTIXFILE"] = hpctixfile()
@@ -179,14 +177,14 @@ def run(configpath=None, stdin=None, env=None, port=None, adminport=None):
             process.stdin.write(stdin or b"")
             process.stdin.close()
 
-            wait_until_ready(baseurl)
+            wait_until_ready(adminurl + "/ready")
 
             process.stdout.read()
 
             yield PostgrestProcess(
                 process=process,
                 session=PostgrestSession(baseurl),
-                admin=PostgrestSession(adminurl) if adminurl else None,
+                admin=PostgrestSession(adminurl),
             )
         finally:
             remaining_output = process.stdout.read()
@@ -750,7 +748,7 @@ def test_admin_ready_w_channel(defaultenv):
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
-    with run(env=env, adminport=freeport()) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.admin.get("/ready")
         assert response.status_code == 200
 
@@ -763,7 +761,7 @@ def test_admin_ready_wo_channel(defaultenv):
         "PGRST_DB_CHANNEL_ENABLED": "false",
     }
 
-    with run(env=env, adminport=freeport()) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.admin.get("/ready")
         assert response.status_code == 200
 
@@ -780,7 +778,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv):
         "PGRST_DB_ANON_ROLE": "limited_authenticator",
     }
 
-    with run(env=env, adminport=freeport()) as postgrest:
+    with run(env=env) as postgrest:
 
         # make it impossible to load the schema cache
         response = postgrest.session.post(
@@ -802,7 +800,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv):
 def test_admin_not_found(defaultenv):
     "Should get a not found from a undefined endpoint on the admin server"
 
-    with run(env=defaultenv, adminport=freeport()) as postgrest:
+    with run(env=defaultenv) as postgrest:
         response = postgrest.admin.get("/notfound")
         assert response.status_code == 404
 
@@ -810,7 +808,7 @@ def test_admin_not_found(defaultenv):
 def test_admin_ready_dependent_on_main_app(defaultenv):
     "Should get a failure from the admin ready endpoint if the main app also fails"
 
-    with run(env=defaultenv, adminport=freeport()) as postgrest:
+    with run(env=defaultenv) as postgrest:
         # delete the unix socket to make the main app fail
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/ready")
@@ -820,7 +818,7 @@ def test_admin_ready_dependent_on_main_app(defaultenv):
 def test_admin_live_good(defaultenv):
     "Should get a success from the admin live endpoint if the main app is running"
 
-    with run(env=defaultenv, port=freeport(), adminport=freeport()) as postgrest:
+    with run(env=defaultenv, port=freeport()) as postgrest:
         response = postgrest.admin.get("/live")
         assert response.status_code == 200
 
@@ -828,7 +826,7 @@ def test_admin_live_good(defaultenv):
 def test_admin_live_dependent_on_main_app(defaultenv):
     "Should get a failure from the admin live endpoint if the main app also fails"
 
-    with run(env=defaultenv, adminport=freeport()) as postgrest:
+    with run(env=defaultenv) as postgrest:
         # delete the unix socket to make the main app fail
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/live")
