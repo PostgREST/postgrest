@@ -1150,7 +1150,7 @@ spec actualPgVersion =
             [str|unnamed text arg|]
 
         it "can insert bytea directly" $ do
-          let file = unsafePerformIO $ BL.readFile "test/C.png"
+          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png"
           r <- request methodPost "/rpc/unnamed_bytea_param"
             [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
             file
@@ -1184,7 +1184,7 @@ spec actualPgVersion =
               }
 
         it "will err when no function with single unnamed bytea parameter exists and application/octet-stream is specified" $
-          let file = unsafePerformIO $ BL.readFile "test/C.png" in
+          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png" in
           request methodPost "/rpc/unnamed_int_param"
               [("Content-Type", "application/octet-stream")]
               file
@@ -1224,7 +1224,7 @@ spec actualPgVersion =
               [str|unnamed text arg|]
             `shouldRespondWith`
               [str|unnamed text arg|]
-          let file = unsafePerformIO $ BL.readFile "test/C.png"
+          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png"
           r <- request methodPost "/rpc/overloaded_unnamed_param"
             [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
             file
