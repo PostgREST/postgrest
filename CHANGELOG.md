@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1988, Add the current user to the request log on stdout - @DavidLindbom, @wolfgangwalther
  - #1991, Add the ability to run without `db-uri` using libpq's PG environment variables to connect. @wolfgangwalther
  - #1769, Add the ability to run without `db-schemas`, defaulting to `db-schemas=public`. @wolfgangwalther
+ - #1689, Add the ability to run without `db-anon-role` disabling anonymous access. @wolfgangwalther
 
 ### Fixed
 

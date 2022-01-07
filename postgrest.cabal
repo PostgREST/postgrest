@@ -185,6 +185,7 @@ test-suite spec
                       Feature.JsonOperatorSpec
                       Feature.LegacyGucsSpec
                       Feature.MultipleSchemaSpec
+                      Feature.NoAnonSpec
                       Feature.NoJwtSpec
                       Feature.NonexistentSchemaSpec
                       Feature.OpenApiSpec

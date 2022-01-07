@@ -63,7 +63,7 @@ import Protolude hiding (Proxy, toList)
 
 data AppConfig = AppConfig
   { configAppSettings           :: [(Text, Text)]
-  , configDbAnonRole            :: Text
+  , configDbAnonRole            :: Maybe Text
   , configDbChannel             :: Text
   , configDbChannelEnabled      :: Bool
   , configDbExtraSearchPath     :: [Text]
@@ -121,7 +121,7 @@ toText conf =
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-anon-role",              q . configDbAnonRole)
+      [("db-anon-role",              q . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
@@ -207,7 +207,7 @@ parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> C.Parser C.Config A
 parser optPath env dbSettings =
   AppConfig
     <$> parseAppSettings "app.settings"
-    <*> reqString "db-anon-role"
+    <*> optString "db-anon-role"
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
@@ -322,9 +322,6 @@ parser optPath env dbSettings =
         Just v  -> pure $ Just v
         Nothing -> alias
 
-    reqString :: C.Key -> C.Parser C.Config Text
-    reqString k = overrideFromDbOrEnvironment C.required k coerceText
-
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
 
@@ -352,7 +349,7 @@ parser optPath env dbSettings =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "log_level",
-            "db_anon_role", "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
+            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 

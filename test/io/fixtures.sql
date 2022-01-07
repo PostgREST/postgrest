@@ -1,6 +1,8 @@
 \ir db_config.sql
 
 CREATE ROLE postgrest_test_anonymous;
+ALTER ROLE :USER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
+
 CREATE ROLE postgrest_test_author;
 
 GRANT postgrest_test_anonymous, postgrest_test_author TO :USER;

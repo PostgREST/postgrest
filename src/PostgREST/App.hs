@@ -208,7 +208,7 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthRes
 
   let handleReq apiReq = handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  runDbHandler pool (txMode apiRequest) (authRole /= configDbAnonRole) configDbPreparedStatements .
+  runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
     Middleware.optionalRollback conf apiRequest $
       Middleware.runPgLocals conf authClaims authRole handleReq apiRequest jsonDbS pgVer
 

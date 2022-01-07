@@ -37,6 +37,7 @@ import qualified Feature.InsertSpec
 import qualified Feature.JsonOperatorSpec
 import qualified Feature.LegacyGucsSpec
 import qualified Feature.MultipleSchemaSpec
+import qualified Feature.NoAnonSpec
 import qualified Feature.NoJwtSpec
 import qualified Feature.NonexistentSchemaSpec
 import qualified Feature.OpenApiSpec
@@ -96,6 +97,7 @@ main = do
       maxRowsApp           = app testMaxRowsCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
       proxyApp             = app testProxyCfg
+      noAnonApp            = app testCfgNoAnon
       noJwtApp             = app testCfgNoJWT
       binaryJwtApp         = app testCfgBinaryJWT
       audJwtApp            = app testCfgAudienceJWT
@@ -169,6 +171,10 @@ main = do
     -- this test runs with a proxy
     parallel $ before proxyApp $
       describe "Feature.ProxySpec" Feature.ProxySpec.spec
+
+    -- this test runs without an anonymous role
+    parallel $ before noAnonApp $
+      describe "Feature.NoAnonSpec" Feature.NoAnonSpec.spec
 
     -- this test runs without a JWT secret
     parallel $ before noJwtApp $

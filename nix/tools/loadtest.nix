@@ -46,6 +46,7 @@ let
       }
       ''
         # previously required settings to make this work with older branches
+        export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
         export PGRST_DB_URI="postgresql://"
         export PGRST_DB_SCHEMAS="test"
 

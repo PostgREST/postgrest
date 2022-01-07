@@ -274,6 +274,7 @@ data Error
   | PutRangeNotAllowedError
   | JwtTokenMissing
   | JwtTokenInvalid Text
+  | JwtTokenRequired
   | SingularityError Integer
   | NotFound
   | ApiRequestError ApiRequestError
@@ -288,6 +289,7 @@ instance PgrstError Error where
   status PutRangeNotAllowedError = HTTP.status400
   status JwtTokenMissing         = HTTP.status500
   status (JwtTokenInvalid _)     = HTTP.unauthorized401
+  status JwtTokenRequired        = HTTP.unauthorized401
   status (SingularityError _)    = HTTP.status406
   status NotFound                = HTTP.status404
   status (PgErr err)             = status err
@@ -295,6 +297,7 @@ instance PgrstError Error where
 
   headers (SingularityError _)     = [ContentType.toHeader CTSingularJSON]
   headers (JwtTokenInvalid m)      = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired         = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
   headers (PgErr err)              = headers err
   headers (ApiRequestError err)    = headers err
   headers _                        = [ContentType.toHeader CTApplicationJSON]
@@ -322,6 +325,8 @@ instance JSON.ToJSON Error where
     "message" .= ("Server lacks JWT secret" :: Text)]
   toJSON (JwtTokenInvalid message) = JSON.object [
     "message" .= (message :: Text)]
+  toJSON JwtTokenRequired          = JSON.object [
+    "message" .= ("Anonymous access is disabled" :: Text)]
   toJSON NotFound = JSON.object []
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
@@ -329,6 +334,9 @@ instance JSON.ToJSON Error where
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
+
+requiredTokenHeader :: Header
+requiredTokenHeader = ("WWW-Authenticate", "Bearer")
 
 singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger

@@ -92,8 +92,7 @@ def defaultenv():
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
         "PGUSER": os.environ["PGUSER"],
-        "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
-        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
     }
 
@@ -384,6 +383,7 @@ def test_read_secret_from_file(secretpath, defaultenv):
 
     with run(stdin=secret, env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
         assert response.status_code == 200
 
 
@@ -600,6 +600,8 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
         **defaultenv,
         "PGRST_JWT_SECRET": f"@{external_secret_file}",
         "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",  # required for NOTIFY
     }
 
     with run(env=env) as postgrest:
@@ -609,7 +611,7 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
         # change external file
         external_secret_file.write_text(SECRET)
 
-        # SIGUSR1 doesn't reload external files
+        # SIGUSR1 doesn't reload external files, at least when db-config=false
         postgrest.process.send_signal(signal.SIGUSR1)
         time.sleep(0.1)
 
@@ -627,7 +629,8 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
         external_secret_file.write_text("invalid" * 5)
 
         # reload config and external file with NOTIFY
-        postgrest.session.post("/rpc/reload_pgrst_config")
+        response = postgrest.session.post("/rpc/reload_pgrst_config")
+        assert response.status_code == 200
         time.sleep(0.1)
 
         response = postgrest.session.get("/authors_only", headers=headers)

@@ -23,10 +23,6 @@ cli:
   - name: invalid config file
     expect: error
     args: ['test/io-tests/configs/invalid.yaml']
-# failures: required config options
-  - name: missing db-anon-role
-    expect: error
-    env:
 # failures: wrong config values
   - name: invalid server-unix-socket-mode not octal
     expect: error

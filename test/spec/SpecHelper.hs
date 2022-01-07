@@ -76,7 +76,7 @@ baseCfg :: AppConfig
 baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
     configAppSettings           = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
-  , configDbAnonRole            = "postgrest_test_anonymous"
+  , configDbAnonRole            = Just "postgrest_test_anonymous"
   , configDbChannel             = mempty
   , configDbChannelEnabled      = True
   , configDbExtraSearchPath     = []
@@ -117,6 +117,9 @@ testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxR
 
 testCfgForceRollback :: AppConfig
 testCfgForceRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
+
+testCfgNoAnon :: AppConfig
+testCfgNoAnon = baseCfg { configDbAnonRole = Nothing }
 
 testCfgNoJWT :: AppConfig
 testCfgNoJWT = baseCfg { configJwtSecret = Nothing, configJWKS = Nothing }
