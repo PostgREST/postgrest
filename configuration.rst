@@ -76,8 +76,10 @@ For example, you can configure :ref:`db-schemas` and :ref:`jwt-secret` like this
 
 .. code:: postgresql
 
-   ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.db_schemas = "tenant1, tenant2, tenant3"
+   ALTER ROLE authenticator SET pgrst.db_schemas = "tenant1, tenant2, tenant3"
    ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.jwt_secret = "REALLYREALLYREALLYREALLYVERYSAFE"
+
+You can use both database-specific settings with `IN DATABASE` and cluster-wide settings without it. Database-specific settings will override cluster-wide settings if both are used for the same parameter.
 
 Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config parameters.
 
