@@ -152,6 +152,8 @@ executable postgrest
 
   if flag(dev)
     ghc-options: -O0 -fwrite-ide-info
+                 -- https://github.com/PostgREST/postgrest/issues/387
+                 -with-rtsopts=-K1K
     if flag(hpc)
       ghc-options: -fhpc -hpcdir .hpc
   else
@@ -233,6 +235,8 @@ test-suite spec
                       -fno-spec-constr -optP-Wno-nonportable-include-path
                       -fno-warn-missing-signatures
                       -fwrite-ide-info
+                      -- https://github.com/PostgREST/postgrest/issues/387
+                      -with-rtsopts=-K33K
 
 test-suite querycost
   type:               exitcode-stdio-1.0
@@ -268,6 +272,8 @@ test-suite querycost
   ghc-options:        -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
                       -fwrite-ide-info
+                      -- https://github.com/PostgREST/postgrest/issues/387
+                      -with-rtsopts=-K1K
 
 test-suite doctests
   type:               exitcode-stdio-1.0
