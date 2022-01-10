@@ -14,6 +14,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
  - #2024, Fix schema cache loading when views with XMLTABLE and DEFAULT are present - @wolfgangwalther
  - #1724, Fix wrong CORS header Authentication -> Authorization - @wolfgangwalther
+ - #2107, Clarify error for failed schema cache load. - @steve-chavez
+   + From `Database connection lost. Retrying the connection` to `Could not query the database for the schema cache. Retrying.`
+ - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
 
 ## [9.0.0] - 2021-11-25
 
