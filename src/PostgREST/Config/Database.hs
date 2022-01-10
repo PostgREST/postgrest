@@ -46,8 +46,8 @@ dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings False
       ),
       kv_settings (database, k, v) AS (
         SELECT database,
-               split_part(setting, '=', 1),
-               split_part(setting, '=', 2)
+               substr(setting, 1, strpos(setting, '=') - 1),
+               substr(setting, strpos(setting, '=') + 1)
           FROM role_setting
          WHERE setting LIKE 'pgrst.%'
       )
