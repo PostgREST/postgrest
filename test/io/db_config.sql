@@ -4,8 +4,8 @@ CREATE ROLE db_config_authenticator LOGIN NOINHERIT;
 ALTER ROLE db_config_authenticator SET pgrst.jwt_aud = 'https://example.org';
 ALTER ROLE db_config_authenticator SET pgrst.openapi_server_proxy_uri = 'https://example.org/api';
 ALTER ROLE db_config_authenticator SET pgrst.raw_media_types = 'application/vnd.pgrst.db-config';
-ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLYREALLYREALLYREALLYVERYSAFE';
-ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'true';
+ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
+ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '."a"."role"';
 ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit-allow-override';
 ALTER ROLE db_config_authenticator SET pgrst.db_schemas = 'test, tenant1, tenant2';
@@ -16,7 +16,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_max_rows = '1000';
 ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, extensions';
 
 -- override with database specific setting
-ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.jwt_secret = 'OVERRIDEREALLYREALLYREALLYREALLYVERYSAFE';
+ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.jwt_secret = 'OVERRIDE=REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
 ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.db_extra_search_path = 'public, extensions, private';
 
 -- other database settings that should be ignored
