@@ -36,19 +36,26 @@ dbSettingsStatement :: SQL.Statement () [(Text, Text)]
 dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings False
   where
     sql = [q|
-      with
-      role_setting as (
-        select setdatabase, unnest(setconfig) as setting from pg_catalog.pg_db_role_setting
-        where setrole = current_user::regrole::oid
-          and setdatabase in (0, (select oid from pg_catalog.pg_database where datname = current_catalog))
+      WITH
+      role_setting (database, setting) AS (
+        SELECT setdatabase,
+               unnest(setconfig)
+          FROM pg_catalog.pg_db_role_setting
+         WHERE setrole = CURRENT_USER::regrole::oid
+           AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))
       ),
-      kv_settings as (
-        select setdatabase, split_part(setting, '=', 1) as k, split_part(setting, '=', 2) as value from role_setting
-        where setting like 'pgrst.%'
+      kv_settings (database, k, v) AS (
+        SELECT database,
+               split_part(setting, '=', 1),
+               split_part(setting, '=', 2)
+          FROM role_setting
+         WHERE setting LIKE 'pgrst.%'
       )
-      select distinct on (key) replace(k, 'pgrst.', '') as key, value
-      from kv_settings
-      order by key, setdatabase desc;
+      SELECT DISTINCT ON (key)
+             replace(k, 'pgrst.', '') AS key,
+             v AS value
+        FROM kv_settings
+       ORDER BY key, database DESC;
     |]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
