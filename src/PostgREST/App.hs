@@ -31,7 +31,7 @@ import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
-import qualified Hasql.Pool                      as SQL
+import qualified PostgREST.Pool                  as SQL
 import qualified Hasql.Transaction               as SQL
 import qualified Hasql.Transaction.Sessions      as SQL
 import qualified Network.HTTP.Types.Header       as HTTP

@@ -50,6 +50,15 @@ let
           }
           { };
 
+      resource-pool-fork-avanov =
+        prev.callHackageDirect
+          {
+            pkg = "resource-pool-fork-avanov";
+            ver = "0.2.4.0";
+            sha256 = "0y5hk4wi2n5xzdb11jvb9f8mh3lmycjfyxii81kl6s412ir5gpm5";
+          }
+          { };
+
       hasql-dynamic-statements =
         lib.dontCheck (lib.unmarkBroken prev.hasql-dynamic-statements);
 

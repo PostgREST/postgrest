@@ -20,7 +20,7 @@ import qualified Data.ByteString.Char8     as BS
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Encoding.Error  as T
-import qualified Hasql.Pool                as SQL
+import qualified PostgREST.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 

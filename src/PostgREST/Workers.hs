@@ -12,7 +12,7 @@ import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
-import qualified Hasql.Pool                 as SQL
+import qualified PostgREST.Pool             as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 
 import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,

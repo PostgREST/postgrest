@@ -10,7 +10,7 @@ import Network.Socket.ByteString
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 
-import qualified Hasql.Pool    as SQL
+import qualified PostgREST.Pool    as SQL
 import qualified Hasql.Session as SQL
 
 import qualified PostgREST.AppState as AppState

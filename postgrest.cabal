@@ -56,6 +56,7 @@ library
                       PostgREST.Logger
                       PostgREST.Middleware
                       PostgREST.OpenAPI
+                      PostgREST.Pool
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
                       PostgREST.Query.Statements
@@ -86,7 +87,6 @@ library
                     , hasql                     >= 1.4 && < 1.5
                     , hasql-dynamic-statements  == 0.3.1
                     , hasql-notifications       >= 0.1 && < 0.3
-                    , hasql-pool                >= 0.5 && < 0.6
                     , hasql-transaction         >= 1.0.1 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
@@ -103,6 +103,7 @@ library
                     , protolude                 >= 0.3 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
                     , retry                     >= 0.7.4 && < 0.10
+                    , resource-pool-fork-avanov >= 0.2.4 && < 0.2.5
                     , scientific                >= 0.3.4 && < 0.4
                     , swagger2                  >= 2.4 && < 2.7
                     , text                      >= 1.2.2 && < 1.3

@@ -27,7 +27,7 @@ module PostgREST.AppState
   , waitListener
   ) where
 
-import qualified Hasql.Pool as SQL
+import qualified PostgREST.Pool as SQL
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
