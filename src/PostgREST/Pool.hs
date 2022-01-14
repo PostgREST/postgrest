@@ -6,11 +6,12 @@ module PostgREST.Pool
   release,
   UsageError(..),
   use,
+  stats,
 )
 where
 
-import Data.Time (NominalDiffTime)
 import qualified Data.Pool as ResourcePool
+import           Data.Time (NominalDiffTime)
 
 import qualified Hasql.Connection
 import qualified Hasql.Session
@@ -22,6 +23,9 @@ import Protolude
 newtype Pool =
   Pool (ResourcePool.Pool (Either Hasql.Connection.ConnectionError Hasql.Connection.Connection))
   deriving (Show)
+
+stats :: Pool -> IO ResourcePool.PoolStats
+stats (Pool p) = ResourcePool.poolStats <$> ResourcePool.stats p False
 
 -- |
 -- Settings of the connection pool. Consist of:
@@ -42,8 +46,7 @@ type Settings =
 -- create a connection-pool.
 acquire :: Settings -> IO Pool
 acquire (size, timeout, connectionSettings) =
-  fmap Pool $
-  ResourcePool.createPool acq rel stripes timeout size
+  Pool <$> ResourcePool.createPool acq rel stripes timeout size
   where
     acq =
       Hasql.Connection.acquire connectionSettings

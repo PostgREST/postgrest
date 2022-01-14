@@ -2,7 +2,8 @@ module PostgREST.Admin
   ( postgrestAdmin
   ) where
 
-import qualified Data.Text as T
+import           Data.Aeson as JSON
+import qualified Data.Text  as T
 
 import Network.Socket
 import Network.Socket.ByteString
@@ -10,8 +11,9 @@ import Network.Socket.ByteString
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 
-import qualified PostgREST.Pool    as SQL
-import qualified Hasql.Session as SQL
+import qualified Data.Pool      as ResourcePool
+import qualified Hasql.Session  as SQL
+import qualified PostgREST.Pool as SQL
 
 import qualified PostgREST.AppState as AppState
 import           PostgREST.Config   (AppConfig (..))
@@ -33,6 +35,9 @@ postgrestAdmin appState appConfig req respond  = do
       respond $ Wai.responseLBS (if isMainAppReachable && isConnectionUp && isSchemaCacheLoaded then HTTP.status200 else HTTP.status503) [] mempty
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+    ["metrics"] -> do
+      pStats <- SQL.stats (AppState.getPool appState)
+      respond $ Wai.responseLBS HTTP.status200 [] $ JSON.encode $ Metrics pStats
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
 
@@ -54,3 +59,16 @@ reachMainApp appConfig =
         connect sock $ addrAddress addr
         return sock
     sendEmpty sock = void $ send sock mempty
+
+newtype Metrics = Metrics ResourcePool.PoolStats
+
+instance JSON.ToJSON Metrics where
+    toJSON (Metrics (ResourcePool.PoolStats highwaterUsage currentUsage takes creates createFailures)) =
+      JSON.object [
+        "dbPoolStats" .= JSON.object
+          ["highwaterUsage"  .= highwaterUsage
+          ,"currentUsage"   .= currentUsage
+          ,"takes"          .= takes
+          ,"creates"        .= creates
+          ,"createFailures" .= createFailures]
+      ]

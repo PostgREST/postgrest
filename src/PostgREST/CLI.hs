@@ -11,9 +11,9 @@ module PostgREST.CLI
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
-import qualified PostgREST.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
+import qualified PostgREST.Pool             as SQL
 
 import Data.Text.IO (hPutStrLn)
 import Text.Heredoc (str)

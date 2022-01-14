@@ -9,11 +9,11 @@ import PostgREST.Config.PgVersion (PgVersion (..))
 
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
-import qualified PostgREST.Pool             as SQL
 import           Hasql.Session              (Session, statement)
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified PostgREST.Pool             as SQL
 
 import Text.InterpolatedString.Perl6 (q)
 
