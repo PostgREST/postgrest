@@ -10,13 +10,11 @@ cli:
     args: ['-e']
   - name: dump config
     args: ['--dump-config']
-    use_defaultenv: true
   - name: dump schema
     args: ['--dump-schema']
     use_defaultenv: true
-# failures: config files
   - name: no config
-    expect: error
+# failures: config files
   - name: non-existant config file
     expect: error
     args: ['does_not_exist.conf']

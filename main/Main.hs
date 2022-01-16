@@ -2,14 +2,10 @@
 
 module Main (main) where
 
-import qualified Data.Map.Strict as M
-
 import System.IO (BufferMode (..), hSetBuffering)
 
 import qualified PostgREST.App as App
 import qualified PostgREST.CLI as CLI
-
-import PostgREST.Config (readPGRSTEnvironment)
 
 import Protolude
 
@@ -20,8 +16,7 @@ import qualified PostgREST.Unix as Unix
 main :: IO ()
 main = do
   setBuffering
-  hasPGRSTEnv <- not . M.null <$> readPGRSTEnvironment
-  opts <- CLI.readCLIShowHelp hasPGRSTEnv
+  opts <- CLI.readCLIShowHelp
   CLI.main installSignalHandlers runAppInSocket opts
 
 installSignalHandlers :: App.SignalHandlerInstaller

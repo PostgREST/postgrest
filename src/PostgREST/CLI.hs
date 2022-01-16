@@ -82,12 +82,12 @@ data Command
   | CmdDumpSchema
 
 -- | Read command line interface options. Also prints help.
-readCLIShowHelp :: Bool -> IO CLI
-readCLIShowHelp hasEnvironment =
+readCLIShowHelp :: IO CLI
+readCLIShowHelp =
   O.customExecParser prefs opts
   where
     prefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
-    opts = O.info parser $ O.fullDesc <> progDesc <> footer
+    opts = O.info parser $ O.fullDesc <> progDesc
     parser = O.helper <*> exampleParser <*> cliParser
 
     progDesc =
@@ -95,11 +95,6 @@ readCLIShowHelp hasEnvironment =
         "PostgREST "
         <> BS.unpack prettyVersion
         <> " / create a REST API to an existing Postgres database"
-
-    footer =
-      O.footer $
-        "To run PostgREST, please pass the FILENAME argument"
-        <> " or set PGRST_ environment variables."
 
     exampleParser =
       O.infoOption exampleConfigFile $
@@ -111,12 +106,12 @@ readCLIShowHelp hasEnvironment =
     cliParser =
       CLI
         <$> (dumpConfigFlag <|> dumpSchemaFlag)
-        <*> optionalIf hasEnvironment configFileOption
+        <*> O.optional configFileOption
 
     configFileOption =
       O.strArgument $
         O.metavar "FILENAME"
-        <> O.help "Path to configuration file (optional with PGRST_ environment variables)"
+        <> O.help "Path to configuration file"
 
     dumpConfigFlag =
       O.flag CmdRun CmdDumpConfig $
@@ -127,10 +122,6 @@ readCLIShowHelp hasEnvironment =
       O.flag CmdRun CmdDumpSchema $
         O.long "dump-schema"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
-
-    optionalIf :: Alternative f => Bool -> f a -> f (Maybe a)
-    optionalIf True  = O.optional
-    optionalIf False = fmap Just
 
 exampleConfigFile :: [Char]
 exampleConfigFile =
