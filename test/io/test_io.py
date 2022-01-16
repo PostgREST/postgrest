@@ -375,32 +375,62 @@ def test_port_connection(defaultenv):
 )
 def test_read_secret_from_file(secretpath, defaultenv):
     "Authorization should succeed when the secret is read from a file."
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": f"@{secretpath}"}
+
     if secretpath.suffix == ".b64":
-        configfile = CONFIGSDIR / "base64-secret-from-file.config"
-    else:
-        configfile = CONFIGSDIR / "secret-from-file.config"
+        env["PGRST_JWT_SECRET_IS_BASE64"] = "true"
 
     secret = secretpath.read_bytes()
     headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
-    with run(configfile, stdin=secret, env=defaultenv) as postgrest:
+    with run(stdin=secret, env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol(dburi, defaultenv):
-    "Reading the dburi from a file with a single line should work."
-    config = CONFIGSDIR / "dburi-from-file.config"
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
-    with run(config, env=env, stdin=dburi):
+def test_read_secret_from_stdin(defaultenv):
+    "Authorization should succeed when the secret is read from stdin."
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "false", "PGRST_JWT_SECRET": "@/dev/stdin"}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
+        assert response.status_code == 200
+
+
+# TODO: This test would fail right now, because of
+# https://github.com/PostgREST/postgrest/issues/2126
+@pytest.mark.skip
+def test_read_secret_from_stdin_dbconfig(defaultenv):
+    "Authorization should succeed when the secret is read from stdin with db-config=true."
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": "@/dev/stdin"}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
+        assert response.status_code == 200
+
+
+def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
+    "Reading the dburi from stdin with a single line should work."
+    env = {**defaultenv, "PGRST_DB_URI": "@/dev/stdin"}
+
+    with run(env=env, stdin=dburi):
         pass
 
 
-def test_read_dburi_from_file_with_eol(dburi, defaultenv):
-    "Reading the dburi from a file containing a newline should work."
-    config = CONFIGSDIR / "dburi-from-file.config"
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
-    with run(config, env=env, stdin=dburi + b"\n"):
+def test_read_dburi_from_stdin_with_eol(dburi, defaultenv):
+    "Reading the dburi from stdin containing a newline should work."
+    env = {**defaultenv, "PGRST_DB_URI": "@/dev/stdin"}
+
+    with run(env=env, stdin=dburi + b"\n"):
         pass
 
 
@@ -411,11 +441,12 @@ def test_role_claim_key(roleclaim, defaultenv):
     "Authorization should depend on a correct role-claim-key and JWT claim."
     env = {
         **defaultenv,
-        "ROLE_CLAIM_KEY": roleclaim["key"],
+        "PGRST_JWT_ROLE_CLAIM_KEY": roleclaim["key"],
+        "PGRST_JWT_SECRET": SECRET,
     }
     headers = jwtauthheader(roleclaim["data"], SECRET)
 
-    with run(CONFIGSDIR / "role-claim-key.config", env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
@@ -425,11 +456,11 @@ def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
     "Given an invalid role-claim-key, Postgrest should exit with a non-zero exit code."
     env = {
         **defaultenv,
-        "ROLE_CLAIM_KEY": invalidroleclaimkey,
+        "PGRST_JWT_ROLE_CLAIM_KEY": invalidroleclaimkey,
     }
 
     with pytest.raises(PostgrestError):
-        dump = dumpconfig(CONFIGSDIR / "role-claim-key.config", env=env)
+        dump = dumpconfig(env=env)
         for line in dump.split("\n"):
             if line.startswith("jwt-role-claim-key"):
                 print(line)
@@ -458,10 +489,13 @@ def test_iat_claim(defaultenv):
     https://github.com/PostgREST/postgrest/issues/1139
 
     """
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
+
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
     headers = jwtauthheader(claim, SECRET)
 
-    with run(CONFIGSDIR / "simple.config", env=defaultenv) as postgrest:
+    with run(env=env) as postgrest:
         for _ in range(10):
             response = postgrest.session.get("/authors_only", headers=headers)
             assert response.status_code == 200
@@ -476,7 +510,10 @@ def test_app_settings(defaultenv):
     See: https://github.com/PostgREST/postgrest/issues/1141
 
     """
-    with run(CONFIGSDIR / "app-settings.config", env=defaultenv) as postgrest:
+
+    env = {**defaultenv, "PGRST_APP_SETTINGS_EXTERNAL_API_SECRET": "0123456789abcdef"}
+
+    with run(env=env) as postgrest:
         # Wait for the db pool to time out, set to 1s in config
         time.sleep(2)
 
@@ -487,7 +524,7 @@ def test_app_settings(defaultenv):
 
 
 def test_app_settings_reload(tmp_path, defaultenv):
-    "App settings should be reloaded when PostgREST is sent SIGUSR2."
+    "App settings should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -509,7 +546,7 @@ def test_app_settings_reload(tmp_path, defaultenv):
 
 
 def test_jwt_secret_reload(tmp_path, defaultenv):
-    "JWT secret should be reloaded when PostgREST is sent SIGUSR2."
+    "JWT secret should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -534,8 +571,6 @@ def test_jwt_secret_reload(tmp_path, defaultenv):
 
 def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
     "JWT secret external file should be reloaded when PostgREST is sent a SIGUSR2 or a NOTIFY."
-    config = CONFIGSDIR / "sigusr2-settings-external-secret.config"
-
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
     external_secret_file = tmp_path / "jwt-secret-config"
@@ -543,11 +578,11 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
     env = {
         **defaultenv,
-        "JWT_SECRET_FILE": f"@{external_secret_file}",
+        "PGRST_JWT_SECRET": f"@{external_secret_file}",
         "PGRST_DB_CHANNEL_ENABLED": "true",
     }
 
-    with run(config, env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
 
@@ -580,7 +615,7 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
 
 def test_db_schema_reload(tmp_path, defaultenv):
-    "DB schema should be reloaded when PostgREST is sent SIGUSR2."
+    "DB schema should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -634,14 +669,12 @@ def test_db_schema_notify_reload(defaultenv):
 
 def test_max_rows_reload(defaultenv):
     "max-rows should be reloaded from role settings when PostgREST receives a SIGUSR2."
-    config = CONFIGSDIR / "sigusr2-settings.config"
-
     env = {
         **defaultenv,
         "PGRST_DB_CONFIG": "true",
     }
 
-    with run(config, env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.head("/projects")
         assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-4/*"
