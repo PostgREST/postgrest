@@ -202,6 +202,30 @@ jobs:
             result/postgrest.exe
           if-no-files-found: error
 
+  Build-Cabal-Arm:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux armv7
+            arch: armv7
+            artifact: postgrest-ubuntu-armv7
+
+          - name: Linux aarch64
+            arch: aarch64
+            artifact: postgrest-ubuntu-aarch64
+
+    name: Build ${{ matrix.name }} (Cabal)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test command
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_ARM_HOST }}
+          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_ARM_PORT }}
+          script_stop: true
+          script: sh test.sh
 
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
