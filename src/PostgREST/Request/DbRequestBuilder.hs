@@ -64,9 +64,12 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows =<<
   augmentRequestWithJoin schema rootRels =<<
-  addFiltersOrdersRanges apiRequest (initReadRequest rootName sel)
+  addLogicTrees apiRequest =<<
+  addRanges apiRequest =<<
+  addOrders apiRequest =<<
+  addFilters apiRequest (initReadRequest rootName qsSelect)
   where
-    sel = QueryParams.qsSelect $ iQueryParams apiRequest
+    QueryParams.QueryParams{..} = iQueryParams apiRequest
     (rootName, rootRels) = rootWithRels schema rootTableName allRels (iAction apiRequest)
 
 -- Get the root table name with its relationships according to the Action type.
@@ -251,16 +254,11 @@ getJoinConditions previousAlias newAlias (Relationship Table{tableSchema=tSchema
     removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
     removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == decodeUtf8 sourceCTEName then mempty else schema) tbl
 
-addFiltersOrdersRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addFiltersOrdersRanges ApiRequest{..} rReq = do
-  flip (foldr addLogicTree) qsLogic <$> (foldr addRange rOrds <$> ranges)
+addFilters :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addFilters ApiRequest{..} rReq =
+  foldr addFilterToNode (Right rReq) flts
   where
-    rFlts = foldr addFilter rReq flts
-    rOrds = foldr addOrder rFlts qsOrder
     QueryParams.QueryParams{..} = iQueryParams
-    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` M.toList iRange
-    -- there can be no filters on the root table when we are doing insert/update/delete
     flts =
       case iAction of
         ActionInvoke InvGet  -> qsFilters
@@ -269,38 +267,51 @@ addFiltersOrdersRanges ApiRequest{..} rReq = do
         ActionRead _         -> qsFilters
         _                    -> qsFiltersNotRoot
 
-addFilterToNode :: Filter -> ReadRequest -> ReadRequest
-addFilterToNode flt (Node (q@Select {where_=lf}, i) f) = Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f
+    addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadRequest ->  Either ApiRequestError ReadRequest
+    addFilterToNode =
+      updateNode (\flt (Node (q@Select {where_=lf}, i) f) -> Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f)
 
-addFilter :: (EmbedPath, Filter) -> ReadRequest -> ReadRequest
-addFilter = addProperty addFilterToNode
-
-addOrderToNode :: [OrderTerm] -> ReadRequest -> ReadRequest
-addOrderToNode o (Node (q,i) f) = Node (q{order=o}, i) f
-
-addOrder :: (EmbedPath, [OrderTerm]) -> ReadRequest -> ReadRequest
-addOrder = addProperty addOrderToNode
-
-addRangeToNode :: NonnegRange -> ReadRequest -> ReadRequest
-addRangeToNode r (Node (q,i) f) = Node (q{range_=r}, i) f
-
-addRange :: (EmbedPath, NonnegRange) -> ReadRequest -> ReadRequest
-addRange = addProperty addRangeToNode
-
-addLogicTreeToNode :: LogicTree -> ReadRequest -> ReadRequest
-addLogicTreeToNode t (Node (q@Select{where_=lf},i) f) = Node (q{where_=t:lf}::ReadQuery, i) f
-
-addLogicTree :: (EmbedPath, LogicTree) -> ReadRequest -> ReadRequest
-addLogicTree = addProperty addLogicTreeToNode
-
-addProperty :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> ReadRequest -> ReadRequest
-addProperty f ([], a) rr = f a rr
-addProperty f (targetNodeName:remainingPath, a) (Node rn forest) =
-  case pathNode of
-    Nothing -> Node rn forest -- the property is silenty dropped in the Request does not contain the required path
-    Just tn -> Node rn (addProperty f (remainingPath, a) tn:delete tn forest)
+addOrders :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addOrders ApiRequest{..} rReq =
+  foldr addOrderToNode (Right rReq) qsOrder
   where
-    pathNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
+    QueryParams.QueryParams{..} = iQueryParams
+
+    addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
+    addOrderToNode = updateNode (\o (Node (q,i) f) -> Node (q{order=o}, i) f)
+
+addRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addRanges ApiRequest{..} rReq =
+  foldr addRangeToNode (Right rReq) =<< ranges
+  where
+    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
+    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` M.toList iRange
+
+    addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
+    addRangeToNode = updateNode (\r (Node (q,i) f) -> Node (q{range_=r}, i) f)
+
+addLogicTrees :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addLogicTrees ApiRequest{..} rReq =
+  foldr addLogicTreeToNode (Right rReq) qsLogic
+  where
+    QueryParams.QueryParams{..} = iQueryParams
+
+    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
+    addLogicTreeToNode = updateNode (\t (Node (q@Select{where_=lf},i) f) -> Node (q{where_=t:lf}::ReadQuery, i) f)
+
+-- Find a Node of the Tree and apply a function to it
+updateNode :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
+updateNode f ([], a) rr = f a <$> rr
+updateNode _ _ (Left e) = Left e
+updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
+  case findNode of
+    Nothing -> Left $ NotEmbedded targetNodeName
+    Just target ->
+      (\node -> Node rootNode $ node : delete target forest) <$>
+      updateNode f (remainingPath, a) (Right target)
+  where
+    findNode :: Maybe ReadRequest
+    findNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
 mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
 mutateRequest schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
