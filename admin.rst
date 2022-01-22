@@ -268,11 +268,6 @@ First, create postgrest configuration in ``/etc/postgrest/config``
   db-uri = "postgres://<your_user>:<your_password>@localhost:5432/<your_db>"
   db-schemas = "<your_exposed_schema>"
   db-anon-role = "<your_anon_role>"
-  db-pool = 10
-
-  server-host = "127.0.0.1"
-  server-port = 3000
-
   jwt-secret = "<your_secret>"
 
 Then create the systemd service file in ``/etc/systemd/system/postgrest.service``

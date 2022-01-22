@@ -63,7 +63,7 @@ You can use row-level security to flexibly restrict visibility and access for th
 
   ALTER TABLE chat ENABLE ROW LEVEL SECURITY;
 
-We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
+We want to enforce a policy that ensures a user can see only those messages sent by them or intended for them. Also we want to prevent a user from forging the message_from column with another person's name.
 
 PostgreSQL allows us to set this policy with row-level security:
 

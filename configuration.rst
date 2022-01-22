@@ -3,7 +3,18 @@
 Configuration
 =============
 
-PostgREST reads a configuration file to determine information about the database and how to serve client requests. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
+Without configuration, PostgREST won't be able to serve requests. At the minimum it needs either :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`. Config parameters can be provided via :ref:`file_config`, via :ref:`env_variables_config` or through :ref:`in_db_config`.
+
+To connect to a database it uses a `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. The connection string can be set in the configuration file or via environment variable or can be read from an external file. See :ref:`db-uri` for details. Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
+
+The user with whom PostgREST connects to the database is also known as the authenticator role. For more information about the anonymous vs authenticator roles see :ref:`roles`.
+
+.. _file_config:
+
+Config File
+-----------
+
+PostgREST can read a config file. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
 
 .. code:: bash
 
@@ -13,7 +24,7 @@ PostgREST reads a configuration file to determine information about the database
 
    Configuration can be reloaded without restarting the server. See :ref:`config_reloading`.
 
-The configuration file must contain a set of key value pairs. At minimum you must include these keys:
+The configuration file must contain a set of key value pairs:
 
 .. code::
 
@@ -23,26 +34,31 @@ The configuration file must contain a set of key value pairs. At minimum you mus
   # https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
   db-uri       = "postgres://user:pass@host:5432/dbname"
 
-  # The name of which database schema to expose to REST clients
-  db-schemas   = "api"
-
   # The database role to use when no client authentication is provided.
-  # Can (and should) differ from user in db-uri
+  # Should differ from authenticator
   db-anon-role = "anon"
 
-The user specified in the db-uri is also known as the authenticator role. For more information about the anonymous vs authenticator roles see the :ref:`roles`.
+  # The secret to verify the JWT for authenticated requests with.
+  # Needs to be 32 characters minimum.
+  jwt-secret           = "reallyreallyreallyreallyverysafe"
+  jwt-secret-is-base64 = False
+
+  # Port the postgrest process is listening on for http requests
+  server-port = 80
+
+You can run ``postgrest --example`` to display all possible configuration parameters and how to use them in a configuration file.
 
 .. _env_variables_config:
 
 Environment Variables
-=====================
+---------------------
 
 You can also set these :ref:`configuration parameters <config_full_list>` using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
 
 .. _in_db_config:
 
 In-Database Configuration
-=========================
+-------------------------
 
 By adding settings to the **authenticator** role (see :ref:`roles`), you can make the database the single source of truth for PostgREST's configuration.
 This is enabled by :ref:`db-config`.
@@ -120,37 +136,37 @@ The ``"pgrst"`` notification channel is enabled by default. For configuring the 
 List of parameters
 ==================
 
-======================== ======= ================= ======== ==========
-Name                     Type    Default           Required Reloadable
-======================== ======= ================= ======== ==========
-app.settings.*           String                             Y
-db-anon-role             String                    Y        Y
-db-channel               String  pgrst                      Y
-db-channel-enabled       Boolean True                       Y
-db-config                Boolean True                       Y
-db-extra-search-path     String  public                     Y
-db-max-rows              Int     ∞                          Y
+======================== ======= ================= ==========
+Name                     Type    Default           Reloadable
+======================== ======= ================= ==========
+app.settings.*           String                    Y
+db-anon-role             String                    Y
+db-channel               String  pgrst             Y
+db-channel-enabled       Boolean True              Y
+db-config                Boolean True              Y
+db-extra-search-path     String  public            Y
+db-max-rows              Int     ∞                 Y
 db-pool                  Int     10
 db-pool-timeout          Int     10
-db-pre-request           String                             Y
-db-prepared-statements   Boolean True                       Y
-db-schemas               String                    Y        Y
-db-tx-end                String  commit                     Y
-db-uri                   String                    Y
-db-use-legacy-gucs       Boolean True                       Y
-jwt-aud                  String                             Y
-jwt-role-claim-key       String  .role                      Y
-jwt-secret               String                             Y
-jwt-secret-is-base64     Boolean False                      Y
-log-level                String  error                      Y
-openapi-mode             String  follow-privileges          Y
-openapi-server-proxy-uri String                             Y
-raw-media-types          String                             Y
+db-pre-request           String                    Y
+db-prepared-statements   Boolean True              Y
+db-schemas               String  public            Y
+db-tx-end                String  commit            
+db-uri                   String  postgresql://
+db-use-legacy-gucs       Boolean True              Y
+jwt-aud                  String                    Y
+jwt-role-claim-key       String  .role             Y
+jwt-secret               String                    Y
+jwt-secret-is-base64     Boolean False             Y
+log-level                String  error             Y
+openapi-mode             String  follow-privileges Y
+openapi-server-proxy-uri String                    Y
+raw-media-types          String                    Y
 server-host              String  !4
 server-port              Int     3000
 server-unix-socket       String
 server-unix-socket-mode  String  660
-======================== ======= ================= ======== ==========
+======================== ======= ================= ==========
 
 .. _app.settings.*:
 
@@ -175,6 +191,8 @@ db-anon-role
   =============== ==================
 
   The database role to use when executing commands on behalf of unauthenticated clients. For more information, see :ref:`roles`.
+
+  When unset anonymous access will be blocked.
 
 .. _db-channel:
 
@@ -376,9 +394,7 @@ db-uri
 
   When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <https://www.postgresql.org/docs/current/auth-peer.html>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
 
-  On older systems like Centos 6, with older versions of libpq, a different db-uri syntax has to be used. In this case the URI is a string of space separated key-value pairs (key=value), so the example above would be :code:`"host=host user=user port=5432 dbname=dbname password=pass"`.
-
-  Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
+  Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the connection string out of an external file.
 
 .. _db-use-legacy-gucs:
 
@@ -441,6 +457,8 @@ jwt-secret
   =============== =================
 
   The secret or `JSON Web Key (JWK) (or set) <https://datatracker.ietf.org/doc/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. For security the key must be **at least 32 characters long**. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded. Both symmetric and asymmetric cryptography are supported. For more info see :ref:`asym_keys`.
+
+  Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
 
 .. _jwt-secret-is-base64:
 
