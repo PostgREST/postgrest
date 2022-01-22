@@ -1,6 +1,5 @@
 module Feature.BinaryJwtSecretSpec where
 
--- {{{ Imports
 import Network.Wai (Application)
 
 import Network.HTTP.Types
@@ -9,7 +8,6 @@ import Test.Hspec.Wai
 
 import Protolude
 import SpecHelper
--- }}}
 
 spec :: SpecWith ((), Application)
 spec = describe "server started with binary JWT secret" $

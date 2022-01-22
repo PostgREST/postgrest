@@ -1,6 +1,5 @@
 module Feature.AudienceJwtSecretSpec where
 
--- {{{ Imports
 import Network.Wai (Application)
 
 import Network.HTTP.Types
@@ -9,7 +8,6 @@ import Test.Hspec.Wai
 
 import Protolude  hiding (get)
 import SpecHelper
--- }}}
 
 spec :: SpecWith ((), Application)
 spec = describe "test handling of aud claims in JWT" $ do
