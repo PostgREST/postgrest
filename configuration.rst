@@ -39,31 +39,6 @@ Environment Variables
 
 You can also set these :ref:`configuration parameters <config_full_list>` using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
 
-.. _config_reloading:
-
-Configuration Reloading
-=======================
-
-To reload the configuration without restarting the PostgREST server, send a SIGUSR2 signal to the server process.
-
-.. code:: bash
-
-  killall -SIGUSR2 postgrest
-
-This method does not reload :ref:`env_variables_config` and it will not work for reloading a Docker container configuration. In these cases, you need to restart the PostgREST server or use the :ref:`in_db_config` as an alternative.
-
-.. important::
-
-  The following settings will not be reread when reloading the configuration. You will need to restart PostgREST in that case.
-
-    * :ref:`db-uri`
-    * :ref:`db-pool`
-    * :ref:`db-pool-timeout`
-    * :ref:`server-host`
-    * :ref:`server-port`
-    * :ref:`server-unix-socket`
-    * :ref:`server-unix-socket-mode`
-
 .. _in_db_config:
 
 In-Database Configuration
@@ -95,12 +70,44 @@ When using both the configuration file and the in-database configuration, the la
   The settings of every role are PUBLIC - they can be viewed by any user that queries the ``pg_catalog.pg_db_role_setting`` table.
   In this case you should keep the :ref:`jwt-secret` in the configuration file or as environment variables.
 
-.. _in_db_config_reloading:
+.. _config_reloading:
 
-In-database configuration reloading
------------------------------------
+Configuration Reloading
+=======================
 
-To reload the in-database configuration from within the database, you can use a NOTIFY command.
+It's possible to reload PostgREST's configuration without restarting the server. You can do this :ref:`via signal <config_reloading_signal>` or :ref:`via notification <config_reloading_notify>`.
+
+It's not possible to change :ref:`env_variables_config` for a running process and reloading a Docker container configuration will not work. In these cases, you need to restart the PostgREST server or use :ref:`in_db_config` as an alternative.
+
+.. important::
+
+  The following settings will not be reloaded. You will need to restart PostgREST to change those.
+
+    * :ref:`db-uri`
+    * :ref:`db-pool`
+    * :ref:`db-pool-timeout`
+    * :ref:`server-host`
+    * :ref:`server-port`
+    * :ref:`server-unix-socket`
+    * :ref:`server-unix-socket-mode`
+
+.. _config_reloading_signal:
+
+Reload with signal
+------------------
+
+To reload the configuration via signal, send a SIGUSR2 signal to the server process.
+
+.. code:: bash
+
+  killall -SIGUSR2 postgrest
+
+.. _config_reloading_notify:
+
+Reload with NOTIFY
+------------------
+
+To reload the configuration from within the database, you can use a NOTIFY command.
 
 .. code:: postgresql
 
