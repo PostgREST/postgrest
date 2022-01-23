@@ -9,6 +9,12 @@ To connect to a database it uses a `libpq connection string <https://www.postgre
 
 The user with whom PostgREST connects to the database is also known as the authenticator role. For more information about the anonymous vs authenticator roles see :ref:`roles`.
 
+Config parameters are read in the following order:
+
+1. From the config file.
+2. From environment variables, overriding values from the config file.
+3. From the database, overriding values from both the config file and environment variables.
+
 .. _file_config:
 
 Config File
