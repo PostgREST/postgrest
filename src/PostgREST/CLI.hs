@@ -125,30 +125,11 @@ readCLIShowHelp =
 
 exampleConfigFile :: [Char]
 exampleConfigFile =
-  [str|## The standard connection URI format, documented at
-      |## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
-      |db-uri = "postgresql://"
-      |
-      |## The name of which database schema to expose to REST clients
-      |db-schemas = "public"
+  [str|## Admin server used for checks. It's disabled by default unless a port is specified.
+      |# admin-server-port = 3001
       |
       |## The database role to use when no client authentication is provided
       |# db-anon-role = "anon"
-      |
-      |## Number of open connections in the pool
-      |db-pool = 10
-      |
-      |## Time to live, in seconds, for an idle database pool connection
-      |db-pool-timeout = 10
-      |
-      |## Extra schemas to add to the search_path of every request
-      |db-extra-search-path = "public"
-      |
-      |## Limit rows in response
-      |# db-max-rows = 1000
-      |
-      |## Stored proc to exec immediately after auth
-      |# db-pre-request = "stored_proc_name"
       |
       |## Notification channel for reloading the schema cache
       |db-channel = "pgrst"
@@ -159,9 +140,27 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
-      |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
-      |## For PostgreSQL v14 and up, this setting will be ignored.
-      |db-use-legacy-gucs = true
+      |## Extra schemas to add to the search_path of every request
+      |db-extra-search-path = "public"
+      |
+      |## Limit rows in response
+      |# db-max-rows = 1000
+      |
+      |## Number of open connections in the pool
+      |db-pool = 10
+      |
+      |## Time to live, in seconds, for an idle database pool connection
+      |db-pool-timeout = 10
+      |
+      |## Stored proc to exec immediately after auth
+      |# db-pre-request = "stored_proc_name"
+      |
+      |## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
+      |## When disabled, statements will be parametrized but won't be prepared.
+      |db-prepared-statements = true
+      |
+      |## The name of which database schema to expose to REST clients
+      |db-schemas = "public"
       |
       |## How to terminate database transactions
       |## Possible values are:
@@ -175,9 +174,36 @@ exampleConfigFile =
       |##   Transaction is rolled back, but can be overriden with Prefer tx=commit header
       |db-tx-end = "commit"
       |
-      |## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
-      |## When disabled, statements will be parametrized but won't be prepared.
-      |db-prepared-statements = true
+      |## The standard connection URI format, documented at
+      |## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+      |db-uri = "postgresql://"
+      |
+      |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
+      |## For PostgreSQL v14 and up, this setting will be ignored.
+      |db-use-legacy-gucs = true
+      |
+      |# jwt-aud = "your_audience_claim"
+      |
+      |## Jspath to the role claim key
+      |jwt-role-claim-key = ".role"
+      |
+      |## Choose a secret, JSON Web Key (or set) to enable JWT auth
+      |## (use "@filename" to load from separate file)
+      |# jwt-secret = "secret_with_at_least_32_characters"
+      |jwt-secret-is-base64 = false
+      |
+      |## Logging level, the admitted values are: crit, error, warn and info.
+      |log-level = "error"
+      |
+      |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.
+      |## Admitted values: follow-privileges, ignore-privileges, disabled
+      |openapi-mode = "follow-privileges"
+      |
+      |## Base url for the OpenAPI output
+      |openapi-server-proxy-uri = ""
+      |
+      |## Content types to produce raw output
+      |# raw-media-types="image/png, image/jpg"
       |
       |server-host = "!4"
       |server-port = 3000
@@ -189,29 +215,4 @@ exampleConfigFile =
       |## Unix socket file mode
       |## When none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
-      |
-      |## Admin server used for checks. It's disabled by default unless a port is specified.
-      |# admin-server-port = 3001
-      |
-      |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.
-      |## Admitted values: follow-privileges, ignore-privileges, disabled
-      |openapi-mode = "follow-privileges"
-      |
-      |## Base url for the OpenAPI output
-      |openapi-server-proxy-uri = ""
-      |
-      |## Choose a secret, JSON Web Key (or set) to enable JWT auth
-      |## (use "@filename" to load from separate file)
-      |# jwt-secret = "secret_with_at_least_32_characters"
-      |# jwt-aud = "your_audience_claim"
-      |jwt-secret-is-base64 = false
-      |
-      |## Jspath to the role claim key
-      |jwt-role-claim-key = ".role"
-      |
-      |## Content types to produce raw output
-      |# raw-media-types="image/png, image/jpg"
-      |
-      |## Logging level, the admitted values are: crit, error, warn and info.
-      |log-level = "error"
       |]
