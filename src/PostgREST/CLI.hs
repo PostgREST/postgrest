@@ -150,10 +150,6 @@ exampleConfigFile =
       |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"
       |
-      |## stored proc that overrides the root "/" spec
-      |## it must be inside the db-schema
-      |# db-root-spec = "stored_proc_name"
-      |
       |## Notification channel for reloading the schema cache
       |db-channel = "pgrst"
       |
