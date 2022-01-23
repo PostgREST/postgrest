@@ -125,12 +125,16 @@ readCLIShowHelp =
 
 exampleConfigFile :: [Char]
 exampleConfigFile =
-  [str|### REQUIRED:
-      |db-uri = "postgres://user:pass@localhost:5432/dbname"
-      |db-schema = "public"
-      |db-anon-role = "postgres"
+  [str|## The standard connection URI format, documented at
+      |## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+      |db-uri = "postgresql://"
       |
-      |### OPTIONAL:
+      |## The name of which database schema to expose to REST clients
+      |db-schemas = "public"
+      |
+      |## The database role to use when no client authentication is provided
+      |# db-anon-role = "anon"
+      |
       |## Number of open connections in the pool
       |db-pool = 10
       |
