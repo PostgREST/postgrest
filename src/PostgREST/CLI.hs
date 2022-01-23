@@ -131,19 +131,19 @@ exampleConfigFile =
       |db-anon-role = "postgres"
       |
       |### OPTIONAL:
-      |## number of open connections in the pool
+      |## Number of open connections in the pool
       |db-pool = 10
       |
-      |## Time to live, in seconds, for an idle database pool connection.
+      |## Time to live, in seconds, for an idle database pool connection
       |db-pool-timeout = 10
       |
-      |## extra schemas to add to the search_path of every request
+      |## Extra schemas to add to the search_path of every request
       |db-extra-search-path = "public"
       |
-      |## limit rows in response
+      |## Limit rows in response
       |# db-max-rows = 1000
       |
-      |## stored proc to exec immediately after auth
+      |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"
       |
       |## stored proc that overrides the root "/" spec
@@ -163,55 +163,55 @@ exampleConfigFile =
       |## For PostgreSQL v14 and up, this setting will be ignored.
       |db-use-legacy-gucs = true
       |
-      |## how to terminate database transactions
-      |## possible values are:
+      |## How to terminate database transactions
+      |## Possible values are:
       |## commit (default)
-      |##   transaction is always committed, this can not be overriden
+      |##   Transaction is always committed, this can not be overriden
       |## commit-allow-override
-      |##   transaction is committed, but can be overriden with Prefer tx=rollback header
+      |##   Transaction is committed, but can be overriden with Prefer tx=rollback header
       |## rollback
-      |##   transaction is always rolled back, this can not be overriden
+      |##   Transaction is always rolled back, this can not be overriden
       |## rollback-allow-override
-      |##   transaction is rolled back, but can be overriden with Prefer tx=commit header
+      |##   Transaction is rolled back, but can be overriden with Prefer tx=commit header
       |db-tx-end = "commit"
       |
-      |## enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
-      |## when disabled, statements will be parametrized but won't be prepared.
+      |## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
+      |## When disabled, statements will be parametrized but won't be prepared.
       |db-prepared-statements = true
       |
       |server-host = "!4"
       |server-port = 3000
       |
-      |## unix socket location
+      |## Unix socket location
       |## if specified it takes precedence over server-port
       |# server-unix-socket = "/tmp/pgrst.sock"
       |
-      |## unix socket file mode
-      |## when none is provided, 660 is applied by default
+      |## Unix socket file mode
+      |## When none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |
-      |## admin server used for checks, it's disabled by default unless a port is specified
+      |## Admin server used for checks. It's disabled by default unless a port is specified.
       |# admin-server-port = 3001
       |
-      |## determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely
-      |## admitted values: follow-privileges, ignore-privileges, disabled
+      |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.
+      |## Admitted values: follow-privileges, ignore-privileges, disabled
       |openapi-mode = "follow-privileges"
       |
-      |## base url for the OpenAPI output
+      |## Base url for the OpenAPI output
       |openapi-server-proxy-uri = ""
       |
-      |## choose a secret, JSON Web Key (or set) to enable JWT auth
+      |## Choose a secret, JSON Web Key (or set) to enable JWT auth
       |## (use "@filename" to load from separate file)
       |# jwt-secret = "secret_with_at_least_32_characters"
       |# jwt-aud = "your_audience_claim"
       |jwt-secret-is-base64 = false
       |
-      |## jspath to the role claim key
+      |## Jspath to the role claim key
       |jwt-role-claim-key = ".role"
       |
-      |## content types to produce raw output
+      |## Content types to produce raw output
       |# raw-media-types="image/png, image/jpg"
       |
-      |## logging level, the admitted values are: crit, error, warn and info.
+      |## Logging level, the admitted values are: crit, error, warn and info.
       |log-level = "error"
       |]
