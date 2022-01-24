@@ -17,6 +17,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2107, Clarify error for failed schema cache load. - @steve-chavez
    + From `Database connection lost. Retrying the connection` to `Could not query the database for the schema cache. Retrying.`
  - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
+ - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
+ - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
 
 ## [9.0.0] - 2021-11-25
 

@@ -227,12 +227,12 @@ decodeProcs =
 allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
 allProcs = SQL.Statement sql (arrayParam HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
+    sql = procsSqlQuery <> " AND pn.nspname = ANY($1)"
 
 accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
 accessibleProcs = SQL.Statement sql (param HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = procsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
 procsSqlQuery :: SqlQuery
 procsSqlQuery = [q|
@@ -297,6 +297,7 @@ procsSqlQuery = [q|
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
+  WHERE t.oid <> 'pg_catalog.trigger'::regtype
 |]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
