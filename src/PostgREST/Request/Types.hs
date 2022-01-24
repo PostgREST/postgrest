@@ -71,6 +71,7 @@ data ApiRequestError
   | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
   | UnsupportedVerb                -- Unreachable?
+  | NotEmbedded Text
 
 data QPError = QPError Text Text
 

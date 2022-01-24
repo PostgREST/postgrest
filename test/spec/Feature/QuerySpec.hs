@@ -257,19 +257,33 @@ spec actualPgVersion = do
     it "cannot access a computed column that is outside of the config schema" $
       get "/items?always_false=is.false" `shouldRespondWith` 400
 
-    it "matches filtering nested items 2" $
-      get "/clients?select=id,projects(id,tasks2(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
-        [json| {
-          "hint":"Verify that 'projects' and 'tasks2' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-          "message":"Could not find a relationship between 'projects' and 'tasks2' in the schema cache"}|]
-        { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
-        }
-
     it "matches filtering nested items" $
       get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks.name=like.Design*" `shouldRespondWith`
         [json|[{"id":1,"projects":[{"id":1,"tasks":[{"id":1,"name":"Design w7"}]},{"id":2,"tasks":[{"id":3,"name":"Design w10"}]}]},{"id":2,"projects":[{"id":3,"tasks":[{"id":5,"name":"Design IOS"}]},{"id":4,"tasks":[{"id":7,"name":"Design OSX"}]}]}]|]
         { matchHeaders = [matchContentTypeJson] }
+
+    it "errs when the embedded resource doesn't exist and an embedded filter is applied to it" $ do
+      get "/clients?select=*&non_existent_projects.name=like.*NonExistent*" `shouldRespondWith`
+        [json|
+          {"hint":"Verify that 'non_existent_projects' is included in the 'select' query parameter.",
+          "message":"Cannot apply filter because 'non_existent_projects' is not an embedded resource in this request"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/clients?select=*,amiga_projects:projects(*)&amiga_projectsss.name=ilike.*Amiga*" `shouldRespondWith`
+        [json|
+          {"hint":"Verify that 'amiga_projectsss' is included in the 'select' query parameter.",
+           "message":"Cannot apply filter because 'amiga_projectsss' is not an embedded resource in this request"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks2.name=like.Design*" `shouldRespondWith`
+        [json|
+          {"hint":"Verify that 'tasks2' is included in the 'select' query parameter.",
+           "message":"Cannot apply filter because 'tasks2' is not an embedded resource in this request"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
     it "matches with cs operator" $
       get "/complex_items?select=id&arr_data=cs.{2}" `shouldRespondWith`
