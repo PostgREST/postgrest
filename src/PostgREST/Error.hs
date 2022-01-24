@@ -113,7 +113,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (ContentTypeError cts)    = JSON.object [
     "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts))]
   toJSON (NotEmbedded resource) = JSON.object [
-    "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter" :: Text),
+    "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text),
     "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text)]
 
 compressedRel :: Relationship -> JSON.Value

@@ -265,15 +265,22 @@ spec actualPgVersion = do
     it "errs when the embedded resource doesn't exist and an embedded filter is applied to it" $ do
       get "/clients?select=*&non_existent_projects.name=like.*NonExistent*" `shouldRespondWith`
         [json|
-          {"hint":"Verify that 'non_existent_projects' is included in the 'select' query parameter",
+          {"hint":"Verify that 'non_existent_projects' is included in the 'select' query parameter.",
           "message":"Cannot apply filter because 'non_existent_projects' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/clients?select=*,amiga_projects:projects(*)&amiga_projectsss.name=ilike.*Amiga*" `shouldRespondWith`
         [json|
-          {"hint":"Verify that 'amiga_projectsss' is included in the 'select' query parameter",
+          {"hint":"Verify that 'amiga_projectsss' is included in the 'select' query parameter.",
            "message":"Cannot apply filter because 'amiga_projectsss' is not an embedded resource in this request"}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks2.name=like.Design*" `shouldRespondWith`
+        [json|
+          {"hint":"Verify that 'tasks2' is included in the 'select' query parameter.",
+           "message":"Cannot apply filter because 'tasks2' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
