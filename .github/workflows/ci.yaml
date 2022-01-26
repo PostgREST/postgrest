@@ -222,8 +222,8 @@ jobs:
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_ARM_HOST }}
+          username: ubuntu
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_ARM_PORT }}
           script_stop: true
           script: sh test.sh
 
