@@ -165,6 +165,17 @@ let
           # The following unsets all GIT_ variables.
           unset "''${!GIT_@}"
 
+          function restore () {
+            ref="$(git stash list --format=format:%gD --grep "$1" -n1)"
+            # this will avoid merge conflicts when applying the stash
+            ${git}/bin/git restore --source="$ref" .
+            # restore untracked files, too. could fail with no files
+            if [ "$(git show --numstat --format=oneline "$ref^3" | wc -l)" -gt 1 ]; then
+              ${git}/bin/git restore --overlay --source="$ref^3" .
+            fi
+            ${git}/bin/git stash drop "$ref"
+          }
+
           case "$_arg_mode" in
             basic)
               case "$_arg_hook" in
@@ -179,7 +190,7 @@ let
                   if [ "$(git stash list --grep $stash)" ]; then
                     # Only create the stash pop trap, if we actually created a stash.
                     # Otherwise stash pop will cause havoc.
-                    trap '${git}/bin/git stash pop $(git stash list --format=format:%gD --grep "$stash" -n1)' EXIT
+                    trap 'restore "$stash"' EXIT
                   fi
 
                   ${style}/bin/postgrest-style
@@ -204,7 +215,7 @@ let
                   if [ "$(git stash list --grep $stash)" ]; then
                     # Only create the stash pop trap, if we actually created a stash.
                     # Otherwise stash pop will cause havoc.
-                    trap '${git}/bin/git stash pop $(git stash list --format=format:%gD --grep "$stash" -n1)' EXIT
+                    trap 'restore "$stash"' EXIT
                   fi
 
                   ${style}/bin/postgrest-style
