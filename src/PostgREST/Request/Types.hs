@@ -59,19 +59,19 @@ import Protolude
 
 data ApiRequestError
   = ActionInappropriate
-  | InvalidRange
-  | InvalidBody ByteString
-  | ParseRequestError Text Text
-  | QueryParamError QPError
-  | NoRelBetween Text Text Text
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
-  | NoRpc Text Text [Text] Bool ContentType Bool
-  | InvalidFilters
-  | UnacceptableSchema [Text]
   | ContentTypeError [ByteString]
-  | UnsupportedVerb                -- Unreachable?
+  | InvalidBody ByteString
+  | InvalidFilters
+  | InvalidRange
+  | NoRelBetween Text Text Text
+  | NoRpc Text Text [Text] Bool ContentType Bool
   | NotEmbedded Text
+  | ParseRequestError Text Text
+  | QueryParamError QPError
+  | UnacceptableSchema [Text]
+  | UnsupportedVerb                -- Unreachable?
 
 data QPError = QPError Text Text
 
