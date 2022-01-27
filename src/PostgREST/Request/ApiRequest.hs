@@ -83,11 +83,16 @@ data Payload
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
 -- | Types of things a user wants to do to tables/views/procs
-data Action = ActionCreate       | ActionRead{isHead :: Bool}
-            | ActionUpdate       | ActionDelete
-            | ActionSingleUpsert | ActionInvoke InvokeMethod
-            | ActionInfo         | ActionInspect{isHead :: Bool}
-            deriving Eq
+data Action
+  = ActionCreate
+  | ActionRead {isHead :: Bool}
+  | ActionUpdate
+  | ActionDelete
+  | ActionSingleUpsert
+  | ActionInvoke InvokeMethod
+  | ActionInfo
+  | ActionInspect {isHead :: Bool}
+  deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
 data Path
   = PathInfo

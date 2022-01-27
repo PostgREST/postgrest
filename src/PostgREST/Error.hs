@@ -55,20 +55,20 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status InvalidRange            = HTTP.status416
-  status InvalidFilters          = HTTP.status405
-  status (InvalidBody _)         = HTTP.status400
-  status UnsupportedVerb         = HTTP.status405
-  status ActionInappropriate     = HTTP.status405
-  status (ParseRequestError _ _) = HTTP.status400
-  status (QueryParamError _)     = HTTP.status400
-  status NoRelBetween{}          = HTTP.status400
-  status AmbiguousRelBetween{}   = HTTP.status300
-  status (AmbiguousRpc _)        = HTTP.status300
-  status NoRpc{}                 = HTTP.status404
-  status (UnacceptableSchema _)  = HTTP.status406
-  status (ContentTypeError _)    = HTTP.status415
-  status (NotEmbedded _)         = HTTP.status400
+  status ActionInappropriate   = HTTP.status405
+  status AmbiguousRelBetween{} = HTTP.status300
+  status AmbiguousRpc{}        = HTTP.status300
+  status ContentTypeError{}    = HTTP.status415
+  status InvalidBody{}         = HTTP.status400
+  status InvalidFilters        = HTTP.status405
+  status InvalidRange          = HTTP.status416
+  status NoRelBetween{}        = HTTP.status400
+  status NoRpc{}               = HTTP.status404
+  status NotEmbedded{}         = HTTP.status400
+  status ParseRequestError{}   = HTTP.status400
+  status QueryParamError{}     = HTTP.status400
+  status UnacceptableSchema{}  = HTTP.status406
+  status UnsupportedVerb       = HTTP.status405
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -270,41 +270,41 @@ checkIsFatal _ = Nothing
 
 
 data Error
-  = GucHeadersError
-  | GucStatusError
+  = ApiRequestError ApiRequestError
   | BinaryFieldError ContentType
+  | GucHeadersError
+  | GucStatusError
+  | JwtTokenInvalid Text
+  | JwtTokenMissing
+  | JwtTokenRequired
   | NoSchemaCacheError
+  | NotFound
+  | PgErr PgError
   | PutMatchingPkError
   | PutRangeNotAllowedError
-  | JwtTokenMissing
-  | JwtTokenInvalid Text
-  | JwtTokenRequired
   | SingularityError Integer
-  | NotFound
-  | ApiRequestError ApiRequestError
-  | PgErr PgError
 
 instance PgrstError Error where
+  status (ApiRequestError err)   = status err
+  status BinaryFieldError{}      = HTTP.status406
   status GucHeadersError         = HTTP.status500
   status GucStatusError          = HTTP.status500
-  status (BinaryFieldError _)    = HTTP.status406
-  status NoSchemaCacheError      = HTTP.status503
-  status PutMatchingPkError      = HTTP.status400
-  status PutRangeNotAllowedError = HTTP.status400
+  status JwtTokenInvalid{}       = HTTP.unauthorized401
   status JwtTokenMissing         = HTTP.status500
-  status (JwtTokenInvalid _)     = HTTP.unauthorized401
   status JwtTokenRequired        = HTTP.unauthorized401
-  status (SingularityError _)    = HTTP.status406
+  status NoSchemaCacheError      = HTTP.status503
   status NotFound                = HTTP.status404
   status (PgErr err)             = status err
-  status (ApiRequestError err)   = status err
+  status PutMatchingPkError      = HTTP.status400
+  status PutRangeNotAllowedError = HTTP.status400
+  status SingularityError{}      = HTTP.status406
 
-  headers (SingularityError _)     = [ContentType.toHeader CTSingularJSON]
-  headers (JwtTokenInvalid m)      = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
-  headers JwtTokenRequired         = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
-  headers (PgErr err)              = headers err
-  headers (ApiRequestError err)    = headers err
-  headers _                        = [ContentType.toHeader CTApplicationJSON]
+  headers (ApiRequestError err)  = headers err
+  headers (JwtTokenInvalid m)    = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired       = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
+  headers (PgErr err)            = headers err
+  headers SingularityError{}     = [ContentType.toHeader CTSingularJSON]
+  headers _                      = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON Error where
   toJSON GucHeadersError           = JSON.object [
