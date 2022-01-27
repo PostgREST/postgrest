@@ -138,7 +138,7 @@ let
           # to the hook file.
           sed -i -e '/postgrest-git-hooks/d' .git/hooks/pre-{commit,push} 2> /dev/null || true
 
-          if [ disabled != "$_arg_mode" ]; then
+          if [ disable != "$_arg_operation" ]; then
             # The nix-shell && + nix-shell || pattern makes sure we can run the hook
             # in a pure nix-shell, where nix-shell itself is not available, too.
 
