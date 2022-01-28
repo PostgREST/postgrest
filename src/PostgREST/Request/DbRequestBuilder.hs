@@ -46,6 +46,7 @@ import PostgREST.RangeQuery               (NonnegRange, allRange,
 import PostgREST.Request.ApiRequest       (Action (..),
                                            ApiRequest (..),
                                            InvokeMethod (..),
+                                           Mutation (..),
                                            Payload (..))
 
 import PostgREST.Request.Preferences
@@ -313,13 +314,13 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode :: Maybe ReadRequest
     findNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
 
-mutateRequest :: Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
-mutateRequest schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
-  case iAction of
-    ActionCreate ->
+mutateRequest :: Mutation -> Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
+mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
+  case mutation of
+    MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
-    ActionUpdate -> Right $ Update qi iColumns body combinedLogic returnings
-    ActionSingleUpsert ->
+    MutationUpdate -> Right $ Update qi iColumns body combinedLogic returnings
+    MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
            not (null (S.fromList pkCols)) &&
@@ -329,8 +330,7 @@ mutateRequest schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestErr
           then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
           Left InvalidFilters
-    ActionDelete -> Right $ Delete qi combinedLogic returnings
-    _            -> Left UnsupportedVerb
+    MutationDelete -> Right $ Delete qi combinedLogic returnings
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams

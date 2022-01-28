@@ -77,7 +77,7 @@ import PostgREST.GucHeader               (GucHeader,
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
-                                          Target (..))
+                                          Mutation (..), Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
@@ -229,13 +229,13 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
-    (ActionCreate, TargetIdent identifier) ->
+    (ActionMutate MutationCreate, TargetIdent identifier) ->
       handleCreate identifier context
-    (ActionUpdate, TargetIdent identifier) ->
+    (ActionMutate MutationUpdate, TargetIdent identifier) ->
       handleUpdate identifier context
-    (ActionSingleUpsert, TargetIdent identifier) ->
+    (ActionMutate MutationSingleUpsert, TargetIdent identifier) ->
       handleSingleUpsert identifier context
-    (ActionDelete, TargetIdent identifier) ->
+    (ActionMutate MutationDelete, TargetIdent identifier) ->
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
       handleInfo identifier context
@@ -243,6 +243,8 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
+    (ActionUnknown verb, _) ->
+      throwError $ Error.UnsupportedVerb verb
     _ ->
       throwError Error.NotFound
 
@@ -313,7 +315,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
     ApiRequest{..} = ctxApiRequest
     pkCols = tablePKCols ctxDbStructure qiSchema qiName
 
-  WriteQueryResult{..} <- writeQuery identifier True pkCols context
+  WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -344,7 +346,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -369,7 +371,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False mempty context
 
   let response = gucResponse resGucStatus resGucHeaders
 
@@ -390,7 +392,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -522,13 +524,13 @@ data WriteQueryResult = WriteQueryResult
   , resGucHeaders :: [GucHeader]
   }
 
-writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
-writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
+writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
+writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
   readReq <- readRequest identifier context
 
   mutateReq <-
     liftEither $
-      ReqBuilder.mutateRequest qiSchema qiName ctxApiRequest
+      ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest
         (tablePKCols ctxDbStructure qiSchema qiName)
         readReq
 

@@ -71,7 +71,6 @@ data ApiRequestError
   | ParseRequestError Text Text
   | QueryParamError QPError
   | UnacceptableSchema [Text]
-  | UnsupportedVerb                -- Unreachable?
 
 data QPError = QPError Text Text
 
