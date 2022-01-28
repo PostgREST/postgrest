@@ -1,4 +1,4 @@
-module Feature.SingularSpec where
+module Feature.Query.SingularSpec where
 
 import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))

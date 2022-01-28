@@ -1,4 +1,4 @@
-module Feature.HtmlRawOutputSpec where
+module Feature.Query.HtmlRawOutputSpec where
 
 import Network.Wai (Application)
 

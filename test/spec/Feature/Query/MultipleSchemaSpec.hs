@@ -1,4 +1,4 @@
-module Feature.MultipleSchemaSpec where
+module Feature.Query.MultipleSchemaSpec where
 
 import Control.Lens    ((^?))
 import Data.Aeson.Lens

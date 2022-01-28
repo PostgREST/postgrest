@@ -1,4 +1,4 @@
-module Feature.DisabledOpenApiSpec where
+module Feature.OpenApi.DisabledOpenApiSpec where
 
 import Network.HTTP.Types
 import Network.Wai        (Application)

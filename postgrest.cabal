@@ -167,42 +167,42 @@ test-suite spec
                       NoImplicitPrelude
   hs-source-dirs:     test/spec
   main-is:            Main.hs
-  other-modules:      Feature.AndOrParamsSpec
-                      Feature.AsymmetricJwtSpec
-                      Feature.AudienceJwtSecretSpec
-                      Feature.AuthSpec
-                      Feature.BinaryJwtSecretSpec
+  other-modules:      Feature.Auth.AsymmetricJwtSpec
+                      Feature.Auth.AudienceJwtSecretSpec
+                      Feature.Auth.AuthSpec
+                      Feature.Auth.BinaryJwtSecretSpec
+                      Feature.Auth.NoAnonSpec
+                      Feature.Auth.NoJwtSpec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
-                      Feature.DeleteSpec
-                      Feature.DisabledOpenApiSpec
-                      Feature.EmbedDisambiguationSpec
-                      Feature.EmbedInnerJoinSpec
                       Feature.ExtraSearchPathSpec
-                      Feature.HtmlRawOutputSpec
-                      Feature.InsertSpec
-                      Feature.IgnorePrivOpenApiSpec
-                      Feature.JsonOperatorSpec
                       Feature.LegacyGucsSpec
-                      Feature.MultipleSchemaSpec
-                      Feature.NoAnonSpec
-                      Feature.NoJwtSpec
-                      Feature.NonexistentSchemaSpec
-                      Feature.OpenApiSpec
+                      Feature.OpenApi.DisabledOpenApiSpec
+                      Feature.OpenApi.IgnorePrivOpenApiSpec
+                      Feature.OpenApi.OpenApiSpec
+                      Feature.OpenApi.ProxySpec
+                      Feature.OpenApi.RootSpec
                       Feature.OptionsSpec
-                      Feature.ProxySpec
-                      Feature.QueryLimitedSpec
-                      Feature.QuerySpec
-                      Feature.RangeSpec
-                      Feature.RawOutputTypesSpec
+                      Feature.Query.AndOrParamsSpec
+                      Feature.Query.DeleteSpec
+                      Feature.Query.EmbedDisambiguationSpec
+                      Feature.Query.EmbedInnerJoinSpec
+                      Feature.Query.HtmlRawOutputSpec
+                      Feature.Query.InsertSpec
+                      Feature.Query.JsonOperatorSpec
+                      Feature.Query.MultipleSchemaSpec
+                      Feature.Query.NonexistentSchemaSpec
+                      Feature.Query.QueryLimitedSpec
+                      Feature.Query.QuerySpec
+                      Feature.Query.RangeSpec
+                      Feature.Query.RawOutputTypesSpec
+                      Feature.Query.RpcSpec
+                      Feature.Query.SingularSpec
+                      Feature.Query.UnicodeSpec
+                      Feature.Query.UpdateSpec
+                      Feature.Query.UpsertSpec
                       Feature.RollbackSpec
-                      Feature.RootSpec
                       Feature.RpcPreRequestGucsSpec
-                      Feature.RpcSpec
-                      Feature.SingularSpec
-                      Feature.UnicodeSpec
-                      Feature.UpdateSpec
-                      Feature.UpsertSpec
                       SpecHelper
                       TestTypes
   build-depends:      base              >= 4.9 && < 4.16

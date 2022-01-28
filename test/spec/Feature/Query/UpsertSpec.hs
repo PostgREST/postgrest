@@ -1,4 +1,4 @@
-module Feature.UpsertSpec where
+module Feature.Query.UpsertSpec where
 
 import Network.Wai (Application)
 

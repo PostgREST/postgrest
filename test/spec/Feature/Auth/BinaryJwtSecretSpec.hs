@@ -1,4 +1,4 @@
-module Feature.BinaryJwtSecretSpec where
+module Feature.Auth.BinaryJwtSecretSpec where
 
 import Network.Wai (Application)
 

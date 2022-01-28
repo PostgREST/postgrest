@@ -1,4 +1,4 @@
-module Feature.OpenApiSpec where
+module Feature.OpenApi.OpenApiSpec where
 
 import Control.Lens     ((^?))
 import Data.Aeson.Types (Value (..))

@@ -1,4 +1,4 @@
-module Feature.NonexistentSchemaSpec where
+module Feature.Query.NonexistentSchemaSpec where
 
 import Network.Wai (Application)
 

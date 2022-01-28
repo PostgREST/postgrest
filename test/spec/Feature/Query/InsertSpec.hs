@@ -1,4 +1,4 @@
-module Feature.InsertSpec where
+module Feature.Query.InsertSpec where
 
 import Data.List              (lookup)
 import Network.Wai            (Application)

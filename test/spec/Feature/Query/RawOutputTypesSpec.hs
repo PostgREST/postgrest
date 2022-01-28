@@ -1,4 +1,4 @@
-module Feature.RawOutputTypesSpec where
+module Feature.Query.RawOutputTypesSpec where
 
 import Network.Wai (Application)
 

@@ -1,4 +1,4 @@
-module Feature.EmbedDisambiguationSpec where
+module Feature.Query.EmbedDisambiguationSpec where
 
 import Network.Wai (Application)
 

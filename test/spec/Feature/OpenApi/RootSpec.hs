@@ -1,4 +1,4 @@
-module Feature.RootSpec where
+module Feature.OpenApi.RootSpec where
 
 import Network.HTTP.Types
 import Network.Wai        (Application)
