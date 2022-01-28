@@ -68,7 +68,6 @@ instance PgrstError ApiRequestError where
   status ParseRequestError{}   = HTTP.status400
   status QueryParamError{}     = HTTP.status400
   status UnacceptableSchema{}  = HTTP.status406
-  status UnsupportedVerb       = HTTP.status405
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -104,8 +103,6 @@ instance JSON.ToJSON ApiRequestError where
         (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
         _                            -> prms <> " function") <>
       " in the schema cache")]
-  toJSON UnsupportedVerb = JSON.object [
-    "message" .= ("Unsupported HTTP verb" :: Text)]
   toJSON InvalidFilters = JSON.object [
     "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
   toJSON (UnacceptableSchema schemas) = JSON.object [
@@ -283,6 +280,7 @@ data Error
   | PutMatchingPkError
   | PutRangeNotAllowedError
   | SingularityError Integer
+  | UnsupportedVerb Text
 
 instance PgrstError Error where
   status (ApiRequestError err)   = status err
@@ -298,6 +296,7 @@ instance PgrstError Error where
   status PutMatchingPkError      = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
   status SingularityError{}      = HTTP.status406
+  status UnsupportedVerb{}       = HTTP.status405
 
   headers (ApiRequestError err)  = headers err
   headers (JwtTokenInvalid m)    = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
@@ -332,6 +331,8 @@ instance JSON.ToJSON Error where
   toJSON JwtTokenRequired          = JSON.object [
     "message" .= ("Anonymous access is disabled" :: Text)]
   toJSON NotFound = JSON.object []
+  toJSON (UnsupportedVerb verb) = JSON.object [
+    "message" .= ("Unsupported HTTP verb: " <> verb)]
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
 

@@ -39,11 +39,11 @@ import qualified Feature.Query.AndOrParamsSpec
 import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
+import qualified Feature.Query.ErrorSpec
 import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
-import qualified Feature.Query.NonexistentSchemaSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
@@ -198,7 +198,7 @@ main = do
 
     -- this test runs with a nonexistent db-schema
     parallel $ before nonexistentSchemaApp $
-      describe "Feature.Query.NonexistentSchemaSpec" Feature.Query.NonexistentSchemaSpec.spec
+      describe "Feature.Query.ErrorSpec" Feature.Query.ErrorSpec.spec
 
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $

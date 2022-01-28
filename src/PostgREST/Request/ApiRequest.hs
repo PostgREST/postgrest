@@ -9,6 +9,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 module PostgREST.Request.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
+  , Mutation(..)
   , ContentType(..)
   , Action(..)
   , Target(..)
@@ -82,16 +83,16 @@ data Payload
   | RawPay  { payRaw  :: LBS.ByteString }
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
+data Mutation = MutationCreate | MutationDelete | MutationSingleUpsert | MutationUpdate deriving Eq
+
 -- | Types of things a user wants to do to tables/views/procs
 data Action
-  = ActionCreate
+  = ActionMutate Mutation
   | ActionRead {isHead :: Bool}
-  | ActionUpdate
-  | ActionDelete
-  | ActionSingleUpsert
   | ActionInvoke InvokeMethod
   | ActionInfo
   | ActionInspect {isHead :: Bool}
+  | ActionUnknown Text
   deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
 data Path
@@ -220,10 +221,10 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   contentType = maybe CTApplicationJSON ContentType.decodeContentType $ lookupHeader "content-type"
 
   columns = case action of
-    ActionCreate -> qsColumns
-    ActionUpdate -> qsColumns
-    ActionInvoke InvPost -> qsColumns
-    _ -> Nothing
+    ActionMutate MutationCreate -> qsColumns
+    ActionMutate MutationUpdate -> qsColumns
+    ActionInvoke InvPost        -> qsColumns
+    _                           -> Nothing
 
   payloadColumns =
     case (contentType, action) of
@@ -265,25 +266,24 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
                  | otherwise              -> ActionRead{isHead=False}
       "POST"    -> if isTargetingProc
                     then ActionInvoke InvPost
-                    else ActionCreate
-      "PATCH"   -> ActionUpdate
-      "PUT"     -> ActionSingleUpsert
-      "DELETE"  -> ActionDelete
+                    else ActionMutate MutationCreate
+      "PATCH"   -> ActionMutate MutationUpdate
+      "PUT"     -> ActionMutate MutationSingleUpsert
+      "DELETE"  -> ActionMutate MutationDelete
       "OPTIONS" -> ActionInfo
-      _         -> ActionInspect{isHead=False}
+      _         -> ActionUnknown $ T.decodeUtf8 method
 
   defaultSchema = NonEmptyList.head configDbSchemas
   profile
     | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
-    | otherwise = case action of
+    | otherwise = case method of
         -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
-        ActionCreate         -> contentProfile
-        ActionUpdate         -> contentProfile
-        ActionSingleUpsert   -> contentProfile
-        ActionDelete         -> contentProfile
-        ActionInvoke InvPost -> contentProfile
-        _                    -> acceptProfile
+        "DELETE" -> contentProfile
+        "PATCH"  -> contentProfile
+        "POST"   -> contentProfile
+        "PUT"    -> contentProfile
+        _        -> acceptProfile
     where
       contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
       acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
@@ -302,12 +302,12 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       PathUnknown -> Right TargetUnknown
 
   shouldParsePayload = case (action, contentType) of
-    (ActionCreate, _) -> True
-    (ActionInvoke InvPost, CTUrlEncoded) -> False
-    (ActionInvoke InvPost, _) -> True
-    (ActionSingleUpsert, _) -> True
-    (ActionUpdate, _) -> True
-    _ -> False
+    (ActionMutate MutationCreate, _)       -> True
+    (ActionInvoke InvPost, CTUrlEncoded)   -> False
+    (ActionInvoke InvPost, _)              -> True
+    (ActionMutate MutationSingleUpsert, _) -> True
+    (ActionMutate MutationUpdate, _)       -> True
+    _                                      -> False
   relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
