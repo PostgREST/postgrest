@@ -168,6 +168,8 @@ jobs:
               ~\AppData\Local\Programs\stack
               .stack-work
             deps: |
+              stack exec -- pacman -Syu --noconfirm
+              stack exec -- pacman -S msys2-keyring --noconfirm
               stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
             # We'd need to make test/with_tmp_db run on Windows first
             # test: true
