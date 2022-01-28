@@ -214,11 +214,11 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     _                             -> False
   contentType = maybe CTApplicationJSON ContentType.decodeContentType $ lookupHeader "content-type"
 
-  columns =
-    if action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] then
-      qsColumns
-    else
-      Nothing
+  columns = case action of
+    ActionCreate -> qsColumns
+    ActionUpdate -> qsColumns
+    ActionInvoke InvPost -> qsColumns
+    _ -> Nothing
 
   payloadColumns =
     case (contentType, action) of
@@ -230,24 +230,23 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
   payload :: Either ByteString Payload
-  payload = case contentType of
-    CTApplicationJSON ->
+  payload = case (contentType, isTargetingProc) of
+    (CTApplicationJSON, _) ->
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
                      else first BS.pack $ JSON.eitherDecode reqBody
-    CTTextCSV -> do
+    (CTTextCSV, _) -> do
       json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-    CTUrlEncoded ->
+    (CTUrlEncoded, _) ->
       let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
-    ct ->
-      if isTargetingProc && ct `elem` [CTTextPlain, CTOctetStream]
-        then Right $ RawPay reqBody
-        else Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
+    (CTTextPlain, True) -> Right $ RawPay reqBody
+    (CTOctetStream, True) -> Right $ RawPay reqBody
+    (ct, _) -> Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -297,9 +296,13 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
         | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
       PathUnknown -> Right TargetUnknown
 
-  shouldParsePayload = case (contentType, action) of
-    (CTUrlEncoded, ActionInvoke InvPost) -> False
-    (_, act)                             -> act `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
+  shouldParsePayload = case (action, contentType) of
+    (ActionCreate, _) -> True
+    (ActionInvoke InvPost, CTUrlEncoded) -> False
+    (ActionInvoke InvPost, _) -> True
+    (ActionSingleUpsert, _) -> True
+    (ActionUpdate, _) -> True
+    _ -> False
   relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
@@ -440,18 +443,21 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam proc = isInvPost && case pdParams proc of
-      [ProcParam "" ppType _ _]
-        | contentType == CTApplicationJSON -> ppType `elem` ["json", "jsonb"]
-        | contentType == CTTextPlain       -> ppType == "text"
-        | contentType == CTOctetStream     -> ppType == "bytea"
-        | otherwise                        -> False
+    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentType, ppType) of
+      (CTApplicationJSON, "json") -> True
+      (CTApplicationJSON, "jsonb") -> True
+      (CTTextPlain, "text") -> True
+      (CTOctetStream, "bytea") -> True
       _ -> False
+    hasSingleUnnamedParam _ = False
     matchesParams proc =
-      let params = pdParams proc in
+      let
+        params = pdParams proc
+        firstType = (ppType <$> headMay params)
+      in
       -- exceptional case for Prefer: params=single-object
       if paramsAsSingleObject
-        then length params == 1 && (ppType <$> headMay params) `elem` [Just "json", Just "jsonb"]
+        then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
         then null argumentsKeys && contentType `notElem` [CTTextPlain, CTOctetStream]
