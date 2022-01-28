@@ -5,14 +5,12 @@ import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
-import qualified System.IO.Error        as E
 
 import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..), original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.Environment   (getEnv)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
 
@@ -67,10 +65,6 @@ validateOpenApiResponse headers = do
       , matchHeaders = []
       }
 
-
-getEnvVarWithDefault :: Text -> Text -> IO Text
-getEnvVarWithDefault var def = toS <$>
-  getEnv (toS var) `E.catchIOError` const (return $ toS def)
 
 baseCfg :: AppConfig
 baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
