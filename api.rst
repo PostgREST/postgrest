@@ -2509,7 +2509,7 @@ Notice that the variable should be set to an *array* of single-key objects rathe
 
 .. note::
 
-  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way.
+  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way. Note that irrespective of overridden ``Content-Type`` response header, the content will still be converted to JSON, unless you also set :ref:`raw-media-types` to something like ``text/html``.
 
 .. _pre_req_headers:
 
