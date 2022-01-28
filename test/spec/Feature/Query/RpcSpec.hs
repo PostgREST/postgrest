@@ -1,4 +1,4 @@
-module Feature.RpcSpec where
+module Feature.Query.RpcSpec where
 
 import qualified Data.ByteString.Lazy as BL (empty, readFile)
 

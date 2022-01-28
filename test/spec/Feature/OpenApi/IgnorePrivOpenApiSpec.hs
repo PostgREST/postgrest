@@ -1,4 +1,4 @@
-module Feature.IgnorePrivOpenApiSpec where
+module Feature.OpenApi.IgnorePrivOpenApiSpec where
 
 import Control.Lens ((^?))
 

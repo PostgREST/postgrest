@@ -1,4 +1,4 @@
-module Feature.RangeSpec where
+module Feature.Query.RangeSpec where
 
 import qualified Data.ByteString.Lazy as BL
 

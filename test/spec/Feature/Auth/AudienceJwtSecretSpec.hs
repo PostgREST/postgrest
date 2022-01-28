@@ -1,4 +1,4 @@
-module Feature.AudienceJwtSecretSpec where
+module Feature.Auth.AudienceJwtSecretSpec where
 
 import Network.Wai (Application)
 

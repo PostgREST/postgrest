@@ -1,4 +1,4 @@
-module Feature.JsonOperatorSpec where
+module Feature.Query.JsonOperatorSpec where
 
 import Network.Wai (Application)
 

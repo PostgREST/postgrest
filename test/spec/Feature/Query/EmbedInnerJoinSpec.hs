@@ -1,4 +1,4 @@
-module Feature.EmbedInnerJoinSpec where
+module Feature.Query.EmbedInnerJoinSpec where
 
 import Network.HTTP.Types
 import Network.Wai        (Application)

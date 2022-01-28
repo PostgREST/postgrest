@@ -1,4 +1,4 @@
-module Feature.QuerySpec where
+module Feature.Query.QuerySpec where
 
 import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleHeaders))

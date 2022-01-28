@@ -1,4 +1,4 @@
-module Feature.DeleteSpec where
+module Feature.Query.DeleteSpec where
 
 import Network.Wai (Application)
 

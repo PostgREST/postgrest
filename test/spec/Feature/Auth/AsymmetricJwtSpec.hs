@@ -1,4 +1,4 @@
-module Feature.AsymmetricJwtSpec where
+module Feature.Auth.AsymmetricJwtSpec where
 
 import Network.Wai (Application)
 

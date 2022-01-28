@@ -1,4 +1,4 @@
-module Feature.ProxySpec where
+module Feature.OpenApi.ProxySpec where
 
 import Network.Wai (Application)
 import Test.Hspec  hiding (pendingWith)

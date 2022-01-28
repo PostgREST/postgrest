@@ -1,4 +1,4 @@
-module Feature.QueryLimitedSpec where
+module Feature.Query.QueryLimitedSpec where
 
 import Network.Wai (Application)
 

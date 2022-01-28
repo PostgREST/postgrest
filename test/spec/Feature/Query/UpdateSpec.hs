@@ -1,4 +1,4 @@
-module Feature.UpdateSpec where
+module Feature.Query.UpdateSpec where
 
 import Network.Wai (Application)
 import Test.Hspec  hiding (pendingWith)

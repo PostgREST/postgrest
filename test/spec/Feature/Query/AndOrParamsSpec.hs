@@ -1,4 +1,4 @@
-module Feature.AndOrParamsSpec where
+module Feature.Query.AndOrParamsSpec where
 
 import Network.Wai (Application)
 

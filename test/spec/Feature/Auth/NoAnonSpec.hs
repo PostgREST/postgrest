@@ -1,4 +1,4 @@
-module Feature.NoAnonSpec where
+module Feature.Auth.NoAnonSpec where
 
 import Network.Wai (Application)
 

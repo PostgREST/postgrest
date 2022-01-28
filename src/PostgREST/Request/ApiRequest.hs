@@ -444,11 +444,11 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
     hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentType, ppType) of
-      (CTApplicationJSON, "json") -> True
+      (CTApplicationJSON, "json")  -> True
       (CTApplicationJSON, "jsonb") -> True
-      (CTTextPlain, "text") -> True
-      (CTOctetStream, "bytea") -> True
-      _ -> False
+      (CTTextPlain, "text")        -> True
+      (CTOctetStream, "bytea")     -> True
+      _                            -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
       let

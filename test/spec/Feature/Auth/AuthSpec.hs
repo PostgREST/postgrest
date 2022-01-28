@@ -1,4 +1,4 @@
-module Feature.AuthSpec where
+module Feature.Auth.AuthSpec where
 
 import Network.Wai (Application)
 

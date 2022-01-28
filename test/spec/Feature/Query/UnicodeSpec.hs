@@ -1,4 +1,4 @@
-module Feature.UnicodeSpec where
+module Feature.Query.UnicodeSpec where
 
 import Network.Wai (Application)
 
