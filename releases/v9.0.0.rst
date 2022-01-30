@@ -74,7 +74,7 @@ Breaking changes
 
 * Dropped support for PostgreSQL 9.5 as it already reached its end-of-life according to `PostgreSQL versioning policy <https://www.postgresql.org/support/versioning/>`_.
 
-* Partitions of a `partitioned table <https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE>`_ are no longer included in the :ref:`schema_cache`. This is so errors are not generated when doing resource embedding on partitioned tables.
+* Partitions of a `partitioned table <https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE>`_ are no longer included in the :doc:`../schema_cache`. This is so errors are not generated when doing resource embedding on partitioned tables.
 
 * Dropped support for doing :ref:`hint_disamb` using dots instead of exclamation marks, e.g. doing ``select=*,projects.client_id(*)`` instead of ``select=*,projects!client_id(*)``). Using dots was undocumented and deprecated back in `v6.0.2 <https://github.com/PostgREST/postgrest/releases/tag/v6.0.2>`_.
 

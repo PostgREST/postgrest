@@ -60,8 +60,8 @@ Added
 
 * Documentation improvements
 
-  + Added the :ref:`schema_cache` page.
-  + Moved the :ref:`schema_reloading` reference from :ref:`admin` to :ref:`schema_cache`
+  + Added the :doc:`../schema_cache` page.
+  + Moved the :ref:`schema_reloading` reference from :doc:`../admin` to :doc:`../schema_cache`
 
 Changed
 -------
