@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches:
+    - main
+    - v*
+  pull_request:
+    branches:
+    - main
+    - v*
+
+jobs:
+  build:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: cachix/install-nix-action@v16
+    - run: nix-env -f default.nix -iA build
+    - run: postgrest-docs-build
+
+  spellcheck:
+    name: Run spellcheck
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: cachix/install-nix-action@v16
+    - run: nix-env -f default.nix -iA spellcheck
+    - run: postgrest-docs-spellcheck
+
+  linkcheck:
+    name: Run linkcheck
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2.4.0
+    - uses: cachix/install-nix-action@v16
+    - run: nix-env -f default.nix -iA linkcheck
+    - run: postgrest-docs-linkcheck
+    
