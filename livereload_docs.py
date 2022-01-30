@@ -1,10 +1,18 @@
 #!/usr/bin/env python
+import sys
 from livereload import Server, shell
 from subprocess import call
-## Build docs at startup
-call(['sphinx-build', '-b', 'html', '-a', '-n', 'docs', '_build'])
+
+if len(sys.argv) == 1:
+    locale = 'default'
+    build = './build.sh'
+else:
+    locale = sys.argv[1]
+    build = f'./build.sh {locale}'
+
+call(build, shell=True)
+
 server = Server()
-server.watch('docs/**/*.rst', shell('sphinx-build -b html -a -n docs _build'))
-# For custom port and host
-# server.serve(root='_build/', host='192.168.1.2')
-server.serve(root='_build/')
+server.watch('docs/**/*.rst', shell(build))
+server.watch(f'locales/{locale}/LC_MESSAGES/*.po', shell(build))
+server.serve(root=f'_build/html/{locale}')

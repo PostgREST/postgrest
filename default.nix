@@ -15,7 +15,16 @@ let
     })
     { };
 
-  python = pkgs.python3.withPackages (ps: [ ps.sphinx ps.sphinx_rtd_theme ps.livereload ps.sphinx-tabs ps.sphinx-copybutton ps.sphinxext-opengraph ]);
+  python = pkgs.python3.withPackages (ps: [
+    ps.sphinx
+    ps.sphinx_rtd_theme
+    ps.livereload
+    ps.sphinx-tabs
+    ps.sphinx-copybutton
+    ps.sphinxext-opengraph
+    # TODO: Remove override once new sphinx-intl version (> 2.1.0) is released and available in nixpkgs
+    (ps.sphinx-intl.overrideAttrs (drv: { nativeBuildInputs = drv.nativeBuildInputs ++ [ ps.six ]; }))
+  ]);
 in
 rec {
   inherit pkgs;
@@ -25,10 +34,10 @@ rec {
       ''
         set -euo pipefail
 
-        # clean previous build, otherwise some errors might be supressed
-        rm -rf _build
+        # build.sh needs to find "sphinx-build"
+        PATH=${python}/bin:$PATH
 
-        ${python}/bin/sphinx-build --color -W -b html -a -n docs _build
+        ./build.sh "$@"
       '';
 
   serve =
@@ -39,7 +48,7 @@ rec {
         # livereload_docs.py needs to find "sphinx-build"
         PATH=${python}/bin:$PATH
 
-        ${python}/bin/python livereload_docs.py
+        ./livereload_docs.py "$@"
       '';
 
   spellcheck =

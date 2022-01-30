@@ -19,6 +19,7 @@ jobs:
     - uses: cachix/install-nix-action@v25
     - run: nix-env -f default.nix -iA build
     - run: postgrest-docs-build
+    - run: git diff --exit-code HEAD locales || echo "Please commit changes to the locales/ folder after running postgrest-docs-build."
 
   spellcheck:
     name: Run spellcheck
