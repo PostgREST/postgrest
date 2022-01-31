@@ -2,11 +2,11 @@ diff --git a/pkgs/development/libraries/openssl/default.nix b/pkgs/development/l
 index d4be8cc2428..3979698711f 100644
 --- a/pkgs/development/libraries/openssl/default.nix
 +++ b/pkgs/development/libraries/openssl/default.nix
-@@ -50,9 +50,21 @@ let
+@@ -43,9 +43,21 @@ let
        substituteInPlace crypto/async/arch/async_posix.h \
          --replace '!defined(__ANDROID__) && !defined(__OpenBSD__)' \
                    '!defined(__ANDROID__) && !defined(__OpenBSD__) && 0'
-+    '' + optionalString static
++    '' + lib.optionalString static
 +    # On static builds, the ENGINESDIR will be empty, but its path will be
 +    # compiled into the library. In order to minimize the runtime dependencies
 +    # of packages that statically link openssl, we move it into the OPENSSLDIR,
@@ -17,15 +17,15 @@ index d4be8cc2428..3979698711f 100644
 +                  'ENGINESDIR=$(OPENSSLDIR)/engines-{- $sover_dirname -}'
      '';
  
--    outputs = [ "bin" "dev" "out" "man" ] ++ optional withDocs "doc";
+-    outputs = [ "bin" "dev" "out" "man" ] ++ lib.optional withDocs "doc";
 +    outputs = [ "bin" "dev" "out" "man" ]
-+      ++ optional withDocs "doc"
++      ++ lib.optional withDocs "doc"
 +      # Separate output for the runtime dependencies of the static build.
-+      ++ optional static "etc";
++      ++ lib.optional static "etc";
      setOutputFlags = false;
      separateDebugInfo =
        !stdenv.hostPlatform.isDarwin &&
-@@ -101,7 +113,17 @@ let
+@@ -95,7 +107,17 @@ let
      configureFlags = [
        "shared" # "shared" builds both shared and static libraries
        "--libdir=lib"
@@ -44,7 +44,7 @@ index d4be8cc2428..3979698711f 100644
      ] ++ lib.optionals withCryptodev [
        "-DHAVE_CRYPTODEV"
        "-DUSE_CRYPTODEV_DIGESTS"
-@@ -131,6 +153,9 @@ let
+@@ -126,6 +148,9 @@ let
        if [ -n "$(echo $out/lib/*.so $out/lib/*.dylib $out/lib/*.dll)" ]; then
            rm "$out/lib/"*.a
        fi
@@ -54,7 +54,7 @@ index d4be8cc2428..3979698711f 100644
      '' + lib.optionalString (!stdenv.hostPlatform.isWindows)
        # Fix bin/c_rehash's perl interpreter line
        #
-@@ -152,14 +177,15 @@ let
+@@ -147,14 +172,15 @@ let
        mv $out/include $dev/
  
        # remove dependency on Perl at runtime
