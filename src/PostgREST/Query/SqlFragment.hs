@@ -197,7 +197,10 @@ pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
-pgFmtField table (c, jp) = SQL.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
+pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
+-- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
+-- "operator does not exist: json = unknown"
+pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SQL.Snippet
 pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
