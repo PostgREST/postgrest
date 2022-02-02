@@ -103,7 +103,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
       it "can get array of objects" $ do
         get "/json_arr?select=data->0->>a&id=in.(5,6)" `shouldRespondWith`
-          [json| [{"a":"A"}, {"a":"[1,2,3]"}] |]
+          [json| [{"a":"A"}, {"a":"[1, 2, 3]"}] |]
           { matchHeaders = [matchContentTypeJson] }
         get "/json_arr?select=data->0->a->>2&id=in.(5,6)" `shouldRespondWith`
           [json| [{"a":null}, {"a":"3"}] |]
@@ -138,6 +138,22 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         get "/json_arr?select=data->c->0->d&id=eq.8" `shouldRespondWith`
           [json| [{"d":[4,5,6,7,8]}] |]
           { matchHeaders = [matchContentTypeJson] }
+
+    it "obtains a composite type field" $ do
+      get "/fav_numbers?select=num->i"
+        `shouldRespondWith`
+          [json| [{"i":0.5},{"i":0.6}] |]
+      get "/fav_numbers?select=num->>i"
+        `shouldRespondWith`
+          [json| [{"i":"0.5"},{"i":"0.6"}] |]
+
+    it "obtains an array item" $ do
+      get "/arrays?select=a:numbers->0,b:numbers->1,c:numbers_mult->0->0,d:numbers_mult->1->2"
+        `shouldRespondWith`
+          [json| [{"a":1,"b":2,"c":1,"d":6},{"a":11,"b":12,"c":11,"d":16}] |]
+      get "/arrays?select=a:numbers->>0,b:numbers->>1,c:numbers_mult->0->>0,d:numbers_mult->1->>2"
+        `shouldRespondWith`
+          [json| [{"a":"1","b":"2","c":"1","d":"6"},{"a":"11","b":"12","c":"11","d":"16"}] |]
 
   context "filtering response" $ do
     it "can filter by properties inside json column" $ do
@@ -190,6 +206,25 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         [json| [{"id":3,"data":[{"d": "test"}]}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "can filter composite type field" $
+      get "/fav_numbers?num->>i=gt.0.5"
+        `shouldRespondWith`
+          [json| [{"num":{"r":0.6,"i":0.6},"person":"B"}] |]
+
+    it "can filter array item" $ do
+      get "/arrays?select=id&numbers->0=eq.1"
+        `shouldRespondWith`
+          [json| [{"id":0}] |]
+      get "/arrays?select=id&numbers->>0=eq.11"
+        `shouldRespondWith`
+          [json| [{"id":1}] |]
+      get "/arrays?select=id&numbers_mult->1->1=eq.5"
+        `shouldRespondWith`
+          [json| [{"id":0}] |]
+      get "/arrays?select=id&numbers_mult->2->>2=eq.19"
+        `shouldRespondWith`
+          [json| [{"id":1}] |]
+
   context "ordering response" $ do
     it "orders by a json column property asc" $
       get "/json_table?order=data->>id.asc" `shouldRespondWith`
@@ -200,6 +235,28 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
       get "/json_table?order=data->foo->>bar.nullsfirst" `shouldRespondWith`
         [json| [{"data": {"id": 3}}, {"data": {"id": 0}}, {"data": {"id": 1, "foo": {"bar": "baz"}}}] |]
         { matchHeaders = [matchContentTypeJson] }
+
+    it "orders by composite type field" $ do
+      get "/fav_numbers?order=num->i.asc"
+        `shouldRespondWith`
+          [json| [{"num":{"r":0.5,"i":0.5},"person":"A"}, {"num":{"r":0.6,"i":0.6},"person":"B"}] |]
+      get "/fav_numbers?order=num->>i.desc"
+        `shouldRespondWith`
+          [json| [{"num":{"r":0.6,"i":0.6},"person":"B"}, {"num":{"r":0.5,"i":0.5},"person":"A"}] |]
+
+    it "orders by array item" $ do
+      get "/arrays?select=id&order=numbers->0.desc"
+        `shouldRespondWith`
+          [json| [{"id":1},{"id":0}] |]
+      get "/arrays?select=id&order=numbers->1.asc"
+        `shouldRespondWith`
+          [json| [{"id":0},{"id":1}] |]
+      get "/arrays?select=id&order=numbers_mult->0->0.desc"
+        `shouldRespondWith`
+          [json| [{"id":1},{"id":0}] |]
+      get "/arrays?select=id&order=numbers_mult->2->2.asc"
+        `shouldRespondWith`
+          [json| [{"id":0},{"id":1}] |]
 
   context "Patching record, in a nonempty table" $
     it "can set a json column to escaped value" $ do
@@ -218,7 +275,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         [json| [{"data":8}, {"data":7}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/json_arr?select=data->-2->>a&id=in.(5,6)" `shouldRespondWith`
-        [json| [{"a":"A"}, {"a":"[1,2,3]"}] |]
+        [json| [{"a":"A"}, {"a":"[1, 2, 3]"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "can filter with negative indexes" $ do
@@ -238,7 +295,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
     it "should fail on badly formed negatives" $ do
       get "/json_arr?select=data->>-78xy" `shouldRespondWith`
         [json|
-          {"details": "unexpected 'x' expecting digit, \"->\", \"::\" or end of input",
+          {"details": "unexpected 'x' expecting digit, \"->\", \"::\", \".\", \",\" or end of input",
            "message": "\"failed to parse select parameter (data->>-78xy)\" (line 1, column 11)"} |]
         { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
       get "/json_arr?select=data->>--34" `shouldRespondWith`

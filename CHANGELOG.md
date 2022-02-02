@@ -16,6 +16,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + #1991, Add the ability to run without `db-uri` using libpq's PG environment variables to connect. - @wolfgangwalther
    + #1769, Add the ability to run without `db-schemas`, defaulting to `db-schemas=public`. - @wolfgangwalther
    + #1689, Add the ability to run without `db-anon-role` disabling anonymous access. - @wolfgangwalther
+ - #1543, Allow access to fields of composite types in select=, order= and filters through JSON operators -> and ->>. - @wolfgangwalther
+ - #2075, Allow access to array items in ?select=, ?order= and filters through JSON operators -> and ->>. - @wolfgangwalther
 
 ### Fixed
 
@@ -29,6 +31,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
  - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
  - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
+ - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
 
 ## [9.0.0] - 2021-11-25
 

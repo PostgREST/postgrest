@@ -2427,3 +2427,21 @@ BEGIN
   END IF;
 END
 $do$;
+
+-- https://github.com/PostgREST/postgrest/issues/1543
+CREATE TYPE complex AS (
+ r double precision,
+ i double precision
+);
+
+CREATE TABLE test.fav_numbers (
+ num    complex,
+ person text
+);
+
+-- https://github.com/PostgREST/postgrest/issues/2075
+create table test.arrays (
+  id int primary key,
+  numbers int[],
+  numbers_mult int[][]
+);
