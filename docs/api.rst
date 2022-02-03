@@ -270,7 +270,7 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 .. _json_columns:
 
 JSON Columns
-~~~~~~~~~~~~
+------------
 
 You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
 
@@ -351,7 +351,7 @@ Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with
 .. _computed_cols:
 
 Computed Columns
-~~~~~~~~~~~~~~~~
+----------------
 
 Filters may be applied to computed columns(**a.k.a. virtual columns**) as well as actual table/view columns, even though the computed columns will not appear in the output. For example, to search first and last names at once we can create a computed column that will not appear in the output but can be used in a filter:
 
