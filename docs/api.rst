@@ -269,10 +269,10 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 
 .. _json_columns:
 
-JSON Columns
-------------
+Array / Composite / JSON Columns
+--------------------------------
 
-You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
+You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_. This also works for array items and fields of composite types.
 
 .. tabs::
 
@@ -348,10 +348,19 @@ Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with
     { "id": 15, "age": 35 }
   ]
 
+
+.. important::
+
+  When using the ``->`` and ``->>`` operators, PostgREST uses a query like ``to_jsonb(<col>)->'field'``. To make filtering and ordering on those nested fields use an index, the index needs to be created on the same expression, including the ``to_jsonb(...)`` call:
+
+  .. code-block:: postgres
+ 
+    CREATE INDEX ON mytable ((to_jsonb(data) -> 'identification' ->> 'registration_number'));
+
 .. _computed_cols:
 
-Computed Columns
-----------------
+Computed / Virtual Columns
+--------------------------
 
 Filters may be applied to computed columns(**a.k.a. virtual columns**) as well as actual table/view columns, even though the computed columns will not appear in the output. For example, to search first and last names at once we can create a computed column that will not appear in the output but can be used in a filter:
 
@@ -537,7 +546,7 @@ If you care where nulls are sorted, add ``nullsfirst`` or ``nullslast``:
 
     curl "http://localhost:3000/people?order=age.desc.nullslast"
 
-You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output.
+You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output. You can sort by nested fields of :ref:`json_columns` with the JSON operators.
 
 .. _limits:
 
