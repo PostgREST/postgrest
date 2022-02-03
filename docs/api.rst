@@ -396,7 +396,7 @@ As mentioned, computed columns do not appear in the output by default. However y
 
 .. important::
 
-  Computed columns must be created under the :ref:`exposed schema <db-schemas>` to be used in this way.
+  Computed columns must be created in the :ref:`exposed schema <db-schemas>` or in a schema in the :ref:`extra search path <db-extra-search-path>` to be used in this way.
 
 Unicode support
 ---------------
