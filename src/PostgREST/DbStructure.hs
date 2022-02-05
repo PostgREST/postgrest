@@ -41,6 +41,7 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
@@ -83,9 +84,10 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> SQL.Transaction DbStructure
-queryDbStructure schemas extraSearchPath pgVer prepared = do
+queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
+queryDbStructure schemas extraSearchPath prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  pgVer   <- SQL.statement mempty pgVersionStatement
   tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
