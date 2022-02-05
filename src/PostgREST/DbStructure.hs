@@ -273,7 +273,12 @@ procsSqlQuery pgVer = [q|
         type::regtype::text, -- type
         idx <= (pronargs - pronargdefaults), -- is_required
         COALESCE(mode = 'v', FALSE) -- is_variadic
-      ) ORDER BY idx) AS args
+      ) ORDER BY idx) AS args,
+      CASE COUNT(*) - COUNT(name) -- number of unnamed arguments
+        WHEN 0 THEN true
+        WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype)
+        ELSE false
+      END AS callable
     FROM pg_proc,
          unnest(proargnames, proargtypes, proargmodes)
            WITH ORDINALITY AS _ (name, type, mode, idx)
@@ -303,7 +308,7 @@ procsSqlQuery pgVer = [q|
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid
-  WHERE t.oid <> 'trigger'::regtype
+  WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
