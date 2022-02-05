@@ -1,7 +1,8 @@
 {-# LANGUAGE QuasiQuotes #-}
 
 module PostgREST.Config.Database
-  ( queryDbSettings
+  ( pgVersionStatement
+  , queryDbSettings
   , queryPgVersion
   ) where
 
@@ -20,7 +21,10 @@ import Text.InterpolatedString.Perl6 (q)
 import Protolude
 
 queryPgVersion :: Session PgVersion
-queryPgVersion = statement mempty $ SQL.Statement sql HE.noParams versionRow False
+queryPgVersion = statement mempty pgVersionStatement
+
+pgVersionStatement :: SQL.Statement () PgVersion
+pgVersionStatement = SQL.Statement sql HE.noParams versionRow False
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text

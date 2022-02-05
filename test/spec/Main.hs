@@ -68,7 +68,6 @@ main = do
     loadDbStructure pool
       (configDbSchemas $ testCfg testDbConn)
       (configDbExtraSearchPath $ testCfg testDbConn)
-      actualPgVersion
 
   let
     -- For tests that run with the same refDbStructure
@@ -88,7 +87,6 @@ main = do
         loadDbStructure pool
           (configDbSchemas config)
           (configDbExtraSearchPath config)
-          actualPgVersion
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState customDbStructure
@@ -232,5 +230,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadDbStructure pool schemas extraSearchPath actualPgVersion =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath actualPgVersion True)
+    loadDbStructure pool schemas extraSearchPath =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)
