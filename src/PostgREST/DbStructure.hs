@@ -292,7 +292,7 @@ procsSqlQuery pgVer = [q|
      -- if any TABLE, INOUT or OUT arguments present, treat as composite
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
-    ('pg_catalog.void'::regtype = t.oid) AS rettype_is_void,
+    ('void'::regtype = t.oid) AS rettype_is_void,
     p.provolatile,
     p.provariadic > 0 as hasvariadic
   FROM pg_proc p
@@ -302,8 +302,8 @@ procsSqlQuery pgVer = [q|
   JOIN pg_type t ON t.oid = bt.base
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-  LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
-  WHERE t.oid <> 'pg_catalog.trigger'::regtype
+  LEFT JOIN pg_description as d ON d.objoid = p.oid
+  WHERE t.oid <> 'trigger'::regtype
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
@@ -314,8 +314,8 @@ schemaDescription =
       select
         description
       from
-        pg_catalog.pg_namespace n
-        left join pg_catalog.pg_description d on d.objoid = n.oid
+        pg_namespace n
+        left join pg_description d on d.objoid = n.oid
       where
         n.nspname = $1 |]
 
@@ -355,7 +355,7 @@ accessibleTables pgVer =
     from
       pg_class c
       join pg_namespace n on n.oid = c.relnamespace
-      left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
+      left join pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
       c.relkind in ('v','r','m','f','p')
       and n.nspname = $1 |]
@@ -491,7 +491,7 @@ allTables pgVer =
       ) AS deletable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
+    LEFT JOIN pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f','p')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema') |]
       <> relIsNotPartition pgVer <> [q|
@@ -528,9 +528,9 @@ allColumns tabs =
                r.contype,
                unnest(r.conkey) AS conkey
              FROM
-               pg_catalog.pg_constraint r,
-               pg_catalog.pg_class c,
-               pg_catalog.pg_namespace n
+               pg_constraint r,
+               pg_class c,
+               pg_namespace n
              WHERE
                r.contype IN ('f', 'p', 'u')
                AND c.relkind IN ('r', 'v', 'f', 'm', 'p')
@@ -575,7 +575,7 @@ allColumns tabs =
             FROM pg_attribute a
                 LEFT JOIN key_columns kc
                     ON kc.conkey = a.attnum AND kc.c_oid = a.attrelid
-                LEFT JOIN pg_catalog.pg_description AS d
+                LEFT JOIN pg_description AS d
                     ON d.objoid = a.attrelid and d.objsubid = a.attnum
                 LEFT JOIN pg_attrdef ad
                     ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
@@ -616,7 +616,7 @@ allColumns tabs =
             array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
         FROM pg_type t
         JOIN pg_enum e ON t.oid = e.enumtypid
-        JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+        JOIN pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
     ) AS enum_info ON (info.udt_name = enum_info.n)
     ORDER BY schema, position |]
