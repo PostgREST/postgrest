@@ -53,7 +53,6 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
-  actualPgVersion <- AppState.getPgVersion appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     SQL.use (AppState.getPool appState) $
@@ -61,7 +60,6 @@ dumpSchema appState = do
         queryDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
-          actualPgVersion
           configDbPreparedStatements
   SQL.release $ AppState.getPool appState
   case result of
