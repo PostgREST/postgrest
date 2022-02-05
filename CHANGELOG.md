@@ -19,6 +19,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
  - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
  - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
+ - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
+ - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+
+### Changed
+
+ - #2001, Return 204 No Content without Content-Type for RPCs returning VOID - @wolfgangwalther
+   + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
 
 ## [9.0.0] - 2021-11-25
 
