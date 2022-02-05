@@ -2427,3 +2427,21 @@ BEGIN
   END IF;
 END
 $do$;
+
+-- This procedure is to confirm that procedures don't show up in the OpenAPI output right now.
+-- Procedures are not supported, yet.
+do $do$begin
+  if (select current_setting('server_version_num')::int >= 110000) then
+    CREATE PROCEDURE test.unsupported_proc ()
+    LANGUAGE SQL AS '';
+  end if;
+end $do$;
+
+CREATE FUNCTION public.dummy(int) RETURNS int
+LANGUAGE SQL AS $$ SELECT 1 $$;
+
+-- This aggregate is to confirm that aggregates don't show up in the OpenAPI output.
+CREATE AGGREGATE test.unsupported_agg (*) (
+  SFUNC = public.dummy,
+  STYPE = int
+);
