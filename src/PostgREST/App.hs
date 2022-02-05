@@ -469,7 +469,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
            <$> SQL.statement tSchema (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure

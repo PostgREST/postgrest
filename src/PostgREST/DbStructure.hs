@@ -42,7 +42,8 @@ import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config.Database          (pgVersionStatement)
-import PostgREST.Config.PgVersion         (PgVersion, pgVersion100)
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
+                                           pgVersion110)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
@@ -93,7 +94,7 @@ queryDbStructure schemas extraSearchPath prepared = do
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
   m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
   keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
-  procs   <- SQL.statement schemas $ allProcs prepared
+  procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       keys' = addViewPrimaryKeys srcCols keys
@@ -226,18 +227,18 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
-allProcs = SQL.Statement sql (arrayParam HE.text) decodeProcs
+allProcs :: PgVersion -> Bool -> SQL.Statement [Schema] ProcsMap
+allProcs pgVer = SQL.Statement sql (arrayParam HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " AND pn.nspname = ANY($1)"
+    sql = procsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
 
-accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
-accessibleProcs = SQL.Statement sql (param HE.text) decodeProcs
+accessibleProcs :: PgVersion -> Bool -> SQL.Statement Schema ProcsMap
+accessibleProcs pgVer = SQL.Statement sql (param HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = procsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
-procsSqlQuery :: SqlQuery
-procsSqlQuery = [q|
+procsSqlQuery :: PgVersion -> SqlQuery
+procsSqlQuery pgVer = [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -300,7 +301,7 @@ procsSqlQuery = [q|
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
   WHERE t.oid <> 'pg_catalog.trigger'::regtype
-|]
+|] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
