@@ -86,7 +86,7 @@ The PostgREST server reads a configuration file as its only argument:
   postgrest /path/to/postgrest.conf
 
   # You can also generate a sample config file with
-  # postgrest 2> postgrest.conf
+  # postgrest -e > postgrest.conf
   # You'll need to edit this file and remove the usage parts for postgrest to read it
 
 For a complete reference of the configuration file, see :ref:`configuration`.
