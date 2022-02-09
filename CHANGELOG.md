@@ -22,6 +22,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
  - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
  - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+ - #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
+ - #2152, Remove functions, which are uncallable because of unnamend arguments from schema cache and OpenAPI output. - @wolfgangwalther
+ - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
+ - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+ - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
 
 ### Changed
 
