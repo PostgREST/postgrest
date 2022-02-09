@@ -256,6 +256,7 @@ Schema Reloading
 
 Changing the schema while the server is running can lead to errors due to a stale schema cache. To learn how to refresh the cache see :ref:`schema_reloading`.
 
+
 Daemonizing
 ===========
 
@@ -294,6 +295,17 @@ After that, you can enable the service at boot time and start it with:
 
   ## For reloading the service
   ## systemctl restart postgrest
+
+File Descriptors
+----------------
+
+File descriptors are kernel resources that are used by HTTP connections (among others). File descriptors are limited per process. The kernel default limit is 1024, which is increased in some Linux distributions.
+When under heavy traffic, PostgREST can reach this limit and start showing ``No file descriptors available`` errors. To clear these errors, you can increase the process' file descriptor limit.
+
+.. code-block:: ini
+
+  [Service]
+  LimitNOFILE=10000
 
 Alternate URL Structure
 =======================
