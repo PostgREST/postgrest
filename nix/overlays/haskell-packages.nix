@@ -50,6 +50,15 @@ let
           }
           { };
 
+      warp =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "warp";
+            ver = "3.3.19";
+            sha256 = "0y3jj4bhviss6ff9lwxki0zbdcl1rb398bk4s80zvfpnpy7p94cx";
+          }
+          { });
+
       hasql-dynamic-statements =
         lib.dontCheck (lib.unmarkBroken prev.hasql-dynamic-statements);
 
