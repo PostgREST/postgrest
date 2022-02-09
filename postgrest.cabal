@@ -110,7 +110,7 @@ library
                     , wai                       >= 3.2.1 && < 3.3
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.1.8 && < 3.2
-                    , warp                      >= 3.2.12 && < 3.4
+                    , warp                      >= 3.3.19 && < 3.4
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
