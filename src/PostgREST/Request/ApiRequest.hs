@@ -160,6 +160,7 @@ data ApiRequest = ApiRequest {
   , iPreferCount          :: Maybe PreferCount                -- ^ Whether the client wants a result count
   , iPreferResolution     :: Maybe PreferResolution           -- ^ Whether the client wants to UPSERT or ignore records on PK conflict
   , iPreferTransaction    :: Maybe PreferTransaction          -- ^ Whether the clients wants to commit or rollback the transaction
+  , iPreferMaxChanges     :: Maybe Int
   , iQueryParams          :: QueryParams.QueryParams
   , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
   , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
@@ -197,6 +198,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       , iPreferCount = preferCount
       , iPreferResolution = preferResolution
       , iPreferTransaction = preferTransaction
+      , iPreferMaxChanges  = preferMaxChanges
       , iQueryParams = queryparams
       , iColumns = payloadColumns
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]

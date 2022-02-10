@@ -280,6 +280,7 @@ data Error
   | PutMatchingPkError
   | PutRangeNotAllowedError
   | SingularityError Integer
+  | OffLimitsChangesError Int64 Int
   | UnsupportedVerb Text
 
 instance PgrstError Error where
@@ -296,6 +297,7 @@ instance PgrstError Error where
   status PutMatchingPkError      = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
   status SingularityError{}      = HTTP.status406
+  status OffLimitsChangesError{} = HTTP.status400
   status UnsupportedVerb{}       = HTTP.status405
 
   headers (ApiRequestError err)  = headers err
@@ -323,6 +325,10 @@ instance JSON.ToJSON Error where
   toJSON (SingularityError n)      = JSON.object [
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"]]
+
+  toJSON (OffLimitsChangesError n maxs) = JSON.object [
+    "message" .= ("The maximum number of rows changed per operation was surpassed" :: Text),
+    "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs]]
 
   toJSON JwtTokenMissing           = JSON.object [
     "message" .= ("Server lacks JWT secret" :: Text)]

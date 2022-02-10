@@ -360,11 +360,12 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       RangeQuery.contentRangeH 0 (resQueryTotal - 1) $
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
-  failNotSingular iAcceptContentType resQueryTotal $
-    if fullRepr then
-      response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
-    else
-      response status [contentRangeHeader] mempty
+  failChangesOffLimits iPreferMaxChanges resQueryTotal =<<
+    failNotSingular iAcceptContentType resQueryTotal
+      (if fullRepr then
+        response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
+      else
+        response status [contentRangeHeader] mempty)
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
@@ -562,6 +563,16 @@ gucResponse
 gucResponse gucStatus gucHeaders status headers =
   Wai.responseLBS (fromMaybe status gucStatus) $
     addHeadersIfNotIncluded headers (map unwrapGucHeader gucHeaders)
+
+failChangesOffLimits :: Maybe Int -> Int64 -> Wai.Response -> DbHandler Wai.Response
+failChangesOffLimits (Just maxChanges) queryTotal response =
+  if queryTotal > fromIntegral maxChanges then
+    do
+      lift SQL.condemn
+      throwError $ Error.OffLimitsChangesError queryTotal maxChanges
+  else
+    return response
+failChangesOffLimits _ _ response = return response
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one

@@ -42,6 +42,7 @@ data Preferences
     , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
+    , preferMaxChanges     :: Maybe Int
     }
 
 -- |
@@ -91,13 +92,14 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=minimal")]
+-- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=minimal,  max-changes=20")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just None
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
+--     , preferMaxChanges  = Just 20
 --     }
 --
 fromHeaders :: [HTTP.Header] -> Preferences
@@ -108,14 +110,19 @@ fromHeaders headers =
     , preferParameters = parsePrefs [SingleObject, MultipleObjects]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]
+    , preferMaxChanges =  parseMaxChanges
     }
   where
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
 
+    parseMaxChanges =
+      fmap fst . BS.readInt =<<
+      head (mapMaybe (BS.stripPrefix "max-changes=") prefs)
+
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
-      head $ mapMaybe (flip Map.lookup $ prefMap vals) prefs
+      head $ mapMaybe (`Map.lookup` prefMap vals) prefs
 
     prefMap :: ToHeaderValue a => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))

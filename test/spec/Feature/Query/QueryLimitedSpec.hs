@@ -77,3 +77,17 @@ spec =
             , matchHeaders = [ matchContentTypeJson
                              , "Content-Range" <:> "0-1/3" ]
             }
+
+changesSpec :: SpecWith ((), Application)
+changesSpec =
+  describe "Requests with Prefer: max-changes" $
+    it "fails if the PATCHed rows surpass the maximum allowed" $
+      request methodPatch "/projects"
+          [("Prefer", "max-changes=1")]
+          [json| { name: "PopOS" } |]
+        `shouldRespondWith`
+          [json| {
+            "details": "Results contain 5 rows changed but the maximum number allowed is 1",
+            "message": "The maximum number of rows changed per operation was surpassed"
+          }|]
+          { matchStatus = 400 }
