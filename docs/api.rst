@@ -272,7 +272,14 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 Array / Composite / JSON Columns
 --------------------------------
 
-You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_. This also works for array items and fields of composite types.
+You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
+
+.. code-block:: postgres
+
+  CREATE TABLE people (
+    id int,
+    json_data json
+  );
 
 .. tabs::
 
@@ -348,6 +355,41 @@ Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with
     { "id": 15, "age": 35 }
   ]
 
+The arrow operators are also used for array and composite type columns.
+
+.. code-block:: postgres
+
+  CREATE TYPE coordinates (
+    lat decimal(8,6),
+    long decimal(9,6)
+  );
+
+  CREATE TABLE countries (
+    id int,
+    location coordinates,
+    languages text[]
+  );
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19"
+
+.. code-block:: json
+
+  [
+    {
+      "id": 5,
+      "lat": "19.741755",
+      "long": "-155.844437",
+      "primary_language": "en"
+    }
+  ]
 
 .. important::
 
