@@ -1245,10 +1245,6 @@ spec actualPgVersion =
             respBody `shouldBe` file
 
         it "should call the function with no parameters and not fallback to the single unnamed parameter function when using GET with Content-Type headers" $ do
-          request methodGet "/rpc/overloaded_unnamed_param" [("Content-Type", "application/json")] ""
-            `shouldRespondWith`
-              [json| 1|]
-              { matchStatus  = 200 }
           request methodGet "/rpc/overloaded_unnamed_param" [("Content-Type", "text/plain")] ""
             `shouldRespondWith`
               [json| 1|]
