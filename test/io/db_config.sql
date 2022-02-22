@@ -29,6 +29,7 @@ ALTER ROLE db_config_authenticator SET pgrst.server_host = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_port = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket_mode = 'ignored';
+ALTER ROLE db_config_authenticator SET pgrst.admin_server_port = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.log_level = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_uri = 'postgresql://ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_channel_enabled = 'ignored';

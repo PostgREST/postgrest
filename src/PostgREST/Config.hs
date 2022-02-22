@@ -348,7 +348,7 @@ parser optPath env dbSettings =
         reloadableDbSetting =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
-            "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "log_level",
+            "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
             "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
