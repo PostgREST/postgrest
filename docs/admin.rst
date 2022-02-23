@@ -256,6 +256,35 @@ Schema Reloading
 
 Changing the schema while the server is running can lead to errors due to a stale schema cache. To learn how to refresh the cache see :ref:`schema_reloading`.
 
+.. _health_check:
+
+Health Check
+------------
+
+You can enable a minimal health check to verify if PostgREST is available for client requests and to check the status of its internal state.
+
+To do this, set the configuration variable :ref:`admin-server-port` to the port number of your preference. Two endpoints ``live`` and ``ready`` will then be available.
+
+The ``live`` endpoint verifies if PostgREST is running on its configured port. A request will return ``200 OK`` if PostgREST is alive or ``503`` otherwise.
+
+The ``ready`` endpoint also checks the state of both the Database Connection and the :ref:`schema_cache`. A request will return ``200 OK`` if it is ready or ``503`` if not.
+
+For instance, to verify if PostgREST is running at ``localhost:3000`` while the ``admin-server-port`` is set to ``3001``:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET localhost:3001/live HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl -I "http://localhost:3001/live"
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+
 
 Daemonizing
 ===========

@@ -105,6 +105,7 @@ It's not possible to change :ref:`env_variables_config` for a running process an
 
   The following settings will not be reloaded. You will need to restart PostgREST to change those.
 
+    * :ref:`admin-server-port`
     * :ref:`db-uri`
     * :ref:`db-pool`
     * :ref:`db-pool-timeout`
@@ -145,6 +146,7 @@ List of parameters
 ======================== ======= ================= ==========
 Name                     Type    Default           Reloadable
 ======================== ======= ================= ==========
+admin-server-port        Int
 app.settings.*           String                    Y
 db-anon-role             String                    Y
 db-channel               String  pgrst             Y
@@ -173,6 +175,18 @@ server-port              Int     3000
 server-unix-socket       String
 server-unix-socket-mode  String  660
 ======================== ======= ================= ==========
+
+.. _admin-server-port:
+
+admin-server-port
+-----------------
+
+  =============== =======================
+  **Environment** PGRST_ADMIN_SERVER_PORT
+  **In-Database** `n/a`
+  =============== =======================
+
+Specifies the port for the :ref:`health_check` endpoints.
 
 .. _app.settings.*:
 
@@ -589,7 +603,7 @@ server-host
 
   =============== =================
   **Environment** PGRST_SERVER_HOST
-  **In-Database** pgrst.server_host
+  **In-Database** `n/a`
   =============== =================
 
   Where to bind the PostgREST web server. In addition to the usual address options, PostgREST interprets these reserved addresses with special meanings:
@@ -607,7 +621,7 @@ server-port
 
   =============== =================
   **Environment** PGRST_SERVER_PORT
-  **In-Database** pgrst.server_port
+  **In-Database** `n/a`
   =============== =================
 
   The TCP port to bind the web server.
@@ -619,7 +633,7 @@ server-unix-socket
 
   =============== =================
   **Environment** PGRST_SERVER_UNIX_SOCKET
-  **In-Database** pgrst.server_unix_socket
+  **In-Database** `n/a`
   =============== =================
 
   `Unix domain socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ where to bind the PostgREST web server.
@@ -636,7 +650,7 @@ server-unix-socket-mode
 
   =============== =================
   **Environment** PGRST_SERVER_UNIX_SOCKET_MODE
-  **In-Database** pgrst.server_unix_socket_mode
+  **In-Database** `n/a`
   =============== =================
 
   `Unix file mode <https://en.wikipedia.org/wiki/File_system_permissions>`_ to be set for the socket specified in :ref:`server-unix-socket`
