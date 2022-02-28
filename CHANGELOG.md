@@ -27,6 +27,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
  - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
  - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
+ - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
+ - ```
 
 ### Changed
 

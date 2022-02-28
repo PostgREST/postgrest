@@ -1232,6 +1232,16 @@ spec actualPgVersion =
             let respBody = simpleBody r
             respBody `shouldBe` file
 
+        it "should call the function with no parameters and not fallback to the single unnamed parameter function when using GET with Content-Type headers" $ do
+          request methodGet "/rpc/overloaded_unnamed_param" [("Content-Type", "text/plain")] ""
+            `shouldRespondWith`
+              [json| 1|]
+              { matchStatus  = 200 }
+          request methodGet "/rpc/overloaded_unnamed_param" [("Content-Type", "application/octet-stream")] ""
+            `shouldRespondWith`
+              [json| 1|]
+              { matchStatus  = 200 }
+
         it "should fail to fallback to any single unnamed parameter function when using an unsupported Content-Type header" $ do
           request methodPost "/rpc/overloaded_unnamed_param"
               [("Content-Type", "text/csv")]

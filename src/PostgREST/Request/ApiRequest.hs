@@ -505,7 +505,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
         then length params == 1 && (ppType <$> headMay params) `elem` [Just "json", Just "jsonb"]
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && contentType `notElem` [CTTextPlain, CTOctetStream]
+        then null argumentsKeys && not (isInvPost && contentType `elem` [CTTextPlain, CTOctetStream])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of
