@@ -352,7 +352,7 @@ instance JSON.ToJSON Error where
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
-  toJSON JwtTokenMissing           = JSON.object [
+  toJSON JwtTokenMissing = JSON.object [
       "code"    .= JWTErrorCode00,
       "message" .= ("Server lacks JWT secret" :: Text),
       "details" .= JSON.Null,
@@ -362,40 +362,40 @@ instance JSON.ToJSON Error where
       "message" .= (message :: Text),
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
-  toJSON JwtTokenRequired          = JSON.object [
+  toJSON JwtTokenRequired = JSON.object [
       "code"    .= JWTErrorCode02,
       "message" .= ("Anonymous access is disabled" :: Text),
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
-  toJSON GucHeadersError           = JSON.object [
+  toJSON GucHeadersError = JSON.object [
     "code"    .= GeneralErrorCode00,
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON GucStatusError           = JSON.object [
+  toJSON GucStatusError = JSON.object [
     "code"    .= GeneralErrorCode01,
     "message" .= ("response.status guc must be a valid status code" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON (BinaryFieldError ct)          = JSON.object [
+  toJSON (BinaryFieldError ct) = JSON.object [
     "code"    .= GeneralErrorCode02,
     "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON PutRangeNotAllowedError   = JSON.object [
+  toJSON PutRangeNotAllowedError = JSON.object [
     "code"    .= GeneralErrorCode03,
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON PutMatchingPkError        = JSON.object [
+  toJSON PutMatchingPkError = JSON.object [
     "code"    .= GeneralErrorCode04,
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON (SingularityError n)      = JSON.object [
+  toJSON (SingularityError n) = JSON.object [
     "code"    .= GeneralErrorCode05,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
