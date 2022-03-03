@@ -53,7 +53,6 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
-  actualPgVersion <- AppState.getPgVersion appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     SQL.use (AppState.getPool appState) $
@@ -61,7 +60,6 @@ dumpSchema appState = do
         queryDbStructure
           (toList configDbSchemas)
           configDbExtraSearchPath
-          actualPgVersion
           configDbPreparedStatements
   SQL.release $ AppState.getPool appState
   case result of
@@ -82,12 +80,12 @@ data Command
   | CmdDumpSchema
 
 -- | Read command line interface options. Also prints help.
-readCLIShowHelp :: Bool -> IO CLI
-readCLIShowHelp hasEnvironment =
+readCLIShowHelp :: IO CLI
+readCLIShowHelp =
   O.customExecParser prefs opts
   where
     prefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
-    opts = O.info parser $ O.fullDesc <> progDesc <> footer
+    opts = O.info parser $ O.fullDesc <> progDesc
     parser = O.helper <*> exampleParser <*> cliParser
 
     progDesc =
@@ -95,11 +93,6 @@ readCLIShowHelp hasEnvironment =
         "PostgREST "
         <> BS.unpack prettyVersion
         <> " / create a REST API to an existing Postgres database"
-
-    footer =
-      O.footer $
-        "To run PostgREST, please pass the FILENAME argument"
-        <> " or set PGRST_ environment variables."
 
     exampleParser =
       O.infoOption exampleConfigFile $
@@ -111,12 +104,12 @@ readCLIShowHelp hasEnvironment =
     cliParser =
       CLI
         <$> (dumpConfigFlag <|> dumpSchemaFlag)
-        <*> optionalIf hasEnvironment configFileOption
+        <*> O.optional configFileOption
 
     configFileOption =
       O.strArgument $
         O.metavar "FILENAME"
-        <> O.help "Path to configuration file (optional with PGRST_ environment variables)"
+        <> O.help "Path to configuration file"
 
     dumpConfigFlag =
       O.flag CmdRun CmdDumpConfig $
@@ -128,36 +121,13 @@ readCLIShowHelp hasEnvironment =
         O.long "dump-schema"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
 
-    optionalIf :: Alternative f => Bool -> f a -> f (Maybe a)
-    optionalIf True  = O.optional
-    optionalIf False = fmap Just
-
 exampleConfigFile :: [Char]
 exampleConfigFile =
-  [str|### REQUIRED:
-      |db-uri = "postgres://user:pass@localhost:5432/dbname"
-      |db-schema = "public"
-      |db-anon-role = "postgres"
+  [str|## Admin server used for checks. It's disabled by default unless a port is specified.
+      |# admin-server-port = 3001
       |
-      |### OPTIONAL:
-      |## number of open connections in the pool
-      |db-pool = 10
-      |
-      |## Time to live, in seconds, for an idle database pool connection.
-      |db-pool-timeout = 10
-      |
-      |## extra schemas to add to the search_path of every request
-      |db-extra-search-path = "public"
-      |
-      |## limit rows in response
-      |# db-max-rows = 1000
-      |
-      |## stored proc to exec immediately after auth
-      |# db-pre-request = "stored_proc_name"
-      |
-      |## stored proc that overrides the root "/" spec
-      |## it must be inside the db-schema
-      |# db-root-spec = "stored_proc_name"
+      |## The database role to use when no client authentication is provided
+      |# db-anon-role = "anon"
       |
       |## Notification channel for reloading the schema cache
       |db-channel = "pgrst"
@@ -168,56 +138,79 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
+      |## Extra schemas to add to the search_path of every request
+      |db-extra-search-path = "public"
+      |
+      |## Limit rows in response
+      |# db-max-rows = 1000
+      |
+      |## Number of open connections in the pool
+      |db-pool = 10
+      |
+      |## Time to live, in seconds, for an idle database pool connection
+      |db-pool-timeout = 10
+      |
+      |## Stored proc to exec immediately after auth
+      |# db-pre-request = "stored_proc_name"
+      |
+      |## Enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
+      |## When disabled, statements will be parametrized but won't be prepared.
+      |db-prepared-statements = true
+      |
+      |## The name of which database schema to expose to REST clients
+      |db-schemas = "public"
+      |
+      |## How to terminate database transactions
+      |## Possible values are:
+      |## commit (default)
+      |##   Transaction is always committed, this can not be overriden
+      |## commit-allow-override
+      |##   Transaction is committed, but can be overriden with Prefer tx=rollback header
+      |## rollback
+      |##   Transaction is always rolled back, this can not be overriden
+      |## rollback-allow-override
+      |##   Transaction is rolled back, but can be overriden with Prefer tx=commit header
+      |db-tx-end = "commit"
+      |
+      |## The standard connection URI format, documented at
+      |## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
+      |db-uri = "postgresql://"
+      |
       |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
       |## For PostgreSQL v14 and up, this setting will be ignored.
       |db-use-legacy-gucs = true
       |
-      |## how to terminate database transactions
-      |## possible values are:
-      |## commit (default)
-      |##   transaction is always committed, this can not be overriden
-      |## commit-allow-override
-      |##   transaction is committed, but can be overriden with Prefer tx=rollback header
-      |## rollback
-      |##   transaction is always rolled back, this can not be overriden
-      |## rollback-allow-override
-      |##   transaction is rolled back, but can be overriden with Prefer tx=commit header
-      |db-tx-end = "commit"
+      |# jwt-aud = "your_audience_claim"
       |
-      |## enable or disable prepared statements. disabling is only necessary when behind a connection pooler.
-      |## when disabled, statements will be parametrized but won't be prepared.
-      |db-prepared-statements = true
+      |## Jspath to the role claim key
+      |jwt-role-claim-key = ".role"
+      |
+      |## Choose a secret, JSON Web Key (or set) to enable JWT auth
+      |## (use "@filename" to load from separate file)
+      |# jwt-secret = "secret_with_at_least_32_characters"
+      |jwt-secret-is-base64 = false
+      |
+      |## Logging level, the admitted values are: crit, error, warn and info.
+      |log-level = "error"
+      |
+      |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.
+      |## Admitted values: follow-privileges, ignore-privileges, disabled
+      |openapi-mode = "follow-privileges"
+      |
+      |## Base url for the OpenAPI output
+      |openapi-server-proxy-uri = ""
+      |
+      |## Content types to produce raw output
+      |# raw-media-types="image/png, image/jpg"
       |
       |server-host = "!4"
       |server-port = 3000
       |
-      |## unix socket location
+      |## Unix socket location
       |## if specified it takes precedence over server-port
       |# server-unix-socket = "/tmp/pgrst.sock"
       |
-      |## unix socket file mode
-      |## when none is provided, 660 is applied by default
+      |## Unix socket file mode
+      |## When none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
-      |
-      |## determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely
-      |## admitted values: follow-privileges, ignore-privileges, disabled
-      |openapi-mode = "follow-privileges"
-      |
-      |## base url for the OpenAPI output
-      |openapi-server-proxy-uri = ""
-      |
-      |## choose a secret, JSON Web Key (or set) to enable JWT auth
-      |## (use "@filename" to load from separate file)
-      |# jwt-secret = "secret_with_at_least_32_characters"
-      |# jwt-aud = "your_audience_claim"
-      |jwt-secret-is-base64 = false
-      |
-      |## jspath to the role claim key
-      |jwt-role-claim-key = ".role"
-      |
-      |## content types to produce raw output
-      |# raw-media-types="image/png, image/jpg"
-      |
-      |## logging level, the admitted values are: crit, error, warn and info.
-      |log-level = "error"
       |]

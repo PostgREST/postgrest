@@ -92,8 +92,8 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
-        ${cabal-install}/bin/cabal v2-exec ${withTools.withPg} \
-          ${ioTestPython}/bin/pytest -- -v test/io-tests "''${_arg_leftovers[@]}"
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures.sql \
+          ${ioTestPython}/bin/pytest -v test/io "''${_arg_leftovers[@]}"
       '';
 
   dumpSchema =
@@ -133,12 +133,15 @@ let
         # build once before running all the tests
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:querycost
 
-        ${haskellPackages.weeder}/bin/weeder --config=./test/weeder.dhall || echo Found dead code: Check file list above.
+        (
+          trap 'echo Found dead code: Check file list above.' ERR ;
+          ${haskellPackages.weeder}/bin/weeder --config=./test/weeder.dhall
+        )
 
         # collect all tests
         HPCTIXFILE="$tmpdir"/io.tix \
-          ${withTools.withPg} ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} \
-          ${ioTestPython}/bin/pytest -- -v test/io-tests
+          ${withTools.withPg} -f test/io/fixtures.sql ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- \
+          ${ioTestPython}/bin/pytest -v test/io
           
         HPCTIXFILE="$tmpdir"/spec.tix \
           ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec

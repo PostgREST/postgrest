@@ -46,9 +46,82 @@ let
           --data-urlencode description@${description} \
           --data-urlencode full_description@${fullDescription}
       '';
+
+  release =
+    checkedShellScript
+      {
+        name = "postgrest-release";
+        docs = "Patch postgrest.cabal, tag and push all in one go.";
+        args = [ "ARG_POSITIONAL_SINGLE([version], [Version to release], [pre])" ];
+        inRootDir = true;
+      }
+      ''
+        trap "echo You need to be on the main branch to proceed. Exiting ..." ERR
+        [ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]
+        trap "" ERR
+
+        trap "echo You have uncommitted changes in postgrest.cabal. Exiting ..." ERR
+        git diff --exit-code HEAD postgrest.cabal > /dev/null
+        trap "" ERR
+
+        current_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+        # shellcheck disable=SC2034
+        IFS=. read -r major minor patch pre <<< "$current_version"
+        echo "Current version is $current_version"
+
+        bump_pre="$major.$minor.$patch.$(date '+%Y%m%d')"
+        bump_patch="$major.$minor.$((patch+1))"
+        bump_minor="$major.$((minor+1)).0"
+        bump_major="$((major+1)).0.0"
+
+        PS3="Please select the new version: "
+        select new_version in "$bump_pre" "$bump_patch" "$bump_minor" "$bump_major"; do
+          case "$REPLY" in
+            1|2|3|4)
+              echo "Selected $new_version"
+              break
+              ;;
+            *)
+            echo "Invalid option $REPLY"
+            ;;
+          esac
+        done
+
+        echo "Updating postgrest.cabal ..."
+        sed -i -E "s/^(version:\s+).*$/\1$new_version/" postgrest.cabal > /dev/null
+
+        echo "Committing ..."
+        git add postgrest.cabal > /dev/null
+        git commit -m "bump version to $new_version" > /dev/null
+
+        echo "Tagging ..."
+        git tag "v$new_version" > /dev/null
+
+        trap "Couldn't find remote. Please push manually ..." ERR
+        remote="$(git remote -v | grep PostgREST/postgrest | grep push | cut -f1)"
+        trap "" ERR
+
+        push="git push --atomic $remote main v$new_version"
+
+        echo "To push both the branch and the new tag, the following will be run:"
+        echo
+        echo "$push"
+        echo
+        
+        read -r -p 'Proceed? (y/N) ' REPLY
+        case "$REPLY" in 
+          y|Y)
+            $push
+            ;;
+          *)
+            echo "Aborting ..."
+            ;;
+        esac
+      '';
+
 in
 buildToolbox
 {
   name = "postgrest-release";
-  tools = [ dockerHubDescription ];
+  tools = [ dockerHubDescription release ];
 }

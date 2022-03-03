@@ -20,8 +20,8 @@ module PostgREST.App
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.List                (union)
+import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
-import Data.Time.Clock          (UTCTime)
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
@@ -30,7 +30,7 @@ import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Set                        as S
-import qualified Hasql.DynamicStatements.Snippet as SQL
+import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Pool                      as SQL
 import qualified Hasql.Transaction               as SQL
 import qualified Hasql.Transaction.Sessions      as SQL
@@ -40,10 +40,13 @@ import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Handler.Warp        as Warp
 
+import qualified PostgREST.Admin                    as Admin
 import qualified PostgREST.AppState                 as AppState
 import qualified PostgREST.Auth                     as Auth
+import qualified PostgREST.Cors                     as Cors
 import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
+import qualified PostgREST.Logger                   as Logger
 import qualified PostgREST.Middleware               as Middleware
 import qualified PostgREST.OpenAPI                  as OpenAPI
 import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
@@ -53,6 +56,7 @@ import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 
 import PostgREST.AppState                (AppState)
+import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..))
@@ -73,11 +77,12 @@ import PostgREST.GucHeader               (GucHeader,
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
-                                          Target (..))
+                                          Mutation (..), Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
                                           toAppliedHeader)
+import PostgREST.Request.QueryParams     (QueryParams (..))
 import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
@@ -86,7 +91,6 @@ import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc
 
 import Protolude hiding (Handler)
-
 
 data RequestContext = RequestContext
   { ctxConfig      :: AppConfig
@@ -113,6 +117,11 @@ run installHandlers maybeRunWithSocket appState = do
   when configDbChannelEnabled $ listener appState
 
   let app = postgrest configLogLevel appState (connectionWorker appState)
+      adminApp = Admin.postgrestAdmin appState conf
+
+  whenJust configAdminServerPort $ \adminPort -> do
+    AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
+    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) adminApp
 
   case configServerUnixSocket of
     Just socket ->
@@ -127,6 +136,9 @@ run installHandlers maybeRunWithSocket appState = do
       do
         AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
         Warp.runSettings (serverSettings conf) app
+  where
+    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
+    whenJust mg f = maybe (pure ()) f mg
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
@@ -137,28 +149,33 @@ serverSettings AppConfig{..} =
 
 -- | PostgREST application
 postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLev appState connWorker =
-  Middleware.pgrstMiddleware logLev $
-    \req respond -> do
-      time <- AppState.getTime appState
-      conf <- AppState.getConfig appState
-      maybeDbStructure <- AppState.getDbStructure appState
-      pgVer <- AppState.getPgVersion appState
-      jsonDbS <- AppState.getJsonDbS appState
+postgrest logLevel appState connWorker =
+  Cors.middleware .
+  Auth.middleware appState .
+  Logger.middleware logLevel $
+    -- fromJust can be used, because the auth middleware will **always** add
+    -- some AuthResult to the vault.
+    \req respond -> case fromJust $ Auth.getResult req of
+      Left err -> respond $ Error.errorResponseFor err
+      Right authResult -> do
+        conf <- AppState.getConfig appState
+        maybeDbStructure <- AppState.getDbStructure appState
+        pgVer <- AppState.getPgVersion appState
+        jsonDbS <- AppState.getJsonDbS appState
 
-      let
-        eitherResponse :: IO (Either Error Wai.Response)
-        eitherResponse =
-          runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) time req
+        let
+          eitherResponse :: IO (Either Error Wai.Response)
+          eitherResponse =
+            runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) authResult req
 
-      response <- either Error.errorResponseFor identity <$> eitherResponse
-      -- Launch the connWorker when the connection is down.  The postgrest
-      -- function can respond successfully (with a stale schema cache) before
-      -- the connWorker is done.
-      let isPGAway = Wai.responseStatus response == HTTP.status503
-      when isPGAway connWorker
-      resp <- addRetryHint isPGAway appState response
-      respond resp
+        response <- either Error.errorResponseFor identity <$> eitherResponse
+        -- Launch the connWorker when the connection is down.  The postgrest
+        -- function can respond successfully (with a stale schema cache) before
+        -- the connWorker is done.
+        let isPGAway = Wai.responseStatus response == HTTP.status503
+        when isPGAway connWorker
+        resp <- addRetryHint isPGAway appState response
+        respond resp
 
 addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
 addRetryHint shouldAdd appState response = do
@@ -172,10 +189,10 @@ postgrestResponse
   -> ByteString
   -> PgVersion
   -> SQL.Pool
-  -> UTCTime
+  -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
+postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthResult{..} req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -183,32 +200,27 @@ postgrestResponse conf maybeDbStructure jsonDbS pgVer pool time req = do
       Just dbStructure ->
         return dbStructure
       Nothing ->
-        throwError Error.ConnectionLostError
+        throwError Error.NoSchemaCacheError
 
-  apiRequest@ApiRequest{..} <-
+  apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf dbStructure req body
 
-  -- The JWT must be checked before touching the db
-  jwtClaims <- Auth.jwtClaims conf (toUtf8Lazy iJWT) time
+  let handleReq apiReq = handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  let
-    handleReq apiReq =
-      handleRequest $ RequestContext conf dbStructure apiReq pgVer
-
-  runDbHandler pool (txMode apiRequest) jwtClaims (configDbPreparedStatements conf) .
+  runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
     Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf jwtClaims handleReq apiRequest jsonDbS pgVer
+      Middleware.runPgLocals conf authClaims authRole handleReq apiRequest jsonDbS pgVer
 
-runDbHandler :: SQL.Pool -> SQL.Mode -> Auth.JWTClaims -> Bool -> DbHandler a -> Handler IO a
-runDbHandler pool mode jwtClaims prepared handler = do
+runDbHandler :: SQL.Pool -> SQL.Mode -> Bool -> Bool -> DbHandler a -> Handler IO a
+runDbHandler pool mode authenticated prepared handler = do
   dbResp <-
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
     lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
-      mapLeft (Error.PgError $ Auth.containsRole jwtClaims) dbResp
+      mapLeft (Error.PgError authenticated) dbResp
 
   liftEither resp
 
@@ -217,13 +229,13 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
-    (ActionCreate, TargetIdent identifier) ->
+    (ActionMutate MutationCreate, TargetIdent identifier) ->
       handleCreate identifier context
-    (ActionUpdate, TargetIdent identifier) ->
+    (ActionMutate MutationUpdate, TargetIdent identifier) ->
       handleUpdate identifier context
-    (ActionSingleUpsert, TargetIdent identifier) ->
+    (ActionMutate MutationSingleUpsert, TargetIdent identifier) ->
       handleSingleUpsert identifier context
-    (ActionDelete, TargetIdent identifier) ->
+    (ActionMutate MutationDelete, TargetIdent identifier) ->
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
       handleInfo identifier context
@@ -231,6 +243,8 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
+    (ActionUnknown verb, _) ->
+      throwError $ Error.UnsupportedVerb verb
     _ ->
       throwError Error.NotFound
 
@@ -270,7 +284,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       , ( "Content-Location"
         , "/"
             <> toUtf8 (qiName identifier)
-            <> if BS.null iCanonicalQS then mempty else "?" <> iCanonicalQS
+            <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
         )
       ]
       ++ contentTypeHeaders context
@@ -301,7 +315,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
     ApiRequest{..} = ctxApiRequest
     pkCols = tablePKCols ctxDbStructure qiSchema qiName
 
-  WriteQueryResult{..} <- writeQuery identifier True pkCols context
+  WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -318,7 +332,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
               )
         , Just . RangeQuery.contentRangeH 1 0 $
             if shouldCount iPreferCount then Just resQueryTotal else Nothing
-        , if null pkCols && isNothing iOnConflict then
+        , if null pkCols && isNothing (qsOnConflict iQueryParams) then
             Nothing
           else
             toAppliedHeader <$> iPreferResolution
@@ -332,7 +346,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -357,7 +371,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False mempty context
 
   let response = gucResponse resGucStatus resGucHeaders
 
@@ -378,7 +392,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -455,9 +469,12 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
 
   failNotSingular iAcceptContentType queryTotal $
-    response status
-      (contentTypeHeaders context ++ [contentRange])
-      (if invMethod == InvHead then mempty else LBS.fromStrict body)
+    if Proc.procReturnsVoid proc then
+      response HTTP.status204 [contentRange] mempty
+    else
+      response status
+        (contentTypeHeaders context ++ [contentRange])
+        (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
@@ -466,7 +483,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
            <$> SQL.statement tSchema (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
@@ -510,13 +527,13 @@ data WriteQueryResult = WriteQueryResult
   , resGucHeaders :: [GucHeader]
   }
 
-writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
-writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
+writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
+writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
   readReq <- readRequest identifier context
 
   mutateReq <-
     liftEither $
-      ReqBuilder.mutateRequest qiSchema qiName ctxApiRequest
+      ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest
         (tablePKCols ctxDbStructure qiSchema qiName)
         readReq
 

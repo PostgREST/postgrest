@@ -29,8 +29,10 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.ContentType (ContentType (..))
-import qualified PostgREST.ContentType as ContentType
+import           PostgREST.ContentType   (ContentType (..))
+import qualified PostgREST.ContentType   as ContentType
+import           PostgREST.Request.Types (ApiRequestError (..),
+                                          QPError (..))
 
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
@@ -52,41 +54,25 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor :: a -> Response
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
-
-
-
-data ApiRequestError
-  = ParseRequestError Text Text
-  | ActionInappropriate
-  | InvalidBody ByteString
-  | InvalidRange
-  | UnsupportedVerb -- Unreachable?
-  | InvalidFilters
-  | UnacceptableSchema [Text]
-  | ContentTypeError [ByteString]
-  | NoRelBetween Text Text Text
-  | AmbiguousRelBetween Text Text [Relationship]
-  | NoRpc Text Text [Text] Bool ContentType Bool
-  | AmbiguousRpc [ProcDescription]
-
 instance PgrstError ApiRequestError where
-  status (ParseRequestError _ _) = HTTP.status400
-  status ActionInappropriate     = HTTP.status405
-  status (InvalidBody _)         = HTTP.status400
-  status InvalidRange            = HTTP.status416
-  status UnsupportedVerb         = HTTP.status405
-  status InvalidFilters          = HTTP.status405
-  status (UnacceptableSchema _)  = HTTP.status406
-  status (ContentTypeError _)    = HTTP.status415
-  status NoRelBetween{}          = HTTP.status400
-  status AmbiguousRelBetween{}   = HTTP.status300
-  status NoRpc{}                 = HTTP.status404
-  status (AmbiguousRpc _)        = HTTP.status300
+  status ActionInappropriate   = HTTP.status405
+  status AmbiguousRelBetween{} = HTTP.status300
+  status AmbiguousRpc{}        = HTTP.status300
+  status ContentTypeError{}    = HTTP.status415
+  status InvalidBody{}         = HTTP.status400
+  status InvalidFilters        = HTTP.status405
+  status InvalidRange          = HTTP.status416
+  status NoRelBetween{}        = HTTP.status400
+  status NoRpc{}               = HTTP.status404
+  status NotEmbedded{}         = HTTP.status400
+  status ParseRequestError{}   = HTTP.status400
+  status QueryParamError{}     = HTTP.status400
+  status UnacceptableSchema{}  = HTTP.status406
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON ApiRequestError where
-  toJSON (ParseRequestError message details) = JSON.object [
+  toJSON (QueryParamError (QPError message details)) = JSON.object [
     "code"    .= ApiRequestErrorCode00,
     "message" .= message,
     "details" .= details,
@@ -106,10 +92,10 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("HTTP Range error" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON UnsupportedVerb = JSON.object [
+  toJSON (ParseRequestError message details) = JSON.object [
     "code"    .= ApiRequestErrorCode04,
-    "message" .= ("Unsupported HTTP verb" :: Text),
-    "details" .= JSON.Null,
+    "message" .= message,
+    "details" .= details,
     "hint"    .= JSON.Null]
   toJSON InvalidFilters = JSON.object [
     "code"    .= ApiRequestErrorCode05,
@@ -126,6 +112,11 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
+  toJSON (NotEmbedded resource) = JSON.object [
+    "code"    .= ApiRequestErrorCode08,
+    "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
@@ -141,13 +132,13 @@ instance JSON.ToJSON ApiRequestError where
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
-          (case (hasPreferSingleObject, isInvPost, contentType) of
-            (True, _, _)                 -> " function with a single json or jsonb parameter"
-            (_, True, CTTextPlain)       -> " function with a single unnamed text parameter"
-            (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
-            (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
-            _                            -> prms <> " function") <>
-          " in the schema cache"),
+      (case (hasPreferSingleObject, isInvPost, contentType) of
+        (True, _, _)                 -> " function with a single json or jsonb parameter"
+        (_, True, CTTextPlain)       -> " function with a single unnamed text parameter"
+        (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
+        (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
+        _                            -> prms <> " function") <>
+      " in the schema cache"),
     "details" .= JSON.Null,
     "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text)]
   toJSON (AmbiguousRpc procs)  = JSON.object [
@@ -316,43 +307,48 @@ checkIsFatal _ = Nothing
 
 
 data Error
-  = ConnectionLostError
-  | JwtTokenMissing
-  | JwtTokenInvalid Text
+  = ApiRequestError ApiRequestError
+  | BinaryFieldError ContentType
   | GucHeadersError
   | GucStatusError
-  | BinaryFieldError ContentType
+  | JwtTokenInvalid Text
+  | JwtTokenMissing
+  | JwtTokenRequired
+  | NoSchemaCacheError
+  | NotFound
+  | PgErr PgError
   | PutMatchingPkError
   | PutRangeNotAllowedError
   | SingularityError Integer
-  | NotFound
-  | PgErr PgError
-  | ApiRequestError ApiRequestError
+  | UnsupportedVerb Text
 
 instance PgrstError Error where
-  status ConnectionLostError     = HTTP.status503
-  status JwtTokenMissing         = HTTP.status500
-  status (JwtTokenInvalid _)     = HTTP.unauthorized401
+  status (ApiRequestError err)   = status err
+  status BinaryFieldError{}      = HTTP.status406
   status GucHeadersError         = HTTP.status500
   status GucStatusError          = HTTP.status500
-  status (BinaryFieldError _)    = HTTP.status406
-  status PutMatchingPkError      = HTTP.status400
-  status PutRangeNotAllowedError = HTTP.status400
-  status (SingularityError _)    = HTTP.status406
+  status JwtTokenInvalid{}       = HTTP.unauthorized401
+  status JwtTokenMissing         = HTTP.status500
+  status JwtTokenRequired        = HTTP.unauthorized401
+  status NoSchemaCacheError      = HTTP.status503
   status NotFound                = HTTP.status404
   status (PgErr err)             = status err
-  status (ApiRequestError err)   = status err
+  status PutMatchingPkError      = HTTP.status400
+  status PutRangeNotAllowedError = HTTP.status400
+  status SingularityError{}      = HTTP.status406
+  status UnsupportedVerb{}       = HTTP.status405
 
-  headers (SingularityError _)     = [ContentType.toHeader CTSingularJSON]
-  headers (JwtTokenInvalid m)      = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
-  headers (PgErr err)              = headers err
-  headers (ApiRequestError err)    = headers err
-  headers _                        = [ContentType.toHeader CTApplicationJSON]
+  headers (ApiRequestError err)  = headers err
+  headers (JwtTokenInvalid m)    = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired       = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
+  headers (PgErr err)            = headers err
+  headers SingularityError{}     = [ContentType.toHeader CTSingularJSON]
+  headers _                      = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON Error where
-  toJSON ConnectionLostError       = JSON.object [
+  toJSON NoSchemaCacheError = JSON.object [
       "code"    .= ConnectionErrorCode02,
-      "message" .= ("Database connection lost. Retrying the connection." :: Text),
+      "message" .= ("Could not query the database for the schema cache. Retrying." :: Text),
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
@@ -364,6 +360,11 @@ instance JSON.ToJSON Error where
   toJSON (JwtTokenInvalid message) = JSON.object [
       "code"    .= JWTErrorCode01,
       "message" .= (message :: Text),
+      "details" .= JSON.Null,
+      "hint"    .= JSON.Null]
+  toJSON JwtTokenRequired          = JSON.object [
+      "code"    .= JWTErrorCode02,
+      "message" .= ("Anonymous access is disabled" :: Text),
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
@@ -400,6 +401,12 @@ instance JSON.ToJSON Error where
     "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
 
+  toJSON (UnsupportedVerb verb) = JSON.object [
+    "code"    .= GeneralErrorCode06,
+    "message" .= ("Unsupported HTTP verb: " <> verb),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON NotFound = JSON.object []
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
@@ -407,6 +414,9 @@ instance JSON.ToJSON Error where
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
+
+requiredTokenHeader :: Header
+requiredTokenHeader = ("WWW-Authenticate", "Bearer")
 
 singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger
@@ -426,6 +436,7 @@ data ErrorCode
   | ApiRequestErrorCode05
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
+  | ApiRequestErrorCode08
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -434,6 +445,7 @@ data ErrorCode
   -- JWT authentication errors
   | JWTErrorCode00
   | JWTErrorCode01
+  | JWTErrorCode02
   -- Hasql library errors
   | HasqlErrorCode00
   | HasqlErrorCode01
@@ -447,6 +459,7 @@ data ErrorCode
   | GeneralErrorCode03
   | GeneralErrorCode04
   | GeneralErrorCode05
+  | GeneralErrorCode06
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -467,6 +480,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode05  -> "105"
   ApiRequestErrorCode06  -> "106"
   ApiRequestErrorCode07  -> "107"
+  ApiRequestErrorCode08  -> "108"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
@@ -475,6 +489,7 @@ buildErrorCode code = "PGRST" <> case code of
 
   JWTErrorCode00         -> "300"
   JWTErrorCode01         -> "301"
+  JWTErrorCode02         -> "302"
 
   HasqlErrorCode00       -> "400"
   HasqlErrorCode01       -> "401"
@@ -488,3 +503,4 @@ buildErrorCode code = "PGRST" <> case code of
   GeneralErrorCode03     -> "503"
   GeneralErrorCode04     -> "504"
   GeneralErrorCode05     -> "505"
+  GeneralErrorCode06     -> "506"

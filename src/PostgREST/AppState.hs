@@ -4,6 +4,7 @@ module PostgREST.AppState
   ( AppState
   , getConfig
   , getDbStructure
+  , getIsListenerOn
   , getIsWorkerOn
   , getJsonDbS
   , getMainThreadId
@@ -16,6 +17,7 @@ module PostgREST.AppState
   , logWithZTime
   , putConfig
   , putDbStructure
+  , putIsListenerOn
   , putIsWorkerOn
   , putJsonDbS
   , putPgVersion
@@ -53,6 +55,8 @@ data AppState = AppState
   , stateIsWorkerOn   :: IORef Bool
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
   , stateListener     :: MVar ()
+  -- | State of the LISTEN channel, used for the admin server checks
+  , stateIsListenerOn :: IORef Bool
   -- | Config that can change at runtime
   , stateConf         :: IORef AppConfig
   -- | Time used for verifying JWT expiration
@@ -78,6 +82,7 @@ initWithPool newPool conf =
     <*> newIORef mempty
     <*> newIORef False
     <*> newEmptyMVar
+    <*> newIORef False
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
@@ -103,9 +108,8 @@ putPgVersion = atomicWriteIORef . statePgVersion
 getDbStructure :: AppState -> IO (Maybe DbStructure)
 getDbStructure = readIORef . stateDbStructure
 
-putDbStructure :: AppState -> DbStructure -> IO ()
-putDbStructure appState structure =
-  atomicWriteIORef (stateDbStructure appState) $ Just structure
+putDbStructure :: AppState -> Maybe DbStructure -> IO ()
+putDbStructure appState = atomicWriteIORef (stateDbStructure appState)
 
 getJsonDbS :: AppState -> IO ByteString
 getJsonDbS = readIORef . stateJsonDbS
@@ -153,3 +157,9 @@ waitListener = takeMVar . stateListener
 -- the connectionWorker is the only mvar producer.
 signalListener :: AppState -> IO ()
 signalListener appState = void $ tryPutMVar (stateListener appState) ()
+
+getIsListenerOn :: AppState -> IO Bool
+getIsListenerOn = readIORef . stateIsListenerOn
+
+putIsListenerOn :: AppState -> Bool -> IO ()
+putIsListenerOn = atomicWriteIORef . stateIsListenerOn

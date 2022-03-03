@@ -15,11 +15,9 @@ module PostgREST.Query.SqlFragment
   , asJsonSingleF
   , countF
   , fromQi
-  , ftsOperators
   , limitOffsetF
   , locationF
   , normalizedBody
-  , operators
   , pgFmtColumn
   , pgFmtIdent
   , pgFmtJoinCondition
@@ -38,7 +36,6 @@ module PostgREST.Query.SqlFragment
 
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.HashMap.Strict             as M
 import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
@@ -51,6 +48,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
+                                          FtsOperator (..),
                                           JoinCondition (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
@@ -61,6 +59,7 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
                                           OrderTerm (..), SelectItem,
+                                          SimpleOperator (..),
                                           TrileanVal (..))
 
 import Protolude hiding (cast)
@@ -75,34 +74,31 @@ noLocationF = "array[]::text[]"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
-operators :: M.HashMap Text SqlFragment
-operators = M.union (M.fromList [
-  ("eq", "="),
-  ("gte", ">="),
-  ("gt", ">"),
-  ("lte", "<="),
-  ("lt", "<"),
-  ("neq", "<>"),
-  ("like", "LIKE"),
-  ("ilike", "ILIKE"),
-  ("in", "IN"),
-  ("is", "IS"),
-  ("cs", "@>"),
-  ("cd", "<@"),
-  ("ov", "&&"),
-  ("sl", "<<"),
-  ("sr", ">>"),
-  ("nxr", "&<"),
-  ("nxl", "&>"),
-  ("adj", "-|-")]) ftsOperators
+singleValOperator :: SimpleOperator -> SqlFragment
+singleValOperator = \case
+  OpEqual            -> "="
+  OpGreaterThanEqual -> ">="
+  OpGreaterThan      -> ">"
+  OpLessThanEqual    -> "<="
+  OpLessThan         -> "<"
+  OpNotEqual         -> "<>"
+  OpLike             -> "like"
+  OpILike            -> "ilike"
+  OpContains         -> "@>"
+  OpContained        -> "<@"
+  OpOverlap          -> "&&"
+  OpStrictlyLeft     -> "<<"
+  OpStrictlyRight    -> ">>"
+  OpNotExtendsRight  -> "&<"
+  OpNotExtendsLeft   -> "&>"
+  OpAdjacent         -> "-|-"
 
-ftsOperators :: M.HashMap Text SqlFragment
-ftsOperators = M.fromList [
-  ("fts", "@@ to_tsquery"),
-  ("plfts", "@@ plainto_tsquery"),
-  ("phfts", "@@ phraseto_tsquery"),
-  ("wfts", "@@ websearch_to_tsquery")
-  ]
+ftsOperator :: FtsOperator -> SqlFragment
+ftsOperator = \case
+  FilterFts          -> "@@ to_tsquery"
+  FilterFtsPlain     -> "@@ plainto_tsquery"
+  FilterFtsPhrase    -> "@@ phraseto_tsquery"
+  FilterFtsWebsearch -> "@@ websearch_to_tsquery"
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
@@ -201,7 +197,10 @@ pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
-pgFmtField table (c, jp) = SQL.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
+pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
+-- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
+-- "operator does not exist: json = unknown"
+pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SQL.Snippet
 pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
@@ -227,8 +226,8 @@ pgFmtOrderTerm qi ot =
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
-     "like"  -> unknownLiteral (T.map star val)
-     "ilike" -> unknownLiteral (T.map star val)
+     OpLike  -> unknownLiteral (T.map star val)
+     OpILike -> unknownLiteral (T.map star val)
      _       -> unknownLiteral val
 
    -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
@@ -249,11 +248,11 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
       _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
 
    Fts op lang val ->
-     pgFmtFieldOp op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+     pgFmtFieldFts op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
-   pgFmtFieldOp op = pgFmtField table fld <> " " <> sqlOperator op
-   sqlOperator o = SQL.sql $ M.lookupDefault "=" o operators
+   pgFmtFieldOp op = pgFmtField table fld <> " " <> SQL.sql (singleValOperator op)
+   pgFmtFieldFts op = pgFmtField table fld <> " " <> SQL.sql (ftsOperator op)
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
 

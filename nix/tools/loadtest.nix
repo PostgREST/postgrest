@@ -39,12 +39,17 @@ let
         docs = "Run the vegeta loadtests with PostgREST.";
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
-          "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/loadtest])"
+          "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
         inRootDir = true;
       }
       ''
+        # previously required settings to make this work with older branches
+        export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
+        export PGRST_DB_URI="postgresql://"
+        export PGRST_DB_SCHEMAS="test"
+
         export PGRST_DB_CONFIG="false"
         export PGRST_DB_POOL="1"
         export PGRST_DB_TX_END="rollback-allow-override"
@@ -97,7 +102,7 @@ let
         # Save the results in the current working tree, too,
         # otherwise they'd be lost in the temporary working tree
         # created by withTools.withGit.
-        ${withTools.withGit} "$_arg_target" ${loadtest} --output "$PWD/loadtest/$_arg_target.bin" --testdir "$PWD/test/loadtest" "''${_arg_leftovers[@]}"
+        ${withTools.withGit} "$_arg_target" ${loadtest} --output "$PWD/loadtest/$_arg_target.bin" --testdir "$PWD/test/load" "''${_arg_leftovers[@]}"
 
         cat << EOF
 
@@ -111,7 +116,7 @@ let
 
         EOF
 
-        ${loadtest} --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/loadtest" "''${_arg_leftovers[@]}"
+        ${loadtest} --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load" "''${_arg_leftovers[@]}"
 
         cat << EOF
 

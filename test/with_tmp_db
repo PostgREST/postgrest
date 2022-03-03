@@ -86,7 +86,7 @@ stop() {
 trap stop EXIT
 
 log "Loading fixtures..."
-psql -v ON_ERROR_STOP=1 -f test/fixtures/load.sql >> "$setuplog"
+psql -v ON_ERROR_STOP=1 -f test/spec/fixtures/load.sql >> "$setuplog"
 
 log "Done. Running command..."
 # Run the command that was given as an argument. The `exit` trap above will

@@ -63,7 +63,7 @@ import Protolude hiding (Proxy, toList)
 
 data AppConfig = AppConfig
   { configAppSettings           :: [(Text, Text)]
-  , configDbAnonRole            :: Text
+  , configDbAnonRole            :: Maybe Text
   , configDbChannel             :: Text
   , configDbChannelEnabled      :: Bool
   , configDbExtraSearchPath     :: [Text]
@@ -93,6 +93,7 @@ data AppConfig = AppConfig
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
   , configServerUnixSocketMode  :: FileMode
+  , configAdminServerPort       :: Maybe Int
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
@@ -120,7 +121,7 @@ toText conf =
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-anon-role",              q . configDbAnonRole)
+      [("db-anon-role",              q . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
@@ -147,6 +148,7 @@ toText conf =
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
+      ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ]
 
     -- quote all app.settings
@@ -205,7 +207,7 @@ parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> C.Parser C.Config A
 parser optPath env dbSettings =
   AppConfig
     <$> parseAppSettings "app.settings"
-    <*> reqString "db-anon-role"
+    <*> optString "db-anon-role"
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
@@ -218,13 +220,12 @@ parser optPath env dbSettings =
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
     <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
                                     (optString "root-spec"))
-    <*> (fromList . splitOnCommas <$> reqWithAlias (optValue "db-schemas")
-                                                   (optValue "db-schema")
-                                                   "missing key: either db-schemas or db-schema must be set")
+    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optValue "db-schemas")
+                                                                    (optValue "db-schema"))
     <*> (fromMaybe True <$> optBool "db-config")
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
-    <*> reqString "db-uri"
+    <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
@@ -242,6 +243,7 @@ parser optPath env dbSettings =
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
+    <*> optInt "admin-server-port"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
@@ -314,23 +316,11 @@ parser optPath env dbSettings =
         Nothing  -> pure [JSPKey "role"]
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
 
-    reqWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> [Char] -> C.Parser C.Config a
-    reqWithAlias orig alias err =
-      orig >>= \case
-        Just v  -> pure v
-        Nothing ->
-          alias >>= \case
-            Just v  -> pure v
-            Nothing -> fail err
-
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =
       orig >>= \case
         Just v  -> pure $ Just v
         Nothing -> alias
-
-    reqString :: C.Key -> C.Parser C.Config Text
-    reqString k = overrideFromDbOrEnvironment C.required k coerceText
 
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
@@ -358,8 +348,8 @@ parser optPath env dbSettings =
         reloadableDbSetting =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
-            "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "log_level",
-            "db_anon_role", "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
+            "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
+            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 

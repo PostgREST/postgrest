@@ -82,7 +82,7 @@ jobs:
 
       - name: Run IO tests
         if: always()
-        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-io
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} -f test/io/fixtures.sql postgrest-test-io
 
       - name: Run query cost tests
         if: always()
@@ -168,6 +168,8 @@ jobs:
               ~\AppData\Local\Programs\stack
               .stack-work
             deps: |
+              stack exec -- pacman -Syu --noconfirm
+              stack exec -- pacman -S msys2-keyring --noconfirm
               stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
             # We'd need to make test/with_tmp_db run on Windows first
             # test: true

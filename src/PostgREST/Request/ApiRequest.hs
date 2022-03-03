@@ -9,6 +9,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 module PostgREST.Request.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
+  , Mutation(..)
   , ContentType(..)
   , Action(..)
   , Target(..)
@@ -25,21 +26,16 @@ import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
 import qualified Data.List.NonEmpty    as NonEmptyList
 import qualified Data.Set              as S
-import qualified Data.Text             as T
 import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (last, lookup, partition, union)
+import Data.List                 (lookup, union)
 import Data.Maybe                (fromJust)
-import Data.Ranged.Boundaries    (Boundary (..))
-import Data.Ranged.Ranges        (Range (..), emptyRange,
-                                  rangeIntersection)
-import Network.HTTP.Base         (urlEncodeVars)
-import Network.HTTP.Types.Header (hAuthorization, hCookie)
-import Network.HTTP.Types.URI    (parseQueryReplacePlus,
-                                  parseSimpleQuery)
+import Data.Ranged.Ranges        (emptyRange, rangeIntersection)
+import Network.HTTP.Types.Header (hCookie)
+import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
@@ -53,21 +49,19 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcParam (..), ProcsMap)
-import PostgREST.Error                   (ApiRequestError (..))
-import PostgREST.Query.SqlFragment       (ftsOperators, operators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          rangeGeq, rangeLimit,
-                                          rangeOffset, rangeRequested,
-                                          restrictRange)
-import PostgREST.Request.Parsers         (pRequestColumns)
+                                          rangeRequested)
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
                                           PreferResolution (..),
                                           PreferTransaction (..))
+import PostgREST.Request.QueryParams     (QueryParams (..))
+import PostgREST.Request.Types           (ApiRequestError (..))
 
 import qualified PostgREST.ContentType         as ContentType
 import qualified PostgREST.Request.Preferences as Preferences
+import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude
 
@@ -89,12 +83,17 @@ data Payload
   | RawPay  { payRaw  :: LBS.ByteString }
 
 data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
+data Mutation = MutationCreate | MutationDelete | MutationSingleUpsert | MutationUpdate deriving Eq
+
 -- | Types of things a user wants to do to tables/views/procs
-data Action = ActionCreate       | ActionRead{isHead :: Bool}
-            | ActionUpdate       | ActionDelete
-            | ActionSingleUpsert | ActionInvoke InvokeMethod
-            | ActionInfo         | ActionInspect{isHead :: Bool}
-            deriving Eq
+data Action
+  = ActionMutate Mutation
+  | ActionRead {isHead :: Bool}
+  | ActionInvoke InvokeMethod
+  | ActionInfo
+  | ActionInspect {isHead :: Bool}
+  | ActionUnknown Text
+  deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
 data Path
   = PathInfo
@@ -161,14 +160,8 @@ data ApiRequest = ApiRequest {
   , iPreferCount          :: Maybe PreferCount                -- ^ Whether the client wants a result count
   , iPreferResolution     :: Maybe PreferResolution           -- ^ Whether the client wants to UPSERT or ignore records on PK conflict
   , iPreferTransaction    :: Maybe PreferTransaction          -- ^ Whether the clients wants to commit or rollback the transaction
-  , iFilters              :: [(Text, Text)]                   -- ^ Filters on the result ("id", "eq.10")
-  , iLogic                :: [(Text, Text)]                   -- ^ &and and &or parameters used for complex boolean logic
-  , iSelect               :: Maybe Text                       -- ^ &select parameter used to shape the response
-  , iOnConflict           :: Maybe Text                       -- ^ &on_conflict parameter used to upsert on specific unique keys
+  , iQueryParams          :: QueryParams.QueryParams
   , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
-  , iOrder                :: [(Text, Text)]                   -- ^ &order parameters for each level
-  , iCanonicalQS          :: ByteString                       -- ^ Alphabetized (canonical) request query string for response URLs
-  , iJWT                  :: Text                             -- ^ JSON Web Token
   , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
@@ -180,12 +173,16 @@ data ApiRequest = ApiRequest {
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf@AppConfig{..} dbStructure req reqBody
+userApiRequest conf dbStructure req reqBody =
+  apiRequest conf dbStructure req reqBody =<< first QueryParamError (QueryParams.parse (rawQueryString req))
+
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> Either ApiRequestError ApiRequest
+apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..}
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | topLevelRange == emptyRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
-  | isLeft parsedColumns = either Left witness parsedColumns
+  | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
   | otherwise = do
      acceptContentType <- findAcceptContentType conf action path accepts
      checkedTarget <- target
@@ -200,17 +197,8 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       , iPreferCount = preferCount
       , iPreferResolution = preferResolution
       , iPreferTransaction = preferTransaction
-      , iFilters = filters
-      , iLogic = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["and", "or"] k ]
-      , iSelect = toS <$> join (lookup "select" qParams)
-      , iOnConflict = toS <$> join (lookup "on_conflict" qParams)
+      , iQueryParams = queryparams
       , iColumns = payloadColumns
-      , iOrder = [(toS k, toS $ fromJust v) | (k,v) <- qParams, isJust v, endingIn ["order"] k ]
-      , iCanonicalQS = BS.pack $ urlEncodeVars
-        . L.sortOn fst
-        . map (join (***) BS.unpack . second (fromMaybe mempty))
-        $ qString
-      , iJWT = tokenStr
       , iHeaders = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
       , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
@@ -221,24 +209,9 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       }
  where
   accepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
-  -- queryString with '+' converted to ' '(space)
-  qString = parseQueryReplacePlus True $ rawQueryString req
-  -- rpcQParams = Rpc query params e.g. /rpc/name?param1=val1, similar to filter but with no operator(eq, lt..)
-  (filters, rpcQParams) =
-    case action of
-      ActionInvoke InvGet  -> partitionFlts
-      ActionInvoke InvHead -> partitionFlts
-      _                    -> (flts, [])
-  partitionFlts = partition (liftM2 (||) (isEmbedPath . fst) (hasOperator . snd)) flts
-  flts =
-    [ (toS k, toS $ fromJust v) |
-      (k,v) <- qParams, isJust v,
-      k `notElem` ["select", "columns"],
-      not (endingIn ["order", "limit", "offset", "and", "or"] k) ]
-  hasOperator val = any (`T.isPrefixOf` val) $
-                      ((<> ".") <$> "not":M.keys operators) ++
-                      ((<> "(") <$> M.keys ftsOperators)
-  isEmbedPath = T.isInfixOf "."
+
+  expectParams = isTargetingProc && method /= "POST"
+
   isTargetingProc = case path of
     PathInfo{pHasRpc, pIsRootSpec} -> pHasRpc || pIsRootSpec
     _                              -> False
@@ -246,38 +219,40 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
     PathInfo{pIsDefaultSpec=True} -> True
     _                             -> False
   contentType = maybe CTApplicationJSON ContentType.decodeContentType $ lookupHeader "content-type"
-  columns
-    | action `elem` [ActionCreate, ActionUpdate, ActionInvoke InvPost] = toS <$> join (lookup "columns" qParams)
-    | otherwise = Nothing
-  parsedColumns = pRequestColumns columns
+
+  columns = case action of
+    ActionMutate MutationCreate -> qsColumns
+    ActionMutate MutationUpdate -> qsColumns
+    ActionInvoke InvPost        -> qsColumns
+    _                           -> Nothing
+
   payloadColumns =
     case (contentType, action) of
-      (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> rpcQParams
-      (_, ActionInvoke InvHead) -> S.fromList $ fst <$> rpcQParams
+      (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> qsParams
+      (_, ActionInvoke InvHead) -> S.fromList $ fst <$> qsParams
       (CTUrlEncoded, _)         -> S.fromList $ map (T.decodeUtf8 . fst) $ parseSimpleQuery $ LBS.toStrict reqBody
-      _ -> case (relevantPayload, fromRight Nothing parsedColumns) of
+      _ -> case (relevantPayload, columns) of
         (Just ProcessedJSON{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
   payload :: Either ByteString Payload
-  payload = case contentType of
-    CTApplicationJSON ->
+  payload = case (contentType, isTargetingProc) of
+    (CTApplicationJSON, _) ->
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
                      else first BS.pack $ JSON.eitherDecode reqBody
-    CTTextCSV -> do
+    (CTTextCSV, _) -> do
       json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-    CTUrlEncoded ->
+    (CTUrlEncoded, _) ->
       let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
-    ct ->
-      if isTargetingProc && ct `elem` [CTTextPlain, CTOctetStream]
-        then Right $ RawPay reqBody
-        else Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
+    (CTTextPlain, True) -> Right $ RawPay reqBody
+    (CTOctetStream, True) -> Right $ RawPay reqBody
+    (ct, _) -> Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -291,25 +266,24 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
                  | otherwise              -> ActionRead{isHead=False}
       "POST"    -> if isTargetingProc
                     then ActionInvoke InvPost
-                    else ActionCreate
-      "PATCH"   -> ActionUpdate
-      "PUT"     -> ActionSingleUpsert
-      "DELETE"  -> ActionDelete
+                    else ActionMutate MutationCreate
+      "PATCH"   -> ActionMutate MutationUpdate
+      "PUT"     -> ActionMutate MutationSingleUpsert
+      "DELETE"  -> ActionMutate MutationDelete
       "OPTIONS" -> ActionInfo
-      _         -> ActionInspect{isHead=False}
+      _         -> ActionUnknown $ T.decodeUtf8 method
 
   defaultSchema = NonEmptyList.head configDbSchemas
   profile
     | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
       = Nothing
-    | otherwise = case action of
+    | otherwise = case method of
         -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
-        ActionCreate         -> contentProfile
-        ActionUpdate         -> contentProfile
-        ActionSingleUpsert   -> contentProfile
-        ActionDelete         -> contentProfile
-        ActionInvoke InvPost -> contentProfile
-        _                    -> acceptProfile
+        "DELETE" -> contentProfile
+        "PATCH"  -> contentProfile
+        "POST"   -> contentProfile
+        "PUT"    -> contentProfile
+        _        -> acceptProfile
     where
       contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
       acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
@@ -327,14 +301,18 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
         | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
       PathUnknown -> Right TargetUnknown
 
-  shouldParsePayload = case (contentType, action) of
-    (CTUrlEncoded, ActionInvoke InvPost) -> False
-    (_, act)                             -> act `elem` [ActionCreate, ActionUpdate, ActionSingleUpsert, ActionInvoke InvPost]
+  shouldParsePayload = case (action, contentType) of
+    (ActionMutate MutationCreate, _)       -> True
+    (ActionInvoke InvPost, CTUrlEncoded)   -> False
+    (ActionInvoke InvPost, _)              -> True
+    (ActionMutate MutationSingleUpsert, _) -> True
+    (ActionMutate MutationUpdate, _)       -> True
+    _                                      -> False
   relevantPayload = case (contentType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
-    (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
-    (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) rpcQParams
+    (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) qsParams
+    (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) qsParams
     (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
@@ -349,32 +327,11 @@ userApiRequest conf@AppConfig{..} dbStructure req reqBody
       _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
-  qParams         = [(T.decodeUtf8 k, T.decodeUtf8 <$> v)|(k,v) <- qString]
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
-  auth = fromMaybe "" $ lookupHeader hAuthorization
-  tokenStr = case T.split (== ' ') (T.decodeUtf8 auth) of
-    ("Bearer" : t : _) -> t
-    ("bearer" : t : _) -> t
-    _                  -> ""
-  endingIn:: [Text] -> Text -> Bool
-  endingIn xx key = lastWord `elem` xx
-    where lastWord = last $ T.split (=='.') key
-
   headerRange = rangeRequested hdrs
-  replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) ++ [x]
-  limitParams :: M.HashMap Text NonnegRange
-  limitParams  = M.fromList [(toS (replaceLast "limit" k), restrictRange (readMaybe . toS =<< v) allRange) | (k,v) <- qParams, isJust v, endingIn ["limit"] k]
-  offsetParams :: M.HashMap Text NonnegRange
-  offsetParams = M.fromList [(toS (replaceLast "limit" k), maybe allRange rangeGeq (readMaybe . toS =<< v)) | (k,v) <- qParams, isJust v, endingIn ["offset"] k]
 
-  urlRange = M.unionWith f limitParams offsetParams
-    where
-      f rl ro = Range (BoundaryBelow o) (BoundaryAbove $ o + l - 1)
-        where
-          l = fromMaybe 0 $ rangeLimit rl
-          o = rangeOffset ro
-  ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" urlRange))) urlRange
+  ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" qsRanges))) qsRanges
 
 {-|
   Find the best match from a list of content types accepted by the
@@ -491,21 +448,24 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam proc = isInvPost && case pdParams proc of
-      [ProcParam "" ppType _ _]
-        | contentType == CTApplicationJSON -> ppType `elem` ["json", "jsonb"]
-        | contentType == CTTextPlain       -> ppType == "text"
-        | contentType == CTOctetStream     -> ppType == "bytea"
-        | otherwise                        -> False
-      _ -> False
+    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentType, ppType) of
+      (CTApplicationJSON, "json")  -> True
+      (CTApplicationJSON, "jsonb") -> True
+      (CTTextPlain, "text")        -> True
+      (CTOctetStream, "bytea")     -> True
+      _                            -> False
+    hasSingleUnnamedParam _ = False
     matchesParams proc =
-      let params = pdParams proc in
+      let
+        params = pdParams proc
+        firstType = (ppType <$> headMay params)
+      in
       -- exceptional case for Prefer: params=single-object
       if paramsAsSingleObject
-        then length params == 1 && (ppType <$> headMay params) `elem` [Just "json", Just "jsonb"]
+        then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && contentType `notElem` [CTTextPlain, CTOctetStream]
+        then null argumentsKeys && not (isInvPost && contentType `elem` [CTTextPlain, CTOctetStream])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of

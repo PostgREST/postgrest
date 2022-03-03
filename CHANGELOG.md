@@ -7,11 +7,42 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+ - #1933, #2109, Add a minimal health check endpoint - @steve-chavez
+   + For enabling this, the `admin-server-port` config must be set explictly
+   + A `<host>:<admin_server_port>/live` endpoint is available for checking if postgrest is running on its port/socket. 200 OK = alive, 503 = dead.
+   + A `<host>:<admin_server_port>/ready` endpoint is available for checking a correct internal state(the database connection plus the schema cache). 200 OK = ready, 503 = not ready.
+ - #1988, Add the current user to the request log on stdout - @DavidLindbom, @wolfgangwalther
+ - #1823, Add the ability to run postgrest without any configuration. - @wolfgangwalther
+   + #1991, Add the ability to run without `db-uri` using libpq's PG environment variables to connect. - @wolfgangwalther
+   + #1769, Add the ability to run without `db-schemas`, defaulting to `db-schemas=public`. - @wolfgangwalther
+   + #1689, Add the ability to run without `db-anon-role` disabling anonymous access. - @wolfgangwalther
+ - #1543, Allow access to fields of composite types in select=, order= and filters through JSON operators -> and ->>. - @wolfgangwalther
+ - #2075, Allow access to array items in ?select=, ?order= and filters through JSON operators -> and ->>. - @wolfgangwalther
+
 ### Fixed
 
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
  - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
  - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
+ - #2024, Fix schema cache loading when views with XMLTABLE and DEFAULT are present - @wolfgangwalther
+ - #1724, Fix wrong CORS header Authentication -> Authorization - @wolfgangwalther
+ - #2107, Clarify error for failed schema cache load. - @steve-chavez
+   + From `Database connection lost. Retrying the connection` to `Could not query the database for the schema cache. Retrying.`
+ - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
+ - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
+ - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
+ - #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
+ - #2152, Remove functions, which are uncallable because of unnamend arguments from schema cache and OpenAPI output. - @wolfgangwalther
+ - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
+ - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+ - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
+ - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
+ - ```
+
+### Changed
+
+ - #2001, Return 204 No Content without Content-Type for RPCs returning VOID - @wolfgangwalther
+   + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
 
 ## [9.0.0] - 2021-11-25
 

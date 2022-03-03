@@ -91,6 +91,7 @@ connectionWorker appState = do
               -- do nothing and proceed if the load was successful
               return ()
             SCOnRetry ->
+              -- retry reloading the schema cache
               work
             SCFatalFail ->
               -- die if our schema cache query has an error
@@ -152,11 +153,10 @@ connectionStatus appState =
 loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
-  actualPgVersion <- AppState.getPgVersion appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     SQL.use (AppState.getPool appState) . transaction SQL.ReadCommitted SQL.Read $
-      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath actualPgVersion configDbPreparedStatements
+      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
       let
@@ -169,12 +169,13 @@ loadSchemaCache appState = do
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
+          AppState.putDbStructure appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
           putErr
           return SCOnRetry
 
     Right dbStructure -> do
-      AppState.putDbStructure appState dbStructure
+      AppState.putDbStructure appState (Just dbStructure)
       when (isJust configDbRootSpec) .
         AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode dbStructure
       AppState.logWithZTime appState "Schema cache loaded"
@@ -200,6 +201,7 @@ listener appState = do
     case dbOrError of
       Right db -> do
         AppState.logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
+        AppState.putIsListenerOn appState True
         SQL.listen db $ SQL.toPgIdentifier dbChannel
         SQL.waitForNotifications handleNotification db
       _ ->
@@ -208,6 +210,7 @@ listener appState = do
     handleFinally dbChannel _ = do
       -- if the thread dies, we try to recover
       AppState.logWithZTime appState $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
+      AppState.putIsListenerOn appState False
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
       -- retry the listener
@@ -245,7 +248,7 @@ reReadConfig startingUp appState = do
               AppState.logWithZTime appState hint
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
-              AppState.logWithZTime appState $ show e
+              putErr
           pure []
         Right x -> pure x
     else
@@ -255,10 +258,10 @@ reReadConfig startingUp appState = do
       if startingUp then
         panic err -- die on invalid config if the program is starting up
       else
-        AppState.logWithZTime appState $ "Failed re-loading config: " <> err
+        AppState.logWithZTime appState $ "Failed reloading config: " <> err
     Right newConf -> do
       AppState.putConfig appState newConf
       if startingUp then
         pass
       else
-        AppState.logWithZTime appState "Config re-loaded"
+        AppState.logWithZTime appState "Config reloaded"
