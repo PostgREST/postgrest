@@ -21,7 +21,7 @@ import Protolude
 -- | PostgREST admin application
 postgrestAdmin :: AppState.AppState -> AppConfig -> Wai.Application
 postgrestAdmin appState appConfig req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp appConfig
+  isMainAppReachable  <- any isRight <$> reachMainApp appConfig
   isSchemaCacheLoaded <- isJust <$> AppState.getDbStructure appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
@@ -38,19 +38,37 @@ postgrestAdmin appState appConfig req respond  = do
 
 -- Try to connect to the main app socket
 -- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
-reachMainApp :: AppConfig -> IO (Either IOException ())
+reachMainApp :: AppConfig -> IO [Either IOException ()]
 reachMainApp appConfig =
-  try . withSocketsDo $ bracket open close sendEmpty
+  case configServerUnixSocket appConfig of
+    Just path ->  do
+      sock <- socket AF_UNIX Stream 0
+      connect sock $ SockAddrUnix path
+      res <- try . withSocketsDo $ bracket (pure sock) close sendEmpty
+      pure [res]
+    Nothing -> do
+      addrs <-
+        let host = if configServerHost appConfig `elem` ["*4", "!4", "*6", "!6"]
+                     then Nothing
+                     else Just $ configServerHost appConfig in
+        getAddrInfo (Just $ defaultHints { addrSocketType = Stream, addrFlags = [AI_PASSIVE] })
+                             (T.unpack <$> host)
+                             (Just . show $ configServerPort appConfig)
+      let
+        addrs4 = filter (\x -> addrFamily x /= AF_INET6) addrs
+        addrs6 = filter (\x -> addrFamily x == AF_INET6) addrs
+        addrs' =
+          case configServerHost appConfig of
+              "*4" -> addrs4 ++ addrs6
+              "!4" -> addrs4
+              "*6" -> addrs6 ++ addrs4
+              "!6" -> addrs6
+              _    -> addrs
+      tryAddr `traverse` addrs'
   where
-    open = case configServerUnixSocket appConfig of
-      Just path ->  do
-        sock <- socket AF_UNIX Stream 0
-        connect sock $ SockAddrUnix path
-        return sock
-      Nothing -> do
-        let hints = defaultHints { addrSocketType = Stream }
-        addr:_ <- getAddrInfo (Just hints) (Just . T.unpack $ configServerHost appConfig) (Just . show $ configServerPort appConfig)
-        sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
-        connect sock $ addrAddress addr
-        return sock
     sendEmpty sock = void $ send sock mempty
+    tryAddr :: AddrInfo -> IO (Either IOException ())
+    tryAddr addr = do
+      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+      connect sock $ addrAddress addr
+      try . withSocketsDo $ bracket (pure sock) close sendEmpty
