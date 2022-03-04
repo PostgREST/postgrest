@@ -20,7 +20,11 @@ spec = describe "server started without JWT secret" $ do
         [auth]
         ""
       `shouldRespondWith`
-        [json|{"message":"Server lacks JWT secret"}|]
+        [json|
+          {"hint": null,
+           "details": null,
+           "code": "PGRST300",
+           "message": "Server lacks JWT secret"}|]
         { matchStatus  = 500 }
 
   it "behaves normally when user does not attempt auth" $

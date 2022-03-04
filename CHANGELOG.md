@@ -37,7 +37,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
  - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
  - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
- - ```
 
 ### Changed
 
@@ -61,6 +60,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + PostgreSQL versions below 14 can opt in to the new JSON GUCs by setting the `db-use-legacy-gucs` config option to false (true by default)
  - #1988, Allow specifying `unknown` for the `is` operator - @steve-chavez
  - #2031, Improve error message for ambiguous embedding and add a relevant hint that includes unambiguous embedding suggestions - @laurenceisla
+ - #1917, Add error codes with the `"PGRST"` prefix to the error response body to differentiate PostgREST errors from PostgreSQL errors - @laurenceisla
+ - #1917, Normalize the error response body by always having the `detail` and `hint` error fields with a `null` value if they are empty - @laurenceisla
+ - #2176, Errors raised with `SQLSTATE` now include the message and the code in the response body - @laurenceisla 
 
 ### Fixed
 

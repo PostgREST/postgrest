@@ -30,7 +30,8 @@ spec =
                 }
               ],
               "hint": "Try changing 'sender' to one of the following: 'person!message_sender_fkey', 'person_detail!message_sender_fkey'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'message' and 'sender'"
+              "message": "Could not embed because more than one relationship was found for 'message' and 'sender'",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -59,7 +60,8 @@ spec =
                 }
               ],
               "hint": "Try changing 'big_projects' to one of the following: 'big_projects!main_project', 'big_projects!jobs', 'big_projects!main_jobs'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'"
+              "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -83,7 +85,8 @@ spec =
                 }
               ],
               "hint": "Try changing 'departments' to one of the following: 'departments!agents_department_id_fkey', 'departments!departments_head_id_fkey'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'agents' and 'departments'"
+              "message": "Could not embed because more than one relationship was found for 'agents' and 'departments'",
+              "code": "PGRST201"
             }
            |]
           { matchStatus  = 300
@@ -120,7 +123,8 @@ spec =
                 }
               ],
               "hint": "Try changing 'whatev_projects' to one of the following: 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs', 'whatev_projects!whatev_jobs'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'whatev_sites' and 'whatev_projects'"
+              "message": "Could not embed because more than one relationship was found for 'whatev_sites' and 'whatev_projects'",
+              "code": "PGRST201"
             }
           |]
           { matchStatus  = 300
@@ -175,7 +179,9 @@ spec =
           get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
             [json|{
               "hint":"Verify that 'message' and 'person' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-              "message":"Could not find a relationship between 'message' and 'person' in the schema cache"}|]
+              "message":"Could not find a relationship between 'message' and 'person' in the schema cache",
+              "code": "PGRST200",
+              "details": null}|]
             { matchStatus = 400
             , matchHeaders = [matchContentTypeJson] }
 
@@ -426,7 +432,9 @@ spec =
         get "/end_1?select=end_2(*)" `shouldRespondWith`
           [json|{
             "hint":"Verify that 'end_1' and 'end_2' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-            "message":"Could not find a relationship between 'end_1' and 'end_2' in the schema cache"}|]
+            "message":"Could not find a relationship between 'end_1' and 'end_2' in the schema cache",
+            "code":"PGRST200",
+            "details": null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
       it "shouldn't try to embed if the private junction has an exposed homonym" $
@@ -435,6 +443,8 @@ spec =
         get "/schauspieler?select=filme(*)" `shouldRespondWith`
           [json|{
             "hint":"Verify that 'schauspieler' and 'filme' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-            "message":"Could not find a relationship between 'schauspieler' and 'filme' in the schema cache"}|]
+            "message":"Could not find a relationship between 'schauspieler' and 'filme' in the schema cache",
+            "code":"PGRST200",
+            "details": null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }

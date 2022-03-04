@@ -24,7 +24,11 @@ spec = do
           []
           ""
         `shouldRespondWith`
-          [json|{"message":"Unsupported HTTP verb: CONNECT"}|]
+          [json|
+            {"hint": null,
+             "details": null,
+             "code": "PGRST506",
+             "message":"Unsupported HTTP verb: CONNECT"}|]
           { matchStatus = 405 }
 
     it "should return 405 for TRACE method" $
@@ -32,7 +36,11 @@ spec = do
           []
           ""
         `shouldRespondWith`
-          [json|{"message":"Unsupported HTTP verb: TRACE"}|]
+          [json|
+            {"hint": null,
+             "details": null,
+             "code": "PGRST506",
+             "message":"Unsupported HTTP verb: TRACE"}|]
           { matchStatus = 405 }
 
     it "should return 405 for OTHER method" $
@@ -40,5 +48,9 @@ spec = do
           []
           ""
         `shouldRespondWith`
-          [json|{"message":"Unsupported HTTP verb: OTHER"}|]
+          [json|
+            {"hint": null,
+             "details": null,
+             "code": "PGRST506",
+             "message":"Unsupported HTTP verb: OTHER"}|]
           { matchStatus = 405 }

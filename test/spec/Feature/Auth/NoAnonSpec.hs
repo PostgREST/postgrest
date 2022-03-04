@@ -24,7 +24,11 @@ spec = describe "server started without anonymous role" $ do
   it "responds with error when user does not attempt auth" $
     get "/items"
       `shouldRespondWith`
-        [json|{"message":"Anonymous access is disabled"}|]
+        [json|
+          {"hint": null,
+           "details": null,
+           "code": "PGRST302",
+           "message":"Anonymous access is disabled"}|]
         { matchStatus  = 401
         , matchHeaders = ["WWW-Authenticate" <:> "Bearer"]
         }

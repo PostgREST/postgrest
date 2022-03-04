@@ -75,7 +75,7 @@ spec actualPgVersion = do
         post "/articles"
              [json| [{"id": 100, "body": "xxxxx"}, 123, "xxxx", {"id": 111, "body": "xxxx"}] |]
         `shouldRespondWith`
-             [json| {"message":"All object keys must match"} |]
+             [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
              { matchStatus  = 400
              , matchHeaders = [matchContentTypeJson]
              }
@@ -84,7 +84,7 @@ spec actualPgVersion = do
         post "/articles"
              [json| [{"id": 100, "body": "xxxxx"}, {"id": 111, "body": "xxxx", "owner": "me"}] |]
         `shouldRespondWith`
-             [json| {"message":"All object keys must match"} |]
+             [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
              { matchStatus  = 400
              , matchHeaders = [matchContentTypeJson]
              }
@@ -276,7 +276,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
         `shouldRespondWith`
-        [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'"}|]
+        [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -285,7 +285,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" ""
         `shouldRespondWith`
-        [json|{"message":"Error in $: not enough input"}|]
+        [json|{"message":"Error in $: not enough input","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -415,7 +415,7 @@ spec actualPgVersion = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)"} |]
+          [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)","code":"PGRST100","hint":null} |]
           { matchStatus  = 400
           , matchHeaders = []
           }
@@ -484,7 +484,7 @@ spec actualPgVersion = do
       it "fails for too few" $
         request methodPost "/no_pk" [("Content-Type", "text/csv")] "a,b\nfoo,bar\nbaz"
         `shouldRespondWith`
-        [json|{"message":"All lines must have same number of fields"}|]
+        [json|{"message":"All lines must have same number of fields","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }

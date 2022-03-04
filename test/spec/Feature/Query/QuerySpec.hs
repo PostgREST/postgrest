@@ -266,13 +266,17 @@ spec actualPgVersion = do
       get "/clients?select=*&non_existent_projects.name=like.*NonExistent*" `shouldRespondWith`
         [json|
           {"hint":"Verify that 'non_existent_projects' is included in the 'select' query parameter.",
-          "message":"Cannot apply filter because 'non_existent_projects' is not an embedded resource in this request"}|]
+           "details":null,
+           "code":"PGRST108",
+           "message":"Cannot apply filter because 'non_existent_projects' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/clients?select=*,amiga_projects:projects(*)&amiga_projectsss.name=ilike.*Amiga*" `shouldRespondWith`
         [json|
           {"hint":"Verify that 'amiga_projectsss' is included in the 'select' query parameter.",
+           "details":null,
+           "code":"PGRST108",
            "message":"Cannot apply filter because 'amiga_projectsss' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
@@ -280,6 +284,8 @@ spec actualPgVersion = do
       get "/clients?select=id,projects(id,tasks(id,name))&projects.tasks2.name=like.Design*" `shouldRespondWith`
         [json|
           {"hint":"Verify that 'tasks2' is included in the 'select' query parameter.",
+           "details":null,
+           "code":"PGRST108",
            "message":"Cannot apply filter because 'tasks2' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
@@ -504,6 +510,8 @@ spec actualPgVersion = do
             get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
               [json|
                 {"hint":"Verify that 'car_models' and 'car_model_sales_202101' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
@@ -513,6 +521,8 @@ spec actualPgVersion = do
             get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
               [json|
                 {"hint":"Verify that 'car_model_sales_202101' and 'car_models' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
@@ -522,6 +532,8 @@ spec actualPgVersion = do
             get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
               [json|
                 {"hint":"Verify that 'car_model_sales' and 'car_models_default' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
@@ -531,6 +543,8 @@ spec actualPgVersion = do
             get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
               [json|
                 {"hint":"Verify that 'car_models_default' and 'car_model_sales' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+                 "details":null,
+                 "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
@@ -812,44 +826,44 @@ spec actualPgVersion = do
     context "order syntax errors" $ do
       it "gives meaningful error messages when asc/desc/nulls{first,last} are misspelled" $ do
         get "/items?order=id.ac" `shouldRespondWith`
-          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.descc" `shouldRespondWith`
-          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.nulsfist" `shouldRespondWith`
-          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)"}|]
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)"}|]
+          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
 
       it "gives meaningful error messages when nulls{first,last} are misspelled after asc/desc" $ do
         get "/items?order=id.asc.nlsfst" `shouldRespondWith`
-          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)"}|]
+          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
         get "/items?order=id.asc.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)"}|]
+          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson]
           }
@@ -859,7 +873,7 @@ spec actualPgVersion = do
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype") ""
         `shouldRespondWith`
-        [json|{"message":"None of these Content-Types are available: text/unknowntype"}|]
+        [json|{"message":"None of these Content-Types are available: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
         { matchStatus  = 415
         , matchHeaders = [matchContentTypeJson]
         }
@@ -928,7 +942,7 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"Failed to parse [(\"id\",\"0\")]","message":"Unexpected param or filter missing operator"} |]
+      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"Failed to parse [(\"id\",\"0\")]","message":"Unexpected param or filter missing operator","code":"PGRST104","hint":null} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -970,21 +984,21 @@ spec actualPgVersion = do
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?select=*&name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
           { matchStatus = 406 }
 
     it "concatenates results if more than one row is returned" $

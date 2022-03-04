@@ -114,7 +114,9 @@ spec actualPgVersion =
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
           "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-          "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache" } |]
+          "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache",
+          "code":"PGRST202",
+          "details":null} |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -126,7 +128,9 @@ spec actualPgVersion =
         `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-            "message":"Could not find the test.sayhello function with a single json or jsonb parameter in the schema cache" } |]
+            "message":"Could not find the test.sayhello function with a single json or jsonb parameter in the schema cache",
+            "code":"PGRST202",
+            "details":null} |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -135,14 +139,18 @@ spec actualPgVersion =
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-            "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache" } |]
+            "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache",
+            "code":"PGRST202",
+            "details":null} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-            "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache" } |]
+            "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache",
+            "code":"PGRST202",
+            "details":null} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -152,7 +160,9 @@ spec actualPgVersion =
         get "/rpc/overloaded_same_args?arg=value" `shouldRespondWith`
           [json| {
             "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
-            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)"}|]
+            "message":"Could not choose the best candidate function between: test.overloaded_same_args(arg => integer), test.overloaded_same_args(arg => xml), test.overloaded_same_args(arg => text, num => integer)",
+            "code":"PGRST203",
+            "details":null} |]
           { matchStatus  = 300
           , matchHeaders = [matchContentTypeJson]
           }
@@ -510,7 +520,7 @@ spec actualPgVersion =
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
           `shouldRespondWith`
-          [json|{"message":"Bad Request"}|]
+          [json|{"message":"Bad Request","code":"PGRST101","details":null,"hint":null}|]
           { matchStatus  = 405
           , matchHeaders = [matchContentTypeJson]
           }
@@ -671,7 +681,7 @@ spec actualPgVersion =
 
     it "can map a RAISE error code and message to a http status" $
       get "/rpc/raise_pt402"
-        `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded" }|]
+        `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded", "code": "PT402", "message": "Payment Required" }|]
         { matchStatus  = 402
         , matchHeaders = [matchContentTypeJson]
         }
@@ -679,7 +689,7 @@ spec actualPgVersion =
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
       get "/rpc/raise_bad_pt"
         `shouldRespondWith`
-        [json|{"hint": null, "details": null}|]
+        [json|{"hint": null, "details": null, "code": "PT40A", "message": "Wrong"}|]
         { matchStatus  = 500
         , matchHeaders = [ matchContentTypeJson ]
         }
@@ -983,7 +993,7 @@ spec actualPgVersion =
           request methodPost "/rpc/ret_rows_with_base64_bin"
               (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith`
-              [json| {"message":"application/octet-stream requested but more than one column was selected"} |]
+              [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
               { matchStatus = 406 }
 
     context "only for GET rpc" $ do
@@ -1053,25 +1063,25 @@ spec actualPgVersion =
       it "fails when setting headers with wrong json structure" $ do
         get "/rpc/bad_guc_headers_1"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         get "/rpc/bad_guc_headers_2"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         get "/rpc/bad_guc_headers_3"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         post "/rpc/bad_guc_headers_1" [json|{}|]
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value"}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
@@ -1142,7 +1152,7 @@ spec actualPgVersion =
         it "fails when setting invalid status guc" $
           get "/rpc/send_bad_status"
             `shouldRespondWith`
-            [json|{"message":"response.status guc must be a valid status code"}|]
+            [json|{"message":"response.status guc must be a valid status code","code":"PGRST501","details":null,"hint":null}|]
             { matchStatus  = 500
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -1176,7 +1186,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json|{
                 "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-                "message": "Could not find the test.unnamed_int_param(x, y) function or the test.unnamed_int_param function with a single unnamed json or jsonb parameter in the schema cache"
+                "message": "Could not find the test.unnamed_int_param(x, y) function or the test.unnamed_int_param function with a single unnamed json or jsonb parameter in the schema cache",
+                "code":"PGRST202",
+                "details":null
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1189,7 +1201,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json|{
                 "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-                "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache"
+                "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache",
+                "code":"PGRST202",
+                "details":null
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1203,7 +1217,9 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{
               "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-              "message": "Could not find the test.unnamed_int_param function with a single unnamed bytea parameter in the schema cache"
+              "message": "Could not find the test.unnamed_int_param function with a single unnamed bytea parameter in the schema cache",
+              "code":"PGRST202",
+              "details":null
             }|]
             { matchStatus  = 404
             , matchHeaders = [ matchContentTypeJson ]
@@ -1261,7 +1277,10 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json| {
                 "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
-                "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache"}|]
+                "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache",
+                "code":"PGRST202",
+                "details":null
+              }|]
               { matchStatus  = 404
               , matchHeaders = [matchContentTypeJson]
               }
@@ -1272,7 +1291,10 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json| {
                 "hint":"Try renaming the parameters or the function itself in the database so function overloading can be resolved",
-                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_json_jsonb_param( => json), test.overloaded_unnamed_json_jsonb_param( => jsonb)"}|]
+                "message":"Could not choose the best candidate function between: test.overloaded_unnamed_json_jsonb_param( => json), test.overloaded_unnamed_json_jsonb_param( => jsonb)",
+                "code":"PGRST203",
+                "details":null
+              }|]
               { matchStatus  = 300
               , matchHeaders = [matchContentTypeJson]
               }
