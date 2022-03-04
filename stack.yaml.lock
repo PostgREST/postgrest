@@ -7,27 +7,41 @@ packages:
 - completed:
     hackage: hasql-dynamic-statements-0.3.1@sha256:c3a2c89c4a8b3711368dbd33f0ccfe46a493faa7efc2c85d3e354c56a01dfc48,2673
     pantry-tree:
-      size: 641
       sha256: b1b9a6a26ec765e5fe29f9a670a5c9ec7067ea00dee8491f0819284ff0201b6f
+      size: 641
   original:
     hackage: hasql-dynamic-statements-0.3.1@sha256:c3a2c89c4a8b3711368dbd33f0ccfe46a493faa7efc2c85d3e354c56a01dfc48,2673
 - completed:
     hackage: hasql-implicits-0.1.0.2@sha256:5d54e09cb779a209681b139fb3cc726bae75134557932156340cc0a56dd834a8,1361
     pantry-tree:
-      size: 310
       sha256: 2f00d1467d0e226b966c2cd7bac433c8948e2f7bbdf8a44936029f66fc20b5f3
+      size: 310
   original:
     hackage: hasql-implicits-0.1.0.2@sha256:5d54e09cb779a209681b139fb3cc726bae75134557932156340cc0a56dd834a8,1361
 - completed:
     hackage: ptr-0.16.8.1@sha256:525219ec5f5da5c699725f7efcef91b00a7d44120fc019878b85c09440bf51d6,2686
     pantry-tree:
-      size: 1089
       sha256: d2b8440a738719ef8430ec38fe33b129e3940e4ccf2c016a727a1110a43656bb
+      size: 1089
   original:
     hackage: ptr-0.16.8.1@sha256:525219ec5f5da5c699725f7efcef91b00a7d44120fc019878b85c09440bf51d6,2686
+- completed:
+    hackage: wai-extra-3.1.8@sha256:bf3dbe8f4c707b502b2a88262ed71c807220651597b76b56983f864af6197890,7280
+    pantry-tree:
+      sha256: a544ea95288d188e893322a8e6d68f2b1f844f772dbea1f26e5c0c1a74694f56
+      size: 4053
+  original:
+    hackage: wai-extra-3.1.8@sha256:bf3dbe8f4c707b502b2a88262ed71c807220651597b76b56983f864af6197890,7280
+- completed:
+    hackage: wai-logger-2.3.7@sha256:19a0dc5122e22d274776d80786fb9501956f5e75b8f82464bbdad5604d154d82,1671
+    pantry-tree:
+      sha256: 52b5abf5c4c09bcfbc06e01f761a75c32cbd3e6ba23c8843981933fcc31ed53c
+      size: 474
+  original:
+    hackage: wai-logger-2.3.7@sha256:19a0dc5122e22d274776d80786fb9501956f5e75b8f82464bbdad5604d154d82,1671
 snapshots:
 - completed:
+    sha256: 87842ecbaa8ca9cee59a7e6be52369dbed82ed075cb4e0d152614a627e8fd488
     size: 586069
     url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/14.yaml
-    sha256: 87842ecbaa8ca9cee59a7e6be52369dbed82ed075cb4e0d152614a627e8fd488
   original: lts-18.14
