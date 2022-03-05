@@ -201,6 +201,7 @@ These are recipes that'll help you address specific use-cases.
 - :doc:`how-tos/embedding-table-from-another-schema`
 - :doc:`how-tos/providing-images-for-img`
 - `How PostgreSQL triggers work when called with a PostgREST PATCH HTTP request <https://blog.fgribreau.com/2020/11/how-postgresql-triggers-works-when.html>`_
+- :doc:`how-tos/working-with-postgresql-data-types`
 
 Ecosystem
 ---------
