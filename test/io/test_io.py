@@ -140,7 +140,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None):
+def run(configpath=None, stdin=None, env=None, port=None, host=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
     env["PGRST_DB_POOL"] = "1"
@@ -149,7 +149,7 @@ def run(configpath=None, stdin=None, env=None, port=None):
     with tempfile.TemporaryDirectory() as tmpdir:
         if port:
             env["PGRST_SERVER_PORT"] = str(port)
-            env["PGRST_SERVER_HOST"] = "localhost"
+            env["PGRST_SERVER_HOST"] = host or "localhost"
             baseurl = f"http://localhost:{port}"
         else:
             socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
@@ -883,6 +883,17 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         response = postgrest.admin.get("/live")
         assert response.status_code == 503
 
+@pytest.mark.parametrize("specialhostvalue", FIXTURES["specialhostvalues"])
+def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
+    "Should get a success from the admin live and ready endpoints when using special host values for the main app"
+
+    with run(env=defaultenv, port=freeport(), host=specialhostvalue) as postgrest:
+
+      response = postgrest.admin.get("/live")
+      assert response.status_code == 200
+
+      response = postgrest.admin.get("/ready")
+      assert response.status_code == 200
 
 @pytest.mark.parametrize(
     "level, has_output",
