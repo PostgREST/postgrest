@@ -171,3 +171,10 @@ invalidjointypes:
   - 'left!'
   - 'right'
   - '.#$$%&$%/'
+
+specialhostvalues:
+  - '*4'
+  - '!4'
+  - '*6'
+  - '!6'
+  - '*'

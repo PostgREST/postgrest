@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 module PostgREST.Admin
   ( postgrestAdmin
   ) where
@@ -21,7 +22,7 @@ import Protolude
 -- | PostgREST admin application
 postgrestAdmin :: AppState.AppState -> AppConfig -> Wai.Application
 postgrestAdmin appState appConfig req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp appConfig
+  isMainAppReachable  <- any isRight <$> reachMainApp appConfig
   isSchemaCacheLoaded <- isJust <$> AppState.getDbStructure appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
@@ -38,19 +39,37 @@ postgrestAdmin appState appConfig req respond  = do
 
 -- Try to connect to the main app socket
 -- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
-reachMainApp :: AppConfig -> IO (Either IOException ())
-reachMainApp appConfig =
-  try . withSocketsDo $ bracket open close sendEmpty
-  where
-    open = case configServerUnixSocket appConfig of
-      Just path ->  do
-        sock <- socket AF_UNIX Stream 0
+-- The code for resolving the "*4", "!4", "*6", "!6", "*" special values is taken from
+-- https://hackage.haskell.org/package/streaming-commons-0.2.2.4/docs/src/Data.Streaming.Network.html#bindPortGenEx
+reachMainApp :: AppConfig -> IO [Either IOException ()]
+reachMainApp AppConfig{..} =
+  case configServerUnixSocket of
+    Just path ->  do
+      sock <- socket AF_UNIX Stream 0
+      (:[]) <$> try (do
         connect sock $ SockAddrUnix path
-        return sock
-      Nothing -> do
-        let hints = defaultHints { addrSocketType = Stream }
-        addr:_ <- getAddrInfo (Just hints) (Just . T.unpack $ configServerHost appConfig) (Just . show $ configServerPort appConfig)
-        sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
-        connect sock $ addrAddress addr
-        return sock
+        withSocketsDo $ bracket (pure sock) close sendEmpty)
+    Nothing -> do
+      let
+        host | configServerHost `elem` ["*4", "!4", "*6", "!6", "*"] = Nothing
+             | otherwise                                             = Just configServerHost
+        filterAddrs xs =
+          case configServerHost of
+              "*4" -> ipv4Addrs xs ++ ipv6Addrs xs
+              "!4" -> ipv4Addrs xs
+              "*6" -> ipv6Addrs xs ++ ipv4Addrs xs
+              "!6" -> ipv6Addrs xs
+              _    -> xs
+        ipv4Addrs xs = filter ((/=) AF_INET6 . addrFamily) xs
+        ipv6Addrs xs = filter ((==) AF_INET6 . addrFamily) xs
+
+      addrs <- getAddrInfo (Just $ defaultHints { addrSocketType = Stream }) (T.unpack <$> host) (Just . show $ configServerPort)
+      tryAddr `traverse` filterAddrs addrs
+  where
     sendEmpty sock = void $ send sock mempty
+    tryAddr :: AddrInfo -> IO (Either IOException ())
+    tryAddr addr = do
+      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+      try $ do
+        connect sock $ addrAddress addr
+        withSocketsDo $ bracket (pure sock) close sendEmpty

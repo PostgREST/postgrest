@@ -131,7 +131,7 @@ run installHandlers maybeRunWithSocket appState = do
           AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
           runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
         Nothing ->
-          panic "Cannot run with socket on non-unix plattforms."
+          panic "Cannot run with unix socket on non-unix plattforms."
     Nothing ->
       do
         AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
