@@ -285,6 +285,7 @@ For instance, to verify if PostgREST is running at ``localhost:3000`` while the 
 
   HTTP/1.1 200 OK
 
+If you have a machine with multiple network interfaces and multiple PostgREST instances in the same port, you need to specify a unique :ref:`hostname <server-host>` in the configuration of each PostgREST instance for the health check to work correctly. Don't use the special values(``!4``, ``*``, etc) in this case because the health check could report a false positive.
 
 Daemonizing
 ===========
