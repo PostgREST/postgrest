@@ -223,7 +223,7 @@ Response is 401 Unauthorized:
     "hint": null,
     "details": null,
     "code": "42501",
-    "message": "permission denied for relation todos"
+    "message": "permission denied for table todos"
   }
 
 There we have it, a basic API on top of the database! In the next tutorials we will see how to extend the example with more sophisticated user access controls, and more tables and queries.

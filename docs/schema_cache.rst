@@ -27,6 +27,8 @@ in order to avoid repeating this work, PostgREST uses a schema cache.
 |                                            | Function signature                                                            |
 +--------------------------------------------+-------------------------------------------------------------------------------+
 
+.. _stale_schema:
+
 The Stale Schema Cache
 ----------------------
 
@@ -56,8 +58,10 @@ The result will be an error:
 .. code-block:: json
 
   {
-    "hint": "If a new foreign key between these entities was created in the database, try reloading the schema cache.",
-    "message": "Could not find a relationship between cities and countries in the schema cache"
+    "hint": "Verify that 'cities' and 'countries' exist in the schema 'api' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+    "details": null,
+    "code": "PGRST200",
+    "message": "Could not find a relationship between 'cities' and 'countries' in the schema cache"
   }
 
 As you can see, PostgREST couldn't find the newly created foreign key in the schema cache. See :ref:`schema_reloading` and :ref:`auto_schema_reloading` to solve this issue.
@@ -89,7 +93,9 @@ The same issue will occur on newly created functions on a running PostgREST.
 .. code-block:: json
 
   {
-    "hint": "If a new function was created in the database with this name and arguments, try reloading the schema cache.",
+    "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+    "details": null,
+    "code": "PGRST202",
     "message": "Could not find the api.plus_one(num) function in the schema cache"
   }
 

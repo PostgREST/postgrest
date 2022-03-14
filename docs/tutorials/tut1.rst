@@ -175,7 +175,12 @@ After expiration, the API returns HTTP 401 Unauthorized:
 
 .. code-block:: json
 
-  {"message":"JWT expired"}
+  {
+    "hint": null,
+    "details": null,
+    "code": "PGRST301",
+    "message": "JWT expired"
+  }
 
 Bonus Topic: Immediate Revocation
 ---------------------------------

@@ -145,9 +145,16 @@ Technical references for PostgREST's functionality.
 
    schema_cache.rst
 
+.. toctree::
+   :caption: Errors
+   :hidden:
+
+   errors.rst
+
 - :doc:`API <api>`
 - :doc:`configuration`
 - :doc:`Schema Cache <schema_cache>`
+- :doc:`Errors <errors>`
 
 Topic guides
 ------------

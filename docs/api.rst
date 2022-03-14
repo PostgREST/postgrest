@@ -539,6 +539,8 @@ Here ``Quote:"`` and ``Backslash:\`` are percent-encoded values. Note that ``%5C
    Some HTTP libraries might encode URLs automatically(e.g. :code:`axios`). In these cases you should use double quotes
    :code:`""` directly instead of :code:`%22`.
 
+.. _ordering:
+
 Ordering
 --------
 
@@ -827,7 +829,9 @@ When a singular response is requested but no entries are found, the server respo
 
   {
     "message": "JSON object requested, multiple (or no) rows returned",
-    "details": "Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row"
+    "details": "Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row",
+    "hint": null,
+    "code": "PGRST505"
   }
 
 .. note::
@@ -1713,6 +1717,8 @@ By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a
         { "name": "New employee 3", "salary": 60000 }
       ]
     EOF
+
+.. _upsert_put:
 
 PUT
 ~~~
@@ -2636,8 +2642,10 @@ You can set the ``response.status`` GUC to override the default status code Post
 
   HTTP/1.1 418 I'm a teapot
 
-  {"message" : "The requested entity body is short and stout.",
-   "hint" : "Tip it over and pour it out."}
+  {
+    "message" : "The requested entity body is short and stout.",
+    "hint" : "Tip it over and pour it out."
+  }
 
 If the status code is standard, PostgREST will complete the status message(**I'm a teapot** in this example).
 
@@ -2693,72 +2701,9 @@ Returns:
   HTTP/1.1 402 Payment Required
   Content-Type: application/json; charset=utf-8
 
-  {"hint":"Upgrade your plan","details":"Quota exceeded"}
-
-.. _status_codes:
-
-HTTP Status Codes
------------------
-
-PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_ into HTTP status as follows:
-
-+--------------------------+-------------------------+---------------------------------+
-| PostgreSQL error code(s) | HTTP status             | Error description               |
-+==========================+=========================+=================================+
-| 08*                      | 503                     | pg connection err               |
-+--------------------------+-------------------------+---------------------------------+
-| 09*                      | 500                     | triggered action exception      |
-+--------------------------+-------------------------+---------------------------------+
-| 0L*                      | 403                     | invalid grantor                 |
-+--------------------------+-------------------------+---------------------------------+
-| 0P*                      | 403                     | invalid role specification      |
-+--------------------------+-------------------------+---------------------------------+
-| 23503                    | 409                     | foreign key violation           |
-+--------------------------+-------------------------+---------------------------------+
-| 23505                    | 409                     | uniqueness violation            |
-+--------------------------+-------------------------+---------------------------------+
-| 25006                    | 405                     | read only sql transaction       |
-+--------------------------+-------------------------+---------------------------------+
-| 25*                      | 500                     | invalid transaction state       |
-+--------------------------+-------------------------+---------------------------------+
-| 28*                      | 403                     | invalid auth specification      |
-+--------------------------+-------------------------+---------------------------------+
-| 2D*                      | 500                     | invalid transaction termination |
-+--------------------------+-------------------------+---------------------------------+
-| 38*                      | 500                     | external routine exception      |
-+--------------------------+-------------------------+---------------------------------+
-| 39*                      | 500                     | external routine invocation     |
-+--------------------------+-------------------------+---------------------------------+
-| 3B*                      | 500                     | savepoint exception             |
-+--------------------------+-------------------------+---------------------------------+
-| 40*                      | 500                     | transaction rollback            |
-+--------------------------+-------------------------+---------------------------------+
-| 53*                      | 503                     | insufficient resources          |
-+--------------------------+-------------------------+---------------------------------+
-| 54*                      | 413                     | too complex                     |
-+--------------------------+-------------------------+---------------------------------+
-| 55*                      | 500                     | obj not in prerequisite state   |
-+--------------------------+-------------------------+---------------------------------+
-| 57*                      | 500                     | operator intervention           |
-+--------------------------+-------------------------+---------------------------------+
-| 58*                      | 500                     | system error                    |
-+--------------------------+-------------------------+---------------------------------+
-| F0*                      | 500                     | config file error               |
-+--------------------------+-------------------------+---------------------------------+
-| HV*                      | 500                     | foreign data wrapper error      |
-+--------------------------+-------------------------+---------------------------------+
-| P0001                    | 400                     | default code for "raise"        |
-+--------------------------+-------------------------+---------------------------------+
-| P0*                      | 500                     | PL/pgSQL error                  |
-+--------------------------+-------------------------+---------------------------------+
-| XX*                      | 500                     | internal error                  |
-+--------------------------+-------------------------+---------------------------------+
-| 42883                    | 404                     | undefined function              |
-+--------------------------+-------------------------+---------------------------------+
-| 42P01                    | 404                     | undefined table                 |
-+--------------------------+-------------------------+---------------------------------+
-| 42501                    | | if authenticated 403, | insufficient privileges         |
-|                          | | else 401              |                                 |
-+--------------------------+-------------------------+---------------------------------+
-| other                    | 400                     |                                 |
-+--------------------------+-------------------------+---------------------------------+
+  {
+    "message": "Payment Required",
+    "details": "Quota exceeded",
+    "hint": "Upgrade your plan",
+    "code": "PT402"
+  }
