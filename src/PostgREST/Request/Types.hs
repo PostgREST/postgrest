@@ -135,6 +135,7 @@ data MutateQuery
       , updCols   :: S.Set FieldName
       , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
+      , mutRange  :: (NonnegRange, [FieldName])
       , returning :: [FieldName]
       }
   | Delete
