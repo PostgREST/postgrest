@@ -151,7 +151,7 @@ targetToJsonRpcParams target params =
 -}
 data ApiRequest = ApiRequest {
     iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-  , iRange                :: M.HashMap Text NonnegRange -- ^ Requested range of rows within response
+  , iRange                :: M.HashMap Text NonnegRange       -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
   , iPayload              :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions

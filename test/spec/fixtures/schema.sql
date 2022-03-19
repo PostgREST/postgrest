@@ -2463,3 +2463,34 @@ CREATE AGGREGATE test.unsupported_agg (*) (
   SFUNC = public.dummy,
   STYPE = int
 );
+
+create view no_pk_view as
+select * from no_pk;
+
+create table limited_update_items(
+  id int primary key
+, name text
+);
+
+create table limited_update_items_cpk(
+  id int
+, name text
+, primary key (id, name)
+);
+
+create table limited_update_items_no_pk(
+  id int
+, name text
+);
+
+create view limited_update_items_view as
+select * from limited_update_items;
+
+create function reset_limited_items(tbl_name text default '') returns void as $_$ begin
+  execute format(
+  $$
+    delete from %I;
+    insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
+  $$::text,
+  tbl_name, tbl_name);
+end; $_$ language plpgsql volatile;

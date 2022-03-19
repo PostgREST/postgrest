@@ -283,7 +283,9 @@ addOrders ApiRequest{..} rReq =
 
 addRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRanges ApiRequest{..} rReq =
-  foldr addRangeToNode (Right rReq) =<< ranges
+  case iAction of
+    ActionMutate _ -> Right rReq
+    _              -> foldr addRangeToNode (Right rReq) =<< ranges
   where
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
     ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` M.toList iRange
@@ -319,7 +321,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
-    MutationUpdate -> Right $ Update qi iColumns body combinedLogic returnings
+    MutationUpdate -> Right $ Update qi iColumns body combinedLogic (iTopLevelRange, pkCols) returnings
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
