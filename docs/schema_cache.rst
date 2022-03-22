@@ -191,7 +191,7 @@ reloading when creating temporary tables(``CREATE TEMP TABLE``) inside functions
       , 'CREATE MATERIALIZED VIEW', 'ALTER MATERIALIZED VIEW'
       , 'CREATE FUNCTION', 'ALTER FUNCTION'
       , 'CREATE TRIGGER'
-      , 'CREATE TYPE'
+      , 'CREATE TYPE', 'ALTER TYPE'
       , 'CREATE RULE'
       , 'COMMENT'
       )
