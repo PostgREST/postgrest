@@ -141,6 +141,7 @@ data MutateQuery
   | Delete
       { in_       :: QualifiedIdentifier
       , where_    :: [LogicTree]
+      , mutRange  :: (NonnegRange, [FieldName])
       , returning :: [FieldName]
       }
 

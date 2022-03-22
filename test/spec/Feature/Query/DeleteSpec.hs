@@ -115,3 +115,164 @@ spec =
             { matchStatus = 204
             , matchHeaders = [matchHeaderAbsent hContentType]
             }
+
+    context "limited delete" $ do
+      it "works with the limit and offset query params" $ do
+        get "/limited_delete_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodDelete "/limited_delete_items?limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/limited_delete_items?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodPost "/rpc/reset_limited_items"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "limited_delete_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "works with the limit query param plus a filter" $ do
+        get "/limited_delete_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodDelete "/limited_delete_items?limit=1&id=gt.1"
+            [("Prefer", "tx=commit")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/limited_delete_items?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodPost "/rpc/reset_limited_items"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "limited_delete_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "works on a table with a composite pk" $ do
+        get "/limited_delete_items_cpk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodDelete "/limited_delete_items_cpk?limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/limited_delete_items_cpk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodPost "/rpc/reset_limited_items"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "limited_delete_items_cpk"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "works with views with an inferred pk" $ do
+        get "/limited_delete_items_view"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodDelete "/limited_delete_items_view?limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/limited_delete_items_view"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodPost "/rpc/reset_limited_items"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "limited_delete_items_view"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "works on a table without a pk" $ do
+        get "/limited_delete_items_no_pk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodDelete "/limited_delete_items_no_pk?limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/limited_delete_items_no_pk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
+            ]|]
+
+        request methodPost "/rpc/reset_limited_items"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "limited_delete_items_no_pk"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }

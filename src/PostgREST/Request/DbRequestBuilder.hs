@@ -332,7 +332,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
           then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic returnings
+    MutationDelete -> Right $ Delete qi combinedLogic (iTopLevelRange, pkCols) returnings
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams

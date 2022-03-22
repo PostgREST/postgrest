@@ -125,13 +125,13 @@ mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) retu
     "WITH " <> normalizedBody body <> ", " <>
     "pgrst_update_body AS (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " ) LIMIT 1), " <>
     "pgrst_affected_rows AS (" <>
-      "SELECT " <> SQL.sql _rangeId <> " FROM " <> mainTbl <>
+      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
        whereLogic <> " " <>
-      "ORDER BY " <> SQL.sql _rangeId <> " " <> limitOffsetF range <>
+      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
     ") " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql rangeCols <>
     "FROM pgrst_affected_rows " <>
-    "WHERE " <> SQL.sql whereRangeId <> " " <>
+    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   where
@@ -140,14 +140,29 @@ mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) retu
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     nonRangeCols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
-    _rangeId = if null rangeId then pgFmtColumn mainQi "ctid" else BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
-    whereRangeId = BS.intercalate " AND " $
-      (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> (if null rangeId then ["ctid"] else rangeId)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
 
-mutateRequestToQuery (Delete mainQi logicForest returnings) =
-  "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-  (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
-  SQL.sql (returningF mainQi returnings)
+mutateRequestToQuery (Delete mainQi logicForest (range, rangeId) returnings)
+  | range == allRange =
+    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    whereLogic <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
+  | otherwise =
+    "WITH " <>
+    "pgrst_affected_rows AS (" <>
+      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
+       whereLogic <> " " <>
+      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
+    ") " <>
+    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    "USING pgrst_affected_rows " <>
+    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
+  where
+    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
 requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
