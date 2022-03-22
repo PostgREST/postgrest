@@ -17,6 +17,7 @@ module PostgREST.Query.SqlFragment
   , fromQi
   , limitOffsetF
   , locationF
+  , mutRangeF
   , normalizedBody
   , pgFmtColumn
   , pgFmtIdent
@@ -334,3 +335,12 @@ unknownLiteral = unknownEncoder . encodeUtf8
 intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
+
+-- the "ctid" system column is always available to tables
+mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SqlFragment, SqlFragment)
+mutRangeF mainQi rangeId = (
+    BS.intercalate " AND " $
+          (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$>
+          (if null rangeId then ["ctid"] else rangeId)
+  , if null rangeId then pgFmtColumn mainQi "ctid" else BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
+  )

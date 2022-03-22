@@ -163,10 +163,14 @@ GRANT ALL ON TABLE
     , clientinfo
     , contact
     , chores
-    , limited_mut_items
-    , limited_mut_items_cpk
-    , limited_mut_items_no_pk
-    , limited_mut_items_view
+    , limited_update_items
+    , limited_update_items_cpk
+    , limited_update_items_no_pk
+    , limited_update_items_view
+    , limited_delete_items
+    , limited_delete_items_cpk
+    , limited_delete_items_no_pk
+    , limited_delete_items_view
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
