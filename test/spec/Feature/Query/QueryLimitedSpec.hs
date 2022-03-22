@@ -77,3 +77,40 @@ spec =
             , matchHeaders = [ matchContentTypeJson
                              , "Content-Range" <:> "0-1/3" ]
             }
+
+    context "max-rows=2 on mutations" $ do
+      it "doesn't affect insertions" $
+        request methodPost "/projects?select=id,name"
+            [("Prefer", "return=representation")]
+            [json| [
+              { "id": 6, "name": "BeOS" },
+              { "id": 7, "name": "PopOS" },
+              { "id": 8, "name": "HaikuOS" } ]|]
+          `shouldRespondWith`
+            [json| [
+              { "id": 6, "name": "BeOS" },
+              { "id": 7, "name": "PopOS" },
+              { "id": 8, "name": "HaikuOS" } ]|]
+            { matchStatus  = 201 }
+
+      it "doesn't affect updates" $
+        request methodPatch "/employees?select=first_name,last_name,occupation"
+            [("Prefer", "return=representation")]
+            [json| [{"occupation": "Barista"}] |]
+          `shouldRespondWith`
+            [json|[
+                { "first_name": "Frances M.", "last_name": "Roe", "occupation": "Barista" },
+                { "first_name": "Daniel B.", "last_name": "Lyon", "occupation": "Barista" },
+                { "first_name": "Edwin S.", "last_name": "Smith", "occupation": "Barista" } ]|]
+            { matchStatus  = 200 }
+
+      it "doesn't affect deletions" $
+        request methodDelete "/employees?select=first_name,last_name"
+            [("Prefer", "return=representation")]
+            mempty
+          `shouldRespondWith`
+            [json| [
+              { "first_name": "Frances M.", "last_name": "Roe" },
+              { "first_name": "Daniel B.", "last_name": "Lyon" },
+              { "first_name": "Edwin S.", "last_name": "Smith" } ]|]
+            { matchStatus  = 200 }

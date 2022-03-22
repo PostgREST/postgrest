@@ -63,7 +63,7 @@ import Protolude hiding (from)
 readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequest -> Either Error ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
-  treeRestrictRange maxRows =<<
+  treeRestrictRange maxRows (iAction apiRequest) =<<
   augmentRequestWithJoin schema rootRels =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
@@ -115,8 +115,9 @@ initReadRequest rootQi =
               fldForest:rForest
 
 -- | Enforces the `max-rows` config on the result
-treeRestrictRange :: Maybe Integer -> ReadRequest -> Either ApiRequestError ReadRequest
-treeRestrictRange maxRows request = pure $ nodeRestrictRange maxRows <$> request
+treeRestrictRange :: Maybe Integer -> Action -> ReadRequest -> Either ApiRequestError ReadRequest
+treeRestrictRange _ (ActionMutate _) request = Right request
+treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)

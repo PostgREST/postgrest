@@ -41,6 +41,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
  - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
  - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
+ - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
 
 ### Changed
 
@@ -48,6 +49,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
  - #2156, `limit/offset` now limits the affected rows on UPDATE/DELETE  - @steve-chavez
    + Previously, `limit/offset` only limited the returned rows but not the actual updated rows
+ - #2155, `max-rows` is no longer applied on POST/PATCH/PUT/DELETE returned rows - @steve-chavez
+   + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
 
 ## [9.0.0] - 2021-11-25
 
