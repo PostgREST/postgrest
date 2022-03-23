@@ -91,7 +91,7 @@ rangeStatusHeader topLevelRange queryTotal tableTotal =
 
 contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
-    ("Content-Range", toUtf8 headerValue)
+    ("Content-Range", "bytes" toUtf8 headerValue)
     where
       headerValue   = rangeString <> "/" <> totalString :: Text
       rangeString
