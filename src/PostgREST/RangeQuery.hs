@@ -93,7 +93,7 @@ contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
     ("Content-Range", toUtf8 headerValue)
     where
-      headerValue   = rangeString <> "/" <> totalString :: Text
+      headerValue   = "bytes" rangeString <> "/" <> totalString :: Text
       rangeString
         | totalNotZero && fromInRange = show lower <> "-" <> show upper
         | otherwise = "*"
