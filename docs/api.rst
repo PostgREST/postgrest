@@ -1479,10 +1479,10 @@ Hints also work alongside ``!inner`` if a top level filtering is needed. From th
 
     curl "http://localhost:3000/orders?select=*,central_addresses!billing_address!inner(*)&central_addresses.code=AB1000"
 
-.. _insert_update:
+.. _insert:
 
-Insertions / Updates
-====================
+Insertions
+==========
 
 All tables and `auto-updatable views <https://www.postgresql.org/docs/current/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ can be modified through the API, subject to permissions of the requester's database role.
 
@@ -1536,28 +1536,6 @@ URL encoded payloads can be posted with ``Content-Type: application/x-www-form-u
     "{ \"a\": 1, \"b\": 2 }"
 
   Some JavaScript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
-
-To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    PATCH /people?age=lt.13 HTTP/1.1
-
-    { "category": "child" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?age=lt.13" \
-      -X PATCH -H "Content-Type: application/json" \
-      -d '{ "category": "child" }'
-
-Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. warning::
-
-  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
 .. _bulk_insert:
 
@@ -1621,8 +1599,7 @@ To bulk insert JSON post an array of objects having all-matching keys
 Specifying Columns
 ------------------
 
-By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted/updated
-and ignore the rest of the payload.
+By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted and ignore the rest of the payload.
 
 .. tabs::
 
@@ -1662,10 +1639,37 @@ In this case, only **source**, **publication_date** and **figure** will be inser
 Using this also has the side-effect of being more efficient for :ref:`bulk_insert` since PostgREST will not process the JSON and
 it'll send it directly to PostgreSQL.
 
+.. _update:
+
+Updates
+=======
+
+To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    PATCH /people?age=lt.13 HTTP/1.1
+
+    { "category": "child" }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?age=lt.13" \
+      -X PATCH -H "Content-Type: application/json" \
+      -d '{ "category": "child" }'
+
+Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+
+.. warning::
+
+  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
+
 .. _upsert:
 
 UPSERT
-------
+======
 
 You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
 
@@ -1703,7 +1707,7 @@ By default, UPSERT operates based on the primary key columns, you must specify a
 .. _on_conflict:
 
 On Conflict
-~~~~~~~~~~~
+-----------
 
 By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a column(s) that has a UNIQUE constraint.
 
@@ -1736,7 +1740,7 @@ By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a
 .. _upsert_put:
 
 PUT
-~~~
+---
 
 A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
@@ -1794,6 +1798,43 @@ Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter
 .. warning::
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+Limited Updates/Deletions
+=========================
+
+You can limit the amount of affected rows by :ref:`update` or :ref:`delete` with the ``limit`` query parameter. For this, you must add an explicit ``order`` on a unique column(s).
+
+.. tabs::
+
+  .. code-tab:: http
+
+    PATCH /users?limit=10&order=id&last_login=lt.2017-01-01 HTTP/1.1
+
+    { "status": "inactive" }
+
+  .. code-tab:: bash Curl
+
+    curl -X PATCH "/users?limit=10&order=id&last_login=lt.2020-01-01" \
+      -H "Content-Type: application/json" \
+      -d '{ "status": "inactive" }'
+
+.. tabs::
+
+  .. code-tab:: http
+
+    DELETE /users?limit=10&order=id&status=eq.inactive HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl -X DELETE "http://localhost:3000/users?limit=10&order=id&status=eq.inactive"
+
+If your table has no unique columns, you can use the `ctid <https://www.postgresql.org/docs/current/ddl-system-columns.html>`_ system column.
+
+Using ``offset`` to target a different subset of rows is also possible.
+
+.. note::
+
+  There is no native ``UPDATE...LIMIT`` or ``DELETE...LIMIT`` support in PostgreSQL; the generated query simulates that behavior and is based on `this Crunchy Data blog post <https://www.crunchydata.com/blog/simulating-update-or-delete-with-limit-in-postgres-ctes-to-the-rescue>`_.
 
 .. _custom_queries:
 
