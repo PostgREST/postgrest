@@ -14,6 +14,8 @@ Community Tutorials
 * `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>`_ -
   A step-by-step tutorial for using PostgREST with KeyCloak(hosted on a managed service).
 
+* `How PostgreSQL triggers work when called with a PostgREST PATCH HTTP request <https://blog.fgribreau.com/2020/11/how-postgresql-triggers-works-when.html>`_ - A tutorial to see how the old and new values are set or not when doing a PATCH request to PostgREST.
+
 .. _templates:
 
 Templates
