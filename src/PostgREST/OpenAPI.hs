@@ -5,6 +5,7 @@ Description : Generates the OpenAPI output
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DataKinds       #-}
 module PostgREST.OpenAPI (encode) where
 
 import qualified Data.Aeson            as JSON
@@ -24,6 +25,7 @@ import Network.URI                (URI (..), URIAuth (..))
 import Control.Lens (at, (.~), (?~))
 
 import Data.Swagger
+import Data.Swagger.Internal              (SwaggerKind(SwaggerKindSchema))
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
@@ -55,7 +57,7 @@ encode conf dbStructure tables procs schemaDescription =
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ fmap (fromString . BS.unpack . toMime) cs
 
-toSwaggerType :: Text -> SwaggerType t
+toSwaggerType :: Text -> SwaggerType 'SwaggerKindSchema
 toSwaggerType "character varying" = SwaggerString
 toSwaggerType "character"         = SwaggerString
 toSwaggerType "text"              = SwaggerString
@@ -67,6 +69,8 @@ toSwaggerType "numeric"           = SwaggerNumber
 toSwaggerType "real"              = SwaggerNumber
 toSwaggerType "double precision"  = SwaggerNumber
 toSwaggerType "ARRAY"             = SwaggerArray
+toSwaggerType "json"              = SwaggerObject
+toSwaggerType "jsonb"             = SwaggerObject
 toSwaggerType _                   = SwaggerString
 
 parseDefault :: Text -> Text -> Text

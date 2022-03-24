@@ -1807,7 +1807,9 @@ CREATE TABLE test.openapi_types(
   "a_bigint" bigint,
   "a_numeric" numeric,
   "a_real" real,
-  "a_double_precision" double precision
+  "a_double_precision" double precision,
+  "a_json" json,
+  "a_jsonb" jsonb
 );
 
 CREATE TABLE test.openapi_defaults(
