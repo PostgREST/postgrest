@@ -22,7 +22,7 @@ Templates
 ---------
 
 * `compose-postgrest <https://github.com/mattddowney/compose-postgrest>`_ - docker-compose setup with Nginx and HTML example
-* `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth - `blog post <https://www.webgma.co.il/Articles/rapid-prototyping-with-postgrest-and-svelte/en/>`_
+* `svelte-postgrest-template <https://github.com/guyromm/svelte-postgrest-template>`_ - Svelte/SvelteKit, PostgREST, EveryLayout and social auth
 
 .. _eco_example_apps:
 

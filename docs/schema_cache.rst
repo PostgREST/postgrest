@@ -16,7 +16,7 @@ in order to avoid repeating this work, PostgREST uses a schema cache.
 +--------------------------------------------+-------------------------------------------------------------------------------+
 | :ref:`Upserts <upsert>`                    | Primary keys                                                                  |
 +--------------------------------------------+-------------------------------------------------------------------------------+
-| :ref:`Insertions <insert_update>`          | Primary keys (optional: only if the Location header is requested)             |
+| :ref:`Insertions <insert>`                 | Primary keys (optional: only if the Location header is requested)             |
 +--------------------------------------------+-------------------------------------------------------------------------------+
 | :ref:`OPTIONS requests <options_requests>` | View INSTEAD OF TRIGGERS and primary keys                                     |
 +--------------------------------------------+-------------------------------------------------------------------------------+

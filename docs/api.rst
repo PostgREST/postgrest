@@ -1271,7 +1271,7 @@ A request with ``directors`` embedded:
 Embedding after Insertions/Updates/Deletions
 --------------------------------------------
 
-You can embed related resources after doing :ref:`insert_update` or :ref:`delete`.
+You can embed related resources after doing :ref:`insert`, :ref:`update` or :ref:`delete`.
 
 Say you want to insert a **film** and then get some of its attributes plus embed its **director**.
 

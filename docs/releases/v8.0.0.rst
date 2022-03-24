@@ -25,7 +25,7 @@ Added
 * Allow schema cache reloading using PostgreSQL :ref:`NOTIFY <schema_reloading_notify>` command. This enables :ref:`auto_schema_reloading`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Allow sending the header ``Prefer: headers-only`` to get a response with a ``Location`` header. See :ref:`insert_update`.
+* Allow sending the header ``Prefer: headers-only`` to get a response with a ``Location`` header. See :ref:`insert`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
 * Allow :ref:`external_connection_poolers` such as PgBouncer in transaction pooling mode.
@@ -78,7 +78,7 @@ Changed
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * POST requests for insertions no longer include a ``Location`` header in the response by default and behave the same way as having a
-  ``Prefer: return=minimal`` header in the request. This prevents permissions errors when having a write-only table. See :ref:`insert_update`.
+  ``Prefer: return=minimal`` header in the request. This prevents permissions errors when having a write-only table. See :ref:`insert`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
 * Modified the default logging level from ``info`` to ``error``. See :ref:`log-level`.

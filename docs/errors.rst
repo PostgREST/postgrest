@@ -150,7 +150,7 @@ Related to the HTTP request elements.
 | PGRST101      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst102: | Related to the request body structure.                      |
-|               | See :ref:`insert_update`.                                   |
+|               | See :ref:`insert` and :ref:`update`.                        |
 | PGRST102      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst103: | Related to :ref:`limits`.                                   |

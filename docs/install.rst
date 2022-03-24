@@ -48,7 +48,7 @@ You can also use your OS package manager.
 
   .. group-tab:: Windows
 
-    You can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://scoop.sh>`_.
+    You can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://github.com/ScoopInstaller/Scoop>`_.
 
     .. code:: bash
 
