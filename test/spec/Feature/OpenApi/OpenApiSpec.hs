@@ -430,7 +430,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
-    it "json to object" $ do
+    it "json to any" $ do
       r <- simpleBody <$> get "/"
 
       let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_json"
@@ -440,12 +440,11 @@ spec actualPgVersion = describe "OpenAPI" $ do
         types `shouldBe` Just
           [aesonQQ|
             {
-              "format": "json",
-              "type": "object"
+              "format": "json"
             }
           |]
 
-    it "jsonb to object" $ do
+    it "jsonb to any" $ do
       r <- simpleBody <$> get "/"
 
       let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_jsonb"
@@ -455,8 +454,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
         types `shouldBe` Just
           [aesonQQ|
             {
-              "format": "jsonb",
-              "type": "object"
+              "format": "jsonb"
             }
           |]
 
@@ -578,12 +576,10 @@ spec actualPgVersion = describe "OpenAPI" $ do
                   "type": "integer"
                 },
                 "json": {
-                  "format": "json",
-                  "type": "object"
+                  "format": "json"
                 },
                 "jsonb": {
-                  "format": "jsonb",
-                  "type": "object"
+                  "format": "jsonb"
                 }
               },
               "type": "object",

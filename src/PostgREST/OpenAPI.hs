@@ -25,7 +25,6 @@ import Network.URI                (URI (..), URIAuth (..))
 import Control.Lens (at, (.~), (?~))
 
 import Data.Swagger
-import Data.Swagger.Internal (SwaggerKind (SwaggerKindSchema))
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
@@ -57,26 +56,26 @@ encode conf dbStructure tables procs schemaDescription =
 makeMimeList :: [ContentType] -> MimeList
 makeMimeList cs = MimeList $ fmap (fromString . BS.unpack . toMime) cs
 
-toSwaggerType :: Text -> SwaggerType 'SwaggerKindSchema
-toSwaggerType "character varying" = SwaggerString
-toSwaggerType "character"         = SwaggerString
-toSwaggerType "text"              = SwaggerString
-toSwaggerType "boolean"           = SwaggerBoolean
-toSwaggerType "smallint"          = SwaggerInteger
-toSwaggerType "integer"           = SwaggerInteger
-toSwaggerType "bigint"            = SwaggerInteger
-toSwaggerType "numeric"           = SwaggerNumber
-toSwaggerType "real"              = SwaggerNumber
-toSwaggerType "double precision"  = SwaggerNumber
-toSwaggerType "ARRAY"             = SwaggerArray
-toSwaggerType "json"              = SwaggerObject
-toSwaggerType "jsonb"             = SwaggerObject
-toSwaggerType _                   = SwaggerString
+toSwaggerType :: Text -> Maybe (SwaggerType t)
+toSwaggerType "character varying" = Just SwaggerString
+toSwaggerType "character"         = Just SwaggerString
+toSwaggerType "text"              = Just SwaggerString
+toSwaggerType "boolean"           = Just SwaggerBoolean
+toSwaggerType "smallint"          = Just SwaggerInteger
+toSwaggerType "integer"           = Just SwaggerInteger
+toSwaggerType "bigint"            = Just SwaggerInteger
+toSwaggerType "numeric"           = Just SwaggerNumber
+toSwaggerType "real"              = Just SwaggerNumber
+toSwaggerType "double precision"  = Just SwaggerNumber
+toSwaggerType "ARRAY"             = Just SwaggerArray
+toSwaggerType "json"              = Nothing
+toSwaggerType "jsonb"             = Nothing
+toSwaggerType _                   = Just SwaggerString
 
 parseDefault :: Text -> Text -> Text
 parseDefault colType colDefault =
   case toSwaggerType colType of
-    SwaggerString -> wrapInQuotations $ case T.stripSuffix ("::" <> colType) colDefault of
+    Just SwaggerString -> wrapInQuotations $ case T.stripSuffix ("::" <> colType) colDefault of
       Just def -> T.dropAround (=='\'')  def
       Nothing  -> colDefault
     _ -> colDefault
@@ -128,7 +127,7 @@ makeProperty rels pks c = (colName c, Inline s)
         & enum_ .~ e
         & format ?~ colType c
         & maxLength .~ (fromIntegral <$> colMaxLen c)
-        & type_ ?~ toSwaggerType (colType c)
+        & type_ .~ toSwaggerType (colType c)
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -142,7 +141,7 @@ makeProcProperty :: ProcParam -> (Text, Referenced Schema)
 makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
-          & type_ ?~ toSwaggerType t
+          & type_ .~ toSwaggerType t
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
