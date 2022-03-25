@@ -2,7 +2,6 @@
 Module      : PostgREST.OpenAPI
 Description : Generates the OpenAPI output
 -}
-{-# LANGUAGE DataKinds       #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
