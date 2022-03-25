@@ -2,10 +2,10 @@
 Module      : PostgREST.OpenAPI
 Description : Generates the OpenAPI output
 -}
+{-# LANGUAGE DataKinds       #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DataKinds       #-}
 module PostgREST.OpenAPI (encode) where
 
 import qualified Data.Aeson            as JSON
@@ -25,7 +25,7 @@ import Network.URI                (URI (..), URIAuth (..))
 import Control.Lens (at, (.~), (?~))
 
 import Data.Swagger
-import Data.Swagger.Internal              (SwaggerKind(SwaggerKindSchema))
+import Data.Swagger.Internal (SwaggerKind (SwaggerKindSchema))
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
