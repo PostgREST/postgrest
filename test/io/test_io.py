@@ -883,17 +883,19 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         response = postgrest.admin.get("/live")
         assert response.status_code == 503
 
+
 @pytest.mark.parametrize("specialhostvalue", FIXTURES["specialhostvalues"])
 def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
     "Should get a success from the admin live and ready endpoints when using special host values for the main app"
 
     with run(env=defaultenv, port=freeport(), host=specialhostvalue) as postgrest:
 
-      response = postgrest.admin.get("/live")
-      assert response.status_code == 200
+        response = postgrest.admin.get("/live")
+        assert response.status_code == 200
 
-      response = postgrest.admin.get("/ready")
-      assert response.status_code == 200
+        response = postgrest.admin.get("/ready")
+        assert response.status_code == 200
+
 
 @pytest.mark.parametrize(
     "level, has_output",
