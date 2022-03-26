@@ -520,7 +520,16 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
+    it "doesn't work with views" $
+      request methodPatch "/limited_update_items_view?limit=1&offset=1"
+          [("Prefer", "tx=commit")]
+          [json| {"name": "updated-item"} |]
+        `shouldRespondWith`
+          [json| {"hint":null,"details":null,"code":"PGRST507","message":"limit/offset is not implemented for views"} |]
+          { matchStatus  = 501 }
+
     it "works with views with an inferred pk" $ do
+      pendingWith "not implemented yet"
       get "/limited_update_items_view"
         `shouldRespondWith`
           [json|[

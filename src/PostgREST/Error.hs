@@ -314,6 +314,7 @@ data Error
   | JwtTokenInvalid Text
   | JwtTokenMissing
   | JwtTokenRequired
+  | NotImplemented Text
   | NoSchemaCacheError
   | NotFound
   | PgErr PgError
@@ -335,6 +336,7 @@ instance PgrstError Error where
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
+  status (NotImplemented _)      = HTTP.status501
   status SingularityError{}      = HTTP.status406
   status UnsupportedVerb{}       = HTTP.status405
 
@@ -407,6 +409,12 @@ instance JSON.ToJSON Error where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
+  toJSON (NotImplemented msg) = JSON.object [
+    "code"    .= GeneralErrorCode07,
+    "message" .= msg,
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON NotFound = JSON.object []
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
@@ -460,6 +468,7 @@ data ErrorCode
   | GeneralErrorCode04
   | GeneralErrorCode05
   | GeneralErrorCode06
+  | GeneralErrorCode07
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -504,3 +513,4 @@ buildErrorCode code = "PGRST" <> case code of
   GeneralErrorCode04     -> "504"
   GeneralErrorCode05     -> "505"
   GeneralErrorCode06     -> "506"
+  GeneralErrorCode07     -> "507"

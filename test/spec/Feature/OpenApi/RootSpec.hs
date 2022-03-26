@@ -29,6 +29,7 @@ spec =
         [json| {
             "tableName": "orders_view", "tableSchema": "test",
             "tableDeletable": true, "tableUpdatable": true,
-            "tableInsertable": true, "tableDescription": null
+            "tableIsView":true, "tableInsertable": true,
+            "tableDescription": null
           } |]
         { matchHeaders = [matchContentTypeJson] }
