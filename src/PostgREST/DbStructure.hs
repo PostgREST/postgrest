@@ -23,6 +23,7 @@ module PostgREST.DbStructure
   , queryDbStructure
   , accessibleTables
   , accessibleProcs
+  , findIfView
   , findTable
   , schemaDescription
   , tableCols
@@ -80,7 +81,10 @@ tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
 tablePKCols dbs tSchema tName = pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
 
 findTable :: Schema -> TableName -> [Table] -> Maybe Table
-findTable tSchema tName tbls = find (\tbl -> tableName tbl == tName && tableSchema tbl == tSchema) tbls
+findTable tSchema tName = find (\tbl -> tableSchema tbl == tSchema && tableName tbl == tName)
+
+findIfView :: QualifiedIdentifier -> [Table] -> Bool
+findIfView identifier tbls = maybe False tableIsView (findTable (qiSchema identifier) (qiName identifier) tbls)
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
@@ -135,6 +139,7 @@ decodeTables =
   tblRow = Table <$> column HD.text
                  <*> column HD.text
                  <*> nullableColumn HD.text
+                 <*> column HD.bool
                  <*> column HD.bool
                  <*> column HD.bool
                  <*> column HD.bool
@@ -337,6 +342,7 @@ accessibleTables pgVer =
       n.nspname as table_schema,
       relname as table_name,
       d.description as table_description,
+      c.relkind IN ('v','m') as is_view,
       (
         c.relkind IN ('r','p')
         OR (
@@ -472,6 +478,7 @@ allTables pgVer =
       n.nspname AS table_schema,
       c.relname AS table_name,
       d.description AS table_description,
+      c.relkind IN ('v','m') as is_view,
       (
         c.relkind IN ('r','p')
         OR (

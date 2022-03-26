@@ -21,7 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2156, Allow applying `limit/offset` to UPDATE/DELETE to only affect a subset of rows - @steve-chavez
    + Uses the table primary key, so it needs a select privilege on the primary key columns
    + If no primary key is available, it will fallback to using the "ctid" system column(will also require a select privilege on it)
-   + Will work on views if the PK(or "ctid") is present on its SELECT clause
+   + Doesn't work on views and it will throw an error if tried
 
 ### Fixed
 
@@ -50,6 +50,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
  - #2156, `limit/offset` now limits the affected rows on UPDATE/DELETE  - @steve-chavez
    + Previously, `limit/offset` only limited the returned rows but not the actual updated rows
+ - #2156, using PATCH/DELETE with `limit/offset` throws an error on views - @steve-chavez
  - #2155, `max-rows` is no longer applied on POST/PATCH/PUT/DELETE returned rows - @steve-chavez
    + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
 

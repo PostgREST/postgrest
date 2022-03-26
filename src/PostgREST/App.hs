@@ -63,7 +63,7 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
-                                          findTable,
+                                          findIfView, findTable,
                                           tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -346,7 +346,10 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleUpdate identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
+  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
+    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
+
   WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
 
   let
@@ -392,7 +395,10 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
+  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
+    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
+
   WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
 
   let
