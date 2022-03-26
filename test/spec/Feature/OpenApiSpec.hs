@@ -425,6 +425,34 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
+    it "json to any" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_json"
+
+      liftIO $
+
+        types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "json"
+            }
+          |]
+
+    it "jsonb to any" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_jsonb"
+
+      liftIO $
+
+        types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "jsonb"
+            }
+          |]
+
   describe "Detects default values" $ do
 
     it "text" $ do
@@ -543,12 +571,10 @@ spec actualPgVersion = describe "OpenAPI" $ do
                   "type": "integer"
                 },
                 "json": {
-                  "format": "json",
-                  "type": "string"
+                  "format": "json"
                 },
                 "jsonb": {
-                  "format": "jsonb",
-                  "type": "string"
+                  "format": "jsonb"
                 }
               },
               "type": "object",

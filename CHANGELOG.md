@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+ - #2165, Fix json/jsonb columns should not have type in OpenAPI spec
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
  - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
  - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
