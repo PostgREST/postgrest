@@ -63,6 +63,7 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
+                                          findTable,
                                           tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -410,7 +411,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
-  case find tableMatches $ dbTables ctxDbStructure of
+  case findTable (qiSchema identifier) (qiName identifier) $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
@@ -426,9 +427,6 @@ handleInfo identifier RequestContext{..} =
           ++ ["PATCH" | tableUpdatable table]
           ++ ["DELETE" | tableDeletable table]
       )
-    tableMatches table =
-      tableName table == qiName identifier
-      && tableSchema table == qiSchema identifier
     hasPK =
       not $ null $ tablePKCols ctxDbStructure (qiSchema identifier) (qiName identifier)
 

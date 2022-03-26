@@ -23,6 +23,7 @@ module PostgREST.DbStructure
   , queryDbStructure
   , accessibleTables
   , accessibleProcs
+  , findTable
   , schemaDescription
   , tableCols
   , tablePKCols
@@ -76,7 +77,10 @@ tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tabl
 
 -- TODO Table could hold references to all its PrimaryKeys
 tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
-tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+tablePKCols dbs tSchema tName = pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+
+findTable :: Schema -> TableName -> [Table] -> Maybe Table
+findTable tSchema tName tbls = find (\tbl -> tableName tbl == tName && tableSchema tbl == tSchema) tbls
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
@@ -669,10 +673,9 @@ relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Tex
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
   Relationship <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
   where
-    findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
-    table  = findTable rs rt
-    tableF = findTable frs frt
+    table  = findTable rs rt allTabs
+    tableF = findTable frs frt allTabs
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
