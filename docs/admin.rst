@@ -331,6 +331,8 @@ After that, you can enable the service at boot time and start it with:
   ## For reloading the service
   ## systemctl restart postgrest
 
+.. _file_descriptors:
+
 File Descriptors
 ----------------
 

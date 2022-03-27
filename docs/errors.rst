@@ -3,7 +3,7 @@
 Error Source
 ============
 
-For the most part, error messages will come directly from the database with the same `format that PostgreSQL uses <https://www.postgresql.org/docs/current/plpgsql-errors-and-messages.html>`_, in other words, PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON format and add an HTTP status code to the response (see :ref:`status_codes`). For instance, this is the error you will get when querying a nonexistent table:
+For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/plpgsql-errors-and-messages.html>`_, PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON format and add an HTTP status code to the response (see :ref:`status_codes`). For instance, this is the error you will get when querying a nonexistent table:
 
 .. code-block:: http
 

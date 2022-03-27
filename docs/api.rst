@@ -269,8 +269,8 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 
 .. _json_columns:
 
-Array / Composite / JSON Columns
---------------------------------
+JSON Columns
+------------
 
 You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
 
@@ -354,8 +354,12 @@ Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with
     { "id": 12, "age": 30 },
     { "id": 15, "age": 35 }
   ]
+.. _composite_array_columns:
 
-The arrow operators are also used for array and composite type columns.
+Composite / Array Columns
+-------------------------
+
+The arrow operators(``->``, ``->>``) can also be used for accessing composite fields and array elements.
 
 .. code-block:: postgres
 
@@ -396,7 +400,7 @@ The arrow operators are also used for array and composite type columns.
   When using the ``->`` and ``->>`` operators, PostgREST uses a query like ``to_jsonb(<col>)->'field'``. To make filtering and ordering on those nested fields use an index, the index needs to be created on the same expression, including the ``to_jsonb(...)`` call:
 
   .. code-block:: postgres
- 
+
     CREATE INDEX ON mytable ((to_jsonb(data) -> 'identification' ->> 'registration_number'));
 
 .. _computed_cols:
