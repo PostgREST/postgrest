@@ -180,7 +180,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Stack working files cache
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v3
         with:
           path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
