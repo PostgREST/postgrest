@@ -18,10 +18,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + #1689, Add the ability to run without `db-anon-role` disabling anonymous access. - @wolfgangwalther
  - #1543, Allow access to fields of composite types in select=, order= and filters through JSON operators -> and ->>. - @wolfgangwalther
  - #2075, Allow access to array items in ?select=, ?order= and filters through JSON operators -> and ->>. - @wolfgangwalther
- - #2156, Allow applying `limit/offset` to UPDATE/DELETE to only affect a subset of rows - @steve-chavez
-   + Uses the table primary key, so it needs a select privilege on the primary key columns
-   + If no primary key is available, it will fallback to using the "ctid" system column(will also require a select privilege on it)
-   + Doesn't work on views and it will throw an error if tried
+ - #2156, #2211, Allow applying `limit/offset` to UPDATE/DELETE to only affect a subset of rows - @steve-chavez
+   + It requires an explicit `order` on a unique column(s)
  - #1917, Add error codes with the `"PGRST"` prefix to the error response body to differentiate PostgREST errors from PostgreSQL errors - @laurenceisla
  - #1917, Normalize the error response body by always having the `detail` and `hint` error fields with a `null` value if they are empty - @laurenceisla
  - #2176, Errors raised with `SQLSTATE` now include the message and the code in the response body - @laurenceisla

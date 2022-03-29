@@ -397,7 +397,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPatch "/limited_update_items?limit=2"
+      request methodPatch "/limited_update_items?order=id&limit=2"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
@@ -430,7 +430,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPatch "/limited_update_items?limit=1&id=gt.2"
+      request methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
@@ -463,7 +463,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPatch "/limited_update_items?limit=1&offset=1"
+      request methodPatch "/limited_update_items?order=id&limit=1&offset=1"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
@@ -487,49 +487,33 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
-    it "works on a table with a composite pk" $ do
-      get "/limited_update_items_cpk"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPatch "/limited_update_items_cpk?limit=1&offset=1"
+    it "fails without an explicit order by" $
+      request methodPatch "/limited_update_items?limit=1&offset=1"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
+          [json| {
+            "code":"PGRST109",
+            "hint": "Apply an 'order' using unique column(s)",
+            "details": null,
+            "message": "A 'limit' was applied without an explicit 'order'"
+            }|]
+          { matchStatus  = 400 }
 
-      get "/limited_update_items_cpk?order=id,name"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "updated-item" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_limited_items"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items_cpk"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
-
-    it "doesn't work with views" $
-      request methodPatch "/limited_update_items_view?limit=1&offset=1"
+    it "fails when not ordering by a unique column" $
+      request methodPatch "/limited_update_items_wnonuniq_view?order=static&limit=1"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
-          [json| {"hint":null,"details":null,"code":"PGRST507","message":"limit/offset is not implemented for views"} |]
-          { matchStatus  = 501 }
+          [json| {
+            "code":"PGRST110",
+            "hint": null,
+            "details":"Results contain 3 rows changed but the maximum number allowed is 1",
+            "message":"The maximum number of rows allowed to change was surpassed"
+            }|]
+          { matchStatus  = 400 }
 
-    it "works with views with an inferred pk" $ do
-      pendingWith "not implemented yet"
+    it "works with views with an explicit order by unique col" $ do
       get "/limited_update_items_view"
         `shouldRespondWith`
           [json|[
@@ -538,7 +522,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPatch "/limited_update_items_view?limit=1&offset=1"
+      request methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
@@ -562,7 +546,41 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
-    it "works on a table without a pk" $ do
+    it "works with views with an explicit order by composite pk" $ do
+      get "/limited_update_items_cpk_view"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
+      request methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
+          [("Prefer", "tx=commit")]
+          [json| {"name": "updated-item"} |]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/limited_update_items_cpk_view?order=id,name"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "updated-item" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
+      request methodPost "/rpc/reset_limited_items"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "limited_update_items_cpk_view"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+
+    it "works on a table without a pk by ordering by 'ctid'" $ do
       get "/limited_update_items_no_pk"
         `shouldRespondWith`
           [json|[
@@ -571,7 +589,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPatch "/limited_update_items_no_pk?limit=1"
+      request methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`

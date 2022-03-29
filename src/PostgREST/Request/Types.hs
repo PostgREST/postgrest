@@ -65,6 +65,7 @@ data ApiRequestError
   | InvalidBody ByteString
   | InvalidFilters
   | InvalidRange
+  | LimitNoOrderError
   | NoRelBetween Text Text Text
   | NoRpc Text Text [Text] Bool ContentType Bool
   | NotEmbedded Text
@@ -135,13 +136,15 @@ data MutateQuery
       , updCols   :: S.Set FieldName
       , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
-      , mutRange  :: (NonnegRange, [FieldName])
+      , mutRange  :: NonnegRange
+      , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
       }
   | Delete
       { in_       :: QualifiedIdentifier
       , where_    :: [LogicTree]
-      , mutRange  :: (NonnegRange, [FieldName])
+      , mutRange  :: NonnegRange
+      , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
       }
 
