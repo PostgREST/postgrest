@@ -20,6 +20,7 @@ module PostgREST.Query.SqlFragment
   , locationF
   , mutRangeF
   , normalizedBody
+  , orderF
   , pgFmtColumn
   , pgFmtIdent
   , pgFmtJoinCondition
@@ -331,6 +332,17 @@ currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting('" <> setting <> "', true), '')"
 
+mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SqlFragment, SqlFragment)
+mutRangeF mainQi rangeId =
+  (
+    BS.intercalate " AND " $ (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> rangeId
+  , BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
+  )
+
+orderF :: QualifiedIdentifier -> [OrderTerm] -> SQL.Snippet
+orderF _ []    = mempty
+orderF qi ordts = "ORDER BY " <> intercalateSnippet ", " (pgFmtOrderTerm qi <$> ordts)
+
 -- Hasql Snippet utilities
 unknownEncoder :: ByteString -> SQL.Snippet
 unknownEncoder = SQL.encoderAndParam (HE.nonNullable HE.unknown)
@@ -341,12 +353,3 @@ unknownLiteral = unknownEncoder . encodeUtf8
 intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
-
--- the "ctid" system column is always available to tables
-mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SqlFragment, SqlFragment)
-mutRangeF mainQi rangeId = (
-    BS.intercalate " AND " $
-          (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$>
-          (if null rangeId then ["ctid"] else rangeId)
-  , if null rangeId then pgFmtColumn mainQi "ctid" else BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
-  )

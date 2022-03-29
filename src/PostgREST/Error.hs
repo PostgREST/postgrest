@@ -67,6 +67,7 @@ instance PgrstError ApiRequestError where
   status ParseRequestError{}   = HTTP.status400
   status QueryParamError{}     = HTTP.status400
   status UnacceptableSchema{}  = HTTP.status406
+  status LimitNoOrderError     = HTTP.status400
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -116,6 +117,12 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
+
+  toJSON LimitNoOrderError = JSON.object [
+    "code"    .= ApiRequestErrorCode09,
+    "message" .= ("A 'limit' was applied without an explicit 'order'":: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("Apply an 'order' using unique column(s)" :: Text)]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
@@ -314,9 +321,9 @@ data Error
   | JwtTokenInvalid Text
   | JwtTokenMissing
   | JwtTokenRequired
-  | NotImplemented Text
   | NoSchemaCacheError
   | NotFound
+  | OffLimitsChangesError Int64 Integer
   | PgErr PgError
   | PutMatchingPkError
   | PutRangeNotAllowedError
@@ -333,10 +340,10 @@ instance PgrstError Error where
   status JwtTokenRequired        = HTTP.unauthorized401
   status NoSchemaCacheError      = HTTP.status503
   status NotFound                = HTTP.status404
+  status OffLimitsChangesError{} = HTTP.status400
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
-  status (NotImplemented _)      = HTTP.status501
   status SingularityError{}      = HTTP.status406
   status UnsupportedVerb{}       = HTTP.status405
 
@@ -409,10 +416,10 @@ instance JSON.ToJSON Error where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON (NotImplemented msg) = JSON.object [
-    "code"    .= GeneralErrorCode07,
-    "message" .= msg,
-    "details" .= JSON.Null,
+  toJSON (OffLimitsChangesError n maxs) = JSON.object [
+    "code"    .= ApiRequestErrorCode10,
+    "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
+    "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
     "hint"    .= JSON.Null]
 
   toJSON NotFound = JSON.object []
@@ -445,6 +452,8 @@ data ErrorCode
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
   | ApiRequestErrorCode08
+  | ApiRequestErrorCode09
+  | ApiRequestErrorCode10
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -468,7 +477,6 @@ data ErrorCode
   | GeneralErrorCode04
   | GeneralErrorCode05
   | GeneralErrorCode06
-  | GeneralErrorCode07
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -490,6 +498,8 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode06  -> "106"
   ApiRequestErrorCode07  -> "107"
   ApiRequestErrorCode08  -> "108"
+  ApiRequestErrorCode09  -> "109"
+  ApiRequestErrorCode10  -> "110"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
@@ -513,4 +523,3 @@ buildErrorCode code = "PGRST" <> case code of
   GeneralErrorCode04     -> "504"
   GeneralErrorCode05     -> "505"
   GeneralErrorCode06     -> "506"
-  GeneralErrorCode07     -> "507"

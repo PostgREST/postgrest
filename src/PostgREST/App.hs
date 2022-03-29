@@ -62,8 +62,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
-import PostgREST.DbStructure             (DbStructure (..),
-                                          findIfView)
+import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
@@ -347,10 +346,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
-  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
-    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
-
+handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
 
   let
@@ -365,11 +361,12 @@ handleUpdate identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
       RangeQuery.contentRangeH 0 (resQueryTotal - 1) $
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
-  failNotSingular iAcceptContentType resQueryTotal $
-    if fullRepr then
-      response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
-    else
-      response status [contentRangeHeader] mempty
+  failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
+    failNotSingular iAcceptContentType resQueryTotal (
+      if fullRepr then
+        response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
+      else
+        response status [contentRangeHeader] mempty)
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
@@ -398,10 +395,7 @@ handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiReques
       response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
-  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
-    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
-
+handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
 
   let
@@ -410,13 +404,14 @@ handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
       RangeQuery.contentRangeH 1 0 $
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
-  failNotSingular iAcceptContentType resQueryTotal $
-    if iPreferRepresentation == Full then
-      response HTTP.status200
-        (contentTypeHeaders context ++ [contentRangeHeader])
-        (LBS.fromStrict resBody)
-    else
-      response HTTP.status204 [contentRangeHeader] mempty
+  failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
+    failNotSingular iAcceptContentType resQueryTotal (
+      if iPreferRepresentation == Full then
+        response HTTP.status200
+          (contentTypeHeaders context ++ [contentRangeHeader])
+          (LBS.fromStrict resBody)
+      else
+        response HTTP.status204 [contentRangeHeader] mempty)
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
@@ -583,6 +578,16 @@ failNotSingular contentType queryTotal response =
       throwError $ Error.singularityError queryTotal
   else
     return response
+
+failChangesOffLimits :: Maybe Integer -> Int64 -> Wai.Response -> DbHandler Wai.Response
+failChangesOffLimits (Just maxChanges) queryTotal response =
+  if queryTotal > fromIntegral maxChanges
+  then do
+      lift SQL.condemn
+      throwError $ Error.OffLimitsChangesError queryTotal maxChanges
+  else
+    return response
+failChangesOffLimits _ _ response = return response
 
 shouldCount :: Maybe PreferCount -> Bool
 shouldCount preferCount =

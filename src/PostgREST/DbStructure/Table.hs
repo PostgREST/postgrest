@@ -21,8 +21,8 @@ data Table = Table
   { tableSchema      :: Schema
   , tableName        :: TableName
   , tableDescription :: Maybe Text
-    -- TODO Find a better way to separate tables and views
-  , tableIsView      :: Bool
+     -- TODO Find a better way to separate tables and views
+   , tableIsView     :: Bool
     -- The following fields identify what can be done on the table/view, they're not related to the privileges granted to it
   , tableInsertable  :: Bool
   , tableUpdatable   :: Bool

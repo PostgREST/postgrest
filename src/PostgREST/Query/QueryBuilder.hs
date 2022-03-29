@@ -39,9 +39,10 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <>
   "FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
   intercalateSnippet " " joins <> " " <>
-  (if null logicForest && null joinConditions_ then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_))
-  <> " " <>
-  (if null ordts then mempty else "ORDER BY " <> intercalateSnippet ", " (map (pgFmtOrderTerm qi) ordts)) <> " " <>
+  (if null logicForest && null joinConditions_
+    then mempty
+    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_)) <> " " <>
+  orderF qi ordts <> " " <>
   limitOffsetF range
   where
     implJs = fromQi <$> implJoins
@@ -106,7 +107,7 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
   where
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
 
-mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) returnings)
+mutateRequestToQuery (Update mainQi uCols body logicForest range ordts returnings)
   | S.null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -125,8 +126,9 @@ mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) retu
     "pgrst_update_body AS (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " ) LIMIT 1), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
-       whereLogic <> " " <>
-      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
+      whereLogic <> " " <>
+      orderF mainQi ordts <> " " <>
+      limitOffsetF range <>
     ") " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql rangeCols <>
     "FROM pgrst_affected_rows " <>
@@ -139,9 +141,9 @@ mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) retu
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     nonRangeCols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-mutateRequestToQuery (Delete mainQi logicForest (range, rangeId) returnings)
+mutateRequestToQuery (Delete mainQi logicForest range ordts returnings)
   | range == allRange =
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
     whereLogic <> " " <>
@@ -152,7 +154,8 @@ mutateRequestToQuery (Delete mainQi logicForest (range, rangeId) returnings)
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
        whereLogic <> " " <>
-      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
+      orderF mainQi ordts <> " " <>
+      limitOffsetF range <>
     ") " <>
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
     "USING pgrst_affected_rows " <>
@@ -161,7 +164,7 @@ mutateRequestToQuery (Delete mainQi logicForest (range, rangeId) returnings)
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
 requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =

@@ -258,7 +258,9 @@ addFilters ApiRequest{..} rReq =
 
 addOrders :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addOrders ApiRequest{..} rReq =
-  foldr addOrderToNode (Right rReq) qsOrder
+  case iAction of
+    ActionMutate _ -> Right rReq
+    _              -> foldr addOrderToNode (Right rReq) qsOrder
   where
     QueryParams.QueryParams{..} = iQueryParams
 
@@ -305,7 +307,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
-    MutationUpdate -> Right $ Update qi iColumns body combinedLogic (iTopLevelRange, pkCols) returnings
+    MutationUpdate -> Right $ Update qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -316,7 +318,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
           then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic (iTopLevelRange, pkCols) returnings
+    MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
@@ -328,6 +330,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
     -- update/delete filters can be only on the root table
     filters = map snd qsFiltersRoot
     logic = map snd qsLogic
+    rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic filters
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
 

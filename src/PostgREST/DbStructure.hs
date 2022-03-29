@@ -23,7 +23,6 @@ module PostgREST.DbStructure
   , queryDbStructure
   , accessibleTables
   , accessibleProcs
-  , findIfView
   , schemaDescription
   ) where
 
@@ -65,9 +64,6 @@ data DbStructure = DbStructure
   , dbProcs         :: ProcsMap
   }
   deriving (Generic, JSON.ToJSON)
-
-findIfView :: QualifiedIdentifier -> TablesMap -> Bool
-findIfView identifier tbls = maybe False tableIsView $ M.lookup identifier tbls
 
 -- | A view foreign key or primary key dependency detected on its source table
 data ViewKeyDependency = ViewKeyDependency {
