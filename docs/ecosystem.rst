@@ -117,7 +117,7 @@ Client-Side Libraries
 * `postgrest-request <https://github.com/lewisjared/postgrest-request>`_ - JS, SuperAgent
 * `postgrest-rs <https://github.com/supabase-community/postgrest-rs>`_ - Rust
 * `postgrest-sharp-client <https://github.com/thejettdurham/postgrest-sharp-client>`_ (needs maintainer) - C#, RestSharp
-* `postgrest-swift <https://github.com/supabase-community/postgrest-kt>`_ - Swift
+* `postgrest-swift <https://github.com/supabase-community/postgrest-swift>`_ - Swift
 * `postgrest-url <https://github.com/hugomrdias/postgrest-url>`_ - JS, just for generating query URLs
 * `postgrest_python_requests_client <https://github.com/davidthewatson/postgrest_python_requests_client>`_ - Python
 * `postgrester <https://github.com/ivangabriele/postgrester>`_ - JS + Typescript
