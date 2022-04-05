@@ -129,6 +129,29 @@ spec actualPgVersion = do
     it "matches with ilike using not operator" $
       get "/simple_pk?k=not.ilike.xy*&order=extra.asc" `shouldRespondWith` "[]"
 
+    it "matches with ~" $ do
+      get "/simple_pk?k=match.yx$" `shouldRespondWith`
+        [json|[{"k":"xyyx","extra":"u"}]|]
+      get "/simple_pk?k=match.^xy" `shouldRespondWith`
+        [json|[{"k":"xyyx","extra":"u"}]|]
+      get "/simple_pk?k=match.YY" `shouldRespondWith`
+        [json|[{"k":"xYYx","extra":"v"}]|]
+
+    it "matches with ~ using not operator" $
+      get "/simple_pk?k=not.match.yx$" `shouldRespondWith`
+        [json|[{"k":"xYYx","extra":"v"}]|]
+
+    it "matches with ~*" $ do
+      get "/simple_pk?k=imatch.^xy&order=extra.asc" `shouldRespondWith`
+        [json|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/simple_pk?k=imatch..*YY.*&order=extra.asc" `shouldRespondWith`
+        [json|[{"k":"xyyx","extra":"u"},{"k":"xYYx","extra":"v"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "matches with ~* using not operator" $
+      get "/simple_pk?k=not.imatch.^xy&order=extra.asc" `shouldRespondWith` "[]"
+
     describe "Full text search operator" $ do
       it "finds matches with to_tsquery" $
         get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`

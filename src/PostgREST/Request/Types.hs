@@ -273,6 +273,8 @@ data SimpleOperator
   | OpNotExtendsRight
   | OpNotExtendsLeft
   | OpAdjacent
+  | OpMatch
+  | OpIMatch
   deriving Eq
 
 -- | Operators for full text search operators

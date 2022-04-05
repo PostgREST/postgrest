@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1917, Add error codes with the `"PGRST"` prefix to the error response body to differentiate PostgREST errors from PostgreSQL errors - @laurenceisla
  - #1917, Normalize the error response body by always having the `detail` and `hint` error fields with a `null` value if they are empty - @laurenceisla
  - #2176, Errors raised with `SQLSTATE` now include the message and the code in the response body - @laurenceisla
+ - #2236, Support POSIX regular expression operators for row filtering - @enote-kane
 
 ### Fixed
 
