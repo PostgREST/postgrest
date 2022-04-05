@@ -208,23 +208,25 @@ parse qs =
 
 operator :: Text -> Maybe SimpleOperator
 operator = \case
-  "eq"    -> Just OpEqual
-  "gte"   -> Just OpGreaterThanEqual
-  "gt"    -> Just OpGreaterThan
-  "lte"   -> Just OpLessThanEqual
-  "lt"    -> Just OpLessThan
-  "neq"   -> Just OpNotEqual
-  "like"  -> Just OpLike
-  "ilike" -> Just OpILike
-  "cs"    -> Just OpContains
-  "cd"    -> Just OpContained
-  "ov"    -> Just OpOverlap
-  "sl"    -> Just OpStrictlyLeft
-  "sr"    -> Just OpStrictlyRight
-  "nxr"   -> Just OpNotExtendsRight
-  "nxl"   -> Just OpNotExtendsLeft
-  "adj"   -> Just OpAdjacent
-  _       -> Nothing
+  "eq"     -> Just OpEqual
+  "gte"    -> Just OpGreaterThanEqual
+  "gt"     -> Just OpGreaterThan
+  "lte"    -> Just OpLessThanEqual
+  "lt"     -> Just OpLessThan
+  "neq"    -> Just OpNotEqual
+  "like"   -> Just OpLike
+  "ilike"  -> Just OpILike
+  "cs"     -> Just OpContains
+  "cd"     -> Just OpContained
+  "ov"     -> Just OpOverlap
+  "sl"     -> Just OpStrictlyLeft
+  "sr"     -> Just OpStrictlyRight
+  "nxr"    -> Just OpNotExtendsRight
+  "nxl"    -> Just OpNotExtendsLeft
+  "adj"    -> Just OpAdjacent
+  "match"  -> Just OpMatch
+  "imatch" -> Just OpIMatch
+  _        -> Nothing
 
 ftsOperator :: Text -> Maybe FtsOperator
 ftsOperator = \case

@@ -93,6 +93,8 @@ singleValOperator = \case
   OpNotExtendsRight  -> "&<"
   OpNotExtendsLeft   -> "&>"
   OpAdjacent         -> "-|-"
+  OpMatch            -> "~"
+  OpIMatch           -> "~*"
 
 ftsOperator :: FtsOperator -> SqlFragment
 ftsOperator = \case
