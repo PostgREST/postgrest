@@ -69,6 +69,8 @@ lte           :code:`<=`                less than or equal
 neq           :code:`<>` or :code:`!=`  not equal
 like          :code:`LIKE`              LIKE operator (use * in place of %)
 ilike         :code:`ILIKE`             ILIKE operator (use * in place of %)
+match         :code:`~`                 ~ operator, see :ref:`pattern_matching`
+imatch        :code:`~*`                ~* operator, see :ref:`pattern_matching`
 in            :code:`IN`                one of a list of values, e.g. :code:`?a=in.(1,2,3)`
                                         – also supports commas in quoted strings like
                                         :code:`?a=in.("hi,there","yes,you")`
@@ -145,6 +147,15 @@ You can also apply complex logic to the conditions:
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
+
+.. _pattern_matching:
+
+Pattern Matching
+~~~~~~~~~~~~~~~~
+
+The pattern-matching operators (:code:`like`, :code:`ilike`, :code:`match`, :code:`imatch`) exist to support filtering data using patterns instead of concrete strings, as described in the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-matching.html>`__.
+
+To ensure best performance on larger data sets, an `appropriate index <https://www.postgresql.org/docs/current/pgtrgm.html#id-1.11.7.42.8>`__ should be used and even then, it depends on the pattern value and actual data statistics whether an existing index will be used by the query planner or not.
 
 .. _fts:
 
@@ -272,7 +283,7 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 JSON Columns
 ------------
 
-You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`_.
+You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`__.
 
 .. code-block:: postgres
 
