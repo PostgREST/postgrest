@@ -20,12 +20,12 @@ spec =
               "details": [
                 {
                     "cardinality": "many-to-one",
-                    "relationship": "message_sender_fkey[sender][id]",
+                    "relationship": "message_sender_fkey using message(sender) and person(id)",
                     "embedding": "message with person"
                 },
                 {
                     "cardinality": "many-to-one",
-                    "relationship": "message_sender_fkey[sender][id]",
+                    "relationship": "message_sender_fkey using message(sender) and person_detail(id)",
                     "embedding": "message with person_detail"
                 }
               ],
@@ -45,17 +45,17 @@ spec =
               "details": [
                 {
                   "cardinality": "many-to-one",
-                  "relationship": "main_project[main_project_id][big_project_id]",
+                  "relationship": "main_project using sites(main_project_id) and big_projects(big_project_id)",
                   "embedding": "sites with big_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
+                  "relationship": "jobs using jobs_site_id_fkey and jobs_big_project_id_fkey",
                   "embedding": "sites with big_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.main_jobs[jobs_site_id_fkey][jobs_big_project_id_fkey]",
+                  "relationship": "main_jobs using jobs_site_id_fkey and jobs_big_project_id_fkey",
                   "embedding": "sites with big_projects"
                 }
               ],
@@ -75,12 +75,12 @@ spec =
               "details": [
                 {
                     "cardinality": "many-to-one",
-                    "relationship": "agents_department_id_fkey[department_id][id]",
+                    "relationship": "agents_department_id_fkey using agents(department_id) and departments(id)",
                     "embedding": "agents with departments"
                 },
                 {
                     "cardinality": "one-to-many",
-                    "relationship": "departments_head_id_fkey[id][head_id]",
+                    "relationship": "departments_head_id_fkey using agents(id) and departments(head_id)",
                     "embedding": "agents with departments"
                 }
               ],
@@ -103,22 +103,22 @@ spec =
               "details": [
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_1_fkey]",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey and whatev_jobs_project_id_1_fkey",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_1_fkey][whatev_jobs_project_id_2_fkey]",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey and whatev_jobs_project_id_2_fkey",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_1_fkey]",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey and whatev_jobs_project_id_1_fkey",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "test.whatev_jobs[whatev_jobs_site_id_2_fkey][whatev_jobs_project_id_2_fkey]",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey and whatev_jobs_project_id_2_fkey",
                   "embedding": "whatev_sites with whatev_projects"
                 }
               ],
