@@ -157,7 +157,7 @@ compressedRel Relationship{..} =
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (tableName junTable <> " using " <> junConstraint1 <> " and " <> junConstraint2)
+          , "relationship" .= (tableName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
           ]
         M2O cons -> [
             "cardinality" .= ("many-to-one" :: Text)

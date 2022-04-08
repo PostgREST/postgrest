@@ -50,12 +50,12 @@ spec =
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "jobs using jobs_site_id_fkey and jobs_big_project_id_fkey",
+                  "relationship": "jobs using jobs_site_id_fkey(site_id) and jobs_big_project_id_fkey(big_project_id)",
                   "embedding": "sites with big_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "main_jobs using jobs_site_id_fkey and jobs_big_project_id_fkey",
+                  "relationship": "main_jobs using jobs_site_id_fkey(site_id) and jobs_big_project_id_fkey(big_project_id)",
                   "embedding": "sites with big_projects"
                 }
               ],
@@ -103,22 +103,22 @@ spec =
               "details": [
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey and whatev_jobs_project_id_1_fkey",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey(site_id_1) and whatev_jobs_project_id_1_fkey(project_id_1)",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey and whatev_jobs_project_id_2_fkey",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_1_fkey(site_id_1) and whatev_jobs_project_id_2_fkey(project_id_2)",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey and whatev_jobs_project_id_1_fkey",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey(site_id_2) and whatev_jobs_project_id_1_fkey(project_id_1)",
                   "embedding": "whatev_sites with whatev_projects"
                 },
                 {
                   "cardinality": "many-to-many",
-                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey and whatev_jobs_project_id_2_fkey",
+                  "relationship": "whatev_jobs using whatev_jobs_site_id_2_fkey(site_id_2) and whatev_jobs_project_id_2_fkey(project_id_2)",
                   "embedding": "whatev_sites with whatev_projects"
                 }
               ],
