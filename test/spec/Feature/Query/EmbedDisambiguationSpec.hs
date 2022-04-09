@@ -38,6 +38,31 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
+      it "errs when there's a table and view that point to the same fk (composite pk)" $
+        get "/activities?select=fst_shift(*)" `shouldRespondWith`
+          [json|
+            {
+              "details": [
+                {
+                    "cardinality": "one-to-many",
+                    "relationship": "fst_shift using activities(id, schedule_id) and unit_workdays(fst_shift_activity_id, fst_shift_schedule_id)",
+                    "embedding": "activities with unit_workdays"
+                },
+                {
+                    "cardinality": "one-to-many",
+                    "relationship": "fst_shift using activities(id, schedule_id) and unit_workdays_fst_shift(fst_shift_activity_id, fst_shift_schedule_id)",
+                    "embedding": "activities with unit_workdays_fst_shift"
+                }
+              ],
+              "hint": "Try changing 'fst_shift' to one of the following: 'unit_workdays!fst_shift', 'unit_workdays_fst_shift!fst_shift'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'activities' and 'fst_shift'",
+              "code": "PGRST201"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
       it "errs when there are o2m and m2m cardinalities to the target table" $
         get "/sites?select=*,big_projects(*)" `shouldRespondWith`
           [json|
