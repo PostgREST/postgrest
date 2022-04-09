@@ -46,6 +46,8 @@ lib.overrideDerivation postgrest.env (
 
     shellHook =
       ''
+        export HISTFILE=.history
+
         source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
         source ${pkgs.git}/share/git/contrib/completion/git-completion.bash
         source ${postgrest.hsie.bashCompletion}
