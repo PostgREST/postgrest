@@ -30,6 +30,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
  - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
  - ```
+ - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
+ - #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
 
 ### Changed
 

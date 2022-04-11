@@ -134,6 +134,7 @@ GRANT ALL ON TABLE
     , schedules
     , activities
     , unit_workdays
+    , unit_workdays_fst_shift
     , stuff
     , loc_test
     , v1.parents

@@ -2013,6 +2013,12 @@ add constraint fst_shift foreign key           (fst_shift_activity_id, fst_shift
 add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift_schedule_id)
                          references activities (id, schedule_id);
 
+create view unit_workdays_fst_shift as
+select unit_id, day, fst_shift_activity_id, fst_shift_schedule_id
+from unit_workdays
+where fst_shift_activity_id is not null
+  and fst_shift_schedule_id is not null;
+
 -- for a pre-request function
 create or replace function custom_headers() returns void as $$
 declare

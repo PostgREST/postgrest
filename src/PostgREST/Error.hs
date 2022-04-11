@@ -126,23 +126,22 @@ instance JSON.ToJSON ApiRequestError where
 compressedRel :: Relationship -> JSON.Value
 compressedRel Relationship{..} =
   let
-    fmtTbl Table{..} = tableSchema <> "." <> tableName
-    fmtEls els = "[" <> T.intercalate ", " els <> "]"
+    fmtEls els = "(" <> T.intercalate ", " els <> ")"
   in
   JSON.object $
     ("embedding" .= (tableName relTable <> " with " <> tableName relForeignTable :: Text))
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
+          , "relationship" .= (tableName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
           ]
         M2O cons -> [
             "cardinality" .= ("many-to-one" :: Text)
-          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
         O2M cons -> [
             "cardinality" .= ("one-to-many" :: Text)
-          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
 
 relHint :: [Relationship] -> Text
