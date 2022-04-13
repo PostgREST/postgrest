@@ -228,7 +228,7 @@ jobs:
     env:
       GITHUB_COMMIT: ${{ github.sha }}
       DOCKER_REPO: "postgrest"
-      DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      DOCKER_USER: "stevechavez"
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
       - uses: actions/checkout@v2.4.0
@@ -241,20 +241,23 @@ jobs:
           host: ${{ secrets.SSH_ARM_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           source: ".github/scripts/arm/*"
-          target: ${{ step.Remote-Dir.outputs.remotepath }}
+          target: ${{ steps.Remote-Dir.outputs.remotepath }}
           strip_components: 3
       - name: Build ARM
         uses: appleboy/ssh-action@master
         env:
-          REMOTE_DIR: ${{ step.Remote-Dir.outputs.remotepath }}
+          REMOTE_DIR: ${{ steps.Remote-Dir.outputs.remotepath }}
         with:
           host: ${{ secrets.SSH_ARM_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
+          command_timeout: 120m
           script_stop: true
           envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR
-          script: sh ~/$REMOTE_DIR/build.sh "$SHA" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR/docker_env"
+          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR"
       - name: Download binaries from remote server
         uses: nicklasfrahm/scp-action@main
         with:
@@ -262,23 +265,22 @@ jobs:
           host: ${{ secrets.SSH_ARM_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          # TODO: Add fingerprint
-          insecure_ignore_fingerprint: true
-          source: |
-            result/postgrest-ubuntu-aarch64.tar.xz
-            result/postgrest-ubuntu-armv7.tar.xz
-          target: .
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
+          source: "${{ steps.Remote-Dir.outputs.remotepath }}/result.tar.xz"
+          target: "result.tar.xz"
+      - name: Extract downloaded binaries
+        run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
         uses: actions/upload-artifact@v2.3.1
         with:
           name: postgrest-ubuntu-aarch64
-          path: postgrest-ubuntu-aarch64.tar.xz
+          path: result/postgrest-ubuntu-aarch64.tar.xz
           if-no-files-found: error
       - name: Save armv7 executable as artifact
         uses: actions/upload-artifact@v2.3.1
         with:
           name: postgrest-ubuntu-armv7
-          path: postgrest-ubuntu-armv7.tar.xz
+          path: result/postgrest-ubuntu-armv7.tar.xz
           if-no-files-found: error
 
 
@@ -377,10 +379,10 @@ jobs:
           tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
             -C artifacts/postgrest-freebsd-x64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-armv7.tar.xz" \
             -C artifacts/postgrest-ubuntu-armv7 postgrest
 
           zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
@@ -410,7 +412,9 @@ jobs:
   Release-Docker:
     name: Release on Docker Hub
     runs-on: ubuntu-latest
-    needs: Prepare-Release
+    needs:
+      - Build-Cabal-Arm
+      - Prepare-Release
     env:
       GITHUB_COMMIT: ${{ github.sha }}
       DOCKER_REPO: postgrest
@@ -443,17 +447,18 @@ jobs:
           else
             echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
           fi
-      - name: Execute Files
+      - name: Publish images for ARM builds on Docker Hub
         uses: appleboy/ssh-action@master
         env:
-          REMOTE_DIR: ${{ step.Remote-Dir.outputs.remotepath }}
+          REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
         with:
           host: ${{ secrets.SSH_ARM_HOST }}
           username: ubuntu
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           script_stop: true
           envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,
-          script: sh ~/$REMOTE_DIR/docker-publish.sh "$SHA" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR/docker_env" "v$VERSION" "$ISPRERELEASE"
+          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "v$VERSION" "$ISPRERELEASE"
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
 #      - name: Update descriptions on Docker Hub
@@ -467,4 +472,23 @@ jobs:
 #            echo "Skipping updating description for pre-release..."
 #          fi
 
-  # TODO: Add action to remove build directory from remote server for ARM builds
+  Clean-Arm-Server:
+    name: Remove copied files from server
+    needs:
+      - Build-Cabal-Arm
+      - Release-Docker
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
+    steps:
+      - uses: actions/checkout@v2.4.0
+      - name: Remove uploaded files from server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_ARM_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
+          envs: REMOTE_DIR
+          script: rm -rf $REMOTE_DIR
