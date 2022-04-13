@@ -44,19 +44,10 @@ sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
                          --cache-from $DOCKER_USER/$DOCKER_REPO:postgrest-build-arm \
                          --platform linux/arm/v7,linux/arm64 \
                          --target=postgrest-bin \
-                         -o build .
+                         -o result .
 
 # Compress binaries
-sudo chown -R ubuntu:ubuntu ~/$DOCKER_BUILD_PATH/build
-cd ~/$DOCKER_BUILD_PATH/build/linux_arm64
-tar -cJf postgrest-ubuntu-aarch64.tar.xz postgrest
-cd ~/$DOCKER_BUILD_PATH/build/linux_arm_v7
-tar -cJf postgrest-ubuntu-armv7.tar.xz postgrest
-
-mkdir -p ~/$SCRIPT_PATH/result
-mv ~/$DOCKER_BUILD_PATH/build/linux_arm64/*.tar.xz ~/$SCRIPT_PATH/result
-mv ~/$DOCKER_BUILD_PATH/build/linux_arm_v7/*.tar.xz ~/$SCRIPT_PATH/result
+sudo chown -R ubuntu:ubuntu ~/$DOCKER_BUILD_PATH/result
+mv ~/$DOCKER_BUILD_PATH/result ~/$SCRIPT_PATH/result
 cd ~/$SCRIPT_PATH
 tar -cJf result.tar.xz result
-
-rm -rf ~/$DOCKER_BUILD_PATH/build

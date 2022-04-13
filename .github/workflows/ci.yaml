@@ -274,13 +274,13 @@ jobs:
         uses: actions/upload-artifact@v2.3.1
         with:
           name: postgrest-ubuntu-aarch64
-          path: result/postgrest-ubuntu-aarch64.tar.xz
+          path: result/linux_arm64/postgrest
           if-no-files-found: error
       - name: Save armv7 executable as artifact
         uses: actions/upload-artifact@v2.3.1
         with:
           name: postgrest-ubuntu-armv7
-          path: result/postgrest-ubuntu-armv7.tar.xz
+          path: result/linux_arm_v7/postgrest
           if-no-files-found: error
 
 
