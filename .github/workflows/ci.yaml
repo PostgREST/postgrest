@@ -462,7 +462,7 @@ jobs:
           fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           script_stop: true
           envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
-          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "v$VERSION" "$ISPRERELEASE"
+          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
 #      - name: Update descriptions on Docker Hub

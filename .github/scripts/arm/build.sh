@@ -36,16 +36,16 @@ cd ~/$DOCKER_BUILD_PATH
 sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
                          --build-arg BUILDKIT_INLINE_CACHE=1 \
                          --platform linux/arm/v7,linux/arm64 \
-                         --cache-from $DOCKER_USER/$DOCKER_REPO:postgrest-build-arm \
+                         --cache-from $DOCKER_REPO/postgrest-build-arm \
                          --target=postgrest-build \
-                         -t $DOCKER_USER/$DOCKER_REPO:postgrest-build-arm \
+                         -t $DOCKER_REPO/postgrest-build-arm \
                          --push .
 
 sudo docker logout
 
 # Generate and copy binaries to the local filesystem
 sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
-                         --cache-from $DOCKER_USER/$DOCKER_REPO:postgrest-build-arm \
+                         --cache-from $DOCKER_REPO/postgrest-build-arm \
                          --platform linux/arm/v7,linux/arm64 \
                          --target=postgrest-bin \
                          -o result .
