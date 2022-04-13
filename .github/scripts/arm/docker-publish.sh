@@ -12,7 +12,7 @@ DOCKER_REPO="$2"
 DOCKER_USER="$3"
 DOCKER_PASS="$4"
 SCRIPT_PATH="$5"
-PGRST_VERSION="$6"
+PGRST_VERSION="v$6"
 IS_PRERELEASE="$7"
 
 DOCKER_BUILD_PATH="$SCRIPT_PATH/docker-env"
@@ -29,7 +29,7 @@ sudo docker logout
 trap clean_env sigint sigterm exit
 
 # Move to the docker build environment
-cd ~/DOCKER_BUILD_PATH
+cd ~/$DOCKER_BUILD_PATH
 
 # Push final images to Docker hub
 sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \

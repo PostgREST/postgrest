@@ -419,6 +419,7 @@ jobs:
       GITHUB_COMMIT: ${{ github.sha }}
       DOCKER_REPO: postgrest
       DOCKER_USER: stevechavez
+      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
@@ -433,7 +434,7 @@ jobs:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
         run: |
-          docker login -u "$DOCKER_USER" -p "${{ secrets.DOCKER_PASS }}"
+          docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
           docker load -i postgrest-docker.tar.gz
 
           docker tag postgrest:latest "$DOCKER_REPO/postgrest:v$VERSION"
@@ -457,7 +458,7 @@ jobs:
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,
+          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
           script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "v$VERSION" "$ISPRERELEASE"
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
