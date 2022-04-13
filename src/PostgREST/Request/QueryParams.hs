@@ -208,23 +208,25 @@ parse qs =
 
 operator :: Text -> Maybe SimpleOperator
 operator = \case
-  "eq"    -> Just OpEqual
-  "gte"   -> Just OpGreaterThanEqual
-  "gt"    -> Just OpGreaterThan
-  "lte"   -> Just OpLessThanEqual
-  "lt"    -> Just OpLessThan
-  "neq"   -> Just OpNotEqual
-  "like"  -> Just OpLike
-  "ilike" -> Just OpILike
-  "cs"    -> Just OpContains
-  "cd"    -> Just OpContained
-  "ov"    -> Just OpOverlap
-  "sl"    -> Just OpStrictlyLeft
-  "sr"    -> Just OpStrictlyRight
-  "nxr"   -> Just OpNotExtendsRight
-  "nxl"   -> Just OpNotExtendsLeft
-  "adj"   -> Just OpAdjacent
-  _       -> Nothing
+  "eq"     -> Just OpEqual
+  "gte"    -> Just OpGreaterThanEqual
+  "gt"     -> Just OpGreaterThan
+  "lte"    -> Just OpLessThanEqual
+  "lt"     -> Just OpLessThan
+  "neq"    -> Just OpNotEqual
+  "like"   -> Just OpLike
+  "ilike"  -> Just OpILike
+  "cs"     -> Just OpContains
+  "cd"     -> Just OpContained
+  "ov"     -> Just OpOverlap
+  "sl"     -> Just OpStrictlyLeft
+  "sr"     -> Just OpStrictlyRight
+  "nxr"    -> Just OpNotExtendsRight
+  "nxl"    -> Just OpNotExtendsLeft
+  "adj"    -> Just OpAdjacent
+  "match"  -> Just OpMatch
+  "imatch" -> Just OpIMatch
+  _        -> Nothing
 
 ftsOperator :: Text -> Maybe FtsOperator
 ftsOperator = \case
@@ -318,6 +320,26 @@ pFieldName =
     dash :: Parser Char
     dash = isDash $> '-'
 
+-- |
+-- Parse json operators in select, order and filters
+--
+-- >>> P.parse pJsonPath "" "->text"
+-- Right [JArrow {jOp = JKey {jVal = "text"}}]
+--
+-- >>> P.parse pJsonPath "" "->1"
+-- Right [JArrow {jOp = JIdx {jVal = "+1"}}]
+--
+-- >>> P.parse pJsonPath "" "->>text"
+-- Right [J2Arrow {jOp = JKey {jVal = "text"}}]
+--
+-- >>> P.parse pJsonPath "" "->>1"
+-- Right [J2Arrow {jOp = JIdx {jVal = "+1"}}]
+--
+-- >>> P.parse pJsonPath "" "->0,other"
+-- Right [JArrow {jOp = JIdx {jVal = "+0"}}]
+--
+-- >>> P.parse pJsonPath "" "->0.desc"
+-- Right [JArrow {jOp = JIdx {jVal = "+0"}}]
 pJsonPath :: Parser JsonPath
 pJsonPath = many pJsonOperation
   where
@@ -333,6 +355,8 @@ pJsonPath = many pJsonOperation
           pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
           pEnd = try (void $ lookAhead (string "->")) <|>
                  try (void $ lookAhead (string "::")) <|>
+                 try (void $ lookAhead (string ".")) <|>
+                 try (void $ lookAhead (string ",")) <|>
                  try eof in
       try pJIdx <|> try pJKey
 

@@ -10,35 +10,17 @@ cli:
     args: ['-e']
   - name: dump config
     args: ['--dump-config']
-    use_defaultenv: true
   - name: dump schema
     args: ['--dump-schema']
     use_defaultenv: true
-# failures: config files
   - name: no config
-    expect: error
+# failures: config files
   - name: non-existant config file
     expect: error
     args: ['does_not_exist.conf']
   - name: invalid config file
     expect: error
     args: ['test/io-tests/configs/invalid.yaml']
-# failures: required config options
-  - name: missing db-anon-role
-    expect: error
-    env:
-      PGRST_DB_URI: required
-      PGRST_DB_SCHEMAS: required
-  - name: missing db-schemas
-    expect: error
-    env:
-      PGRST_DB_ANON_ROLE: required
-      PGRST_DB_URI: required
-  - name: missing db-uri
-    expect: error
-    env:
-      PGRST_DB_ANON_ROLE: required
-      PGRST_DB_SCHEMAS: required
 # failures: wrong config values
   - name: invalid server-unix-socket-mode not octal
     expect: error
@@ -189,3 +171,10 @@ invalidjointypes:
   - 'left!'
   - 'right'
   - '.#$$%&$%/'
+
+specialhostvalues:
+  - '*4'
+  - '!4'
+  - '*6'
+  - '!6'
+  - '*'

@@ -25,7 +25,6 @@ let
             "ARG_USE_ENV([PGUSER], [postgrest_test_authenticator], [Authenticator PG role])"
             "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
             "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
-            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [Anonymous PG role])"
           ];
         positionalCompletion = "_command";
         inRootDir = true;
@@ -35,7 +34,7 @@ let
       }
       ''
         # avoid starting multiple layers of withTmpDb
-        if test -v PGRST_DB_URI; then
+        if test -v PGHOST; then
           exec "$_arg_command" "''${_arg_leftovers[@]}"
         fi
 
@@ -53,9 +52,7 @@ let
         export PGHOST="$tmpdir/socket"
         export PGUSER
         export PGDATABASE
-        export PGRST_DB_URI="postgresql:///$PGDATABASE?host=$PGHOST&user=$PGUSER"
         export PGRST_DB_SCHEMAS
-        export PGRST_DB_ANON_ROLE
 
         log "Initializing database cluster..."
         # We try to make the database cluster as independent as possible from the host

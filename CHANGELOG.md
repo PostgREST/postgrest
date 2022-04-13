@@ -12,9 +12,24 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + A `<host>:<admin_server_port>/live` endpoint is available for checking if postgrest is running on its port/socket. 200 OK = alive, 503 = dead.
    + A `<host>:<admin_server_port>/ready` endpoint is available for checking a correct internal state(the database connection plus the schema cache). 200 OK = ready, 503 = not ready.
  - #1988, Add the current user to the request log on stdout - @DavidLindbom, @wolfgangwalther
+ - #1823, Add the ability to run postgrest without any configuration. - @wolfgangwalther
+   + #1991, Add the ability to run without `db-uri` using libpq's PG environment variables to connect. - @wolfgangwalther
+   + #1769, Add the ability to run without `db-schemas`, defaulting to `db-schemas=public`. - @wolfgangwalther
+   + #1689, Add the ability to run without `db-anon-role` disabling anonymous access. - @wolfgangwalther
+ - #1543, Allow access to fields of composite types in select=, order= and filters through JSON operators -> and ->>. - @wolfgangwalther
+ - #2075, Allow access to array items in ?select=, ?order= and filters through JSON operators -> and ->>. - @wolfgangwalther
+ - #2156, Allow applying `limit/offset` to UPDATE/DELETE to only affect a subset of rows - @steve-chavez
+   + Uses the table primary key, so it needs a select privilege on the primary key columns
+   + If no primary key is available, it will fallback to using the "ctid" system column(will also require a select privilege on it)
+   + Doesn't work on views and it will throw an error if tried
+ - #1917, Add error codes with the `"PGRST"` prefix to the error response body to differentiate PostgREST errors from PostgreSQL errors - @laurenceisla
+ - #1917, Normalize the error response body by always having the `detail` and `hint` error fields with a `null` value if they are empty - @laurenceisla
+ - #2176, Errors raised with `SQLSTATE` now include the message and the code in the response body - @laurenceisla
+ - #2236, Support POSIX regular expression operators for row filtering - @enote-kane
 
 ### Fixed
 
+ - #2165, Fix json/jsonb columns should not have type in OpenAPI spec
  - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
  - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
  - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
@@ -23,6 +38,26 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2107, Clarify error for failed schema cache load. - @steve-chavez
    + From `Database connection lost. Retrying the connection` to `Could not query the database for the schema cache. Retrying.`
  - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
+ - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
+ - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
+ - #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
+ - #2152, Remove functions, which are uncallable because of unnamend arguments from schema cache and OpenAPI output. - @wolfgangwalther
+ - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
+ - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+ - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
+ - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
+ - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
+ - #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
+
+### Changed
+
+ - #2001, Return 204 No Content without Content-Type for RPCs returning VOID - @wolfgangwalther
+   + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
+ - #2156, `limit/offset` now limits the affected rows on UPDATE/DELETE  - @steve-chavez
+   + Previously, `limit/offset` only limited the returned rows but not the actual updated rows
+ - #2156, using PATCH/DELETE with `limit/offset` throws an error on views - @steve-chavez
+ - #2155, `max-rows` is no longer applied on POST/PATCH/PUT/DELETE returned rows - @steve-chavez
+   + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
 
 ## [9.0.0] - 2021-11-25
 

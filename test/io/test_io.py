@@ -79,17 +79,20 @@ class PostgrestProcess:
 @pytest.fixture
 def dburi():
     "Postgres database connection URI."
-    return os.getenv("PGRST_DB_URI").encode()
+    dbname = os.environ["PGDATABASE"]
+    host = os.environ["PGHOST"]
+    user = os.environ["PGUSER"]
+    return f"postgresql://?dbname={dbname}&host={host}&user={user}".encode()
 
 
 @pytest.fixture
 def defaultenv():
     "Default environment for PostgREST."
     return {
-        "PGRST_DB_URI": os.environ["PGRST_DB_URI"],
-        "PGRST_DB_SCHEMAS": "public",
-        "PGRST_DB_ANON_ROLE": os.environ["PGRST_DB_ANON_ROLE"],
-        "PGRST_DB_CONFIG": "false",
+        "PGDATABASE": os.environ["PGDATABASE"],
+        "PGHOST": os.environ["PGHOST"],
+        "PGUSER": os.environ["PGUSER"],
+        "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
     }
 
@@ -137,7 +140,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None):
+def run(configpath=None, stdin=None, env=None, port=None, host=None):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
     env["PGRST_DB_POOL"] = "1"
@@ -146,7 +149,7 @@ def run(configpath=None, stdin=None, env=None, port=None):
     with tempfile.TemporaryDirectory() as tmpdir:
         if port:
             env["PGRST_SERVER_PORT"] = str(port)
-            env["PGRST_SERVER_HOST"] = "localhost"
+            env["PGRST_SERVER_HOST"] = host or "localhost"
             baseurl = f"http://localhost:{port}"
         else:
             socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
@@ -309,20 +312,14 @@ def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
 
     config = CONFIGSDIR / "no-defaults.config"
 
-    db_uri = defaultenv["PGRST_DB_URI"].replace(
-        "user=postgrest_test_authenticator", f"user={role}"
-    )
     env = {
         **defaultenv,
-        "PGRST_DB_URI": db_uri,
+        "PGUSER": role,
+        "PGRST_DB_URI": "postgresql://",
         "PGRST_DB_CONFIG": "true",
     }
-    expected = (
-        (CONFIGSDIR / "expected" / expectedconfig)
-        .read_text()
-        .replace("<REPLACED_WITH_DB_URI>", env["PGRST_DB_URI"])
-    )
 
+    expected = (CONFIGSDIR / "expected" / expectedconfig).read_text()
     assert dumpconfig(configpath=config, env=env) == expected
 
 
@@ -375,32 +372,85 @@ def test_port_connection(defaultenv):
 )
 def test_read_secret_from_file(secretpath, defaultenv):
     "Authorization should succeed when the secret is read from a file."
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": f"@{secretpath}"}
+
     if secretpath.suffix == ".b64":
-        configfile = CONFIGSDIR / "base64-secret-from-file.config"
-    else:
-        configfile = CONFIGSDIR / "secret-from-file.config"
+        env["PGRST_JWT_SECRET_IS_BASE64"] = "true"
 
     secret = secretpath.read_bytes()
     headers = authheader(secretpath.with_suffix(".jwt").read_text())
 
-    with run(configfile, stdin=secret, env=defaultenv) as postgrest:
+    with run(stdin=secret, env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
         assert response.status_code == 200
 
 
-def test_read_dburi_from_file_without_eol(dburi, defaultenv):
-    "Reading the dburi from a file with a single line should work."
-    config = CONFIGSDIR / "dburi-from-file.config"
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
-    with run(config, env=env, stdin=dburi):
+def test_read_secret_from_stdin(defaultenv):
+    "Authorization should succeed when the secret is read from stdin."
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "false", "PGRST_JWT_SECRET": "@/dev/stdin"}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
+        assert response.status_code == 200
+
+
+# TODO: This test would fail right now, because of
+# https://github.com/PostgREST/postgrest/issues/2126
+@pytest.mark.skip
+def test_read_secret_from_stdin_dbconfig(defaultenv):
+    "Authorization should succeed when the secret is read from stdin with db-config=true."
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": "@/dev/stdin"}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        print(response.text)
+        assert response.status_code == 200
+
+
+def test_connect_with_dburi(dburi, defaultenv):
+    "Connecting with db-uri instead of LIPQ* environment variables should work."
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()}
+    with run(env=env):
         pass
 
 
-def test_read_dburi_from_file_with_eol(dburi, defaultenv):
-    "Reading the dburi from a file containing a newline should work."
-    config = CONFIGSDIR / "dburi-from-file.config"
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_URI"}
-    with run(config, env=env, stdin=dburi + b"\n"):
+def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
+    "Reading the dburi from stdin with a single line should work."
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
+
+    with run(env=env, stdin=dburi):
+        pass
+
+
+def test_read_dburi_from_stdin_with_eol(dburi, defaultenv):
+    "Reading the dburi from stdin containing a newline should work."
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
+
+    with run(env=env, stdin=dburi + b"\n"):
         pass
 
 
@@ -411,11 +461,12 @@ def test_role_claim_key(roleclaim, defaultenv):
     "Authorization should depend on a correct role-claim-key and JWT claim."
     env = {
         **defaultenv,
-        "ROLE_CLAIM_KEY": roleclaim["key"],
+        "PGRST_JWT_ROLE_CLAIM_KEY": roleclaim["key"],
+        "PGRST_JWT_SECRET": SECRET,
     }
     headers = jwtauthheader(roleclaim["data"], SECRET)
 
-    with run(CONFIGSDIR / "role-claim-key.config", env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == roleclaim["expected_status"]
 
@@ -425,11 +476,11 @@ def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
     "Given an invalid role-claim-key, Postgrest should exit with a non-zero exit code."
     env = {
         **defaultenv,
-        "ROLE_CLAIM_KEY": invalidroleclaimkey,
+        "PGRST_JWT_ROLE_CLAIM_KEY": invalidroleclaimkey,
     }
 
     with pytest.raises(PostgrestError):
-        dump = dumpconfig(CONFIGSDIR / "role-claim-key.config", env=env)
+        dump = dumpconfig(env=env)
         for line in dump.split("\n"):
             if line.startswith("jwt-role-claim-key"):
                 print(line)
@@ -458,10 +509,13 @@ def test_iat_claim(defaultenv):
     https://github.com/PostgREST/postgrest/issues/1139
 
     """
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
+
     claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
     headers = jwtauthheader(claim, SECRET)
 
-    with run(CONFIGSDIR / "simple.config", env=defaultenv) as postgrest:
+    with run(env=env) as postgrest:
         for _ in range(10):
             response = postgrest.session.get("/authors_only", headers=headers)
             assert response.status_code == 200
@@ -476,7 +530,10 @@ def test_app_settings(defaultenv):
     See: https://github.com/PostgREST/postgrest/issues/1141
 
     """
-    with run(CONFIGSDIR / "app-settings.config", env=defaultenv) as postgrest:
+
+    env = {**defaultenv, "PGRST_APP_SETTINGS_EXTERNAL_API_SECRET": "0123456789abcdef"}
+
+    with run(env=env) as postgrest:
         # Wait for the db pool to time out, set to 1s in config
         time.sleep(2)
 
@@ -487,7 +544,7 @@ def test_app_settings(defaultenv):
 
 
 def test_app_settings_reload(tmp_path, defaultenv):
-    "App settings should be reloaded when PostgREST is sent SIGUSR2."
+    "App settings should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -509,7 +566,7 @@ def test_app_settings_reload(tmp_path, defaultenv):
 
 
 def test_jwt_secret_reload(tmp_path, defaultenv):
-    "JWT secret should be reloaded when PostgREST is sent SIGUSR2."
+    "JWT secret should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
@@ -534,8 +591,6 @@ def test_jwt_secret_reload(tmp_path, defaultenv):
 
 def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
     "JWT secret external file should be reloaded when PostgREST is sent a SIGUSR2 or a NOTIFY."
-    config = CONFIGSDIR / "sigusr2-settings-external-secret.config"
-
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
 
     external_secret_file = tmp_path / "jwt-secret-config"
@@ -543,18 +598,20 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
     env = {
         **defaultenv,
-        "JWT_SECRET_FILE": f"@{external_secret_file}",
+        "PGRST_JWT_SECRET": f"@{external_secret_file}",
         "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_CONFIG": "false",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",  # required for NOTIFY
     }
 
-    with run(config, env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
 
         # change external file
         external_secret_file.write_text(SECRET)
 
-        # SIGUSR1 doesn't reload external files
+        # SIGUSR1 doesn't reload external files, at least when db-config=false
         postgrest.process.send_signal(signal.SIGUSR1)
         time.sleep(0.1)
 
@@ -572,7 +629,8 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
         external_secret_file.write_text("invalid" * 5)
 
         # reload config and external file with NOTIFY
-        postgrest.session.post("/rpc/reload_pgrst_config")
+        response = postgrest.session.post("/rpc/reload_pgrst_config")
+        assert response.status_code == 204
         time.sleep(0.1)
 
         response = postgrest.session.get("/authors_only", headers=headers)
@@ -580,14 +638,12 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
 
 def test_db_schema_reload(tmp_path, defaultenv):
-    "DB schema should be reloaded when PostgREST is sent SIGUSR2."
+    "DB schema should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
     configfile = tmp_path / "test.config"
     configfile.write_text(config)
 
-    env = {key: value for key, value in defaultenv.items() if key != "PGRST_DB_SCHEMAS"}
-
-    with run(configfile, env=env) as postgrest:
+    with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"public, public"'
 
@@ -629,19 +685,17 @@ def test_db_schema_notify_reload(defaultenv):
 
         # reset db-schemas config on the db
         response = postgrest.session.post("/rpc/reset_db_schema_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_max_rows_reload(defaultenv):
     "max-rows should be reloaded from role settings when PostgREST receives a SIGUSR2."
-    config = CONFIGSDIR / "sigusr2-settings.config"
-
     env = {
         **defaultenv,
         "PGRST_DB_CONFIG": "true",
     }
 
-    with run(config, env=env) as postgrest:
+    with run(env=env) as postgrest:
         response = postgrest.session.head("/projects")
         assert response.status_code == 200
         assert response.headers["Content-Range"] == "0-4/*"
@@ -660,7 +714,7 @@ def test_max_rows_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_max_rows_notify_reload(defaultenv):
@@ -690,7 +744,7 @@ def test_max_rows_notify_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_invalid_role_claim_key_notify_reload(defaultenv):
@@ -716,7 +770,7 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
         assert "failed to parse role-claim-key value" in output.decode()
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
-        assert response.status_code == 200
+        assert response.status_code == 204
 
 
 def test_db_prepared_statements_enable(defaultenv):
@@ -769,12 +823,9 @@ def test_admin_ready_wo_channel(defaultenv):
 def test_admin_ready_includes_schema_cache_state(defaultenv):
     "Should get a failed response from the admin server ready endpoint when the schema cache is not loaded"
 
-    db_uri = defaultenv["PGRST_DB_URI"].replace(
-        "postgrest_test_authenticator", "limited_authenticator"
-    )
     env = {
         **defaultenv,
-        "PGRST_DB_URI": db_uri,
+        "PGUSER": "limited_authenticator",
         "PGRST_DB_ANON_ROLE": "limited_authenticator",
     }
 
@@ -784,7 +835,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv):
         response = postgrest.session.post(
             "/rpc/no_schema_cache_for_limited_authenticator"
         )
-        assert response.status_code == 200
+        assert response.status_code == 204
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
@@ -831,6 +882,19 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/live")
         assert response.status_code == 503
+
+
+@pytest.mark.parametrize("specialhostvalue", FIXTURES["specialhostvalues"])
+def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
+    "Should get a success from the admin live and ready endpoints when using special host values for the main app"
+
+    with run(env=defaultenv, port=freeport(), host=specialhostvalue) as postgrest:
+
+        response = postgrest.admin.get("/live")
+        assert response.status_code == 200
+
+        response = postgrest.admin.get("/ready")
+        assert response.status_code == 200
 
 
 @pytest.mark.parametrize(

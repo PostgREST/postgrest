@@ -23,6 +23,8 @@ module PostgREST.DbStructure
   , queryDbStructure
   , accessibleTables
   , accessibleProcs
+  , findIfView
+  , findTable
   , schemaDescription
   , tableCols
   , tablePKCols
@@ -41,7 +43,9 @@ import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
-import PostgREST.Config.PgVersion         (PgVersion, pgVersion100)
+import PostgREST.Config.Database          (pgVersionStatement)
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
+                                           pgVersion110)
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
@@ -74,7 +78,13 @@ tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tabl
 
 -- TODO Table could hold references to all its PrimaryKeys
 tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
-tablePKCols dbs tSchema tName =  pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+tablePKCols dbs tSchema tName = pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
+
+findTable :: Schema -> TableName -> [Table] -> Maybe Table
+findTable tSchema tName = find (\tbl -> tableSchema tbl == tSchema && tableName tbl == tName)
+
+findIfView :: QualifiedIdentifier -> [Table] -> Bool
+findIfView identifier tbls = maybe False tableIsView (findTable (qiSchema identifier) (qiName identifier) tbls)
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
@@ -83,15 +93,16 @@ type ViewColumn = Column
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> PgVersion -> Bool -> SQL.Transaction DbStructure
-queryDbStructure schemas extraSearchPath pgVer prepared = do
+queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
+queryDbStructure schemas extraSearchPath prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
+  pgVer   <- SQL.statement mempty pgVersionStatement
   tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
   m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
   keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
-  procs   <- SQL.statement schemas $ allProcs prepared
+  procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
   let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
       keys' = addViewPrimaryKeys srcCols keys
@@ -128,6 +139,7 @@ decodeTables =
   tblRow = Table <$> column HD.text
                  <*> column HD.text
                  <*> nullableColumn HD.text
+                 <*> column HD.bool
                  <*> column HD.bool
                  <*> column HD.bool
                  <*> column HD.bool
@@ -202,6 +214,7 @@ decodeProcs =
                   <$> column HD.text
                   <*> column HD.text
                   <*> column HD.bool
+                  <*> column HD.bool
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
@@ -209,10 +222,11 @@ decodeProcs =
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
-    parseRetType :: Text -> Text -> Bool -> Bool -> RetType
-    parseRetType schema name isSetOf isComposite
-      | isSetOf   = SetOf pgType
-      | otherwise = Single pgType
+    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> Maybe RetType
+    parseRetType schema name isSetOf isComposite isVoid
+      | isVoid    = Nothing
+      | isSetOf   = Just (SetOf pgType)
+      | otherwise = Just (Single pgType)
       where
         qi = QualifiedIdentifier schema name
         pgType
@@ -224,18 +238,18 @@ decodeProcs =
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: Bool -> SQL.Statement [Schema] ProcsMap
-allProcs = SQL.Statement sql (arrayParam HE.text) decodeProcs
+allProcs :: PgVersion -> Bool -> SQL.Statement [Schema] ProcsMap
+allProcs pgVer = SQL.Statement sql (arrayParam HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " WHERE pn.nspname = ANY($1)"
+    sql = procsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
 
-accessibleProcs :: Bool -> SQL.Statement Schema ProcsMap
-accessibleProcs = SQL.Statement sql (param HE.text) decodeProcs
+accessibleProcs :: PgVersion -> Bool -> SQL.Statement Schema ProcsMap
+accessibleProcs pgVer = SQL.Statement sql (param HE.text) decodeProcs
   where
-    sql = procsSqlQuery <> " WHERE pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = procsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
-procsSqlQuery :: SqlQuery
-procsSqlQuery = [q|
+procsSqlQuery :: PgVersion -> SqlQuery
+procsSqlQuery pgVer = [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -268,7 +282,12 @@ procsSqlQuery = [q|
         type::regtype::text, -- type
         idx <= (pronargs - pronargdefaults), -- is_required
         COALESCE(mode = 'v', FALSE) -- is_variadic
-      ) ORDER BY idx) AS args
+      ) ORDER BY idx) AS args,
+      CASE COUNT(*) - COUNT(name) -- number of unnamed arguments
+        WHEN 0 THEN true
+        WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype)
+        ELSE false
+      END AS callable
     FROM pg_proc,
          unnest(proargnames, proargtypes, proargmodes)
            WITH ORDINALITY AS _ (name, type, mode, idx)
@@ -287,6 +306,7 @@ procsSqlQuery = [q|
      -- if any TABLE, INOUT or OUT arguments present, treat as composite
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
+    ('void'::regtype = t.oid) AS rettype_is_void,
     p.provolatile,
     p.provariadic > 0 as hasvariadic
   FROM pg_proc p
@@ -296,8 +316,9 @@ procsSqlQuery = [q|
   JOIN pg_type t ON t.oid = bt.base
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-  LEFT JOIN pg_catalog.pg_description as d ON d.objoid = p.oid
-|]
+  LEFT JOIN pg_description as d ON d.objoid = p.oid
+  WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
+|] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
@@ -307,8 +328,8 @@ schemaDescription =
       select
         description
       from
-        pg_catalog.pg_namespace n
-        left join pg_catalog.pg_description d on d.objoid = n.oid
+        pg_namespace n
+        left join pg_description d on d.objoid = n.oid
       where
         n.nspname = $1 |]
 
@@ -321,6 +342,7 @@ accessibleTables pgVer =
       n.nspname as table_schema,
       relname as table_name,
       d.description as table_description,
+      c.relkind IN ('v','m') as is_view,
       (
         c.relkind IN ('r','p')
         OR (
@@ -348,7 +370,7 @@ accessibleTables pgVer =
     from
       pg_class c
       join pg_namespace n on n.oid = c.relnamespace
-      left join pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
+      left join pg_description as d on d.objoid = c.oid and d.objsubid = 0
     where
       c.relkind in ('v','r','m','f','p')
       and n.nspname = $1 |]
@@ -456,6 +478,7 @@ allTables pgVer =
       n.nspname AS table_schema,
       c.relname AS table_name,
       d.description AS table_description,
+      c.relkind IN ('v','m') as is_view,
       (
         c.relkind IN ('r','p')
         OR (
@@ -484,7 +507,7 @@ allTables pgVer =
       ) AS deletable
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
-    LEFT JOIN pg_catalog.pg_description as d on d.objoid = c.oid and d.objsubid = 0
+    LEFT JOIN pg_description as d on d.objoid = c.oid and d.objsubid = 0
     WHERE c.relkind IN ('v','r','m','f','p')
       AND n.nspname NOT IN ('pg_catalog', 'information_schema') |]
       <> relIsNotPartition pgVer <> [q|
@@ -521,9 +544,9 @@ allColumns tabs =
                r.contype,
                unnest(r.conkey) AS conkey
              FROM
-               pg_catalog.pg_constraint r,
-               pg_catalog.pg_class c,
-               pg_catalog.pg_namespace n
+               pg_constraint r,
+               pg_class c,
+               pg_namespace n
              WHERE
                r.contype IN ('f', 'p', 'u')
                AND c.relkind IN ('r', 'v', 'f', 'm', 'p')
@@ -568,7 +591,7 @@ allColumns tabs =
             FROM pg_attribute a
                 LEFT JOIN key_columns kc
                     ON kc.conkey = a.attnum AND kc.c_oid = a.attrelid
-                LEFT JOIN pg_catalog.pg_description AS d
+                LEFT JOIN pg_description AS d
                     ON d.objoid = a.attrelid and d.objsubid = a.attnum
                 LEFT JOIN pg_attrdef ad
                     ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
@@ -609,7 +632,7 @@ allColumns tabs =
             array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
         FROM pg_type t
         JOIN pg_enum e ON t.oid = e.enumtypid
-        JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+        JOIN pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
     ) AS enum_info ON (info.udt_name = enum_info.n)
     ORDER BY schema, position |]
@@ -657,10 +680,9 @@ relFromRow :: [Table] -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Tex
 relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
   Relationship <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
   where
-    findTable s t = find (\tbl -> tableSchema tbl == s && tableName tbl == t) allTabs
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
-    table  = findTable rs rt
-    tableF = findTable frs frt
+    table  = findTable rs rt allTabs
+    tableF = findTable frs frt allTabs
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 

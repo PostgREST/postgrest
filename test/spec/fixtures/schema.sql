@@ -1807,7 +1807,9 @@ CREATE TABLE test.openapi_types(
   "a_bigint" bigint,
   "a_numeric" numeric,
   "a_real" real,
-  "a_double_precision" double precision
+  "a_double_precision" double precision,
+  "a_json" json,
+  "a_jsonb" jsonb
 );
 
 CREATE TABLE test.openapi_defaults(
@@ -2010,6 +2012,12 @@ add constraint fst_shift foreign key           (fst_shift_activity_id, fst_shift
                          references activities (id, schedule_id),
 add constraint snd_shift foreign key           (snd_shift_activity_id, snd_shift_schedule_id)
                          references activities (id, schedule_id);
+
+create view unit_workdays_fst_shift as
+select unit_id, day, fst_shift_activity_id, fst_shift_schedule_id
+from unit_workdays
+where fst_shift_activity_id is not null
+  and fst_shift_schedule_id is not null;
 
 -- for a pre-request function
 create or replace function custom_headers() returns void as $$
@@ -2427,3 +2435,89 @@ BEGIN
   END IF;
 END
 $do$;
+
+-- https://github.com/PostgREST/postgrest/issues/1543
+CREATE TYPE complex AS (
+ r double precision,
+ i double precision
+);
+
+CREATE TABLE test.fav_numbers (
+ num    complex,
+ person text
+);
+
+-- https://github.com/PostgREST/postgrest/issues/2075
+create table test.arrays (
+  id int primary key,
+  numbers int[],
+  numbers_mult int[][]
+);
+
+-- This procedure is to confirm that procedures don't show up in the OpenAPI output right now.
+-- Procedures are not supported, yet.
+do $do$begin
+  if (select current_setting('server_version_num')::int >= 110000) then
+    CREATE PROCEDURE test.unsupported_proc ()
+    LANGUAGE SQL AS '';
+  end if;
+end $do$;
+
+CREATE FUNCTION public.dummy(int) RETURNS int
+LANGUAGE SQL AS $$ SELECT 1 $$;
+
+-- This aggregate is to confirm that aggregates don't show up in the OpenAPI output.
+CREATE AGGREGATE test.unsupported_agg (*) (
+  SFUNC = public.dummy,
+  STYPE = int
+);
+
+create view no_pk_view as
+select * from no_pk;
+
+create table limited_update_items(
+  id int primary key
+, name text
+);
+
+create table limited_update_items_cpk(
+  id int
+, name text
+, primary key (id, name)
+);
+
+create table limited_update_items_no_pk(
+  id int
+, name text
+);
+
+create view limited_update_items_view as
+select * from limited_update_items;
+
+create table limited_delete_items(
+  id int primary key
+, name text
+);
+
+create table limited_delete_items_cpk(
+  id int
+, name text
+, primary key (id, name)
+);
+
+create table limited_delete_items_no_pk(
+  id int
+, name text
+);
+
+create view limited_delete_items_view as
+select * from limited_delete_items;
+
+create function reset_limited_items(tbl_name text default '') returns void as $_$ begin
+  execute format(
+  $$
+    delete from %I;
+    insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
+  $$::text,
+  tbl_name, tbl_name);
+end; $_$ language plpgsql volatile;

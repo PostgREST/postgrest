@@ -19,61 +19,58 @@ import SpecHelper
 
 import qualified PostgREST.AppState as AppState
 
-import qualified Feature.AndOrParamsSpec
-import qualified Feature.AsymmetricJwtSpec
-import qualified Feature.AudienceJwtSecretSpec
-import qualified Feature.AuthSpec
-import qualified Feature.BinaryJwtSecretSpec
+import qualified Feature.Auth.AsymmetricJwtSpec
+import qualified Feature.Auth.AudienceJwtSecretSpec
+import qualified Feature.Auth.AuthSpec
+import qualified Feature.Auth.BinaryJwtSecretSpec
+import qualified Feature.Auth.NoAnonSpec
+import qualified Feature.Auth.NoJwtSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
-import qualified Feature.DeleteSpec
-import qualified Feature.DisabledOpenApiSpec
-import qualified Feature.EmbedDisambiguationSpec
-import qualified Feature.EmbedInnerJoinSpec
 import qualified Feature.ExtraSearchPathSpec
-import qualified Feature.HtmlRawOutputSpec
-import qualified Feature.IgnorePrivOpenApiSpec
-import qualified Feature.InsertSpec
-import qualified Feature.JsonOperatorSpec
 import qualified Feature.LegacyGucsSpec
-import qualified Feature.MultipleSchemaSpec
-import qualified Feature.NoJwtSpec
-import qualified Feature.NonexistentSchemaSpec
-import qualified Feature.OpenApiSpec
+import qualified Feature.OpenApi.DisabledOpenApiSpec
+import qualified Feature.OpenApi.IgnorePrivOpenApiSpec
+import qualified Feature.OpenApi.OpenApiSpec
+import qualified Feature.OpenApi.ProxySpec
+import qualified Feature.OpenApi.RootSpec
 import qualified Feature.OptionsSpec
-import qualified Feature.ProxySpec
-import qualified Feature.QueryLimitedSpec
-import qualified Feature.QuerySpec
-import qualified Feature.RangeSpec
-import qualified Feature.RawOutputTypesSpec
+import qualified Feature.Query.AndOrParamsSpec
+import qualified Feature.Query.DeleteSpec
+import qualified Feature.Query.EmbedDisambiguationSpec
+import qualified Feature.Query.EmbedInnerJoinSpec
+import qualified Feature.Query.ErrorSpec
+import qualified Feature.Query.HtmlRawOutputSpec
+import qualified Feature.Query.InsertSpec
+import qualified Feature.Query.JsonOperatorSpec
+import qualified Feature.Query.MultipleSchemaSpec
+import qualified Feature.Query.QueryLimitedSpec
+import qualified Feature.Query.QuerySpec
+import qualified Feature.Query.RangeSpec
+import qualified Feature.Query.RawOutputTypesSpec
+import qualified Feature.Query.RpcSpec
+import qualified Feature.Query.SingularSpec
+import qualified Feature.Query.UnicodeSpec
+import qualified Feature.Query.UpdateSpec
+import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
-import qualified Feature.RootSpec
 import qualified Feature.RpcPreRequestGucsSpec
-import qualified Feature.RpcSpec
-import qualified Feature.SingularSpec
-import qualified Feature.UnicodeSpec
-import qualified Feature.UpdateSpec
-import qualified Feature.UpsertSpec
 
 
 main :: IO ()
 main = do
-  testDbConn <- getEnvVarWithDefault "PGRST_DB_URI" "postgres://postgrest_test@localhost/postgrest_test"
-
-  pool <- P.acquire (3, 10, toS testDbConn)
+  pool <- P.acquire (3, 10, toUtf8 $ configDbUri testCfg)
 
   actualPgVersion <- either (panic.show) id <$> P.use pool queryPgVersion
 
   baseDbStructure <-
     loadDbStructure pool
-      (configDbSchemas $ testCfg testDbConn)
-      (configDbExtraSearchPath $ testCfg testDbConn)
-      actualPgVersion
+      (configDbSchemas testCfg)
+      (configDbExtraSearchPath testCfg)
 
   let
     -- For tests that run with the same refDbStructure
-    app cfg = do
-      let config = cfg testDbConn
+    app config = do
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState (Just baseDbStructure)
@@ -82,13 +79,11 @@ main = do
       return ((), postgrest LogCrit appState $ pure ())
 
     -- For tests that run with a different DbStructure(depends on configSchemas)
-    appDbs cfg = do
-      let config = cfg testDbConn
+    appDbs config = do
       customDbStructure <-
         loadDbStructure pool
           (configDbSchemas config)
           (configDbExtraSearchPath config)
-          actualPgVersion
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putDbStructure appState (Just customDbStructure)
@@ -100,6 +95,7 @@ main = do
       maxRowsApp           = app testMaxRowsCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
       proxyApp             = app testProxyCfg
+      noAnonApp            = app testCfgNoAnon
       noJwtApp             = app testCfgNoJWT
       binaryJwtApp         = app testCfgBinaryJWT
       audJwtApp            = app testCfgAudienceJWT
@@ -120,27 +116,27 @@ main = do
 
   let analyze :: IO ()
       analyze = do
-        analyzeTable testDbConn "items"
-        analyzeTable testDbConn "child_entities"
+        analyzeTable "items"
+        analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.AndOrParamsSpec"         , Feature.AndOrParamsSpec.spec actualPgVersion)
-        , ("Feature.AuthSpec"                , Feature.AuthSpec.spec actualPgVersion)
-        , ("Feature.ConcurrentSpec"          , Feature.ConcurrentSpec.spec)
-        , ("Feature.CorsSpec"                , Feature.CorsSpec.spec)
-        , ("Feature.DeleteSpec"              , Feature.DeleteSpec.spec)
-        , ("Feature.EmbedDisambiguationSpec" , Feature.EmbedDisambiguationSpec.spec)
-        , ("Feature.EmbedInnerJoinSpec"      , Feature.EmbedInnerJoinSpec.spec)
-        , ("Feature.InsertSpec"              , Feature.InsertSpec.spec actualPgVersion)
-        , ("Feature.JsonOperatorSpec"        , Feature.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.OpenApiSpec"             , Feature.OpenApiSpec.spec actualPgVersion)
-        , ("Feature.OptionsSpec"             , Feature.OptionsSpec.spec actualPgVersion)
-        , ("Feature.QuerySpec"               , Feature.QuerySpec.spec actualPgVersion)
-        , ("Feature.RawOutputTypesSpec"      , Feature.RawOutputTypesSpec.spec)
-        , ("Feature.RpcSpec"                 , Feature.RpcSpec.spec actualPgVersion)
-        , ("Feature.SingularSpec"            , Feature.SingularSpec.spec)
-        , ("Feature.UpdateSpec"              , Feature.UpdateSpec.spec)
-        , ("Feature.UpsertSpec"              , Feature.UpsertSpec.spec actualPgVersion)
+          ("Feature.Query.AndOrParamsSpec"         , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
+        , ("Feature.Auth.AuthSpec"                 , Feature.Auth.AuthSpec.spec actualPgVersion)
+        , ("Feature.ConcurrentSpec"                , Feature.ConcurrentSpec.spec)
+        , ("Feature.CorsSpec"                      , Feature.CorsSpec.spec)
+        , ("Feature.Query.DeleteSpec"              , Feature.Query.DeleteSpec.spec)
+        , ("Feature.Query.EmbedDisambiguationSpec" , Feature.Query.EmbedDisambiguationSpec.spec)
+        , ("Feature.Query.EmbedInnerJoinSpec"      , Feature.Query.EmbedInnerJoinSpec.spec)
+        , ("Feature.Query.InsertSpec"              , Feature.Query.InsertSpec.spec actualPgVersion)
+        , ("Feature.Query.JsonOperatorSpec"        , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
+        , ("Feature.OpenApi.OpenApiSpec"           , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
+        , ("Feature.OptionsSpec"                   , Feature.OptionsSpec.spec actualPgVersion)
+        , ("Feature.Query.QuerySpec"               , Feature.Query.QuerySpec.spec actualPgVersion)
+        , ("Feature.Query.RawOutputTypesSpec"      , Feature.Query.RawOutputTypesSpec.spec)
+        , ("Feature.Query.RpcSpec"                 , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.SingularSpec"            , Feature.Query.SingularSpec.spec)
+        , ("Feature.Query.UpdateSpec"              , Feature.Query.UpdateSpec.spec)
+        , ("Feature.Query.UpsertSpec"              , Feature.Query.UpsertSpec.spec actualPgVersion)
         ]
 
   hspec $ do
@@ -148,55 +144,59 @@ main = do
 
     -- we analyze to get accurate results from EXPLAIN
     parallel $ beforeAll_ analyze . before withApp $
-      describe "Feature.RangeSpec" Feature.RangeSpec.spec
+      describe "Feature.Query.RangeSpec" Feature.Query.RangeSpec.spec
 
     -- this test runs with a raw-output-media-types set to text/html
     parallel $ before htmlRawOutputApp $
-      describe "Feature.HtmlRawOutputSpec" Feature.HtmlRawOutputSpec.spec
+      describe "Feature.Query.HtmlRawOutputSpec" Feature.Query.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
     parallel $ before maxRowsApp $
-      describe "Feature.QueryLimitedSpec" Feature.QueryLimitedSpec.spec
+      describe "Feature.Query.QueryLimitedSpec" Feature.Query.QueryLimitedSpec.spec
 
     -- this test runs with a different schema
     parallel $ before unicodeApp $
-      describe "Feature.UnicodeSpec" Feature.UnicodeSpec.spec
+      describe "Feature.Query.UnicodeSpec" Feature.Query.UnicodeSpec.spec
 
     -- this test runs with openapi-mode set to disabled
     parallel $ before disabledOpenApi $
-      describe "Feature.DisabledOpenApiSpec" Feature.DisabledOpenApiSpec.spec
+      describe "Feature.DisabledOpenApiSpec" Feature.OpenApi.DisabledOpenApiSpec.spec
 
     -- this test runs with openapi-mode set to ignore-acl
     parallel $ before ignorePrivOpenApi $
-      describe "Feature.IgnorePrivOpenApiSpec" Feature.IgnorePrivOpenApiSpec.spec
+      describe "Feature.OpenApi.IgnorePrivOpenApiSpec" Feature.OpenApi.IgnorePrivOpenApiSpec.spec
 
     -- this test runs with a proxy
     parallel $ before proxyApp $
-      describe "Feature.ProxySpec" Feature.ProxySpec.spec
+      describe "Feature.OpenApi.ProxySpec" Feature.OpenApi.ProxySpec.spec
+
+    -- this test runs without an anonymous role
+    parallel $ before noAnonApp $
+      describe "Feature.Auth.NoAnonSpec" Feature.Auth.NoAnonSpec.spec
 
     -- this test runs without a JWT secret
     parallel $ before noJwtApp $
-      describe "Feature.NoJwtSpec" Feature.NoJwtSpec.spec
+      describe "Feature.Auth.NoJwtSpec" Feature.Auth.NoJwtSpec.spec
 
     -- this test runs with a binary JWT secret
     parallel $ before binaryJwtApp $
-      describe "Feature.BinaryJwtSecretSpec" Feature.BinaryJwtSecretSpec.spec
+      describe "Feature.Auth.BinaryJwtSecretSpec" Feature.Auth.BinaryJwtSecretSpec.spec
 
     -- this test runs with a binary JWT secret and an audience claim
     parallel $ before audJwtApp $
-      describe "Feature.AudienceJwtSecretSpec" Feature.AudienceJwtSecretSpec.spec
+      describe "Feature.Auth.AudienceJwtSecretSpec" Feature.Auth.AudienceJwtSecretSpec.spec
 
     -- this test runs with asymmetric JWK
     parallel $ before asymJwkApp $
-      describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
+      describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
 
     -- this test runs with asymmetric JWKSet
     parallel $ before asymJwkSetApp $
-      describe "Feature.AsymmetricJwtSpec" Feature.AsymmetricJwtSpec.spec
+      describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
 
     -- this test runs with a nonexistent db-schema
     parallel $ before nonexistentSchemaApp $
-      describe "Feature.NonexistentSchemaSpec" Feature.NonexistentSchemaSpec.spec
+      describe "Feature.Query.ErrorSpec" Feature.Query.ErrorSpec.spec
 
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $
@@ -204,13 +204,15 @@ main = do
 
     -- this test runs with a root spec function override
     parallel $ before rootSpecApp $
-      describe "Feature.RootSpec" Feature.RootSpec.spec
+      describe "Feature.OpenApi.RootSpec" Feature.OpenApi.RootSpec.spec
+
+    -- this test runs with a pre request function override
     parallel $ before responseHeadersApp $
       describe "Feature.RpcPreRequestGucsSpec" Feature.RpcPreRequestGucsSpec.spec
 
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
-      describe "Feature.MultipleSchemaSpec" Feature.MultipleSchemaSpec.spec
+      describe "Feature.Query.MultipleSchemaSpec" Feature.Query.MultipleSchemaSpec.spec
 
     -- this test runs with db-uses-legacy-gucs = false
     parallel $ before testCfgLegacyGucsApp $
@@ -232,5 +234,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadDbStructure pool schemas extraSearchPath actualPgVersion =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath actualPgVersion True)
+    loadDbStructure pool schemas extraSearchPath =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)

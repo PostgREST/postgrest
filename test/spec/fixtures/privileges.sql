@@ -19,6 +19,7 @@ GRANT ALL ON TABLE
     , items3
     , "articleStars"
     , articles
+    , arrays
     , auto_incrementing_pk
     , clients
     , comments
@@ -27,6 +28,7 @@ GRANT ALL ON TABLE
     , compound_pk_view
     , deferrable_unique_constraint
     , empty_table
+    , fav_numbers
     , has_count_column
     , has_fk
     , insertable_view_with_join
@@ -134,6 +136,7 @@ GRANT ALL ON TABLE
     , schedules
     , activities
     , unit_workdays
+    , unit_workdays_fst_shift
     , stuff
     , loc_test
     , v1.parents
@@ -161,6 +164,14 @@ GRANT ALL ON TABLE
     , clientinfo
     , contact
     , chores
+    , limited_update_items
+    , limited_update_items_cpk
+    , limited_update_items_no_pk
+    , limited_update_items_view
+    , limited_delete_items
+    , limited_delete_items_cpk
+    , limited_delete_items_no_pk
+    , limited_delete_items_view
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

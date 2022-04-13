@@ -5,14 +5,12 @@ import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
-import qualified System.IO.Error        as E
 
 import Data.Aeson           (Value (..), decode, encode)
 import Data.CaseInsensitive (CI (..), original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
-import System.Environment   (getEnv)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
 
@@ -68,15 +66,11 @@ validateOpenApiResponse headers = do
       }
 
 
-getEnvVarWithDefault :: Text -> Text -> IO Text
-getEnvVarWithDefault var def = toS <$>
-  getEnv (toS var) `E.catchIOError` const (return $ toS def)
-
-_baseCfg :: AppConfig
-_baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
+baseCfg :: AppConfig
+baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
     configAppSettings           = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
-  , configDbAnonRole            = "postgrest_test_anonymous"
+  , configDbAnonRole            = Just "postgrest_test_anonymous"
   , configDbChannel             = mempty
   , configDbChannelEnabled      = True
   , configDbExtraSearchPath     = []
@@ -88,7 +82,7 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
-  , configDbUri                 = mempty
+  , configDbUri                 = "postgresql://"
   , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing
   , configJWKS                  = parseSecret <$> secret
@@ -109,90 +103,93 @@ _baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configAdminServerPort       = Nothing
   }
 
-testCfg :: Text -> AppConfig
-testCfg testDbConn = _baseCfg { configDbUri = testDbConn }
+testCfg :: AppConfig
+testCfg = baseCfg
 
-testCfgDisallowRollback :: Text -> AppConfig
-testCfgDisallowRollback testDbConn = (testCfg testDbConn) { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
+testCfgDisallowRollback :: AppConfig
+testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
 
-testCfgForceRollback :: Text -> AppConfig
-testCfgForceRollback testDbConn = (testCfg testDbConn) { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
+testCfgForceRollback :: AppConfig
+testCfgForceRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
 
-testCfgNoJWT :: Text -> AppConfig
-testCfgNoJWT testDbConn = (testCfg testDbConn) { configJwtSecret = Nothing, configJWKS = Nothing }
+testCfgNoAnon :: AppConfig
+testCfgNoAnon = baseCfg { configDbAnonRole = Nothing }
 
-testUnicodeCfg :: Text -> AppConfig
-testUnicodeCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["تست"] }
+testCfgNoJWT :: AppConfig
+testCfgNoJWT = baseCfg { configJwtSecret = Nothing, configJWKS = Nothing }
 
-testMaxRowsCfg :: Text -> AppConfig
-testMaxRowsCfg testDbConn = (testCfg testDbConn) { configDbMaxRows = Just 2 }
+testUnicodeCfg :: AppConfig
+testUnicodeCfg = baseCfg { configDbSchemas = fromList ["تست"] }
 
-testDisabledOpenApiCfg :: Text -> AppConfig
-testDisabledOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OADisabled }
+testMaxRowsCfg :: AppConfig
+testMaxRowsCfg = baseCfg { configDbMaxRows = Just 2 }
 
-testIgnorePrivOpenApiCfg :: Text -> AppConfig
-testIgnorePrivOpenApiCfg testDbConn = (testCfg testDbConn) { configOpenApiMode = OAIgnorePriv, configDbSchemas = fromList ["test", "v1"] }
+testDisabledOpenApiCfg :: AppConfig
+testDisabledOpenApiCfg = baseCfg { configOpenApiMode = OADisabled }
 
-testProxyCfg :: Text -> AppConfig
-testProxyCfg testDbConn = (testCfg testDbConn) { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
+testIgnorePrivOpenApiCfg :: AppConfig
+testIgnorePrivOpenApiCfg = baseCfg { configOpenApiMode = OAIgnorePriv, configDbSchemas = fromList ["test", "v1"] }
 
-testCfgBinaryJWT :: Text -> AppConfig
-testCfgBinaryJWT testDbConn =
+testProxyCfg :: AppConfig
+testProxyCfg = baseCfg { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
+
+testCfgBinaryJWT :: AppConfig
+testCfgBinaryJWT =
   let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
-  (testCfg testDbConn) {
+  baseCfg {
     configJwtSecret = secret
   , configJWKS = parseSecret <$> secret
   }
 
-testCfgAudienceJWT :: Text -> AppConfig
-testCfgAudienceJWT testDbConn =
+testCfgAudienceJWT :: AppConfig
+testCfgAudienceJWT =
   let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
-  (testCfg testDbConn) {
+  baseCfg {
     configJwtSecret = secret
   , configJwtAudience = Just "youraudience"
   , configJWKS = parseSecret <$> secret
   }
 
-testCfgAsymJWK :: Text -> AppConfig
-testCfgAsymJWK testDbConn =
+testCfgAsymJWK :: AppConfig
+testCfgAsymJWK =
   let secret = Just $ encodeUtf8 [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
-  in (testCfg testDbConn) {
+  in baseCfg {
     configJwtSecret = secret
   , configJWKS = parseSecret <$> secret
   }
 
-testCfgAsymJWKSet :: Text -> AppConfig
-testCfgAsymJWKSet testDbConn =
+testCfgAsymJWKSet :: AppConfig
+testCfgAsymJWKSet =
   let secret = Just $ encodeUtf8 [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
-  in (testCfg testDbConn) {
+  in baseCfg {
     configJwtSecret = secret
   , configJWKS = parseSecret <$> secret
   }
 
-testNonexistentSchemaCfg :: Text -> AppConfig
-testNonexistentSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["nonexistent"] }
+testNonexistentSchemaCfg :: AppConfig
+testNonexistentSchemaCfg = baseCfg { configDbSchemas = fromList ["nonexistent"] }
 
-testCfgExtraSearchPath :: Text -> AppConfig
-testCfgExtraSearchPath testDbConn = (testCfg testDbConn) { configDbExtraSearchPath = ["public", "extensions"] }
+testCfgExtraSearchPath :: AppConfig
+testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensions"] }
 
-testCfgRootSpec :: Text -> AppConfig
-testCfgRootSpec testDbConn = (testCfg testDbConn) { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
+testCfgRootSpec :: AppConfig
+testCfgRootSpec = baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
 
-testCfgHtmlRawOutput :: Text -> AppConfig
-testCfgHtmlRawOutput testDbConn = (testCfg testDbConn) { configRawMediaTypes = ["text/html"] }
+testCfgHtmlRawOutput :: AppConfig
+testCfgHtmlRawOutput = baseCfg { configRawMediaTypes = ["text/html"] }
 
-testCfgResponseHeaders :: Text -> AppConfig
-testCfgResponseHeaders testDbConn = (testCfg testDbConn) { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }
+testCfgResponseHeaders :: AppConfig
+testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }
 
-testMultipleSchemaCfg :: Text -> AppConfig
-testMultipleSchemaCfg testDbConn = (testCfg testDbConn) { configDbSchemas = fromList ["v1", "v2"] }
+testMultipleSchemaCfg :: AppConfig
+testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2"] }
 
-testCfgLegacyGucs :: Text -> AppConfig
-testCfgLegacyGucs testDbConn = (testCfg testDbConn) { configDbUseLegacyGucs = False }
+testCfgLegacyGucs :: AppConfig
+testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
-analyzeTable :: Text -> Text -> IO ()
-analyzeTable dbConn tableName =
-  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", toS dbConn, "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
+analyzeTable :: Text -> IO ()
+analyzeTable tableName =
+  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]

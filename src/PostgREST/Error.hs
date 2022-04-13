@@ -55,46 +55,82 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status InvalidRange            = HTTP.status416
-  status InvalidFilters          = HTTP.status405
-  status (InvalidBody _)         = HTTP.status400
-  status UnsupportedVerb         = HTTP.status405
-  status ActionInappropriate     = HTTP.status405
-  status (ParseRequestError _ _) = HTTP.status400
-  status (QueryParamError _)     = HTTP.status400
-  status NoRelBetween{}          = HTTP.status400
-  status AmbiguousRelBetween{}   = HTTP.status300
-  status (AmbiguousRpc _)        = HTTP.status300
-  status NoRpc{}                 = HTTP.status404
-  status (UnacceptableSchema _)  = HTTP.status406
-  status (ContentTypeError _)    = HTTP.status415
+  status ActionInappropriate   = HTTP.status405
+  status AmbiguousRelBetween{} = HTTP.status300
+  status AmbiguousRpc{}        = HTTP.status300
+  status ContentTypeError{}    = HTTP.status415
+  status InvalidBody{}         = HTTP.status400
+  status InvalidFilters        = HTTP.status405
+  status InvalidRange          = HTTP.status416
+  status NoRelBetween{}        = HTTP.status400
+  status NoRpc{}               = HTTP.status404
+  status NotEmbedded{}         = HTTP.status400
+  status ParseRequestError{}   = HTTP.status400
+  status QueryParamError{}     = HTTP.status400
+  status UnacceptableSchema{}  = HTTP.status406
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON ApiRequestError where
-  toJSON (ParseRequestError message details) = JSON.object [
-    "message" .= message, "details" .= details]
   toJSON (QueryParamError (QPError message details)) = JSON.object [
-    "message" .= message, "details" .= details]
+    "code"    .= ApiRequestErrorCode00,
+    "message" .= message,
+    "details" .= details,
+    "hint"    .= JSON.Null]
   toJSON ActionInappropriate = JSON.object [
-    "message" .= ("Bad Request" :: Text)]
+    "code"    .= ApiRequestErrorCode01,
+    "message" .= ("Bad Request" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
   toJSON (InvalidBody errorMessage) = JSON.object [
-    "message" .= T.decodeUtf8 errorMessage]
+    "code"    .= ApiRequestErrorCode02,
+    "message" .= T.decodeUtf8 errorMessage,
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
   toJSON InvalidRange = JSON.object [
-    "message" .= ("HTTP Range error" :: Text)]
+    "code"    .= ApiRequestErrorCode03,
+    "message" .= ("HTTP Range error" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON (ParseRequestError message details) = JSON.object [
+    "code"    .= ApiRequestErrorCode04,
+    "message" .= message,
+    "details" .= details,
+    "hint"    .= JSON.Null]
+  toJSON InvalidFilters = JSON.object [
+    "code"    .= ApiRequestErrorCode05,
+    "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON (UnacceptableSchema schemas) = JSON.object [
+    "code"    .= ApiRequestErrorCode06,
+    "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON (ContentTypeError cts)    = JSON.object [
+    "code"    .= ApiRequestErrorCode07,
+    "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON (NotEmbedded resource) = JSON.object [
+    "code"    .= ApiRequestErrorCode08,
+    "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
+
   toJSON (NoRelBetween parent child schema) = JSON.object [
-    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text),
-    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text)]
+    "code"    .= SchemaCacheErrorCode00,
+    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text)]
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text),
+    "code"    .= SchemaCacheErrorCode01,
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
-    "details" .= (compressedRel <$> rels) ]
-  toJSON (AmbiguousRpc procs)  = JSON.object [
-    "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text),
-    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs])]
+    "details" .= (compressedRel <$> rels),
+    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
-    "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text),
+    "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " function with a single json or jsonb parameter"
@@ -102,36 +138,34 @@ instance JSON.ToJSON ApiRequestError where
         (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
         (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
         _                            -> prms <> " function") <>
-      " in the schema cache")]
-  toJSON UnsupportedVerb = JSON.object [
-    "message" .= ("Unsupported HTTP verb" :: Text)]
-  toJSON InvalidFilters = JSON.object [
-    "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text)]
-  toJSON (UnacceptableSchema schemas) = JSON.object [
-    "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas)]
-  toJSON (ContentTypeError cts)    = JSON.object [
-    "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts))]
+      " in the schema cache"),
+    "details" .= JSON.Null,
+    "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text)]
+  toJSON (AmbiguousRpc procs)  = JSON.object [
+    "code"    .= SchemaCacheErrorCode03,
+    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
+    "details" .= JSON.Null,
+    "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
 
 compressedRel :: Relationship -> JSON.Value
 compressedRel Relationship{..} =
   let
-    fmtTbl Table{..} = tableSchema <> "." <> tableName
-    fmtEls els = "[" <> T.intercalate ", " els <> "]"
+    fmtEls els = "(" <> T.intercalate ", " els <> ")"
   in
   JSON.object $
     ("embedding" .= (tableName relTable <> " with " <> tableName relForeignTable :: Text))
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (fmtTbl junTable <> fmtEls [junConstraint1] <> fmtEls [junConstraint2])
+          , "relationship" .= (tableName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
           ]
         M2O cons -> [
             "cardinality" .= ("many-to-one" :: Text)
-          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
         O2M cons -> [
             "cardinality" .= ("one-to-many" :: Text)
-          , "relationship" .= (cons <> fmtEls (colName <$> relColumns) <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
 
 relHint :: [Relationship] -> Text
@@ -160,46 +194,52 @@ instance JSON.ToJSON PgError where
 
 instance JSON.ToJSON SQL.UsageError where
   toJSON (SQL.ConnectionError e) = JSON.object [
-    "code"    .= ("" :: Text),
+    "code"    .= ConnectionErrorCode00,
     "message" .= ("Database connection error. Retrying the connection." :: Text),
-    "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text)]
+    "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text),
+    "hint"    .= JSON.Null]
   toJSON (SQL.SessionError e) = JSON.toJSON e -- SQL.Error
 
 instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
 instance JSON.ToJSON SQL.CommandError where
-  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = case BS.unpack c of
-    'P':'T':_ -> JSON.object [
-        "details" .= fmap T.decodeUtf8 d,
-        "hint"    .= fmap T.decodeUtf8 h]
-
-    _         -> JSON.object [
+  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = JSON.object [
         "code"    .= (T.decodeUtf8 c      :: Text),
         "message" .= (T.decodeUtf8 m      :: Text),
         "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
         "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
   toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
-    "message" .= (m :: Text)]
+    "code"    .= HasqlErrorCode00,
+    "message" .= (m :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
   toJSON (SQL.ResultError (SQL.RowError i SQL.EndOfInput)) = JSON.object [
+    "code"    .= HasqlErrorCode01,
     "message" .= ("Row error: end of input" :: Text),
     "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.RowError i SQL.UnexpectedNull)) = JSON.object [
+    "code"    .= HasqlErrorCode02,
     "message" .= ("Row error: unexpected null" :: Text),
     "details" .= ("Attempt to parse a NULL as some value." :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.RowError i (SQL.ValueError d))) = JSON.object [
+    "code"    .= HasqlErrorCode03,
     "message" .= ("Row error: Wrong value parser used" :: Text),
     "details" .= d,
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.UnexpectedAmountOfRows i)) = JSON.object [
+    "code"    .= HasqlErrorCode04,
     "message" .= ("Unexpected amount of rows" :: Text),
-    "details" .= i]
+    "details" .= i,
+    "hint"    .= JSON.Null]
   toJSON (SQL.ClientError d) = JSON.object [
+    "code"    .= ConnectionErrorCode01,
     "message" .= ("Database client error. Retrying the connection." :: Text),
-    "details" .= (fmap T.decodeUtf8 d :: Maybe Text)]
+    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
+    "hint"    .= JSON.Null]
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionError _)                                      = HTTP.status503
@@ -266,62 +306,114 @@ checkIsFatal _ = Nothing
 
 
 data Error
-  = GucHeadersError
-  | GucStatusError
+  = ApiRequestError ApiRequestError
   | BinaryFieldError ContentType
+  | GucHeadersError
+  | GucStatusError
+  | JwtTokenInvalid Text
+  | JwtTokenMissing
+  | JwtTokenRequired
+  | NotImplemented Text
   | NoSchemaCacheError
+  | NotFound
+  | PgErr PgError
   | PutMatchingPkError
   | PutRangeNotAllowedError
-  | JwtTokenMissing
-  | JwtTokenInvalid Text
   | SingularityError Integer
-  | NotFound
-  | ApiRequestError ApiRequestError
-  | PgErr PgError
+  | UnsupportedVerb Text
 
 instance PgrstError Error where
+  status (ApiRequestError err)   = status err
+  status BinaryFieldError{}      = HTTP.status406
   status GucHeadersError         = HTTP.status500
   status GucStatusError          = HTTP.status500
-  status (BinaryFieldError _)    = HTTP.status406
-  status NoSchemaCacheError      = HTTP.status503
-  status PutMatchingPkError      = HTTP.status400
-  status PutRangeNotAllowedError = HTTP.status400
+  status JwtTokenInvalid{}       = HTTP.unauthorized401
   status JwtTokenMissing         = HTTP.status500
-  status (JwtTokenInvalid _)     = HTTP.unauthorized401
-  status (SingularityError _)    = HTTP.status406
+  status JwtTokenRequired        = HTTP.unauthorized401
+  status NoSchemaCacheError      = HTTP.status503
   status NotFound                = HTTP.status404
   status (PgErr err)             = status err
-  status (ApiRequestError err)   = status err
+  status PutMatchingPkError      = HTTP.status400
+  status PutRangeNotAllowedError = HTTP.status400
+  status (NotImplemented _)      = HTTP.status501
+  status SingularityError{}      = HTTP.status406
+  status UnsupportedVerb{}       = HTTP.status405
 
-  headers (SingularityError _)     = [ContentType.toHeader CTSingularJSON]
-  headers (JwtTokenInvalid m)      = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
-  headers (PgErr err)              = headers err
-  headers (ApiRequestError err)    = headers err
-  headers _                        = [ContentType.toHeader CTApplicationJSON]
+  headers (ApiRequestError err)  = headers err
+  headers (JwtTokenInvalid m)    = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired       = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
+  headers (PgErr err)            = headers err
+  headers SingularityError{}     = [ContentType.toHeader CTSingularJSON]
+  headers _                      = [ContentType.toHeader CTApplicationJSON]
 
 instance JSON.ToJSON Error where
-  toJSON GucHeadersError           = JSON.object [
-    "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text)]
-  toJSON GucStatusError           = JSON.object [
-    "message" .= ("response.status guc must be a valid status code" :: Text)]
-  toJSON (BinaryFieldError ct)          = JSON.object [
-    "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text)]
-  toJSON NoSchemaCacheError       = JSON.object [
-    "message" .= ("Could not query the database for the schema cache. Retrying." :: Text)]
+  toJSON NoSchemaCacheError = JSON.object [
+      "code"    .= ConnectionErrorCode02,
+      "message" .= ("Could not query the database for the schema cache. Retrying." :: Text),
+      "details" .= JSON.Null,
+      "hint"    .= JSON.Null]
 
-  toJSON PutRangeNotAllowedError   = JSON.object [
-    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text)]
-  toJSON PutMatchingPkError        = JSON.object [
-    "message" .= ("Payload values do not match URL in primary key column(s)" :: Text)]
-
-  toJSON (SingularityError n)      = JSON.object [
-    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"]]
-
-  toJSON JwtTokenMissing           = JSON.object [
-    "message" .= ("Server lacks JWT secret" :: Text)]
+  toJSON JwtTokenMissing = JSON.object [
+      "code"    .= JWTErrorCode00,
+      "message" .= ("Server lacks JWT secret" :: Text),
+      "details" .= JSON.Null,
+      "hint"    .= JSON.Null]
   toJSON (JwtTokenInvalid message) = JSON.object [
-    "message" .= (message :: Text)]
+      "code"    .= JWTErrorCode01,
+      "message" .= (message :: Text),
+      "details" .= JSON.Null,
+      "hint"    .= JSON.Null]
+  toJSON JwtTokenRequired = JSON.object [
+      "code"    .= JWTErrorCode02,
+      "message" .= ("Anonymous access is disabled" :: Text),
+      "details" .= JSON.Null,
+      "hint"    .= JSON.Null]
+
+  toJSON GucHeadersError = JSON.object [
+    "code"    .= GeneralErrorCode00,
+    "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON GucStatusError = JSON.object [
+    "code"    .= GeneralErrorCode01,
+    "message" .= ("response.status guc must be a valid status code" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON (BinaryFieldError ct) = JSON.object [
+    "code"    .= GeneralErrorCode02,
+    "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON PutRangeNotAllowedError = JSON.object [
+    "code"    .= GeneralErrorCode03,
+    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+  toJSON PutMatchingPkError = JSON.object [
+    "code"    .= GeneralErrorCode04,
+    "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON (SingularityError n) = JSON.object [
+    "code"    .= GeneralErrorCode05,
+    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
+    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
+    "hint"    .= JSON.Null]
+
+  toJSON (UnsupportedVerb verb) = JSON.object [
+    "code"    .= GeneralErrorCode06,
+    "message" .= ("Unsupported HTTP verb: " <> verb),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON (NotImplemented msg) = JSON.object [
+    "code"    .= GeneralErrorCode07,
+    "message" .= msg,
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON NotFound = JSON.object []
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
@@ -330,5 +422,94 @@ invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
 
+requiredTokenHeader :: Header
+requiredTokenHeader = ("WWW-Authenticate", "Bearer")
+
 singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger
+
+-- Error codes are grouped by common modules or characteristics
+data ErrorCode
+  -- PostgreSQL connection errors
+  = ConnectionErrorCode00
+  | ConnectionErrorCode01
+  | ConnectionErrorCode02
+  -- API Request errors
+  | ApiRequestErrorCode00
+  | ApiRequestErrorCode01
+  | ApiRequestErrorCode02
+  | ApiRequestErrorCode03
+  | ApiRequestErrorCode04
+  | ApiRequestErrorCode05
+  | ApiRequestErrorCode06
+  | ApiRequestErrorCode07
+  | ApiRequestErrorCode08
+  -- Schema Cache errors
+  | SchemaCacheErrorCode00
+  | SchemaCacheErrorCode01
+  | SchemaCacheErrorCode02
+  | SchemaCacheErrorCode03
+  -- JWT authentication errors
+  | JWTErrorCode00
+  | JWTErrorCode01
+  | JWTErrorCode02
+  -- Hasql library errors
+  | HasqlErrorCode00
+  | HasqlErrorCode01
+  | HasqlErrorCode02
+  | HasqlErrorCode03
+  | HasqlErrorCode04
+  -- Uncategorized errors that are not related to a single module
+  | GeneralErrorCode00
+  | GeneralErrorCode01
+  | GeneralErrorCode02
+  | GeneralErrorCode03
+  | GeneralErrorCode04
+  | GeneralErrorCode05
+  | GeneralErrorCode06
+  | GeneralErrorCode07
+
+instance JSON.ToJSON ErrorCode where
+  toJSON e = JSON.toJSON (buildErrorCode e)
+
+-- New group of errors will be added at the end of all the groups and will have the next prefix in the sequence
+-- New errors are added at the end of the group they belong to and will have the next code in the sequence
+buildErrorCode :: ErrorCode -> Text
+buildErrorCode code = "PGRST" <> case code of
+  ConnectionErrorCode00  -> "000"
+  ConnectionErrorCode01  -> "001"
+  ConnectionErrorCode02  -> "002"
+
+  ApiRequestErrorCode00  -> "100"
+  ApiRequestErrorCode01  -> "101"
+  ApiRequestErrorCode02  -> "102"
+  ApiRequestErrorCode03  -> "103"
+  ApiRequestErrorCode04  -> "104"
+  ApiRequestErrorCode05  -> "105"
+  ApiRequestErrorCode06  -> "106"
+  ApiRequestErrorCode07  -> "107"
+  ApiRequestErrorCode08  -> "108"
+
+  SchemaCacheErrorCode00 -> "200"
+  SchemaCacheErrorCode01 -> "201"
+  SchemaCacheErrorCode02 -> "202"
+  SchemaCacheErrorCode03 -> "203"
+
+  JWTErrorCode00         -> "300"
+  JWTErrorCode01         -> "301"
+  JWTErrorCode02         -> "302"
+
+  HasqlErrorCode00       -> "400"
+  HasqlErrorCode01       -> "401"
+  HasqlErrorCode02       -> "402"
+  HasqlErrorCode03       -> "403"
+  HasqlErrorCode04       -> "404"
+
+  GeneralErrorCode00     -> "500"
+  GeneralErrorCode01     -> "501"
+  GeneralErrorCode02     -> "502"
+  GeneralErrorCode03     -> "503"
+  GeneralErrorCode04     -> "504"
+  GeneralErrorCode05     -> "505"
+  GeneralErrorCode06     -> "506"
+  GeneralErrorCode07     -> "507"

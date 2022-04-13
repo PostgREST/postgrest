@@ -65,7 +65,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
     "FROM (" <> selectF <> ") _postgrest_t"
 
   locF =
-    if isInsert && rep `elem` [Full, HeadersOnly]
+    if isInsert && rep /= None
       then BS.unwords [
         "CASE WHEN pg_catalog.count(_postgrest_t) = 1",
           "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
@@ -74,15 +74,15 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
       else noLocationF
 
   bodyF
-    | rep `elem` [None, HeadersOnly] = "''"
+    | rep /= Full = "''"
     | asCsv = asCsvF
     | wantSingle = asJsonSingleF False
     | otherwise = asJsonF False
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
-    | rep `elem` [None, HeadersOnly] = SQL.sql ("SELECT * FROM " <> sourceCTEName)
-    | otherwise                      = selectQuery
+    | rep /= Full = SQL.sql ("SELECT * FROM " <> sourceCTEName)
+    | otherwise   = selectQuery
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =

@@ -17,6 +17,7 @@ module PostgREST.Query.SqlFragment
   , fromQi
   , limitOffsetF
   , locationF
+  , mutRangeF
   , normalizedBody
   , pgFmtColumn
   , pgFmtIdent
@@ -92,6 +93,8 @@ singleValOperator = \case
   OpNotExtendsRight  -> "&<"
   OpNotExtendsLeft   -> "&>"
   OpAdjacent         -> "-|-"
+  OpMatch            -> "~"
+  OpIMatch           -> "~*"
 
 ftsOperator :: FtsOperator -> SqlFragment
 ftsOperator = \case
@@ -197,7 +200,10 @@ pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
-pgFmtField table (c, jp) = SQL.sql (pgFmtColumn table c) <> pgFmtJsonPath jp
+pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
+-- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
+-- "operator does not exist: json = unknown"
+pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SQL.Snippet
 pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
@@ -331,3 +337,12 @@ unknownLiteral = unknownEncoder . encodeUtf8
 intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
+
+-- the "ctid" system column is always available to tables
+mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SqlFragment, SqlFragment)
+mutRangeF mainQi rangeId = (
+    BS.intercalate " AND " $
+          (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$>
+          (if null rangeId then ["ctid"] else rangeId)
+  , if null rangeId then pgFmtColumn mainQi "ctid" else BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
+  )

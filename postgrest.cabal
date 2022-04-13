@@ -1,5 +1,5 @@
 name:               postgrest
-version:            9.0.0.20220107
+version:            9.0.0.20220326
 synopsis:           REST API for any Postgres database
 description:        Reads the schema of a PostgreSQL database and creates RESTful routes
                     for tables, views, and functions, supporting all HTTP verbs that security
@@ -113,7 +113,7 @@ library
                     , wai                       >= 3.2.1 && < 3.3
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.1.8 && < 3.2
-                    , warp                      >= 3.2.12 && < 3.4
+                    , warp                      >= 3.3.19 && < 3.4
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
@@ -167,41 +167,42 @@ test-suite spec
                       NoImplicitPrelude
   hs-source-dirs:     test/spec
   main-is:            Main.hs
-  other-modules:      Feature.AndOrParamsSpec
-                      Feature.AsymmetricJwtSpec
-                      Feature.AudienceJwtSecretSpec
-                      Feature.AuthSpec
-                      Feature.BinaryJwtSecretSpec
+  other-modules:      Feature.Auth.AsymmetricJwtSpec
+                      Feature.Auth.AudienceJwtSecretSpec
+                      Feature.Auth.AuthSpec
+                      Feature.Auth.BinaryJwtSecretSpec
+                      Feature.Auth.NoAnonSpec
+                      Feature.Auth.NoJwtSpec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
-                      Feature.DeleteSpec
-                      Feature.DisabledOpenApiSpec
-                      Feature.EmbedDisambiguationSpec
-                      Feature.EmbedInnerJoinSpec
                       Feature.ExtraSearchPathSpec
-                      Feature.HtmlRawOutputSpec
-                      Feature.InsertSpec
-                      Feature.IgnorePrivOpenApiSpec
-                      Feature.JsonOperatorSpec
                       Feature.LegacyGucsSpec
-                      Feature.MultipleSchemaSpec
-                      Feature.NoJwtSpec
-                      Feature.NonexistentSchemaSpec
-                      Feature.OpenApiSpec
+                      Feature.OpenApi.DisabledOpenApiSpec
+                      Feature.OpenApi.IgnorePrivOpenApiSpec
+                      Feature.OpenApi.OpenApiSpec
+                      Feature.OpenApi.ProxySpec
+                      Feature.OpenApi.RootSpec
                       Feature.OptionsSpec
-                      Feature.ProxySpec
-                      Feature.QueryLimitedSpec
-                      Feature.QuerySpec
-                      Feature.RangeSpec
-                      Feature.RawOutputTypesSpec
+                      Feature.Query.AndOrParamsSpec
+                      Feature.Query.DeleteSpec
+                      Feature.Query.EmbedDisambiguationSpec
+                      Feature.Query.EmbedInnerJoinSpec
+                      Feature.Query.HtmlRawOutputSpec
+                      Feature.Query.InsertSpec
+                      Feature.Query.JsonOperatorSpec
+                      Feature.Query.MultipleSchemaSpec
+                      Feature.Query.ErrorSpec
+                      Feature.Query.QueryLimitedSpec
+                      Feature.Query.QuerySpec
+                      Feature.Query.RangeSpec
+                      Feature.Query.RawOutputTypesSpec
+                      Feature.Query.RpcSpec
+                      Feature.Query.SingularSpec
+                      Feature.Query.UnicodeSpec
+                      Feature.Query.UpdateSpec
+                      Feature.Query.UpsertSpec
                       Feature.RollbackSpec
-                      Feature.RootSpec
                       Feature.RpcPreRequestGucsSpec
-                      Feature.RpcSpec
-                      Feature.SingularSpec
-                      Feature.UnicodeSpec
-                      Feature.UpdateSpec
-                      Feature.UpsertSpec
                       SpecHelper
                       TestTypes
   build-depends:      base              >= 4.9 && < 4.16

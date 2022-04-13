@@ -15,7 +15,7 @@ jobs:
     name: Lint & check code style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -35,7 +35,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v2.1.0
+        uses: codecov/codecov-action@v3.0.0
         with:
           files: ./coverage/codecov.json
 
@@ -70,7 +70,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -93,7 +93,7 @@ jobs:
     name: Test memory (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -106,7 +106,7 @@ jobs:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -115,7 +115,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -124,7 +124,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -168,6 +168,8 @@ jobs:
               ~\AppData\Local\Programs\stack
               .stack-work
             deps: |
+              stack exec -- pacman -Syu --noconfirm
+              stack exec -- pacman -S msys2-keyring --noconfirm
               stack exec -- pacman -S mingw64/mingw-w64-x86_64-postgresql --noconfirm
             # We'd need to make test/with_tmp_db run on Windows first
             # test: true
@@ -176,9 +178,9 @@ jobs:
     name: Build ${{ matrix.name }} (Stack)
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Stack working files cache
-        uses: actions/cache@v2.1.7
+        uses: actions/cache@v3
         with:
           path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
@@ -194,7 +196,7 @@ jobs:
           echo "Using PostgreSQL binaries at $postgresql_bin ..."
           PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -206,14 +208,14 @@ jobs:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Get FreeBSD executable from CirrusCI
         env:
           # GITHUB_SHA does weird things for pull request, so we roll our own:
           GITHUB_COMMIT: ${{github.event.pull_request.head.sha || github.sha}}
         run: .github/get_cirrusci_freebsd
       - name: Save executable as artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: postgrest-freebsd-x64
           path: postgrest
@@ -295,13 +297,13 @@ jobs:
       - Test-Memory-Nix
       - Build-Static-Nix
       - Build-Stack
-      - Get-FreeBSD-CirrusCI
+      #- Get-FreeBSD-CirrusCI
       - Build-Cabal-Arm
     outputs:
       version: ${{ steps.Identify-Version.outputs.version }}
       isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - id: Identify-Version
         name: Identify the version to be released
         run: |
@@ -338,7 +340,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: release-changes
           path: CHANGES.md
@@ -354,9 +356,9 @@ jobs:
     env:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Download all artifacts
-        uses: actions/download-artifact@v2.1.0
+        uses: actions/download-artifact@v3
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -376,8 +378,9 @@ jobs:
           tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
-            -C artifacts/postgrest-freebsd-x64 postgrest
+          # TODO: Fix timeouts for FreeBSD builds in Cirrus
+          #tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
+          #  -C artifacts/postgrest-freebsd-x64 postgrest
 
           tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
@@ -389,7 +392,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v3
         with:
           name: release-bundle
           path: release-bundle
@@ -423,13 +426,13 @@ jobs:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
           tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@v2.1.0
+        uses: actions/download-artifact@v3
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub

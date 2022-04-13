@@ -29,6 +29,7 @@ import PostgREST.DbStructure.Table        (Table (..))
 import PostgREST.Request.Preferences      (PreferResolution (..))
 
 import PostgREST.Query.SqlFragment
+import PostgREST.RangeQuery        (allRange)
 import PostgREST.Request.Types
 
 import Protolude
@@ -105,28 +106,63 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
     ])
   where
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
-mutateRequestToQuery (Update mainQi uCols body logicForest returnings) =
-  if S.null uCols
+
+mutateRequestToQuery (Update mainQi uCols body logicForest (range, rangeId) returnings)
+  | S.null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
-    then SQL.sql ("SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false")
-    else
-      "WITH " <> normalizedBody body <> " " <>
-      "UPDATE " <> SQL.sql (fromQi mainQi) <> " SET " <> SQL.sql cols <> " " <>
-      "FROM (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) _ " <>
-      (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)) <> " " <>
-      SQL.sql (returningF mainQi returnings)
+    SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
+
+  | range == allRange =
+    "WITH " <> normalizedBody body <> " " <>
+    "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
+    "FROM (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " )) _ " <>
+    whereLogic <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
+  | otherwise =
+    "WITH " <> normalizedBody body <> ", " <>
+    "pgrst_update_body AS (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " ) LIMIT 1), " <>
+    "pgrst_affected_rows AS (" <>
+      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
+       whereLogic <> " " <>
+      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
+    ") " <>
+    "UPDATE " <> mainTbl <> " SET " <> SQL.sql rangeCols <>
+    "FROM pgrst_affected_rows " <>
+    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
   where
-    cols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
-    emptyBodyReturnedColumns :: SqlFragment
-    emptyBodyReturnedColumns
-      | null returnings = "NULL"
-      | otherwise       = BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-mutateRequestToQuery (Delete mainQi logicForest returnings) =
-  "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-  (if null logicForest then mempty else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree mainQi) logicForest)) <> " " <>
-  SQL.sql (returningF mainQi returnings)
+    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    mainTbl = SQL.sql (fromQi mainQi)
+    emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
+    nonRangeCols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
+    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
+
+mutateRequestToQuery (Delete mainQi logicForest (range, rangeId) returnings)
+  | range == allRange =
+    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    whereLogic <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
+  | otherwise =
+    "WITH " <>
+    "pgrst_affected_rows AS (" <>
+      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
+       whereLogic <> " " <>
+      "ORDER BY " <> SQL.sql rangeIdF <> " " <> limitOffsetF range <>
+    ") " <>
+    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    "USING pgrst_affected_rows " <>
+    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
+    SQL.sql (returningF mainQi returnings)
+
+  where
+    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi rangeId
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
 requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =

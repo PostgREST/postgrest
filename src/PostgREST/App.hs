@@ -63,6 +63,7 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
+                                          findIfView, findTable,
                                           tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -77,7 +78,7 @@ import PostgREST.GucHeader               (GucHeader,
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
-                                          Target (..))
+                                          Mutation (..), Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
@@ -131,7 +132,7 @@ run installHandlers maybeRunWithSocket appState = do
           AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
           runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
         Nothing ->
-          panic "Cannot run with socket on non-unix plattforms."
+          panic "Cannot run with unix socket on non-unix plattforms."
     Nothing ->
       do
         AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
@@ -208,7 +209,7 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthRes
 
   let handleReq apiReq = handleRequest $ RequestContext conf dbStructure apiReq pgVer
 
-  runDbHandler pool (txMode apiRequest) (authRole /= configDbAnonRole) configDbPreparedStatements .
+  runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
     Middleware.optionalRollback conf apiRequest $
       Middleware.runPgLocals conf authClaims authRole handleReq apiRequest jsonDbS pgVer
 
@@ -229,13 +230,13 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) ->
       handleRead headersOnly identifier context
-    (ActionCreate, TargetIdent identifier) ->
+    (ActionMutate MutationCreate, TargetIdent identifier) ->
       handleCreate identifier context
-    (ActionUpdate, TargetIdent identifier) ->
+    (ActionMutate MutationUpdate, TargetIdent identifier) ->
       handleUpdate identifier context
-    (ActionSingleUpsert, TargetIdent identifier) ->
+    (ActionMutate MutationSingleUpsert, TargetIdent identifier) ->
       handleSingleUpsert identifier context
-    (ActionDelete, TargetIdent identifier) ->
+    (ActionMutate MutationDelete, TargetIdent identifier) ->
       handleDelete identifier context
     (ActionInfo, TargetIdent identifier) ->
       handleInfo identifier context
@@ -243,6 +244,8 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
+    (ActionUnknown verb, _) ->
+      throwError $ Error.UnsupportedVerb verb
     _ ->
       throwError Error.NotFound
 
@@ -313,7 +316,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
     ApiRequest{..} = ctxApiRequest
     pkCols = tablePKCols ctxDbStructure qiSchema qiName
 
-  WriteQueryResult{..} <- writeQuery identifier True pkCols context
+  WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -343,8 +346,11 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+handleUpdate identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
+  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
+    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
+
+  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -369,7 +375,7 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False mempty context
 
   let response = gucResponse resGucStatus resGucHeaders
 
@@ -389,8 +395,11 @@ handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       response HTTP.status204 [] mempty
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery identifier False mempty context
+handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
+  when (iTopLevelRange /= RangeQuery.allRange && findIfView identifier (dbTables ctxDbStructure)) $
+    throwError $ Error.NotImplemented "limit/offset is not implemented for views"
+
+  WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
 
   let
     response = gucResponse resGucStatus resGucHeaders
@@ -408,7 +417,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
-  case find tableMatches $ dbTables ctxDbStructure of
+  case findTable (qiSchema identifier) (qiName identifier) $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
@@ -424,9 +433,6 @@ handleInfo identifier RequestContext{..} =
           ++ ["PATCH" | tableUpdatable table]
           ++ ["DELETE" | tableDeletable table]
       )
-    tableMatches table =
-      tableName table == qiName identifier
-      && tableSchema table == qiSchema identifier
     hasPK =
       not $ null $ tablePKCols ctxDbStructure (qiSchema identifier) (qiName identifier)
 
@@ -467,9 +473,12 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
 
   failNotSingular iAcceptContentType queryTotal $
-    response status
-      (contentTypeHeaders context ++ [contentRange])
-      (if invMethod == InvHead then mempty else LBS.fromStrict body)
+    if Proc.procReturnsVoid proc then
+      response HTTP.status204 [contentRange] mempty
+    else
+      response status
+        (contentTypeHeaders context ++ [contentRange])
+        (if invMethod == InvHead then mempty else LBS.fromStrict body)
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
@@ -478,7 +487,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
            <$> SQL.statement tSchema (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.accessibleProcs configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
@@ -522,13 +531,13 @@ data WriteQueryResult = WriteQueryResult
   , resGucHeaders :: [GucHeader]
   }
 
-writeQuery :: QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
-writeQuery identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
+writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
+writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
   readReq <- readRequest identifier context
 
   mutateReq <-
     liftEither $
-      ReqBuilder.mutateRequest qiSchema qiName ctxApiRequest
+      ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest
         (tablePKCols ctxDbStructure qiSchema qiName)
         readReq
 

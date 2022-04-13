@@ -45,6 +45,11 @@ let
         inRootDir = true;
       }
       ''
+        # previously required settings to make this work with older branches
+        export PGRST_DB_ANON_ROLE="postgrest_test_anonymous"
+        export PGRST_DB_URI="postgresql://"
+        export PGRST_DB_SCHEMAS="test"
+
         export PGRST_DB_CONFIG="false"
         export PGRST_DB_POOL="1"
         export PGRST_DB_TX_END="rollback-allow-override"

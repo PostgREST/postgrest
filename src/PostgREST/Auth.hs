@@ -32,7 +32,7 @@ import qualified Network.Wai.Middleware.HttpAuth as Wai
 
 import Control.Lens            (set)
 import Control.Monad.Except    (liftEither)
-import Data.Either.Combinators (mapLeft, mapRight)
+import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime)
 import System.IO.Unsafe        (unsafePerformIO)
@@ -71,16 +71,17 @@ parseToken AppConfig{..} token time = do
     jwtClaimsError JWT.JWTExpired = JwtTokenInvalid "JWT expired"
     jwtClaimsError e              = JwtTokenInvalid $ show e
 
-parseClaims :: AppConfig -> JSON.Value -> AuthResult
-parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) =
-  AuthResult
-  { authClaims = mclaims & M.insert "role" (JSON.toJSON role)
-  , authRole = role
-  }
+parseClaims :: Monad m =>
+  AppConfig -> JSON.Value -> ExceptT Error m AuthResult
+parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
+  -- role defaults to anon if not specified in jwt
+  role <- liftEither . maybeToRight JwtTokenRequired $
+    unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
+  return AuthResult
+           { authClaims = mclaims & M.insert "role" (JSON.toJSON role)
+           , authRole = role
+           }
   where
-    -- role defaults to anon if not specified in jwt
-    role = maybe configDbAnonRole unquoted (walkJSPath (Just jclaims) configJwtRoleClaimKey)
-
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
     walkJSPath x                      []                = x
     walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (M.lookup key o) rest
@@ -91,7 +92,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) =
     unquoted (JSON.String t) = t
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = AuthResult { authClaims = M.empty, authRole = mempty }
+parseClaims _ _ = return AuthResult { authClaims = M.empty, authRole = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
@@ -101,11 +102,11 @@ middleware appState app req respond = do
   time <- getTime appState
 
   let token = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-  claims <- runExceptT $ parseToken conf (LBS.fromStrict token) time
+  authResult <- runExceptT $
+    parseToken conf (LBS.fromStrict token) time >>=
+    parseClaims conf
 
-  let
-    authResult = mapRight (parseClaims conf) claims
-    req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+  let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
   app req' respond
 
 authResultKey :: Vault.Key (Either Error AuthResult)
