@@ -481,7 +481,7 @@ jobs:
     needs:
       - Build-Cabal-Arm
       - Release-Docker
-    if: always()
+    if: ${{ always() && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
