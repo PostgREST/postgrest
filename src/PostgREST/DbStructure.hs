@@ -337,50 +337,7 @@ accessibleTables :: PgVersion -> Bool -> SQL.Statement Schema [Table]
 accessibleTables pgVer =
   SQL.Statement sql (param HE.text) decodeTables
  where
-  sql = [q|
-    select
-      n.nspname as table_schema,
-      relname as table_name,
-      d.description as table_description,
-      c.relkind IN ('v','m') as is_view,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind IN ('v','f')
-          -- CMD_INSERT - see allTables query below for explanation
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
-        )
-      ) AS insertable,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind IN ('v','f')
-          -- CMD_UPDATE
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
-        )
-      ) as updatable,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind IN ('v','f')
-          -- CMD_DELETE
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
-        )
-      ) as deletable
-    from
-      pg_class c
-      join pg_namespace n on n.oid = c.relnamespace
-      left join pg_description as d on d.objoid = c.oid and d.objsubid = 0
-    where
-      c.relkind in ('v','r','m','f','p')
-      and n.nspname = $1 |]
-      <> relIsNotPartition pgVer <> [q|
-      and (
-        pg_has_role(c.relowner, 'USAGE')
-        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
-        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-      )
-    order by relname |]
+  sql = tablesSqlQuery False pgVer
 
 {-
 Adds Views M2O Relationships based on SourceColumns found, the logic is as follows:
@@ -472,49 +429,59 @@ addViewPrimaryKeys srcCols = concatMap (\pk ->
 allTables :: PgVersion -> Bool -> SQL.Statement () [Table]
 allTables pgVer =
   SQL.Statement sql HE.noParams decodeTables
- where
-  sql = [q|
-    SELECT
-      n.nspname AS table_schema,
-      c.relname AS table_name,
-      d.description AS table_description,
-      c.relkind IN ('v','m') as is_view,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind in ('v','f')
-          -- The function `pg_relation_is_updateable` returns a bitmask where 8
-          -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
-          -- it's possible to insert into the relation.
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
-        )
-      ) AS insertable,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind in ('v','f')
-          -- CMD_UPDATE
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
-        )
-      ) AS updatable,
-      (
-        c.relkind IN ('r','p')
-        OR (
-          c.relkind in ('v','f')
-          -- CMD_DELETE
-          AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
-        )
-      ) AS deletable
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    LEFT JOIN pg_description as d on d.objoid = c.oid and d.objsubid = 0
-    WHERE c.relkind IN ('v','r','m','f','p')
-      AND n.nspname NOT IN ('pg_catalog', 'information_schema') |]
-      <> relIsNotPartition pgVer <> [q|
-    ORDER BY table_schema, table_name |]
+  where
+    sql = tablesSqlQuery True pgVer
 
-relIsNotPartition :: PgVersion -> SqlQuery
-relIsNotPartition pgVer = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+tablesSqlQuery :: Bool -> PgVersion -> SqlQuery
+tablesSqlQuery getAll pgVer = [q|
+  SELECT
+    n.nspname AS table_schema,
+    c.relname AS table_name,
+    d.description AS table_description,
+    c.relkind IN ('v','m') as is_view,
+    (
+      c.relkind IN ('r','p')
+      OR (
+        c.relkind in ('v','f')
+        -- The function `pg_relation_is_updateable` returns a bitmask where 8
+        -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
+        -- it's possible to insert into the relation.
+        AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
+      )
+    ) AS insertable,
+    (
+      c.relkind IN ('r','p')
+      OR (
+        c.relkind in ('v','f')
+        -- CMD_UPDATE
+        AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
+      )
+    ) AS updatable,
+    (
+      c.relkind IN ('r','p')
+      OR (
+        c.relkind in ('v','f')
+        -- CMD_DELETE
+        AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
+      )
+    ) AS deletable
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  LEFT JOIN pg_description as d on d.objoid = c.oid and d.objsubid = 0
+  WHERE c.relkind IN ('v','r','m','f','p')
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
+  relIsPartition <>
+  fltTables <>
+  "ORDER BY table_schema, table_name"
+  where
+    fltTables = if getAll then mempty else [q|
+      AND n.nspname = $1
+      AND (
+        pg_has_role(c.relowner, 'USAGE')
+        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
+      )|]
+    relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
 
 allColumns :: [Table] -> Bool -> SQL.Statement [Schema] [Column]
 allColumns tabs =
