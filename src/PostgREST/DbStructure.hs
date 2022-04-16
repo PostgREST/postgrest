@@ -657,27 +657,25 @@ allPrimaryKeys :: [Table] -> Bool -> SQL.Statement () [PrimaryKey]
 allPrimaryKeys tabs =
   SQL.Statement sql HE.noParams (decodePks tabs)
  where
+  -- these CTEs are based on the standard "information_schema.table_constraints" and "information_schema.key_column_usage" views,
+  -- we cannot use those directly as they include the following privilege filter:
+  -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
   sql = [q|
-    -- CTE to replace information_schema.table_constraints to remove owner limit
-    WITH tc AS (
+    WITH tbl_constraints AS (
         SELECT
             c.conname::name AS constraint_name,
             nr.nspname::name AS table_schema,
             r.relname::name AS table_name
-        FROM pg_namespace nc,
-            pg_namespace nr,
-            pg_constraint c,
-            pg_class r
+        FROM pg_namespace nc
+        JOIN pg_constraint c ON nc.oid = c.connamespace
+        JOIN pg_class r ON c.conrelid = r.oid
+        JOIN pg_namespace nr ON nr.oid = r.relnamespace
         WHERE
-            nc.oid = c.connamespace
-            AND nr.oid = r.relnamespace
-            AND c.conrelid = r.oid
-            AND r.relkind IN ('r', 'p')
-            AND NOT pg_is_other_temp_schema(nr.oid)
-            AND c.contype = 'p'
+          r.relkind IN ('r', 'p')
+          AND NOT pg_is_other_temp_schema(nr.oid)
+          AND c.contype = 'p'
     ),
-    -- CTE to replace information_schema.key_column_usage to remove owner limit
-    kc AS (
+    key_col_usage AS (
         SELECT
             ss.conname::name AS constraint_name,
             ss.nr_nspname::name AS table_schema,
@@ -688,46 +686,48 @@ allPrimaryKeys tabs =
                 WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
                 ELSE NULL::integer
             END::integer AS position_in_unique_constraint
-        FROM pg_attribute a,
-            ( SELECT r.oid AS roid,
-                r.relname,
-                r.relowner,
-                nc.nspname AS nc_nspname,
-                nr.nspname AS nr_nspname,
-                c.oid AS coid,
-                c.conname,
-                c.contype,
-                c.conindid,
-                c.confkey,
-                information_schema._pg_expandarray(c.conkey) AS x
-               FROM pg_namespace nr,
-                pg_class r,
-                pg_namespace nc,
-                pg_constraint c
-              WHERE
-                nr.oid = r.relnamespace
-                AND r.oid = c.conrelid
-                AND nc.oid = c.connamespace
-                AND c.contype in ('p', 'u', 'f')
-                AND r.relkind IN ('r', 'p')
-                AND NOT pg_is_other_temp_schema(nr.oid)
-            ) ss
+        FROM pg_attribute a
+        JOIN (
+          SELECT r.oid AS roid,
+            r.relname,
+            r.relowner,
+            nc.nspname AS nc_nspname,
+            nr.nspname AS nr_nspname,
+            c.oid AS coid,
+            c.conname,
+            c.contype,
+            c.conindid,
+            c.confkey,
+            information_schema._pg_expandarray(c.conkey) AS x
+          FROM pg_namespace nr
+          JOIN pg_class r
+            ON nr.oid = r.relnamespace
+          JOIN pg_constraint c
+            ON r.oid = c.conrelid
+          JOIN pg_namespace nc
+            ON c.connamespace = nc.oid
+          WHERE
+            c.contype in ('p', 'u')
+            AND r.relkind IN ('r', 'p')
+            AND NOT pg_is_other_temp_schema(nr.oid)
+        ) ss ON a.attrelid = ss.roid AND a.attnum = (ss.x).x
         WHERE
-          ss.roid = a.attrelid
-          AND a.attnum = (ss.x).x
-          AND NOT a.attisdropped
+          NOT a.attisdropped
     )
     SELECT
-        kc.table_schema,
-        kc.table_name,
-        kc.column_name
+        key_col_usage.table_schema,
+        key_col_usage.table_name,
+        key_col_usage.column_name
     FROM
-        tc, kc
+        tbl_constraints
+    JOIN
+        key_col_usage
+    ON
+        key_col_usage.table_name = tbl_constraints.table_name AND
+        key_col_usage.table_schema = tbl_constraints.table_schema AND
+        key_col_usage.constraint_name = tbl_constraints.constraint_name
     WHERE
-        kc.table_name = tc.table_name AND
-        kc.table_schema = tc.table_schema AND
-        kc.constraint_name = tc.constraint_name AND
-        kc.table_schema NOT IN ('pg_catalog', 'information_schema') |]
+        key_col_usage.table_schema NOT IN ('pg_catalog', 'information_schema') |]
 
 pkFromRow :: [Table] -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
