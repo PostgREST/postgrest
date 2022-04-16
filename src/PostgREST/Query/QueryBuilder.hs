@@ -53,7 +53,7 @@ getJoinsSelects :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippe
 getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (joins,selects) =
   let subquery = readRequestToQuery rr in
   case card of
-    M2O _ ->
+    M2O _ _ ->
       let aliasOrName = fromMaybe name alias
           localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
           sel = SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)

@@ -37,7 +37,6 @@ import PostgREST.DbStructure.Proc         (ProcDescription (..),
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..))
 import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
@@ -163,16 +162,23 @@ findRel schema allRels origin target hint =
     -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
     -- obtained by using the origin column as an embed hint.
     rs@[rel0, rel1]  -> case (relCardinality rel0, relCardinality rel1, relTable rel0 == relTable rel1 && relForeignTable rel0 == relForeignTable rel1) of
-      (O2M cons1, M2O cons2, True) -> if cons1 == cons2 then Right rel0 else Left $ AmbiguousRelBetween origin target rs
-      (M2O cons1, O2M cons2, True) -> if cons1 == cons2 then Right rel1 else Left $ AmbiguousRelBetween origin target rs
+      (O2M cons1 _, M2O cons2 _, True) -> if cons1 == cons2 then Right rel0 else Left $ AmbiguousRelBetween origin target rs
+      (M2O cons1 _, O2M cons2 _, True) -> if cons1 == cons2 then Right rel1 else Left $ AmbiguousRelBetween origin target rs
       _                            -> Left $ AmbiguousRelBetween origin target rs
     rs -> Left $ AmbiguousRelBetween origin target rs
   where
-    matchFKSingleCol hint_ cols = length cols == 1 && hint_ == (colName <$> head cols)
+    matchFKSingleCol hint_ card = case card of
+      O2M _ cols -> length cols == 1 && hint_ == head (fst <$> cols)
+      M2O _ cols -> length cols == 1 && hint_ == head (fst <$> cols)
+      _          -> False
+    matchFKRefSingleCol hint_ card = case card of
+      O2M _ cols -> length cols == 1 && hint_ == head (snd <$> cols)
+      M2O _ cols -> length cols == 1 && hint_ == head (snd <$> cols)
+      _          -> False
     matchConstraint tar card = case card of
-      O2M cons -> tar == Just cons
-      M2O cons -> tar == Just cons
-      _        -> False
+      O2M cons _ -> tar == Just cons
+      M2O cons _ -> tar == Just cons
+      _          -> False
     matchJunction hint_ card = case card of
       M2M Junction{junTable} -> hint_ == Just (qiName junTable)
       _                      -> False
@@ -192,8 +198,8 @@ findRel schema allRels origin target hint =
           ) ||
           -- /projects?select=client_id(*)
           (
-            origin == qiName relTable &&              -- projects
-            matchFKSingleCol (Just target) relColumns -- client_id
+            origin == qiName relTable &&                  -- projects
+            matchFKSingleCol (Just target) relCardinality -- client_id
           )
         ) && (
           isNothing hint || -- hint is optional
@@ -202,8 +208,8 @@ findRel schema allRels origin target hint =
           matchConstraint hint relCardinality || -- projects_client_id_fkey
 
           -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
-          matchFKSingleCol hint relColumns  || -- client_id
-          matchFKSingleCol hint relForeignColumns || -- id
+          matchFKSingleCol hint relCardinality    || -- client_id
+          matchFKRefSingleCol hint relCardinality || -- id
 
           -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
           matchJunction hint relCardinality -- users_tasks
@@ -234,19 +240,21 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} cols QualifiedIdentifier{qiName=ftN} fCols card) =
+getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} card) =
   case card of
-    M2M (Junction QualifiedIdentifier{qiName=jtn} _ jc1 _ jc2) ->
-      zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
-    _ ->
-      zipWith (toJoinCondition tN ftN) cols fCols
+    M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
+      (toJoinCondition tN jtn <$> jcols1) ++ (toJoinCondition ftN jtn <$> jcols2)
+    O2M _ cols ->
+      toJoinCondition tN ftN <$> cols
+    M2O _ cols ->
+      toJoinCondition tN ftN <$> cols
   where
-    toJoinCondition :: Text -> Text -> Column -> Column -> JoinCondition
-    toJoinCondition tb ftb c fc =
+    toJoinCondition :: Text -> Text -> (FieldName, FieldName) -> JoinCondition
+    toJoinCondition tb ftb (c, fc) =
       let qi1 = removeSourceCTESchema tSchema tb
           qi2 = removeSourceCTESchema tSchema ftb in
-        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) previousAlias, colName c)
-                      (maybe qi2 (QualifiedIdentifier mempty) newAlias, colName fc)
+        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) previousAlias, c)
+                      (maybe qi2 (QualifiedIdentifier mempty) newAlias, fc)
 
     -- On mutation and calling proc cases we wrap the target table in a WITH
     -- {sourceCTEName} if this happens remove the schema `FROM
@@ -380,7 +388,9 @@ returningCols rr@(Node _ forest) pkCols
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relationship{relColumns=cols}, _, _, _, _)) _ -> Just cols
+        Node (_, (_, Just Relationship{relCardinality=O2M _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
+        Node (_, (_, Just Relationship{relCardinality=M2O _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
+        Node (_, (_, Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}, _, _, _, _)) _ -> Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
         _                                                        -> Nothing
       ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to
@@ -390,7 +400,7 @@ returningCols rr@(Node _ forest) pkCols
     -- deduplicate with Set: We are adding the primary key columns as well to
     -- make sure, that a proper location header can always be built for
     -- INSERT/POST
-    returnings = S.toList . S.fromList $ fldNames ++ (colName <$> fkCols) ++ pkCols
+    returnings = S.toList . S.fromList $ fldNames ++ fkCols ++ pkCols
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder

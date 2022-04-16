@@ -27,6 +27,6 @@ spec =
       request methodGet "/"
         [("Accept", "application/json")] "" `shouldRespondWith`
         [json| {
-          "qiSchema":"test","qiName":"orders_view"
+          "qiSchema":"test","qiName":"has_fk"
           } |]
         { matchHeaders = [matchContentTypeJson] }

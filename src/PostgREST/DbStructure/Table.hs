@@ -27,6 +27,7 @@ data Table = Table
   , tableInsertable  :: Bool
   , tableUpdatable   :: Bool
   , tableDeletable   :: Bool
+  , tablePKCols      :: [FieldName]
   }
   deriving (Show, Ord, Generic, JSON.ToJSON)
 
