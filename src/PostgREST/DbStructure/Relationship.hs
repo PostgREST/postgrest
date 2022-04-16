@@ -3,7 +3,6 @@
 
 module PostgREST.DbStructure.Relationship
   ( Cardinality(..)
-  , PrimaryKey(..)
   , Relationship(..)
   , Junction(..)
   , isSelfReference
@@ -11,24 +10,17 @@ module PostgREST.DbStructure.Relationship
 
 import qualified Data.Aeson as JSON
 
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier)
-import PostgREST.DbStructure.Table       (Column (..), Table)
+import PostgREST.DbStructure.Identifiers (FieldName,
+                                          QualifiedIdentifier)
 
 import Protolude
 
 
 -- | Relationship between two tables.
---
--- The order of the relColumns and relForeignColumns should be maintained to get the
--- join conditions right.
---
--- TODO merge relColumns and relForeignColumns to a tuple or Data.Bimap
 data Relationship = Relationship
-  { relTable          :: QualifiedIdentifier
-  , relColumns        :: [Column]
-  , relForeignTable   :: QualifiedIdentifier
-  , relForeignColumns :: [Column]
-  , relCardinality    :: Cardinality
+  { relTable        :: QualifiedIdentifier
+  , relForeignTable :: QualifiedIdentifier
+  , relCardinality  :: Cardinality
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
@@ -36,9 +28,12 @@ data Relationship = Relationship
 -- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
 -- TODO: missing one-to-one
 data Cardinality
-  = O2M FKConstraint -- ^ one-to-many cardinality
-  | M2O FKConstraint -- ^ many-to-one cardinality
-  | M2M Junction     -- ^ many-to-many cardinality
+  = O2M {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
+  -- ^ one-to-many
+  | M2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
+  -- ^ many-to-one
+  | M2M Junction
+  -- ^ many-to-many
   deriving (Eq, Generic, JSON.ToJSON)
 
 type FKConstraint = Text
@@ -47,17 +42,11 @@ type FKConstraint = Text
 data Junction = Junction
   { junTable       :: QualifiedIdentifier
   , junConstraint1 :: FKConstraint
-  , junColumns1    :: [Column]
   , junConstraint2 :: FKConstraint
-  , junColumns2    :: [Column]
+  , junColumns1    :: [(FieldName, FieldName)]
+  , junColumns2    :: [(FieldName, FieldName)]
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
 isSelfReference :: Relationship -> Bool
 isSelfReference r = relTable r == relForeignTable r
-
-data PrimaryKey = PrimaryKey
-  { pkTable :: Table
-  , pkName  :: Text
-  }
-  deriving (Generic, JSON.ToJSON)

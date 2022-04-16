@@ -595,7 +595,7 @@ spec actualPgVersion = do
             }
 
     context "requesting header only representation" $ do
-      it "returns a location header" $
+      it "returns a location header with a composite PK col" $
         request methodPost "/compound_pk_view" [("Prefer", "return=headers-only")]
             [json|{"k1":1,"k2":"test","extra":2}|]
           `shouldRespondWith`
@@ -606,13 +606,13 @@ spec actualPgVersion = do
                              , "Content-Range" <:> "*/*" ]
             }
 
-      it "should not throw and return location header when a PK is null" $
+      it "returns location header with a single PK col" $
         request methodPost "/test_null_pk_competitors_sponsors" [("Prefer", "return=headers-only")]
             [json|{"id":1}|]
           `shouldRespondWith`
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
+                             , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1"
                              , "Content-Range" <:> "*/*" ]
             }

@@ -40,8 +40,6 @@ import PostgREST.DbStructure.Proc         (ProcDescription (..),
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..))
-
 import Protolude
 
 
@@ -158,15 +156,15 @@ compressedRel Relationship{..} =
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
+          , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColumns2))
           ]
-        M2O cons -> [
+        M2O cons relColumns -> [
             "cardinality" .= ("many-to-one" :: Text)
-          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (colName <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
           ]
-        O2M cons -> [
+        O2M cons relColumns -> [
             "cardinality" .= ("one-to-many" :: Text)
-          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (colName <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
           ]
 
 relHint :: [Relationship] -> Text
@@ -176,8 +174,8 @@ relHint rels = T.intercalate ", " (hintList <$> rels)
       let buildHint rel = "'" <> qiName relForeignTable <> "!" <> rel <> "'" in
       case relCardinality of
         M2M Junction{..} -> buildHint (qiName junTable)
-        M2O cons         -> buildHint cons
-        O2M cons         -> buildHint cons
+        M2O cons _       -> buildHint cons
+        O2M cons _       -> buildHint cons
 
 data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool

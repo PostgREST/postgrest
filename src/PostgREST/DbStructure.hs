@@ -26,26 +26,24 @@ module PostgREST.DbStructure
   , findIfView
   , schemaDescription
   , tableCols
-  , tablePKCols
   ) where
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
-import qualified Data.List           as L
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
 import qualified Hasql.Statement     as SQL
 import qualified Hasql.Transaction   as SQL
 
 import Contravariant.Extras          (contrazip2)
-import Data.Set                      as S (fromList)
 import Data.Text                     (split)
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110)
-import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..),
+import PostgREST.DbStructure.Identifiers  (FieldName,
+                                           QualifiedIdentifier (..),
                                            Schema, TableName)
 import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcDescription (..),
@@ -54,20 +52,17 @@ import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
-                                           PrimaryKey (..),
                                            Relationship (..))
 import PostgREST.DbStructure.Table        (Column (..), Table (..),
                                            TablesMap)
 
 import Protolude
-import Protolude.Unsafe (unsafeHead)
 
 
 data DbStructure = DbStructure
   { dbTables        :: TablesMap
   , dbColumns       :: [Column]
   , dbRelationships :: [Relationship]
-  , dbPrimaryKeys   :: [PrimaryKey]
   , dbProcs         :: ProcsMap
   }
   deriving (Generic, JSON.ToJSON)
@@ -76,16 +71,22 @@ data DbStructure = DbStructure
 tableCols :: DbStructure -> Schema -> TableName -> [Column]
 tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
 
--- TODO Table could hold references to all its PrimaryKeys
-tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
-tablePKCols dbs tSchema tName = pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
-
 findIfView :: QualifiedIdentifier -> TablesMap -> Bool
 findIfView identifier tbls = maybe False tableIsView $ M.lookup identifier tbls
 
--- | The source table column a view column refers to
-type SourceColumn = (Column, ViewColumn)
-type ViewColumn = Column
+-- | A view foreign key or primary key dependency detected on its source table
+data ViewKeyDependency = ViewKeyDependency {
+  keyDepTable :: QualifiedIdentifier
+, keyDepView  :: QualifiedIdentifier
+, keyDepCons  :: Text
+, keyDepType  :: KeyDep
+, keyDepCols  :: [(FieldName, FieldName)] -- ^ First element is the table column, second is the view column
+} deriving (Eq)
+data KeyDep
+  = PKDep    -- ^ PK dependency
+  | FKDep    -- ^ FK dependency
+  | FKDepRef -- ^ FK reference dependency
+  deriving (Eq)
 
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
@@ -96,19 +97,17 @@ queryDbStructure schemas extraSearchPath prepared = do
   pgVer   <- SQL.statement mempty pgVersionStatement
   tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
-  srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- SQL.statement mempty $ allM2ORels pgVer cols prepared
-  keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
+  keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
+  m2oRels <- SQL.statement mempty $ allM2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
-  let rels = addO2MRels . addM2MRels $ addViewM2ORels srcCols m2oRels
-      keys' = addViewPrimaryKeys srcCols keys
+  let rels          = addO2MRels $ addM2MRels $ addViewM2ORels keyDeps m2oRels
+      tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
 
   return $ removeInternal schemas $ DbStructure {
-      dbTables = tabs
+      dbTables = tabsWViewsPks
     , dbColumns = cols
     , dbRelationships = rels
-    , dbPrimaryKeys = keys'
     , dbProcs = procs
     }
 
@@ -121,7 +120,6 @@ removeInternal schemas dbStruct =
     , dbRelationships = filter (\x -> qiSchema (relTable x) `elem` schemas &&
                                       qiSchema (relForeignTable x) `elem` schemas &&
                                       not (hasInternalJunction x)) $ dbRelationships dbStruct
-    , dbPrimaryKeys   = filter (\x -> tableSchema (pkTable x) `elem` schemas) $ dbPrimaryKeys dbStruct
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
@@ -140,6 +138,7 @@ decodeTables =
                  <*> column HD.bool
                  <*> column HD.bool
                  <*> column HD.bool
+                 <*> arrayColumn HD.text
 
 decodeColumns :: TablesMap -> HD.Result [Column]
 decodeColumns tables =
@@ -157,40 +156,42 @@ decodeColumns tables =
       <*> nullableColumn HD.text
       <*> nullableColumn HD.text
 
-decodeRels :: [Column] -> HD.Result [Relationship]
-decodeRels cols =
-  mapMaybe (relFromRow cols) <$> HD.rowList relRow
+decodeRels :: HD.Result [Relationship]
+decodeRels =
+  map relFromRow <$> HD.rowList relRow
  where
-  relRow = (,,,,,,)
-    <$> column HD.text
+  relRow = (,,,,,)
+    <$> column HD.text <*> column HD.text
+    <*> column HD.text <*> column HD.text
     <*> column HD.text
-    <*> column HD.text
-    <*> arrayColumn HD.text
-    <*> column HD.text
-    <*> column HD.text
-    <*> arrayColumn HD.text
+    <*> compositeArrayColumn
+        ((,)
+        <$> compositeField HD.text
+        <*> compositeField HD.text)
 
-decodePks :: TablesMap -> HD.Result [PrimaryKey]
-decodePks tables =
-  mapMaybe (pkFromRow tables) <$> HD.rowList pkRow
- where
-  pkRow = (,,) <$> column HD.text <*> column HD.text <*> column HD.text
+relFromRow :: (Text, Text, Text, Text, Text, [(Text, Text)]) -> Relationship
+relFromRow (rs, rt, frs, frt, cn, cs) =
+  Relationship (QualifiedIdentifier rs rt) (QualifiedIdentifier frs frt) (M2O cn cs)
 
-decodeSourceColumns :: [Column] -> HD.Result [SourceColumn]
-decodeSourceColumns cols =
-  mapMaybe (sourceColumnFromRow cols) <$> HD.rowList srcColRow
+decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
+decodeViewKeyDeps =
+  map viewKeyDepFromRow <$> HD.rowList row
  where
-  srcColRow = (,,,,,)
+  row = (,,,,,,)
     <$> column HD.text <*> column HD.text
     <*> column HD.text <*> column HD.text
     <*> column HD.text <*> column HD.text
+    <*> compositeArrayColumn
+        ((,)
+        <$> compositeField HD.text
+        <*> compositeField HD.text)
 
-sourceColumnFromRow :: [Column] -> (Text,Text,Text,Text,Text,Text) -> Maybe SourceColumn
-sourceColumnFromRow allCols (s1,t1,c1,s2,t2,c2) = (,) <$> col1 <*> col2
+viewKeyDepFromRow :: (Text,Text,Text,Text,Text,Text,[(Text, Text)]) -> ViewKeyDependency
+viewKeyDepFromRow (s1,t1,s2,v2,cons,consType,sCols) = ViewKeyDependency (QualifiedIdentifier s1 t1) (QualifiedIdentifier s2 v2) cons keyDep sCols
   where
-    col1 = findCol s1 t1 c1
-    col2 = findCol s2 t2 c2
-    findCol s t c = find (\col -> (tableSchema . colTable) col == s && (tableName . colTable) col == t && colName col == c) allCols
+    keyDep | consType == "p" = PKDep
+           | consType == "f" = FKDep
+           | otherwise       = FKDepRef -- f_ref, we build this type in the query
 
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
@@ -337,91 +338,71 @@ accessibleTables pgVer =
   sql = tablesSqlQuery False pgVer
 
 {-
-Adds Views M2O Relationships based on SourceColumns found, the logic is as follows:
+Adds M2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
 
-Having a Relationship{relTable=t1, relColumns=[c1], relFTable=t2, relFColumns=[c2], relCardinality=M2O} represented by:
+--allM2ORels sample query result--
+private      | personnages          | private    | actors           | personnages_role_id_fkey   | {"(role_id,id)"}
 
-t1.c1------t2.c2
+--allViewsKeyDependencies sample query result--
+private      | personnages          | test       | personnages_view | personnages_role_id_fkey   | f       | {"(role_id,roleId)"}
+private      | actors               | test       | actors_view      | personnages_role_id_fkey   | f_ref   | {"(id,actorId)"}
 
-When only having a t1_view.c1 source column, we need to add a View-Table M2O Relationship
-
-         t1.c1----t2.c2         t1.c1----------t2.c2
-                         ->            ________/
-                                      /
-      t1_view.c1             t1_view.c1
-
-
-When only having a t2_view.c2 source column, we need to add a Table-View M2O Relationship
-
-         t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \________
-                                                    \
-                    t2_view.c2                      t2_view.c1
-
-When having t1_view.c1 and a t2_view.c2 source columns, we need to add a View-View M2O Relationship in addition to the prior
-
-         t1.c1----t2.c2               t1.c1----------t2.c2
-                               ->          \________/
-                                           /        \
-    t1_view.c1     t2_view.c2     t1_view.c1-------t2_view.c1
-
-The logic for composite pks is similar just need to make sure all the Relationship columns have source columns.
+--this function result--
+test         | personnages_view     | private    | actors           | personnages_role_id_fkey   | f        | {"(roleId,id)"}       | viewTableM2O
+private      | personnages          | test       | actors_view      | personnages_role_id_fkey   | f_ref    | {"(role_id,actorId)"} | tableViewM2O
+test         | personnages_view     | test       | actors_view      | personnages_role_id_fkey   | f,r_ref  | {"(roleId,actorId)"}  | viewViewM2O
 -}
-addViewM2ORels :: [SourceColumn] -> [Relationship] -> [Relationship]
-addViewM2ORels allSrcCols = concatMap (\rel@Relationship{..} -> rel :
-  let
-    srcColsGroupedByView :: [Column] -> [[SourceColumn]]
-    srcColsGroupedByView relCols = L.groupBy (\(_, viewCol1) (_, viewCol2) -> colTable viewCol1 == colTable viewCol2) $
-                   filter (\(c, _) -> c `elem` relCols) allSrcCols
-    relSrcCols = srcColsGroupedByView relColumns
-    relFSrcCols = srcColsGroupedByView relForeignColumns
-    getView :: [SourceColumn] -> QualifiedIdentifier
-    getView = (\t -> QualifiedIdentifier (tableSchema t) (tableName t)) . colTable . snd . unsafeHead
-    srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
-    -- Relationship is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
-    -- So we need to change the order of the SourceColumns to match the relColumns
-    -- TODO: This could be avoided if the Relationship type is improved with a structure that maintains the association of relColumns and relFColumns
-    srcCols `sortAccordingTo` cols = sortOn (\(k, _) -> L.lookup k $ zip cols [0::Int ..]) srcCols
+addViewM2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
+addViewM2ORels keyDeps rels =
+  rels ++ concat (viewRels <$> rels)
+  where
+    viewRels Relationship{relTable,relForeignTable,relCardinality=M2O cons relColumns} =
+      let
+        viewTableM2Os = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relTable        && keyDepCons == cons && keyDepType == FKDep)    keyDeps
+        tableViewM2Os = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relForeignTable && keyDepCons == cons && keyDepType == FKDepRef) keyDeps
+      in
+        [ Relationship
+            (keyDepView vwTbl)
+            relForeignTable
+            (M2O cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) (keyDepCols vwTbl) relColumns)
+        | vwTbl <- viewTableM2Os ]
+        ++
+        [ Relationship
+            relTable
+            (keyDepView tblVw)
+            (M2O cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relColumns (keyDepCols tblVw))
+        | tblVw <- tableViewM2Os ]
+        ++
+        [ Relationship
+            (keyDepView vwTbl)
+            (keyDepView tblVw)
+            (M2O cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) (keyDepCols vwTbl) (keyDepCols tblVw))
+        | vwTbl <- viewTableM2Os
+        , tblVw <- tableViewM2Os ]
+    viewRels _ = []
 
-    viewTableM2O =
-      [ Relationship
-          (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          relForeignTable relForeignColumns relCardinality
-      | srcCols <- relSrcCols, srcCols `allSrcColsOf` relColumns ]
-
-    tableViewM2O =
-      [ Relationship
-          relTable relColumns
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
-          relCardinality
-      | fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
-
-    viewViewM2O =
-      [ Relationship
-          (getView srcCols) (snd <$> srcCols `sortAccordingTo` relColumns)
-          (getView fSrcCols) (snd <$> fSrcCols `sortAccordingTo` relForeignColumns)
-          relCardinality
-      | srcCols  <- relSrcCols, srcCols `allSrcColsOf` relColumns
-      , fSrcCols <- relFSrcCols, fSrcCols `allSrcColsOf` relForeignColumns ]
-
-  in viewTableM2O ++ tableViewM2O ++ viewViewM2O)
 
 addO2MRels :: [Relationship] -> [Relationship]
-addO2MRels rels = rels ++ [ Relationship ft fc t c (O2M cons)
-                          | Relationship t c ft fc (M2O cons) <- rels ]
+addO2MRels rels = rels ++ [ Relationship ft t (O2M cons (swap <$> cols))
+                          | Relationship t ft (M2O cons cols) <- rels ]
 
 addM2MRels :: [Relationship] -> [Relationship]
-addM2MRels rels = rels ++ [ Relationship t c ft fc (M2M $ Junction jt1 cons1 jc1 cons2 jc2)
-                          | Relationship jt1 jc1 t c (M2O cons1) <- rels
-                          , Relationship jt2 jc2 ft fc (M2O cons2) <- rels
+addM2MRels rels = rels ++ [ Relationship t ft
+                              (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols))
+                          | Relationship jt1 t  (M2O cons1 cols)  <- rels
+                          , Relationship jt2 ft (M2O cons2 fcols) <- rels
                           , jt1 == jt2
                           , cons1 /= cons2]
 
-addViewPrimaryKeys :: [SourceColumn] -> [PrimaryKey] -> [PrimaryKey]
-addViewPrimaryKeys srcCols = concatMap (\pk ->
-  let viewPks = (\(_, viewCol) -> PrimaryKey{pkTable=colTable viewCol, pkName=colName viewCol}) <$>
-                filter (\(col, _) -> colTable col == pkTable pk && colName col == pkName pk) srcCols in
-  pk : viewPks)
+addViewPrimaryKeys :: TablesMap -> [ViewKeyDependency] -> TablesMap
+addViewPrimaryKeys tabs keyDeps =
+  (\tbl@Table{tableSchema, tableName, tableIsView}-> if tableIsView
+    then tbl{tablePKCols=findViewPKCols tableSchema tableName}
+    else tbl) <$> tabs
+  where
+    findViewPKCols sch vw =
+      maybe [] (\(ViewKeyDependency _ _ _ _ pkCols) -> snd <$> pkCols) $
+      find (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
 
 allTables :: PgVersion -> Bool -> SQL.Statement () TablesMap
 allTables pgVer =
@@ -429,8 +410,84 @@ allTables pgVer =
   where
     sql = tablesSqlQuery True pgVer
 
+-- | Gets tables with their PK cols
 tablesSqlQuery :: Bool -> PgVersion -> SqlQuery
-tablesSqlQuery getAll pgVer = [q|
+tablesSqlQuery getAll pgVer =
+  -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
+  -- we cannot use those directly as they include the following privilege filter:
+  -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
+  [q|
+  WITH
+  tbl_constraints AS (
+      SELECT
+          c.conname::name AS constraint_name,
+          nr.nspname::name AS table_schema,
+          r.relname::name AS table_name
+      FROM pg_namespace nc
+      JOIN pg_constraint c ON nc.oid = c.connamespace
+      JOIN pg_class r ON c.conrelid = r.oid
+      JOIN pg_namespace nr ON nr.oid = r.relnamespace
+      WHERE
+        r.relkind IN ('r', 'p')
+        AND NOT pg_is_other_temp_schema(nr.oid)
+        AND c.contype = 'p'
+  ),
+  key_col_usage AS (
+      SELECT
+          ss.conname::name AS constraint_name,
+          ss.nr_nspname::name AS table_schema,
+          ss.relname::name AS table_name,
+          a.attname::name AS column_name,
+          (ss.x).n::integer AS ordinal_position,
+          CASE
+              WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
+              ELSE NULL::integer
+          END::integer AS position_in_unique_constraint
+      FROM pg_attribute a
+      JOIN (
+        SELECT r.oid AS roid,
+          r.relname,
+          r.relowner,
+          nc.nspname AS nc_nspname,
+          nr.nspname AS nr_nspname,
+          c.oid AS coid,
+          c.conname,
+          c.contype,
+          c.conindid,
+          c.confkey,
+          information_schema._pg_expandarray(c.conkey) AS x
+        FROM pg_namespace nr
+        JOIN pg_class r
+          ON nr.oid = r.relnamespace
+        JOIN pg_constraint c
+          ON r.oid = c.conrelid
+        JOIN pg_namespace nc
+          ON c.connamespace = nc.oid
+        WHERE
+          c.contype in ('p', 'u')
+          AND r.relkind IN ('r', 'p')
+          AND NOT pg_is_other_temp_schema(nr.oid)
+      ) ss ON a.attrelid = ss.roid AND a.attnum = (ss.x).x
+      WHERE
+        NOT a.attisdropped
+  ),
+  tbl_pk_cols AS (
+    SELECT
+        key_col_usage.table_schema,
+        key_col_usage.table_name,
+        array_agg(key_col_usage.column_name) as pk_cols
+    FROM
+        tbl_constraints
+    JOIN
+        key_col_usage
+    ON
+        key_col_usage.table_name = tbl_constraints.table_name AND
+        key_col_usage.table_schema = tbl_constraints.table_schema AND
+        key_col_usage.constraint_name = tbl_constraints.constraint_name
+    WHERE
+        key_col_usage.table_schema NOT IN ('pg_catalog', 'information_schema')
+    GROUP BY key_col_usage.table_schema, key_col_usage.table_name
+  )
   SELECT
     n.nspname AS table_schema,
     c.relname AS table_name,
@@ -461,10 +518,12 @@ tablesSqlQuery getAll pgVer = [q|
         -- CMD_DELETE
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
       )
-    ) AS deletable
+    ) AS deletable,
+    coalesce(tpks.pk_cols, '{}') as pk_cols
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  LEFT JOIN pg_description as d on d.objoid = c.oid and d.objsubid = 0
+  LEFT JOIN pg_description d on d.objoid = c.oid and d.objsubid = 0
+  LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
   WHERE c.relkind IN ('v','r','m','f','p')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
   relIsPartition <>
@@ -613,23 +672,20 @@ columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: PgVersion -> [Column] -> Bool -> SQL.Statement () [Relationship]
-allM2ORels pgVer allCols =
-  SQL.Statement sql HE.noParams (decodeRels allCols)
+allM2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
+allM2ORels pgVer =
+  SQL.Statement sql HE.noParams decodeRels
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
            tab.relname AS table_name,
-           conname     AS constraint_name,
-           column_info.cols AS columns,
            ns2.nspname AS foreign_table_schema,
            other.relname AS foreign_table_name,
-           column_info.refs AS foreign_columns
+           conname     AS constraint_name,
+           column_info.cols AS columns
     FROM pg_constraint,
     LATERAL (
-      SELECT array_agg(cols.attname) AS cols,
-                    array_agg(cols.attnum)  AS nums,
-                    array_agg(refs.attname) AS refs
+      SELECT array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols
       FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
       LATERAL (SELECT * FROM pg_attribute WHERE attrelid = conrelid AND attnum = col) AS cols,
       LATERAL (SELECT * FROM pg_attribute WHERE attrelid = confrelid AND attnum = ref) AS refs) AS column_info,
@@ -641,100 +697,12 @@ allM2ORels pgVer allCols =
     (if pgVer >= pgVersion110
       then " and conparentid = 0 "
       else mempty) <>
-    "ORDER BY (conrelid, column_info.nums)"
+    "ORDER BY conrelid, conname"
 
-relFromRow :: [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relationship
-relFromRow allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relationship (QualifiedIdentifier rs rt) <$> cols <*> pure (QualifiedIdentifier frs frt) <*> colsF <*> pure (M2O cn)
-  where
-    findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
-    cols  = mapM (findCol rs rt) rcs
-    colsF = mapM (findCol frs frt) frcs
-
-allPrimaryKeys :: TablesMap -> Bool -> SQL.Statement () [PrimaryKey]
-allPrimaryKeys tabs =
-  SQL.Statement sql HE.noParams (decodePks tabs)
- where
-  -- these CTEs are based on the standard "information_schema.table_constraints" and "information_schema.key_column_usage" views,
-  -- we cannot use those directly as they include the following privilege filter:
-  -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
-  sql = [q|
-    WITH tbl_constraints AS (
-        SELECT
-            c.conname::name AS constraint_name,
-            nr.nspname::name AS table_schema,
-            r.relname::name AS table_name
-        FROM pg_namespace nc
-        JOIN pg_constraint c ON nc.oid = c.connamespace
-        JOIN pg_class r ON c.conrelid = r.oid
-        JOIN pg_namespace nr ON nr.oid = r.relnamespace
-        WHERE
-          r.relkind IN ('r', 'p')
-          AND NOT pg_is_other_temp_schema(nr.oid)
-          AND c.contype = 'p'
-    ),
-    key_col_usage AS (
-        SELECT
-            ss.conname::name AS constraint_name,
-            ss.nr_nspname::name AS table_schema,
-            ss.relname::name AS table_name,
-            a.attname::name AS column_name,
-            (ss.x).n::integer AS ordinal_position,
-            CASE
-                WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
-                ELSE NULL::integer
-            END::integer AS position_in_unique_constraint
-        FROM pg_attribute a
-        JOIN (
-          SELECT r.oid AS roid,
-            r.relname,
-            r.relowner,
-            nc.nspname AS nc_nspname,
-            nr.nspname AS nr_nspname,
-            c.oid AS coid,
-            c.conname,
-            c.contype,
-            c.conindid,
-            c.confkey,
-            information_schema._pg_expandarray(c.conkey) AS x
-          FROM pg_namespace nr
-          JOIN pg_class r
-            ON nr.oid = r.relnamespace
-          JOIN pg_constraint c
-            ON r.oid = c.conrelid
-          JOIN pg_namespace nc
-            ON c.connamespace = nc.oid
-          WHERE
-            c.contype in ('p', 'u')
-            AND r.relkind IN ('r', 'p')
-            AND NOT pg_is_other_temp_schema(nr.oid)
-        ) ss ON a.attrelid = ss.roid AND a.attnum = (ss.x).x
-        WHERE
-          NOT a.attisdropped
-    )
-    SELECT
-        key_col_usage.table_schema,
-        key_col_usage.table_name,
-        key_col_usage.column_name
-    FROM
-        tbl_constraints
-    JOIN
-        key_col_usage
-    ON
-        key_col_usage.table_name = tbl_constraints.table_name AND
-        key_col_usage.table_schema = tbl_constraints.table_schema AND
-        key_col_usage.constraint_name = tbl_constraints.constraint_name
-    WHERE
-        key_col_usage.table_schema NOT IN ('pg_catalog', 'information_schema') |]
-
-pkFromRow :: TablesMap -> (Schema, Text, Text) -> Maybe PrimaryKey
-pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
-  where table = M.lookup (QualifiedIdentifier s t) tabs
-
--- returns all the primary and foreign key columns which are referenced in views
-pfkSourceColumns :: [Column] -> Bool -> SQL.Statement ([Schema], [Schema]) [SourceColumn]
-pfkSourceColumns cols =
-  SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) (decodeSourceColumns cols)
+-- | Returns all the views' primary keys and foreign keys dependencies
+allViewsKeyDependencies :: Bool -> SQL.Statement ([Schema], [Schema]) [ViewKeyDependency]
+allViewsKeyDependencies =
+  SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeViewKeyDeps
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
@@ -744,6 +712,8 @@ pfkSourceColumns cols =
       pks_fks as (
         -- pk + fk referencing col
         select
+          contype,
+          conname,
           conrelid as resorigtbl,
           unnest(conkey) as resorigcol
         from pg_constraint
@@ -751,6 +721,8 @@ pfkSourceColumns cols =
         union
         -- fk referenced col
         select
+          concat(contype, '_ref') as contype,
+          conname,
           confrelid,
           unnest(confkey)
         from pg_constraint
@@ -879,17 +851,19 @@ pfkSourceColumns cols =
       select
         sch.nspname as table_schema,
         tbl.relname as table_name,
-        col.attname as table_column_name,
         rec.view_schema,
         rec.view_name,
-        vcol.attname as view_column_name
+        pks_fks.conname as constraint_name,
+        pks_fks.contype as constraint_type,
+        array_agg(row(col.attname, vcol.attname) order by col.attnum) as column_dependencies
       from recursion rec
       join pg_class tbl on tbl.oid = rec.resorigtbl
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rec.resorigcol
       join pg_attribute vcol on vcol.attrelid = rec.view_id and vcol.attnum = rec.view_column
       join pg_namespace sch on sch.oid = tbl.relnamespace
       join pks_fks using (resorigtbl, resorigcol)
-      order by view_schema, view_name, view_column_name; |]
+      group by sch.nspname, tbl.relname,  rec.view_schema, rec.view_name, pks_fks.conname, pks_fks.contype
+      |]
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
