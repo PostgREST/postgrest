@@ -417,7 +417,7 @@ handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
-  case findTable (qiSchema identifier) (qiName identifier) $ dbTables ctxDbStructure of
+  case findTable identifier $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
@@ -491,7 +491,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
-              (filter (\x -> tableSchema x == tSchema) $ DbStructure.dbTables dbStructure)
+              (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
               (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
           <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OADisabled ->
