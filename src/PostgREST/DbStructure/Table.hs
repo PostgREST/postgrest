@@ -5,9 +5,11 @@ module PostgREST.DbStructure.Table
   ( Column(..)
   , Table(..)
   , tableQi
+  , TablesMap
   ) where
 
 import qualified Data.Aeson as JSON
+import qualified Data.HashMap.Strict as M
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -50,8 +52,4 @@ data Column = Column
 instance Eq Column where
   Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
 
-data PrimaryKey = PrimaryKey
-  { pkTable :: Table
-  , pkName  :: Text
-  }
-  deriving (Generic, JSON.ToJSON)
+type TablesMap = M.HashMap QualifiedIdentifier Table

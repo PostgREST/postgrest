@@ -34,20 +34,20 @@ import PostgREST.DbStructure.Proc         (ProcDescription (..),
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            PrimaryKey (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..), Table (..))
+import PostgREST.DbStructure.Table        (Column (..), Table (..), TablesMap)
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
 import PostgREST.ContentType
 
 import Protolude hiding (Proxy, get)
 
-encode :: AppConfig -> DbStructure -> [Table] -> M.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode :: AppConfig -> DbStructure -> TablesMap -> M.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
 encode conf dbStructure tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
       (dbRelationships dbStructure)
       (concat $ M.elems procs)
-      (openApiTableInfo dbStructure <$> tables)
+      (openApiTableInfo dbStructure <$> (snd <$> M.toList tables))
       (proxyUri conf)
       schemaDescription
       (dbPrimaryKeys dbStructure)
