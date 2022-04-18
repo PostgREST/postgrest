@@ -27,9 +27,6 @@ spec =
       request methodGet "/"
         [("Accept", "application/json")] "" `shouldRespondWith`
         [json| {
-            "tableName": "orders_view", "tableSchema": "test",
-            "tableDeletable": true, "tableUpdatable": true,
-            "tableIsView":true, "tableInsertable": true,
-            "tableDescription": null
+          "qiSchema":"test","qiName":"orders_view"
           } |]
         { matchHeaders = [matchContentTypeJson] }

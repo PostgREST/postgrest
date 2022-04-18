@@ -11,7 +11,8 @@ module PostgREST.DbStructure.Relationship
 
 import qualified Data.Aeson as JSON
 
-import PostgREST.DbStructure.Table (Column (..), Table (..))
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier)
+import PostgREST.DbStructure.Table       (Column (..), Table)
 
 import Protolude
 
@@ -23,9 +24,9 @@ import Protolude
 --
 -- TODO merge relColumns and relForeignColumns to a tuple or Data.Bimap
 data Relationship = Relationship
-  { relTable          :: Table
+  { relTable          :: QualifiedIdentifier
   , relColumns        :: [Column]
-  , relForeignTable   :: Table
+  , relForeignTable   :: QualifiedIdentifier
   , relForeignColumns :: [Column]
   , relCardinality    :: Cardinality
   }
@@ -44,7 +45,7 @@ type FKConstraint = Text
 
 -- | Junction table on an M2M relationship
 data Junction = Junction
-  { junTable       :: Table
+  { junTable       :: QualifiedIdentifier
   , junConstraint1 :: FKConstraint
   , junColumns1    :: [Column]
   , junConstraint2 :: FKConstraint

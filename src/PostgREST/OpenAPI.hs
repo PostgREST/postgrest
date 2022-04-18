@@ -29,12 +29,14 @@ import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
 import PostgREST.DbStructure              (DbStructure (..),
                                            tableCols, tablePKCols)
+import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            PrimaryKey (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..), Table (..), TablesMap)
+import PostgREST.DbStructure.Table        (Column (..), Table (..),
+                                           TablesMap)
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
 import PostgREST.ContentType
@@ -103,7 +105,7 @@ makeProperty rels pks c = (colName c, Inline s)
           _                                                 -> False
           ) rels
         fCol = colName <$> (headMay . relForeignColumns =<< rel)
-        fTbl = tableName . relForeignTable <$> rel
+        fTbl = qiName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol
       in
         (\(a, b) -> T.intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]) <$> fTblCol

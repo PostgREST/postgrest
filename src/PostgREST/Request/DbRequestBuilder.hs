@@ -37,8 +37,7 @@ import PostgREST.DbStructure.Proc         (ProcDescription (..),
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..), Table (..),
-                                           tableQi)
+import PostgREST.DbStructure.Table        (Column (..))
 import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
@@ -88,7 +87,7 @@ rootWithRels schema rootTableName allRels action = case action of
     -- findRel can find relationships with sourceCTEName.
     toSourceRel :: Relationship -> Maybe Relationship
     toSourceRel r@Relationship{relTable=t}
-      | rootTableName == tableName t = Just $ r {relTable=t {tableName=_sourceCTEName}}
+      | rootTableName == qiName t = Just $ r {relTable=t {qiName=_sourceCTEName}}
       | otherwise                    = Nothing
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we
@@ -131,7 +130,7 @@ addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Eithe
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi}, _) _) ->
-      let newFrom r = if qiName tbl == nodeName then tableQi (relForeignTable r) else tbl
+      let newFrom r = if qiName tbl == nodeName then relForeignTable r else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))) <$> rel
           rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
       in
@@ -175,25 +174,25 @@ findRel schema allRels origin target hint =
       M2O cons -> tar == Just cons
       _        -> False
     matchJunction hint_ card = case card of
-      M2M Junction{junTable} -> hint_ == Just (tableName junTable)
+      M2M Junction{junTable} -> hint_ == Just (qiName junTable)
       _                      -> False
     rel = filter (
       \Relationship{..} ->
         -- Both relationship ends need to be on the exposed schema
-        schema == tableSchema relTable && schema == tableSchema relForeignTable &&
+        schema == qiSchema relTable && schema == qiSchema relForeignTable &&
         (
           -- /projects?select=clients(*)
-          origin == tableName relTable  &&  -- projects
-          target == tableName relForeignTable ||  -- clients
+          origin == qiName relTable  &&  -- projects
+          target == qiName relForeignTable ||  -- clients
 
           -- /projects?select=projects_client_id_fkey(*)
           (
-            origin == tableName relTable &&              -- projects
+            origin == qiName relTable &&              -- projects
             matchConstraint (Just target) relCardinality -- projects_client_id_fkey
           ) ||
           -- /projects?select=client_id(*)
           (
-            origin == tableName relTable &&           -- projects
+            origin == qiName relTable &&              -- projects
             matchFKSingleCol (Just target) relColumns -- client_id
           )
         ) && (
@@ -217,7 +216,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
   case rel of
     Just r@Relationship{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
-      Node (rq{implicitJoins=tableQi junTable:implicitJoins rq}, nodeProps) <$> updatedForest
+      Node (rq{implicitJoins=junTable:implicitJoins rq}, nodeProps) <$> updatedForest
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Nothing -> Node node <$> updatedForest
   where
@@ -235,9 +234,9 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relationship Table{tableSchema=tSchema, tableName=tN} cols Table{tableName=ftN} fCols card) =
+getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} cols QualifiedIdentifier{qiName=ftN} fCols card) =
   case card of
-    M2M (Junction Table{tableName=jtn} _ jc1 _ jc2) ->
+    M2M (Junction QualifiedIdentifier{qiName=jtn} _ jc1 _ jc2) ->
       zipWith (toJoinCondition tN jtn) cols jc1 ++ zipWith (toJoinCondition ftN jtn) fCols jc2
     _ ->
       zipWith (toJoinCondition tN ftN) cols fCols

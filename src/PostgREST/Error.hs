@@ -34,12 +34,13 @@ import qualified PostgREST.ContentType   as ContentType
 import           PostgREST.Request.Types (ApiRequestError (..),
                                           QPError (..))
 
+import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..), Table (..))
+import PostgREST.DbStructure.Table        (Column (..))
 
 import Protolude
 
@@ -153,28 +154,28 @@ compressedRel Relationship{..} =
     fmtEls els = "(" <> T.intercalate ", " els <> ")"
   in
   JSON.object $
-    ("embedding" .= (tableName relTable <> " with " <> tableName relForeignTable :: Text))
+    ("embedding" .= (qiName relTable <> " with " <> qiName relForeignTable :: Text))
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (tableName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
+          , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (colName <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (colName <$> junColumns2))
           ]
         M2O cons -> [
             "cardinality" .= ("many-to-one" :: Text)
-          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (colName <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
         O2M cons -> [
             "cardinality" .= ("one-to-many" :: Text)
-          , "relationship" .= (cons <> " using " <> tableName relTable <> fmtEls (colName <$> relColumns) <> " and " <> tableName relForeignTable <> fmtEls (colName <$> relForeignColumns))
+          , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (colName <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (colName <$> relForeignColumns))
           ]
 
 relHint :: [Relationship] -> Text
 relHint rels = T.intercalate ", " (hintList <$> rels)
   where
     hintList Relationship{..} =
-      let buildHint rel = "'" <> tableName relForeignTable <> "!" <> rel <> "'" in
+      let buildHint rel = "'" <> qiName relForeignTable <> "!" <> rel <> "'" in
       case relCardinality of
-        M2M Junction{..} -> buildHint (tableName junTable)
+        M2M Junction{..} -> buildHint (qiName junTable)
         M2O cons         -> buildHint cons
         O2M cons         -> buildHint cons
 
