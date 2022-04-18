@@ -63,8 +63,7 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..),
-                                          findIfView, findTable,
-                                          tablePKCols)
+                                          findIfView, tablePKCols)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
@@ -417,7 +416,7 @@ handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
-  case findTable identifier $ dbTables ctxDbStructure of
+  case M.lookup identifier $ dbTables ctxDbStructure of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->

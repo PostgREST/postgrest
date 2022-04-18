@@ -24,7 +24,6 @@ module PostgREST.DbStructure
   , accessibleTables
   , accessibleProcs
   , findIfView
-  , findTable
   , schemaDescription
   , tableCols
   , tablePKCols
@@ -57,7 +56,8 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            PrimaryKey (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Column (..), Table (..), TablesMap)
+import PostgREST.DbStructure.Table        (Column (..), Table (..),
+                                           TablesMap)
 
 import Protolude
 import Protolude.Unsafe (unsafeHead)
@@ -80,11 +80,8 @@ tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tabl
 tablePKCols :: DbStructure -> Schema -> TableName -> [Text]
 tablePKCols dbs tSchema tName = pkName <$> filter (\pk -> tSchema == (tableSchema . pkTable) pk && tName == (tableName . pkTable) pk) (dbPrimaryKeys dbs)
 
-findTable :: QualifiedIdentifier -> TablesMap -> Maybe Table
-findTable identifier tbls = M.lookup identifier tbls
-
 findIfView :: QualifiedIdentifier -> TablesMap -> Bool
-findIfView identifier tbls = maybe False tableIsView $ findTable identifier tbls
+findIfView identifier tbls = maybe False tableIsView $ M.lookup identifier tbls
 
 -- | The source table column a view column refers to
 type SourceColumn = (Column, ViewColumn)
@@ -100,7 +97,7 @@ queryDbStructure schemas extraSearchPath prepared = do
   tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- SQL.statement mempty $ allM2ORels tabs cols prepared
+  m2oRels <- SQL.statement mempty $ allM2ORels cols prepared
   keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
@@ -121,15 +118,15 @@ removeInternal schemas dbStruct =
   DbStructure {
       dbTables        = M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbColumns       = filter (\x -> tableSchema (colTable x) `elem` schemas) (dbColumns dbStruct)
-    , dbRelationships = filter (\x -> tableSchema (relTable x) `elem` schemas &&
-                                      tableSchema (relForeignTable x) `elem` schemas &&
+    , dbRelationships = filter (\x -> qiSchema (relTable x) `elem` schemas &&
+                                      qiSchema (relForeignTable x) `elem` schemas &&
                                       not (hasInternalJunction x)) $ dbRelationships dbStruct
     , dbPrimaryKeys   = filter (\x -> tableSchema (pkTable x) `elem` schemas) $ dbPrimaryKeys dbStruct
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
     hasInternalJunction rel = case relCardinality rel of
-      M2M Junction{junTable} -> tableSchema junTable `notElem` schemas
+      M2M Junction{junTable} -> qiSchema junTable `notElem` schemas
       _                      -> False
 
 decodeTables :: HD.Result TablesMap
@@ -160,9 +157,9 @@ decodeColumns tables =
       <*> nullableColumn HD.text
       <*> nullableColumn HD.text
 
-decodeRels :: TablesMap -> [Column] -> HD.Result [Relationship]
-decodeRels tables cols =
-  mapMaybe (relFromRow tables cols) <$> HD.rowList relRow
+decodeRels :: [Column] -> HD.Result [Relationship]
+decodeRels cols =
+  mapMaybe (relFromRow cols) <$> HD.rowList relRow
  where
   relRow = (,,,,,,)
     <$> column HD.text
@@ -378,8 +375,8 @@ addViewM2ORels allSrcCols = concatMap (\rel@Relationship{..} -> rel :
                    filter (\(c, _) -> c `elem` relCols) allSrcCols
     relSrcCols = srcColsGroupedByView relColumns
     relFSrcCols = srcColsGroupedByView relForeignColumns
-    getView :: [SourceColumn] -> Table
-    getView = colTable . snd . unsafeHead
+    getView :: [SourceColumn] -> QualifiedIdentifier
+    getView = (\t -> QualifiedIdentifier (tableSchema t) (tableName t)) . colTable . snd . unsafeHead
     srcCols `allSrcColsOf` cols = S.fromList (fst <$> srcCols) == S.fromList cols
     -- Relationship is dependent on the order of relColumns and relFColumns to get the join conditions right in the generated query.
     -- So we need to change the order of the SourceColumns to match the relColumns
@@ -612,13 +609,13 @@ columnFromRow :: TablesMap ->
 columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
   where
     buildColumn tbl = Column tbl n desc nul typ l d (parseEnum e)
-    table = findTable (QualifiedIdentifier s t) tabs
+    table = M.lookup (QualifiedIdentifier s t) tabs
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: TablesMap -> [Column] -> Bool -> SQL.Statement () [Relationship]
-allM2ORels tabs cols =
-  SQL.Statement sql HE.noParams (decodeRels tabs cols)
+allM2ORels :: [Column] -> Bool -> SQL.Statement () [Relationship]
+allM2ORels allCols =
+  SQL.Statement sql HE.noParams (decodeRels allCols)
  where
   sql = [q|
     SELECT ns1.nspname AS table_schema,
@@ -643,13 +640,11 @@ allM2ORels tabs cols =
     WHERE confrelid != 0
     ORDER BY (conrelid, column_info.nums) |]
 
-relFromRow :: TablesMap -> [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relationship
-relFromRow allTabs allCols (rs, rt, cn, rcs, frs, frt, frcs) =
-  Relationship <$> table <*> cols <*> tableF <*> colsF <*> pure (M2O cn)
+relFromRow :: [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relationship
+relFromRow allCols (rs, rt, cn, rcs, frs, frt, frcs) =
+  Relationship (QualifiedIdentifier rs rt) <$> cols <*> pure (QualifiedIdentifier frs frt) <*> colsF <*> pure (M2O cn)
   where
     findCol s t c = find (\col -> tableSchema (colTable col) == s && tableName (colTable col) == t && colName col == c) allCols
-    table  = findTable (QualifiedIdentifier rs rt) allTabs
-    tableF = findTable (QualifiedIdentifier frs frt) allTabs
     cols  = mapM (findCol rs rt) rcs
     colsF = mapM (findCol frs frt) frcs
 
@@ -731,7 +726,7 @@ allPrimaryKeys tabs =
 
 pkFromRow :: TablesMap -> (Schema, Text, Text) -> Maybe PrimaryKey
 pkFromRow tabs (s, t, n) = PrimaryKey <$> table <*> pure n
-  where table = findTable (QualifiedIdentifier s t) tabs
+  where table = M.lookup (QualifiedIdentifier s t) tabs
 
 -- returns all the primary and foreign key columns which are referenced in views
 pfkSourceColumns :: [Column] -> Bool -> SQL.Statement ([Schema], [Schema]) [SourceColumn]

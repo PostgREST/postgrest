@@ -25,7 +25,6 @@ import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
-import PostgREST.DbStructure.Table        (Table (..))
 import PostgREST.Request.Preferences      (PreferResolution (..))
 
 import PostgREST.Query.SqlFragment
@@ -51,7 +50,7 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     (joins, selects) = foldr getJoinsSelects ([],[]) forest
 
 getJoinsSelects :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=Table{tableName=table}}, alias, _, joinType, _)) _) (joins,selects) =
+getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (joins,selects) =
   let subquery = readRequestToQuery rr in
   case card of
     M2O _ ->

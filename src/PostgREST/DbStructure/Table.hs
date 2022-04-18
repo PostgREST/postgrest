@@ -4,11 +4,10 @@
 module PostgREST.DbStructure.Table
   ( Column(..)
   , Table(..)
-  , tableQi
   , TablesMap
   ) where
 
-import qualified Data.Aeson as JSON
+import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 
 import PostgREST.DbStructure.Identifiers (FieldName,
@@ -33,9 +32,6 @@ data Table = Table
 
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
-
-tableQi :: Table -> QualifiedIdentifier
-tableQi Table{tableSchema=s, tableName=n} = QualifiedIdentifier s n
 
 data Column = Column
   { colTable       :: Table
