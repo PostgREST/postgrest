@@ -97,7 +97,7 @@ queryDbStructure schemas extraSearchPath prepared = do
   tabs    <- SQL.statement mempty $ allTables pgVer prepared
   cols    <- SQL.statement schemas $ allColumns tabs prepared
   srcCols <- SQL.statement (schemas, extraSearchPath) $ pfkSourceColumns cols prepared
-  m2oRels <- SQL.statement mempty $ allM2ORels cols prepared
+  m2oRels <- SQL.statement mempty $ allM2ORels pgVer cols prepared
   keys    <- SQL.statement mempty $ allPrimaryKeys tabs prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
@@ -613,8 +613,8 @@ columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
     parseEnum :: Maybe Text -> [Text]
     parseEnum = maybe [] (split (==','))
 
-allM2ORels :: [Column] -> Bool -> SQL.Statement () [Relationship]
-allM2ORels allCols =
+allM2ORels :: PgVersion -> [Column] -> Bool -> SQL.Statement () [Relationship]
+allM2ORels pgVer allCols =
   SQL.Statement sql HE.noParams (decodeRels allCols)
  where
   sql = [q|
@@ -637,8 +637,11 @@ allM2ORels allCols =
     LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
     LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
     LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
-    WHERE confrelid != 0
-    ORDER BY (conrelid, column_info.nums) |]
+    WHERE contype = 'f'|] <>
+    (if pgVer >= pgVersion110
+      then " and conparentid = 0 "
+      else mempty) <>
+    "ORDER BY (conrelid, column_info.nums)"
 
 relFromRow :: [Column] -> (Text, Text, Text, [Text], Text, Text, [Text]) -> Maybe Relationship
 relFromRow allCols (rs, rt, cn, rcs, frs, frt, frcs) =
