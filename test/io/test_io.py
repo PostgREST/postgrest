@@ -658,7 +658,9 @@ def test_db_schema_reload(tmp_path, defaultenv):
         # reload schema cache to verify that the config reload actually happened
         postgrest.process.send_signal(signal.SIGUSR1)
 
-        time.sleep(0.1)
+        # takes max 1 second to load the internal cache(big_schema.sql included now)
+        # TODO this could go back to time.sleep(0.1) if the big_schema is put in another test suite
+        time.sleep(1)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"v1, public"'
@@ -939,3 +941,21 @@ def test_log_level(level, has_output, defaultenv):
                 r'unknownSocket - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
                 postgrest.process.stdout.readline().decode(),
             )
+
+
+# TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
+# The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
+# A stack size of 200K seems to be enough for succeess
+@pytest.mark.skip
+def test_openapi_in_big_schema(defaultenv):
+    "Should get a successful response from openapi on a big schema"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "apflora",
+        "PGRST_OPENAPI_MODE": "ignore-privileges",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/")
+        assert response.status_code == 200

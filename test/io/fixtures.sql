@@ -1,4 +1,7 @@
+\ir big_schema.sql
 \ir db_config.sql
+
+set search_path to public;
 
 CREATE ROLE postgrest_test_anonymous;
 ALTER ROLE :USER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
