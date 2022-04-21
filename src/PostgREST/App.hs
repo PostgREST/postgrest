@@ -485,7 +485,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
     lift $ case configOpenApiMode of
       OAFollowPriv ->
         OpenAPI.encode conf dbStructure
-           <$> SQL.statement tSchema (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
+           <$> SQL.statement [tSchema] (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->

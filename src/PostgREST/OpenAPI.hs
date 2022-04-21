@@ -26,8 +26,7 @@ import Data.Swagger
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
-import PostgREST.DbStructure              (DbStructure (..),
-                                           tableCols)
+import PostgREST.DbStructure              (DbStructure (..))
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
@@ -47,7 +46,7 @@ encode conf dbStructure tables procs schemaDescription =
     postgrestSpec
       (dbRelationships dbStructure)
       (concat $ M.elems procs)
-      (openApiTableInfo dbStructure <$> (snd <$> M.toList tables))
+      (snd <$> M.toList tables)
       (proxyUri conf)
       schemaDescription
 
@@ -80,17 +79,17 @@ parseDefault colType colDefault =
   where
     wrapInQuotations text = "\"" <> text <> "\""
 
-makeTableDef :: [Relationship] -> (Table, [Column]) -> (Text, Schema)
-makeTableDef rels (t, cs) =
+makeTableDef :: [Relationship] -> Table -> (Text, Schema)
+makeTableDef rels t =
   let tn = tableName t in
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ ?~ SwaggerObject
-        & properties .~ fromList (fmap (makeProperty rels) cs)
-        & required .~ fmap colName (filter (not . colNullable) cs))
+        & properties .~ fromList (makeProperty t rels <$> tableColumns t)
+        & required .~ fmap colName (filter (not . colNullable) $ tableColumns t))
 
-makeProperty :: [Relationship] -> Column -> (Text, Referenced Schema)
-makeProperty rels col = (colName col, Inline s)
+makeProperty :: Table -> [Relationship] -> Column -> (Text, Referenced Schema)
+makeProperty tbl rels col = (colName col, Inline s)
   where
     e = if null $ colEnum col then Nothing else JSON.decode $ JSON.encode $ colEnum col
     fk :: Maybe Text
@@ -107,7 +106,7 @@ makeProperty rels col = (colName col, Inline s)
       in
         (\(a, b) -> T.intercalate "" ["This is a Foreign Key to `", a, ".", b, "`.<fk table='", a, "' column='", b, "'/>"]) <$> fTblCol
     pk :: Bool
-    pk = colName col `elem` tablePKCols (colTable col)
+    pk = colName col `elem` tablePKCols tbl
     n = catMaybes
       [ Just "Note:"
       , if pk then Just "This is a Primary Key.<pk/>" else Nothing
@@ -162,7 +161,7 @@ makeProcParam pd =
   , Ref $ Reference "preferParams"
   ]
 
-makeParamDefs :: [(Table, [Column])] -> [(Text, Param)]
+makeParamDefs :: [Table] -> [(Text, Param)]
 makeParamDefs ti =
   [ ("preferParams", makePreferParam ["params=single-object"])
   , ("preferReturn", makePreferParam ["return=representation", "return=minimal", "return=none"])
@@ -218,8 +217,8 @@ makeParamDefs ti =
         & in_ .~ ParamQuery
         & type_ ?~ SwaggerString))
   ]
-  <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) cs
-            | (t, cs) <- ti
+  <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) (tableColumns t)
+            | t <- ti
             ]
 
 makeObjectBody :: Text -> (Text, Param)
@@ -244,8 +243,8 @@ makeRowFilter tn c =
 makeRowFilters :: Text -> [Column] -> [(Text, Param)]
 makeRowFilters tn = fmap (makeRowFilter tn)
 
-makePathItem :: (Table, [Column]) -> (FilePath, PathItem)
-makePathItem (t, cs) = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t || tableDeletable t)
+makePathItem :: Table -> (FilePath, PathItem)
+makePathItem t = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t || tableDeletable t)
   where
     -- Use first line of table description as summary; rest as description (if present)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
@@ -279,7 +278,7 @@ makePathItem (t, cs) = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdata
     p False = pr
     p True  = pw
     tn = tableName t
-    rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- cs ]
+    rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- tableColumns t ]
     ref = Ref . Reference
 
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
@@ -309,7 +308,7 @@ makeRootPathItem = ("/", p)
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
 
-makePathItems :: [ProcDescription] -> [(Table, [Column])] -> InsOrdHashMap FilePath PathItem
+makePathItems :: [ProcDescription] -> [Table] -> InsOrdHashMap FilePath PathItem
 makePathItems pds ti = fromList $ makeRootPathItem :
   fmap makePathItem ti ++ fmap makeProcPathItem pds
 
@@ -321,7 +320,7 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec :: [Relationship] -> [ProcDescription] -> [(Table, [Column])] -> (Text, Text, Integer, Text) -> Maybe Text -> Swagger
+postgrestSpec :: [Relationship] -> [ProcDescription] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Swagger
 postgrestSpec rels pds ti (s, h, p, b) sd = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']
@@ -379,9 +378,3 @@ proxyUri AppConfig{..} =
       (proxyScheme, proxyHost, proxyPort, proxyPath)
     Nothing ->
       ("http", configServerHost, toInteger configServerPort, "/")
-
-openApiTableInfo :: DbStructure -> Table -> (Table, [Column])
-openApiTableInfo dbStructure table =
-  ( table
-  , tableCols dbStructure (tableSchema table) (tableName table)
-  )
