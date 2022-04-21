@@ -523,7 +523,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
         types `shouldBe` Just [aesonQQ|
             {
-              "format": "test.enum_menagerie_type",
+              "format": "enum_menagerie_type",
               "type": "string",
               "enum": [
                 "foo",

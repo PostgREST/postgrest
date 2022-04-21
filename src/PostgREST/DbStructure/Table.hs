@@ -28,6 +28,7 @@ data Table = Table
   , tableUpdatable   :: Bool
   , tableDeletable   :: Bool
   , tablePKCols      :: [FieldName]
+  , tableColumns     :: [Column]
   }
   deriving (Show, Ord, Generic, JSON.ToJSON)
 
@@ -35,8 +36,7 @@ instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
 
 data Column = Column
-  { colTable       :: Table
-  , colName        :: FieldName
+  { colName        :: FieldName
   , colDescription :: Maybe Text
   , colNullable    :: Bool
   , colType        :: Text
@@ -44,9 +44,6 @@ data Column = Column
   , colDefault     :: Maybe Text
   , colEnum        :: [Text]
   }
-  deriving (Ord, Generic, JSON.ToJSON)
-
-instance Eq Column where
-  Column{colTable=t1,colName=n1} == Column{colTable=t2,colName=n2} = t1 == t2 && n1 == n2
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 type TablesMap = M.HashMap QualifiedIdentifier Table

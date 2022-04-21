@@ -25,7 +25,6 @@ module PostgREST.DbStructure
   , accessibleProcs
   , findIfView
   , schemaDescription
-  , tableCols
   ) where
 
 import qualified Data.Aeson          as JSON
@@ -43,7 +42,7 @@ import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110)
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
-                                           Schema, TableName)
+                                           Schema)
 import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcDescription (..),
                                            ProcParam (..),
@@ -60,15 +59,10 @@ import Protolude
 
 data DbStructure = DbStructure
   { dbTables        :: TablesMap
-  , dbColumns       :: [Column]
   , dbRelationships :: [Relationship]
   , dbProcs         :: ProcsMap
   }
   deriving (Generic, JSON.ToJSON)
-
--- TODO Table could hold references to all its Columns
-tableCols :: DbStructure -> Schema -> TableName -> [Column]
-tableCols dbs tSchema tName = filter (\Column{colTable=Table{tableSchema=s, tableName=t}} -> s==tSchema && t==tName) $ dbColumns dbs
 
 findIfView :: QualifiedIdentifier -> TablesMap -> Bool
 findIfView identifier tbls = maybe False tableIsView $ M.lookup identifier tbls
@@ -94,8 +88,7 @@ queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
 queryDbStructure schemas extraSearchPath prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   pgVer   <- SQL.statement mempty pgVersionStatement
-  tabs    <- SQL.statement mempty $ allTables pgVer prepared
-  cols    <- SQL.statement schemas $ allColumns tabs prepared
+  tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
@@ -105,7 +98,6 @@ queryDbStructure schemas extraSearchPath prepared = do
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabsWViewsPks
-    , dbColumns = cols
     , dbRelationships = rels
     , dbProcs = procs
     }
@@ -115,7 +107,6 @@ removeInternal :: [Schema] -> DbStructure -> DbStructure
 removeInternal schemas dbStruct =
   DbStructure {
       dbTables        = M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
-    , dbColumns       = filter (\x -> tableSchema (colTable x) `elem` schemas) (dbColumns dbStruct)
     , dbRelationships = filter (\x -> qiSchema (relTable x) `elem` schemas &&
                                       qiSchema (relForeignTable x) `elem` schemas &&
                                       not (hasInternalJunction x)) $ dbRelationships dbStruct
@@ -130,30 +121,24 @@ decodeTables :: HD.Result TablesMap
 decodeTables =
  M.fromList . map (\tbl@Table{tableSchema, tableName} -> (QualifiedIdentifier tableSchema tableName, tbl)) <$> HD.rowList tblRow
  where
-  tblRow = Table <$> column HD.text
-                 <*> column HD.text
-                 <*> nullableColumn HD.text
-                 <*> column HD.bool
-                 <*> column HD.bool
-                 <*> column HD.bool
-                 <*> column HD.bool
-                 <*> arrayColumn HD.text
-
-decodeColumns :: TablesMap -> HD.Result [Column]
-decodeColumns tables =
-  mapMaybe (columnFromRow tables) <$> HD.rowList colRow
- where
-  colRow =
-    (,,,,,,,,)
-      <$> column HD.text
-      <*> column HD.text
-      <*> column HD.text
-      <*> nullableColumn HD.text
-      <*> column HD.bool
-      <*> column HD.text
-      <*> nullableColumn HD.int4
-      <*> nullableColumn HD.text
-      <*> arrayColumn HD.text
+  tblRow = Table
+    <$> column HD.text
+    <*> column HD.text
+    <*> nullableColumn HD.text
+    <*> column HD.bool
+    <*> column HD.bool
+    <*> column HD.bool
+    <*> column HD.bool
+    <*> arrayColumn HD.text
+    <*> compositeArrayColumn
+        (Column
+        <$> compositeField HD.text
+        <*> nullableCompositeField HD.text
+        <*> compositeField HD.bool
+        <*> compositeField HD.text
+        <*> nullableCompositeField HD.int4
+        <*> nullableCompositeField HD.text
+        <*> compositeFieldArray HD.text)
 
 decodeRels :: HD.Result [Relationship]
 decodeRels =
@@ -330,9 +315,9 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: PgVersion -> Bool -> SQL.Statement Schema TablesMap
+accessibleTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 accessibleTables pgVer =
-  SQL.Statement sql (param HE.text) decodeTables
+  SQL.Statement sql (arrayParam HE.text) decodeTables
  where
   sql = tablesSqlQuery False pgVer
 
@@ -403,9 +388,9 @@ addViewPrimaryKeys tabs keyDeps =
       maybe [] (\(ViewKeyDependency _ _ _ _ pkCols) -> snd <$> pkCols) $
       find (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
 
-allTables :: PgVersion -> Bool -> SQL.Statement () TablesMap
+allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 allTables pgVer =
-  SQL.Statement sql HE.noParams decodeTables
+  SQL.Statement sql (arrayParam HE.text) decodeTables
   where
     sql = tablesSqlQuery True pgVer
 
@@ -417,6 +402,80 @@ tablesSqlQuery getAll pgVer =
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
   [q|
   WITH
+  columns AS (
+      SELECT
+          nc.nspname::name AS table_schema,
+          c.relname::name AS table_name,
+          a.attname::name AS column_name,
+          d.description AS description,
+          pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,
+          not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
+              CASE
+                  WHEN t.typtype = 'd' THEN
+                  CASE
+                      WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
+                      WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
+                      ELSE format_type(a.atttypid, a.atttypmod)
+                  END
+                  ELSE
+                  CASE
+                      WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
+                      WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
+                      ELSE format_type(a.atttypid, a.atttypmod)
+                  END
+              END::text AS data_type,
+          information_schema._pg_char_max_length(
+              information_schema._pg_truetypid(a.*, t.*),
+              information_schema._pg_truetypmod(a.*, t.*)
+          )::integer AS character_maximum_length,
+          COALESCE(bt.typname, t.typname)::name AS udt_name,
+          a.attnum::integer AS position
+      FROM pg_attribute a
+          LEFT JOIN pg_description AS d
+              ON d.objoid = a.attrelid and d.objsubid = a.attnum
+          LEFT JOIN pg_attrdef ad
+              ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+          JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid)
+              ON a.attrelid = c.oid
+          JOIN (pg_type t JOIN pg_namespace nt ON t.typnamespace = nt.oid)
+              ON a.atttypid = t.oid
+          LEFT JOIN (pg_type bt JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid)
+              ON t.typtype = 'd' AND t.typbasetype = bt.oid
+          LEFT JOIN (pg_collation co JOIN pg_namespace nco ON co.collnamespace = nco.oid)
+              ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
+      WHERE
+          NOT pg_is_other_temp_schema(nc.oid)
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+          AND c.relkind in ('r', 'v', 'f', 'm', 'p')
+          AND nc.nspname = ANY($1)
+  ),
+  columns_agg AS (
+    SELECT DISTINCT
+        info.table_schema AS table_schema,
+        info.table_name AS table_name,
+        array_agg(row(
+          info.column_name,
+          info.description,
+          info.is_nullable::boolean,
+          info.data_type,
+          info.character_maximum_length,
+          info.column_default,
+          coalesce(enum_info.vals, '{}')) order by info.position) as columns
+    FROM columns info
+    LEFT OUTER JOIN (
+        SELECT
+            n.nspname AS s,
+            t.typname AS n,
+            array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
+        FROM pg_type t
+        JOIN pg_enum e ON t.oid = e.enumtypid
+        JOIN pg_namespace n ON n.oid = t.typnamespace
+        GROUP BY s,n
+    ) AS enum_info ON info.udt_name = enum_info.n
+    WHERE info.table_schema NOT IN ('pg_catalog', 'information_schema')
+    GROUP BY info.table_schema, info.table_name
+  ),
   tbl_constraints AS (
       SELECT
           c.conname::name AS constraint_name,
@@ -518,11 +577,13 @@ tablesSqlQuery getAll pgVer =
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
       )
     ) AS deletable,
-    coalesce(tpks.pk_cols, '{}') as pk_cols
+    coalesce(tpks.pk_cols, '{}') as pk_cols,
+    coalesce(cols_agg.columns, '{}') as columns
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   LEFT JOIN pg_description d on d.objoid = c.oid and d.objsubid = 0
   LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
+  LEFT JOIN columns_agg cols_agg ON n.nspname = cols_agg.table_schema AND c.relname = cols_agg.table_name
   WHERE c.relkind IN ('v','r','m','f','p')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
   relIsPartition <>
@@ -530,104 +591,13 @@ tablesSqlQuery getAll pgVer =
   "ORDER BY table_schema, table_name"
   where
     fltTables = if getAll then mempty else [q|
-      AND n.nspname = $1
+      AND n.nspname = ANY($1)
       AND (
         pg_has_role(c.relowner, 'USAGE')
         or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
         or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
       )|]
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
-
-allColumns :: TablesMap -> Bool -> SQL.Statement [Schema] [Column]
-allColumns tabs =
- SQL.Statement sql (arrayParam HE.text) (decodeColumns tabs)
- where
-  -- CTE based on information_schema.columns changed: remove the owner filter
-  sql = [q|
-    WITH
-    columns AS (
-        SELECT
-            nc.nspname::name AS table_schema,
-            c.relname::name AS table_name,
-            a.attname::name AS column_name,
-            d.description AS description,
-            pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,
-            not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
-                CASE
-                    WHEN t.typtype = 'd' THEN
-                    CASE
-                        WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
-                        WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                        ELSE format_type(a.atttypid, a.atttypmod)
-                    END
-                    ELSE
-                    CASE
-                        WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
-                        WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                        ELSE format_type(a.atttypid, a.atttypmod)
-                    END
-                END::text AS data_type,
-            information_schema._pg_char_max_length(
-                information_schema._pg_truetypid(a.*, t.*),
-                information_schema._pg_truetypmod(a.*, t.*)
-            )::integer AS character_maximum_length,
-            COALESCE(bt.typname, t.typname)::name AS udt_name,
-            a.attnum::integer AS position
-        FROM pg_attribute a
-            LEFT JOIN pg_description AS d
-                ON d.objoid = a.attrelid and d.objsubid = a.attnum
-            LEFT JOIN pg_attrdef ad
-                ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
-            JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid)
-                ON a.attrelid = c.oid
-            JOIN (pg_type t JOIN pg_namespace nt ON t.typnamespace = nt.oid)
-                ON a.atttypid = t.oid
-            LEFT JOIN (pg_type bt JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid)
-                ON t.typtype = 'd' AND t.typbasetype = bt.oid
-            LEFT JOIN (pg_collation co JOIN pg_namespace nco ON co.collnamespace = nco.oid)
-                ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
-        WHERE
-            NOT pg_is_other_temp_schema(nc.oid)
-            AND a.attnum > 0
-            AND NOT a.attisdropped
-            AND c.relkind in ('r', 'v', 'f', 'm', 'p')
-            AND nc.nspname = ANY($1)
-    )
-    SELECT DISTINCT
-        info.table_schema AS schema,
-        info.table_name AS table_name,
-        info.column_name AS name,
-        info.description AS description,
-        info.is_nullable::boolean AS nullable,
-        info.data_type AS col_type,
-        info.character_maximum_length AS max_len,
-        info.column_default AS default_value,
-        coalesce(enum_info.vals, '{}') AS enum,
-        info.position
-    FROM columns info
-    LEFT OUTER JOIN (
-        SELECT
-            n.nspname AS s,
-            t.typname AS n,
-            array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
-        FROM pg_type t
-        JOIN pg_enum e ON t.oid = e.enumtypid
-        JOIN pg_namespace n ON n.oid = t.typnamespace
-        GROUP BY s,n
-    ) AS enum_info ON (info.udt_name = enum_info.n)
-    WHERE info.table_schema NOT IN ('pg_catalog', 'information_schema')
-    ORDER BY schema, position;
-    |]
-
-columnFromRow :: TablesMap ->
-                 (Text,        Text,        Text,
-                  Maybe Text,  Bool,        Text,
-                  Maybe Int32, Maybe Text,  [Text])
-                 -> Maybe Column
-columnFromRow tabs (s, t, n, desc, nul, typ, l, d, e) = buildColumn <$> table
-  where
-    buildColumn tbl = Column tbl n desc nul typ l d e
-    table = M.lookup (QualifiedIdentifier s t) tabs
 
 allM2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
 allM2ORels pgVer =
@@ -833,6 +803,12 @@ compositeArrayColumn = arrayColumn . HD.composite
 
 compositeField :: HD.Value a -> HD.Composite a
 compositeField = HD.field . HD.nonNullable
+
+nullableCompositeField :: HD.Value a -> HD.Composite (Maybe a)
+nullableCompositeField = HD.field . HD.nullable
+
+compositeFieldArray :: HD.Value a -> HD.Composite [a]
+compositeFieldArray = HD.field . HD.nonNullable . HD.listArray . HD.nonNullable
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
