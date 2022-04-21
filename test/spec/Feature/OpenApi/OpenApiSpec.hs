@@ -514,6 +514,24 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
         types `shouldBe` Just "13:00:00"
 
+    it "enum" $ do
+      r <- simpleBody <$> get "/"
+
+      let types = r ^? key "definitions" . key "menagerie" . key "properties" . key "enum"
+
+      liftIO $
+
+        types `shouldBe` Just [aesonQQ|
+            {
+              "format": "test.enum_menagerie_type",
+              "type": "string",
+              "enum": [
+                "foo",
+                "bar"
+              ]
+            }
+          |]
+
   describe "RPC" $ do
 
     it "includes function summary/description and body schema for arguments" $ do
