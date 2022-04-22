@@ -466,6 +466,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (shouldCount iPreferCount)
         (iAcceptContentType == CTSingularJSON)
         (iAcceptContentType == CTTextCSV)
+        (iAcceptContentType == CTTextXML)
         (iPreferParameters == Just MultipleObjects)
         bField
         (configDbPreparedStatements ctxConfig)
@@ -623,7 +624,7 @@ binaryField RequestContext{..} readReq
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
-  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain, CTTextXML]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =

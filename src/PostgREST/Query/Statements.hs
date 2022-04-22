@@ -129,9 +129,9 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
+                     Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
                      SQL.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv multObjects binaryField =
+callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv asXml multObjects binaryField =
   SQL.dynamicallyParameterized snippet decodeProc
   where
     snippet =
@@ -151,6 +151,7 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
     bodyF
      | asSingle           = asJsonSingleF returnsScalar
      | asCsv              = asCsvF
+     | isJust binaryField && asXml = asXmlF $ fromJust binaryField
      | isJust binaryField = asBinaryF $ fromJust binaryField
      | returnsSingle
        && not multObjects = asJsonSingleF returnsScalar

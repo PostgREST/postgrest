@@ -421,7 +421,7 @@ requestContentTypes conf action path =
 
 rawContentTypes :: AppConfig -> [ContentType]
 rawContentTypes AppConfig{..} =
-  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain]
+  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain, CTTextXML]
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
