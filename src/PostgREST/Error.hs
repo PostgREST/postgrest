@@ -271,7 +271,9 @@ pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rErr
         "P0001"   -> HTTP.status400 -- default code for "raise"
         'P':'0':_ -> HTTP.status500 -- PL/pgSQL Error
         'X':'X':_ -> HTTP.status500 -- internal Error
-        "42883"   -> HTTP.status404 -- undefined function
+        "42883"-> if BS.isPrefixOf "function xmlagg(" m
+          then HTTP.status406
+          else HTTP.status404 -- undefined function
         "42P01"   -> HTTP.status404 -- undefined table
         "42501"   -> if authed then HTTP.status403 else HTTP.status401 -- insufficient privilege
         'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)

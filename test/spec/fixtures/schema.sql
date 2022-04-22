@@ -2553,3 +2553,21 @@ create table plate_plan_step (
       FOREIGN KEY(to_well_id)
 	  REFERENCES well(well_id)
 );
+
+CREATE FUNCTION test.return_scalar_xml() RETURNS pg_catalog.xml
+LANGUAGE sql AS $$
+  SELECT '<my-xml-tag/>'::pg_catalog.xml
+$$;
+
+CREATE OR REPLACE FUNCTION "welcome.xml"() RETURNS pg_catalog.xml
+LANGUAGE sql AS $_$
+select $$
+<html>
+  <head>
+    <title>PostgREST</title>
+  </head>
+  <body>
+    <h1>Welcome to PostgREST</h1>
+  </body>
+</html>$$::pg_catalog.xml;
+$_$;

@@ -13,6 +13,7 @@ module PostgREST.Query.SqlFragment
   , asCsvF
   , asJsonF
   , asJsonSingleF
+  , asXmlF
   , countF
   , fromQi
   , limitOffsetF
@@ -175,6 +176,9 @@ asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
   | returnsScalar = "coalesce((json_agg(_postgrest_t.pgrst_scalar)->0)::text, 'null')"
   | otherwise     = "coalesce((json_agg(_postgrest_t)->0)::text, 'null')"
+
+asXmlF :: FieldName -> SqlFragment
+asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
 
 asBinaryF :: FieldName -> SqlFragment
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"

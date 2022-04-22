@@ -20,6 +20,7 @@ data ContentType
   | CTSingularJSON
   | CTTextCSV
   | CTTextPlain
+  | CTTextXML
   | CTOpenAPI
   | CTUrlEncoded
   | CTOctetStream
@@ -41,6 +42,7 @@ toMime :: ContentType -> ByteString
 toMime CTApplicationJSON = "application/json"
 toMime CTTextCSV         = "text/csv"
 toMime CTTextPlain       = "text/plain"
+toMime CTTextXML         = "text/xml"
 toMime CTOpenAPI         = "application/openapi+json"
 toMime CTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime CTUrlEncoded      = "application/x-www-form-urlencoded"
@@ -55,6 +57,7 @@ decodeContentType ct =
     "application/json"                  -> CTApplicationJSON
     "text/csv"                          -> CTTextCSV
     "text/plain"                        -> CTTextPlain
+    "text/xml"                          -> CTTextXML
     "application/openapi+json"          -> CTOpenAPI
     "application/vnd.pgrst.object+json" -> CTSingularJSON
     "application/vnd.pgrst.object"      -> CTSingularJSON
