@@ -313,7 +313,9 @@ handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
-    pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+    pkCols = if iPreferRepresentation /= None || isJust iPreferResolution
+      then maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+      else mempty
 
   WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
 
@@ -370,11 +372,13 @@ handleUpdate identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
       response status [contentRangeHeader] mempty
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
   when (iTopLevelRange /= RangeQuery.allRange) $
     throwError Error.PutRangeNotAllowedError
 
-  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False mempty context
+  let pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+
+  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False pkCols context
 
   let response = gucResponse resGucStatus resGucHeaders
 
@@ -416,12 +420,13 @@ handleDelete identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} 
 
 handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
 handleInfo identifier RequestContext{..} =
-  case M.lookup identifier $ dbTables ctxDbStructure of
+  case tbl of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
       throwError Error.NotFound
   where
+    tbl = M.lookup identifier (dbTables ctxDbStructure)
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
@@ -433,7 +438,7 @@ handleInfo identifier RequestContext{..} =
           ++ ["DELETE" | tableDeletable table]
       )
     hasPK =
-      not $ null $ maybe mempty tablePKCols $ M.lookup identifier (dbTables ctxDbStructure)
+      not $ null $ maybe mempty tablePKCols tbl
 
 handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
@@ -537,7 +542,7 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
   mutateReq <-
     liftEither $
       ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest
-        (maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure)
+        pkCols
         readReq
 
   (_, queryTotal, fields, body, gucHeaders, gucStatus) <-
