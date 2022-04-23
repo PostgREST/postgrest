@@ -13,11 +13,11 @@ PGRST_GITHUB_COMMIT="$1"
 DOCKER_REPO="$2"
 DOCKER_USER="$3"
 DOCKER_PASS="$4"
-SCRIPT_PATH="$5"
+SCRIPT_DIR="$5"
 PGRST_VERSION="v$6"
 IS_PRERELEASE="$7"
 
-DOCKER_BUILD_PATH="$SCRIPT_PATH/docker-env"
+DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
 
 clean_env()
 {
@@ -31,15 +31,13 @@ sudo docker logout
 trap clean_env sigint sigterm exit
 
 # Move to the docker build environment
-cd ~/$DOCKER_BUILD_PATH
+cd ~/$DOCKER_BUILD_DIR
 
 # Push final images to Docker hub
 # NOTE: This command publishes a separate ARM image because the builds cannot
 #       be added to the manifest if they are not in the registry beforehand.
 #       This image must be manually deleted from Docker Hub at the end of the process.
 sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
-                         --platform linux/arm/v7,linux/arm64 \
-                         --cache-from $DOCKER_REPO/postgrest-build-arm \
                          -t $DOCKER_REPO/postgrest:$PGRST_VERSION-arm \
                          --push .
 
