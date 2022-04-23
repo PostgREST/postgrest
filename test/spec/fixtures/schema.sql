@@ -791,18 +791,13 @@ CREATE TABLE files (
 );
 
 CREATE TABLE touched_files (
-    user_id integer NOT NULL,
-    task_id integer NOT NULL,
-    project_id integer NOT NULL,
-    filename text NOT NULL,
-    CONSTRAINT fk_users_tasks
-	FOREIGN KEY (user_id, task_id)
-	REFERENCES users_tasks (user_id, task_id)
-	ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_upload
-	FOREIGN KEY (project_id, filename)
-	REFERENCES files (project_id,filename)
-	ON DELETE CASCADE ON UPDATE CASCADE
+  user_id integer NOT NULL,
+  task_id integer NOT NULL,
+  project_id integer NOT NULL,
+  filename text NOT NULL,
+  constraint fk_users_tasks foreign key (user_id, task_id) references users_tasks (user_id, task_id) on delete cascade on update cascade,
+  constraint fk_upload foreign key (project_id, filename) references files (project_id,filename) on delete cascade on update cascade,
+  primary key(user_id, task_id, project_id, filename)
 );
 
 create table private.articles (
@@ -1215,7 +1210,8 @@ create table test.part (
 
 create table test.being_part (
   being int not null references test.being(being),
-  part int not null references test.part(part)
+  part int not null references test.part(part),
+  primary key(being, part)
 );
 
 create function test.single_out_param(num int, OUT num_plus_one int) AS $$
@@ -1927,10 +1923,11 @@ create table sites (
 alter table sites rename constraint sites_main_project_id_fkey to main_project;
 
 create table jobs (
-  job_id          uuid    primary key
+  job_id          uuid
 , name text
 , site_id         int     not null references sites (site_id)
 , big_project_id  int     not null references big_projects (big_project_id)
+, primary key(job_id, site_id, big_project_id)
 );
 
 create view main_jobs as
@@ -1955,12 +1952,13 @@ create table whatev_sites (
 );
 
 create table whatev_jobs (
-  job_id        uuid    primary key
+  job_id        uuid
 , name text
 , site_id_1     int not null references whatev_sites (id)
 , project_id_1  int not null references whatev_projects (id)
 , site_id_2     int not null references whatev_sites (id)
 , project_id_2  int not null references whatev_projects (id)
+, primary key(job_id, site_id_1, project_id_1, site_id_2, project_id_2)
 );
 
 -- circular reference
@@ -2294,7 +2292,8 @@ A test for partitioned tables$$;
         car_dealer_city varchar(64) not null,
         quantity int not null,
         foreign key (car_model_name, car_model_year) references test.car_models (name, year),
-        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city)
+        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city),
+        primary key (car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity)
       ) partition by range (quantity);
 
       create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
@@ -2521,3 +2520,36 @@ create function reset_limited_items(tbl_name text default '') returns void as $_
   $$::text,
   tbl_name, tbl_name);
 end; $_$ language plpgsql volatile;
+
+-- tables for ensuring we generate real junctions for many-to-many relationships
+create table plate (
+    plate_id int primary key
+);
+
+create table well (
+    well_id int primary key,
+    plate_id int not null,
+    parent_well_id int,
+   CONSTRAINT well_parent_well_id_fkey
+      FOREIGN KEY(parent_well_id)
+	  REFERENCES well(well_id),
+   CONSTRAINT well_plate_id_fkey
+      FOREIGN KEY(plate_id)
+	  REFERENCES plate(plate_id)
+);
+
+create table plate_plan_step (
+    plate_plan_step_id int primary key,
+    from_well_id int,
+    to_well_id int,
+    to_plate_id int,
+   CONSTRAINT plate_plan_step_from_well_id_fkey
+      FOREIGN KEY(from_well_id)
+	  REFERENCES well(well_id),
+   CONSTRAINT plate_plan_step_to_plate_id_fkey
+      FOREIGN KEY(to_plate_id)
+	  REFERENCES plate(plate_id),
+   CONSTRAINT plate_plan_step_to_well_id_fkey
+      FOREIGN KEY(to_well_id)
+	  REFERENCES well(well_id)
+);

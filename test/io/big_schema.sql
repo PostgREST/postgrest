@@ -1,16 +1,20 @@
 /*
 This is a 2018 version of the apflora schema https://github.com/barbalex/apf2/tree/master/sql/apflora - latest version likely has differing contents
 
-We use it to test our metadata generation because it contains a good amount of views(281).
+We use it to test our metadata generation because it contains a good amount of db objects.
 
 Custom roles and privileges where removed.
 
 postgrest-with-postgresql-14 -f test/io/big_schema.sql psql
 
+Has 12 functions:
+
 select count(*)  from information_schema.routines where specific_schema = 'apflora';
  count
 -------
     12
+
+Has 45 tables:
 
 select count(*)  from information_schema.tables where table_schema = 'apflora' and table_type = 'BASE TABLE';
  count
@@ -18,10 +22,62 @@ select count(*)  from information_schema.tables where table_schema = 'apflora' a
     45
 (1 row)
 
+Has 281 views:
+
 select count(*)  from information_schema.views where table_schema = 'apflora';
  count
 -------
    281
+(1 row)
+
+Has 45 pkcols where none of them is a composite primary key:
+
+with pkcols as (
+  select kcu.table_schema,
+         kcu.table_name,
+         tco.constraint_name,
+         array_agg(kcu.column_name order by kcu.ordinal_position) as key_columns
+  from information_schema.table_constraints tco
+  join information_schema.key_column_usage kcu
+       on kcu.constraint_name = tco.constraint_name
+       and kcu.constraint_schema = tco.constraint_schema
+       and kcu.constraint_name = tco.constraint_name
+  where tco.constraint_type = 'PRIMARY KEY' and kcu.table_schema = 'apflora'
+  group by kcu.table_schema, kcu.table_name, tco.constraint_name
+)
+select count(*) from pkcols
+where array_length(key_columns, 1) > 1;
+ count
+-------
+     0
+(1 row)
+
+Has 50 foreign key relationships:
+
+with fk_rel as (
+  select ns1.nspname as table_schema,
+             tab.relname as table_name,
+             ns2.nspname as foreign_table_schema,
+             other.relname as foreign_table_name,
+             conname     as constraint_name,
+             column_info.cols as columns
+  from pg_constraint,
+  lateral (
+    select array_agg(row(cols.attname, refs.attname) order by cols.attnum) as cols
+    from ( select unnest(conkey) as col, unnest(confkey) as ref) k,
+    lateral (select * from pg_attribute where attrelid = conrelid and attnum = col) as cols,
+    lateral (select * from pg_attribute where attrelid = confrelid and attnum = ref) as refs) as column_info,
+  lateral (select * from pg_namespace where pg_namespace.oid = connamespace) as ns1,
+  lateral (select * from pg_class where pg_class.oid = conrelid) as tab,
+  lateral (select * from pg_class where pg_class.oid = confrelid) as other,
+  lateral (select * from pg_namespace where pg_namespace.oid = other.relnamespace) as ns2
+  where contype = 'f' and conparentid = 0
+)
+select count(*) from fk_rel;
+
+ count
+-------
+    50
 (1 row)
 */
 
@@ -991,7 +1047,7 @@ Declare
 BEGIN
   execute i_text into v_val;
   return v_val;
-END; 
+END;
 $$;
 
 

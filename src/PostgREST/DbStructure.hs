@@ -29,6 +29,7 @@ module PostgREST.DbStructure
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
+import qualified Data.Set            as S
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
 import qualified Hasql.Statement     as SQL
@@ -93,8 +94,8 @@ queryDbStructure schemas extraSearchPath prepared = do
   m2oRels <- SQL.statement mempty $ allM2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
-  let rels          = addO2MRels $ addM2MRels $ addViewM2ORels keyDeps m2oRels
-      tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+  let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
+      rels          = addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabsWViewsPks
@@ -370,13 +371,19 @@ addO2MRels :: [Relationship] -> [Relationship]
 addO2MRels rels = rels ++ [ Relationship ft t (O2M cons (swap <$> cols))
                           | Relationship t ft (M2O cons cols) <- rels ]
 
-addM2MRels :: [Relationship] -> [Relationship]
-addM2MRels rels = rels ++ [ Relationship t ft
-                              (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols))
-                          | Relationship jt1 t  (M2O cons1 cols)  <- rels
-                          , Relationship jt2 ft (M2O cons2 fcols) <- rels
-                          , jt1 == jt2
-                          , cons1 /= cons2]
+-- | Adds a m2m relationship if a table has FKs to two other tables and the FK columns are part of the PK columns
+addM2MRels :: TablesMap -> [Relationship] -> [Relationship]
+addM2MRels tbls rels = rels ++ catMaybes
+  [ let
+      jtCols = S.fromList $ (fst <$> cols) ++ (fst <$> fcols)
+      pkCols = S.fromList $ maybe mempty tablePKCols $ M.lookup jt1 tbls
+    in if S.isSubsetOf jtCols pkCols
+      then Just $ Relationship t ft (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols))
+      else Nothing
+  | Relationship jt1 t  (M2O cons1 cols)  <- rels
+  , Relationship jt2 ft (M2O cons2 fcols) <- rels
+  , jt1 == jt2
+  , cons1 /= cons2]
 
 addViewPrimaryKeys :: TablesMap -> [ViewKeyDependency] -> TablesMap
 addViewPrimaryKeys tabs keyDeps =

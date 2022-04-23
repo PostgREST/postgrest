@@ -434,17 +434,23 @@ spec actualPgVersion = do
 
     it "requesting data using many<->many relation defined by composite keys" $
       get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files(filename,content)" `shouldRespondWith`
-        [json|[{"user_id":1,"files":[{"filename":"command.com","content":"#include <unix.h>"},{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"README.md","content":"# make $$$!"}]}]|]
+        [json|[{"user_id":1,"files":[{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"},{"filename":"README.md","content":"# make $$$!"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting data using many<->many (composite keys) relation using hint" $
       get "/users_tasks?user_id=eq.1&task_id=eq.1&select=user_id,files!touched_files(filename,content)" `shouldRespondWith`
-        [json|[{"user_id":1,"files":[{"filename":"command.com","content":"#include <unix.h>"},{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"README.md","content":"# make $$$!"}]}]|]
+        [json|[{"user_id":1,"files":[{"filename":"autoexec.bat","content":"@ECHO OFF"},{"filename":"command.com","content":"#include <unix.h>"},{"filename":"README.md","content":"# make $$$!"}]}]|]
         { matchHeaders = [matchContentTypeJson] }
 
     it "requesting children with composite key" $
       get "/users_tasks?user_id=eq.2&task_id=eq.6&select=*, comments(content)" `shouldRespondWith`
         [json|[{"user_id":2,"task_id":6,"comments":[{"content":"Needs to be delivered ASAP"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    -- https://github.com/PostgREST/postgrest/issues/2070
+    it "one-to-many embeds without a disambiguation error due to wrongly generated many-to-many relationships" $
+      get "/plate?select=*,well(*)" `shouldRespondWith`
+        [json|[]|]
         { matchHeaders = [matchContentTypeJson] }
 
     describe "computed columns" $ do
