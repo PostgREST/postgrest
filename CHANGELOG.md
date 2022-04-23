@@ -49,6 +49,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
  - #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
  - #2254, Fix inferring a foreign key column as a primary key column on views - @steve-chavez
+ - #2070, Restrict generated many-to-many relationships - @steve-chavez
+   + Only adds many-to-many relationships when: a table has FKs to two other tables and these FK columns are part of the table's PK columns.
 
 ### Changed
 
@@ -59,6 +61,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2156, using PATCH/DELETE with `limit/offset` throws an error on views - @steve-chavez
  - #2155, `max-rows` is no longer applied on POST/PATCH/PUT/DELETE returned rows - @steve-chavez
    + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
+ - #2070, Restrict generated many-to-many relationships - @steve-chavez
+   + A primary key that contains the foreign key columns is now needed for generating many-to-many relationships.
 
 ## [9.0.0] - 2021-11-25
 

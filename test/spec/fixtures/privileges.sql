@@ -172,6 +172,8 @@ GRANT ALL ON TABLE
     , limited_delete_items_cpk
     , limited_delete_items_no_pk
     , limited_delete_items_view
+    , plate
+    , well
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
