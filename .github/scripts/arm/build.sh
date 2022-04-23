@@ -1,57 +1,63 @@
 #!/bin/bash
 
-# This script builds PostgREST in a remote ARM server. It uses Docker to
-# build for multiple platforms (aarch64 and armv7 on ubuntu).
-# The Dockerfile is located in ./docker-env
+# This script builds PostgREST in a remote ARM server
 
 [ -z "$1" ] && { echo "Missing 1st argument: PostgREST github commit SHA"; exit 1; }
-[ -z "$2" ] && { echo "Missing 2nd argument: Docker repo"; exit 1; }
-[ -z "$3" ] && { echo "Missing 3rd argument: Docker username"; exit 1; }
-[ -z "$4" ] && { echo "Missing 4th argument: Docker password"; exit 1; }
-[ -z "$5" ] && { echo "Missing 5th argument: Build environment directory name"; exit 1; }
+[ -z "$2" ] && { echo "Missing 2nd argument: Build environment directory name"; exit 1; }
 
 PGRST_GITHUB_COMMIT="$1"
-DOCKER_REPO="$2"
-DOCKER_USER="$3"
-DOCKER_PASS="$4"
-SCRIPT_PATH="$5"
+SCRIPT_DIR="$2"
 
-DOCKER_BUILD_PATH="$SCRIPT_PATH/docker-env"
+DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
 
-clean_env()
-{
-    sudo docker logout
+install_packages() {
+  sudo apt-get update -y
+  sudo apt-get upgrade -y
+  sudo apt-get install -y git build-essential curl libffi-dev libffi7 libgmp-dev libgmp10 libncurses-dev libncurses5 libtinfo5 llvm libnuma-dev zlib1g-dev libpq-dev jq gcc
+  sudo apt-get clean
 }
 
-# Login to Docker
-sudo docker logout
-{ echo $DOCKER_PASS | sudo docker login -u $DOCKER_USER --password-stdin; } || { echo "Couldn't login to docker"; exit 1; }
+install_ghcup() {
+  export BOOTSTRAP_HASKELL_NONINTERACTIVE=1
+  export BOOTSTRAP_HASKELL_MINIMAL=1
+  curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
+  source ~/.ghcup/env
+}
 
-trap clean_env sigint sigterm exit
+install_cabal() {
+  ghcup upgrade
+  ghcup install cabal 3.6.0.0
+  ghcup set cabal 3.6.0.0
+}
 
-# Move to the docker build environment
-cd ~/$DOCKER_BUILD_PATH
+install_ghc() {
+  ghcup install ghc 8.10.7
+  ghcup set ghc 8.10.7
+}
 
-# Build ARM versions
-sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
-                         --build-arg BUILDKIT_INLINE_CACHE=1 \
-                         --platform linux/arm/v7,linux/arm64 \
-                         --cache-from $DOCKER_REPO/postgrest-build-arm \
-                         --target=postgrest-build \
-                         -t $DOCKER_REPO/postgrest-build-arm \
-                         --push .
+install_packages
 
-sudo docker logout
+# Add ghcup to the PATH for this session
+[ -f ~/.ghcup/env ] && source ~/.ghcup/env
 
-# Generate and copy binaries to the local filesystem
-sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
-                         --cache-from $DOCKER_REPO/postgrest-build-arm \
-                         --platform linux/arm/v7,linux/arm64 \
-                         --target=postgrest-bin \
-                         -o result .
+ghcup --version || install_ghcup
+cabal --version || install_cabal
+ghc --version || install_ghc
 
-# Compress binaries
-sudo chown -R ubuntu:ubuntu ~/$DOCKER_BUILD_PATH/result
-mv ~/$DOCKER_BUILD_PATH/result ~/$SCRIPT_PATH/result
-cd ~/$SCRIPT_PATH
+cd ~/$SCRIPT_DIR
+
+# Clone the repository and build the project
+git clone https://github.com/PostgREST/postgrest.git
+cd postgrest
+git checkout $PGRST_GITHUB_COMMIT
+cabal v2-update && cabal v2-build
+
+# Copy the built binary to the Dockerfile directory
+PGRST_BIN=$(cabal exec which postgrest | tail -1)
+cp $PGRST_BIN ~/$DOCKER_BUILD_DIR
+
+# Move and compress the built binary
+mkdir -p ~/$SCRIPT_DIR/result
+mv $PGRST_BIN ~/$SCRIPT_DIR/result
+cd ~/$SCRIPT_DIR
 tar -cJf result.tar.xz result

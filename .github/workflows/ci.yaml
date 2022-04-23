@@ -222,16 +222,13 @@ jobs:
           if-no-files-found: error
 
   Build-Cabal-Arm:
-    name: Build armv7/aarch64 (Cabal)
+    name: Build aarch64 (Cabal)
     if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
     env:
       GITHUB_COMMIT: ${{ github.sha }}
-      DOCKER_REPO: "postgrest"
-      DOCKER_USER: "stevechavez"
-      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
       - uses: actions/checkout@v2.4.0
       - id: Remote-Dir
@@ -258,8 +255,8 @@ jobs:
           fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           command_timeout: 120m
           script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR
-          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR"
+          envs: GITHUB_COMMIT,REMOTE_DIR
+          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$REMOTE_DIR"
       - name: Download binaries from remote server
         uses: nicklasfrahm/scp-action@main
         with:
@@ -276,13 +273,7 @@ jobs:
         uses: actions/upload-artifact@v2.3.1
         with:
           name: postgrest-ubuntu-aarch64
-          path: result/linux_arm64/postgrest
-          if-no-files-found: error
-      - name: Save armv7 executable as artifact
-        uses: actions/upload-artifact@v2.3.1
-        with:
-          name: postgrest-ubuntu-armv7
-          path: result/linux_arm_v7/postgrest
+          path: result/postgrest
           if-no-files-found: error
 
 
@@ -384,9 +375,6 @@ jobs:
 
           tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
-
-          tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-armv7.tar.xz" \
-            -C artifacts/postgrest-ubuntu-armv7 postgrest
 
           zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
             artifacts/postgrest-windows-x64/postgrest.exe
