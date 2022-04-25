@@ -219,17 +219,19 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
 readRequestToCountQuery :: ReadRequest -> SQL.Snippet
-readRequestToCountQuery (Node (Select{from=qi, implicitJoins=implJoins, where_=logicForest, joinConditions=joinConditions_}, _) forest) =
-  "SELECT 1 FROM " <> SQL.sql (BS.intercalate ", " (fromQi qi:(fromQi <$> implJoins))) <>
+readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, implicitJoins=implJoins, where_=logicForest, joinConditions=joinConditions_}, _) forest) =
+  "SELECT 1 FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <>
   (if null logicForest && null joinConditions_ && null subQueries
     then mempty
     else " WHERE " ) <>
   intercalateSnippet " AND " (
-    map (pgFmtLogicTree qi) logicForest ++
+    map (pgFmtLogicTree mainQi) logicForest ++
     map pgFmtJoinCondition joinConditions_ ++
     subQueries
   )
   where
+    tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
+    implJs = fromQi <$> implJoins
     subQueries = foldr existsSubquery [] forest
     existsSubquery :: ReadRequest -> [SQL.Snippet] -> [SQL.Snippet]
     existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =

@@ -62,45 +62,30 @@ readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequ
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows (iAction apiRequest) =<<
-  augmentRequestWithJoin schema rootRels =<<
+  augmentRequestWithJoin schema allRels =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
   addOrders apiRequest =<<
-  addFilters apiRequest (initReadRequest rootName qsSelect)
+  addFilters apiRequest (initReadRequest rootName rootAlias qsSelect)
   where
     QueryParams.QueryParams{..} = iQueryParams apiRequest
-    (rootName, rootRels) = rootWithRels schema rootTableName allRels (iAction apiRequest)
-
--- Get the root table name with its relationships according to the Action type.
--- This is done because of the shape of the final SQL Query. The mutation cases
--- are wrapped in a WITH {sourceCTEName}(see Statements.hs).  So we need a FROM
--- {sourceCTEName} instead of FROM {tableName}.
-rootWithRels :: Schema -> TableName -> [Relationship] -> Action -> (QualifiedIdentifier, [Relationship])
-rootWithRels schema rootTableName allRels action = case action of
-  ActionRead _ -> (QualifiedIdentifier schema rootTableName, allRels) -- normal read case
-  _            -> (QualifiedIdentifier mempty _sourceCTEName, mapMaybe toSourceRel allRels ++ allRels) -- mutation cases and calling proc
-  where
-    _sourceCTEName = decodeUtf8 sourceCTEName
-    -- To enable embedding in the sourceCTEName cases we need to replace the
-    -- foreign key tableName in the Relationship with {sourceCTEName}. This way
-    -- findRel can find relationships with sourceCTEName.
-    toSourceRel :: Relationship -> Maybe Relationship
-    toSourceRel r@Relationship{relTable=t}
-      | rootTableName == qiName t = Just $ r {relTable=t {qiName=_sourceCTEName}}
-      | otherwise                    = Nothing
+    (rootName, rootAlias) = case iAction apiRequest of
+      ActionRead _ -> (QualifiedIdentifier schema rootTableName, Nothing)
+      -- the CTE we use for non-read cases has a sourceCTEName(see Statements.hs) as the WITH name so we use the table name as an alias so findRel can find the right relationship
+      _ -> (QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName, Just rootTableName)
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we
 -- can differentiate the parent and child tables by having an alias like
 -- "table_depth", this is related to
 -- http://github.com/PostgREST/postgrest/issues/987.
-initReadRequest :: QualifiedIdentifier -> [Tree SelectItem] -> ReadRequest
-initReadRequest rootQi =
+initReadRequest :: QualifiedIdentifier -> Maybe Alias -> [Tree SelectItem] -> ReadRequest
+initReadRequest rootQi rootAlias =
   foldr (treeEntry rootDepth) initial
   where
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (Select [] rootQi Nothing [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
+    initial = Node (Select [] rootQi rootAlias [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
     treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node (q, i) rForest) =
       let nxtDepth = succ depth in
@@ -128,10 +113,13 @@ augmentRequestWithJoin schema allRels request =
 addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
-    Just (Node (Select{from=parentNodeQi}, _) _) ->
+    Just (Node (Select{from=parentNodeQi, fromAlias=aliasQi}, _) _) ->
       let newFrom r = if qiName tbl == nodeName then relForeignTable r else tbl
           newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))) <$> rel
-          rel = findRel schema allRels (qiName parentNodeQi) nodeName hint
+          origin = if depth == 1 -- Only on depth 1 we check if the parent(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
+            then fromMaybe (qiName parentNodeQi) aliasQi
+            else qiName parentNodeQi
+          rel = findRel schema allRels origin nodeName hint
       in
       Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
     _ ->
@@ -218,7 +206,7 @@ findRel schema allRels origin target hint =
 
 -- previousAlias is only used for the case of self joins
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_, rel, _, _, _, depth)) forest) =
+addJoinConditions previousAlias (Node node@(query@Select{from=tbl,fromAlias=tblAlias}, nodeProps@(_, rel, _, _, _, depth)) forest) =
   case rel of
     Just r@Relationship{relCardinality=M2M Junction{junTable}} ->
       let rq = augmentQuery r in
@@ -226,11 +214,11 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl}, nodeProps@(_
     Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
     Nothing -> Node node <$> updatedForest
   where
-    newAlias = case Relationship.isSelfReference <$> rel of
-      Just True
-        | depth /= 0 -> Just (qiName tbl <> "_" <> show depth) -- root node doesn't get aliased
-        | otherwise  -> Nothing
-      _              -> Nothing
+    newAlias = if depth == 0
+      then tblAlias -- only use the alias on the root node(depth 0) for when the sourceCTEName alias is used for joining
+      else case Relationship.isSelfReference <$> rel of -- no need to apply the self reference alias on depth 0 only on the next depths
+        Just True -> Just (qiName tbl <> "_" <> show depth)
+        _         -> Nothing
     augmentQuery r =
       foldr
         (\jc rq@Select{joinConditions=jcs} -> rq{joinConditions=jc:jcs})
@@ -243,25 +231,18 @@ getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinConditio
 getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} card) =
   case card of
     M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
-      (toJoinCondition tN jtn <$> jcols1) ++ (toJoinCondition ftN jtn <$> jcols2)
+      (toJoinCondition previousAlias newAlias tN jtn <$> jcols1) ++ (toJoinCondition Nothing Nothing ftN jtn <$> jcols2)
     O2M _ cols ->
-      toJoinCondition tN ftN <$> cols
+      toJoinCondition previousAlias newAlias tN ftN <$> cols
     M2O _ cols ->
-      toJoinCondition tN ftN <$> cols
+      toJoinCondition previousAlias newAlias tN ftN <$> cols
   where
-    toJoinCondition :: Text -> Text -> (FieldName, FieldName) -> JoinCondition
-    toJoinCondition tb ftb (c, fc) =
-      let qi1 = removeSourceCTESchema tSchema tb
-          qi2 = removeSourceCTESchema tSchema ftb in
-        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) previousAlias, c)
-                      (maybe qi2 (QualifiedIdentifier mempty) newAlias, fc)
-
-    -- On mutation and calling proc cases we wrap the target table in a WITH
-    -- {sourceCTEName} if this happens remove the schema `FROM
-    -- "schema"."{sourceCTEName}"` and use only the `FROM "{sourceCTEName}"`.
-    -- If the schema remains the FROM would be invalid.
-    removeSourceCTESchema :: Schema -> TableName -> QualifiedIdentifier
-    removeSourceCTESchema schema tbl = QualifiedIdentifier (if tbl == decodeUtf8 sourceCTEName then mempty else schema) tbl
+    toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
+    toJoinCondition prAl newAl tb ftb (c, fc) =
+      let qi1 = QualifiedIdentifier tSchema tb
+          qi2 = QualifiedIdentifier tSchema ftb in
+        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) prAl, c)
+                      (maybe qi2 (QualifiedIdentifier mempty) newAl, fc)
 
 addFilters :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addFilters ApiRequest{..} rReq =
