@@ -1843,7 +1843,7 @@ case accept
   when 'application/openapi+json' then
     return openapi;
   when 'application/json' then
-    return (current_setting('request.spec', true)::json)->'dbRelationships'->0->'relTable';
+    return (current_setting('request.spec', true)::json)->'dbRelationships'->0->0;
   else
     return openapi;
   end case;
