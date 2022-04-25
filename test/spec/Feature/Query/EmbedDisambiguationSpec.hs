@@ -99,17 +99,17 @@ spec =
             {
               "details": [
                 {
-                    "cardinality": "many-to-one",
-                    "relationship": "agents_department_id_fkey using agents(department_id) and departments(id)",
-                    "embedding": "agents with departments"
-                },
-                {
                     "cardinality": "one-to-many",
                     "relationship": "departments_head_id_fkey using agents(id) and departments(head_id)",
                     "embedding": "agents with departments"
+                },
+                {
+                    "cardinality": "many-to-one",
+                    "relationship": "agents_department_id_fkey using agents(department_id) and departments(id)",
+                    "embedding": "agents with departments"
                 }
               ],
-              "hint": "Try changing 'departments' to one of the following: 'departments!agents_department_id_fkey', 'departments!departments_head_id_fkey'. Find the desired relationship in the 'details' key.",
+              "hint": "Try changing 'departments' to one of the following: 'departments!departments_head_id_fkey', 'departments!agents_department_id_fkey'. Find the desired relationship in the 'details' key.",
               "message": "Could not embed because more than one relationship was found for 'agents' and 'departments'",
               "code": "PGRST201"
             }

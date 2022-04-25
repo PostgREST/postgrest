@@ -36,7 +36,8 @@ import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            procReturnsScalar)
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
-                                           Relationship (..))
+                                           Relationship (..),
+                                           RelationshipsMap)
 import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
@@ -58,7 +59,7 @@ import Protolude hiding (from)
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> [Relationship] -> ApiRequest -> Either Error ReadRequest
+readRequest :: Schema -> TableName -> Maybe Integer -> RelationshipsMap -> ApiRequest -> Either Error ReadRequest
 readRequest schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows (iAction apiRequest) =<<
@@ -105,12 +106,12 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
     nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
     nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
 
-augmentRequestWithJoin :: Schema -> [Relationship] -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin :: Schema -> RelationshipsMap -> ReadRequest -> Either ApiRequestError ReadRequest
 augmentRequestWithJoin schema allRels request =
   addRels schema allRels Nothing request
   >>= addJoinConditions Nothing
 
-addRels :: Schema -> [Relationship] -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addRels :: Schema -> RelationshipsMap -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi, fromAlias=aliasQi}, _) _) ->
@@ -139,7 +140,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- target = table / view / constraint / column-from-origin
 -- hint   = table / view / constraint / column-from-origin / column-from-target
 -- (hint can take table / view values to aid in finding the junction in an m2m relationship)
-findRel :: Schema -> [Relationship] -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
+findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rel of
     []  -> Left $ NoRelBetween origin target schema
@@ -172,23 +173,17 @@ findRel schema allRels origin target hint =
       _                      -> False
     rel = filter (
       \Relationship{..} ->
-        -- Both relationship ends need to be on the exposed schema
-        schema == qiSchema relTable && schema == qiSchema relForeignTable &&
+        -- foreign relationship need to be on the exposed schema
+        schema == qiSchema relForeignTable &&
         (
           -- /projects?select=clients(*)
-          origin == qiName relTable  &&  -- projects
-          target == qiName relForeignTable ||  -- clients
-
+          target == qiName relForeignTable  -- clients
+          ||
           -- /projects?select=projects_client_id_fkey(*)
-          (
-            origin == qiName relTable &&              -- projects
-            matchConstraint (Just target) relCardinality -- projects_client_id_fkey
-          ) ||
+          matchConstraint (Just target) relCardinality -- projects_client_id_fkey
+          ||
           -- /projects?select=client_id(*)
-          (
-            origin == qiName relTable &&                  -- projects
-            matchFKSingleCol (Just target) relCardinality -- client_id
-          )
+          matchFKSingleCol (Just target) relCardinality -- client_id
         ) && (
           isNothing hint || -- hint is optional
 
@@ -202,7 +197,7 @@ findRel schema allRels origin target hint =
           -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
           matchJunction hint relCardinality -- users_tasks
         )
-      ) allRels
+      ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier schema origin) allRels
 
 -- previousAlias is only used for the case of self joins
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest

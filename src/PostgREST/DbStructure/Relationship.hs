@@ -6,9 +6,11 @@ module PostgREST.DbStructure.Relationship
   , Relationship(..)
   , Junction(..)
   , isSelfReference
+  , RelationshipsMap
   ) where
 
-import qualified Data.Aeson as JSON
+import qualified Data.Aeson          as JSON
+import qualified Data.HashMap.Strict as M
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier)
@@ -22,7 +24,7 @@ data Relationship = Relationship
   , relForeignTable :: QualifiedIdentifier
   , relCardinality  :: Cardinality
   }
-  deriving (Eq, Generic, JSON.ToJSON)
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 -- | The relationship cardinality
 -- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
@@ -34,7 +36,7 @@ data Cardinality
   -- ^ many-to-one
   | M2M Junction
   -- ^ many-to-many
-  deriving (Eq, Generic, JSON.ToJSON)
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 type FKConstraint = Text
 
@@ -46,7 +48,9 @@ data Junction = Junction
   , junColumns1    :: [(FieldName, FieldName)]
   , junColumns2    :: [(FieldName, FieldName)]
   }
-  deriving (Eq, Generic, JSON.ToJSON)
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 isSelfReference :: Relationship -> Bool
 isSelfReference r = relTable r == relForeignTable r
+
+type RelationshipsMap = M.HashMap QualifiedIdentifier [Relationship]
