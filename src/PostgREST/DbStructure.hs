@@ -51,7 +51,8 @@ import PostgREST.DbStructure.Proc         (PgType (..),
                                            ProcsMap, RetType (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
-                                           Relationship (..))
+                                           Relationship (..),
+                                           RelationshipsMap)
 import PostgREST.DbStructure.Table        (Column (..), Table (..),
                                            TablesMap)
 
@@ -60,7 +61,7 @@ import Protolude
 
 data DbStructure = DbStructure
   { dbTables        :: TablesMap
-  , dbRelationships :: [Relationship]
+  , dbRelationships :: RelationshipsMap
   , dbProcs         :: ProcsMap
   }
   deriving (Generic, JSON.ToJSON)
@@ -95,22 +96,24 @@ queryDbStructure schemas extraSearchPath prepared = do
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels          = addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
+      rels          = relsToMap $ addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabsWViewsPks
     , dbRelationships = rels
     , dbProcs = procs
     }
+  where
+    relsToMap = map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey)
+    addKey rel = (relTable rel, rel)
 
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
 removeInternal :: [Schema] -> DbStructure -> DbStructure
 removeInternal schemas dbStruct =
   DbStructure {
       dbTables        = M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
-    , dbRelationships = filter (\x -> qiSchema (relTable x) `elem` schemas &&
-                                      qiSchema (relForeignTable x) `elem` schemas &&
-                                      not (hasInternalJunction x)) $ dbRelationships dbStruct
+    , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
+                        M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
@@ -143,20 +146,13 @@ decodeTables =
 
 decodeRels :: HD.Result [Relationship]
 decodeRels =
-  map relFromRow <$> HD.rowList relRow
+ HD.rowList relRow
  where
-  relRow = (,,,,,)
-    <$> column HD.text <*> column HD.text
-    <*> column HD.text <*> column HD.text
-    <*> column HD.text
-    <*> compositeArrayColumn
-        ((,)
-        <$> compositeField HD.text
-        <*> compositeField HD.text)
-
-relFromRow :: (Text, Text, Text, Text, Text, [(Text, Text)]) -> Relationship
-relFromRow (rs, rt, frs, frt, cn, cs) =
-  Relationship (QualifiedIdentifier rs rt) (QualifiedIdentifier frs frt) (M2O cn cs)
+  relRow =
+    Relationship <$>
+    (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    (M2O <$> column HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text))
 
 decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
 decodeViewKeyDeps =

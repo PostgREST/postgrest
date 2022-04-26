@@ -31,7 +31,8 @@ import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
-                                           Relationship (..))
+                                           Relationship (..),
+                                           RelationshipsMap)
 import PostgREST.DbStructure.Table        (Column (..), Table (..),
                                            TablesMap)
 import PostgREST.Version                  (docsVersion, prettyVersion)
@@ -79,7 +80,7 @@ parseDefault colType colDefault =
   where
     wrapInQuotations text = "\"" <> text <> "\""
 
-makeTableDef :: [Relationship] -> Table -> (Text, Schema)
+makeTableDef :: RelationshipsMap -> Table -> (Text, Schema)
 makeTableDef rels t =
   let tn = tableName t in
       (tn, (mempty :: Schema)
@@ -88,7 +89,7 @@ makeTableDef rels t =
         & properties .~ fromList (makeProperty t rels <$> tableColumns t)
         & required .~ fmap colName (filter (not . colNullable) $ tableColumns t))
 
-makeProperty :: Table -> [Relationship] -> Column -> (Text, Referenced Schema)
+makeProperty :: Table -> RelationshipsMap -> Column -> (Text, Referenced Schema)
 makeProperty tbl rels col = (colName col, Inline s)
   where
     e = if null $ colEnum col then Nothing else JSON.decode $ JSON.encode $ colEnum col
@@ -99,7 +100,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         rel = find (\case
           Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
           _                                               -> False
-          ) rels
+          ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl)) rels
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
         fTbl = qiName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol
@@ -320,7 +321,7 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec :: [Relationship] -> [ProcDescription] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Swagger
+postgrestSpec :: RelationshipsMap -> [ProcDescription] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Swagger
 postgrestSpec rels pds ti (s, h, p, b) sd = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']
