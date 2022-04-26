@@ -20,6 +20,29 @@ spec = describe "extra search path" $ do
         {"path":"Top.Science.Astronomy.Cosmology"}]|]
       { matchHeaders = [matchContentTypeJson] }
 
+  it "finds the ltree ~ operator on the public schema" $ do
+    request methodGet "/ltree_sample?path=match.*.Science" [] ""
+      `shouldRespondWith` [json|[
+        {"path": "Top.Science"}]|]
+      { matchHeaders = [matchContentTypeJson] }
+
+    request methodGet "/ltree_sample?path=match.*.Astronomy.*" [] ""
+      `shouldRespondWith` [json|[
+        {"path": "Top.Science.Astronomy"},
+        {"path": "Top.Science.Astronomy.Astrophysics"},
+        {"path": "Top.Science.Astronomy.Cosmology"},
+        {"path": "Top.Collections.Pictures.Astronomy"},
+        {"path": "Top.Collections.Pictures.Astronomy.Stars"},
+        {"path": "Top.Collections.Pictures.Astronomy.Galaxies"},
+        {"path": "Top.Collections.Pictures.Astronomy.Astronauts"}]|]
+      { matchHeaders = [matchContentTypeJson] }
+
+    request methodGet "/ltree_sample?path=match.*.Collections.*{1,2}" [] ""
+      `shouldRespondWith` [json|[
+        {"path": "Top.Collections.Pictures"},
+        {"path": "Top.Collections.Pictures.Astronomy"}]|]
+      { matchHeaders = [matchContentTypeJson] }
+
   it "finds the ltree nlevel function on the public schema, used through a computed column" $
     request methodGet "/ltree_sample?select=number_of_labels&path=eq.Top.Science" [] ""
       `shouldRespondWith` [json|[{"number_of_labels":2}]|]

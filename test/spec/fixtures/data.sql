@@ -543,6 +543,14 @@ INSERT INTO ltree_sample VALUES ('Top.Science');
 INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy');
 INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy.Astrophysics');
 INSERT INTO ltree_sample VALUES ('Top.Science.Astronomy.Cosmology');
+INSERT INTO ltree_sample VALUES ('Top.Hobbies');
+INSERT INTO ltree_sample VALUES ('Top.Hobbies.Amateurs_Astronomy');
+INSERT INTO ltree_sample VALUES ('Top.Collections');
+INSERT INTO ltree_sample VALUES ('Top.Collections.Pictures');
+INSERT INTO ltree_sample VALUES ('Top.Collections.Pictures.Astronomy');
+INSERT INTO ltree_sample VALUES ('Top.Collections.Pictures.Astronomy.Stars');
+INSERT INTO ltree_sample VALUES ('Top.Collections.Pictures.Astronomy.Galaxies');
+INSERT INTO ltree_sample VALUES ('Top.Collections.Pictures.Astronomy.Astronauts');
 
 TRUNCATE TABLE isn_sample CASCADE;
 INSERT INTO isn_sample VALUES ('978-0-393-04002-9', 'Mathematics: From the Birth of Numbers');
