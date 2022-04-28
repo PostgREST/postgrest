@@ -10,6 +10,8 @@ module PostgREST.RangeQuery (
 , restrictRange
 , rangeGeq
 , allRange
+, limitZeroRange
+, hasLimitZero
 , NonnegRange
 , rangeStatusHeader
 , contentRangeH
@@ -73,6 +75,15 @@ allRange = rangeGeq 0
 rangeLeq :: Integer -> NonnegRange
 rangeLeq n =
   Range BoundaryBelowAll (BoundaryAbove n)
+
+-- Special case to allow limit 0 queries
+-- https://github.com/PostgREST/postgrest/issues/1121
+-- 0 <= x <= -1
+limitZeroRange :: Range Integer
+limitZeroRange = Range (BoundaryBelow 0) (BoundaryAbove (-1))
+
+hasLimitZero :: Range Integer -> Bool
+hasLimitZero r = rangeUpper r == rangeUpper limitZeroRange
 
 rangeStatusHeader :: NonnegRange -> Int64 -> Maybe Int64 -> (Status, Header)
 rangeStatusHeader topLevelRange queryTotal tableTotal =

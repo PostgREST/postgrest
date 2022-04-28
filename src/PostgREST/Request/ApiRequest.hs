@@ -50,6 +50,8 @@ import PostgREST.DbStructure.Identifiers (FieldName,
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcParam (..), ProcsMap)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          hasLimitZero,
+                                          limitZeroRange,
                                           rangeRequested)
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
@@ -180,7 +182,7 @@ apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.
 apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..}
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
-  | topLevelRange == emptyRange = Left InvalidRange
+  | isInvalidRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
   | otherwise = do
@@ -330,8 +332,14 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   headerRange = rangeRequested hdrs
+  limitRange = fromMaybe allRange (M.lookup "limit" qsRanges)
+  headerAndLimitRange = rangeIntersection headerRange limitRange
 
-  ranges = M.insert "limit" (rangeIntersection headerRange (fromMaybe allRange (M.lookup "limit" qsRanges))) qsRanges
+  -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
+  -- limit=0 is present in the query params (not allowed for the Range header)
+  ranges = M.insert "limit" (if hasLimitZero limitRange then limitZeroRange else headerAndLimitRange) qsRanges
+  -- The only emptyRange allowed is the limit zero range
+  isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
 
 {-|
   Find the best match from a list of content types accepted by the
