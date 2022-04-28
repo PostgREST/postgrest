@@ -184,12 +184,12 @@ spec = do
             [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
             { matchHeaders = ["Content-Range" <:> "0-14/*"] }
 
-      it "fails if limit equals 0" $
+      it "succeeds and returns an empty array if limit equals 0" $
         get "/items?select=id&limit=0"
-          `shouldRespondWith` [json|{"message":"HTTP Range error","code":"PGRST103","details":null,"hint":null}|]
-          { matchStatus  = 416
-          , matchHeaders = [matchContentTypeJson]
-          }
+          `shouldRespondWith` [json|[]|]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
       it "fails if limit is negative" $
         get "/items?select=id&limit=-1"
