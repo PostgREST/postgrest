@@ -801,7 +801,13 @@ The current possibilities are:
 * ``text/csv``
 * ``application/json``
 * ``application/openapi+json``
+
+and in the special case of a single-column select the following additional three formats;
+also see the section :ref:`scalar_return_formats`:
+
 * ``application/octet-stream``
+* ``text/plain``
+* ``text/xml``
 
 The server will default to JSON for API endpoints and OpenAPI on the root.
 
@@ -2216,6 +2222,9 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
+To manually choose a return format such as binary, plain text or XML, see the section :ref:`scalar_return_formats`.
+
+
 .. _bulk_call:
 
 Bulk Call
@@ -2319,12 +2328,25 @@ You can call overloaded functions with different number of arguments.
 
   Overloaded functions with the same argument names but different types are not supported.
 
-.. _binary_output:
+.. _scalar_return_formats:
 
-Binary Output
-=============
+Response Formats For Scalar Responses
+=====================================
 
-If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
+For scalar return values such as 
+
+* single-column selects on tables or
+* scalar functions,
+
+you can set the additional content types
+
+* ``application/octet-stream``
+* ``text/plain``
+* ``text/xml``
+
+as part of the :code:`Accept` header.
+
+Example 1: If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
 and select a single column :code:`?select=bin_data`.
 
 .. tabs::
@@ -2339,74 +2361,46 @@ and select a single column :code:`?select=bin_data`.
     curl "http://localhost:3000/items?select=bin_data&id=eq.1" \
       -H "Accept: application/octet-stream"
 
-You can also request binary output when calling `Stored Procedures`_ and since they can return a scalar value you are not forced to use :code:`select`
-for this case.
+Example 2: You can request XML output when calling `Stored Procedures`_ that return a scalar value of type ``text/xml``. You are not forced to use select for this case.
 
 .. code-block:: postgres
 
-  CREATE FUNCTION closest_point(..) RETURNS bytea ..
+  CREATE FUNCTION generate_xml_content(..) RETURNS xml ..
 
 .. tabs::
 
   .. code-tab:: http
 
-    POST /rpc/closest_point HTTP/1.1
-    Accept: application/octet-stream
+    POST /rpc/generate_xml_content HTTP/1.1
+    Accept: text/xml
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/rpc/closest_point" \
-      -X POST -H "Accept: application/octet-stream"
+    curl "http://localhost:3000/rpc/generate_xml_content" \
+      -X POST -H "Accept: text/xml"
 
-If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
+Example 3: If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
 
 .. code-block:: sql
 
-  CREATE FUNCTION overlapping_regions(..) RETURNS SETOF TABLE(geom_twkb bytea, ..) ..
+  CREATE FUNCTION get_descriptions(..) RETURNS SETOF TABLE(id int, description text) ..
 
 .. tabs::
 
   .. code-tab:: http
 
-    POST /rpc/overlapping_regions?select=geom_twkb HTTP/1.1
-    Accept: application/octet-stream
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/overlapping_regions?select=geom_twkb" \
-      -X POST -H "Accept: application/octet-stream"
-
-.. note::
-
-  If more than one row would be returned the binary results will be concatenated with no delimiter.
-
-.. _plain_text_output:
-
-Plain Text Output
------------------
-
-You can get raw output from a ``text`` column by using ``Accept: text/plain``.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /workers?select=custom_psv_format HTTP/1.1
+    POST /rpc/get_descriptions?select=description HTTP/1.1
     Accept: text/plain
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/workers?select=custom_psv_format" \
-      -H "Accept: text/plain"
+    curl "http://localhost:3000/rpc/get_descriptions?select=description" \
+      -X POST -H "Accept: text/plain"
 
-.. code-block:: text
+.. note::
 
-  09310817|JOHN|DOE|15/04/88|
-  42152780|FRED|BLOGGS|20/02/85|
-  43006541|OTTO|NORMALVERBRAUCHER|01/07/90|
-  02452492|ERIKA|MUSTERMANN|11/01/80|
+  If more than one row would be returned the binary/plain-text/xml results will be concatenated with no delimiter.
 
-This follows the same rules as :ref:`binary_output`.
 
 .. _open-api:
 

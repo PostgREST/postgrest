@@ -587,14 +587,14 @@ raw-media-types
 
  This serves to extend the `Media Types <https://en.wikipedia.org/wiki/Media_type>`_ that PostgREST currently accepts through an ``Accept`` header.
 
- These media types can be requested by following the same rules as the ones defined in :ref:`binary_output`.
+ These media types can be requested by following the same rules as the ones defined in :ref:`scalar_return_formats`.
 
  As an example, the below config would allow you to request an **image** and a **XML** file by doing a request with ``Accept: image/png``
- or ``Accept: text/xml``, respectively.
+ or ``Accept: font/woff2``, respectively.
 
  .. code:: bash
 
-   raw-media-types="image/png, text/xml"
+   raw-media-types="image/png, font/woff2"
 
 .. _server-host:
 

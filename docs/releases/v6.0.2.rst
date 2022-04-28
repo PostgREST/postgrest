@@ -23,7 +23,7 @@ Added
 * Bulk calling an RPC is now allowed. See :ref:`bulk_call`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* It's now possible to request a ``text/plain`` output. See :ref:`plain_text_output`.
+* It's now possible to request a ``text/plain`` output. See :ref:`scalar_return_formats`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
 * Config option for specifying PostgREST database pool timeout. See :ref:`db-pool-timeout`.

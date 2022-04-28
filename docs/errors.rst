@@ -193,8 +193,9 @@ Related to the HTTP request elements.
 |               | See :ref:`guc_resp_status`.                                 |
 | PGRST112      |                                                             |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst113: | Related to :ref:`binary_output`. See :ref:`providing_img`   |
-|               | for an example on requesting images.                        |
+| .. _pgrst113: | Related to :ref:`scalar_return_formats`.                    |
+|               | See :ref:`providing_img` for an example on requesting       |
+|               | images.                                                     |
 | PGRST113      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst114: | For an :ref:`UPSERT using PUT <upsert_put>`, when           |
