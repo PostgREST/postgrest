@@ -102,21 +102,21 @@ postJsonArrayTest(){
 
 echo "Running memory usage tests.."
 
-jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "15M"
-jsonKeyTest "1M" "POST" "/leak?columns=blob" "15M"
-jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "15M"
+jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "16M"
+jsonKeyTest "1M" "POST" "/leak?columns=blob" "16M"
+jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "16M"
 
-jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "43M"
-jsonKeyTest "10M" "POST" "/leak?columns=blob" "43M"
-jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "43M"
+jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "44M"
+jsonKeyTest "10M" "POST" "/leak?columns=blob" "44M"
+jsonKeyTest "10M" "PATCH" "/leak?id=eq.1&columns=blob" "44M"
 
-jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "171M"
-jsonKeyTest "50M" "POST" "/leak?columns=blob" "171M"
-jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "171M"
+jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "172M"
+jsonKeyTest "50M" "POST" "/leak?columns=blob" "172M"
+jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "172M"
 
-postJsonArrayTest "1000" "/perf_articles?columns=id,body" "13M"
-postJsonArrayTest "10000" "/perf_articles?columns=id,body" "13M"
-postJsonArrayTest "100000" "/perf_articles?columns=id,body" "23M"
+postJsonArrayTest "1000" "/perf_articles?columns=id,body" "14M"
+postJsonArrayTest "10000" "/perf_articles?columns=id,body" "14M"
+postJsonArrayTest "100000" "/perf_articles?columns=id,body" "24M"
 
 trap - int term exit
 
