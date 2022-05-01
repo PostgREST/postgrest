@@ -70,6 +70,7 @@ data ApiRequestError
   | NoRpc Text Text [Text] Bool ContentType Bool
   | NotEmbedded Text
   | ParseRequestError Text Text
+  | PutRangeNotAllowedError
   | QueryParamError QPError
   | UnacceptableSchema [Text]
 

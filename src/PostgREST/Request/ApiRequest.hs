@@ -186,6 +186,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
+  | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
      acceptContentType <- findAcceptContentType conf action path accepts
      checkedTarget <- target

@@ -54,20 +54,21 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status ActionInappropriate   = HTTP.status405
-  status AmbiguousRelBetween{} = HTTP.status300
-  status AmbiguousRpc{}        = HTTP.status300
-  status ContentTypeError{}    = HTTP.status415
-  status InvalidBody{}         = HTTP.status400
-  status InvalidFilters        = HTTP.status405
-  status InvalidRange          = HTTP.status416
-  status NoRelBetween{}        = HTTP.status400
-  status NoRpc{}               = HTTP.status404
-  status NotEmbedded{}         = HTTP.status400
-  status ParseRequestError{}   = HTTP.status400
-  status QueryParamError{}     = HTTP.status400
-  status UnacceptableSchema{}  = HTTP.status406
-  status LimitNoOrderError     = HTTP.status400
+  status ActionInappropriate     = HTTP.status405
+  status AmbiguousRelBetween{}   = HTTP.status300
+  status AmbiguousRpc{}          = HTTP.status300
+  status ContentTypeError{}      = HTTP.status415
+  status InvalidBody{}           = HTTP.status400
+  status InvalidFilters          = HTTP.status405
+  status InvalidRange            = HTTP.status416
+  status NoRelBetween{}          = HTTP.status400
+  status NoRpc{}                 = HTTP.status404
+  status NotEmbedded{}           = HTTP.status400
+  status ParseRequestError{}     = HTTP.status400
+  status PutRangeNotAllowedError = HTTP.status400
+  status QueryParamError{}       = HTTP.status400
+  status UnacceptableSchema{}    = HTTP.status406
+  status LimitNoOrderError       = HTTP.status400
 
   headers _ = [ContentType.toHeader CTApplicationJSON]
 
@@ -96,6 +97,11 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode04,
     "message" .= message,
     "details" .= details,
+    "hint"    .= JSON.Null]
+  toJSON PutRangeNotAllowedError = JSON.object [
+    "code"    .= GeneralErrorCode03,
+    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
+    "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON InvalidFilters = JSON.object [
     "code"    .= ApiRequestErrorCode05,
@@ -326,7 +332,6 @@ data Error
   | OffLimitsChangesError Int64 Integer
   | PgErr PgError
   | PutMatchingPkError
-  | PutRangeNotAllowedError
   | SingularityError Integer
   | UnsupportedVerb Text
 
@@ -343,7 +348,6 @@ instance PgrstError Error where
   status OffLimitsChangesError{} = HTTP.status400
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
-  status PutRangeNotAllowedError = HTTP.status400
   status SingularityError{}      = HTTP.status406
   status UnsupportedVerb{}       = HTTP.status405
 
@@ -393,11 +397,6 @@ instance JSON.ToJSON Error where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON PutRangeNotAllowedError = JSON.object [
-    "code"    .= GeneralErrorCode03,
-    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
   toJSON PutMatchingPkError = JSON.object [
     "code"    .= GeneralErrorCode04,
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),

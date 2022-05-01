@@ -370,9 +370,6 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
-  when (iTopLevelRange /= RangeQuery.allRange) $
-    throwError Error.PutRangeNotAllowedError
-
   let pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
 
   WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False pkCols context
