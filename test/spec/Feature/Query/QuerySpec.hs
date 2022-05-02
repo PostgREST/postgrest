@@ -1013,21 +1013,21 @@ spec actualPgVersion = do
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?select=*&name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
           { matchStatus = 406 }
 
       request methodGet "/images?name=eq.A.png"
           (acceptHdrs "application/octet-stream")
           ""
         `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
+          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
           { matchStatus = 406 }
 
     it "concatenates results if more than one row is returned" $

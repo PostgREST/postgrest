@@ -27,7 +27,7 @@ spec = do
           [json|
             {"hint": null,
              "details": null,
-             "code": "PGRST506",
+             "code": "PGRST117",
              "message":"Unsupported HTTP verb: CONNECT"}|]
           { matchStatus = 405 }
 
@@ -39,7 +39,7 @@ spec = do
           [json|
             {"hint": null,
              "details": null,
-             "code": "PGRST506",
+             "code": "PGRST117",
              "message":"Unsupported HTTP verb: TRACE"}|]
           { matchStatus = 405 }
 
@@ -51,6 +51,6 @@ spec = do
           [json|
             {"hint": null,
              "details": null,
-             "code": "PGRST506",
+             "code": "PGRST117",
              "message":"Unsupported HTTP verb: OTHER"}|]
           { matchStatus = 405 }

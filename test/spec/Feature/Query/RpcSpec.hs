@@ -1024,7 +1024,7 @@ spec actualPgVersion =
           request methodPost "/rpc/ret_rows_with_base64_bin"
               (acceptHdrs "application/octet-stream") ""
             `shouldRespondWith`
-              [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST502","details":null,"hint":null} |]
+              [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
               { matchStatus = 406 }
 
     context "only for GET rpc" $ do
@@ -1094,25 +1094,25 @@ spec actualPgVersion =
       it "fails when setting headers with wrong json structure" $ do
         get "/rpc/bad_guc_headers_1"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         get "/rpc/bad_guc_headers_2"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         get "/rpc/bad_guc_headers_3"
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
         post "/rpc/bad_guc_headers_1" [json|{}|]
           `shouldRespondWith`
-          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST500","details":null,"hint":null}|]
+          [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
           { matchStatus  = 500
           , matchHeaders = [ matchContentTypeJson ]
           }
@@ -1183,7 +1183,7 @@ spec actualPgVersion =
         it "fails when setting invalid status guc" $
           get "/rpc/send_bad_status"
             `shouldRespondWith`
-            [json|{"message":"response.status guc must be a valid status code","code":"PGRST501","details":null,"hint":null}|]
+            [json|{"message":"response.status guc must be a valid status code","code":"PGRST112","details":null,"hint":null}|]
             { matchStatus  = 500
             , matchHeaders = [ matchContentTypeJson ]
             }
