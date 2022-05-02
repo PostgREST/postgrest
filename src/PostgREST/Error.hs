@@ -223,27 +223,27 @@ instance JSON.ToJSON SQL.CommandError where
         "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
   toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
-    "code"    .= HasqlErrorCode00,
+    "code"    .= InternalErrorCode00,
     "message" .= (m :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (SQL.ResultError (SQL.RowError i SQL.EndOfInput)) = JSON.object [
-    "code"    .= HasqlErrorCode01,
+    "code"    .= InternalErrorCode01,
     "message" .= ("Row error: end of input" :: Text),
     "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.RowError i SQL.UnexpectedNull)) = JSON.object [
-    "code"    .= HasqlErrorCode02,
+    "code"    .= InternalErrorCode02,
     "message" .= ("Row error: unexpected null" :: Text),
     "details" .= ("Attempt to parse a NULL as some value." :: Text),
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.RowError i (SQL.ValueError d))) = JSON.object [
-    "code"    .= HasqlErrorCode03,
+    "code"    .= InternalErrorCode03,
     "message" .= ("Row error: Wrong value parser used" :: Text),
     "details" .= d,
     "hint"    .= (("Row number " <> show i) :: Text)]
   toJSON (SQL.ResultError (SQL.UnexpectedAmountOfRows i)) = JSON.object [
-    "code"    .= HasqlErrorCode04,
+    "code"    .= InternalErrorCode04,
     "message" .= ("Unexpected amount of rows" :: Text),
     "details" .= i,
     "hint"    .= JSON.Null]
@@ -462,12 +462,6 @@ data ErrorCode
   | JWTErrorCode00
   | JWTErrorCode01
   | JWTErrorCode02
-  -- Hasql library errors
-  | HasqlErrorCode00
-  | HasqlErrorCode01
-  | HasqlErrorCode02
-  | HasqlErrorCode03
-  | HasqlErrorCode04
   -- Uncategorized errors that are not related to a single module
   | GeneralErrorCode00
   | GeneralErrorCode01
@@ -476,6 +470,12 @@ data ErrorCode
   | GeneralErrorCode04
   | GeneralErrorCode05
   | GeneralErrorCode06
+  -- Internal errors related to the Hasql library
+  | InternalErrorCode00
+  | InternalErrorCode01
+  | InternalErrorCode02
+  | InternalErrorCode03
+  | InternalErrorCode04
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -509,12 +509,6 @@ buildErrorCode code = "PGRST" <> case code of
   JWTErrorCode01         -> "301"
   JWTErrorCode02         -> "302"
 
-  HasqlErrorCode00       -> "400"
-  HasqlErrorCode01       -> "401"
-  HasqlErrorCode02       -> "402"
-  HasqlErrorCode03       -> "403"
-  HasqlErrorCode04       -> "404"
-
   GeneralErrorCode00     -> "500"
   GeneralErrorCode01     -> "501"
   GeneralErrorCode02     -> "502"
@@ -522,3 +516,9 @@ buildErrorCode code = "PGRST" <> case code of
   GeneralErrorCode04     -> "504"
   GeneralErrorCode05     -> "505"
   GeneralErrorCode06     -> "506"
+
+  InternalErrorCode00    -> "X00"
+  InternalErrorCode01    -> "X01"
+  InternalErrorCode02    -> "X02"
+  InternalErrorCode03    -> "X03"
+  InternalErrorCode04    -> "X04"
