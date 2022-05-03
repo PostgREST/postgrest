@@ -157,47 +157,54 @@ findRel schema allRels origin target hint =
     rs -> Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ card = case card of
-      O2M _ cols -> length cols == 1 && hint_ == head (fst <$> cols)
-      M2O _ cols -> length cols == 1 && hint_ == head (fst <$> cols)
-      _          -> False
+      O2M _ [(col, _)] -> hint_ == col
+      M2O _ [(col, _)] -> hint_ == col
+      _                -> False
     matchFKRefSingleCol hint_ card = case card of
-      O2M _ cols -> length cols == 1 && hint_ == head (snd <$> cols)
-      M2O _ cols -> length cols == 1 && hint_ == head (snd <$> cols)
-      _          -> False
+      O2M _ [(_, fCol)] -> hint_ == fCol
+      M2O _ [(_, fCol)] -> hint_ == fCol
+      _                 -> False
     matchConstraint tar card = case card of
-      O2M cons _ -> tar == Just cons
-      M2O cons _ -> tar == Just cons
+      O2M cons _ -> tar == cons
+      M2O cons _ -> tar == cons
       _          -> False
     matchJunction hint_ card = case card of
-      M2M Junction{junTable} -> hint_ == Just (qiName junTable)
+      M2M Junction{junTable} -> hint_ == qiName junTable
       _                      -> False
     rel = filter (
       \Relationship{..} ->
-        -- foreign relationship need to be on the exposed schema
-        schema == qiSchema relForeignTable &&
-        (
-          -- /projects?select=clients(*)
-          target == qiName relForeignTable  -- clients
-          ||
-          -- /projects?select=projects_client_id_fkey(*)
-          matchConstraint (Just target) relCardinality -- projects_client_id_fkey
-          ||
-          -- /projects?select=client_id(*)
-          matchFKSingleCol (Just target) relCardinality -- client_id
-        ) && (
-          isNothing hint || -- hint is optional
+        case hint of
+          Nothing ->
+              -- /projects?select=clients(*)
+              target == qiName relForeignTable  -- clients
+              ||
+              -- /projects?select=projects_client_id_fkey(*)
+              matchConstraint target relCardinality -- projects_client_id_fkey
+              ||
+              -- /projects?select=client_id(*)
+              matchFKSingleCol target relCardinality -- client_id
+          Just hnt ->
+            (
+              -- /projects?select=clients(*)
+              target == qiName relForeignTable  -- clients
+              ||
+              -- /projects?select=projects_client_id_fkey(*)
+              matchConstraint target relCardinality -- projects_client_id_fkey
+              ||
+              -- /projects?select=client_id(*)
+              matchFKSingleCol target relCardinality -- client_id
+            ) && (
+              -- /projects?select=clients!projects_client_id_fkey(*)
+              matchConstraint hnt relCardinality || -- projects_client_id_fkey
 
-          -- /projects?select=clients!projects_client_id_fkey(*)
-          matchConstraint hint relCardinality || -- projects_client_id_fkey
+              -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
+              matchFKSingleCol hnt relCardinality    || -- client_id
+              matchFKRefSingleCol hnt relCardinality || -- id
 
-          -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
-          matchFKSingleCol hint relCardinality    || -- client_id
-          matchFKRefSingleCol hint relCardinality || -- id
-
-          -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
-          matchJunction hint relCardinality -- users_tasks
-        )
-      ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier schema origin) allRels
+              -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
+              matchJunction hnt relCardinality -- users_tasks
+            )
+      ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier schema origin, schema) allRels
 
 -- previousAlias is only used for the case of self joins
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
