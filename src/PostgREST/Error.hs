@@ -226,7 +226,7 @@ instance JSON.ToJSON SQL.CommandError where
   toJSON (SQL.ResultError resultError) = JSON.object [
     "code"    .= InternalErrorCode00,
     "message" .= (show resultError :: Text),
-    "details" .= ("Internal error." :: Text),
+    "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON (SQL.ClientError d) = JSON.object [
