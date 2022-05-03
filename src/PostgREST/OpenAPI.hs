@@ -100,7 +100,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         rel = find (\case
           Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
           _                                               -> False
-          ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl)) rels
+          ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl), tableSchema tbl) rels
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
         fTbl = qiName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol

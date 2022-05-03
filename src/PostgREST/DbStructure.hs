@@ -100,8 +100,8 @@ queryDbStructure schemas extraSearchPath prepared = do
     , dbProcs = procs
     }
   where
-    relsToMap = map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey)
-    addKey rel = (relTable rel, rel)
+    relsToMap = map sort . M.fromListWith (++) . map ((\(x, fSch, y) -> ((x, fSch), [y])) . addKey)
+    addKey rel = (relTable rel, qiSchema $ relForeignTable rel, rel)
 
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
 removeInternal :: [Schema] -> DbStructure -> DbStructure
@@ -109,7 +109,7 @@ removeInternal schemas dbStruct =
   DbStructure {
       dbTables        = M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
-                        M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
+                        M.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where

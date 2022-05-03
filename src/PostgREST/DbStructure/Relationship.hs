@@ -13,7 +13,7 @@ import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as M
 
 import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier)
+                                          QualifiedIdentifier, Schema)
 
 import Protolude
 
@@ -53,4 +53,5 @@ data Junction = Junction
 isSelfReference :: Relationship -> Bool
 isSelfReference r = relTable r == relForeignTable r
 
-type RelationshipsMap = M.HashMap QualifiedIdentifier [Relationship]
+-- | Key based on the source table and the foreign table schema
+type RelationshipsMap = M.HashMap (QualifiedIdentifier, Schema)  [Relationship]
