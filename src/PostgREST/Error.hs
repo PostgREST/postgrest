@@ -218,36 +218,17 @@ instance JSON.ToJSON SQL.QueryError where
 
 instance JSON.ToJSON SQL.CommandError where
   toJSON (SQL.ResultError (SQL.ServerError c m d h)) = JSON.object [
-        "code"    .= (T.decodeUtf8 c      :: Text),
-        "message" .= (T.decodeUtf8 m      :: Text),
-        "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
-        "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
+    "code"    .= (T.decodeUtf8 c      :: Text),
+    "message" .= (T.decodeUtf8 m      :: Text),
+    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
+    "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
-  toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
+  toJSON (SQL.ResultError resultError) = JSON.object [
     "code"    .= InternalErrorCode00,
-    "message" .= (m :: Text),
-    "details" .= JSON.Null,
+    "message" .= (show resultError :: Text),
+    "details" .= ("Internal error." :: Text),
     "hint"    .= JSON.Null]
-  toJSON (SQL.ResultError (SQL.RowError i SQL.EndOfInput)) = JSON.object [
-    "code"    .= InternalErrorCode01,
-    "message" .= ("Row error: end of input" :: Text),
-    "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.RowError i SQL.UnexpectedNull)) = JSON.object [
-    "code"    .= InternalErrorCode02,
-    "message" .= ("Row error: unexpected null" :: Text),
-    "details" .= ("Attempt to parse a NULL as some value." :: Text),
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.RowError i (SQL.ValueError d))) = JSON.object [
-    "code"    .= InternalErrorCode03,
-    "message" .= ("Row error: Wrong value parser used" :: Text),
-    "details" .= d,
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.UnexpectedAmountOfRows i)) = JSON.object [
-    "code"    .= InternalErrorCode04,
-    "message" .= ("Unexpected amount of rows" :: Text),
-    "details" .= i,
-    "hint"    .= JSON.Null]
+
   toJSON (SQL.ClientError d) = JSON.object [
     "code"    .= ConnectionErrorCode01,
     "message" .= ("Database client error. Retrying the connection." :: Text),
@@ -472,10 +453,6 @@ data ErrorCode
   | JWTErrorCode02
   -- Internal errors related to the Hasql library
   | InternalErrorCode00
-  | InternalErrorCode01
-  | InternalErrorCode02
-  | InternalErrorCode03
-  | InternalErrorCode04
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -517,7 +494,3 @@ buildErrorCode code = "PGRST" <> case code of
   JWTErrorCode02         -> "302"
 
   InternalErrorCode00    -> "X00"
-  InternalErrorCode01    -> "X01"
-  InternalErrorCode02    -> "X02"
-  InternalErrorCode03    -> "X03"
-  InternalErrorCode04    -> "X04"
