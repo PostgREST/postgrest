@@ -98,11 +98,6 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= message,
     "details" .= details,
     "hint"    .= JSON.Null]
-  toJSON PutRangeNotAllowedError = JSON.object [
-    "code"    .= GeneralErrorCode03,
-    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
   toJSON InvalidFilters = JSON.object [
     "code"    .= ApiRequestErrorCode05,
     "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text),
@@ -129,6 +124,12 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("A 'limit' was applied without an explicit 'order'":: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Apply an 'order' using unique column(s)" :: Text)]
+
+  toJSON PutRangeNotAllowedError = JSON.object [
+    "code"    .= ApiRequestErrorCode14,
+    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
@@ -217,36 +218,17 @@ instance JSON.ToJSON SQL.QueryError where
 
 instance JSON.ToJSON SQL.CommandError where
   toJSON (SQL.ResultError (SQL.ServerError c m d h)) = JSON.object [
-        "code"    .= (T.decodeUtf8 c      :: Text),
-        "message" .= (T.decodeUtf8 m      :: Text),
-        "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
-        "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
+    "code"    .= (T.decodeUtf8 c      :: Text),
+    "message" .= (T.decodeUtf8 m      :: Text),
+    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
+    "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
-  toJSON (SQL.ResultError (SQL.UnexpectedResult m)) = JSON.object [
-    "code"    .= HasqlErrorCode00,
-    "message" .= (m :: Text),
+  toJSON (SQL.ResultError resultError) = JSON.object [
+    "code"    .= InternalErrorCode00,
+    "message" .= (show resultError :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON (SQL.ResultError (SQL.RowError i SQL.EndOfInput)) = JSON.object [
-    "code"    .= HasqlErrorCode01,
-    "message" .= ("Row error: end of input" :: Text),
-    "details" .= ("Attempt to parse more columns than there are in the result" :: Text),
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.RowError i SQL.UnexpectedNull)) = JSON.object [
-    "code"    .= HasqlErrorCode02,
-    "message" .= ("Row error: unexpected null" :: Text),
-    "details" .= ("Attempt to parse a NULL as some value." :: Text),
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.RowError i (SQL.ValueError d))) = JSON.object [
-    "code"    .= HasqlErrorCode03,
-    "message" .= ("Row error: Wrong value parser used" :: Text),
-    "details" .= d,
-    "hint"    .= (("Row number " <> show i) :: Text)]
-  toJSON (SQL.ResultError (SQL.UnexpectedAmountOfRows i)) = JSON.object [
-    "code"    .= HasqlErrorCode04,
-    "message" .= ("Unexpected amount of rows" :: Text),
-    "details" .= i,
-    "hint"    .= JSON.Null]
+
   toJSON (SQL.ClientError d) = JSON.object [
     "code"    .= ConnectionErrorCode01,
     "message" .= ("Database client error. Retrying the connection." :: Text),
@@ -381,44 +363,44 @@ instance JSON.ToJSON Error where
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
+  toJSON (OffLimitsChangesError n maxs) = JSON.object [
+      "code"    .= ApiRequestErrorCode10,
+      "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
+      "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
+      "hint"    .= JSON.Null]
+
   toJSON GucHeadersError = JSON.object [
-    "code"    .= GeneralErrorCode00,
+    "code"    .= ApiRequestErrorCode11,
     "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON GucStatusError = JSON.object [
-    "code"    .= GeneralErrorCode01,
+    "code"    .= ApiRequestErrorCode12,
     "message" .= ("response.status guc must be a valid status code" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (BinaryFieldError ct) = JSON.object [
-    "code"    .= GeneralErrorCode02,
+    "code"    .= ApiRequestErrorCode13,
     "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON PutMatchingPkError = JSON.object [
-    "code"    .= GeneralErrorCode04,
+    "code"    .= ApiRequestErrorCode15,
     "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON (SingularityError n) = JSON.object [
-    "code"    .= GeneralErrorCode05,
+    "code"    .= ApiRequestErrorCode16,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
 
   toJSON (UnsupportedVerb verb) = JSON.object [
-    "code"    .= GeneralErrorCode06,
+    "code"    .= ApiRequestErrorCode17,
     "message" .= ("Unsupported HTTP verb: " <> verb),
     "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-
-  toJSON (OffLimitsChangesError n maxs) = JSON.object [
-    "code"    .= ApiRequestErrorCode10,
-    "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
     "hint"    .= JSON.Null]
 
   toJSON NotFound = JSON.object []
@@ -453,6 +435,13 @@ data ErrorCode
   | ApiRequestErrorCode08
   | ApiRequestErrorCode09
   | ApiRequestErrorCode10
+  | ApiRequestErrorCode11
+  | ApiRequestErrorCode12
+  | ApiRequestErrorCode13
+  | ApiRequestErrorCode14
+  | ApiRequestErrorCode15
+  | ApiRequestErrorCode16
+  | ApiRequestErrorCode17
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -462,20 +451,8 @@ data ErrorCode
   | JWTErrorCode00
   | JWTErrorCode01
   | JWTErrorCode02
-  -- Hasql library errors
-  | HasqlErrorCode00
-  | HasqlErrorCode01
-  | HasqlErrorCode02
-  | HasqlErrorCode03
-  | HasqlErrorCode04
-  -- Uncategorized errors that are not related to a single module
-  | GeneralErrorCode00
-  | GeneralErrorCode01
-  | GeneralErrorCode02
-  | GeneralErrorCode03
-  | GeneralErrorCode04
-  | GeneralErrorCode05
-  | GeneralErrorCode06
+  -- Internal errors related to the Hasql library
+  | InternalErrorCode00
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -499,6 +476,13 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode08  -> "108"
   ApiRequestErrorCode09  -> "109"
   ApiRequestErrorCode10  -> "110"
+  ApiRequestErrorCode11  -> "111"
+  ApiRequestErrorCode12  -> "112"
+  ApiRequestErrorCode13  -> "113"
+  ApiRequestErrorCode14  -> "114"
+  ApiRequestErrorCode15  -> "115"
+  ApiRequestErrorCode16  -> "116"
+  ApiRequestErrorCode17  -> "117"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
@@ -509,16 +493,4 @@ buildErrorCode code = "PGRST" <> case code of
   JWTErrorCode01         -> "301"
   JWTErrorCode02         -> "302"
 
-  HasqlErrorCode00       -> "400"
-  HasqlErrorCode01       -> "401"
-  HasqlErrorCode02       -> "402"
-  HasqlErrorCode03       -> "403"
-  HasqlErrorCode04       -> "404"
-
-  GeneralErrorCode00     -> "500"
-  GeneralErrorCode01     -> "501"
-  GeneralErrorCode02     -> "502"
-  GeneralErrorCode03     -> "503"
-  GeneralErrorCode04     -> "504"
-  GeneralErrorCode05     -> "505"
-  GeneralErrorCode06     -> "506"
+  InternalErrorCode00    -> "X00"

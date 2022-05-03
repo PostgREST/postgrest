@@ -199,21 +199,21 @@ spec actualPgVersion =
           request methodPut "/tiobe_pls?name=eq.Javascript" [("Range", "0-5")]
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST503","details":null,"hint":null}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if limit is specified" $
           put "/tiobe_pls?name=eq.Javascript&limit=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST503","details":null,"hint":null}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if offset is specified" $
           put "/tiobe_pls?name=eq.Javascript&offset=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST503","details":null,"hint":null}|]
+            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "rejects every other filter than pk cols eq's" $ do
@@ -254,12 +254,12 @@ spec actualPgVersion =
       it "fails if the uri primary key doesn't match the payload primary key" $ do
         put "/tiobe_pls?name=eq.MATLAB" [json| [ { "name": "Perl", "rank": 17 } ]|]
           `shouldRespondWith`
-          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST504","details":null,"hint":null}|]
+          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST115","details":null,"hint":null}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
         put "/employees?first_name=eq.Wendy&last_name=eq.Anderson"
           [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
           `shouldRespondWith`
-          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST504","details":null,"hint":null}|]
+          [json|{"message":"Payload values do not match URL in primary key column(s)","code":"PGRST115","details":null,"hint":null}|]
           { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
       it "fails if the table has no PK" $
