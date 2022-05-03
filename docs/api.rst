@@ -1799,6 +1799,8 @@ Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
 
+.. _limited_update_delete:
+
 Limited Updates/Deletions
 =========================
 
