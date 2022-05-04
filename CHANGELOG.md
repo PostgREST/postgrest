@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2236, Support POSIX regular expression operators for row filtering - @enote-kane
  - #2202, Allow returning XML from RPCs - @fjf2002
  - #2269, Allow `limit=0` in the request query to return an empty array - @gautam1168, @laurenceisla
+ - #2268, Allow returning XML from single-column queries #2268 - @fjf2002
 
 ### Fixed
 

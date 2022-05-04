@@ -86,9 +86,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv rep pKeys
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
+createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->  Bool -> Maybe FieldName -> Bool ->
                        SQL.Statement () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField =
+createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml binaryField =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -109,6 +109,7 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv binaryField
   bodyF
     | asCsv = asCsvF
     | isSingle = asJsonSingleF False
+    | isJust binaryField && asXml = asXmlF $ fromJust binaryField
     | isJust binaryField = asBinaryF $ fromJust binaryField
     | otherwise = asJsonF False
 
