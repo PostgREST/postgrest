@@ -184,9 +184,9 @@ jobs:
         with:
           path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-      - name: Install dependencies
-        if: ${{ matrix.deps }}
-        run: ${{ matrix.deps }}
+#      - name: Install dependencies
+#        if: ${{ matrix.deps }}
+#        run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
       - name: Run Spec tests with Stack
@@ -221,6 +221,8 @@ jobs:
             ${{ steps.windows-cabal-setup.outputs.cabal-store }}
             dist-newstyle
           key: ${{ runner.os }}-${{ hashFiles('postgrest.cabal') }}
+      - name: Install dependencies
+        run: Add-Content $env:GITHUB_PATH $env:PGBIN
       - name: Update and build
         run: |
           mkdir result
