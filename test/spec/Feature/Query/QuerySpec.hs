@@ -1010,6 +1010,14 @@ spec actualPgVersion = do
         , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
         }
 
+    it "can get raw xml output with Accept: text/xml" $
+      request methodGet "/xmltest?select=xml" (acceptHdrs "text/xml") ""
+        `shouldRespondWith`
+        "<myxml>foo</myxml>bar<foobar><baz/></foobar>"
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
+        }
+
     it "fails if a single column is not selected" $ do
       request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`

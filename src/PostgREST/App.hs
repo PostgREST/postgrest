@@ -270,6 +270,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         (iAcceptContentType == CTSingularJSON)
         (shouldCount iPreferCount)
         (iAcceptContentType == CTTextCSV)
+        (iAcceptContentType == CTTextXML)
         bField
         configDbPreparedStatements
 

@@ -2583,3 +2583,13 @@ select $$
   </body>
 </html>$$::pg_catalog.xml;
 $_$;
+
+CREATE TABLE test.xmltest (
+    id integer primary key,
+    xml pg_catalog.xml NOT NULL
+);
+
+INSERT INTO test.xmltest VALUES
+(1, '<myxml>foo</myxml>'),
+(2, 'bar'),
+(3, '<foobar><baz/></foobar>');
