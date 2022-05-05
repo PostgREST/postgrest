@@ -13,56 +13,6 @@ spec :: SpecWith ((), Application)
 spec =
   describe "resource embedding disambiguation" $ do
     context "ambiguous requests that give 300 Multiple Choices" $ do
-      it "errs when there's a table and view that point to the same fk" $
-        get "/message?select=id,body,sender(name,sent)" `shouldRespondWith`
-          [json|
-            {
-              "details": [
-                {
-                    "cardinality": "many-to-one",
-                    "relationship": "message_sender_fkey using message(sender) and person(id)",
-                    "embedding": "message with person"
-                },
-                {
-                    "cardinality": "many-to-one",
-                    "relationship": "message_sender_fkey using message(sender) and person_detail(id)",
-                    "embedding": "message with person_detail"
-                }
-              ],
-              "hint": "Try changing 'sender' to one of the following: 'person!message_sender_fkey', 'person_detail!message_sender_fkey'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'message' and 'sender'",
-              "code": "PGRST201"
-            }
-          |]
-          { matchStatus  = 300
-          , matchHeaders = [matchContentTypeJson]
-          }
-
-      it "errs when there's a table and view that point to the same fk (composite pk)" $
-        get "/activities?select=fst_shift(*)" `shouldRespondWith`
-          [json|
-            {
-              "details": [
-                {
-                    "cardinality": "one-to-many",
-                    "relationship": "fst_shift using activities(id, schedule_id) and unit_workdays(fst_shift_activity_id, fst_shift_schedule_id)",
-                    "embedding": "activities with unit_workdays"
-                },
-                {
-                    "cardinality": "one-to-many",
-                    "relationship": "fst_shift using activities(id, schedule_id) and unit_workdays_fst_shift(fst_shift_activity_id, fst_shift_schedule_id)",
-                    "embedding": "activities with unit_workdays_fst_shift"
-                }
-              ],
-              "hint": "Try changing 'fst_shift' to one of the following: 'unit_workdays!fst_shift', 'unit_workdays_fst_shift!fst_shift'. Find the desired relationship in the 'details' key.",
-              "message": "Could not embed because more than one relationship was found for 'activities' and 'fst_shift'",
-              "code": "PGRST201"
-            }
-          |]
-          { matchStatus  = 300
-          , matchHeaders = [matchContentTypeJson]
-          }
-
       it "errs when there are o2m and m2m cardinalities to the target table" $
         get "/sites?select=*,big_projects(*)" `shouldRespondWith`
           [json|
@@ -216,7 +166,7 @@ spec =
             { matchHeaders = [matchContentTypeJson] }
 
         it "can request two parents with fks" $
-          get "/articleStars?select=createdAt,article(id),user(name)&limit=1"
+          get "/articleStars?select=createdAt,article:articles(id),user(name)&limit=1"
             `shouldRespondWith`
               [json|[{"createdAt":"2015-12-08T04:22:57.472738","article":{"id": 1},"user":{"name": "Angela Martin"}}]|]
 
@@ -488,3 +438,58 @@ spec =
             "details": null}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
+
+    context "embedding with col as a target doesn't consider views" $ do
+      -- https://github.com/PostgREST/postgrest/issues/1643
+      it "works with self reference both ways(m2o and o2m)" $ do
+        get "/test?select=id,parent_id,parent:parent_id(id)" `shouldRespondWith`
+          [json| [
+            { "id": 1, "parent_id": null, "parent": null },
+            { "id": 2, "parent_id": 1, "parent": { "id": 1 } }
+          ] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/test?select=id,parent_id,childs:test(id)" `shouldRespondWith`
+          [json| [
+            { "id": 1, "parent_id": null, "childs": [ { "id": 2 } ] },
+            { "id": 2, "parent_id": 1, "childs": [] }
+          ]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      -- https://github.com/PostgREST/postgrest/issues/2238
+      it "has to be explicit for a view embedding" $ do
+        get "/adaptation_notifications?select=id,status,series(*)" `shouldRespondWith`
+          [json| [] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/adaptation_notifications?select=id,status,series_popularity(*)" `shouldRespondWith`
+          [json| [] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "resolves when there's a table and view that point to the same col" $
+        get "/message?select=id,body,sender(id,name)&id=eq.5" `shouldRespondWith`
+          [json| [
+              {
+                "id": 5,
+                "body": "What's up Jake",
+                "sender": {
+                  "id": 4,
+                  "name": "Julie"
+                }
+              }
+            ] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "resolves when there's a table and view that point to the same fk (composite pk)" $
+        get "/activities?select=fst_shift(*)" `shouldRespondWith`
+          [json| [
+              {
+                "fst_shift": [
+                  { "unit_id": 1, "day": "2019-12-02", "fst_shift_activity_id": 1, "fst_shift_schedule_id": 1, "snd_shift_activity_id": 2, "snd_shift_schedule_id": 3 }
+                ]
+              },
+              {
+                "fst_shift": []
+              }
+            ]|]
+          { matchHeaders = [matchContentTypeJson] }
+

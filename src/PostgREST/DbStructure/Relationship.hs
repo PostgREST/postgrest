@@ -23,6 +23,8 @@ data Relationship = Relationship
   , relForeignTable :: QualifiedIdentifier
   , relIsSelf       :: Bool -- ^ Whether is a self relationship
   , relCardinality  :: Cardinality
+  , relTableIsView  :: Bool
+  , relFTableIsView :: Bool
   }
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 

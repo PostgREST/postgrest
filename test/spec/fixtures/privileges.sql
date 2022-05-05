@@ -181,6 +181,11 @@ GRANT ALL ON TABLE
     , xmltest
     , oid_test
     , job
+    , series
+    , adaptation_notifications
+    , series_popularity
+    , test
+    , view_test
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

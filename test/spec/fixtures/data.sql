@@ -775,3 +775,6 @@ INSERT INTO oid_test(id, oid_col, oid_array_col) VALUES (1, '12345', '{1,2,3,4,5
 TRUNCATE TABLE private.internal_job CASCADE;
 INSERT INTO private.internal_job (id, parent_id) VALUES (1, null);
 INSERT INTO private.internal_job (id, parent_id) VALUES (2, 1);
+
+TRUNCATE TABLE test.test CASCADE;
+INSERT INTO test.test (id, parent_id) VALUES (1, null), (2, 1);
