@@ -204,30 +204,30 @@ jobs:
             result/postgrest.exe
           if-no-files-found: error
 
-  Build-Windows-Cabal:
-    name: Build Windows (Cabal)
+  Build-Windows-Stack:
+    name: Build Windows (Stack)
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
       - uses: haskell/actions/setup@v2
-        id: windows-cabal-setup
+        id: windows-haskell-setup
         with:
           ghc-version: '8.10.7'
           cabal-version: '3.6.0.0'
+          enable-stack: true
+          stack-version: 'latest'
+      - name: Set dependencies
+        run: Add-Content $env:GITHUB_PATH $env:PGBIN
       - uses: actions/cache@v3
-        name: Cache cabal files
+        name: Cache files
         with:
           path: |
-            ${{ steps.windows-cabal-setup.outputs.cabal-store }}
-            dist-newstyle
-          key: ${{ runner.os }}-${{ hashFiles('postgrest.cabal') }}
+            .stack-work
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
       - name: Install dependencies
         run: Add-Content $env:GITHUB_PATH $env:PGBIN
-      - name: Update and build
-        run: |
-          mkdir result
-          cabal v2-update
-          cabal v2-install exe:postgrest --install-method=copy --installdir=result
+      - name: Build
+        run: stack build --local-bin-path result --copy-bins
       - name: Upload binary
         uses: actions/upload-artifact@v3
         with:
