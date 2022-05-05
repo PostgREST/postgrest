@@ -133,12 +133,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- /origin?select=target(*) If more than one relationship is found then the
 -- request is ambiguous and we return an error.  In that case the request can
 -- be disambiguated by adding precision to the target or by using a hint:
--- /origin?select=target!hint(*) The elements will be matched according to
--- these rules:
--- origin = table / view
--- target = table / view / constraint / column-from-origin
--- hint   = table / view / constraint / column-from-origin / column-from-target
--- (hint can take table / view values to aid in finding the junction in an m2m relationship)
+-- /origin?select=target!hint(*). The origin can be a table or view.
 findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rels of
@@ -150,7 +145,7 @@ findRel schema allRels origin target hint =
       O2M _ [(col, _)] -> hint_ == col
       M2O _ [(col, _)] -> hint_ == col
       _                -> False
-    matchFKRefSingleCol hint_ card = case card of
+    matchFKRefSingleCol hint_ card  = case card of
       O2M _ [(_, fCol)] -> hint_ == fCol
       M2O _ [(_, fCol)] -> hint_ == fCol
       _                 -> False
@@ -161,50 +156,52 @@ findRel schema allRels origin target hint =
     matchJunction hint_ card = case card of
       M2M Junction{junTable} -> hint_ == qiName junTable
       _                      -> False
-    -- In a self reference we get two relationships with the same
-    -- foreign key and relTable/relFtable but with different
-    -- cardinalities(M2O/O2M). We use the convention of getting:
-    -- + The O2M by using the table name in the target
-    -- + The M2O by using the column name in the target
-    -- For doing the above we ignore the M2O when using the table name in the target and
-    -- we ignore the O2M when using the column name in the target
-    notM2OSelfRel card isSelf = case card of
-      M2O _ _ -> not isSelf
-      _       -> True
-    notO2MSelfRel card isSelf = case card of
-      O2M _ _ -> not isSelf
-      _       -> True
+    isM2O card = case card of
+      M2O _ _ -> True
+      _       -> False
+    isO2M card = case card of
+      O2M _ _ -> True
+      _       -> False
     rels = filter (
       \Relationship{..} ->
-        case hint of
+        -- In a self-relationship we have a single foreign key but two relationships with different cardinalities: M2O/O2M. For disambiguation, we use the convention of getting:
+        -- TODO: handle one-to-one and many-to-many self-relationships
+        if relIsSelf
+        then case hint of
+          Nothing ->
+            -- The O2M by using the table name in the target
+            target == qiName relForeignTable && isO2M relCardinality -- /family_tree?select=children:family_tree(*)
+            ||
+            -- The M2O by using the column name in the target
+            matchFKSingleCol target relCardinality && isM2O relCardinality -- /family_tree?select=parent(*)
+          Just hnt ->
+            -- /organizations?select=auditees:organizations!auditor(*)
+            target == qiName relForeignTable && isO2M relCardinality
+            && matchFKRefSingleCol hnt relCardinality -- auditor
+        else case hint of
+          -- target = table / view / constraint / column-from-origin (constraint/column-from-origin can only come from tables https://github.com/PostgREST/postgrest/issues/2277)
+          -- hint   = table / view / constraint / column-from-origin / column-from-target (hint can take table / view values to aid in finding the junction in an m2m relationship)
           Nothing ->
               -- /projects?select=clients(*)
               target == qiName relForeignTable -- clients
-              && notM2OSelfRel relCardinality relIsSelf
               ||
               -- /projects?select=projects_client_id_fkey(*)
               matchConstraint target relCardinality -- projects_client_id_fkey
+              && not relFTableIsView
               ||
               -- /projects?select=client_id(*)
               matchFKSingleCol target relCardinality -- client_id
-              && notO2MSelfRel relCardinality relIsSelf
+              && not relFTableIsView
           Just hnt ->
-            (
-              -- /projects?select=clients(*)
-              target == qiName relForeignTable && notM2OSelfRel relCardinality relIsSelf -- clients
-              ||
-              -- /projects?select=projects_client_id_fkey(*)
-              matchConstraint target relCardinality -- projects_client_id_fkey
-              ||
-              -- /projects?select=client_id(*)
-              matchFKSingleCol target relCardinality -- client_id
-            ) && (
+            -- /projects?select=clients(*)
+            target == qiName relForeignTable -- clients
+            && (
               -- /projects?select=clients!projects_client_id_fkey(*)
               matchConstraint hnt relCardinality || -- projects_client_id_fkey
 
               -- /projects?select=clients!client_id(*) or /projects?select=clients!id(*)
-              matchFKSingleCol hnt relCardinality    || -- client_id
-              matchFKRefSingleCol hnt relCardinality || -- id
+              matchFKSingleCol hnt relCardinality      || -- client_id
+              matchFKRefSingleCol hnt relCardinality   || -- id
 
               -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
               matchJunction hnt relCardinality -- users_tasks
@@ -235,7 +232,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl,fromAlias=tblA
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card) =
+getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card _ _) =
   case card of
     M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
       (toJoinCondition previousAlias newAlias tN jtn <$> jcols1) ++ (toJoinCondition Nothing Nothing ftN jtn <$> jcols2)

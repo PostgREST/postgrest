@@ -2605,3 +2605,28 @@ CREATE TABLE private.internal_job
 CREATE VIEW test.job AS
 SELECT j.id, j.parent_id
 FROM private.internal_job j;
+
+-- https://github.com/PostgREST/postgrest/issues/2238
+CREATE TABLE series (
+    id bigint PRIMARY KEY,
+    title text NOT NULL
+);
+
+CREATE TABLE adaptation_notifications (
+    id bigint PRIMARY KEY,
+    series bigint REFERENCES series(id),
+    status text
+);
+
+CREATE VIEW series_popularity AS
+SELECT id, random() AS popularity_score
+FROM series;
+
+-- https://github.com/PostgREST/postgrest/issues/1643
+CREATE TABLE test.test (
+  id BIGINT NOT NULL PRIMARY KEY,
+  parent_id BIGINT CONSTRAINT parent_test REFERENCES test(id)
+);
+
+CREATE OR REPLACE VIEW test.view_test AS
+  SELECT id FROM test.test;

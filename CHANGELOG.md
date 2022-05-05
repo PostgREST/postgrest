@@ -53,6 +53,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2070, Restrict generated many-to-many relationships - @steve-chavez
    + Only adds many-to-many relationships when: a table has FKs to two other tables and these FK columns are part of the table's PK columns.
  - #2278, Allow casting to types with underscores and numbers(e.g. `select=oid_array::_int4`) - @steve-chavez
+ - #2277, #2238, #1643, Prevent views from breaking one-to-many/many-to-one embeds when using column or FK as target - @steve-chavez
+    + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
+    + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
 
 ### Changed
 
@@ -65,6 +68,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
  - #2070, Restrict generated many-to-many relationships - @steve-chavez
    + A primary key that contains the foreign key columns is now needed for generating many-to-many relationships.
+ - #2277, Views now are not detected when embedding using the column or FK as target (`/view?select=*,column(*)`) - @steve-chavez
+   + This embedding form was easily made ambiguous whenever a new view was added.
+   + For migrating, clients must be updated to the embedding form of `/view?select=*,other_view!column(*)`.
 
 ## [9.0.0] - 2021-11-25
 
