@@ -2593,3 +2593,15 @@ CREATE TABLE oid_test(
   id int,
   oid_col oid,
   oid_array_col oid[]);
+
+CREATE TABLE private.internal_job
+(
+    id integer NOT NULL,
+    parent_id integer,
+    CONSTRAINT internal_job_pkey PRIMARY KEY (id),
+    CONSTRAINT parent_fk FOREIGN KEY (parent_id) REFERENCES private.internal_job (id)
+);
+
+CREATE VIEW test.job AS
+SELECT j.id, j.parent_id
+FROM private.internal_job j;

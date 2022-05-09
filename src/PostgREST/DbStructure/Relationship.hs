@@ -5,7 +5,6 @@ module PostgREST.DbStructure.Relationship
   ( Cardinality(..)
   , Relationship(..)
   , Junction(..)
-  , isSelfReference
   , RelationshipsMap
   ) where
 
@@ -22,6 +21,7 @@ import Protolude
 data Relationship = Relationship
   { relTable        :: QualifiedIdentifier
   , relForeignTable :: QualifiedIdentifier
+  , relIsSelf       :: Bool -- ^ Whether is a self relationship
   , relCardinality  :: Cardinality
   }
   deriving (Eq, Ord, Generic, JSON.ToJSON)
@@ -49,9 +49,6 @@ data Junction = Junction
   , junColumns2    :: [(FieldName, FieldName)]
   }
   deriving (Eq, Ord, Generic, JSON.ToJSON)
-
-isSelfReference :: Relationship -> Bool
-isSelfReference r = relTable r == relForeignTable r
 
 -- | Key based on the source table and the foreign table schema
 type RelationshipsMap = M.HashMap (QualifiedIdentifier, Schema)  [Relationship]

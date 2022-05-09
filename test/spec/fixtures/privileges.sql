@@ -180,6 +180,7 @@ GRANT ALL ON TABLE
     , limited_update_items_cpk_view
     , xmltest
     , oid_test
+    , job
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

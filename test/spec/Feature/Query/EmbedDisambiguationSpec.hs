@@ -362,6 +362,21 @@ spec =
               }
             }]|] { matchHeaders = [matchContentTypeJson] }
 
+        it "embeds parent and then embeds children on a view" $
+          get "/job?select=id,parent_id(*),children:job!parent_id(id,parent_id)" `shouldRespondWith`
+            [json|[
+              {
+                "id": 1,
+                "parent_id": null,
+                "children": [ { "id": 2, "parent_id": 1 } ]
+              },
+              {
+                "id": 2,
+                "parent_id": { "id": 1, "parent_id": null },
+                "children": []
+              }
+            ]|] { matchHeaders = [matchContentTypeJson] }
+
       context "two self reference foreign keys" $ do
         it "embeds parents" $
           get "/organizations?select=id,name,referee(id,name),auditor(id,name)&id=eq.3" `shouldRespondWith`

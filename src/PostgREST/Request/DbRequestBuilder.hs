@@ -51,8 +51,7 @@ import PostgREST.Request.ApiRequest       (Action (..),
 import PostgREST.Request.Preferences
 import PostgREST.Request.Types
 
-import qualified PostgREST.DbStructure.Relationship as Relationship
-import qualified PostgREST.Request.QueryParams      as QueryParams
+import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
@@ -142,19 +141,10 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- (hint can take table / view values to aid in finding the junction in an m2m relationship)
 findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
-  case rel of
+  case rels of
     []  -> Left $ NoRelBetween origin target schema
     [r] -> Right r
-    -- Here we handle a self reference relationship to not cause a breaking
-    -- change: In a self reference we get two relationships with the same
-    -- foreign key and relTable/relFtable but with different
-    -- cardinalities(m2o/o2m) We output the O2M rel, the M2O rel can be
-    -- obtained by using the origin column as an embed hint.
-    rs@[rel0, rel1]  -> case (relCardinality rel0, relCardinality rel1, relTable rel0 == relTable rel1 && relForeignTable rel0 == relForeignTable rel1) of
-      (O2M cons1 _, M2O cons2 _, True) -> if cons1 == cons2 then Right rel0 else Left $ AmbiguousRelBetween origin target rs
-      (M2O cons1 _, O2M cons2 _, True) -> if cons1 == cons2 then Right rel1 else Left $ AmbiguousRelBetween origin target rs
-      _                            -> Left $ AmbiguousRelBetween origin target rs
-    rs -> Left $ AmbiguousRelBetween origin target rs
+    rs  -> Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ card = case card of
       O2M _ [(col, _)] -> hint_ == col
@@ -171,22 +161,37 @@ findRel schema allRels origin target hint =
     matchJunction hint_ card = case card of
       M2M Junction{junTable} -> hint_ == qiName junTable
       _                      -> False
-    rel = filter (
+    -- In a self reference we get two relationships with the same
+    -- foreign key and relTable/relFtable but with different
+    -- cardinalities(M2O/O2M). We use the convention of getting:
+    -- + The O2M by using the table name in the target
+    -- + The M2O by using the column name in the target
+    -- For doing the above we ignore the M2O when using the table name in the target and
+    -- we ignore the O2M when using the column name in the target
+    notM2OSelfRel card isSelf = case card of
+      M2O _ _ -> not isSelf
+      _       -> True
+    notO2MSelfRel card isSelf = case card of
+      O2M _ _ -> not isSelf
+      _       -> True
+    rels = filter (
       \Relationship{..} ->
         case hint of
           Nothing ->
               -- /projects?select=clients(*)
-              target == qiName relForeignTable  -- clients
+              target == qiName relForeignTable -- clients
+              && notM2OSelfRel relCardinality relIsSelf
               ||
               -- /projects?select=projects_client_id_fkey(*)
               matchConstraint target relCardinality -- projects_client_id_fkey
               ||
               -- /projects?select=client_id(*)
               matchFKSingleCol target relCardinality -- client_id
+              && notO2MSelfRel relCardinality relIsSelf
           Just hnt ->
             (
               -- /projects?select=clients(*)
-              target == qiName relForeignTable  -- clients
+              target == qiName relForeignTable && notM2OSelfRel relCardinality relIsSelf -- clients
               ||
               -- /projects?select=projects_client_id_fkey(*)
               matchConstraint target relCardinality -- projects_client_id_fkey
@@ -218,7 +223,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl,fromAlias=tblA
   where
     newAlias = if depth == 0
       then tblAlias -- only use the alias on the root node(depth 0) for when the sourceCTEName alias is used for joining
-      else case Relationship.isSelfReference <$> rel of -- no need to apply the self reference alias on depth 0 only on the next depths
+      else case relIsSelf <$> rel of -- no need to apply the self reference alias on depth 0 only on the next depths
         Just True -> Just (qiName tbl <> "_" <> show depth)
         _         -> Nothing
     augmentQuery r =
@@ -230,7 +235,7 @@ addJoinConditions previousAlias (Node node@(query@Select{from=tbl,fromAlias=tblA
 
 -- previousAlias and newAlias are used in the case of self joins
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} card) =
+getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card) =
   case card of
     M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
       (toJoinCondition previousAlias newAlias tN jtn <$> jcols1) ++ (toJoinCondition Nothing Nothing ftN jtn <$> jcols2)
