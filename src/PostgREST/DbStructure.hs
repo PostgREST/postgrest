@@ -148,6 +148,7 @@ decodeRels =
     Relationship <$>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    column HD.bool <*>
     (M2O <$> column HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text))
 
 decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
@@ -341,18 +342,26 @@ addViewM2ORels keyDeps rels =
         [ Relationship
             (keyDepView vwTbl)
             relForeignTable
+            False
             (M2O cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) (keyDepCols vwTbl) relColumns)
         | vwTbl <- viewTableM2Os ]
         ++
         [ Relationship
             relTable
             (keyDepView tblVw)
+            False
             (M2O cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relColumns (keyDepCols tblVw))
         | tblVw <- tableViewM2Os ]
         ++
-        [ Relationship
-            (keyDepView vwTbl)
-            (keyDepView tblVw)
+        [
+          let
+            vw1 = keyDepView vwTbl
+            vw2 = keyDepView tblVw
+          in
+          Relationship
+            vw1
+            vw2
+            (vw1 == vw2)
             (M2O cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) (keyDepCols vwTbl) (keyDepCols tblVw))
         | vwTbl <- viewTableM2Os
         , tblVw <- tableViewM2Os ]
@@ -360,8 +369,8 @@ addViewM2ORels keyDeps rels =
 
 
 addO2MRels :: [Relationship] -> [Relationship]
-addO2MRels rels = rels ++ [ Relationship ft t (O2M cons (swap <$> cols))
-                          | Relationship t ft (M2O cons cols) <- rels ]
+addO2MRels rels = rels ++ [ Relationship ft t isSelf (O2M cons (swap <$> cols))
+                          | Relationship t ft isSelf (M2O cons cols) <- rels ]
 
 -- | Adds a m2m relationship if a table has FKs to two other tables and the FK columns are part of the PK columns
 addM2MRels :: TablesMap -> [Relationship] -> [Relationship]
@@ -370,10 +379,10 @@ addM2MRels tbls rels = rels ++ catMaybes
       jtCols = S.fromList $ (fst <$> cols) ++ (fst <$> fcols)
       pkCols = S.fromList $ maybe mempty tablePKCols $ M.lookup jt1 tbls
     in if S.isSubsetOf jtCols pkCols
-      then Just $ Relationship t ft (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols))
+      then Just $ Relationship t ft (t == ft) (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols))
       else Nothing
-  | Relationship jt1 t  (M2O cons1 cols)  <- rels
-  , Relationship jt2 ft (M2O cons2 fcols) <- rels
+  | Relationship jt1 t  _ (M2O cons1 cols)  <- rels
+  , Relationship jt2 ft _ (M2O cons2 fcols) <- rels
   , jt1 == jt2
   , cons1 /= cons2]
 
@@ -607,6 +616,7 @@ allM2ORels pgVer =
            tab.relname AS table_name,
            ns2.nspname AS foreign_table_schema,
            other.relname AS foreign_table_name,
+           (ns1.nspname, tab.relname) = (ns2.nspname, other.relname) AS is_self,
            conname     AS constraint_name,
            column_info.cols AS columns
     FROM pg_constraint,

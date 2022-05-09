@@ -771,3 +771,7 @@ INSERT INTO test.xmltest VALUES
 
 TRUNCATE TABLE test.oid_test CASCADE;
 INSERT INTO oid_test(id, oid_col, oid_array_col) VALUES (1, '12345', '{1,2,3,4,5}'::oid[]);
+
+TRUNCATE TABLE private.internal_job CASCADE;
+INSERT INTO private.internal_job (id, parent_id) VALUES (1, null);
+INSERT INTO private.internal_job (id, parent_id) VALUES (2, 1);
