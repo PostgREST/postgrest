@@ -2589,7 +2589,7 @@ CREATE TABLE test.xmltest (
     xml pg_catalog.xml NOT NULL
 );
 
-INSERT INTO test.xmltest VALUES
-(1, '<myxml>foo</myxml>'),
-(2, 'bar'),
-(3, '<foobar><baz/></foobar>');
+CREATE TABLE oid_test(
+  id int,
+  oid_col oid,
+  oid_array_col oid[]);

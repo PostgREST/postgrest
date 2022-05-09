@@ -762,3 +762,12 @@ INSERT INTO test.limited_delete_items_cpk VALUES (1, 'item-1'), (2, 'item-2'), (
 
 TRUNCATE TABLE test.limited_delete_items_no_pk CASCADE;
 INSERT INTO test.limited_delete_items_no_pk VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
+
+TRUNCATE TABLE test.xmltest CASCADE;
+INSERT INTO test.xmltest VALUES
+(1, '<myxml>foo</myxml>'),
+(2, 'bar'),
+(3, '<foobar><baz/></foobar>');
+
+TRUNCATE TABLE test.oid_test CASCADE;
+INSERT INTO oid_test(id, oid_col, oid_array_col) VALUES (1, '12345', '{1,2,3,4,5}'::oid[]);

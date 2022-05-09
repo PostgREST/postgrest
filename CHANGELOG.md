@@ -52,6 +52,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2254, Fix inferring a foreign key column as a primary key column on views - @steve-chavez
  - #2070, Restrict generated many-to-many relationships - @steve-chavez
    + Only adds many-to-many relationships when: a table has FKs to two other tables and these FK columns are part of the table's PK columns.
+ - #2278, Allow casting to types with underscores and numbers(e.g. `select=oid_array::_int4`) - @steve-chavez
 
 ### Changed
 
