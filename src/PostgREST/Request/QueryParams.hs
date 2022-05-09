@@ -394,7 +394,7 @@ pFieldSelect = lexeme $
     do
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
-      cast' <- optionMaybe (string "::" *> many letter)
+      cast' <- optionMaybe (string "::" *> many (letter <|> digit <|> oneOf "_"))
       return (fld, toS <$> cast', alias, Nothing, Nothing)
   )
   <|> do

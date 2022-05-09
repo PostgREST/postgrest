@@ -365,6 +365,13 @@ spec actualPgVersion = do
         , matchHeaders = []
         }
 
+    it "can cast types with underscore and numbers" $
+      get "/oid_test?select=id,oid_col::int,oid_array_col::_int4"
+        `shouldRespondWith` [json|
+          [{"id":1,"oid_col":12345,"oid_array_col":[1,2,3,4,5]}]
+        |]
+        { matchHeaders = [matchContentTypeJson] }
+
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]

@@ -179,6 +179,7 @@ GRANT ALL ON TABLE
     , limited_delete_items_cpk_view
     , limited_update_items_cpk_view
     , xmltest
+    , oid_test
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
