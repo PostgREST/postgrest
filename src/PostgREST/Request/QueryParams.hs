@@ -360,6 +360,20 @@ pJsonPath = many pJsonOperation
                  try eof in
       try pJIdx <|> try pJKey
 
+-- |
+-- Parse the field (name and json operator) in select, order and filters
+--
+-- >>> P.parse pField "" "column"
+-- Right ("column",[])
+--
+-- >>> P.parse pField "" "column->text"
+-- Right ("column",[JArrow {jOp = JKey {jVal = "text"}}])
+--
+-- Ignores leading and trailing spaces
+--
+-- >>> P.parse pField "" " column "
+-- Right ("column",[])
+--
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> P.option [] pJsonPath
 
