@@ -1227,6 +1227,58 @@ It's also possible to embed `Materialized Views <https://www.postgresql.org/docs
 
   If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
 
+Embedding Views containing Joins
+--------------------------------
+
+The same embedding rules applies to views with joined tables, that is, the column of any table participating in the join with a **foreign key** definition must be present in the view.
+
+For instance, let's create a view called ``film_competition_view`` that will join three tables:
+
+.. code-block:: postgres
+
+  CREATE VIEW film_competition_view AS
+  SELECT
+   films.title as film_title
+   , competitions.name as competition_name
+   , film_id
+  FROM
+   nominations
+   JOIN films ON films.id = nominations.film_id
+   JOIN competitions ON competitions.id = nominations.competition_id;
+
+The view can be embedded with the table ``films`` because it has the ``film_id`` column from the ``nominations`` table, which has a relationship with ``films``.
+
+But what if you want to embed the view with the ``actors`` table? The ``film_id`` column alone will not allow it since it belongs to ``nominations``, which doesn't have a relationship to ``actors``. In this case, you need to select the ``films.id`` column from the ``films`` table, which has a many-to-many relationship with ``actors``.
+
+.. code-block:: postgres
+
+  CREATE VIEW film_competition_view AS
+  SELECT
+   films.title as film_title
+   , competitions.name as competition_name
+   -- To keep the relationship with the films table, this column is renamed
+   , film_id as nominations_film_id
+   -- Adding this column allows the relationships we want
+   , films.id as film_id
+  FROM
+   nominations
+   JOIN films ON films.id = nominations.film_id
+   JOIN competitions ON competitions.id = nominations.competition_id;
+
+Now the view can embed both the ``films`` and ``actors`` tables:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /film_competition_view?select=film_title,films(language),actors(last_name,first_name)&competition_name=ilike.bafta HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/film_competition_view?select=film_title,films(language),actors(last_name,first_name)&competition_name=ilike.bafta"
+
+As seen above, it is important to verify that the column in the view has the foreign key to the table you want to embed.
+
 .. _embedding_view_chains:
 
 Embedding Chains of Views
