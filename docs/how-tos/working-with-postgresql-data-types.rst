@@ -127,6 +127,135 @@ Now, you can insert a new product using a JSON object for the ``extra_info`` col
 
 To query and filter the data see :ref:`json_columns` for a complete reference.
 
+Arrays
+------
+
+To handle `array types <https://www.postgresql.org/docs/current/arrays.html>`_ you can use string representation or JSON array format. For instance, let's create the following table:
+
+.. code-block:: postgres
+
+  create table movies (
+    id int primary key,
+    title text not null,
+    tags text[],
+    performance_times time[]
+  );
+
+To insert a new value you can use string representation.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /movies HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "id": 1,
+      "title": "Paddington",
+      "tags": "{family,comedy,not streamable}",
+      "performance_times": "{12:40,15:00,20:00}"
+    }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/movies" \
+      -X POST -H "Content-Type: application/json" \
+      -d @- << EOF
+      {
+        "id": 1,
+        "title": "Paddington",
+        "tags": "{family,comedy,not streamable}",
+        "performance_times": "{12:40,15:00,20:00}"
+      }
+    EOF
+
+Or you could send the data using a JSON array format. The following request sends the same data as the example above:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /movies HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "id": 1,
+      "title": "Paddington",
+      "tags": ["family", "comedy", "not streamable"],
+      "performance_times": ["12:40", "15:00", "20:00"]
+    }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/movies" \
+      -X POST -H "Content-Type: application/json" \
+      -d @- << EOF
+      {
+        "id": 1,
+        "title": "Paddington",
+        "tags": ["family", "comedy", "not streamable"],
+        "performance_times": ["12:40", "15:00", "20:00"]
+      }
+    EOF
+
+To query the data you can use the arrow operators. See :ref:`composite_array_columns`.
+
+Multidimensional Arrays
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Handling multidimensional arrays is no different than handling one-dimensional ones: both the string representation and the JSON array format are allowed. For example, let's add a new column to the table:
+
+.. code-block:: postgres
+
+  -- The column stores the cinema, floor and auditorium numbers in that order
+  alter table movies
+  add column cinema_floor_auditorium int[][][];
+
+Now, let's update the row we inserted before using JSON array format:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    PATCH /movies?id=eq.1 HTTP/1.1
+    Content-Type: application/json
+
+    {
+      "cinema_floor_auditorium": [ [ [1,2], [6,7] ], [ [3,5], [8,9] ] ]
+    }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/movies?id=eq.1" \
+      -X PATCH -H "Content-Type: application/json" \
+      -d @- << EOF
+      {
+        "cinema_floor_auditorium": [ [ [1,2], [6,7] ], [ [3,5], [8,9] ] ]
+      }
+    EOF
+
+Now, for example, to query the auditoriums that are located in the first cinema (position 0 in the array) and on the second floor (position 1 in the next inner array), we can use the arrow operators this way:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /movies?select=title,auditorium:cinema_floor_auditorium->0->1&id=eq.1 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/movies?select=title,auditorium:cinema_floor_auditorium->0->1&id=eq.1"
+
+.. code-block:: json
+
+  [
+    {
+      "title": "Paddington",
+      "auditorium": [6,7]
+    }
+  ]
+
 Composite Types
 ---------------
 
@@ -203,7 +332,7 @@ Or, you could insert the data in JSON format. The following request is equivalen
       }
     EOF
 
-You can also query data using the arrow operators as you would for :ref:`JSON columns <json_columns>`.
+You can also query data using the arrow operators. See :ref:`composite_array_columns`.
 
 Ranges
 ------
@@ -391,7 +520,7 @@ You can also query and filter the value of a ``hstore`` column using the arrow o
   [{ "native": "مصر" }]
 
 PostGIS
-------------------
+-------
 
 You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography``. As an example, let's create a table using the ``geometry`` type (you need to `install PostGIS <https://postgis.net/install/>`_ first).
 
