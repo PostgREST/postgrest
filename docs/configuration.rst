@@ -480,6 +480,10 @@ jwt-secret
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
 
+  .. warning::
+
+     Only when using the :ref:`file_config`, if the ``jwt-secret`` contains a ``$`` character by itself it will give errors. In this case, use ``$$`` and PostgREST will interpret it as a single ``$`` character.
+
 .. _jwt-secret-is-base64:
 
 jwt-secret-is-base64
