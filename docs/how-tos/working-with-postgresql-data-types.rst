@@ -58,17 +58,17 @@ Someone located in Cairo can retrieve the data using their local time, too:
 
 The response has the date in the time zone configured by the server: ``UTC -05:00``.
 
-You can use other comparative filters and also `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_. For instance, to get the reports that are due after today you would do:
+You can use other comparative filters and also all the `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_ as illustrated in this example:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /reports?due_date=gt.today HTTP/1.1
+    GET /reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch)) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/reports?due_date=gt.today"
+    curl "http://localhost:3000/reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch))"
 
 .. code-block:: json
 
