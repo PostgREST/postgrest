@@ -203,7 +203,8 @@ These are recipes that'll help you address specific use-cases.
    :caption: How-to guides
    :hidden:
 
-   how-tos/*
+   how-tos/working-with-postgresql-data-types
+   how-tos/providing-images-for-img
 
 - :doc:`how-tos/providing-images-for-img`
 - :doc:`how-tos/working-with-postgresql-data-types`

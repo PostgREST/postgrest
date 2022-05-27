@@ -5,6 +5,10 @@ Working with PostgreSQL data types
 
 PostgREST makes use of PostgreSQL string representations to work with data types. Thanks to this, you can use special values, such as ``now`` for timestamps, ``yes`` for booleans or time values including the time zones. This page describes how you can take advantage of these string representations to perform operations on different PostgreSQL data types.
 
+.. contents::
+  :local:
+  :depth: 1
+
 Timestamps
 ----------
 
@@ -460,6 +464,80 @@ Finally, do the request :ref:`casting the range column <casting_columns>`:
       -- ...
 
       create cast (mytsrange as json) with function mytsrange_to_json(mytsrange) as assignment;
+
+Bytea
+-----
+
+To send raw binary to PostgREST you need a function with a single unnamed parameter of `bytea type <https://www.postgresql.org/docs/current/datatype-binary.html>`_. For example, let's create a table that will save some files and a function that inserts data to that table:
+
+.. code-block:: postgres
+
+   create table files (
+     id int primary key generated always as identity,
+     file bytea
+   );
+
+   create function upload_binary(bytea) returns void as $$
+     insert into files (file) values ($1);
+   $$ language sql;
+
+Next, let's use the PostgREST logo for our test.
+
+.. code-block:: bash
+
+   curl "https://postgrest.org/en/latest/_images/logo.png" -o postgrest-logo.png
+
+Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: application/octet-stream`` header in the request:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /rpc/upload_binary HTTP/1.1
+    Content-Type: application/octet-stream
+
+    postgrest-logo.png
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/upload_binary" \
+      -X POST -H "Content-Type: application/octet-stream" \
+      --data-binary "@postgrest-logo.png"
+
+To get the image from the database, you will need to set the ``Accept: application/octet-stream`` header in the request and select only the
+``bytea`` column.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /files?select=file&id=eq.1 HTTP/1.1
+    Accept: application/octet-stream
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/files?select=file&id=eq.1" \
+      -H "Accept: application/octet-stream"
+
+You can also use more accurate headers depending on the type of the files by using the :ref:`raw-media-types` configuration. For example, adding the ``raw-media-types="image/png"`` setting to the configuration file will allow you to use the ``Accept: image/png`` header:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /files?select=file&id=eq.1 HTTP/1.1
+    Accept: image/png
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/files?select=file&id=eq.1" \
+      -H "Accept: image/png"
+
+See :ref:`providing_img` for a step-by-step example on how to handle images in HTML.
+
+.. warning::
+
+   Be careful when saving binaries in the database, having a separate storage service for these is preferable in most cases. See `Storing Binary files in the Database <https://wiki.postgresql.org/wiki/BinaryFilesInDB>`_.
 
 hstore
 ------
