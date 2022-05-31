@@ -32,6 +32,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - ```
  - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
  - #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
+ - #2254, Fix inferring a foreign key column as a primary key column on views - @steve-chavez
+ - #2070, Restrict generated many-to-many relationships - @steve-chavez
+   + Only adds many-to-many relationships when: a table has FKs to two other tables and these FK columns are part of the table's PK columns.
+ - #2278, Allow casting to types with underscores and numbers(e.g. `select=oid_array::_int4`) - @steve-chavez
+ - #2277, #2238, #1643, Prevent views from breaking one-to-many/many-to-one embeds when using column or FK as target - @steve-chavez
+    + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
+    + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
+ - #2294, Disable parallel GC for better performance on higher core CPUs - @steve-chavez
 
 ### Changed
 
