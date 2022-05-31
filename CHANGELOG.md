@@ -40,6 +40,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
     + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
  - #2294, Disable parallel GC for better performance on higher core CPUs - @steve-chavez
+ - #1076, Fix using CPU while idle - @steve-chavez
 
 ### Changed
 
