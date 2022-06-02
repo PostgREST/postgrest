@@ -2312,6 +2312,10 @@ create or replace function test.unnamed_text_param(text) returns text as $$
   select $1;
 $$ language sql;
 
+create or replace function test.unnamed_xml_param(pg_catalog.xml) returns pg_catalog.xml as $$
+  select $1;
+$$ language sql;
+
 create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
   select $1::bytea;
 $$ language sql;

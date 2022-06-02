@@ -263,7 +263,7 @@ procsSqlQuery pgVer = [q|
       ) ORDER BY idx) AS args,
       CASE COUNT(*) - COUNT(name) -- number of unnamed arguments
         WHEN 0 THEN true
-        WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype)
+        WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype, 'xml'::regtype)
         ELSE false
       END AS callable
     FROM pg_proc,

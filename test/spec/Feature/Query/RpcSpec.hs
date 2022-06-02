@@ -1202,6 +1202,13 @@ spec actualPgVersion =
             `shouldRespondWith`
             [str|unnamed text arg|]
 
+        it "can insert xml directly" $
+          request methodPost "/rpc/unnamed_xml_param"
+            [("Content-Type", "text/xml"), ("Accept", "text/xml")]
+            [str|<note><from>John</from><to>Jane</to><message>Remember me</message></note>|]
+            `shouldRespondWith`
+            [str|<note><from>John</from><to>Jane</to><message>Remember me</message></note>|]
+
         it "can insert bytea directly" $ do
           let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png"
           r <- request methodPost "/rpc/unnamed_bytea_param"
@@ -1233,6 +1240,21 @@ spec actualPgVersion =
               [json|{
                 "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
                 "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache",
+                "code":"PGRST202",
+                "details":null
+              }|]
+              { matchStatus  = 404
+              , matchHeaders = [ matchContentTypeJson ]
+              }
+
+        it "will err when no function with single unnamed text parameter exists and text/xml is specified" $
+          request methodPost "/rpc/unnamed_int_param"
+              [("Content-Type", "text/xml")]
+              [str|a simple text|]
+            `shouldRespondWith`
+              [json|{
+                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "message": "Could not find the test.unnamed_int_param function with a single unnamed xml parameter in the schema cache",
                 "code":"PGRST202",
                 "details":null
               }|]
@@ -1327,5 +1349,20 @@ spec actualPgVersion =
                 "details":null
               }|]
               { matchStatus  = 300
+              , matchHeaders = [matchContentTypeJson]
+              }
+
+        it "should fail on /rpc/unnamed_xml_param when posting invalid xml" $ do
+          request methodPost "/rpc/unnamed_xml_param"
+            [("Content-Type", "text/xml"), ("Accept", "text/xml")]
+            [str|<|]
+            `shouldRespondWith`
+              [json| {
+                "hint":null,
+                "message":"invalid XML content",
+                "code":"2200N",
+                "details":"line 1: StartTag: invalid element name\n<\n ^"
+              }|]
+              { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
