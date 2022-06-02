@@ -148,6 +148,7 @@ instance JSON.ToJSON ApiRequestError where
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " function with a single json or jsonb parameter"
         (_, True, CTTextPlain)       -> " function with a single unnamed text parameter"
+        (_, True, CTTextXML)         -> " function with a single unnamed xml parameter"
         (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
         (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
         _                            -> prms <> " function") <>

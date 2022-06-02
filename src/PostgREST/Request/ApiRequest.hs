@@ -255,6 +255,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
     (CTTextPlain, True) -> Right $ RawPay reqBody
+    (CTTextXML, True) -> Right $ RawPay reqBody
     (CTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
   topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
@@ -462,6 +463,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       (CTApplicationJSON, "json")  -> True
       (CTApplicationJSON, "jsonb") -> True
       (CTTextPlain, "text")        -> True
+      (CTTextXML, "xml")           -> True
       (CTOctetStream, "bytea")     -> True
       _                            -> False
     hasSingleUnnamedParam _ = False
@@ -475,7 +477,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
         then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && not (isInvPost && contentType `elem` [CTTextPlain, CTOctetStream])
+        then null argumentsKeys && not (isInvPost && contentType `elem` [CTOctetStream, CTTextPlain, CTTextXML])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of
