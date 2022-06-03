@@ -48,14 +48,14 @@ lib.overrideDerivation postgrest.env (
       ''
         export HISTFILE=.history
 
-        source ${pkgs.bashCompletion}/etc/profile.d/bash_completion.sh
+        source ${pkgs.bash-completion}/etc/profile.d/bash_completion.sh
         source ${pkgs.git}/share/git/contrib/completion/git-completion.bash
-        source ${postgrest.hsie.bashCompletion}
+        source ${postgrest.hsie.bash-completion}
 
       ''
       + builtins.concatStringsSep "\n" (
-        builtins.map (bashCompletion: "source ${bashCompletion}") (
-          builtins.concatLists (builtins.map (toolbox: toolbox.bashCompletion) toolboxes)
+        builtins.map (bash-completion: "source ${bash-completion}") (
+          builtins.concatLists (builtins.map (toolbox: toolbox.bash-completion) toolboxes)
         )
       );
   }
