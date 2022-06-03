@@ -922,7 +922,7 @@ def test_log_level(level, has_output, defaultenv):
         assert response.status_code == 200
         if has_output[0]:
             assert re.match(
-                r'unknownSocket - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
                 postgrest.process.stdout.readline().decode(),
             )
 
@@ -930,7 +930,7 @@ def test_log_level(level, has_output, defaultenv):
         assert response.status_code == 404
         if has_output[1]:
             assert re.match(
-                r'unknownSocket - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
                 postgrest.process.stdout.readline().decode(),
             )
 
@@ -938,7 +938,7 @@ def test_log_level(level, has_output, defaultenv):
         assert response.status_code == 500
         if has_output[2]:
             assert re.match(
-                r'unknownSocket - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
                 postgrest.process.stdout.readline().decode(),
             )
 
