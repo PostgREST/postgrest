@@ -5,12 +5,12 @@
 , ghc
 , glibcLocales
 , gnugrep
-, haskellPackages
 , hpc-codecov
 , jq
 , postgrest
 , python3
 , runtimeShell
+, weeder
 , withTools
 , yq
 }:
@@ -137,7 +137,7 @@ let
 
         (
           trap 'echo Found dead code: Check file list above.' ERR ;
-          ${haskellPackages.weeder}/bin/weeder --config=./test/weeder.dhall
+          ${weeder}/bin/weeder --config=./test/weeder.dhall
         )
 
         # collect all tests
