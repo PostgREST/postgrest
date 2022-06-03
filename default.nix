@@ -149,6 +149,7 @@ rec {
       inherit postgrest devCabalOptions withTools;
       ghc = pkgs.haskell.compiler."${compiler}";
       inherit (pkgs.haskell.packages."${compiler}") hpc-codecov;
+      inherit (pkgs.haskell.packages."${compiler}") weeder;
     };
 
   withTools =
