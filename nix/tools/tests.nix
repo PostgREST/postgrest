@@ -20,11 +20,13 @@ let
       {
         name = "postgrest-test-spec";
         docs = "Run the Haskell test suite";
+        args = [ "ARG_LEFTOVERS([hspec arguments])" ];
         inRootDir = true;
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} \
+          test:spec -- "''${_arg_leftovers[@]}"
       '';
 
   testQuerycost =
