@@ -16,7 +16,12 @@ let
   ghc = ghcWithPackages modules;
   hsie =
     runCommand "haskellimports" { inherit name src; }
-      "${ghc}/bin/ghc -O -Werror -Wall -package ghc $src -o $out";
+      ''
+        cd $TMP
+        cp $src $TMP/Main.hs
+        ${ghc}/bin/ghc -O -Werror -Wall -package ghc Main.hs -o Main
+        cp Main $out
+      '';
   bin =
     runCommand name { inherit hsie name; }
       ''
