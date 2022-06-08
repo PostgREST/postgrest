@@ -56,7 +56,7 @@ import PostgREST.Request.Types
 
 import qualified PostgREST.DbStructure.Relationship as Relationship
 
-import Protolude hiding (from)
+import Protolude hiding (from, isInfixOf)
 
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.

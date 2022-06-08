@@ -32,6 +32,15 @@ let
       # To get the sha256:
       #   nix-prefetch-url --unpack https://github.com/<owner>/<repo>/archive/<commit>.tar.gz
 
+      protolude =
+        prev.callHackageDirect
+          {
+            pkg = "protolude";
+            ver = "0.3.1";
+            sha256 = "0gf0mn1ycllr69kdq1p07qf7935s10jz0nnhynwqy3d6nmycxr5j";
+          }
+          { };
+
       wai-extra =
         prev.callHackageDirect
           {
