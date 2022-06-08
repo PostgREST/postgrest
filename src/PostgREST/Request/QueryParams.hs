@@ -201,10 +201,10 @@ parse qs =
             o = rangeOffset ro
 
         limitParams =
-          M.fromList [(k, restrictRange (readMaybe $ toS v) allRange) | (k,v) <- limits]
+          M.fromList [(k, restrictRange (readMaybe v) allRange) | (k,v) <- limits]
 
         offsetParams =
-          M.fromList [(k, maybe allRange rangeGeq (readMaybe $ toS v)) | (k,v) <- offsets]
+          M.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
 
 operator :: Text -> Maybe SimpleOperator
 operator = \case

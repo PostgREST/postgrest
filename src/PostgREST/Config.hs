@@ -359,17 +359,17 @@ parser optPath env dbSettings =
 
     coerceInt :: (Read i, Integral i) => C.Value -> Maybe i
     coerceInt (C.Number x) = rightToMaybe $ floatingOrInteger x
-    coerceInt (C.String x) = readMaybe $ toS x
+    coerceInt (C.String x) = readMaybe x
     coerceInt _            = Nothing
 
     coerceBool :: C.Value -> Maybe Bool
     coerceBool (C.Bool b)   = Just b
     coerceBool (C.String s) =
       -- parse all kinds of text: True, true, TRUE, "true", ...
-      case readMaybe . toS $ T.toTitle $ T.filter isAlpha $ toS s of
+      case readMaybe $ T.toTitle $ T.filter isAlpha $ toS s of
         Just b  -> Just b
         -- numeric instead?
-        Nothing -> (> 0) <$> (readMaybe $ toS s :: Maybe Integer)
+        Nothing -> (> 0) <$> (readMaybe s :: Maybe Integer)
     coerceBool _            = Nothing
 
     splitOnCommas :: C.Value -> [Text]
