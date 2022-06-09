@@ -60,9 +60,8 @@ let
         # shellcheck disable=SC2145
         ${withTools.withPg} --fixtures "$_arg_testdir"/fixtures.sql \
         ${withTools.withPgrst} \
-        sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http \"''${_arg_leftovers[@]}\"" \
-          | tee "$_arg_output" \
-          | ${vegeta}/bin/vegeta report -type=text
+        sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$_arg_output\" \"''${_arg_leftovers[@]}\""
+        ${vegeta}/bin/vegeta report -type=text "$_arg_output"
       '';
 
   loadtestAgainst =

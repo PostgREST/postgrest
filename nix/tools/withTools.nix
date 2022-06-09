@@ -244,7 +244,16 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} > "$tmpdir"/build.log 2>&1
+        echo -n "Building postgrest... "
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} > "$tmpdir"/build.log 2>&1 \
+          || {
+          echo "failed, output:"
+          cat "$tmpdir"/build.log
+          exit 1
+        }
+        echo "done."
+
+        echo -n "Starting postgrest... "
         ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
           postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
 
@@ -256,7 +265,12 @@ let
         }
         trap cleanup EXIT
 
-        timeout -s TERM 5 ${waitForPgrstReady}
+        timeout -s TERM 5 ${waitForPgrstReady} || {
+          echo "timed out, output:"
+          cat "$tmpdir"/run.log
+          exit 1
+        }
+        echo "done."
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';
