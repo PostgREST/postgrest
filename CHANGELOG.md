@@ -31,25 +31,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
- - #2165, Fix json/jsonb columns should not have type in OpenAPI spec
- - #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
  - #2058, Return 204 No Content without Content-Type for PUT - @wolfgangwalther
- - #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
- - #2024, Fix schema cache loading when views with XMLTABLE and DEFAULT are present - @wolfgangwalther
- - #1724, Fix wrong CORS header Authentication -> Authorization - @wolfgangwalther
  - #2107, Clarify error for failed schema cache load. - @steve-chavez
    + From `Database connection lost. Retrying the connection` to `Could not query the database for the schema cache. Retrying.`
- - #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
  - #1771, Fix silently ignoring filter on a non-existent embedded resource - @steve-chavez
- - #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
- - #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
  - #2152, Remove functions, which are uncallable because of unnamend arguments from schema cache and OpenAPI output. - @wolfgangwalther
  - #2145, Fix accessing json array fields with -> and ->> in ?select= and ?order=. - @wolfgangwalther
- - #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
- - #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
- - #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
  - #2155, Ignore `max-rows` on POST, PATCH, PUT and DELETE - @steve-chavez
- - #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
  - #2254, Fix inferring a foreign key column as a primary key column on views - @steve-chavez
  - #2070, Restrict generated many-to-many relationships - @steve-chavez
    + Only adds many-to-many relationships when: a table has FKs to two other tables and these FK columns are part of the table's PK columns.
@@ -57,8 +45,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2277, #2238, #1643, Prevent views from breaking one-to-many/many-to-one embeds when using column or FK as target - @steve-chavez
     + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
     + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
- - #2294, Disable parallel GC for better performance on higher core CPUs - @steve-chavez
- - #1076, Fix using CPU while idle - @steve-chavez
 
 ### Changed
 
@@ -74,6 +60,26 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2277, Views now are not detected when embedding using the column or FK as target (`/view?select=*,column(*)`) - @steve-chavez
    + This embedding form was easily made ambiguous whenever a new view was added.
    + For migrating, clients must be updated to the embedding form of `/view?select=*,other_view!column(*)`.
+
+## [9.0.1] - 2022-06-03
+
+### Fixed
+
+- #2165, Fix json/jsonb columns should not have type in OpenAPI spec - @clrnd
+- #2020, Execute deferred constraint triggers when using `Prefer: tx=rollback` - @wolfgangwalther
+- #2077, Fix `is` not working with upper or mixed case values like `NULL, TrUe, FaLsE` - @steve-chavez
+- #2024, Fix schema cache loading when views with XMLTABLE and DEFAULT are present - @wolfgangwalther
+- #1724, Fix wrong CORS header Authentication -> Authorization - @wolfgangwalther
+- #2120, Fix reading database configuration properly when `=` is present in value - @wolfgangwalther
+- #2135, Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. - @wolfgangwalther
+- #2101, Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. - @wolfgangwalther
+- #2153, Fix --dump-schema running with a wrong PG version. - @wolfgangwalther
+- #2042, Keep working when EMFILE(Too many open files) is reached. - @steve-chavez
+- #2147, Ignore `Content-Type` headers for `GET` requests when calling RPCs. - @laurenceisla
+    + Previously, `GET` without parameters, but with `Content-Type: text/plain` or `Content-Type: application/octet-stream` would fail with `404 Not Found`, even if a function without arguments was available.
+- #2239, Fix misleading disambiguation error where the content of the `relationship` key looks like valid syntax - @laurenceisla
+- #2294, Disable parallel GC for better performance on higher core CPUs - @steve-chavez
+- #1076, Fix using CPU while idle - @steve-chavez
 
 ## [9.0.0] - 2021-11-25
 
