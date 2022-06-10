@@ -85,7 +85,7 @@ library
                     , cookie                    >= 0.4.2 && < 0.5
                     , either                    >= 4.4.1 && < 5.1
                     , gitrev                    >= 1.2 && < 1.4
-                    , hasql                     >= 1.6 && < 1.7
+                    , hasql                     >= 1.6.1.1 && < 1.7
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.1 && < 0.3
                     , hasql-pool                >= 0.8.0.2 && < 0.9

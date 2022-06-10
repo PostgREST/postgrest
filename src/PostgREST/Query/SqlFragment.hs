@@ -128,7 +128,7 @@ normalizedBody body =
         "END AS val",
       "FROM pgrst_payload)"])
   where
-    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::json"
+    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.jsonLazyBytes) body
 
 singleParameter :: Maybe LBS.ByteString -> ByteString -> SQL.Snippet
 singleParameter body typ =
