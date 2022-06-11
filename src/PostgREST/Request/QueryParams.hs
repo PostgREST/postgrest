@@ -90,8 +90,8 @@ data QueryParams =
     -- ^ &select parameter used to shape the response
     , qsFilters        :: [(EmbedPath, Filter)]
     -- ^ Filters on the result from e.g. &id=e.10
-    , qsFiltersRoot    :: [(EmbedPath, Filter)]
-    -- ^ Subset of the filters that apply on the root table
+    , qsFiltersRoot    :: [Filter]
+    -- ^ Subset of the filters that apply on the root table. These are used on UPDATE/DELETE.
     , qsFiltersNotRoot :: [(EmbedPath, Filter)]
     -- ^ Subset of the filters that do not apply on the root table
     , qsFilterFields   :: S.Set FieldName
@@ -133,7 +133,7 @@ parse qs =
     <*> pRequestColumns columns
     <*> pRequestSelect select
     <*> pRequestFilter `traverse` filters
-    <*> pRequestFilter `traverse` filtersRoot
+    <*> (fmap snd <$> (pRequestFilter `traverse` filtersRoot))
     <*> pRequestFilter `traverse` filtersNotRoot
     <*> pure (S.fromList (fst <$> filters))
     <*> sequenceA (pRequestOnConflict <$> onConflict)
