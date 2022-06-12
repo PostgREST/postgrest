@@ -347,8 +347,12 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       response HTTP.status201 headers mempty
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False mempty context
+handleUpdate identifier context@RequestContext{..} = do
+  let
+    ApiRequest{..} = ctxApiRequest
+    pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+
+  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False pkCols context
 
   let
     response = gucResponse resGucStatus resGucHeaders

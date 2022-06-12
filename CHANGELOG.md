@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2269, Allow `limit=0` in the request query to return an empty array - @gautam1168, @laurenceisla
  - #2268, Allow returning XML from single-column queries - @fjf2002
  - #2300, RPC POST for function w/single unnamed XML param #2300 - @fjf2002
+ - #1959, Bulk update with PATCH - @steve-chavez
 
 ### Fixed
 
@@ -45,6 +46,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2277, #2238, #1643, Prevent views from breaking one-to-many/many-to-one embeds when using column or FK as target - @steve-chavez
     + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
     + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
+ - #1959, An accidental full table PATCH(without filters) is not possible anymore, it requires filters or a `limit` parameter - @steve-chavez
 
 ### Changed
 
@@ -60,6 +62,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2277, Views now are not detected when embedding using the column or FK as target (`/view?select=*,column(*)`) - @steve-chavez
    + This embedding form was easily made ambiguous whenever a new view was added.
    + For migrating, clients must be updated to the embedding form of `/view?select=*,other_view!column(*)`.
+ - #1959, A full table PATCH(without filters) is now restricted, it requires a `limit` parameter - @steve-chavez
+   + A `PATCH /tbl` will now result in 0 rows updated, unless `PATCH /tbl?limit=10&order=<pkcol>` is done
 
 ## [9.0.1] - 2022-06-03
 

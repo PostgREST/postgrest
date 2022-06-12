@@ -137,6 +137,7 @@ data MutateQuery
       , updCols   :: S.Set FieldName
       , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
+      , pkFilters :: [FieldName]
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
