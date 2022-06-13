@@ -22,7 +22,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.CaseInsensitive  as CI
 import qualified Data.Csv              as CSV
-import qualified Data.HashMap.Strict   as M
+import qualified Data.HashMap.Strict   as HM
 import qualified Data.List             as L
 import qualified Data.List.NonEmpty    as NonEmptyList
 import qualified Data.Set              as S
@@ -129,10 +129,10 @@ toRpcParamValue proc (k, v) | prmIsVariadic k = (k, Variadic [v])
 jsonRpcParams :: ProcDescription -> [(Text, Text)] -> Payload
 jsonRpcParams proc prms =
   if not $ pdHasVariadic proc then -- if proc has no variadic param, save steps and directly convert to json
-    ProcessedJSON (JSON.encode $ M.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
+    ProcessedJSON (JSON.encode $ HM.fromList $ second JSON.toJSON <$> prms) (S.fromList $ fst <$> prms)
   else
-    let paramsMap = M.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
-    ProcessedJSON (JSON.encode paramsMap) (S.fromList $ M.keys paramsMap)
+    let paramsMap = HM.fromListWith mergeParams $ toRpcParamValue proc <$> prms in
+    ProcessedJSON (JSON.encode paramsMap) (S.fromList $ HM.keys paramsMap)
   where
     mergeParams :: RpcParamValue -> RpcParamValue -> RpcParamValue
     mergeParams (Variadic a) (Variadic b) = Variadic $ b ++ a
@@ -153,7 +153,7 @@ targetToJsonRpcParams target params =
 -}
 data ApiRequest = ApiRequest {
     iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
-  , iRange                :: M.HashMap Text NonnegRange       -- ^ Requested range of rows within response
+  , iRange                :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
   , iPayload              :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
@@ -252,13 +252,13 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
     (CTUrlEncoded, _) ->
-      let paramsMap = M.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
-      Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (M.keys paramsMap)
+      let paramsMap = HM.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
+      Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
     (CTTextPlain, True) -> Right $ RawPay reqBody
     (CTTextXML, True) -> Right $ RawPay reqBody
     (CTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
-  topLevelRange = fromMaybe allRange $ M.lookup "limit" ranges -- if no limit is specified, get all the request rows
+  topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
       -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
@@ -335,12 +335,12 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
   headerRange = rangeRequested hdrs
-  limitRange = fromMaybe allRange (M.lookup "limit" qsRanges)
+  limitRange = fromMaybe allRange (HM.lookup "limit" qsRanges)
   headerAndLimitRange = rangeIntersection headerRange limitRange
 
   -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
   -- limit=0 is present in the query params (not allowed for the Range header)
-  ranges = M.insert "limit" (if hasLimitZero limitRange then limitZeroRange else headerAndLimitRange) qsRanges
+  ranges = HM.insert "limit" (if hasLimitZero limitRange then limitZeroRange else headerAndLimitRange) qsRanges
   -- The only emptyRange allowed is the limit zero range
   isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
 
@@ -357,7 +357,7 @@ mutuallyAgreeable sProduces cAccepts =
      then listToMaybe sProduces
      else exact
 
-type CsvData = V.Vector (M.HashMap Text LBS.ByteString)
+type CsvData = V.Vector (HM.HashMap Text LBS.ByteString)
 
 {-|
   Converts CSV like
@@ -376,7 +376,7 @@ csvToJson (_, vals) =
   JSON.Array $ V.map rowToJsonObj vals
  where
   rowToJsonObj = JSON.Object .
-    M.map (\str ->
+    HM.map (\str ->
         if str == "NULL"
           then JSON.Null
           else JSON.String . T.decodeUtf8 $ LBS.toStrict str
@@ -389,9 +389,9 @@ payloadAttributes raw json =
     JSON.Array arr ->
       case arr V.!? 0 of
         Just (JSON.Object o) ->
-          let canonicalKeys = S.fromList $ M.keys o
+          let canonicalKeys = S.fromList $ HM.keys o
               areKeysUniform = all (\case
-                JSON.Object x -> S.fromList (M.keys x) == canonicalKeys
+                JSON.Object x -> S.fromList (HM.keys x) == canonicalKeys
                 _ -> False) arr in
           if areKeysUniform
             then Just $ ProcessedJSON raw canonicalKeys
@@ -399,7 +399,7 @@ payloadAttributes raw json =
         Just _ -> Nothing
         Nothing -> Just emptyPJArray
 
-    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ M.keys o)
+    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ HM.keys o)
 
     -- truncate everything else to an empty array.
     _ -> Just emptyPJArray
@@ -449,7 +449,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
     ([proc], _)  -> Right proc
     (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
-    matchProc = overloadedProcPartition $ M.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchProc = overloadedProcPartition $ HM.lookupDefault mempty qi allProcs -- first find the proc by name
     -- The partition obtained has the form (overloadedProcs,fallbackProcs)
     -- where fallbackProcs are functions with a single unnamed parameter
     overloadedProcPartition procs = foldr select ([],[]) procs

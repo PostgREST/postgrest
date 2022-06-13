@@ -6,7 +6,7 @@ module PostgREST.GucHeader
 
 import qualified Data.Aeson           as JSON
 import qualified Data.CaseInsensitive as CI
-import qualified Data.HashMap.Strict  as M
+import qualified Data.HashMap.Strict  as HM
 
 import Network.HTTP.Types.Header (Header)
 
@@ -21,7 +21,7 @@ newtype GucHeader = GucHeader (CI.CI ByteString, ByteString)
 
 instance JSON.FromJSON GucHeader where
   parseJSON (JSON.Object o) =
-    case M.toList o of
+    case HM.toList o of
       [(k, JSON.String s)] -> pure $ GucHeader (CI.mk $ toUtf8 k, toUtf8 s)
       _ -> mzero
   parseJSON _ = mzero
