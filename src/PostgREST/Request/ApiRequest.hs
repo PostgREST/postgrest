@@ -18,6 +18,8 @@ module PostgREST.Request.ApiRequest
   ) where
 
 import qualified Data.Aeson            as JSON
+import qualified Data.Aeson.Key        as K
+import qualified Data.Aeson.KeyMap     as KM
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.CaseInsensitive  as CI
@@ -25,6 +27,7 @@ import qualified Data.Csv              as CSV
 import qualified Data.HashMap.Strict   as HM
 import qualified Data.List             as L
 import qualified Data.List.NonEmpty    as NonEmptyList
+import qualified Data.Map.Strict       as M
 import qualified Data.Set              as S
 import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
@@ -357,7 +360,7 @@ mutuallyAgreeable sProduces cAccepts =
      then listToMaybe sProduces
      else exact
 
-type CsvData = V.Vector (HM.HashMap Text LBS.ByteString)
+type CsvData = V.Vector (M.Map Text LBS.ByteString)
 
 {-|
   Converts CSV like
@@ -375,8 +378,8 @@ csvToJson :: (CSV.Header, CsvData) -> JSON.Value
 csvToJson (_, vals) =
   JSON.Array $ V.map rowToJsonObj vals
  where
-  rowToJsonObj = JSON.Object .
-    HM.map (\str ->
+  rowToJsonObj = JSON.Object . KM.fromMapText .
+    M.map (\str ->
         if str == "NULL"
           then JSON.Null
           else JSON.String . T.decodeUtf8 $ LBS.toStrict str
@@ -389,9 +392,9 @@ payloadAttributes raw json =
     JSON.Array arr ->
       case arr V.!? 0 of
         Just (JSON.Object o) ->
-          let canonicalKeys = S.fromList $ HM.keys o
+          let canonicalKeys = S.fromList $ K.toText <$> KM.keys o
               areKeysUniform = all (\case
-                JSON.Object x -> S.fromList (HM.keys x) == canonicalKeys
+                JSON.Object x -> S.fromList (K.toText <$> KM.keys x) == canonicalKeys
                 _ -> False) arr in
           if areKeysUniform
             then Just $ ProcessedJSON raw canonicalKeys
@@ -399,7 +402,7 @@ payloadAttributes raw json =
         Just _ -> Nothing
         Nothing -> Just emptyPJArray
 
-    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ HM.keys o)
+    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ K.toText <$> KM.keys o)
 
     -- truncate everything else to an empty array.
     _ -> Just emptyPJArray
