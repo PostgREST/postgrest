@@ -82,7 +82,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferRepresentation (..),
                                           toAppliedHeader)
 import PostgREST.Request.QueryParams     (QueryParams (..))
-import PostgREST.Request.Types           (ReadRequest, fstFieldNames)
+import PostgREST.Request.ReadQuery       (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
 

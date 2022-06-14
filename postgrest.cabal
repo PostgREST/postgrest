@@ -62,9 +62,11 @@ library
                       PostgREST.RangeQuery
                       PostgREST.Request.ApiRequest
                       PostgREST.Request.DbRequestBuilder
+                      PostgREST.Request.MutateQuery
                       PostgREST.Request.Preferences
-                      PostgREST.Request.Types
                       PostgREST.Request.QueryParams
+                      PostgREST.Request.ReadQuery
+                      PostgREST.Request.Types
                       PostgREST.Version
                       PostgREST.Workers
   other-modules:      Paths_postgrest

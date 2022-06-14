@@ -50,6 +50,7 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
+import PostgREST.Request.ReadQuery       (SelectItem)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           FtsOperator (..),
                                           JoinCondition (..),
@@ -61,7 +62,7 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
-                                          OrderTerm (..), SelectItem,
+                                          OrderTerm (..),
                                           SimpleOperator (..),
                                           TrileanVal (..))
 

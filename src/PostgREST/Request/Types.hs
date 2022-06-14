@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module PostgREST.Request.Types
   ( Alias
+  , Cast
   , Depth
   , EmbedParam(..)
   , ApiRequestError(..)
@@ -19,8 +20,6 @@ module PostgREST.Request.Types
   , ListVal
   , LogicOperator(..)
   , LogicTree(..)
-  , MutateQuery(..)
-  , MutateRequest
   , NodeName
   , OpExpr(..)
   , Operation (..)
@@ -28,21 +27,13 @@ module PostgREST.Request.Types
   , OrderNulls(..)
   , OrderTerm(..)
   , QPError(..)
-  , ReadNode
-  , ReadQuery(..)
-  , ReadRequest
-  , SelectItem
   , SingleVal
   , TrileanVal(..)
-  , fstFieldNames
   , SimpleOperator(..)
   , FtsOperator(..)
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Set             as S
-
-import Data.Tree (Tree (..))
 
 import PostgREST.ContentType              (ContentType (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
@@ -50,8 +41,6 @@ import PostgREST.DbStructure.Identifiers  (FieldName,
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.DbStructure.Relationship (Relationship)
-import PostgREST.RangeQuery               (NonnegRange)
-import PostgREST.Request.Preferences      (PreferResolution)
 
 import Protolude
 
@@ -76,29 +65,10 @@ data ApiRequestError
 
 data QPError = QPError Text Text
 
-type ReadRequest = Tree ReadNode
-type MutateRequest = MutateQuery
 type CallRequest = CallQuery
-
-type ReadNode =
-  (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe Hint, Maybe JoinType, Depth))
 
 type NodeName = Text
 type Depth = Integer
-
-data ReadQuery = Select
-  { select         :: [SelectItem]
-  , from           :: QualifiedIdentifier
-  -- ^ A table alias is used in case of self joins
-  , fromAlias      :: Maybe Alias
-  -- ^ Only used for Many to Many joins. Parent and Child joins use explicit joins.
-  , implicitJoins  :: [QualifiedIdentifier]
-  , where_         :: [LogicTree]
-  , joinConditions :: [JoinCondition]
-  , order          :: [OrderTerm]
-  , range_         :: NonnegRange
-  }
-  deriving (Eq)
 
 data JoinCondition =
   JoinCondition
@@ -123,33 +93,6 @@ data OrderNulls
   | OrderNullsLast
   deriving (Eq)
 
-data MutateQuery
-  = Insert
-      { in_        :: QualifiedIdentifier
-      , insCols    :: S.Set FieldName
-      , insBody    :: Maybe LBS.ByteString
-      , onConflict :: Maybe (PreferResolution, [FieldName])
-      , where_     :: [LogicTree]
-      , returning  :: [FieldName]
-      }
-  | Update
-      { in_       :: QualifiedIdentifier
-      , updCols   :: S.Set FieldName
-      , updBody   :: Maybe LBS.ByteString
-      , where_    :: [LogicTree]
-      , pkFilters :: [FieldName]
-      , mutRange  :: NonnegRange
-      , mutOrder  :: [OrderTerm]
-      , returning :: [FieldName]
-      }
-  | Delete
-      { in_       :: QualifiedIdentifier
-      , where_    :: [LogicTree]
-      , mutRange  :: NonnegRange
-      , mutOrder  :: [OrderTerm]
-      , returning :: [FieldName]
-      }
-
 data CallQuery = FunctionCall
   { funCQi           :: QualifiedIdentifier
   , funCParams       :: CallParams
@@ -162,9 +105,6 @@ data CallQuery = FunctionCall
 data CallParams
   = KeyParams [ProcParam] -- ^ Call with key params: func(a := val1, b:= val2)
   | OnePosParam ProcParam -- ^ Call with positional params(only one supported): func(val)
-
--- | The select value in `/tbl?select=alias:field::cast`
-type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe Hint, Maybe JoinType)
 
 type Field = (FieldName, JsonPath)
 type Cast = Text
@@ -204,12 +144,6 @@ data JsonOperand
   = JKey { jVal :: Text }
   | JIdx { jVal :: Text }
   deriving (Eq)
-
--- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
-fstFieldNames :: ReadRequest -> [FieldName]
-fstFieldNames (Node (sel, _) _) =
-  fst . (\(f, _, _, _, _) -> f) <$> select sel
-
 
 -- | Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
 --

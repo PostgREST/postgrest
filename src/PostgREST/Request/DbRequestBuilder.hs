@@ -48,7 +48,9 @@ import PostgREST.Request.ApiRequest       (Action (..),
                                            Mutation (..),
                                            Payload (..))
 
+import PostgREST.Request.MutateQuery
 import PostgREST.Request.Preferences
+import PostgREST.Request.ReadQuery   as ReadQuery
 import PostgREST.Request.Types
 
 import qualified PostgREST.Request.QueryParams as QueryParams
@@ -263,7 +265,7 @@ addFilters ApiRequest{..} rReq =
 
     addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadRequest ->  Either ApiRequestError ReadRequest
     addFilterToNode =
-      updateNode (\flt (Node (q@Select {where_=lf}, i) f) -> Node (q{where_=addFilterToLogicForest flt lf}::ReadQuery, i) f)
+      updateNode (\flt (Node (q@Select {where_=lf}, i) f) -> Node (q{ReadQuery.where_=addFilterToLogicForest flt lf}, i) f)
 
 addOrders :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addOrders ApiRequest{..} rReq =
@@ -295,7 +297,7 @@ addLogicTrees ApiRequest{..} rReq =
     QueryParams.QueryParams{..} = iQueryParams
 
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
-    addLogicTreeToNode = updateNode (\t (Node (q@Select{where_=lf},i) f) -> Node (q{where_=t:lf}::ReadQuery, i) f)
+    addLogicTreeToNode = updateNode (\t (Node (q@Select{where_=lf},i) f) -> Node (q{ReadQuery.where_=t:lf}, i) f)
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
