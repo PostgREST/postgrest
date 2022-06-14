@@ -70,6 +70,16 @@ let
 
       hspec-wai-json =
         lib.dontCheck (lib.unmarkBroken prev.hspec-wai-json);
+
+      ptr =
+        prev.callHackageDirect
+          {
+            pkg = "ptr";
+            ver = "0.16.8.2";
+            sha256 = "sha256-Ei2GeQ0AjoxvsvmWbdPELPLtSaowoaj9IzsIiySgkAQ=";
+          }
+          { };
+
     } // extraOverrides final prev;
 in
 {
