@@ -80,6 +80,15 @@ let
           }
           { };
 
+      weeder =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "weeder";
+            ver = "2.4.0";
+            sha256 = "sha256-Nhp8EogHJ5SIr67060TPEvQbN/ECg3cRJFQnUtJUyC0=";
+          }
+          { });
+
     } // extraOverrides final prev;
 in
 {
