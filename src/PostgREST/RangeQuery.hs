@@ -3,8 +3,7 @@ Module      : PostgREST.RangeQuery
 Description : Logic regarding the `Range`/`Content-Range` headers and `limit`/`offset` querystring arguments.
 -}
 module PostgREST.RangeQuery (
-  rangeParse
-, rangeRequested
+  rangeRequested
 , rangeLimit
 , rangeOffset
 , restrictRange
@@ -19,8 +18,7 @@ module PostgREST.RangeQuery (
 
 import qualified Data.ByteString.Char8 as BS
 
-import Data.List       (lookup)
-import Text.Regex.TDFA ((=~))
+import Data.List (lookup)
 
 import Control.Applicative
 import Data.Ranged.Boundaries
@@ -32,17 +30,17 @@ import Protolude
 
 type NonnegRange = Range Integer
 
-rangeParse :: BS.ByteString -> NonnegRange
-rangeParse range = do
-  let rangeRegex = "^([0-9]+)-([0-9]*)$" :: BS.ByteString
+rangeUnit :: ByteString
+rangeUnit = "items"
 
-  case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
-    Just parsedRange ->
-      let [_, mLower, mUpper] = readMaybe . BS.unpack <$> parsedRange
-          lower         = maybe emptyRange rangeGeq mLower
-          upper         = maybe allRange rangeLeq mUpper in
+rangeParse :: BS.ByteString -> NonnegRange
+rangeParse range =
+  case BS.split '-' <$> BS.stripPrefix (rangeUnit <> "=") range of
+    Just [mLower, mUpper] ->
+      let lower         = maybe emptyRange rangeGeq $ readMaybe $ BS.unpack mLower
+          upper         = maybe allRange rangeLeq $ readMaybe $ BS.unpack mUpper in
       rangeIntersection lower upper
-    Nothing -> allRange
+    _ -> allRange
 
 rangeRequested :: RequestHeaders -> NonnegRange
 rangeRequested headers = maybe allRange rangeParse $ lookup hRange headers
@@ -102,7 +100,7 @@ rangeStatusHeader topLevelRange queryTotal tableTotal =
 
 contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
-    ("Content-Range", toUtf8 headerValue)
+    ("Content-Range", rangeUnit <> " " <> toUtf8 headerValue)
     where
       headerValue   = rangeString <> "/" <> totalString :: Text
       rangeString
