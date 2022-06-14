@@ -36,13 +36,14 @@ rangeParse :: BS.ByteString -> NonnegRange
 rangeParse range = do
   let rangeRegex = "^([0-9]+)-([0-9]*)$" :: BS.ByteString
 
-  case listToMaybe (range =~ rangeRegex :: [[BS.ByteString]]) of
-    Just parsedRange ->
-      let [_, mLower, mUpper] = readMaybe . BS.unpack <$> parsedRange
-          lower         = maybe emptyRange rangeGeq mLower
-          upper         = maybe allRange rangeLeq mUpper in
+  case range =~ rangeRegex :: [[BS.ByteString]] of
+    [[_, l, u]] ->
+      let lower  = maybe emptyRange rangeGeq (readInteger l)
+          upper  = maybe allRange rangeLeq (readInteger u) in
       rangeIntersection lower upper
-    Nothing -> allRange
+    _ -> allRange
+  where
+    readInteger = readMaybe . BS.unpack
 
 rangeRequested :: RequestHeaders -> NonnegRange
 rangeRequested headers = maybe allRange rangeParse $ lookup hRange headers
