@@ -67,37 +67,17 @@ Documentation improvements
 Bug fixes
 ---------
 
-* Execute deferred constraint triggers when using ``Prefer: tx=rollback`` (`#2020 <https://github.com/PostgREST/postgrest/issues/2020>`_)
-
 * Return ``204 No Content`` without ``Content-Type`` for ``PUT`` (`#2058 <https://github.com/PostgREST/postgrest/issues/2058>`_)
-
-* Fix ``is`` not working with upper or mixed case values like ``NULL, TrUe, FaLsE`` (`#2077 <https://github.com/PostgREST/postgrest/issues/2077>`_)
-
-* Fix schema cache loading when views with ``XMLTABLE`` and ``DEFAULT`` are present (`#2024 <https://github.com/PostgREST/postgrest/issues/2024>`_)
-
-* Fix wrong CORS header Authentication -> Authorization (`#1724 <https://github.com/PostgREST/postgrest/issues/1724>`_)
 
 * Clarify error for failed schema cache load. (`#2107 <https://github.com/PostgREST/postgrest/issues/2107>`_)
 
   - From ``Database connection lost. Retrying the connection`` to ``Could not query the database for the schema cache. Retrying.``
 
-* Fix reading database configuration properly when ``=`` is present in its value (`#2120 <https://github.com/PostgREST/postgrest/issues/2120>`_)
-
 * Fix silently ignoring filter on a non-existent embedded resource (`#1771 <https://github.com/PostgREST/postgrest/issues/1771>`_)
-
-* Remove trigger functions from schema cache and OpenAPI output, because they can't be called directly anyway. (`#2135 <https://github.com/PostgREST/postgrest/issues/2135>`_)
-
-* Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. (`#2101 <https://github.com/PostgREST/postgrest/issues/2101>`_)
 
 * Remove functions, which are not callable due to unnamed arguments, from schema cache and OpenAPI output. (`#2152 <https://github.com/PostgREST/postgrest/issues/2152>`_)
 
 * Fix accessing JSON array fields with ``->`` and ``->>`` in ``?select=`` and ``?order=``. (`#2145 <https://github.com/PostgREST/postgrest/issues/2145>`_)
-
-* Fix ``--dump-schema`` running with a wrong PG version. (`#2153 <https://github.com/PostgREST/postgrest/issues/2153>`_)
-
-* Keep working when ``EMFILE (Too many open files)`` is reached. (`#2042 <https://github.com/PostgREST/postgrest/issues/2042>`_)
-
-* Ignore ``Content-Type`` headers for ``GET`` requests when calling RPCs. Previously, ``GET`` without parameters, but with ``Content-Type: text/plain`` or ``Content-Type: application/octet-stream`` would fail with ``404 Not Found``, even if a function without arguments was available. (`#2147 <https://github.com/PostgREST/postgrest/issues/2147>`_)
 
 Breaking changes
 ----------------
