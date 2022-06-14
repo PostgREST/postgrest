@@ -1,4 +1,4 @@
-{ bashCompletion
+{ bash-completion
 , buildToolbox
 , cabal-install
 , checkedShellScript

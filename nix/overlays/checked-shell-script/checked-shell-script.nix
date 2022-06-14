@@ -58,7 +58,7 @@ let
         sed '/_positionals_count + 1/a\\t\t\t\tset -- "''${@:1:1}" "--" "''${@:2}"' -i $out
       '';
 
-  bashCompletion =
+  bash-completion =
     runCommand "${name}-completion" { } (
       ''
         ${argbash}/bin/argbash --type completion --strip all ${argsTemplate}/${name}.m4 > $out
@@ -138,4 +138,4 @@ let
   script =
     runCommand name { inherit bin name; } "ln -s $bin/bin/$name $out";
 in
-script // { inherit bin bashCompletion; }
+script // { inherit bin bash-completion; }

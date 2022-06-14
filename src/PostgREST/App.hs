@@ -28,7 +28,7 @@ import System.Posix.Types       (FileMode)
 
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
-import qualified Data.HashMap.Strict             as M
+import qualified Data.HashMap.Strict             as HM
 import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Pool                      as SQL
@@ -314,7 +314,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
     pkCols = if iPreferRepresentation /= None || isJust iPreferResolution
-      then maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+      then maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
       else mempty
 
   WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
@@ -371,7 +371,7 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
-  let pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+  let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
 
   WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False pkCols context
 
@@ -419,7 +419,7 @@ handleInfo identifier RequestContext{..} =
     Nothing ->
       throwError Error.NotFound
   where
-    tbl = M.lookup identifier (dbTables ctxDbStructure)
+    tbl = HM.lookup identifier (dbTables ctxDbStructure)
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow
@@ -489,8 +489,8 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
            <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OAIgnorePriv ->
         OpenAPI.encode conf dbStructure
-              (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
-              (M.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
+              (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
+              (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
           <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
       OADisabled ->
         pure mempty

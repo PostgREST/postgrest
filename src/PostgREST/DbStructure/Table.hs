@@ -8,7 +8,7 @@ module PostgREST.DbStructure.Table
   ) where
 
 import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict as HM
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -46,4 +46,4 @@ data Column = Column
   }
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
-type TablesMap = M.HashMap QualifiedIdentifier Table
+type TablesMap = HM.HashMap QualifiedIdentifier Table

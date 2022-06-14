@@ -28,8 +28,8 @@ let
         mkdir -p $out/bin
         ln -s $hsie $out/bin/$name
       '';
-  bashCompletion =
+  bash-completion =
     runCommand "${name}-bash-completion" { inherit bin name; }
       "$bin/bin/$name --bash-completion-script $bin/bin/$name > $out";
 in
-hsie // { inherit bashCompletion bin; }
+hsie // { inherit bash-completion bin; }

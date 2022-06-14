@@ -15,7 +15,7 @@ module PostgREST.DbStructure.Proc
   ) where
 
 import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict as HM
 
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
@@ -66,7 +66,7 @@ instance Ord ProcDescription where
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.
-type ProcsMap = M.HashMap QualifiedIdentifier [ProcDescription]
+type ProcsMap = HM.HashMap QualifiedIdentifier [ProcDescription]
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of

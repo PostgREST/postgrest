@@ -9,7 +9,7 @@ module PostgREST.OpenAPI (encode) where
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy  as LBS
-import qualified Data.HashMap.Strict   as M
+import qualified Data.HashMap.Strict   as HM
 import qualified Data.HashSet.InsOrd   as Set
 import qualified Data.Text             as T
 import qualified Data.Text.Encoding    as T
@@ -41,13 +41,13 @@ import PostgREST.ContentType
 
 import Protolude hiding (Proxy, get)
 
-encode :: AppConfig -> DbStructure -> TablesMap -> M.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode :: AppConfig -> DbStructure -> TablesMap -> HM.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
 encode conf dbStructure tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
       (dbRelationships dbStructure)
-      (concat $ M.elems procs)
-      (snd <$> M.toList tables)
+      (concat $ HM.elems procs)
+      (snd <$> HM.toList tables)
       (proxyUri conf)
       schemaDescription
 
@@ -100,7 +100,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         rel = find (\case
           Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
           _                                               -> False
-          ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl), tableSchema tbl) rels
+          ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl), tableSchema tbl) rels
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
         fTbl = qiName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol

@@ -10,8 +10,10 @@ module PostgREST.Middleware
   ) where
 
 import qualified Data.Aeson                        as JSON
+import qualified Data.Aeson.Key                    as K
+import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString.Lazy.Char8        as LBS
-import qualified Data.HashMap.Strict               as M
+import qualified Data.HashMap.Strict               as HM
 import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
@@ -38,7 +40,7 @@ import PostgREST.Request.Preferences
 import Protolude
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
-runPgLocals :: AppConfig   -> M.HashMap Text JSON.Value -> Text ->
+runPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->
                (ApiRequest -> ExceptT Error SQL.Transaction Wai.Response) ->
                ApiRequest  -> ByteString -> PgVersion -> ExceptT Error SQL.Transaction Wai.Response
 runPgLocals conf claims role app req jsonDbS actualPgVersion = do
@@ -57,7 +59,7 @@ runPgLocals conf claims role app req jsonDbS actualPgVersion = do
                    then setConfigLocal "request.cookie." <$> iCookies req
                    else setConfigLocalJson "request.cookies" (iCookies req)
     claimsSql = if usesLegacyGucs
-                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 c, toUtf8 $ unquoted v) | (c,v) <- M.toList claims]
+                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
                   else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
     roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
@@ -116,6 +118,6 @@ setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [SQL.Snippet]
 setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal keyVals)]
   where
     gucJsonVal :: [(ByteString, ByteString)] -> ByteString
-    gucJsonVal = LBS.toStrict . JSON.encode . M.fromList . arrayByteStringToText
+    gucJsonVal = LBS.toStrict . JSON.encode . HM.fromList . arrayByteStringToText
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
     arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal

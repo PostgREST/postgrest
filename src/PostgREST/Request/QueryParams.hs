@@ -13,7 +13,7 @@ module PostgREST.Request.QueryParams
   ) where
 
 import qualified Data.ByteString.Char8         as BS
-import qualified Data.HashMap.Strict           as M
+import qualified Data.HashMap.Strict           as HM
 import qualified Data.List                     as L
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
@@ -78,7 +78,7 @@ data QueryParams =
     -- ^ Canonical representation of the query params, sorted alphabetically
     , qsParams         :: [(Text, Text)]
     -- ^ Parameters for RPC calls
-    , qsRanges         :: M.HashMap Text (Range Integer)
+    , qsRanges         :: HM.HashMap Text (Range Integer)
     -- ^ Ranges derived from &limit and &offset params
     , qsOrder          :: [(EmbedPath, [OrderTerm])]
     -- ^ &order parameters for each level
@@ -192,8 +192,8 @@ parse qs =
     isEmbedPath = T.isInfixOf "."
     replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) <> [x]
 
-    ranges :: M.HashMap Text (Range Integer)
-    ranges = M.unionWith f limitParams offsetParams
+    ranges :: HM.HashMap Text (Range Integer)
+    ranges = HM.unionWith f limitParams offsetParams
       where
         f rl ro = Range (BoundaryBelow o) (BoundaryAbove $ o + l - 1)
           where
@@ -201,10 +201,10 @@ parse qs =
             o = rangeOffset ro
 
         limitParams =
-          M.fromList [(k, restrictRange (readMaybe v) allRange) | (k,v) <- limits]
+          HM.fromList [(k, restrictRange (readMaybe v) allRange) | (k,v) <- limits]
 
         offsetParams =
-          M.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
+          HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
 
 operator :: Text -> Maybe SimpleOperator
 operator = \case

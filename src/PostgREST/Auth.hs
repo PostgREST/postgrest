@@ -20,9 +20,10 @@ module PostgREST.Auth
 
 import qualified Crypto.JWT                      as JWT
 import qualified Data.Aeson                      as JSON
+import qualified Data.Aeson.Key                  as K
+import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString.Lazy.Char8      as LBS
-import qualified Data.HashMap.Strict             as M
 import qualified Data.Text.Encoding              as T
 import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
@@ -45,7 +46,7 @@ import Protolude
 
 
 data AuthResult = AuthResult
-  { authClaims :: M.HashMap Text JSON.Value
+  { authClaims :: KM.KeyMap JSON.Value
   , authRole   :: Text
   }
 
@@ -78,13 +79,13 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
-           { authClaims = mclaims & M.insert "role" (JSON.toJSON role)
+           { authClaims = mclaims & KM.insert "role" (JSON.toJSON role)
            , authRole = role
            }
   where
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
     walkJSPath x                      []                = x
-    walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (M.lookup key o) rest
+    walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
     walkJSPath _                      _                 = Nothing
 
@@ -92,7 +93,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     unquoted (JSON.String t) = t
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = return AuthResult { authClaims = M.empty, authRole = mempty }
+parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
