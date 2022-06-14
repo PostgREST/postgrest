@@ -24,21 +24,22 @@ import qualified Data.Text                               as T
 import qualified Data.Text.IO                            as T
 import qualified Dot
 import qualified GHC
+import qualified GHC.Paths
 import qualified Language.Haskell.GHC.ExactPrint.Parsers as ExactPrint
 import qualified Options.Applicative                     as O
 import qualified System.FilePath                         as FP
 
-import Bag                        (bagToList)
 import Data.Aeson.Encode.Pretty   (encodePretty)
 import Data.Function              ((&))
 import Data.List                  (intercalate)
 import Data.Maybe                 (catMaybes, mapMaybe)
 import Data.Text                  (Text)
+import GHC.Data.Bag               (bagToList)
 import GHC.Generics               (Generic)
 import GHC.Hs.Extension           (GhcPs)
-import Module                     (moduleNameString)
-import OccName                    (occNameString)
-import RdrName                    (rdrNameOcc)
+import GHC.Types.Name.Occurrence  (occNameString)
+import GHC.Types.Name.Reader      (rdrNameOcc)
+import GHC.Unit.Module.Name       (moduleNameString)
 import System.Directory.Recursive (getFilesRecursive)
 import System.Exit                (exitFailure)
 
@@ -197,11 +198,11 @@ sourceSymbols source = do
       return $ concatMap (importSymbols source filepath . GHC.unLoc) hsmodImports
 
 -- | Parse a Haskell module
-parseModule :: String -> IO (GHC.HsModule GhcPs)
+parseModule :: FilePath -> IO GHC.HsModule
 parseModule filepath = do
-  result <- ExactPrint.parseModule filepath
+  result <- ExactPrint.parseModule GHC.Paths.libdir filepath
   case result of
-    Right (_, hsmod) ->
+    Right hsmod ->
       return $ GHC.unLoc hsmod
     Left errs ->
       fail $ "Errors with " <> show filepath <> ":\n    "
@@ -212,7 +213,6 @@ parseModule filepath = do
 -- If the import is a wildcard, i.e. no symbols are selected for import, then
 -- only one item is returned.
 importSymbols :: FilePath -> FilePath -> GHC.ImportDecl GhcPs -> [ImportedSymbol]
-importSymbols _ _  (GHC.XImportDecl _) = mempty
 importSymbols source filepath GHC.ImportDecl{..} =
   case ideclHiding of
     Just (hiding, syms) ->
