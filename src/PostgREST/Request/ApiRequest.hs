@@ -455,7 +455,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
     matchProc = overloadedProcPartition $ HM.lookupDefault mempty qi allProcs -- first find the proc by name
     -- The partition obtained has the form (overloadedProcs,fallbackProcs)
     -- where fallbackProcs are functions with a single unnamed parameter
-    overloadedProcPartition procs = foldr select ([],[]) procs
+    overloadedProcPartition = foldr select ([],[])
     select proc ~(ts,fs)
       | matchesParams proc         = (proc:ts,fs)
       | hasSingleUnnamedParam proc = (ts,proc:fs)

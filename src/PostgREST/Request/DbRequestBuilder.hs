@@ -359,7 +359,7 @@ callRequest proc apiReq readReq = FunctionCall {
             | ppName prm == mempty -> OnePosParam prm
             | otherwise            -> KeyParams $ specifiedParams [prm]
       prms  -> KeyParams $ specifiedParams prms
-    specifiedParams params = filter (\x -> ppName x `S.member` iColumns apiReq) params
+    specifiedParams = filter (\x -> ppName x `S.member` iColumns apiReq)
 
 returningCols :: ReadRequest -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols
