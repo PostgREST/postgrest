@@ -60,8 +60,8 @@ reachMainApp AppConfig{..} =
               "*6" -> ipv6Addrs xs ++ ipv4Addrs xs
               "!6" -> ipv6Addrs xs
               _    -> xs
-        ipv4Addrs xs = filter ((/=) AF_INET6 . addrFamily) xs
-        ipv6Addrs xs = filter ((==) AF_INET6 . addrFamily) xs
+        ipv4Addrs = filter ((/=) AF_INET6 . addrFamily)
+        ipv6Addrs = filter ((==) AF_INET6 . addrFamily)
 
       addrs <- getAddrInfo (Just $ defaultHints { addrSocketType = Stream }) (T.unpack <$> host) (Just . show $ configServerPort)
       tryAddr `traverse` filterAddrs addrs
