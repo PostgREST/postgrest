@@ -2634,3 +2634,26 @@ CREATE TABLE test.test (
 
 CREATE OR REPLACE VIEW test.view_test AS
   SELECT id FROM test.test;
+
+-- Tables to test bulk updates
+
+CREATE TABLE test.bulk_update_items (
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE test.bulk_update_items_cpk (
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
+);
+
+create function reset_bulk_items(tbl_name text default '') returns void as $_$ begin
+  execute format(
+  $$
+    delete from %I;
+    insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
+  $$::text,
+  tbl_name, tbl_name);
+end; $_$ language plpgsql volatile;
