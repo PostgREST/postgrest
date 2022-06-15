@@ -18,7 +18,7 @@ let
       static-haskell-nix
       [
         patches.static-haskell-nix-ncurses
-        patches.static-haskell-nix-isexecutable
+        patches.static-haskell-nix-ghc-bignum
       ];
 
   patchedNixpkgs =

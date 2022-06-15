@@ -24,6 +24,6 @@
 
   static-haskell-nix-ncurses =
     ./static-haskell-nix-ncurses.patch;
-  static-haskell-nix-isexecutable =
-    ./static-haskell-nix-isexecutable.patch;
+  static-haskell-nix-ghc-bignum =
+    ./static-haskell-nix-ghc-bignum.patch;
 }
