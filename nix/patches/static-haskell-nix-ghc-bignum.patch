@@ -1,0 +1,12 @@
+diff --git a/survey/default.nix b/survey/default.nix
+index 70afbbc..28cb0e9 100644
+--- a/survey/default.nix
++++ b/survey/default.nix
+@@ -81,6 +81,7 @@ let
+   # `.override` and the likes).
+   isProperHaskellPackage = val:
+     lib.isDerivation val && # must pass lib.isDerivation
++    val.pname != "ghc-bignum" &&
+     val ? env; # must have an .env key
+ 
+   # Function that tells us if a given Haskell package has an executable.
