@@ -141,23 +141,7 @@ rec {
 
   # Linting and styling tools.
   style =
-    let
-      # keep old version of hlint to not deal with linter changes for now
-      nixpkgsVersionPrev = {
-        date = "2021-11-02";
-        rev = "7053541084bf5ce2921ef307e5585d39d7ba8b3f";
-        tarballHash = "1flhh5d4zy43x6060hvzjb5hi5cmc51ivc0nwmija9n8d35kcc4x";
-      };
-
-      nixpkgsPrev =
-        builtins.fetchTarball {
-          url = "https://github.com/nixos/nixpkgs/archive/${nixpkgsVersionPrev.rev}.tar.gz";
-          sha256 = nixpkgsVersionPrev.tarballHash;
-        };
-      pkgsPrev = import nixpkgsPrev { };
-      inherit (pkgsPrev) hlint;
-    in
-    pkgs.callPackage nix/tools/style.nix { inherit hlint hsie; };
+    pkgs.callPackage nix/tools/style.nix { inherit hsie; };
 
   # Scripts for running tests.
   tests =

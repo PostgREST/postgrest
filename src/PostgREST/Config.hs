@@ -175,10 +175,10 @@ class JustIfMaybe a b where
   justIfMaybe :: a -> b
 
 instance JustIfMaybe a a where
-  justIfMaybe a = a
+  justIfMaybe = identity
 
 instance JustIfMaybe a (Maybe a) where
-  justIfMaybe a = Just a
+  justIfMaybe = Just
 
 -- | Reads and parses the config and overrides its parameters from env vars,
 -- files or db settings.
@@ -214,7 +214,7 @@ parser optPath env dbSettings =
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
     <*> (fromMaybe 10 <$> optInt "db-pool")
-    <*> (fromIntegral . fromMaybe 10 <$> optInt "db-pool-timeout")
+    <*> (fromIntegral . fromMaybe 3600 <$> optInt "db-pool-timeout")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")

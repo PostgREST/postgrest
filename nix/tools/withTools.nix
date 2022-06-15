@@ -244,9 +244,9 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
+        rm -f result
         echo -n "Building postgrest... "
-        ${cabal-install}/bin/cabal v2-build ${devCabalOptions} > "$tmpdir"/build.log 2>&1 \
-          || {
+        nix-build -A postgrestPackage > "$tmpdir"/build.log 2>&1 || {
           echo "failed, output:"
           cat "$tmpdir"/build.log
           exit 1
@@ -254,12 +254,8 @@ let
         echo "done."
 
         echo -n "Starting postgrest... "
-        ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
-          postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
-
-        # to get the pid of the postgrest process, we need to jump through some hoops
-        # $! will return the pid of cabal - but killing this, will not propagate to postgrest
-        pid=$(timeout -s TERM 1 ${waitForPgrstPid})
+        ./result/bin/postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+        pid=$!
         cleanup() {
           kill "$pid" || true
         }

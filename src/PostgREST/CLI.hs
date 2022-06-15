@@ -148,7 +148,7 @@ exampleConfigFile =
       |db-pool = 10
       |
       |## Time to live, in seconds, for an idle database pool connection
-      |db-pool-timeout = 10
+      |db-pool-timeout = 3600
       |
       |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"
