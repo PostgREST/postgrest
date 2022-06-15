@@ -350,7 +350,7 @@ handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
-    pkCols = maybe mempty tablePKCols $ M.lookup identifier $ dbTables ctxDbStructure
+    pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
 
   WriteQueryResult{..} <- writeQuery MutationUpdate identifier False pkCols context
 
