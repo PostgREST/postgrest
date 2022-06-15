@@ -214,7 +214,7 @@ parser optPath env dbSettings =
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
     <*> (fromMaybe 10 <$> optInt "db-pool")
-    <*> (fromIntegral . fromMaybe 10 <$> optInt "db-pool-timeout")
+    <*> (fromIntegral . fromMaybe 3600 <$> optInt "db-pool-timeout")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
