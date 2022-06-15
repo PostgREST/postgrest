@@ -1,0 +1,18 @@
+diff --git a/survey/default.nix b/survey/default.nix
+index 46d8066..5f7950b 100644
+--- a/survey/default.nix
++++ b/survey/default.nix
+@@ -85,10 +85,9 @@ let
+   # Function that tells us if a given Haskell package has an executable.
+   # Pass only Haskell packages to this!
+   # Filter away other stuff with `isProperHaskellPackage` first.
+-  isExecutable = pkg:
+-    (pkgs.haskell.lib.overrideCabal pkg (drv: {
+-      passthru.isExecutable = drv.isExecutable or false;
+-    })).isExecutable;
++  # FIXME postgrest: original fails with our nixpkgs version, we
++  # just hardcode the check to work for a static postgrest build.
++  isExecutable = pkg: pkg.name == "postgrest";
+ 
+   # Turn e.g. `Cabal_1_2_3_4` into `1.2.3.4`.
+   cabalDottedVersion =

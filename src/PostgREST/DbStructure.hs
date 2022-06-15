@@ -27,7 +27,7 @@ module PostgREST.DbStructure
   ) where
 
 import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Set            as S
 import qualified Hasql.Decoders      as HD
 import qualified Hasql.Encoders      as HE
@@ -100,16 +100,16 @@ queryDbStructure schemas extraSearchPath prepared = do
     , dbProcs = procs
     }
   where
-    relsToMap = map sort . M.fromListWith (++) . map ((\(x, fSch, y) -> ((x, fSch), [y])) . addKey)
+    relsToMap = map sort . HM.fromListWith (++) . map ((\(x, fSch, y) -> ((x, fSch), [y])) . addKey)
     addKey rel = (relTable rel, qiSchema $ relForeignTable rel, rel)
 
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
 removeInternal :: [Schema] -> DbStructure -> DbStructure
 removeInternal schemas dbStruct =
   DbStructure {
-      dbTables        = M.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
+      dbTables        = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
-                        M.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
+                        HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
@@ -119,7 +119,7 @@ removeInternal schemas dbStruct =
 
 decodeTables :: HD.Result TablesMap
 decodeTables =
- M.fromList . map (\tbl@Table{tableSchema, tableName} -> (QualifiedIdentifier tableSchema tableName, tbl)) <$> HD.rowList tblRow
+ HM.fromList . map (\tbl@Table{tableSchema, tableName} -> (QualifiedIdentifier tableSchema tableName, tbl)) <$> HD.rowList tblRow
  where
   tblRow = Table
     <$> column HD.text
@@ -176,7 +176,7 @@ viewKeyDepFromRow (s1,t1,s2,v2,cons,consType,sCols) = ViewKeyDependency (Qualifi
 decodeProcs :: HD.Result ProcsMap
 decodeProcs =
   -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . M.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
+  map sort . HM.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
   where
     procRow = ProcDescription
               <$> column HD.text
@@ -385,7 +385,7 @@ addM2MRels :: TablesMap -> [Relationship] -> [Relationship]
 addM2MRels tbls rels = rels ++ catMaybes
   [ let
       jtCols = S.fromList $ (fst <$> cols) ++ (fst <$> fcols)
-      pkCols = S.fromList $ maybe mempty tablePKCols $ M.lookup jt1 tbls
+      pkCols = S.fromList $ maybe mempty tablePKCols $ HM.lookup jt1 tbls
     in if S.isSubsetOf jtCols pkCols
       then Just $ Relationship t ft (t == ft) (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols)) tblIsView fTblisView
       else Nothing

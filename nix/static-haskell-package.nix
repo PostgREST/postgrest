@@ -17,7 +17,8 @@ let
     patches.applyPatches "patched-static-haskell-nix"
       static-haskell-nix
       [
-        # No patches currently required.
+        patches.static-haskell-nix-ncurses
+        patches.static-haskell-nix-isexecutable
       ];
 
   patchedNixpkgs =

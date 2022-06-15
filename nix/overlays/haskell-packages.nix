@@ -41,41 +41,35 @@ let
           }
           { };
 
-      wai-extra =
+      configurator-pg =
         prev.callHackageDirect
           {
-            pkg = "wai-extra";
-            ver = "3.1.8";
-            sha256 = "1ha8sxc2ii7k7xs5nm06wfwqmf4f1p2acp4ya0jnx6yn6551qps4";
+            pkg = "configurator-pg";
+            ver = "0.2.6";
+            sha256 = "sha256-nkamTOpP/w0vQfOXsoQKEstW3n9qyRsv0TocrEerKlU=";
           }
           { };
 
-      wai-logger =
-        prev.callHackageDirect
-          {
-            pkg = "wai-logger";
-            ver = "2.3.7";
-            sha256 = "1d23fdbwbahr3y1vdyn57m1qhljy22pm5cpgb20dy6mlxzdb30xd";
-          }
-          { };
-
-      warp =
+      hasql-dynamic-statements =
         lib.dontCheck (prev.callHackageDirect
           {
-            pkg = "warp";
-            ver = "3.3.19";
-            sha256 = "0y3jj4bhviss6ff9lwxki0zbdcl1rb398bk4s80zvfpnpy7p94cx";
+            pkg = "hasql-dynamic-statements";
+            ver = "0.3.1.1";
+            sha256 = "sha256-jF50GcCtEUV3TN1UsD4LaSBH6arcqfKhxOk+b+c8Bl8=";
           }
           { });
 
-      hasql-dynamic-statements =
-        lib.dontCheck (lib.unmarkBroken prev.hasql-dynamic-statements);
-
       hasql-implicits =
-        lib.dontCheck (lib.unmarkBroken prev.hasql-implicits);
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "hasql-implicits";
+            ver = "0.1.0.3";
+            sha256 = "sha256-IpAOVHNdXJ53B/fmo+DeNUKiBSS6Bo7Uha/krpMt64g=";
+          }
+          { });
 
-      ptr =
-        lib.dontCheck (lib.unmarkBroken prev.ptr);
+      hspec-wai-json =
+        lib.dontCheck (lib.unmarkBroken prev.hspec-wai-json);
     } // extraOverrides final prev;
 in
 {

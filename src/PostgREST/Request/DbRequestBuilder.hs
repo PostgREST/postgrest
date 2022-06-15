@@ -21,7 +21,7 @@ module PostgREST.Request.DbRequestBuilder
   , callRequest
   ) where
 
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Set            as S
 
 import Data.Either.Combinators (mapLeft)
@@ -206,7 +206,7 @@ findRel schema allRels origin target hint =
               -- /users?select=tasks!users_tasks(*) many-to-many between users and tasks
               matchJunction hnt relCardinality -- users_tasks
             )
-      ) $ fromMaybe mempty $ M.lookup (QualifiedIdentifier schema origin, schema) allRels
+      ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
 -- previousAlias is only used for the case of self joins
 addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
@@ -283,7 +283,7 @@ addRanges ApiRequest{..} rReq =
     _              -> foldr addRangeToNode (Right rReq) =<< ranges
   where
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` M.toList iRange
+    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` HM.toList iRange
 
     addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
     addRangeToNode = updateNode (\r (Node (q,i) f) -> Node (q{range_=r}, i) f)

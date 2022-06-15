@@ -9,7 +9,7 @@ module PostgREST.DbStructure.Relationship
   ) where
 
 import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as M
+import qualified Data.HashMap.Strict as HM
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier, Schema)
@@ -53,4 +53,4 @@ data Junction = Junction
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 -- | Key based on the source table and the foreign table schema
-type RelationshipsMap = M.HashMap (QualifiedIdentifier, Schema)  [Relationship]
+type RelationshipsMap = HM.HashMap (QualifiedIdentifier, Schema)  [Relationship]
