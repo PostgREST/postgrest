@@ -427,7 +427,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -460,7 +460,7 @@ spec = do
           , { "id": 3, "name": "updated-item" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -493,7 +493,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -552,7 +552,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_view"} |]
         `shouldRespondWith` ""
@@ -585,7 +585,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_cpk_view"} |]
         `shouldRespondWith` ""
@@ -619,7 +619,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_no_pk"} |]
         `shouldRespondWith` ""
@@ -657,7 +657,7 @@ spec = do
           , { "id": 3, "name": "item-3 - 3rd" }
           ]|]
 
-      request methodPost "/rpc/reset_bulk_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "bulk_update_items"} |]
         `shouldRespondWith` ""
@@ -694,7 +694,7 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null  }
           ]|]
 
-      request methodPost "/rpc/reset_bulk_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "bulk_update_items_cpk"} |]
         `shouldRespondWith` ""
@@ -731,7 +731,7 @@ spec = do
           , { "id": 4, "name": "item-4" }
           ]|]
 
-      request methodPost "/rpc/reset_bulk_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "bulk_update_items"} |]
         `shouldRespondWith` ""

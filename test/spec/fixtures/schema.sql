@@ -2528,7 +2528,7 @@ select *, 'static'::text as static from limited_delete_items;
 create view limited_delete_items_cpk_view as
 select * from limited_delete_items_cpk;
 
-create function reset_limited_items(tbl_name text default '') returns void as $_$ begin
+create function reset_items_tables(tbl_name text default '') returns void as $_$ begin
   execute format(
   $$
     delete from %I;
@@ -2648,12 +2648,3 @@ CREATE TABLE test.bulk_update_items_cpk (
   observation TEXT,
   PRIMARY KEY (id, name)
 );
-
-create function reset_bulk_items(tbl_name text default '') returns void as $_$ begin
-  execute format(
-  $$
-    delete from %I;
-    insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-  $$::text,
-  tbl_name, tbl_name);
-end; $_$ language plpgsql volatile;
