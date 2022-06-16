@@ -68,23 +68,19 @@ let
           }
           { });
 
-      hasql =
-        lib.dontCheck (prev.callCabal2nixWithOptions "hasql" (super.fetchgit {
-          url = "/s/hasql";
-          rev = "433428a6c9df2be000e86e06af2f16076395582e";
-          sha256 = "sha256-tw+0d6EcHpcKoHXK9wqjRBlAZFmbeDPWXIgOJWGQ5ag=";
-        }) "" {});
-
-      #   <name> =
-      #     prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
-      #       owner = "<owner>";
-      #       repo  = "<repo>";
-      #       rev = "<commit>";
-      #       sha256 = "<sha256>";
-      #    }) "--subpath=<subpath>" {};
-
       hspec-wai-json =
         lib.dontCheck (lib.unmarkBroken prev.hspec-wai-json);
+
+      hasql =
+        lib.dontCheck (prev.callCabal2nixWithOptions "hasql"
+          (super.fetchFromGitHub {
+            owner = "robx";
+            repo = "hasql";
+            rev = "433428a6c9df2be000e86e06af2f16076395582e";
+            sha256 = "sha256-tw+0d6EcHpcKoHXK9wqjRBlAZFmbeDPWXIgOJWGQ5ag=";
+          }) ""
+          { });
+
     } // extraOverrides final prev;
 in
 {
