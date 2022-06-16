@@ -58,6 +58,7 @@ let
   defaultCabalPackageVersionComingWithGhc =
     {
       ghc8107 = "Cabal_3_2_1_0";
+      ghc922 = "Cabal_3_6_3_0";
     }."${compiler}";
 
   # The static-haskell-nix 'survey' derives a full static set of Haskell

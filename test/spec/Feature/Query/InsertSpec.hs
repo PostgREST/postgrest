@@ -498,7 +498,7 @@ spec actualPgVersion = do
           [json|[ { "k":"圍棋", "extra":"￥" } ]|]
           { matchStatus = 201 }
 
-        let Just location = lookup hLocation $ simpleHeaders p
+        Just location <- pure $ lookup hLocation $ simpleHeaders p
         get location
           `shouldRespondWith`
             [json|[ { "k":"圍棋", "extra":"￥" } ]|]

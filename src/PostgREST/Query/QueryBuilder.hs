@@ -28,7 +28,9 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
 import PostgREST.Request.Preferences      (PreferResolution (..))
 
 import PostgREST.Query.SqlFragment
-import PostgREST.RangeQuery        (allRange)
+import PostgREST.RangeQuery          (allRange)
+import PostgREST.Request.MutateQuery
+import PostgREST.Request.ReadQuery
 import PostgREST.Request.Types
 
 import Protolude
