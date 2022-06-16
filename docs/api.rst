@@ -1724,10 +1724,10 @@ Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
 .. _upsert:
 
-UPSERT
+Upsert
 ======
 
-You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
+You can make an upsert with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
 
 .. tabs::
 
@@ -1755,17 +1755,17 @@ You can make an UPSERT with :code:`POST` and the :code:`Prefer: resolution=merge
       ]
     EOF
 
-By default, UPSERT operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
+By default, upsert operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
 
 .. important::
-  After creating a table or changing its primary key, you must refresh PostgREST schema cache for UPSERT to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
+  After creating a table or changing its primary key, you must refresh PostgREST schema cache for upsert to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
 
 .. _on_conflict:
 
 On Conflict
 -----------
 
-By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a column(s) that has a UNIQUE constraint.
+By specifying the ``on_conflict`` query parameter, you can make upsert work on a column(s) that has a UNIQUE constraint.
 
 .. tabs::
 
@@ -1798,7 +1798,7 @@ By specifying the ``on_conflict`` query parameter, you can make UPSERT work on a
 PUT
 ---
 
-A single row UPSERT can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
+A single row upsert can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
 .. tabs::
 
@@ -2385,7 +2385,7 @@ You can call overloaded functions with different number of arguments.
 Response Formats For Scalar Responses
 =====================================
 
-For scalar return values such as 
+For scalar return values such as
 
 * single-column selects on tables or
 * scalar functions,
