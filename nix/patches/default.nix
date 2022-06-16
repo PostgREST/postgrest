@@ -17,9 +17,4 @@
           patch -d "$out" -p1 < "$patch"
         done
       '';
-
-  static-haskell-nix-ncurses =
-    ./static-haskell-nix-ncurses.patch;
-  static-haskell-nix-ghc-bignum =
-    ./static-haskell-nix-ghc-bignum.patch;
 }

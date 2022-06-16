@@ -33,15 +33,6 @@ postgrest-nixpkgs-upgrade
 
 ```
 
-## Update pinned version of `static-haskell-nix`
-
-We pin [`static-haskell-nix`](https://github.com/nh2/static-haskell-nix) in
-[`nix/static-haskell-package.nix`](static-haskell-package.nix). Upgrade the
-pinned revision and the tarball hash if necessary. See
-[`nix/nixpkgs-upgrade.nix`](nixpkgs-upgrade.nix) for how to get the correct
-tarball hash, or just change the hash to an arbitrary value of correct length,
-run `nix-build` and use the expected value from the resulting error message.
-
 ## Review overlays
 
 Check whether the individual [overlays](overlays) are still required.
