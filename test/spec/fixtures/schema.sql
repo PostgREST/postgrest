@@ -2639,7 +2639,8 @@ CREATE OR REPLACE VIEW test.view_test AS
 
 CREATE TABLE test.bulk_update_items (
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
 CREATE TABLE test.bulk_update_items_cpk (

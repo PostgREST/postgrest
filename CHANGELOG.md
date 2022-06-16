@@ -46,7 +46,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2277, #2238, #1643, Prevent views from breaking one-to-many/many-to-one embeds when using column or FK as target - @steve-chavez
     + When using a column or FK as target for embedding(`/tbl?select=*,col-or-fk(*)`), only tables are now detected and views are not.
     + You can still use a column or an inferred FK on a view to embed a table(`/view?select=*,col-or-fk(*)`)
- - #1959, An accidental full table PATCH(without filters) is not possible anymore, it requires filters or a `limit` parameter - @steve-chavez
+ - #1959, An accidental full table PATCH(without filters) is not possible anymore, it requires filters or a `limit` parameter - @steve-chavez, @laurenceisla
  - #2317, Increase the `db-pool-timeout` to 1 hour to prevent frequent high connection latency - @steve-chavez
 
 ### Changed
