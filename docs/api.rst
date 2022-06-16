@@ -1716,11 +1716,9 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
       -X PATCH -H "Content-Type: application/json" \
       -d '{ "category": "child" }'
 
+Doing a full table update without filters is not allowed and will result in 0 updated rows. To make a an update without filters, you must limit the rows affected. See :ref:`limited_update_delete`.
+
 Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. warning::
-
-  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
 .. _upsert:
 
