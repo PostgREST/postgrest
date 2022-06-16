@@ -1720,6 +1720,39 @@ Doing a full table update without filters is not allowed and will result in 0 up
 
 Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
 
+.. _bulk_update:
+
+Bulk Update
+-----------
+
+You can update rows with different data by providing a JSON array of objects having uniform keys, the rows will be chosen based on the primary key column(s) values.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    PATCH /employees HTTP/1.1
+
+    [
+      { "id": 1, "name": "Renamed employee 1", "salary": 40000 },
+      { "id": 2, "name": "Renamed employee 2", "salary": 52000 },
+      { "id": 3, "name": "Renamed employee 3", "salary": 60000 }
+    ]
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/employees" \
+      -X PATCH -H "Content-Type: application/json" \
+      -d @- << EOF
+    [
+      { "id": 1, "name": "Renamed employee 1", "salary": 40000 },
+      { "id": 2, "name": "Renamed employee 2", "salary": 52000 },
+      { "id": 3, "name": "Renamed employee 3", "salary": 60000 }
+    ]
+    EOF
+
+You must not include any filters for this to work. If you provide filters, only the values of the first object in the array will be used for the update.
+
 .. _upsert:
 
 Upsert
