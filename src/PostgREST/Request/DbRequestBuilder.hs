@@ -316,14 +316,14 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
-    MutationUpdate -> Right $ Update qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
+    MutationUpdate -> Right $ Update qi iColumns body combinedLogic pkCols iTopLevelRange rootOrder returnings
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
            not (null (S.fromList pkCols)) &&
            all (\case
               Filter _ (OpExpr False (Op OpEqual _)) -> True
-              _                                      -> False) filters
+              _                                      -> False) qsFiltersRoot
           then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
           Left InvalidFilters
@@ -336,11 +336,9 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
       if iPreferRepresentation == None
         then []
         else returningCols readReq pkCols
-    -- update/delete filters can be only on the root table
-    filters = map snd qsFiltersRoot
     logic = map snd qsLogic
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
-    combinedLogic = foldr addFilterToLogicForest logic filters
+    combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
 
 callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest

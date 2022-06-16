@@ -186,6 +186,8 @@ GRANT ALL ON TABLE
     , series_popularity
     , test
     , view_test
+    , bulk_update_items
+    , bulk_update_items_cpk
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

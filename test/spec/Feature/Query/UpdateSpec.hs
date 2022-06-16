@@ -388,6 +388,17 @@ spec = do
           }
 
   context "limited update" $ do
+    it "does not work when no limit query or filter is given" $
+      request methodPatch "/limited_update_items"
+          [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+          [json| {"name": "updated-item"} |]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 404
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "*/0" ]
+          }
+
     it "works with the limit query param" $ do
       get "/limited_update_items"
         `shouldRespondWith`
@@ -398,12 +409,13 @@ spec = do
           ]|]
 
       request methodPatch "/limited_update_items?order=id&limit=2"
-          [("Prefer", "tx=commit")]
+          [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
           ""
           { matchStatus  = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/2"
                            , "Preference-Applied" <:> "tx=commit" ]
           }
 
@@ -415,7 +427,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -448,7 +460,7 @@ spec = do
           , { "id": 3, "name": "updated-item" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -481,7 +493,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items"} |]
         `shouldRespondWith` ""
@@ -540,7 +552,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_view"} |]
         `shouldRespondWith` ""
@@ -573,7 +585,7 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_cpk_view"} |]
         `shouldRespondWith` ""
@@ -607,8 +619,186 @@ spec = do
           , { "id": 3, "name": "item-3" }
           ]|]
 
-      request methodPost "/rpc/reset_limited_items"
+      request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "limited_update_items_no_pk"} |]
         `shouldRespondWith` ""
         { matchStatus  = 204 }
+
+  context "bulk updates" $ do
+    it "can update tables with simple pk" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "can update tables with composite pk" $ do
+      get "/bulk_update_items_cpk"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items_cpk"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items_cpk?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": null  }
+          , { "id": 3, "name": "item-3", "observation": null  }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items_cpk"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates with filters taking only the first item in the json array body" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?id=eq.2"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 4, "name": "item-4", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-0/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          , { "id": 4, "name": "item-4", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates with limit and offset taking only the first item in the json array body" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?limit=2&offset=1&order=id"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-4", "observation": "Damaged item" }
+          , { "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-4", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-4", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "rejects a json array that isn't exclusively composed of objects" $
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "Item 1" }
+          , 2
+          , "Item 2"
+          , { "id": 3, "name": "Item 3" }
+          ]|]
+        `shouldRespondWith`
+          [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    it "rejects a json array that has objects with different keys" $
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "Item 1" }
+          , { "id": 2 }
+          , { "id": 3, "name": "Item 3" }
+          ]|]
+        `shouldRespondWith`
+          [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }

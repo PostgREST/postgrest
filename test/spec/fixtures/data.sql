@@ -778,3 +778,9 @@ INSERT INTO private.internal_job (id, parent_id) VALUES (2, 1);
 
 TRUNCATE TABLE test.test CASCADE;
 INSERT INTO test.test (id, parent_id) VALUES (1, null), (2, 1);
+
+TRUNCATE TABLE test.bulk_update_items CASCADE;
+INSERT INTO test.bulk_update_items (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+
+TRUNCATE TABLE test.bulk_update_items_cpk CASCADE;
+INSERT INTO test.bulk_update_items_cpk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);

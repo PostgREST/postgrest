@@ -2528,7 +2528,7 @@ select *, 'static'::text as static from limited_delete_items;
 create view limited_delete_items_cpk_view as
 select * from limited_delete_items_cpk;
 
-create function reset_limited_items(tbl_name text default '') returns void as $_$ begin
+create function reset_items_tables(tbl_name text default '') returns void as $_$ begin
   execute format(
   $$
     delete from %I;
@@ -2634,3 +2634,18 @@ CREATE TABLE test.test (
 
 CREATE OR REPLACE VIEW test.view_test AS
   SELECT id FROM test.test;
+
+-- Tables to test bulk updates
+
+CREATE TABLE test.bulk_update_items (
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT
+);
+
+CREATE TABLE test.bulk_update_items_cpk (
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
+);

@@ -143,7 +143,7 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
 
-        request methodPost "/rpc/reset_limited_items"
+        request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
           [json| {"tbl_name": "limited_delete_items"} |]
           `shouldRespondWith` ""
@@ -175,7 +175,7 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
 
-        request methodPost "/rpc/reset_limited_items"
+        request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
           [json| {"tbl_name": "limited_delete_items"} |]
           `shouldRespondWith` ""
@@ -233,7 +233,7 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
 
-        request methodPost "/rpc/reset_limited_items"
+        request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
           [json| {"tbl_name": "limited_delete_items_view"} |]
           `shouldRespondWith` ""
@@ -265,7 +265,7 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
 
-        request methodPost "/rpc/reset_limited_items"
+        request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
           [json| {"tbl_name": "limited_delete_items_cpk_view"} |]
           `shouldRespondWith` ""
@@ -297,7 +297,7 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
 
-        request methodPost "/rpc/reset_limited_items"
+        request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
           [json| {"tbl_name": "limited_delete_items_no_pk"} |]
           `shouldRespondWith` ""
