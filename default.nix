@@ -64,6 +64,12 @@ let
     pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
   # only actually works on Linux
+  staticPkgs = pkgs.pkgsStatic.extend (final: previous: {
+    postgresql = previous.postgresql.overrideAttrs (old: {
+      doCheck = false;
+    });
+  });
+
   staticHaskellPackages =
     staticPkgs.haskell.packages."${compiler}";
 
