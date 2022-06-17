@@ -28,6 +28,8 @@ let
       ''
         # clean old coverage data, too
         rm -rf .hpc coverage
+        # clean old hie files
+        find . -name "*.hie" -type f -delete
         exec ${cabal-install}/bin/cabal v2-clean
       '';
 
