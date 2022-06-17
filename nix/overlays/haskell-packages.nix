@@ -89,6 +89,15 @@ let
           }
           { });
 
+      bytestring-strict-builder =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "bytestring-strict-builder";
+            ver = "0.4.5.6";
+            sha256 = "sha256-NxDR5z+SMJ6d+w3xVnP6nKJ+FHa50vop/vCCnJmnbw4\=";
+          }
+          { });
+
     } // extraOverrides final prev;
 in
 {
