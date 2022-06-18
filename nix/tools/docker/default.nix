@@ -14,11 +14,6 @@ let
       # non-reproducible, but that should not be an issue for us.
       created = "now";
 
-      extraCommands =
-        ''
-          rmdir share
-        '';
-
       config = {
         Cmd = [ "/bin/postgrest" ];
         User = "1000";
