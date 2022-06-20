@@ -154,8 +154,8 @@ $ postgrest-run test/io/configs/simple.conf
 
 ## Testing
 
-In nix-shell, you'll find utility scripts that make it very easy to run the
-Haskell test suite, including setting up all required dependencies and
+In nix-shell, you'll find utility scripts that make it very easy to run our
+test suite, including setting up all required dependencies and
 temporary test databases:
 
 ```bash
@@ -182,7 +182,55 @@ postgrest-test-io -k config
 # Run tests in parallel using xdist, specifying the number of processes:
 postgrest-test-io -n auto
 postgrest-test-io -n 8
+```
 
+The memory tests check that we don't surpass a memory threshold for big request bodies.
+
+```bash
+# Build the dependencies needed for the memory test
+nix-shell --arg memory true
+
+# Run the memory test
+postgrest-test-memory
+```
+
+The loadtests ensure that performance doesn't drop on a change. Underlyingly they use
+[vegeta](https://github.com/tsenart/vegeta).
+
+```bash
+# Run the loadtests on the latest commit(HEAD)
+postgrest-loadtest
+
+# You can loadtest comparing to a different branch
+postgrest-loadtest-against master
+
+# Produce a markdown report to be used on CI
+postgrest-loadtest-report
+```
+
+Our query cost tests ensure that our generated queries don't surpass a threshold EXPLAIN cost.
+
+```bash
+postgrest-test-querycost
+```
+
+doctests for some of our modules are also available:
+
+```bash
+postgrest-test-doctest
+```
+
+## Code coverage
+
+Code coverage is available under the `postgrest-coverage` command. This will produce a `./coverage` directory that can be visualized with a simple http server.
+
+```bash
+# Will run all the tests and produce a coverage dir
+postgrest-coverage
+
+# Visualize the output
+cd coverage
+python -mSimpleHTTPServer 8080
 ```
 
 ## Linting and styling code
