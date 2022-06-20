@@ -3,11 +3,16 @@
 Error Source
 ============
 
-For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/plpgsql-errors-and-messages.html>`_, PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON format and add an HTTP status code to the response (see :ref:`status_codes`). For instance, this is the error you will get when querying a nonexistent table:
+For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/error-style-guide.html>`_. PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON format and add an HTTP status code to the response (see :ref:`status_codes`). For instance, this is the error you will get when querying a nonexistent table:
 
 .. code-block:: http
 
   GET /nonexistent_table?id=eq.1 HTTP/1.1
+
+.. code-block:: http
+
+  HTTP/1.1 404 Not Found
+  Content-Type: application/json; charset=utf-8
 
 .. code-block:: json
 
@@ -18,11 +23,16 @@ For the most part, error messages will come directly from the database with the 
     "message": "relation \"api.nonexistent_table\" does not exist"
   }
 
-However, some errors do come from PostgREST itself (such as those related to the :ref:`schema_cache`). These have the same structure as the PostgreSQL errors (message, details, hint and code) but are differentiated by the ``PGRST`` prefix in the ``code`` field (see :ref:`pgrst_errors`). For instance, when querying a function that does not exist, the error will be:
+However, some errors do come from PostgREST itself (such as those related to the :ref:`schema_cache`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field (see :ref:`pgrst_errors`). For instance, when querying a function that does not exist, the error will be:
 
 .. code-block:: http
 
   POST /rpc/nonexistent_function HTTP/1.1
+
+.. code-block:: http
+
+  HTTP/1.1 404 Not Found
+  Content-Type: application/json; charset=utf-8
 
 .. code-block:: json
 
@@ -149,11 +159,11 @@ Related to the HTTP request elements.
 |               | verbs are allowed. Any other verb will throw this error.    |
 | PGRST101      |                                                             |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst102: | Related to the request body structure.                      |
-|               | See :ref:`insert` and :ref:`update`.                        |
+| .. _pgrst102: | An invalid request body was sent(e.g. an empty body or      |
+|               | malformed JSON).                                            |
 | PGRST102      |                                                             |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst103: | Related to :ref:`limits`.                                   |
+| .. _pgrst103: | An invalid range was specified for :ref:`limits`.           |
 |               |                                                             |
 | PGRST103      |                                                             |
 +---------------+-------------------------------------------------------------+
@@ -161,7 +171,7 @@ Related to the HTTP request elements.
 |               | or it doesn't exist.                                        |
 | PGRST104      |                                                             |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst105: | Related to an :ref:`UPSERT using PUT <upsert_put>`.         |
+| .. _pgrst105: | An invalid :ref:`PUT <upsert_put>` request was done         |
 |               |                                                             |
 | PGRST105      |                                                             |
 +---------------+-------------------------------------------------------------+
@@ -185,17 +195,17 @@ Related to the HTTP request elements.
 |               | modifies more rows than the maximum specified in the limit. |
 | PGRST110      | See :ref:`limited_update_delete`.                           |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst111: | Related to :ref:`guc_resp_hdrs`.                            |
-|               |                                                             |
+| .. _pgrst111: | An invalid ``response.headers`` was set.                    |
+|               | See :ref:`guc_resp_hdrs`.                                   |
 | PGRST111      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst112: | The status code must be a positive integer.                 |
 |               | See :ref:`guc_resp_status`.                                 |
 | PGRST112      |                                                             |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst113: | Related to :ref:`scalar_return_formats`.                    |
-|               | See :ref:`providing_img` for an example on requesting       |
-|               | images.                                                     |
+| .. _pgrst113: | More than one column was returned for a scalar result.      |
+|               | See :ref:`scalar_return_formats`.                           |
+|               |                                                             |
 | PGRST113      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst114: | For an :ref:`UPSERT using PUT <upsert_put>`, when           |
@@ -229,8 +239,8 @@ Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these e
 |               | the embedding resources or the relationship itself may not  |
 | PGRST200      | exist in the database.                                      |
 +---------------+-------------------------------------------------------------+
-| .. _pgrst201: | Related to :ref:`embed_disamb`.                             |
-|               |                                                             |
+| .. _pgrst201: | An ambiguous embedding request was made.                    |
+|               | See :ref:`embed_disamb`.                                    |
 | PGRST201      |                                                             |
 +---------------+-------------------------------------------------------------+
 | .. _pgrst202: | Caused by a :ref:`stale_function_signature`, otherwise      |
@@ -274,12 +284,12 @@ Related to the authentication process using JWT. You can follow the :ref:`tut1` 
 Group X - Internal
 ------------------
 
-Internal errors mostly related to `the library <https://hackage.haskell.org/package/hasql>`_ that PostgREST uses to connect to the database. If you encounter any of these errors, you may have stumbled on a PostgREST bug, please `open an issue <https://github.com/PostgREST/postgrest/issues>`_ and we'll be glad to fix it.
+Internal errors. If you encounter any of these, you may have stumbled on a PostgREST bug, please `open an issue <https://github.com/PostgREST/postgrest/issues>`_ and we'll be glad to fix it.
 
 +---------------+-------------------------------------------------------------+
 | Code          | Description                                                 |
 +===============+=============================================================+
-| .. _pgrstX00: | Internal errors related to the library that connects to the |
-|               | database.                                                   |
+| .. _pgrstX00: | Internal errors related to the library used for connecting  |
+|               | to the database.                                            |
 | PGRSTX00      |                                                             |
 +---------------+-------------------------------------------------------------+
