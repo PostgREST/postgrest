@@ -638,23 +638,28 @@ Say you want to add areas in polygon format. The request using string representa
       ]
     EOF
 
-Now, when you request the information, PostgREST will automatically cast the ``area`` column to ``JSON`` format. Although this output is useful, you will want to use the PostGIS functions to have more control on filters or casts. For these cases, creating a ``view`` is your best option. For example, let's use some of the functions to get the data in `GeoJSON format <https://geojson.org/>`_ and to calculate the area in square units:
+Now, when you request the information, PostgREST will automatically cast the ``area`` column to ``JSON`` format. Although this output is useful, you will want to use the PostGIS functions to have more control on filters or casts. For these cases, creating a ``function`` is your best option. For example, let's use some of the functions to get the data in `GeoJSON format <https://geojson.org/>`_ and to calculate the area in square units:
 
 .. code-block:: postgres
 
-  create or replace view coverage_geo as
-  select name,
-         -- Get the Geometry Object
-         st_AsGeoJSON(c.area)::json as geo_geometry,
-         -- Get the Feature Object
-         st_AsGeoJSON(c.*)::json as geo_feature,
-         -- Calculate the area in square units
-         st_area(c.area) as square_units
-  from coverage c;
+  create or replace function coverage_geo(filter text) returns json as $$
+    select
+      json_build_object(
+          'name', c.name,
+        -- Get the Geometry Object
+          'geo_geometry', st_AsGeoJSON(c.area)::json,
+        -- Get the Feature Object
+          'geo_feature', st_AsGeoJSON(c.*)::json,
+        -- Calculate the area in square units
+          'square_units', st_area(c.area)
+        )
+    from coverage c
+    where c.name = filter;
+  $$ language sql;
 
-  -- Create another view for the FeatureCollection Object
+  -- Create another function for the FeatureCollection Object
   -- for the sake of making the examples clearer
-  create or replace view coverage_geo_collection as
+  create or replace function coverage_geo_collection() returns json as $$
     select
       json_build_object(
           'type', 'FeatureCollection',
@@ -662,6 +667,7 @@ Now, when you request the information, PostgREST will automatically cast the ``a
         )
         as geo_feature_collection
     from coverage c;
+  $$ language sql;
 
 Now the query will return the information as you expected:
 
@@ -669,39 +675,37 @@ Now the query will return the information as you expected:
 
   .. code-tab:: http
 
-    GET /coverage_geo?name=eq.big HTTP/1.1
+    GET /rpc/coverage_geo?filter=big HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/coverage_geo?name=eq.big"
+    curl "http://localhost:3000/rpc/coverage_geo?filter=big"
 
 .. code-block:: json
 
-  [
-    {
-      "name": "big",
-      "geo_geometry": {
+  {
+    "name": "big",
+    "geo_geometry": {
+      "type": "Polygon",
+      "coordinates": [
+        [[0,0],[10,0],[10,10],[0,10],[0,0]]
+      ]
+    },
+    "geo_feature": {
+      "type": "Feature",
+      "geometry": {
         "type": "Polygon",
         "coordinates": [
           [[0,0],[10,0],[10,10],[0,10],[0,0]]
         ]
       },
-      "geo_feature": {
-        "type": "Feature",
-        "geometry": {
-          "type": "Polygon",
-          "coordinates": [
-            [[0,0],[10,0],[10,10],[0,10],[0,0]]
-          ]
-        },
-        "properties": {
-          "id": 2,
-          "name": "big"
-        }
-      },
-      "square_units": 100
-    }
-  ]
+      "properties": {
+        "id": 2,
+        "name": "big"
+      }
+    },
+    "square_units": 100
+  }
 
 And for the Feature Collection format:
 
@@ -709,46 +713,44 @@ And for the Feature Collection format:
 
   .. code-tab:: http
 
-    GET /coverage_geo_collection HTTP/1.1
+    GET /rpc/coverage_geo_collection HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/coverage_geo_collection"
+    curl "http://localhost:3000/rpc/coverage_geo_collection"
 
 .. code-block:: json
 
-  [
-    {
-      "geo_feature_collection": {
-        "type": "FeatureCollection",
-        "features": [
-          {
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                  [[0,0],[1,0],[1,1],[0,1],[0,0]]
-                ]
-            },
-            "properties": {
-              "id": 1,
-              "name": "small"
-            }
+  {
+    "geo_feature_collection": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [[0,0],[1,0],[1,1],[0,1],[0,0]]
+              ]
           },
-          {
-            "type": "Feature",
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [
-                  [[0,0],[10,0],[10,10],[0,10],[0,0]]
-                ]
-            },
-            "properties": {
-              "id": 2,
-              "name": "big"
-            }
+          "properties": {
+            "id": 1,
+            "name": "small"
           }
-        ]
-      }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+              "type": "Polygon",
+              "coordinates": [
+                [[0,0],[10,0],[10,10],[0,10],[0,0]]
+              ]
+          },
+          "properties": {
+            "id": 2,
+            "name": "big"
+          }
+        }
+      ]
     }
-  ]
+  }
