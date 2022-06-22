@@ -58,5 +58,10 @@ spec = describe "extra search path" $ do
       `shouldRespondWith` [json|true|]
       { matchHeaders = [matchContentTypeJson] }
 
+  it "finds a function on a schema with uppercase and special characters in its name" $
+    request methodGet "/rpc/special_extended_schema?val=value" [] ""
+      `shouldRespondWith` [json|"value"|]
+      { matchHeaders = [matchContentTypeJson] }
+
   it "can detect fk relations through multiple views recursively when middle views are in extra search path" $
     get "/consumers_extra_view?select=*,orders_view(*)" `shouldRespondWith` 200

@@ -20,6 +20,8 @@ CREATE SCHEMA تست;
 CREATE SCHEMA extensions;
 CREATE SCHEMA v1;
 CREATE SCHEMA v2;
+CREATE SCHEMA "SPECIAL @/\#~_-";
+CREATE SCHEMA "EXTRA @/\#~_-";
 
 COMMENT ON SCHEMA v1 IS 'v1 schema';
 COMMENT ON SCHEMA v2 IS 'v2 schema';
@@ -2669,3 +2671,16 @@ create table shop_bles (
 create function get_shop(id int) returns shops as $$
   select * from shops where id = $1;
 $$ language sql;
+
+CREATE TABLE "SPECIAL @/\#~_-".names(
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE FUNCTION "EXTRA @/\#~_-".get_val_special(val text) RETURNS text AS $$
+  SELECT val;
+$$ LANGUAGE sql;
+
+CREATE FUNCTION test.special_extended_schema(val text) RETURNS text AS $$
+  SELECT get_val_special(val);
+$$ LANGUAGE sql;

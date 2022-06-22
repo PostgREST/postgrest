@@ -645,7 +645,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
     with run(configfile, env=defaultenv) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"public, public"'
+        assert response.text == '"\\"public\\", \\"public\\""'
 
         # change setting
         configfile.write_text(
@@ -663,7 +663,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
         time.sleep(1)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"v1, public"'
+        assert response.text == '"\\"v1\\", \\"public\\""'
 
 
 def test_db_schema_notify_reload(defaultenv):
@@ -673,7 +673,7 @@ def test_db_schema_notify_reload(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"public, public"'
+        assert response.text == '"\\"public\\", \\"public\\""'
 
         # change db-schemas config on the db and reload config and cache with notify
         postgrest.session.post(
@@ -683,7 +683,7 @@ def test_db_schema_notify_reload(defaultenv):
         time.sleep(0.1)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
-        assert response.text == '"v1, public"'
+        assert response.text == '"\\"v1\\", \\"public\\""'
 
         # reset db-schemas config on the db
         response = postgrest.session.post("/rpc/reset_db_schema_config")

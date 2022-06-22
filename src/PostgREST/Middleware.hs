@@ -64,7 +64,7 @@ runPgLocals conf claims role app req jsonDbS actualPgVersion = do
     roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
     searchPathSql =
-      let schemas = T.intercalate ", " (iSchema req : configDbExtraSearchPath conf) in
+      let schemas = "\"" <> T.intercalate "\", \"" (iSchema req : configDbExtraSearchPath conf) <> "\"" in
       setConfigLocal mempty ("search_path", toUtf8 schemas)
     preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
     specSql = case iTarget req of
