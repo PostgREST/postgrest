@@ -150,8 +150,6 @@ jobs:
             cache: |
               ~/.stack
               .stack-work
-            test: true
-            pgdir: /usr/lib/postgresql
             artifact: postgrest-ubuntu-x64
 
           - name: MacOS & test
@@ -159,8 +157,6 @@ jobs:
             cache: |
               ~/.stack
               .stack-work
-            test: true
-            pgdir: /usr/local/Cellar/postgresql
             artifact: postgrest-macos-x64
 
           - name: Windows
@@ -170,8 +166,6 @@ jobs:
               ~\AppData\Local\Programs\stack
               .stack-work
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
-            # We'd need to make test/with_tmp_db run on Windows first
-            # test: true
             artifact: postgrest-windows-x64
 
     name: Build ${{ matrix.name }} (Stack)
@@ -188,12 +182,6 @@ jobs:
         run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
-      - name: Run Spec tests with Stack
-        if: ${{ matrix.test }}
-        run: |
-          postgresql_bin="$(find ${{ matrix.pgdir }} -maxdepth 2 -type d -name bin | head -n 1)"
-          echo "Using PostgreSQL binaries at $postgresql_bin ..."
-          PATH="$postgresql_bin:$PATH" test/with_tmp_db stack test
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v3
         with:
