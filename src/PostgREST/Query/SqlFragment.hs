@@ -24,6 +24,7 @@ module PostgREST.Query.SqlFragment
   , orderF
   , pgFmtColumn
   , pgFmtIdent
+  , pgFmtIdentList
   , pgFmtJoinCondition
   , pgFmtLogicTree
   , pgFmtOrderTerm
@@ -32,7 +33,6 @@ module PostgREST.Query.SqlFragment
   , responseStatusF
   , returningF
   , selectBody
-  , pgFmtIdentList
   , singleParameter
   , sourceCTEName
   , unknownEncoder
