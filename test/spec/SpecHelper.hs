@@ -170,7 +170,7 @@ testNonexistentSchemaCfg :: AppConfig
 testNonexistentSchemaCfg = baseCfg { configDbSchemas = fromList ["nonexistent"] }
 
 testCfgExtraSearchPath :: AppConfig
-testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensions"] }
+testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }
 
 testCfgRootSpec :: AppConfig
 testCfgRootSpec = baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
@@ -182,7 +182,7 @@ testCfgResponseHeaders :: AppConfig
 testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }
 
 testMultipleSchemaCfg :: AppConfig
-testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2"] }
+testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2", "SPECIAL \"@/\\#~_-"] }
 
 testCfgLegacyGucs :: AppConfig
 testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
