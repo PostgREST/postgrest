@@ -69,8 +69,7 @@ let
         echo "Linting bash scripts..."
         ${shellcheck}/bin/shellcheck \
           .github/get_cirrusci_freebsd \
-          .github/release \
-          test/with_tmp_db
+          .github/release
 
         echo "Linting workflows..."
         ${actionlint}/bin/actionlint
