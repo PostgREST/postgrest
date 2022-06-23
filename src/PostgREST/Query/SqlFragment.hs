@@ -157,6 +157,11 @@ pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
+-- |
+-- Format a list of identifiers and separate them by commas.
+--
+-- >>> pgFmtIdentList ["schema_1", "schema_2", "SPECIAL \"@/\\#~_-"]
+-- "\"schema_1\", \"schema_2\", \"SPECIAL \"\"@/\\#~_-\""
 pgFmtIdentList :: [Text] -> SqlFragment
 pgFmtIdentList schemas = BS.intercalate ", " $ pgFmtIdent <$> schemas
 

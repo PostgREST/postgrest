@@ -12,6 +12,7 @@ main =
     , "-XNoImplicitPrelude"
     , "-XStandaloneDeriving"
     , "-isrc"
+    , "src/PostgREST/Query/SqlFragment.hs"
     , "src/PostgREST/Request/Preferences.hs"
     , "src/PostgREST/Request/QueryParams.hs"
     ]
