@@ -14,7 +14,6 @@ import qualified Data.Aeson.Key                    as K
 import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
-import qualified Data.Text                         as T
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
@@ -32,7 +31,7 @@ import PostgREST.Config.PgVersion   (PgVersion (..), pgVersion140)
 import PostgREST.Error              (Error, errorResponseFor)
 import PostgREST.GucHeader          (addHeadersIfNotIncluded)
 import PostgREST.Query.SqlFragment  (fromQi, intercalateSnippet,
-                                     unknownEncoder)
+                                     pgFmtIdentList, unknownEncoder)
 import PostgREST.Request.ApiRequest (ApiRequest (..), Target (..))
 
 import PostgREST.Request.Preferences
@@ -64,8 +63,8 @@ runPgLocals conf claims role app req jsonDbS actualPgVersion = do
     roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
     searchPathSql =
-      let schemas = "\"" <> T.intercalate "\", \"" (iSchema req : configDbExtraSearchPath conf) <> "\"" in
-      setConfigLocal mempty ("search_path", toUtf8 schemas)
+      let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath conf) in
+      setConfigLocal mempty ("search_path", schemas)
     preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
     specSql = case iTarget req of
       TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]

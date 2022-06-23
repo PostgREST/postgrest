@@ -796,5 +796,5 @@ INSERT INTO shop_bles(id, name, coords, shop_id, range_area) VALUES(1, 'Beacon-1
 INSERT INTO shop_bles(id, name, coords, shop_id, range_area) VALUES(2, 'Beacon-2', 'SRID=4326;POINT(-71.10044 42.373695)', 1,
   extensions.ST_GeomFromGeoJSON('{"type": "Polygon", "coordinates": [ [ [ -71.10034391283989, 42.37385299961788 ], [ -71.10036939382553, 42.373756895982865 ], [ -71.1002916097641, 42.373745997623224 ], [ -71.1002641171217, 42.37384408279195 ], [ -71.10034391283989, 42.37385299961788 ] ] ]}'));
 
-TRUNCATE TABLE "SPECIAL @/\#~_-".names CASCADE;
-INSERT INTO "SPECIAL @/\#~_-".names (id, name) VALUES (1, 'John'), (2, 'Mary');
+TRUNCATE TABLE "SPECIAL ""@/\#~_-".names CASCADE;
+INSERT INTO "SPECIAL ""@/\#~_-".names (id, name) VALUES (1, 'John'), (2, 'Mary');

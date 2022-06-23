@@ -68,20 +68,20 @@ spec =
 
       it "fails trying to read table from unkown schema" $
         request methodGet "/parents" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL @/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }
 
       it "succeeds in reading a table from a schema with uppercase and special characters in its name" $
-        request methodGet "/names" [("Accept-Profile", "SPECIAL @/\\#~_-")] "" `shouldRespondWith`
+        request methodGet "/names" [("Accept-Profile", "SPECIAL \"@/\\#~_-")] "" `shouldRespondWith`
           [json|[
             {"id":1,"name":"John"},
             {"id":2,"name":"Mary"}
           ]|]
           {
             matchStatus = 200
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL @/\\#~_-"]
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
           }
 
     context "Inserting tables on different schemas" $ do
@@ -122,7 +122,7 @@ spec =
         request methodPost "/children" [("Content-Profile", "unknown")]
           [json|{"name": "child 4", "parent_id": 4}|]
           `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL @/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }
@@ -336,7 +336,7 @@ spec =
 
       it "fails trying to read definitions from unkown schema" $
         request methodGet "/" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL @/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
           {
             matchStatus = 406
           }

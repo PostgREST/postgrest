@@ -32,6 +32,7 @@ module PostgREST.Query.SqlFragment
   , responseStatusF
   , returningF
   , selectBody
+  , pgFmtIdentList
   , singleParameter
   , sourceCTEName
   , unknownEncoder
@@ -155,6 +156,9 @@ pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "
 
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
+
+pgFmtIdentList :: [Text] -> SqlFragment
+pgFmtIdentList schemas = BS.intercalate ", " $ pgFmtIdent <$> schemas
 
 asCsvF :: SqlFragment
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF

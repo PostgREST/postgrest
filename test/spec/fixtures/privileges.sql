@@ -8,8 +8,8 @@ GRANT USAGE ON SCHEMA
     , extensions
     , v1
     , v2
-    , "SPECIAL @/\#~_-"
-    , "EXTRA @/\#~_-"
+    , "SPECIAL ""@/\#~_-"
+    , "EXTRA ""@/\#~_-"
 TO postgrest_test_anonymous;
 
 -- Schema test objects
@@ -192,7 +192,7 @@ GRANT ALL ON TABLE
     , bulk_update_items_cpk
     , shops
     , shop_bles
-    , "SPECIAL @/\#~_-".names
+    , "SPECIAL ""@/\#~_-".names
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
