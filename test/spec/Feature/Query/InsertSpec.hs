@@ -436,6 +436,37 @@ spec actualPgVersion = do
           , matchHeaders = []
           }
 
+    context "with unicode values" $ do
+      it "succeeds and returns full representation" $
+        request methodPost "/simple_pk2?select=extra,k"
+            [("Prefer", "return=representation")]
+            [json| { "k":"圍棋", "extra":"￥" } |]
+        `shouldRespondWith`
+          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+          { matchStatus = 201 }
+
+      it "succeeds and returns usable location header" $ do
+        p <- request methodPost "/simple_pk2?select=extra,k"
+            [("Prefer", "tx=commit"), ("Prefer", "return=headers-only")]
+            [json| { "k":"圍棋", "extra":"￥" } |]
+        pure p `shouldRespondWith`
+          ""
+          { matchStatus = 201 }
+
+        Just location <- pure $ lookup hLocation $ simpleHeaders p
+        get location
+          `shouldRespondWith`
+            [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+
+        request methodDelete location
+            [("Prefer", "tx=commit")]
+            ""
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
+
   describe "CSV insert" $ do
     context "disparate csv types" $
       it "succeeds with multipart response" $ do
@@ -488,37 +519,6 @@ spec actualPgVersion = do
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
-
-    context "with unicode values" $ do
-      it "succeeds and returns full representation" $
-        request methodPost "/simple_pk2?select=extra,k"
-            [("Prefer", "return=representation")]
-            [json| { "k":"圍棋", "extra":"￥" } |]
-        `shouldRespondWith`
-          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
-          { matchStatus = 201 }
-
-      it "succeeds and returns usable location header" $ do
-        p <- request methodPost "/simple_pk2?select=extra,k"
-            [("Prefer", "tx=commit"), ("Prefer", "return=headers-only")]
-            [json| { "k":"圍棋", "extra":"￥" } |]
-        pure p `shouldRespondWith`
-          ""
-          { matchStatus = 201 }
-
-        Just location <- pure $ lookup hLocation $ simpleHeaders p
-        get location
-          `shouldRespondWith`
-            [json|[ { "k":"圍棋", "extra":"￥" } ]|]
-
-        request methodDelete location
-            [("Prefer", "tx=commit")]
-            ""
-          `shouldRespondWith`
-            ""
-            { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
-            }
 
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
