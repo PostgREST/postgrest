@@ -96,7 +96,7 @@ spec actualPgVersion = do
           [json|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [json|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
-                           , "Location" <:> "/projects?id=eq.6"
+                           , matchHeaderAbsent hLocation
                            , "Content-Range" <:> "*/1" ]
           }
 
@@ -107,7 +107,7 @@ spec actualPgVersion = do
           [json|[{"pId":"7","pName":"New Project","cId":"2"}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
-                           , "Location" <:> "/projects?id=eq.7"
+                           , matchHeaderAbsent hLocation
                            , "Content-Range" <:> "*/*" ]
           }
 
@@ -117,7 +117,7 @@ spec actualPgVersion = do
           [json|[{"name":"New Project","client_id":2}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
-                           , "Location" <:> "/projects?id=eq.10"
+                           , matchHeaderAbsent hLocation
                            , "Content-Range" <:> "*/*" ]
           }
 
@@ -254,7 +254,7 @@ spec actualPgVersion = do
           `shouldRespondWith`
             [json|[ { "k1":12, "k2":"Rock & R+ll", "extra": null } ]|]
             { matchStatus  = 201
-            , matchHeaders = [ "Location" <:> "/compound_pk?k1=eq.12&k2=eq.Rock%20%26%20R%2Bll" ]
+            , matchHeaders = [ matchHeaderAbsent hLocation ]
             }
 
     context "with bulk insert" $
@@ -436,6 +436,37 @@ spec actualPgVersion = do
           , matchHeaders = []
           }
 
+    context "with unicode values" $ do
+      it "succeeds and returns full representation" $
+        request methodPost "/simple_pk2?select=extra,k"
+            [("Prefer", "return=representation")]
+            [json| { "k":"圍棋", "extra":"￥" } |]
+        `shouldRespondWith`
+          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+          { matchStatus = 201 }
+
+      it "succeeds and returns usable location header" $ do
+        p <- request methodPost "/simple_pk2?select=extra,k"
+            [("Prefer", "tx=commit"), ("Prefer", "return=headers-only")]
+            [json| { "k":"圍棋", "extra":"￥" } |]
+        pure p `shouldRespondWith`
+          ""
+          { matchStatus = 201 }
+
+        Just location <- pure $ lookup hLocation $ simpleHeaders p
+        get location
+          `shouldRespondWith`
+            [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+
+        request methodDelete location
+            [("Prefer", "tx=commit")]
+            ""
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
+
   describe "CSV insert" $ do
     context "disparate csv types" $
       it "succeeds with multipart response" $ do
@@ -489,29 +520,6 @@ spec actualPgVersion = do
         , matchHeaders = [matchContentTypeJson]
         }
 
-    context "with unicode values" $
-      it "succeeds and returns usable location header" $ do
-        p <- request methodPost "/simple_pk2?select=extra,k"
-            [("Prefer", "tx=commit"), ("Prefer", "return=representation")]
-            [json| { "k":"圍棋", "extra":"￥" } |]
-        pure p `shouldRespondWith`
-          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
-          { matchStatus = 201 }
-
-        Just location <- pure $ lookup hLocation $ simpleHeaders p
-        get location
-          `shouldRespondWith`
-            [json|[ { "k":"圍棋", "extra":"￥" } ]|]
-
-        request methodDelete location
-            [("Prefer", "tx=commit")]
-            ""
-          `shouldRespondWith`
-            ""
-            { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
-            }
-
   describe "Row level permission" $
     it "set user_id when inserting rows" $ do
       request methodPost "/authors_only"
@@ -537,7 +545,7 @@ spec actualPgVersion = do
         `shouldRespondWith`
         [json|[{"id":6,"name":"wot","parent_content":{"name":"wut"}}]|]
         { matchStatus  = 201
-        , matchHeaders = [ matchContentTypeJson , "Location" <:> "/web_content?id=eq.6" ]
+        , matchHeaders = [ matchContentTypeJson , matchHeaderAbsent hLocation ]
         }
 
   context "table with limited privileges" $ do

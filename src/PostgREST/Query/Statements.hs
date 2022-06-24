@@ -63,7 +63,7 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv asGeoJson
     "FROM (" <> selectF <> ") _postgrest_t"
 
   locF =
-    if isInsert && rep /= None
+    if isInsert && rep == HeadersOnly
       then BS.unwords [
         "CASE WHEN pg_catalog.count(_postgrest_t) = 1",
           "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
