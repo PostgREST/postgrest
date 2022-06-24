@@ -71,6 +71,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + For migrating, clients must be updated to the embedding form of `/view?select=*,other_view!column(*)`.
  - #1959, A full table PATCH(without filters) is now restricted, it requires a `limit` parameter - @steve-chavez
    + A `PATCH /tbl` will now result in 0 rows updated, unless `PATCH /tbl?limit=10&order=<pkcol>` is done
+ - #2312, Using `Prefer: return=representation` no longer returns a `Location` header - @laurenceisla
 
 ## [9.0.1] - 2022-06-03
 

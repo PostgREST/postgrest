@@ -155,7 +155,7 @@ instance ToAppliedHeader PreferResolution
 --
 -- From https://tools.ietf.org/html/rfc7240#section-4.2
 data PreferRepresentation
-  = Full        -- ^ Return the body plus the Location header(in case of POST).
+  = Full        -- ^ Return the body.
   | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
   | None        -- ^ Return nothing from the mutated data.
   deriving Eq
