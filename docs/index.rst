@@ -206,9 +206,11 @@ These are recipes that'll help you address specific use-cases.
 
    how-tos/working-with-postgresql-data-types
    how-tos/providing-images-for-img
+   how-tos/create-soap-endpoint
 
 - :doc:`how-tos/providing-images-for-img`
 - :doc:`how-tos/working-with-postgresql-data-types`
+- :doc:`how-tos/create-soap-endpoint`
 
 Ecosystem
 ---------
