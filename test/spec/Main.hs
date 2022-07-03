@@ -41,6 +41,7 @@ import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
+import qualified Feature.Query.ExplainPlanSpec
 import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
@@ -135,6 +136,7 @@ main = do
         , ("Feature.OpenApi.OpenApiSpec"           , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
         , ("Feature.OptionsSpec"                   , Feature.OptionsSpec.spec actualPgVersion)
         , ("Feature.Query.QuerySpec"               , Feature.Query.QuerySpec.spec actualPgVersion)
+        , ("Feature.Query.ExplainPlanSpec"         , Feature.Query.ExplainPlanSpec.spec actualPgVersion)
         , ("Feature.Query.RawOutputTypesSpec"      , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RpcSpec"                 , Feature.Query.RpcSpec.spec actualPgVersion)
         , ("Feature.Query.SingularSpec"            , Feature.Query.SingularSpec.spec)

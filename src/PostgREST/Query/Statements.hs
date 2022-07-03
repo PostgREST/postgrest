@@ -12,6 +12,7 @@ module PostgREST.Query.Statements
   , createReadStatement
   , callProcStatement
   , createExplainStatement
+  , ResWithCount (..)
   ) where
 
 import qualified Data.Aeson                        as JSON
@@ -88,10 +89,20 @@ createWriteStatement selectQuery mutateQuery isInsert mediaType rep pKeys =
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
+data ResWithCount
+  = Res (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
+  | Expl BS.ByteString
+
+explainSnippet :: SQL.Snippet -> SQL.Snippet
+explainSnippet otherSnip =
+  "EXPLAIN (FORMAT JSON) " <> otherSnip
+
 createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool ->
-                       SQL.Statement () ResultsWithCount
+                       SQL.Statement () ResWithCount
 createReadStatement selectQuery countQuery countTotal mediaType binaryField =
-  SQL.dynamicallyParameterized snippet decodeStandard
+  SQL.dynamicallyParameterized
+  (if mediaType == MTPlanJSON then explainSnippet snippet else snippet)
+  (if mediaType == MTPlanJSON then decodeExplain else decodeStandard)
  where
   snippet =
     "WITH " <>
@@ -116,9 +127,13 @@ createReadStatement selectQuery countQuery countTotal mediaType binaryField =
     | isJust binaryField                           = asBinaryF $ fromJust binaryField
     | otherwise                                    = asJsonF False
 
-  decodeStandard :: HD.Result ResultsWithCount
+  decodeStandard :: HD.Result ResWithCount
   decodeStandard =
-    HD.singleRow standardRow
+    HD.singleRow (Res <$> standardRow)
+
+  decodeExplain :: HD.Result ResWithCount
+  decodeExplain =
+    HD.singleRow (Expl <$> column HD.bytea)
 
 {-| Read and Write api requests use a similar response format which includes
     various record counts and possible location header. This is the decoder

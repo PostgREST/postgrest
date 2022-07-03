@@ -259,8 +259,8 @@ handleRead headersOnly identifier context@RequestContext{..} = do
     AppConfig{..} = ctxConfig
     countQuery = QueryBuilder.readRequestToCountQuery req
 
-  (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) <-
-    lift . SQL.statement mempty $
+  res <-
+     lift . SQL.statement mempty $
       Statements.createReadStatement
         (QueryBuilder.readRequestToQuery req)
         (if iPreferCount == Just EstimatedCount then
@@ -274,23 +274,36 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         bField
         configDbPreparedStatements
 
-  total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
-  response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
+  case res of
+    Statements.Res (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) -> do
+      total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
+      response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
 
-  let
-    (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange queryTotal total
-    headers =
-      [ contentRange
-      , ( "Content-Location"
-        , "/"
-            <> toUtf8 (qiName identifier)
-            <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
-        )
-      ]
-      ++ contentTypeHeaders context
+      let
+        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange queryTotal total
+        headers =
+          [ contentRange
+          , ( "Content-Location"
+            , "/"
+                <> toUtf8 (qiName identifier)
+                <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
+            )
+          ]
+          ++ contentTypeHeaders context
 
-  failNotSingular iAcceptMediaType queryTotal . response status headers $
-    if headersOnly then mempty else LBS.fromStrict body
+      failNotSingular iAcceptMediaType queryTotal . response status headers $
+        if headersOnly then mempty else LBS.fromStrict body
+
+    Statements.Expl body ->
+      let
+        headers =
+          ( "Content-Location"
+          , "/"
+              <> toUtf8 (qiName identifier)
+              <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
+          )
+          : contentTypeHeaders context in
+      pure $ Wai.responseLBS HTTP.status200 headers $ LBS.fromStrict body
 
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =

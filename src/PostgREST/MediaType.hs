@@ -23,6 +23,7 @@ data MediaType
   | MTTextPlain
   | MTTextXML
   | MTOpenAPI
+  | MTPlanJSON
   | MTUrlEncoded
   | MTOctetStream
   | MTAny
@@ -49,6 +50,7 @@ toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
+toMime MTPlanJSON        = "application/vnd.pgrst.plan+json"
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
 
@@ -66,5 +68,7 @@ decodeMediaType ct =
     "application/vnd.pgrst.object"      -> MTSingularJSON
     "application/x-www-form-urlencoded" -> MTUrlEncoded
     "application/octet-stream"          -> MTOctetStream
+    "application/vnd.pgrst.plan+json"   -> MTPlanJSON
+    "application/vnd.pgrst.plan"        -> MTPlanJSON
     "*/*"                               -> MTAny
     ct'                                 -> MTOther ct'
