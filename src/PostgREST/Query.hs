@@ -18,6 +18,7 @@ import qualified Data.Aeson.Key                    as K
 import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
+import qualified Data.Set                          as S
 import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
@@ -177,11 +178,12 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf
 openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, ProcsMap, Maybe Text))
 openApiQuery sCache pgVer AppConfig{..} tSchema =
   lift $ case configOpenApiMode of
-    OAFollowPriv ->
+    OAFollowPriv -> do
+      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
       Just <$> ((,,)
-         <$> SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
-         <*> SQL.statement tSchema (SchemaCache.accessibleProcs pgVer configDbPreparedStatements)
-         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+            (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
+        <$> SQL.statement tSchema (SchemaCache.accessibleProcs pgVer configDbPreparedStatements)
+        <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       Just <$> ((,,)
             (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)

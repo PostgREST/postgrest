@@ -157,6 +157,38 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
+    it "includes definitions to views" $ do
+      r <- simpleBody <$> get "/"
+
+      let def = r ^? key "definitions" . key "child_entities_view"
+
+      liftIO $
+
+        def `shouldBe` Just
+          [aesonQQ|
+            {
+              "type": "object",
+              "description": "child_entities_view comment",
+              "properties": {
+                "id": {
+                  "description": "child_entities_view id comment\n\nNote:\nThis is a Primary Key.<pk/>",
+                  "format": "integer",
+                  "type": "integer"
+                },
+                "name": {
+                  "description": "child_entities_view name comment. Can be longer than sixty-three characters long",
+                  "format": "text",
+                  "type": "string"
+                },
+                "parent_id": {
+                  "description": "Note:\nThis is a Foreign Key to `entities.id`.<fk table='entities' column='id'/>",
+                  "format": "integer",
+                  "type": "integer"
+                }
+              }
+            }
+          |]
+
     it "doesn't include privileged table for anonymous" $ do
       r <- simpleBody <$> get "/"
       let tablePath = r ^? key "paths" . key "/authors_only"
@@ -523,7 +555,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
         types `shouldBe` Just [aesonQQ|
             {
-              "format": "enum_menagerie_type",
+              "format": "test.enum_menagerie_type",
               "type": "string",
               "enum": [
                 "foo",

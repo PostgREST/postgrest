@@ -1153,6 +1153,8 @@ create table child_entities (
   parent_id integer references entities(id)
 );
 
+create view child_entities_view as table child_entities;
+
 create table grandchild_entities (
   id integer primary key,
   name text,
@@ -1175,6 +1177,10 @@ create table ranges (
 comment on table child_entities is 'child_entities comment';
 comment on column child_entities.id is 'child_entities id comment';
 comment on column child_entities.name is 'child_entities name comment. Can be longer than sixty-three characters long';
+
+comment on view child_entities_view is 'child_entities_view comment';
+comment on column child_entities_view.id is 'child_entities_view id comment';
+comment on column child_entities_view.name is 'child_entities_view name comment. Can be longer than sixty-three characters long';
 
 comment on table grandchild_entities is
 $$grandchild_entities summary

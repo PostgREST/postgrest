@@ -40,7 +40,7 @@ import Text.InterpolatedString.Perl6 (q)
 import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110)
-import PostgREST.SchemaCache.Identifiers  (FieldName,
+import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
 import PostgREST.SchemaCache.Proc         (PgType (..),
@@ -135,6 +135,14 @@ removeInternal schemas dbStruct =
     hasInternalJunction Relationship{relCardinality=card} = case card of
       M2M Junction{junTable} -> qiSchema junTable `notElem` schemas
       _                      -> False
+
+decodeAccessibleIdentifiers :: HD.Result AccessSet
+decodeAccessibleIdentifiers =
+ S.fromList <$> HD.rowList row
+ where
+  row = QualifiedIdentifier
+    <$> column HD.text
+    <*> column HD.text
 
 decodeTables :: HD.Result TablesMap
 decodeTables =
@@ -331,11 +339,27 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
+accessibleTables :: PgVersion -> Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables pgVer =
-  SQL.Statement sql (arrayParam HE.text) decodeTables
+  SQL.Statement sql (arrayParam HE.text) decodeAccessibleIdentifiers
  where
-  sql = tablesSqlQuery False pgVer
+  sql = [q|
+    SELECT
+      n.nspname AS table_schema,
+      c.relname AS table_name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relkind IN ('v','r','m','f','p')
+    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+    AND n.nspname = ANY($1)
+    AND (
+      pg_has_role(c.relowner, 'USAGE')
+      or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+      or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
+    ) |] <>
+    relIsPartition <>
+    "ORDER BY table_schema, table_name"
+  relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
 
 {-
 Adds M2O and O2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
@@ -435,11 +459,11 @@ allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 allTables pgVer =
   SQL.Statement sql (arrayParam HE.text) decodeTables
   where
-    sql = tablesSqlQuery True pgVer
+    sql = tablesSqlQuery pgVer
 
 -- | Gets tables with their PK cols
-tablesSqlQuery :: Bool -> PgVersion -> SqlQuery
-tablesSqlQuery getAll pgVer =
+tablesSqlQuery :: PgVersion -> SqlQuery
+tablesSqlQuery pgVer =
   -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
   -- we cannot use those directly as they include the following privilege filter:
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
@@ -630,16 +654,8 @@ tablesSqlQuery getAll pgVer =
   WHERE c.relkind IN ('v','r','m','f','p')
   AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
   relIsPartition <>
-  fltTables <>
   "ORDER BY table_schema, table_name"
   where
-    fltTables = if getAll then mempty else [q|
-      AND n.nspname = ANY($1)
-      AND (
-        pg_has_role(c.relowner, 'USAGE')
-        or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
-        or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-      )|]
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
 
 
