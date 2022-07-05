@@ -28,7 +28,7 @@ spec =
         `shouldRespondWith`
           [json| [{ "هویت": 1 }] |]
 
-      request methodDelete "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF"
+      request methodDelete "/%D9%85%D9%88%D8%A7%D8%B1%D8%AF?%d9%87%d9%88%db%8c%d8%aa=gt.0"
           [("Prefer", "tx=commit")]
           ""
         `shouldRespondWith`
