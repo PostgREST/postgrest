@@ -321,6 +321,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     (ActionInvoke InvPost, _)              -> True
     (ActionMutate MutationSingleUpsert, _) -> True
     (ActionMutate MutationUpdate, _)       -> True
+    (ActionMutate MutationDelete, _)       -> reqBody /= mempty
     _                                      -> False
   relevantPayload = case (contentMediaType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way

@@ -106,8 +106,5 @@ spec =
             [("Prefer", "return=representation")]
             mempty
           `shouldRespondWith`
-            [json| [
-              { "first_name": "Frances M.", "last_name": "Roe" },
-              { "first_name": "Daniel B.", "last_name": "Lyon" },
-              { "first_name": "Edwin S.", "last_name": "Smith" } ]|]
+            [json| []|]
             { matchStatus  = 200 }

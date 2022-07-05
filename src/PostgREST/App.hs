@@ -422,8 +422,12 @@ handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiReques
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  resultSet <- writeQuery MutationDelete identifier False mempty context
+handleDelete identifier context@RequestContext{..} = do
+  let
+    ApiRequest{..} = ctxApiRequest
+    pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
+
+  resultSet <- writeQuery MutationDelete identifier False pkCols context
 
   case resultSet of
     RSStandard {..} -> do

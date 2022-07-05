@@ -199,6 +199,10 @@ GRANT ALL ON TABLE
     , safe_delete
     , unsafe_update
     , unsafe_delete
+    , bulk_delete_items
+    , bulk_delete_items_cpk
+    , body_delete_items
+    , body_delete_items_cpk
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

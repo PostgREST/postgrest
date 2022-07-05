@@ -144,13 +144,28 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-mutateRequestToQuery (Delete mainQi logicForest range ordts returnings)
+mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnings)
+  -- The body is not mandatory, although a delete without filters is not possible.
   | range == allRange =
-    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-    whereLogic <> " " <>
-    SQL.sql (returningF mainQi returnings)
+    if body == mempty then
+      let whereLogic | null logicForest = "FALSE"
+                     | otherwise        = logicForestF in
+      "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+      "WHERE " <> whereLogic <> " " <>
+      SQL.sql (returningF mainQi returnings)
+    else
+      let whereLogic | null logicForest = if null pkFlts then "FALSE" else pgrstDeleteBodyF
+                     | otherwise        = (if null pkFlts then mempty else pgrstDeleteBodyF <> " AND ") <> logicForestF in
+      "WITH " <> normalizedBody body <> " " <>
+      "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+      "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body " <>
+      "WHERE " <> whereLogic <> " " <>
+      SQL.sql (returningF mainQi returnings)
 
+  -- When using limits, the payload is ignored.
   | otherwise =
+    let whereLogic | null logicForest = mempty
+                   | otherwise        = " WHERE " <> logicForestF in
     "WITH " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
@@ -164,7 +179,8 @@ mutateRequestToQuery (Delete mainQi logicForest range ordts returnings)
     SQL.sql (returningF mainQi returnings)
 
   where
-    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> pkFlts)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
