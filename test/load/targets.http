@@ -11,6 +11,11 @@ POST http://postgrest/films?columns=title
 Prefer: tx=rollback
 @post.json
 
+POST http://postgrest/films?columns=id,title,year,runtime,genres,director,actors,plot,posterUrl
+Prefer: tx=rollback
+# this bulk.json was obtained from https://github.com/erik-sytnyk/movies-list/blob/master/db.json
+@bulk.json
+
 PUT http://postgrest/actors?actor=eq.1&columns=name
 Prefer: tx=rollback
 @put.json
