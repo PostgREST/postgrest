@@ -61,7 +61,6 @@ import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
-import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -73,6 +72,7 @@ import PostgREST.Error                   (Error)
 import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
+import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
@@ -86,8 +86,8 @@ import PostgREST.Request.ReadQuery       (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
 
-import qualified PostgREST.ContentType      as ContentType
 import qualified PostgREST.DbStructure.Proc as Proc
+import qualified PostgREST.MediaType        as MediaType
 
 import Protolude hiding (Handler)
 
@@ -267,11 +267,11 @@ handleRead headersOnly identifier context@RequestContext{..} = do
          else
            countQuery
         )
-        (iAcceptContentType == CTSingularJSON)
+        (iAcceptMediaType == MTSingularJSON)
         (shouldCount iPreferCount)
-        (iAcceptContentType == CTTextCSV)
-        (iAcceptContentType == CTTextXML)
-        (iAcceptContentType == CTGeoJSON)
+        (iAcceptMediaType == MTTextCSV)
+        (iAcceptMediaType == MTTextXML)
+        (iAcceptMediaType == MTGeoJSON)
         bField
         configDbPreparedStatements
 
@@ -290,7 +290,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
       ]
       ++ contentTypeHeaders context
 
-  failNotSingular iAcceptContentType queryTotal . response status headers $
+  failNotSingular iAcceptMediaType queryTotal . response status headers $
     if headersOnly then mempty else LBS.fromStrict body
 
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
@@ -341,7 +341,7 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
             toAppliedHeader <$> iPreferResolution
         ]
 
-  failNotSingular iAcceptContentType resQueryTotal $
+  failNotSingular iAcceptMediaType resQueryTotal $
     if iPreferRepresentation == Full then
       response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict resBody)
     else
@@ -368,7 +368,7 @@ handleUpdate identifier context@RequestContext{..} = do
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
   failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
-    failNotSingular iAcceptContentType resQueryTotal (
+    failNotSingular iAcceptMediaType resQueryTotal (
       if fullRepr then
         response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
       else
@@ -408,7 +408,7 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
         if shouldCount iPreferCount then Just resQueryTotal else Nothing
 
   failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
-    failNotSingular iAcceptContentType resQueryTotal (
+    failNotSingular iAcceptMediaType resQueryTotal (
       if iPreferRepresentation == Full then
         response HTTP.status200
           (contentTypeHeaders context ++ [contentRangeHeader])
@@ -462,10 +462,10 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (QueryBuilder.readRequestToQuery req)
         (QueryBuilder.readRequestToCountQuery req)
         (shouldCount iPreferCount)
-        (iAcceptContentType == CTSingularJSON)
-        (iAcceptContentType == CTTextCSV)
-        (iAcceptContentType == CTTextXML)
-        (iAcceptContentType == CTGeoJSON)
+        (iAcceptMediaType == MTSingularJSON)
+        (iAcceptMediaType == MTTextCSV)
+        (iAcceptMediaType == MTTextXML)
+        (iAcceptMediaType == MTGeoJSON)
         (iPreferParameters == Just MultipleObjects)
         bField
         (configDbPreparedStatements ctxConfig)
@@ -476,7 +476,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
 
-  failNotSingular iAcceptContentType queryTotal $
+  failNotSingular iAcceptMediaType queryTotal $
     if Proc.procReturnsVoid proc then
       response HTTP.status204 [contentRange] mempty
     else
@@ -503,7 +503,7 @@ handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure
 
   return $
     Wai.responseLBS HTTP.status200
-      (ContentType.toHeader CTOpenAPI : maybeToList (profileHeader apiRequest))
+      (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader apiRequest))
       (if headersOnly then mempty else body)
 
 txMode :: ApiRequest -> SQL.Mode
@@ -550,10 +550,10 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
       Statements.createWriteStatement
         (QueryBuilder.readRequestToQuery readReq)
         (QueryBuilder.mutateRequestToQuery mutateReq)
-        (iAcceptContentType ctxApiRequest == CTSingularJSON)
+        (iAcceptMediaType ctxApiRequest == MTSingularJSON)
         isInsert
-        (iAcceptContentType ctxApiRequest == CTTextCSV)
-        (iAcceptContentType ctxApiRequest == CTGeoJSON)
+        (iAcceptMediaType ctxApiRequest == MTTextCSV)
+        (iAcceptMediaType ctxApiRequest == MTGeoJSON)
         (iPreferRepresentation ctxApiRequest)
         pkCols
         (configDbPreparedStatements ctxConfig)
@@ -575,9 +575,9 @@ gucResponse gucStatus gucHeaders status headers =
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
 -- was found.
-failNotSingular :: ContentType -> Int64 -> Wai.Response -> DbHandler Wai.Response
-failNotSingular contentType queryTotal response =
-  if contentType == CTSingularJSON && queryTotal /= 1 then
+failNotSingular :: MediaType -> Int64 -> Wai.Response -> DbHandler Wai.Response
+failNotSingular mediaType queryTotal response =
+  if mediaType == MTSingularJSON && queryTotal /= 1 then
     do
       lift SQL.condemn
       throwError $ Error.singularityError queryTotal
@@ -611,16 +611,16 @@ readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure ap
 
 contentTypeHeaders :: RequestContext -> [HTTP.Header]
 contentTypeHeaders RequestContext{..} =
-  ContentType.toHeader (iAcceptContentType ctxApiRequest) : maybeToList (profileHeader ctxApiRequest)
+  MediaType.toContentType (iAcceptMediaType ctxApiRequest) : maybeToList (profileHeader ctxApiRequest)
 
--- | If raw(binary) output is requested, check that ContentType is one of the
--- admitted rawContentTypes and that`?select=...` contains only one field other
+-- | If raw(binary) output is requested, check that MediaType is one of the
+-- admitted rawMediaTypes and that`?select=...` contains only one field other
 -- than `*`
 binaryField :: Monad m => RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
 binaryField RequestContext{..} readReq
-  | returnsScalar (iTarget ctxApiRequest) && iAcceptContentType ctxApiRequest `elem` rawContentTypes ctxConfig =
+  | returnsScalar (iTarget ctxApiRequest) && iAcceptMediaType ctxApiRequest `elem` rawMediaTypes ctxConfig =
       return $ Just "pgrst_scalar"
-  | iAcceptContentType ctxApiRequest `elem` rawContentTypes ctxConfig =
+  | iAcceptMediaType ctxApiRequest `elem` rawMediaTypes ctxConfig =
       let
         fldNames = fstFieldNames readReq
         fieldName = headMay fldNames
@@ -628,13 +628,13 @@ binaryField RequestContext{..} readReq
       if length fldNames == 1 && fieldName /= Just "*" then
         return fieldName
       else
-        throwError $ Error.BinaryFieldError (iAcceptContentType ctxApiRequest)
+        throwError $ Error.BinaryFieldError (iAcceptMediaType ctxApiRequest)
   | otherwise =
       return Nothing
 
-rawContentTypes :: AppConfig -> [ContentType]
-rawContentTypes AppConfig{..} =
-  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain, CTTextXML]
+rawMediaTypes :: AppConfig -> [MediaType]
+rawMediaTypes AppConfig{..} =
+  (MediaType.decodeMediaType <$> configRawMediaTypes) `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =

@@ -35,12 +35,12 @@ module PostgREST.Request.Types
 
 import qualified Data.ByteString.Lazy as LBS
 
-import PostgREST.ContentType              (ContentType (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.DbStructure.Relationship (Relationship)
+import PostgREST.MediaType                (MediaType (..))
 
 import Protolude
 
@@ -50,13 +50,13 @@ data ApiRequestError
   = ActionInappropriate
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
-  | ContentTypeError [ByteString]
+  | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
   | InvalidRange
   | LimitNoOrderError
   | NoRelBetween Text Text Text
-  | NoRpc Text Text [Text] Bool ContentType Bool
+  | NoRpc Text Text [Text] Bool MediaType Bool
   | NotEmbedded Text
   | ParseRequestError Text Text
   | PutRangeNotAllowedError

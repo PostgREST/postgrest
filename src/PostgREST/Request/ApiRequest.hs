@@ -10,7 +10,7 @@ module PostgREST.Request.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
   , Mutation(..)
-  , ContentType(..)
+  , MediaType(..)
   , Action(..)
   , Target(..)
   , Payload(..)
@@ -45,13 +45,13 @@ import Web.Cookie                (parseCookies)
 
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.ContentType             (ContentType (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcParam (..), ProcsMap)
+import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           hasLimitZero,
                                           limitZeroRange,
@@ -64,7 +64,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
 import PostgREST.Request.QueryParams     (QueryParams (..))
 import PostgREST.Request.Types           (ApiRequestError (..))
 
-import qualified PostgREST.ContentType         as ContentType
+import qualified PostgREST.MediaType           as MediaType
 import qualified PostgREST.Request.Preferences as Preferences
 import qualified PostgREST.Request.QueryParams as QueryParams
 
@@ -173,7 +173,7 @@ data ApiRequest = ApiRequest {
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
   , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
-  , iAcceptContentType    :: ContentType
+  , iAcceptMediaType      :: MediaType
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -191,7 +191,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
-     acceptContentType <- findAcceptContentType conf action path accepts
+     acceptMediaType <- findAcceptMediaType conf action path accepts
      checkedTarget <- target
      return ApiRequest {
       iAction = action
@@ -212,10 +212,10 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       , iMethod = method
       , iProfile = profile
       , iSchema = schema
-      , iAcceptContentType = acceptContentType
+      , iAcceptMediaType = acceptMediaType
       }
  where
-  accepts = maybe [CTAny] (map ContentType.decodeContentType . parseHttpAccept) $ lookupHeader "accept"
+  accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
 
   expectParams = isTargetingProc && method /= "POST"
 
@@ -225,7 +225,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   isTargetingDefaultSpec = case path of
     PathInfo{pIsDefaultSpec=True} -> True
     _                             -> False
-  contentType = maybe CTApplicationJSON ContentType.decodeContentType $ lookupHeader "content-type"
+  contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
 
   columns = case action of
     ActionMutate MutationCreate -> qsColumns
@@ -234,33 +234,33 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     _                           -> Nothing
 
   payloadColumns =
-    case (contentType, action) of
+    case (contentMediaType, action) of
       (_, ActionInvoke InvGet)  -> S.fromList $ fst <$> qsParams
       (_, ActionInvoke InvHead) -> S.fromList $ fst <$> qsParams
-      (CTUrlEncoded, _)         -> S.fromList $ map (T.decodeUtf8 . fst) $ parseSimpleQuery $ LBS.toStrict reqBody
+      (MTUrlEncoded, _)         -> S.fromList $ map (T.decodeUtf8 . fst) $ parseSimpleQuery $ LBS.toStrict reqBody
       _ -> case (relevantPayload, columns) of
         (Just ProcessedJSON{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
   payload :: Either ByteString Payload
-  payload = case (contentType, isTargetingProc) of
-    (CTApplicationJSON, _) ->
+  payload = case (contentMediaType, isTargetingProc) of
+    (MTApplicationJSON, _) ->
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && isTargetingProc
                      then Right emptyObject
                      else first BS.pack $ JSON.eitherDecode reqBody
-    (CTTextCSV, _) -> do
+    (MTTextCSV, _) -> do
       json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
       note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-    (CTUrlEncoded, _) ->
+    (MTUrlEncoded, _) ->
       let paramsMap = HM.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
-    (CTTextPlain, True) -> Right $ RawPay reqBody
-    (CTTextXML, True) -> Right $ RawPay reqBody
-    (CTOctetStream, True) -> Right $ RawPay reqBody
-    (ct, _) -> Left $ "Content-Type not acceptable: " <> ContentType.toMime ct
+    (MTTextPlain, True) -> Right $ RawPay reqBody
+    (MTTextXML, True) -> Right $ RawPay reqBody
+    (MTOctetStream, True) -> Right $ RawPay reqBody
+    (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
   topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
   action =
     case method of
@@ -300,7 +300,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     let
       callFindProc procSch procNam = findProc
         (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
-        contentType (action == ActionInvoke InvPost)
+        contentMediaType (action == ActionInvoke InvPost)
     in
     case path of
       PathInfo{pSchema, pName, pHasRpc, pIsRootSpec, pIsDefaultSpec}
@@ -309,19 +309,19 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
         | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
       PathUnknown -> Right TargetUnknown
 
-  shouldParsePayload = case (action, contentType) of
+  shouldParsePayload = case (action, contentMediaType) of
     (ActionMutate MutationCreate, _)       -> True
-    (ActionInvoke InvPost, CTUrlEncoded)   -> False
+    (ActionInvoke InvPost, MTUrlEncoded)   -> False
     (ActionInvoke InvPost, _)              -> True
     (ActionMutate MutationSingleUpsert, _) -> True
     (ActionMutate MutationUpdate, _)       -> True
     _                                      -> False
-  relevantPayload = case (contentType, action) of
+  relevantPayload = case (contentMediaType, action) of
     -- Though ActionInvoke GET/HEAD doesn't really have a payload, we use the payload variable as a way
     -- to store the query string arguments to the function.
     (_, ActionInvoke InvGet)             -> targetToJsonRpcParams (rightToMaybe target) qsParams
     (_, ActionInvoke InvHead)            -> targetToJsonRpcParams (rightToMaybe target) qsParams
-    (CTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
+    (MTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
   path =
@@ -348,15 +348,15 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
 
 {-|
-  Find the best match from a list of content types accepted by the
+  Find the best match from a list of media types accepted by the
   client in order of decreasing preference and a list of types
   producible by the server.  If there is no match but the client
   accepts */* then return the top server pick.
 -}
-mutuallyAgreeable :: [ContentType] -> [ContentType] -> Maybe ContentType
+mutuallyAgreeable :: [MediaType] -> [MediaType] -> Maybe MediaType
 mutuallyAgreeable sProduces cAccepts =
   let exact = listToMaybe $ L.intersect cAccepts sProduces in
-  if isNothing exact && CTAny `elem` cAccepts
+  if isNothing exact && MTAny `elem` cAccepts
      then listToMaybe sProduces
      else exact
 
@@ -409,42 +409,42 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptContentType :: AppConfig -> Action -> Path -> [ContentType] -> Either ApiRequestError ContentType
-findAcceptContentType conf action path accepts =
-  case mutuallyAgreeable (requestContentTypes conf action path) accepts of
+findAcceptMediaType :: AppConfig -> Action -> Path -> [MediaType] -> Either ApiRequestError MediaType
+findAcceptMediaType conf action path accepts =
+  case mutuallyAgreeable (requestMediaTypes conf action path) accepts of
     Just ct ->
       Right ct
     Nothing ->
-      Left . ContentTypeError $ map ContentType.toMime accepts
+      Left . MediaTypeError $ map MediaType.toMime accepts
 
-requestContentTypes :: AppConfig -> Action -> Path -> [ContentType]
-requestContentTypes conf action path =
+requestMediaTypes :: AppConfig -> Action -> Path -> [MediaType]
+requestMediaTypes conf action path =
   case action of
-    ActionRead _    -> defaultContentTypes ++ rawContentTypes conf
-    ActionInvoke _  -> invokeContentTypes
-    ActionInspect _ -> [CTOpenAPI, CTApplicationJSON]
-    ActionInfo      -> [CTTextCSV]
-    _               -> defaultContentTypes
+    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes conf
+    ActionInvoke _  -> invokeMediaTypes
+    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
+    ActionInfo      -> [MTTextCSV]
+    _               -> defaultMediaTypes
   where
-    invokeContentTypes =
-      defaultContentTypes
-        ++ rawContentTypes conf
-        ++ [CTOpenAPI | pIsRootSpec path]
-    defaultContentTypes =
-      [CTApplicationJSON, CTSingularJSON, CTGeoJSON, CTTextCSV]
+    invokeMediaTypes =
+      defaultMediaTypes
+        ++ rawMediaTypes conf
+        ++ [MTOpenAPI | pIsRootSpec path]
+    defaultMediaTypes =
+      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV]
 
-rawContentTypes :: AppConfig -> [ContentType]
-rawContentTypes AppConfig{..} =
-  (ContentType.decodeContentType <$> configRawMediaTypes) `union` [CTOctetStream, CTTextPlain, CTTextXML]
+rawMediaTypes :: AppConfig -> [MediaType]
+rawMediaTypes AppConfig{..} =
+  (MediaType.decodeMediaType <$> configRawMediaTypes) `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
   the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> ContentType -> Bool -> Either ApiRequestError ProcDescription
-findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> MediaType -> Bool -> Either ApiRequestError ProcDescription
+findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
   case matchProc of
-    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentType isInvPost
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost
     -- If there are no functions with named arguments, fallback to the single unnamed argument function
     ([], [proc]) -> Right proc
     ([], procs)  -> Left $ AmbiguousRpc (toList procs)
@@ -462,12 +462,12 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentType, ppType) of
-      (CTApplicationJSON, "json")  -> True
-      (CTApplicationJSON, "jsonb") -> True
-      (CTTextPlain, "text")        -> True
-      (CTTextXML, "xml")           -> True
-      (CTOctetStream, "bytea")     -> True
+    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
+      (MTApplicationJSON, "json")  -> True
+      (MTApplicationJSON, "jsonb") -> True
+      (MTTextPlain, "text")        -> True
+      (MTTextXML, "xml")           -> True
+      (MTOctetStream, "bytea")     -> True
       _                            -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
@@ -480,7 +480,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentType isInvPost =
         then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && not (isInvPost && contentType `elem` [CTOctetStream, CTTextPlain, CTTextXML])
+        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of

@@ -44,7 +44,6 @@ library
                       PostgREST.Config.JSPath
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
-                      PostgREST.ContentType
                       PostgREST.Cors
                       PostgREST.DbStructure
                       PostgREST.DbStructure.Identifiers
@@ -55,6 +54,7 @@ library
                       PostgREST.GucHeader
                       PostgREST.Logger
                       PostgREST.Middleware
+                      PostgREST.MediaType
                       PostgREST.OpenAPI
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment

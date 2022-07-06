@@ -29,8 +29,8 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.ContentType   (ContentType (..))
-import qualified PostgREST.ContentType   as ContentType
+import           PostgREST.MediaType     (MediaType (..))
+import qualified PostgREST.MediaType     as MediaType
 import           PostgREST.Request.Types (ApiRequestError (..),
                                           QPError (..))
 
@@ -57,7 +57,7 @@ instance PgrstError ApiRequestError where
   status ActionInappropriate     = HTTP.status405
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
-  status ContentTypeError{}      = HTTP.status415
+  status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
   status InvalidRange            = HTTP.status416
@@ -70,7 +70,7 @@ instance PgrstError ApiRequestError where
   status UnacceptableSchema{}    = HTTP.status406
   status LimitNoOrderError       = HTTP.status400
 
-  headers _ = [ContentType.toHeader CTApplicationJSON]
+  headers _ = [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (QueryParamError (QPError message details)) = JSON.object [
@@ -108,9 +108,9 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON (ContentTypeError cts)    = JSON.object [
+  toJSON (MediaTypeError cts)    = JSON.object [
     "code"    .= ApiRequestErrorCode07,
-    "message" .= ("None of these Content-Types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
+    "message" .= ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (NotEmbedded resource) = JSON.object [
@@ -147,10 +147,10 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " function with a single json or jsonb parameter"
-        (_, True, CTTextPlain)       -> " function with a single unnamed text parameter"
-        (_, True, CTTextXML)         -> " function with a single unnamed xml parameter"
-        (_, True, CTOctetStream)     -> " function with a single unnamed bytea parameter"
-        (_, True, CTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
+        (_, True, MTTextPlain)       -> " function with a single unnamed text parameter"
+        (_, True, MTTextXML)         -> " function with a single unnamed xml parameter"
+        (_, True, MTOctetStream)     -> " function with a single unnamed bytea parameter"
+        (_, True, MTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
         _                            -> prms <> " function") <>
       " in the schema cache"),
     "details" .= JSON.Null,
@@ -200,8 +200,8 @@ instance PgrstError PgError where
 
   headers err =
     if status err == HTTP.status401
-       then [ContentType.toHeader CTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
-       else [ContentType.toHeader CTApplicationJSON]
+       then [MediaType.toContentType MTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
+       else [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
@@ -304,7 +304,7 @@ checkIsFatal _ = Nothing
 
 data Error
   = ApiRequestError ApiRequestError
-  | BinaryFieldError ContentType
+  | BinaryFieldError MediaType
   | GucHeadersError
   | GucStatusError
   | JwtTokenInvalid Text
@@ -335,11 +335,11 @@ instance PgrstError Error where
   status UnsupportedVerb{}       = HTTP.status405
 
   headers (ApiRequestError err)  = headers err
-  headers (JwtTokenInvalid m)    = [ContentType.toHeader CTApplicationJSON, invalidTokenHeader m]
-  headers JwtTokenRequired       = [ContentType.toHeader CTApplicationJSON, requiredTokenHeader]
+  headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired       = [MediaType.toContentType MTApplicationJSON, requiredTokenHeader]
   headers (PgErr err)            = headers err
-  headers SingularityError{}     = [ContentType.toHeader CTSingularJSON]
-  headers _                      = [ContentType.toHeader CTApplicationJSON]
+  headers SingularityError{}     = [MediaType.toContentType MTSingularJSON]
+  headers _                      = [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON Error where
   toJSON NoSchemaCacheError = JSON.object [
@@ -382,7 +382,7 @@ instance JSON.ToJSON Error where
     "hint"    .= JSON.Null]
   toJSON (BinaryFieldError ct) = JSON.object [
     "code"    .= ApiRequestErrorCode13,
-    "message" .= ((T.decodeUtf8 (ContentType.toMime ct) <> " requested but more than one column was selected") :: Text),
+    "message" .= ((T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
@@ -395,7 +395,7 @@ instance JSON.ToJSON Error where
   toJSON (SingularityError n) = JSON.object [
     "code"    .= ApiRequestErrorCode16,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (ContentType.toMime CTSingularJSON), "requires 1 row"],
+    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (MediaType.toMime MTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
 
   toJSON (UnsupportedVerb verb) = JSON.object [

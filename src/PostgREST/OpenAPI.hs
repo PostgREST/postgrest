@@ -37,7 +37,7 @@ import PostgREST.DbStructure.Table        (Column (..), Table (..),
                                            TablesMap)
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
-import PostgREST.ContentType
+import PostgREST.MediaType
 
 import Protolude hiding (Proxy, get)
 
@@ -51,7 +51,7 @@ encode conf dbStructure tables procs schemaDescription =
       (proxyUri conf)
       schemaDescription
 
-makeMimeList :: [ContentType] -> MimeList
+makeMimeList :: [MediaType] -> MimeList
 makeMimeList cs = MimeList $ fmap (fromString . BS.unpack . toMime) cs
 
 toSwaggerType :: Text -> Maybe (SwaggerType t)
@@ -294,7 +294,7 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
       & description .~ mfilter (/="") pDesc
       & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
-      & produces ?~ makeMimeList [CTApplicationJSON, CTSingularJSON]
+      & produces ?~ makeMimeList [MTApplicationJSON, MTSingularJSON]
       & at 200 ?~ "OK"
     pe = (mempty :: PathItem) & post ?~ postOp
 
@@ -304,7 +304,7 @@ makeRootPathItem = ("/", p)
     getOp = (mempty :: Operation)
       & tags .~ Set.fromList ["Introspection"]
       & summary ?~ "OpenAPI description (this document)"
-      & produces ?~ makeMimeList [CTOpenAPI, CTApplicationJSON]
+      & produces ?~ makeMimeList [MTOpenAPI, MTApplicationJSON]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
@@ -336,8 +336,8 @@ postgrestSpec rels pds ti (s, h, p, b) sd = (mempty :: Swagger)
   & definitions .~ fromList (makeTableDef rels <$> ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
-  & produces .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
-  & consumes .~ makeMimeList [CTApplicationJSON, CTSingularJSON, CTTextCSV]
+  & produces .~ makeMimeList [MTApplicationJSON, MTSingularJSON, MTTextCSV]
+  & consumes .~ makeMimeList [MTApplicationJSON, MTSingularJSON, MTTextCSV]
     where
       s' = if s == "http" then Http else Https
       h' = Just $ Host (T.unpack $ escapeHostName h) (Just (fromInteger p))
