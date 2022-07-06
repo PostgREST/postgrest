@@ -32,6 +32,7 @@ import PostgREST.Error     (Error (..))
 import PostgREST.GucHeader (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
+import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Preferences
 
@@ -43,10 +44,10 @@ import Protolude
 -}
 type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
-createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool -> Bool ->
+createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType ->
                         PreferRepresentation -> [Text] -> Bool ->
                         SQL.Statement () ResultsWithCount
-createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv asGeoJson rep pKeys =
+createWriteStatement selectQuery mutateQuery isInsert mediaType rep pKeys =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -72,11 +73,11 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv asGeoJson
       else noLocationF
 
   bodyF
-    | rep /= Full = "''"
-    | asCsv = asCsvF
-    | asGeoJson = asGeoJsonF
-    | wantSingle = asJsonSingleF False
-    | otherwise = asJsonF False
+    | rep /= Full                 = "''"
+    | mediaType == MTTextCSV      = asCsvF
+    | mediaType == MTGeoJSON      = asGeoJsonF
+    | mediaType == MTSingularJSON = asJsonSingleF False
+    | otherwise                   = asJsonF False
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
@@ -87,9 +88,9 @@ createWriteStatement selectQuery mutateQuery wantSingle isInsert asCsv asGeoJson
   decodeStandard =
    fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
 
-createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> Bool ->  Bool -> Bool -> Maybe FieldName -> Bool ->
+createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool ->
                        SQL.Statement () ResultsWithCount
-createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml asGeoJson binaryField =
+createReadStatement selectQuery countQuery countTotal mediaType binaryField =
   SQL.dynamicallyParameterized snippet decodeStandard
  where
   snippet =
@@ -108,12 +109,12 @@ createReadStatement selectQuery countQuery isSingle countTotal asCsv asXml asGeo
   (countCTEF, countResultF) = countF countQuery countTotal
 
   bodyF
-    | asCsv = asCsvF
-    | isSingle = asJsonSingleF False
-    | asGeoJson = asGeoJsonF
-    | isJust binaryField && asXml = asXmlF $ fromJust binaryField
-    | isJust binaryField = asBinaryF $ fromJust binaryField
-    | otherwise = asJsonF False
+    | mediaType == MTTextCSV                       = asCsvF
+    | mediaType == MTSingularJSON                  = asJsonSingleF False
+    | mediaType == MTGeoJSON                       = asGeoJsonF
+    | isJust binaryField && mediaType == MTTextXML = asXmlF $ fromJust binaryField
+    | isJust binaryField                           = asBinaryF $ fromJust binaryField
+    | otherwise                                    = asJsonF False
 
   decodeStandard :: HD.Result ResultsWithCount
   decodeStandard =
@@ -132,9 +133,9 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
 type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
 
 callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-                     Bool -> Bool -> Bool -> Bool -> Bool -> Maybe FieldName -> Bool ->
+                     MediaType -> Bool -> Maybe FieldName -> Bool ->
                      SQL.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal asSingle asCsv asXml asGeoJson multObjects binaryField =
+callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mediaType multObjects binaryField =
   SQL.dynamicallyParameterized snippet decodeProc
   where
     snippet =
@@ -152,14 +153,13 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
     (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
-     | asSingle           = asJsonSingleF returnsScalar
-     | asCsv              = asCsvF
-     | asGeoJson = asGeoJsonF
-     | isJust binaryField && asXml = asXmlF $ fromJust binaryField
-     | isJust binaryField = asBinaryF $ fromJust binaryField
-     | returnsSingle
-       && not multObjects = asJsonSingleF returnsScalar
-     | otherwise          = asJsonF returnsScalar
+     | mediaType == MTSingularJSON                  = asJsonSingleF returnsScalar
+     | mediaType == MTTextCSV                       = asCsvF
+     | mediaType == MTGeoJSON                       = asGeoJsonF
+     | isJust binaryField && mediaType == MTTextXML = asXmlF $ fromJust binaryField
+     | isJust binaryField                           = asBinaryF $ fromJust binaryField
+     | returnsSingle && not multObjects             = asJsonSingleF returnsScalar
+     | otherwise                                    = asJsonF returnsScalar
 
     decodeProc :: HD.Result ProcResults
     decodeProc =

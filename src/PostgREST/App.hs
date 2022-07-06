@@ -267,11 +267,8 @@ handleRead headersOnly identifier context@RequestContext{..} = do
          else
            countQuery
         )
-        (iAcceptMediaType == MTSingularJSON)
         (shouldCount iPreferCount)
-        (iAcceptMediaType == MTTextCSV)
-        (iAcceptMediaType == MTTextXML)
-        (iAcceptMediaType == MTGeoJSON)
+        iAcceptMediaType
         bField
         configDbPreparedStatements
 
@@ -462,10 +459,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (QueryBuilder.readRequestToQuery req)
         (QueryBuilder.readRequestToCountQuery req)
         (shouldCount iPreferCount)
-        (iAcceptMediaType == MTSingularJSON)
-        (iAcceptMediaType == MTTextCSV)
-        (iAcceptMediaType == MTTextXML)
-        (iAcceptMediaType == MTGeoJSON)
+        iAcceptMediaType
         (iPreferParameters == Just MultipleObjects)
         bField
         (configDbPreparedStatements ctxConfig)
@@ -550,10 +544,8 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
       Statements.createWriteStatement
         (QueryBuilder.readRequestToQuery readReq)
         (QueryBuilder.mutateRequestToQuery mutateReq)
-        (iAcceptMediaType ctxApiRequest == MTSingularJSON)
         isInsert
-        (iAcceptMediaType ctxApiRequest == MTTextCSV)
-        (iAcceptMediaType ctxApiRequest == MTGeoJSON)
+        (iAcceptMediaType ctxApiRequest)
         (iPreferRepresentation ctxApiRequest)
         pkCols
         (configDbPreparedStatements ctxConfig)
