@@ -101,7 +101,7 @@ spec =
             [json|[]|]
             { matchStatus  = 404 }
 
-      it "doesn't affect deletions" $
+      it "doesn't affect deletions(2 rows would be modified if it did)" $
         request methodDelete "/employees?select=first_name,last_name"
             [("Prefer", "return=representation")]
             mempty
