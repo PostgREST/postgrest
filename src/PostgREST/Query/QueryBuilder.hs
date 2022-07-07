@@ -147,20 +147,17 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
 mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnings)
   -- The body is not mandatory, although a delete without filters is not possible.
   | range == allRange =
-    if body == mempty then
-      let whereLogic | null logicForest = "FALSE"
-                     | otherwise        = logicForestF in
-      "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-      "WHERE " <> whereLogic <> " " <>
-      SQL.sql (returningF mainQi returnings)
-    else
-      let whereLogic | null logicForest = if null pkFlts then "FALSE" else pgrstDeleteBodyF
-                     | otherwise        = (if null pkFlts then mempty else pgrstDeleteBodyF <> " AND ") <> logicForestF in
-      "WITH " <> normalizedBody body <> " " <>
-      "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-      "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body " <>
-      "WHERE " <> whereLogic <> " " <>
-      SQL.sql (returningF mainQi returnings)
+    let whereLogic | null logicForest = if hasEmptyBody || null pkFlts then "FALSE" else pgrstDeleteBodyF
+                   | otherwise        = (if hasEmptyBody || null pkFlts then mempty else pgrstDeleteBodyF <> "AND") <> logicForestF in
+    (if hasEmptyBody
+      then mempty
+      else "WITH " <> normalizedBody body <> " ") <>
+    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    (if hasEmptyBody
+      then mempty else
+      "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
+    "WHERE " <> whereLogic <> " " <>
+    SQL.sql (returningF mainQi returnings)
 
   -- When using limits, the payload is ignored.
   | otherwise =
@@ -179,6 +176,7 @@ mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnin
     SQL.sql (returningF mainQi returnings)
 
   where
+    hasEmptyBody = body == mempty
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> pkFlts)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
