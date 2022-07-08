@@ -335,7 +335,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
            null qsRanges &&
            body == mempty
           then Left $ NoBodyFilterLimit "delete"
-        else 
+        else
           Right $ Delete qi body combinedLogic pkCols iTopLevelRange rootOrder returnings
 
   where

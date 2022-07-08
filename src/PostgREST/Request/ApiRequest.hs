@@ -271,7 +271,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   payload :: Either ByteString Payload
   payload = case (contentMediaType, pathIsProc) of
     (MTApplicationJSON, _) ->
-      if isJust columns
+      if isJust columns || method == "DELETE" -- For DELETES, always searches for primary keys only
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && pathIsProc

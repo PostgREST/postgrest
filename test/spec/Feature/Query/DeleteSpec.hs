@@ -627,21 +627,45 @@ spec =
             , { "id": 3, "name": "item-3" }
             ]|]
           `shouldRespondWith`
-            [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
+            [json|{
+              "code":"22023",
+              "hint":null,
+              "details":null,
+              "message":"argument of json_populate_recordset must be an array of objects"
+              }|]
             { matchStatus  = 400
             , matchHeaders = [matchContentTypeJson]
             }
 
-      it "rejects a json array that has objects with different keys" $
+      it "works with a json array that has objects with different keys" $ do
+        get "/bulk_delete_items_cpk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
         request methodDelete "/bulk_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
               { "id": 1, "name": "item-1" }
             , { "id": 2 }
-            , { "id": 3, "name": "item-3" }
+            , { "other": "value" }
+            , { "id": 3, "name": "item-3", "observation": null }
             ]|]
           `shouldRespondWith`
-            [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
-            { matchStatus  = 400
-            , matchHeaders = [matchContentTypeJson]
+            ""
+            { matchStatus  = 204
+            , matchHeaders = ["Content-Range" <:> "*/2"]
             }
+
+        get "/bulk_delete_items_cpk?order=id"
+          `shouldRespondWith`
+            [json|[ { "id": 2, "name": "item-2", "observation": null } ]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "bulk_delete_items_cpk"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
