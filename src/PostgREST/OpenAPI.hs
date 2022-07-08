@@ -325,6 +325,8 @@ postgrestSpec :: RelationshipsMap -> [ProcDescription] -> [Table] -> (Text, Text
 postgrestSpec rels pds ti (s, h, p, b) sd = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']
+  & securityDefinitions .~ SecurityDefinitions (fromList [("JWT", SecurityScheme (SecuritySchemeApiKey (ApiKeyParams "Authorization" ApiKeyHeader)) (Just "Add the token prepending \"Bearer \" (without quotes) to it"))])
+  & security .~ [SecurityRequirement (fromList [("JWT", [])])]
   & info .~ ((mempty :: Info)
       & version .~ T.decodeUtf8 prettyVersion
       & title .~ "PostgREST API"
