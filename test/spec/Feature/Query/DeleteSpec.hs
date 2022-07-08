@@ -142,12 +142,16 @@ spec =
             []
             mempty
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending a body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
-
+        -- TODO: 422 for the rest of cases
         request methodDelete "/items"
             []
             [json| {} |]
@@ -183,12 +187,16 @@ spec =
             []
             mempty
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending a body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
-
+        -- TODO: 422 for the rest of cases
         request methodDelete "/items?select=id"
             []
             [json| {} |]

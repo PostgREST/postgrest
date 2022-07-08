@@ -62,6 +62,7 @@ instance PgrstError ApiRequestError where
   status InvalidRpcMethod{}      = HTTP.status405
   status InvalidRange            = HTTP.status416
   status NotFound                = HTTP.status404
+  status NoBodyFilterLimit{}     = HTTP.status422
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
   status NotEmbedded{}           = HTTP.status400
@@ -139,6 +140,12 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Unsupported HTTP method: " <> T.decodeUtf8 method),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
+
+  toJSON (NoBodyFilterLimit method) = JSON.object [
+    "code"    .= ApiRequestErrorCode18,
+    "message" .= ("A full " <> method <> " without a body, filters or limits is not allowed" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("Filter the request by sending a body or by using filters or limits in the query string." :: Text)]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
@@ -441,6 +448,7 @@ data ErrorCode
   | ApiRequestErrorCode15
   | ApiRequestErrorCode16
   | ApiRequestErrorCode17
+  | ApiRequestErrorCode18
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -482,6 +490,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode15  -> "115"
   ApiRequestErrorCode16  -> "116"
   ApiRequestErrorCode17  -> "117"
+  ApiRequestErrorCode18  -> "118"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"

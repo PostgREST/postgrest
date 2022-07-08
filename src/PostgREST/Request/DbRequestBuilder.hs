@@ -56,7 +56,7 @@ import PostgREST.Request.Types
 import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude hiding (from)
-
+--import Debug.Trace as BUG
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
@@ -329,7 +329,15 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
           then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi body combinedLogic pkCols iTopLevelRange rootOrder returnings
+    MutationDelete ->
+        if null qsLogic &&
+           null qsFilters &&
+           null qsRanges &&
+           body == mempty
+          then Left $ NoBodyFilterLimit "delete"
+        else 
+          Right $ Delete qi body combinedLogic pkCols iTopLevelRange rootOrder returnings
+
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams

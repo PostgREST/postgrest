@@ -56,6 +56,7 @@ data ApiRequestError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
+  | NoBodyFilterLimit Text
   | NoRelBetween Text Text Text
   | NoRpc Text Text [Text] Bool MediaType Bool
   | NotEmbedded Text
