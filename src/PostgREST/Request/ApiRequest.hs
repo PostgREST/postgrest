@@ -420,7 +420,7 @@ findAcceptMediaType conf action path accepts =
 requestMediaTypes :: AppConfig -> Action -> Path -> [MediaType]
 requestMediaTypes conf action path =
   case action of
-    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes conf
+    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
     ActionInvoke _  -> invokeMediaTypes
     ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
     ActionInfo      -> [MTTextCSV]
@@ -428,14 +428,11 @@ requestMediaTypes conf action path =
   where
     invokeMediaTypes =
       defaultMediaTypes
-        ++ rawMediaTypes conf
+        ++ rawMediaTypes
         ++ [MTOpenAPI | pIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV]
-
-rawMediaTypes :: AppConfig -> [MediaType]
-rawMediaTypes AppConfig{..} =
-  (MediaType.decodeMediaType <$> configRawMediaTypes) `union` [MTOctetStream, MTTextPlain, MTTextXML]
+    rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,

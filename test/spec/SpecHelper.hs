@@ -26,6 +26,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..),
                                           parseSecret)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
+import PostgREST.MediaType               (MediaType (..))
 import Protolude                         hiding (toS)
 import Protolude.Conv                    (toS)
 
@@ -176,7 +177,7 @@ testCfgRootSpec :: AppConfig
 testCfgRootSpec = baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
 
 testCfgHtmlRawOutput :: AppConfig
-testCfgHtmlRawOutput = baseCfg { configRawMediaTypes = ["text/html"] }
+testCfgHtmlRawOutput = baseCfg { configRawMediaTypes = [MTOther "text/html"] }
 
 testCfgResponseHeaders :: AppConfig
 testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }

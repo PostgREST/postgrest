@@ -610,9 +610,9 @@ contentTypeHeaders RequestContext{..} =
 -- than `*`
 binaryField :: Monad m => RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
 binaryField RequestContext{..} readReq
-  | returnsScalar (iTarget ctxApiRequest) && iAcceptMediaType ctxApiRequest `elem` rawMediaTypes ctxConfig =
+  | returnsScalar (iTarget ctxApiRequest) && isRawMediaType =
       return $ Just "pgrst_scalar"
-  | iAcceptMediaType ctxApiRequest `elem` rawMediaTypes ctxConfig =
+  | isRawMediaType =
       let
         fldNames = fstFieldNames readReq
         fieldName = headMay fldNames
@@ -623,10 +623,8 @@ binaryField RequestContext{..} readReq
         throwError $ Error.BinaryFieldError (iAcceptMediaType ctxApiRequest)
   | otherwise =
       return Nothing
-
-rawMediaTypes :: AppConfig -> [MediaType]
-rawMediaTypes AppConfig{..} =
-  (MediaType.decodeMediaType <$> configRawMediaTypes) `union` [MTOctetStream, MTTextPlain, MTTextXML]
+  where
+    isRawMediaType = iAcceptMediaType ctxApiRequest `elem` configRawMediaTypes ctxConfig `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
