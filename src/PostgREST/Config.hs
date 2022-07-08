@@ -57,6 +57,7 @@ import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
+import PostgREST.MediaType               (MediaType (..), toMime)
 
 import Protolude hiding (Proxy, toList)
 
@@ -88,7 +89,7 @@ data AppConfig = AppConfig
   , configLogLevel              :: LogLevel
   , configOpenApiMode           :: OpenAPIMode
   , configOpenApiServerProxyUri :: Maybe Text
-  , configRawMediaTypes         :: [BS.ByteString]
+  , configRawMediaTypes         :: [MediaType]
   , configServerHost            :: Text
   , configServerPort            :: Int
   , configServerUnixSocket      :: Maybe FilePath
@@ -143,7 +144,7 @@ toText conf =
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . configRawMediaTypes)
+      ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . fmap toMime . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
@@ -238,7 +239,7 @@ parser optPath env dbSettings =
     <*> parseLogLevel "log-level"
     <*> parseOpenAPIMode "openapi-mode"
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
-    <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
+    <*> (maybe [] (fmap (MTOther . encodeUtf8) . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
