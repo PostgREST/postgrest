@@ -148,12 +148,12 @@ mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnin
   -- The body is not mandatory, although a delete without filters is not possible.
   | range == allRange =
     let whereLogic | null logicForest = if hasEmptyBody || null pkFlts then "FALSE" else pgrstDeleteBodyF
-                   | otherwise        = (if hasEmptyBody || null pkFlts then mempty else pgrstDeleteBodyF <> "AND") <> logicForestF in
-    (if hasEmptyBody
+                   | otherwise        = logicForestF in
+    (if not (null logicForest) || hasEmptyBody
       then mempty
       else "WITH " <> normalizedBody body <> " ") <>
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-    (if hasEmptyBody
+    (if not (null logicForest) || hasEmptyBody
       then mempty else
       "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
     "WHERE " <> whereLogic <> " " <>
