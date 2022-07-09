@@ -18,6 +18,13 @@ spec = do
     it "gives 404 when requesting a nonexistent table in this nonexistent schema" $
       get "/nonexistent_table" `shouldRespondWith` 404
 
+  describe "Non existent URL" $ do
+    it "gives 404 on a single nested route" $
+      get "/projects/nested" `shouldRespondWith` 404
+
+    it "gives 404 on a double nested route" $
+      get "/projects/nested/double" `shouldRespondWith` 404
+
   describe "Unsupported HTTP methods" $ do
     it "should return 405 for CONNECT method" $
       request methodConnect "/"

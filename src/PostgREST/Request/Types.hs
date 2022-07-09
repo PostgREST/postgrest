@@ -55,6 +55,7 @@ data ApiRequestError
   | InvalidFilters
   | InvalidRange
   | LimitNoOrderError
+  | NotFound
   | NoRelBetween Text Text Text
   | NoRpc Text Text [Text] Bool MediaType Bool
   | NotEmbedded Text

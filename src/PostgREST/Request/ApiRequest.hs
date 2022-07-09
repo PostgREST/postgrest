@@ -100,20 +100,17 @@ data Action
   | ActionUnknown Text
   deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
-data Path
+data PathInfo
   = PathInfo
-      { pSchema        :: Schema,
-        pName          :: Text,
-        pHasRpc        :: Bool,
-        pIsDefaultSpec :: Bool,
-        pIsRootSpec    :: Bool
+      { pathName       :: Text
+      , pathIsProc     :: Bool
+      , pathIsDefSpec  :: Bool
+      , pathIsRootSpec :: Bool
       }
-  | PathUnknown
 -- | The target db object of a user action
 data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: ProcDescription, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
-            | TargetUnknown
 
 -- | RPC query param value `/rpc/func?v=<value>`, used for VARIADIC functions on form-urlencoded POST and GETs
 -- | It can be fixed `?v=1` or repeated `?v=1&v=2&v=3.
@@ -178,13 +175,26 @@ data ApiRequest = ApiRequest {
 
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf dbStructure req reqBody =
-  apiRequest conf dbStructure req reqBody =<< first QueryParamError (QueryParams.parse (rawQueryString req))
+userApiRequest conf dbStructure req reqBody = do
+  qPrms <- first QueryParamError (QueryParams.parse (rawQueryString req))
+  pInfo <- getPathInfo conf $ pathInfo req
+  apiRequest conf dbStructure req reqBody qPrms pInfo
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> Either ApiRequestError ApiRequest
-apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..}
+getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
+getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
+  case path of
+    []             -> case configDbRootSpec of
+                        Just (QualifiedIdentifier _ pathName)     -> Right $ PathInfo pathName True False True
+                        Nothing | configOpenApiMode == OADisabled -> Left NotFound
+                                | otherwise                       -> Right $ PathInfo mempty False True False
+    [table]        -> Right $ PathInfo table False False False
+    ["rpc", pName] -> Right $ PathInfo pName True False False
+    _              -> Left NotFound
+
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Either ApiRequestError ApiRequest
+apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..} path@PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec}
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
-  | isTargetingProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
+  | pathIsProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | isInvalidRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
@@ -217,14 +227,8 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
  where
   accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
 
-  expectParams = isTargetingProc && method /= "POST"
+  expectParams = pathIsProc && method /= "POST"
 
-  isTargetingProc = case path of
-    PathInfo{pHasRpc, pIsRootSpec} -> pHasRpc || pIsRootSpec
-    _                              -> False
-  isTargetingDefaultSpec = case path of
-    PathInfo{pIsDefaultSpec=True} -> True
-    _                             -> False
   contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
 
   columns = case action of
@@ -243,12 +247,12 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
         (Just RawJSON{}, Just cls)       -> cls
         _                                -> S.empty
   payload :: Either ByteString Payload
-  payload = case (contentMediaType, isTargetingProc) of
+  payload = case (contentMediaType, pathIsProc) of
     (MTApplicationJSON, _) ->
       if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
-               =<< if LBS.null reqBody && isTargetingProc
+               =<< if LBS.null reqBody && pathIsProc
                      then Right emptyObject
                      else first BS.pack $ JSON.eitherDecode reqBody
     (MTTextCSV, _) -> do
@@ -266,13 +270,13 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     case method of
       -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
       -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
-      "HEAD"     | isTargetingDefaultSpec -> ActionInspect{isHead=True}
-                 | isTargetingProc        -> ActionInvoke InvHead
-                 | otherwise              -> ActionRead{isHead=True}
-      "GET"      | isTargetingDefaultSpec -> ActionInspect{isHead=False}
-                 | isTargetingProc        -> ActionInvoke InvGet
-                 | otherwise              -> ActionRead{isHead=False}
-      "POST"    -> if isTargetingProc
+      "HEAD"     | pathIsDefSpec -> ActionInspect{isHead=True}
+                 | pathIsProc    -> ActionInvoke InvHead
+                 | otherwise     -> ActionRead{isHead=True}
+      "GET"      | pathIsDefSpec -> ActionInspect{isHead=False}
+                 | pathIsProc    -> ActionInvoke InvGet
+                 | otherwise     -> ActionRead{isHead=False}
+      "POST"    -> if pathIsProc
                     then ActionInvoke InvPost
                     else ActionMutate MutationCreate
       "PATCH"   -> ActionMutate MutationUpdate
@@ -295,19 +299,17 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     where
       contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
       acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
+
   schema = fromMaybe defaultSchema profile
-  target =
-    let
+
+  target
+    | pathIsProc    = (`TargetProc` pathIsRootSpec) <$> callFindProc schema pathName
+    | pathIsDefSpec = Right $ TargetDefaultSpec schema
+    | otherwise      = Right $ TargetIdent $ QualifiedIdentifier schema pathName
+    where
       callFindProc procSch procNam = findProc
         (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
         contentMediaType (action == ActionInvoke InvPost)
-    in
-    case path of
-      PathInfo{pSchema, pName, pHasRpc, pIsRootSpec, pIsDefaultSpec}
-        | pHasRpc || pIsRootSpec -> (`TargetProc` pIsRootSpec) <$> callFindProc pSchema pName
-        | pIsDefaultSpec         -> Right $ TargetDefaultSpec pSchema
-        | otherwise              -> Right $ TargetIdent $ QualifiedIdentifier pSchema pName
-      PathUnknown -> Right TargetUnknown
 
   shouldParsePayload = case (action, contentMediaType) of
     (ActionMutate MutationCreate, _)       -> True
@@ -324,15 +326,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     (MTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
-  path =
-    case pathInfo req of
-      []             -> case configDbRootSpec of
-                          Just (QualifiedIdentifier pSch pName)     -> PathInfo (if pSch == mempty then schema else pSch) pName False False True
-                          Nothing | configOpenApiMode == OADisabled -> PathUnknown
-                                  | otherwise                       -> PathInfo schema "" False True False
-      [table]        -> PathInfo schema table False False False
-      ["rpc", pName] -> PathInfo schema pName True False False
-      _              -> PathUnknown
   method          = requestMethod req
   hdrs            = requestHeaders req
   lookupHeader    = flip lookup hdrs
@@ -409,7 +402,7 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptMediaType :: AppConfig -> Action -> Path -> [MediaType] -> Either ApiRequestError MediaType
+findAcceptMediaType :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
 findAcceptMediaType conf action path accepts =
   case mutuallyAgreeable (requestMediaTypes conf action path) accepts of
     Just ct ->
@@ -417,7 +410,7 @@ findAcceptMediaType conf action path accepts =
     Nothing ->
       Left . MediaTypeError $ map MediaType.toMime accepts
 
-requestMediaTypes :: AppConfig -> Action -> Path -> [MediaType]
+requestMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
 requestMediaTypes conf action path =
   case action of
     ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
@@ -429,7 +422,7 @@ requestMediaTypes conf action path =
     invokeMediaTypes =
       defaultMediaTypes
         ++ rawMediaTypes
-        ++ [MTOpenAPI | pIsRootSpec path]
+        ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]

@@ -54,6 +54,7 @@ import qualified PostgREST.Query.Statements         as Statements
 import qualified PostgREST.RangeQuery               as RangeQuery
 import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
+import qualified PostgREST.Request.Types            as ApiRequestTypes
 
 import PostgREST.AppState                (AppState)
 import PostgREST.Auth                    (AuthResult (..))
@@ -242,10 +243,10 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
       handleOpenApi headersOnly tSchema context
-    (ActionUnknown verb, _) ->
-      throwError $ Error.UnsupportedVerb verb
     _ ->
-      throwError Error.NotFound
+      -- This is unreachable as the ApiRequest.hs rejects it before
+      -- TODO Refactor the Action/Target types to remove this line
+      throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
 
 handleRead :: Bool -> QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleRead headersOnly identifier context@RequestContext{..} = do
@@ -419,7 +420,8 @@ handleInfo identifier RequestContext{..} =
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
     Nothing ->
-      throwError Error.NotFound
+      -- TODO is this right? When no tbl is found on the schema cache we disallow OPTIONS?
+      throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
     tbl = HM.lookup identifier (dbTables ctxDbStructure)
     allOrigins = ("Access-Control-Allow-Origin", "*")

@@ -11,10 +11,6 @@ import Protolude
 spec :: SpecWith ((), Application)
 spec =
   describe "Disabled OpenApi" $ do
-    it "does not accept application/openapi+json and responds with 415" $
+    it "responds with 404" $
       request methodGet "/"
-        [("Accept","application/openapi+json")] "" `shouldRespondWith` 415
-
-    it "accepts application/json and responds with 404" $
-      request methodGet "/"
-        [("Accept","application/json")] "" `shouldRespondWith` 404
+        [("Accept","application/openapi+json")] "" `shouldRespondWith` 404
