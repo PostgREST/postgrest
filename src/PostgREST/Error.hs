@@ -61,6 +61,7 @@ instance PgrstError ApiRequestError where
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
   status InvalidRange            = HTTP.status416
+  status NotFound                = HTTP.status404
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
   status NotEmbedded{}           = HTTP.status400
@@ -113,6 +114,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
+  toJSON NotFound = JSON.object []
   toJSON (NotEmbedded resource) = JSON.object [
     "code"    .= ApiRequestErrorCode08,
     "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
@@ -311,7 +313,6 @@ data Error
   | JwtTokenMissing
   | JwtTokenRequired
   | NoSchemaCacheError
-  | NotFound
   | OffLimitsChangesError Int64 Integer
   | PgErr PgError
   | PutMatchingPkError
@@ -327,7 +328,6 @@ instance PgrstError Error where
   status JwtTokenMissing         = HTTP.status500
   status JwtTokenRequired        = HTTP.unauthorized401
   status NoSchemaCacheError      = HTTP.status503
-  status NotFound                = HTTP.status404
   status OffLimitsChangesError{} = HTTP.status400
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
@@ -404,7 +404,6 @@ instance JSON.ToJSON Error where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON NotFound = JSON.object []
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
 
