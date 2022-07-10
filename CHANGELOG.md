@@ -54,7 +54,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1959, An accidental full table PATCH(without filters) is not possible anymore, it requires filters or a `limit` parameter - @steve-chavez, @laurenceisla
  - #2317, Increase the `db-pool-timeout` to 1 hour to prevent frequent high connection latency - @steve-chavez
  - #2341, The search path now correctly identifies schemas with uppercase and special characters in their names (regression) - @laurenceisla
- - #2364, "404 Not Found" on nested routes doesn't start an empty database transaction - @steve-chavez
+ - #2364, "404 Not Found" on nested routes and "405 Method Not Allowed" errors no longer start an empty database transaction - @steve-chavez
 
 ### Changed
 

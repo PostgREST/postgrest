@@ -516,11 +516,11 @@ spec actualPgVersion =
           simpleStatus p `shouldBe` internalServerError500
           isErrorFormat (simpleBody p) `shouldBe` True
 
-    context "unsupported verbs" $ do
+    context "unsupported method" $ do
       it "DELETE fails" $
         request methodDelete "/rpc/sayhello" [] ""
           `shouldRespondWith`
-          [json|{"message":"Bad Request","code":"PGRST101","details":null,"hint":null}|]
+          [json|{"message":"Cannot use the DELETE method on RPC","code":"PGRST101","details":null,"hint":null}|]
           { matchStatus  = 405
           , matchHeaders = [matchContentTypeJson]
           }

@@ -47,13 +47,13 @@ import Protolude
 
 
 data ApiRequestError
-  = ActionInappropriate
-  | AmbiguousRelBetween Text Text [Relationship]
+  = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
   | InvalidRange
+  | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
   | NoRelBetween Text Text Text
@@ -63,6 +63,7 @@ data ApiRequestError
   | PutRangeNotAllowedError
   | QueryParamError QPError
   | UnacceptableSchema [Text]
+  | UnsupportedMethod ByteString
 
 data QPError = QPError Text Text
 

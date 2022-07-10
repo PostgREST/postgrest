@@ -35,7 +35,7 @@ spec = do
             {"hint": null,
              "details": null,
              "code": "PGRST117",
-             "message":"Unsupported HTTP verb: CONNECT"}|]
+             "message":"Unsupported HTTP method: CONNECT"}|]
           { matchStatus = 405 }
 
     it "should return 405 for TRACE method" $
@@ -47,7 +47,7 @@ spec = do
             {"hint": null,
              "details": null,
              "code": "PGRST117",
-             "message":"Unsupported HTTP verb: TRACE"}|]
+             "message":"Unsupported HTTP method: TRACE"}|]
           { matchStatus = 405 }
 
     it "should return 405 for OTHER method" $
@@ -59,5 +59,5 @@ spec = do
             {"hint": null,
              "details": null,
              "code": "PGRST117",
-             "message":"Unsupported HTTP verb: OTHER"}|]
+             "message":"Unsupported HTTP method: OTHER"}|]
           { matchStatus = 405 }
