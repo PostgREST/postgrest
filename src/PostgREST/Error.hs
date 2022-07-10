@@ -54,12 +54,12 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status ActionInappropriate     = HTTP.status405
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
   status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
+  status InvalidRpcMethod{}      = HTTP.status405
   status InvalidRange            = HTTP.status416
   status NotFound                = HTTP.status404
   status NoRelBetween{}          = HTTP.status400
@@ -69,6 +69,7 @@ instance PgrstError ApiRequestError where
   status PutRangeNotAllowedError = HTTP.status400
   status QueryParamError{}       = HTTP.status400
   status UnacceptableSchema{}    = HTTP.status406
+  status UnsupportedMethod{}     = HTTP.status405
   status LimitNoOrderError       = HTTP.status400
 
   headers _ = [MediaType.toContentType MTApplicationJSON]
@@ -79,9 +80,9 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= message,
     "details" .= details,
     "hint"    .= JSON.Null]
-  toJSON ActionInappropriate = JSON.object [
+  toJSON (InvalidRpcMethod method) = JSON.object [
     "code"    .= ApiRequestErrorCode01,
-    "message" .= ("Bad Request" :: Text),
+    "message" .= ("Cannot use the " <> T.decodeUtf8 method <> " method on RPC"),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (InvalidBody errorMessage) = JSON.object [
@@ -130,6 +131,12 @@ instance JSON.ToJSON ApiRequestError where
   toJSON PutRangeNotAllowedError = JSON.object [
     "code"    .= ApiRequestErrorCode14,
     "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON (UnsupportedMethod method) = JSON.object [
+    "code"    .= ApiRequestErrorCode17,
+    "message" .= ("Unsupported HTTP method: " <> T.decodeUtf8 method),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
@@ -317,7 +324,6 @@ data Error
   | PgErr PgError
   | PutMatchingPkError
   | SingularityError Integer
-  | UnsupportedVerb Text
 
 instance PgrstError Error where
   status (ApiRequestError err)   = status err
@@ -332,7 +338,6 @@ instance PgrstError Error where
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
   status SingularityError{}      = HTTP.status406
-  status UnsupportedVerb{}       = HTTP.status405
 
   headers (ApiRequestError err)  = headers err
   headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
@@ -396,12 +401,6 @@ instance JSON.ToJSON Error where
     "code"    .= ApiRequestErrorCode16,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
     "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (MediaType.toMime MTSingularJSON), "requires 1 row"],
-    "hint"    .= JSON.Null]
-
-  toJSON (UnsupportedVerb verb) = JSON.object [
-    "code"    .= ApiRequestErrorCode17,
-    "message" .= ("Unsupported HTTP verb: " <> verb),
-    "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON (PgErr err) = JSON.toJSON err

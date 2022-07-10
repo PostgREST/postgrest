@@ -97,7 +97,6 @@ data Action
   | ActionInvoke InvokeMethod
   | ActionInfo
   | ActionInspect {isHead :: Bool}
-  | ActionUnknown Text
   deriving Eq
 -- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
 data PathInfo
@@ -152,7 +151,7 @@ targetToJsonRpcParams target params =
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-    iAction               :: Action                           -- ^ Similar but not identical to HTTP verb, e.g. Create/Invoke both POST
+    iAction               :: Action                           -- ^ Similar but not identical to HTTP method, e.g. Create/Invoke both POST
   , iRange                :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
   , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
   , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
@@ -176,9 +175,10 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf dbStructure req reqBody = do
-  qPrms <- first QueryParamError (QueryParams.parse (rawQueryString req))
+  qPrms <- first QueryParamError $ QueryParams.parse $ rawQueryString req
   pInfo <- getPathInfo conf $ pathInfo req
-  apiRequest conf dbStructure req reqBody qPrms pInfo
+  act <- getAction pInfo $ requestMethod req
+  apiRequest conf dbStructure req reqBody qPrms pInfo act
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -191,10 +191,30 @@ getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
     ["rpc", pName] -> Right $ PathInfo pName True False False
     _              -> Left NotFound
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Either ApiRequestError ApiRequest
-apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..} path@PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec}
+getAction :: PathInfo -> ByteString -> Either ApiRequestError Action
+getAction PathInfo{pathIsProc, pathIsDefSpec} method =
+  if pathIsProc && method `notElem` ["HEAD", "GET", "POST"]
+    then Left $ InvalidRpcMethod method
+    else case method of
+      -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
+      -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
+      "HEAD"     | pathIsDefSpec -> Right $ ActionInspect{isHead=True}
+                 | pathIsProc    -> Right $ ActionInvoke InvHead
+                 | otherwise     -> Right $ ActionRead{isHead=True}
+      "GET"      | pathIsDefSpec -> Right $ ActionInspect{isHead=False}
+                 | pathIsProc    -> Right $ ActionInvoke InvGet
+                 | otherwise     -> Right $ ActionRead{isHead=False}
+      "POST"     | pathIsProc    -> Right $ ActionInvoke InvPost
+                 | otherwise     -> Right $ ActionMutate MutationCreate
+      "PATCH"                    -> Right $ ActionMutate MutationUpdate
+      "PUT"                      -> Right $ ActionMutate MutationSingleUpsert
+      "DELETE"                   -> Right $ ActionMutate MutationDelete
+      "OPTIONS"                  -> Right ActionInfo
+      _                          -> Left $ UnsupportedMethod method
+
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> Either ApiRequestError ApiRequest
+apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..} path@PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
-  | pathIsProc && method `notElem` ["HEAD", "GET", "POST"] = Left ActionInappropriate
   | isInvalidRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
@@ -266,24 +286,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
     (MTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
   topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
-  action =
-    case method of
-      -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
-      -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
-      "HEAD"     | pathIsDefSpec -> ActionInspect{isHead=True}
-                 | pathIsProc    -> ActionInvoke InvHead
-                 | otherwise     -> ActionRead{isHead=True}
-      "GET"      | pathIsDefSpec -> ActionInspect{isHead=False}
-                 | pathIsProc    -> ActionInvoke InvGet
-                 | otherwise     -> ActionRead{isHead=False}
-      "POST"    -> if pathIsProc
-                    then ActionInvoke InvPost
-                    else ActionMutate MutationCreate
-      "PATCH"   -> ActionMutate MutationUpdate
-      "PUT"     -> ActionMutate MutationSingleUpsert
-      "DELETE"  -> ActionMutate MutationDelete
-      "OPTIONS" -> ActionInfo
-      _         -> ActionUnknown $ T.decodeUtf8 method
 
   defaultSchema = NonEmptyList.head configDbSchemas
   profile
@@ -305,7 +307,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   target
     | pathIsProc    = (`TargetProc` pathIsRootSpec) <$> callFindProc schema pathName
     | pathIsDefSpec = Right $ TargetDefaultSpec schema
-    | otherwise      = Right $ TargetIdent $ QualifiedIdentifier schema pathName
+    | otherwise     = Right $ TargetIdent $ QualifiedIdentifier schema pathName
     where
       callFindProc procSch procNam = findProc
         (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
