@@ -113,9 +113,12 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: tests
 
       - name: Build static executable
         run: nix-build -A postgrestStatic
+      - name: Check static executable
+        run: postgrest-check-static result/bin/postgrest
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v3
         with:
