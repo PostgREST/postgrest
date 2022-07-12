@@ -957,7 +957,29 @@ this:
 Embedding through join tables
 -----------------------------
 
-PostgREST can also detect relationships going through join tables. Thus you can request the Actors for Films (which in this case finds the information through Roles).
+PostgREST can also detect many-to-many relationships going through join tables. For this, the join table must contain foreign keys to the tables in
+the many-to-many relationship and its primary key must include these foreign key columns.
+
+.. code-block:: postgresql
+
+  create table "Roles"(
+    film_id int references "Films"(id)
+  , actor_id int references "Actors"(id)
+  , primary key(film_id, actor_id)
+  )
+
+  -- the many-to-many relationship can also be detected if the join table has a surrogate key,
+  -- as long as the foreign key columns are also part of the primary key
+
+  create table "Roles"(
+    id int generated always as identity,
+  , film_id int references "Films"(id)
+  , actor_id int references "Actors"(id)
+  , primary key(id, film_id, actor_id)
+  )
+
+
+Then you can request the Actors for Films (which in this case finds the information through Roles).
 
 .. tabs::
 
