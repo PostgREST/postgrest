@@ -445,6 +445,7 @@ INSERT INTO authors VALUES (6, 'William Golding');
 INSERT INTO authors VALUES (7, 'Harper Lee');
 INSERT INTO authors VALUES (8, 'Kurt Vonnegut');
 INSERT INTO authors VALUES (9, 'Ken Kesey');
+INSERT INTO authors VALUES (10, 'Fyodor Dostoevsky');
 
 TRUNCATE TABLE publishers CASCADE;
 INSERT INTO publishers VALUES (1, 'Secker & Warburg');
@@ -467,6 +468,7 @@ INSERT INTO books VALUES (6, 'Lord of the Flies', 1954, 6, 6);
 INSERT INTO books VALUES (7, 'To Kill a Mockingbird', 1960, 7, 7);
 INSERT INTO books VALUES (8, 'Slaughterhouse-Five', 1969, 8, 8);
 INSERT INTO books VALUES (9, 'One Flew Over the Cuckoo''s Nest', 1962, 9, 9);
+INSERT INTO books VALUES (10, 'Crime and Punishment', 1866, 10, null);
 
 SET search_path = test, pg_catalog;
 

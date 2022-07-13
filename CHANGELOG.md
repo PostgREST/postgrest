@@ -55,6 +55,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2317, Increase the `db-pool-timeout` to 1 hour to prevent frequent high connection latency - @steve-chavez
  - #2341, The search path now correctly identifies schemas with uppercase and special characters in their names (regression) - @laurenceisla
  - #2364, "404 Not Found" on nested routes and "405 Method Not Allowed" errors no longer start an empty database transaction - @steve-chavez
+ - #2342, Fix inaccurate result count when an inner embed was selected after a normal embed in the query string - @laurenceisla
 
 ### Changed
 
