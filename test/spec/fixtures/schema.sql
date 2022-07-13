@@ -1461,8 +1461,9 @@ create table private.books(
 );
 
 create view test.authors as select id, name from private.authors;
+create view test.publishers as select id, name from private.publishers;
 
-create view test.books as select id, title, publication_year, author_id from private.books;
+create view test.books as select id, title, publication_year, author_id, first_publisher_id from private.books;
 create view test.forties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1940 and publication_year < 1950;
 create view test.fifties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1950 and publication_year < 1960;
 create view test.sixties_books as select id, title, publication_year, author_id from private.books where publication_year >= 1960 and publication_year < 1970;

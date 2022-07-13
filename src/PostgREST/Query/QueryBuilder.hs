@@ -248,7 +248,7 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, implicitJ
     existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =
       if joinType == Just JTInner
         then ("EXISTS (" <> readRequestToCountQuery readReq <> " )"):rest
-        else mempty
+        else rest
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)

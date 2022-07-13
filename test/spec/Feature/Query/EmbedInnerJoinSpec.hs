@@ -200,7 +200,7 @@ spec =
 
       it "works with views" $ do
         get "/authors?select=*,books!inner(*)&books.title=eq.1984" `shouldRespondWith`
-          [json| [{"id":1,"name":"George Orwell","books":[{"id":1,"title":"1984","publication_year":1949,"author_id":1}]}] |]
+          [json| [{"id":1,"name":"George Orwell","books":[{"id":1,"title":"1984","publication_year":1949,"author_id":1,"first_publisher_id":1}]}] |]
           { matchHeaders = [matchContentTypeJson] }
         request methodHead "/authors?select=*,books!inner(*)&books.title=eq.1984" [("Prefer", "count=exact")] mempty
           `shouldRespondWith` ""
@@ -349,6 +349,28 @@ spec =
         ]|]
         { matchHeaders = [matchContentTypeJson] }
       request methodHead "/client?select=id,name,contact!inner(name),clientinfo!inner(other)" [("Prefer", "count=exact")] mempty
+        `shouldRespondWith` ""
+        { matchStatus  = 200
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-2/3" ]
+        }
+
+    it "works alongside another embedding" $ do
+      -- https://github.com/PostgREST/postgrest/issues/2342
+      get "/books?select=id,authors(name),publishers!inner(name)&id=gte.7"
+        `shouldRespondWith`
+        [json| [
+          {"id":7,"authors":{"name":"Harper Lee"},"publishers":{"name":"J. B. Lippincott & Co."}},
+          {"id":8,"authors":{"name":"Kurt Vonnegut"},"publishers":{"name":"Delacorte"}},
+          {"id":9,"authors":{"name":"Ken Kesey"},"publishers":{"name":"Viking Press & Signet Books"}}] |]
+        { matchHeaders = [matchContentTypeJson] }
+      request methodHead "/books?select=id,authors(name),publishers!inner(name)&id=gte.7" [("Prefer", "count=exact")] mempty
+        `shouldRespondWith` ""
+        { matchStatus  = 200
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Range" <:> "0-2/3" ]
+        }
+      request methodHead "/books?select=id,publishers!inner(name),authors(name)&id=gte.7" [("Prefer", "count=exact")] mempty
         `shouldRespondWith` ""
         { matchStatus  = 200
         , matchHeaders = [ matchContentTypeJson

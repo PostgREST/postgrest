@@ -89,6 +89,7 @@ GRANT ALL ON TABLE
     , managers
     , organizations
     , authors
+    , publishers
     , books
     , forties_books
     , fifties_books
