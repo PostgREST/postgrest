@@ -34,6 +34,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Works for GET, RPC, POST/PATCH/DELETE with `Prefer: return=representation`.
    + Resource embedding works and the embedded rows will go into the `properties` key
    + In case of multiple geometries in the same table, you can choose which one will go into the `geometry` key with the usual `?select` query parameter.
+ - #1082, Add security definitions to the OpenAPI output - @laurenceisla
 
 ### Fixed
 

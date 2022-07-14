@@ -93,6 +93,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecretIsBase64     = False
   , configLogLevel              = LogCrit
   , configOpenApiMode           = OAFollowPriv
+  , configOpenApiSecurityActive = False
   , configOpenApiServerProxyUri = Nothing
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"
@@ -133,6 +134,9 @@ testIgnorePrivOpenApiCfg = baseCfg { configOpenApiMode = OAIgnorePriv, configDbS
 
 testProxyCfg :: AppConfig
 testProxyCfg = baseCfg { configOpenApiServerProxyUri = Just "https://postgrest.com/openapi.json" }
+
+testSecurityOpenApiCfg :: AppConfig
+testSecurityOpenApiCfg = baseCfg { configOpenApiSecurityActive = True }
 
 testCfgBinaryJWT :: AppConfig
 testCfgBinaryJWT =
