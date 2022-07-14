@@ -50,7 +50,7 @@ encode conf dbStructure tables procs schemaDescription =
       (snd <$> HM.toList tables)
       (proxyUri conf)
       schemaDescription
-      (isJust $ configJwtSecret conf)
+      (configOpenApiSecurityActive conf)
 
 makeMimeList :: [MediaType] -> MimeList
 makeMimeList cs = MimeList $ fmap (fromString . BS.unpack . toMime) cs

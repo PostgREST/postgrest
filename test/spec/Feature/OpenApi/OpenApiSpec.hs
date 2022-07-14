@@ -636,3 +636,15 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
       liftIO $ params `shouldBe` Just [aesonQQ|["num", "str"]|]
 
+  describe "Security" $
+    it "does not include security or security definitions by default" $ do
+      r <- simpleBody <$> get "/"
+
+      let sec = r ^? key "security"
+          secDef = r ^? key "securityDefinitions"
+
+      liftIO $ do
+
+        sec `shouldBe` Nothing
+
+        secDef `shouldBe` Nothing

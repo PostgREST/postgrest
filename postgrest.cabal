@@ -189,6 +189,7 @@ test-suite spec
                       Feature.OpenApi.OpenApiSpec
                       Feature.OpenApi.ProxySpec
                       Feature.OpenApi.RootSpec
+                      Feature.OpenApi.SecurityOpenApiSpec
                       Feature.OptionsSpec
                       Feature.Query.AndOrParamsSpec
                       Feature.Query.DeleteSpec

@@ -34,6 +34,7 @@ import qualified Feature.OpenApi.IgnorePrivOpenApiSpec
 import qualified Feature.OpenApi.OpenApiSpec
 import qualified Feature.OpenApi.ProxySpec
 import qualified Feature.OpenApi.RootSpec
+import qualified Feature.OpenApi.SecurityOpenApiSpec
 import qualified Feature.OptionsSpec
 import qualified Feature.Query.AndOrParamsSpec
 import qualified Feature.Query.DeleteSpec
@@ -95,6 +96,7 @@ main = do
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
       disabledOpenApi      = app testDisabledOpenApiCfg
+      securityOpenApi      = app testSecurityOpenApiCfg
       proxyApp             = app testProxyCfg
       noAnonApp            = app testCfgNoAnon
       noJwtApp             = app testCfgNoJWT
@@ -170,6 +172,10 @@ main = do
     -- this test runs with a proxy
     parallel $ before proxyApp $
       describe "Feature.OpenApi.ProxySpec" Feature.OpenApi.ProxySpec.spec
+
+    -- this test runs with openapi-security-active set to true
+    parallel $ before securityOpenApi $
+      describe "Feature.OpenApi.SecurityOpenApiSpec" Feature.OpenApi.SecurityOpenApiSpec.spec
 
     -- this test runs without an anonymous role
     parallel $ before noAnonApp $

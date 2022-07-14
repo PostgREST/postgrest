@@ -87,6 +87,7 @@ data AppConfig = AppConfig
   , configJwtSecretIsBase64     :: Bool
   , configLogLevel              :: LogLevel
   , configOpenApiMode           :: OpenAPIMode
+  , configOpenApiSecurityActive :: Bool
   , configOpenApiServerProxyUri :: Maybe Text
   , configRawMediaTypes         :: [BS.ByteString]
   , configServerHost            :: Text
@@ -142,6 +143,7 @@ toText conf =
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
+      ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
       ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
@@ -237,6 +239,7 @@ parser optPath env dbSettings =
           (optBool "secret-is-base64"))
     <*> parseLogLevel "log-level"
     <*> parseOpenAPIMode "openapi-mode"
+    <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> (maybe [] (fmap encodeUtf8 . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
