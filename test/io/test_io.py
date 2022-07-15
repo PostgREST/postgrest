@@ -943,6 +943,34 @@ def test_log_level(level, has_output, defaultenv):
             )
 
 
+def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
+    "no pool connection should be consumed for failing on invalid http logic"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+    }
+
+    with run(env=env) as postgrest:
+        # First we retain the only pool connection available
+        # The try/except is a hack for not waiting for the response, taken from https://stackoverflow.com/a/45601591/4692662
+        try:
+            postgrest.session.get("/rpc/sleep?seconds=50", timeout=0.1)
+        except requests.exceptions.ReadTimeout:
+            pass
+
+        # Then the following requests should succeed rapidly
+
+        # not found nested route shouldn't require opening a connection
+        response = postgrest.session.head("/path/notfound")
+        assert response.status_code == 404
+
+        # an invalid http method on a resource shouldn't require opening a connection
+        response = postgrest.session.request("TRACE", "/projects")
+        assert response.status_code == 405
+        response = postgrest.session.patch("/rpc/hello")
+        assert response.status_code == 405
+
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
 # The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
 # A stack size of 200K seems to be enough for succeess
