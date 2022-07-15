@@ -90,7 +90,7 @@ let
     checkedShellScript
       {
         name = "postgrest-test-io";
-        docs = "Run the pytest-based IO tests.";
+        docs = "Run the pytest-based IO tests. Add -k to run tests that match a given expression.";
         args = [ "ARG_LEFTOVERS([pytest arguments])" ];
         inRootDir = true;
         withEnv = postgrest.env;
@@ -151,7 +151,7 @@ let
           HPCTIXFILE="$tmpdir"/io.tix \
             ${withTools.withPg} -f test/io/fixtures.sql ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- \
             ${ioTestPython}/bin/pytest -v test/io
-          
+
           HPCTIXFILE="$tmpdir"/spec.tix \
             ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 

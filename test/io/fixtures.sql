@@ -78,3 +78,11 @@ create function reload_pgrst_config() returns void as $_$
 begin
   perform pg_notify('pgrst', 'reload config');
 end $_$ language plpgsql ;
+
+create or replace function sleep(seconds double precision) returns void as $$
+  select pg_sleep(seconds);
+$$ language sql;
+
+create or replace function hello() returns text as $$
+  select 'hello';
+$$ language sql;
