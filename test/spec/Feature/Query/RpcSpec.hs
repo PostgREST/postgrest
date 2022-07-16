@@ -69,6 +69,20 @@ spec actualPgVersion =
                              , "Content-Range" <:> "0-0/2" ]
             }
 
+      it "includes exact count if requested" $ do
+        request methodHead "/rpc/getallprojects"
+                [("Prefer", "count=exact")] ""
+           `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-4/5"]
+            }
+        request methodHead "/rpc/getallprojects?select=*,clients!inner(*)&clients.id=eq.1"
+                [("Prefer", "count=exact")] ""
+           `shouldRespondWith` ""
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-1/2"]
+            }
+
       it "returns proper json" $ do
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]

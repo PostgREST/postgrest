@@ -236,11 +236,12 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, implicitJ
     then mempty
     else " WHERE " ) <>
   intercalateSnippet " AND " (
-    map (pgFmtLogicTree mainQi) logicForest ++
+    map (pgFmtLogicTree treeQi) logicForest ++
     map pgFmtJoinCondition joinConditions_ ++
     subQueries
   )
   where
+    treeQi = maybe mainQi (QualifiedIdentifier (qiSchema mainQi)) tblAlias
     tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
     implJs = fromQi <$> implJoins
     subQueries = foldr existsSubquery [] forest
