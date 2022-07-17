@@ -206,11 +206,14 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthRes
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf dbStructure req body
 
-  let handleReq apiReq = handleRequest $ RequestContext conf dbStructure apiReq pgVer
+  let ctx apiReq = RequestContext conf dbStructure apiReq pgVer
 
-  runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
-    Middleware.optionalRollback conf apiRequest $
-      Middleware.runPgLocals conf authClaims authRole handleReq apiRequest jsonDbS pgVer
+  if iAction apiRequest == ActionInfo then
+    handleInfo (iTarget apiRequest) (ctx apiRequest)
+  else
+    runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
+      Middleware.optionalRollback conf apiRequest $
+        Middleware.runPgLocals conf authClaims authRole (handleRequest . ctx) apiRequest jsonDbS pgVer
 
 runDbHandler :: SQL.Pool -> SQL.Mode -> Bool -> Bool -> DbHandler a -> Handler IO a
 runDbHandler pool mode authenticated prepared handler = do
@@ -237,8 +240,6 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
       handleSingleUpsert identifier context
     (ActionMutate MutationDelete, TargetIdent identifier) ->
       handleDelete identifier context
-    (ActionInfo, TargetIdent identifier) ->
-      handleInfo identifier context
     (ActionInvoke invMethod, TargetProc proc _) ->
       handleInvoke invMethod proc context
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
@@ -414,8 +415,8 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
       else
         response HTTP.status204 [contentRangeHeader] mempty)
 
-handleInfo :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m Wai.Response
-handleInfo identifier RequestContext{..} =
+handleInfo :: Monad m => Target -> RequestContext -> Handler m Wai.Response
+handleInfo target RequestContext{..} =
   case tbl of
     Just table ->
       return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
@@ -423,7 +424,9 @@ handleInfo identifier RequestContext{..} =
       -- TODO is this right? When no tbl is found on the schema cache we disallow OPTIONS?
       throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
-    tbl = HM.lookup identifier (dbTables ctxDbStructure)
+    tbl = case target of
+      TargetIdent identifier -> HM.lookup identifier (dbTables ctxDbStructure)
+      _                      -> Nothing
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       ( HTTP.hAllow

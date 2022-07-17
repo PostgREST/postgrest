@@ -972,6 +972,33 @@ def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
         assert response.status_code == 405
 
 
+def test_no_pool_connection_required_on_options(defaultenv):
+    "no pool connection should be consumed for OPTIONS requests"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+    }
+
+    with run(env=env) as postgrest:
+        # First we retain the only pool connection available
+        # The try/except is a hack for not waiting for the response, taken from https://stackoverflow.com/a/45601591/4692662
+        try:
+            postgrest.session.get("/rpc/sleep?seconds=50", timeout=0.1)
+        except requests.exceptions.ReadTimeout:
+            pass
+
+        # Then the following OPTIONS requests should succeed rapidly
+
+        # OPTIONS on a table shouldn't require opening a connection
+        response = postgrest.session.options("/projects")
+        assert response.status_code == 200
+
+        # OPTIONS on RPC is not implemented yet, still it shouldn't require opening a connection
+        response = postgrest.session.options("/rpc/hello")
+        assert response.status_code == 405
+
+
 def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
     "no pool connection should be consumed for failing on invalid jwt"
 
