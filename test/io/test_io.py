@@ -140,7 +140,14 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None, host=None, no_pool_connection_available=False):
+def run(
+    configpath=None,
+    stdin=None,
+    env=None,
+    port=None,
+    host=None,
+    no_pool_connection_available=False,
+):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
     env["PGRST_DB_POOL"] = "1"
@@ -243,6 +250,7 @@ def sleep_pool_connection(url, seconds):
         session.get(url + f"/rpc/sleep?seconds={seconds}", timeout=0.1)
     except requests.exceptions.ReadTimeout:
         pass
+
 
 def authheader(token):
     "Bearer token HTTP authorization header."
@@ -982,9 +990,13 @@ def test_no_pool_connection_required_on_options(defaultenv):
         response = postgrest.session.options("/projects")
         assert response.status_code == 200
 
-        # OPTIONS on RPC is not implemented yet, still it shouldn't require opening a connection
+        # OPTIONS on RPC shouldn't require opening a connection
         response = postgrest.session.options("/rpc/hello")
-        assert response.status_code == 405
+        assert response.status_code == 200
+
+        # OPTIONS on root shouldn't require opening a connection
+        response = postgrest.session.options("/")
+        assert response.status_code == 200
 
 
 def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):

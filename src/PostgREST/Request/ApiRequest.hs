@@ -193,7 +193,7 @@ getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
 
 getAction :: PathInfo -> ByteString -> Either ApiRequestError Action
 getAction PathInfo{pathIsProc, pathIsDefSpec} method =
-  if pathIsProc && method `notElem` ["HEAD", "GET", "POST"]
+  if pathIsProc && method `notElem` ["HEAD", "GET", "POST", "OPTIONS"]
     then Left $ InvalidRpcMethod method
     else case method of
       -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
