@@ -140,7 +140,7 @@ def dumpconfig(configpath=None, env=None, stdin=None):
 
 
 @contextlib.contextmanager
-def run(configpath=None, stdin=None, env=None, port=None, host=None):
+def run(configpath=None, stdin=None, env=None, port=None, host=None, no_pool_connection_available=False):
     "Run PostgREST and yield an endpoint that is ready for connections."
     env = env or {}
     env["PGRST_DB_POOL"] = "1"
@@ -190,6 +190,9 @@ def run(configpath=None, stdin=None, env=None, port=None, host=None):
                 admin=PostgrestSession(adminurl),
             )
         finally:
+            if no_pool_connection_available:
+                sleep_pool_connection(baseurl, 10)
+
             remaining_output = process.stdout.read()
             if remaining_output:
                 print(remaining_output.decode())
@@ -229,6 +232,17 @@ def wait_until_ready(url):
     else:
         raise PostgrestTimedOut()
 
+
+def sleep_pool_connection(url, seconds):
+    "Sleep a pool connection by calling an RPC that uses pg_sleep"
+    session = requests_unixsocket.Session()
+
+    # The try/except is a hack for not waiting for the response,
+    # taken from https://stackoverflow.com/a/45601591/4692662
+    try:
+        session.get(url + f"/rpc/sleep?seconds={seconds}", timeout=0.1)
+    except requests.exceptions.ReadTimeout:
+        pass
 
 def authheader(token):
     "Bearer token HTTP authorization header."
@@ -946,20 +960,7 @@ def test_log_level(level, has_output, defaultenv):
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
-    env = {
-        **defaultenv,
-        "PGRST_DB_POOL": "1",
-    }
-
-    with run(env=env) as postgrest:
-        # First we retain the only pool connection available
-        # The try/except is a hack for not waiting for the response, taken from https://stackoverflow.com/a/45601591/4692662
-        try:
-            postgrest.session.get("/rpc/sleep?seconds=50", timeout=0.1)
-        except requests.exceptions.ReadTimeout:
-            pass
-
-        # Then the following requests should succeed rapidly
+    with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
 
         # not found nested route shouldn't require opening a connection
         response = postgrest.session.head("/path/notfound")
@@ -975,20 +976,7 @@ def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
 def test_no_pool_connection_required_on_options(defaultenv):
     "no pool connection should be consumed for OPTIONS requests"
 
-    env = {
-        **defaultenv,
-        "PGRST_DB_POOL": "1",
-    }
-
-    with run(env=env) as postgrest:
-        # First we retain the only pool connection available
-        # The try/except is a hack for not waiting for the response, taken from https://stackoverflow.com/a/45601591/4692662
-        try:
-            postgrest.session.get("/rpc/sleep?seconds=50", timeout=0.1)
-        except requests.exceptions.ReadTimeout:
-            pass
-
-        # Then the following OPTIONS requests should succeed rapidly
+    with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
 
         # OPTIONS on a table shouldn't require opening a connection
         response = postgrest.session.options("/projects")
@@ -1002,17 +990,9 @@ def test_no_pool_connection_required_on_options(defaultenv):
 def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
     "no pool connection should be consumed for failing on invalid jwt"
 
-    env = {**defaultenv, "PGRST_DB_POOL": "1", "PGRST_JWT_SECRET": SECRET}
+    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
 
-    with run(env=env) as postgrest:
-        # First we retain the only pool connection available
-        # The try/except is a hack for not waiting for the response, taken from https://stackoverflow.com/a/45601591/4692662
-        try:
-            postgrest.session.get("/rpc/sleep?seconds=50", timeout=0.1)
-        except requests.exceptions.ReadTimeout:
-            pass
-
-        # Then the following requests should succeed rapidly
+    with run(env=env, no_pool_connection_available=True) as postgrest:
 
         # A JWT with an invalid signature shouldn't open a connection
         headers = jwtauthheader({"role": "postgrest_test_author"}, "Wrong Secret")
