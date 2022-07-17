@@ -541,10 +541,6 @@ spec actualPgVersion =
       it "PATCH fails" $
         request methodPatch "/rpc/sayhello" [] ""
           `shouldRespondWith` 405
-      it "OPTIONS fails" $
-        -- TODO: should return info about the function
-        request methodOptions "/rpc/sayhello" [] ""
-          `shouldRespondWith` 405
 
     it "executes the proc exactly once per request" $ do
       -- callcounter is persistent even with rollback, because it uses a sequence

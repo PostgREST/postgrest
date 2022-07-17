@@ -22,6 +22,9 @@ spec actualPgVersion = describe "Allow header" $ do
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
 
+    it "fails with 404 for an unknown table" $
+      request methodOptions "/unknown" [] "" `shouldRespondWith` 404
+
   when (actualPgVersion >= pgVersion100) $
     context "a partitioned table" $ do
       it "includes read/write methods for writeable partitioned tables" $ do
@@ -85,3 +88,29 @@ spec actualPgVersion = describe "Allow header" $ do
         liftIO $
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,GET,HEAD,DELETE"
+
+  context "a function" $ do
+    it "includes the POST method for a volatile function" $ do
+      r <- request methodOptions "/rpc/reset_items_tables" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,POST"
+
+    it "includes the GET/HEAD/POST method for a stable function" $ do
+      r <- request methodOptions "/rpc/getallusers" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
+
+    it "includes the GET/HEAD/POST method for a immutable function" $ do
+      r <- request methodOptions "/rpc/jwt_test" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
+
+  context "root endpoint" $ do
+    it "includes the GET/HEAD method " $ do
+      r <- request methodOptions "/" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD"

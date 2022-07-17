@@ -417,28 +417,26 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
 handleInfo :: Monad m => Target -> RequestContext -> Handler m Wai.Response
 handleInfo target RequestContext{..} =
-  case tbl of
-    Just table ->
-      return $ Wai.responseLBS HTTP.status200 [allOrigins, allowH table] mempty
-    Nothing ->
-      -- TODO is this right? When no tbl is found on the schema cache we disallow OPTIONS?
-      throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
+  case target of
+    TargetIdent identifier ->
+      case HM.lookup identifier (dbTables ctxDbStructure) of
+        Just tbl -> infoResponse $ allowH tbl
+        Nothing  -> throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
+    TargetProc pd _
+      | pdVolatility pd == Volatile -> infoResponse "OPTIONS,POST"
+      | otherwise                   -> infoResponse "OPTIONS,GET,HEAD,POST"
+    TargetDefaultSpec _             -> infoResponse "OPTIONS,GET,HEAD"
   where
-    tbl = case target of
-      TargetIdent identifier -> HM.lookup identifier (dbTables ctxDbStructure)
-      _                      -> Nothing
+    infoResponse allowHeader = return $ Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
     allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
-      ( HTTP.hAllow
-      , BS.intercalate "," $
-          ["OPTIONS,GET,HEAD"]
-          ++ ["POST" | tableInsertable table]
-          ++ ["PUT" | tableInsertable table && tableUpdatable table && hasPK]
-          ++ ["PATCH" | tableUpdatable table]
-          ++ ["DELETE" | tableDeletable table]
-      )
-    hasPK =
-      not $ null $ maybe mempty tablePKCols tbl
+      let hasPK = not . null $ tablePKCols table in
+      BS.intercalate "," $
+          ["OPTIONS,GET,HEAD"] ++
+          ["POST" | tableInsertable table] ++
+          ["PUT" | tableInsertable table && tableUpdatable table && hasPK] ++
+          ["PATCH" | tableUpdatable table] ++
+          ["DELETE" | tableDeletable table]
 
 handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
