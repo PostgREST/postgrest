@@ -74,6 +74,7 @@ import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
@@ -259,9 +260,9 @@ handleRead headersOnly identifier context@RequestContext{..} = do
     AppConfig{..} = ctxConfig
     countQuery = QueryBuilder.readRequestToCountQuery req
 
-  res <-
+  resultSet <-
      lift . SQL.statement mempty $
-      Statements.createReadStatement
+      Statements.prepareRead
         (QueryBuilder.readRequestToQuery req)
         (if iPreferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -274,13 +275,13 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         bField
         configDbPreparedStatements
 
-  case res of
-    Statements.Res (tableTotal, queryTotal, _ , body, gucHeaders, gucStatus) -> do
-      total <- readTotal ctxConfig ctxApiRequest tableTotal countQuery
-      response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
+  case resultSet of
+    RSStandard{..} -> do
+      total <- readTotal ctxConfig ctxApiRequest rsTableTotal countQuery
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
 
       let
-        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange queryTotal total
+        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal total
         headers =
           [ contentRange
           , ( "Content-Location"
@@ -291,19 +292,11 @@ handleRead headersOnly identifier context@RequestContext{..} = do
           ]
           ++ contentTypeHeaders context
 
-      failNotSingular iAcceptMediaType queryTotal . response status headers $
-        if headersOnly then mempty else LBS.fromStrict body
+      failNotSingular iAcceptMediaType rsQueryTotal . response status headers $
+        if headersOnly then mempty else LBS.fromStrict rsBody
 
-    Statements.Expl body ->
-      let
-        headers =
-          ( "Content-Location"
-          , "/"
-              <> toUtf8 (qiName identifier)
-              <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
-          )
-          : contentTypeHeaders context in
-      pure $ Wai.responseLBS HTTP.status200 headers $ LBS.fromStrict body
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
@@ -319,7 +312,7 @@ readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
       return tableTotal
   where
     explain =
-      lift . SQL.statement mempty . Statements.createExplainStatement countQuery $
+      lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
         configDbPreparedStatements
 
 handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
@@ -330,34 +323,41 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       then maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
       else mempty
 
-  WriteQueryResult{..} <- writeQuery MutationCreate identifier True pkCols context
+  resultSet <- writeQuery MutationCreate identifier True pkCols context
 
-  let
-    response = gucResponse resGucStatus resGucHeaders
-    headers =
-      catMaybes
-        [ if null resFields then
-            Nothing
-          else
-            Just
-              ( HTTP.hLocation
-              , "/"
-                  <> toUtf8 qiName
-                  <> HTTP.renderSimpleQuery True (splitKeyValue <$> resFields)
-              )
-        , Just . RangeQuery.contentRangeH 1 0 $
-            if shouldCount iPreferCount then Just resQueryTotal else Nothing
-        , if null pkCols && isNothing (qsOnConflict iQueryParams) then
-            Nothing
-          else
-            toAppliedHeader <$> iPreferResolution
-        ]
+  case resultSet of
+    RSStandard{..} -> do
 
-  failNotSingular iAcceptMediaType resQueryTotal $
-    if iPreferRepresentation == Full then
-      response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict resBody)
-    else
-      response HTTP.status201 headers mempty
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
+
+      let
+        headers =
+          catMaybes
+            [ if null rsLocation then
+                Nothing
+              else
+                Just
+                  ( HTTP.hLocation
+                  , "/"
+                      <> toUtf8 qiName
+                      <> HTTP.renderSimpleQuery True rsLocation
+                  )
+            , Just . RangeQuery.contentRangeH 1 0 $
+                if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+            , if null pkCols && isNothing (qsOnConflict iQueryParams) then
+                Nothing
+              else
+                toAppliedHeader <$> iPreferResolution
+            ]
+
+      failNotSingular iAcceptMediaType rsQueryTotal $
+        if iPreferRepresentation == Full then
+          response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict rsBody)
+        else
+          response HTTP.status201 headers mempty
+
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@RequestContext{..} = do
@@ -365,68 +365,87 @@ handleUpdate identifier context@RequestContext{..} = do
     ApiRequest{..} = ctxApiRequest
     pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
 
-  WriteQueryResult{..} <- writeQuery MutationUpdate identifier False pkCols context
+  resultSet <- writeQuery MutationUpdate identifier False pkCols context
 
-  let
-    response = gucResponse resGucStatus resGucHeaders
-    fullRepr = iPreferRepresentation == Full
-    updateIsNoOp = S.null iColumns
-    status
-      | resQueryTotal == 0 && not updateIsNoOp = HTTP.status404
-      | fullRepr = HTTP.status200
-      | otherwise = HTTP.status204
-    contentRangeHeader =
-      RangeQuery.contentRangeH 0 (resQueryTotal - 1) $
-        if shouldCount iPreferCount then Just resQueryTotal else Nothing
+  case resultSet of
+    RSStandard{..} -> do
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
 
-  failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
-    failNotSingular iAcceptMediaType resQueryTotal (
-      if fullRepr then
-        response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict resBody)
-      else
-        response status [contentRangeHeader] mempty)
+      let
+        fullRepr = iPreferRepresentation == Full
+        updateIsNoOp = S.null iColumns
+        status
+          | rsQueryTotal == 0 && not updateIsNoOp = HTTP.status404
+          | fullRepr = HTTP.status200
+          | otherwise = HTTP.status204
+        contentRangeHeader =
+          RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
+            if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+
+      failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) rsQueryTotal =<<
+        failNotSingular iAcceptMediaType rsQueryTotal (
+          if fullRepr then
+            response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict rsBody)
+          else
+            response status [contentRangeHeader] mempty)
+
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
   let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
 
-  WriteQueryResult{..} <- writeQuery MutationSingleUpsert identifier False pkCols context
+  resultSet <- writeQuery MutationSingleUpsert identifier False pkCols context
 
-  let response = gucResponse resGucStatus resGucHeaders
+  case resultSet of
+    RSStandard {..} -> do
 
-  -- Makes sure the querystring pk matches the payload pk
-  -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
-  -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
-  -- If this condition is not satisfied then nothing is inserted,
-  -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-  when (resQueryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError Error.PutMatchingPkError
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
 
-  return $
-    if iPreferRepresentation == Full then
-      response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict resBody)
-    else
-      response HTTP.status204 [] mempty
+      -- Makes sure the querystring pk matches the payload pk
+      -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
+      -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
+      -- If this condition is not satisfied then nothing is inserted,
+      -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
+      when (rsQueryTotal /= 1) $ do
+        lift SQL.condemn
+        throwError Error.PutMatchingPkError
+
+      return $
+        if iPreferRepresentation == Full then
+          response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict rsBody)
+        else
+          response HTTP.status204 [] mempty
+
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
-  WriteQueryResult{..} <- writeQuery MutationDelete identifier False mempty context
+  resultSet <- writeQuery MutationDelete identifier False mempty context
 
-  let
-    response = gucResponse resGucStatus resGucHeaders
-    contentRangeHeader =
-      RangeQuery.contentRangeH 1 0 $
-        if shouldCount iPreferCount then Just resQueryTotal else Nothing
+  case resultSet of
+    RSStandard {..} -> do
 
-  failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resQueryTotal =<<
-    failNotSingular iAcceptMediaType resQueryTotal (
-      if iPreferRepresentation == Full then
-        response HTTP.status200
-          (contentTypeHeaders context ++ [contentRangeHeader])
-          (LBS.fromStrict resBody)
-      else
-        response HTTP.status204 [contentRangeHeader] mempty)
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
+
+      let
+        contentRangeHeader =
+          RangeQuery.contentRangeH 1 0 $
+            if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+
+      failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) rsQueryTotal =<<
+        failNotSingular iAcceptMediaType rsQueryTotal (
+          if iPreferRepresentation == Full then
+            response HTTP.status200
+              (contentTypeHeaders context ++ [contentRangeHeader])
+              (LBS.fromStrict rsBody)
+          else
+            response HTTP.status204 [contentRangeHeader] mempty)
+
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleInfo :: Monad m => Target -> RequestContext -> Handler m Wai.Response
 handleInfo target RequestContext{..} =
@@ -466,9 +485,9 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 
   let callReq = ReqBuilder.callRequest proc ctxApiRequest req
 
-  (tableTotal, queryTotal, _, body, gucHeaders, gucStatus) <-
+  resultSet <-
     lift . SQL.statement mempty $
-      Statements.callProcStatement
+      Statements.prepareCall
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
         (QueryBuilder.requestToCallProcQuery callReq)
@@ -480,19 +499,23 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         bField
         (configDbPreparedStatements ctxConfig)
 
-  response <- liftEither $ gucResponse <$> gucStatus <*> gucHeaders
+  case resultSet of
+    RSStandard {..} -> do
+      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
+      let
+        (status, contentRange) =
+          RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
 
-  let
-    (status, contentRange) =
-      RangeQuery.rangeStatusHeader iTopLevelRange queryTotal tableTotal
+      failNotSingular iAcceptMediaType rsQueryTotal $
+        if Proc.procReturnsVoid proc then
+          response HTTP.status204 [contentRange] mempty
+        else
+          response status
+            (contentTypeHeaders context ++ [contentRange])
+            (if invMethod == InvHead then mempty else LBS.fromStrict rsBody)
 
-  failNotSingular iAcceptMediaType queryTotal $
-    if Proc.procReturnsVoid proc then
-      response HTTP.status204 [contentRange] mempty
-    else
-      response status
-        (contentTypeHeaders context ++ [contentRange])
-        (if invMethod == InvHead then mempty else LBS.fromStrict body)
+    RSPlan body ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict body
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
@@ -536,16 +559,7 @@ txMode ApiRequest{..} =
     _ ->
       SQL.Write
 
--- | Result from executing a write query on the database
-data WriteQueryResult = WriteQueryResult
-  { resQueryTotal :: Int64
-  , resFields     :: [ByteString]
-  , resBody       :: ByteString
-  , resGucStatus  :: Maybe HTTP.Status
-  , resGucHeaders :: [GucHeader]
-  }
-
-writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler WriteQueryResult
+writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler ResultSet
 writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
   readReq <- readRequest identifier context
 
@@ -555,18 +569,15 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
         pkCols
         readReq
 
-  (_, queryTotal, fields, body, gucHeaders, gucStatus) <-
-    lift . SQL.statement mempty $
-      Statements.createWriteStatement
-        (QueryBuilder.readRequestToQuery readReq)
-        (QueryBuilder.mutateRequestToQuery mutateReq)
-        isInsert
-        (iAcceptMediaType ctxApiRequest)
-        (iPreferRepresentation ctxApiRequest)
-        pkCols
-        (configDbPreparedStatements ctxConfig)
-
-  liftEither $ WriteQueryResult queryTotal fields body <$> gucStatus <*> gucHeaders
+  lift . SQL.statement mempty $
+    Statements.prepareWrite
+      (QueryBuilder.readRequestToQuery readReq)
+      (QueryBuilder.mutateRequestToQuery mutateReq)
+      isInsert
+      (iAcceptMediaType ctxApiRequest)
+      (iPreferRepresentation ctxApiRequest)
+      pkCols
+      (configDbPreparedStatements ctxConfig)
 
 -- | Response with headers and status overridden from GUCs.
 gucResponse
@@ -645,9 +656,3 @@ binaryField RequestContext{..} readReq
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
   (,) "Content-Profile" <$> (toUtf8 <$> iProfile)
-
-splitKeyValue :: ByteString -> (ByteString, ByteString)
-splitKeyValue kv =
-  (k, BS.tail v)
-  where
-    (k, v) = BS.break (== '=') kv

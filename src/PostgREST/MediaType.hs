@@ -2,6 +2,7 @@
 
 module PostgREST.MediaType
   ( MediaType(..)
+  , MTPlanOption (..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -27,11 +28,8 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  | MTPlan {
-      planAnalyze :: Bool, planVerbose  :: Bool,
-      planCosts   :: Bool, planSettings :: Bool,
-      planBuffers :: Bool, planWAL      :: Bool,
-      planTiming  :: Bool, planSummary  :: Bool }
+  | MTPlan [MTPlanOption]
+
 instance Eq MediaType where
   MTApplicationJSON == MTApplicationJSON = True
   MTSingularJSON == MTSingularJSON       = True
@@ -43,9 +41,12 @@ instance Eq MediaType where
   MTUrlEncoded == MTUrlEncoded           = True
   MTOctetStream == MTOctetStream         = True
   MTAny == MTAny                         = True
-  MTPlan {} == MTPlan {}                 = True
   MTOther bs1 == MTOther bs2             = bs1 == bs2
+  MTPlan {} == MTPlan {}                 = True
   _ == _                                 = False
+
+data MTPlanOption
+  = PlanAnalyze | PlanVerbose | PlanCosts | PlanSettings | PlanBuffers | PlanWAL | PlanTiming | PlanSummary
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -67,9 +68,19 @@ toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
-toMime MTPlan{}          = "application/vnd.pgrst.plan+json"
+toMime (MTPlan opts)     = "application/vnd.pgrst.plan+json" <> if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
+
+toMimePlanOption :: MTPlanOption -> ByteString
+toMimePlanOption PlanAnalyze  = "analyze"
+toMimePlanOption PlanVerbose  = "verbose"
+toMimePlanOption PlanCosts    = "costs"
+toMimePlanOption PlanSettings = "settings"
+toMimePlanOption PlanBuffers  = "buffers"
+toMimePlanOption PlanWAL      = "wal"
+toMimePlanOption PlanTiming   = "timing"
+toMimePlanOption PlanSummary  = "summary"
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
@@ -92,10 +103,14 @@ decodeMediaType mt =
     []                                     -> MTAny
   where
     getPlan rest =
-     let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< head rest) in
-     MTPlan {
-      planAnalyze  = "analyze" `elem` opts, planVerbose  = "verbose" `elem` opts,
-      planCosts    = "costs" `elem` opts,   planSettings = "settings" `elem` opts,
-      planBuffers  = "buffers" `elem` opts, planWAL      = "wal" `elem` opts,
-      planTiming   = "timing" `elem` opts,  planSummary  = "summary" `elem` opts
-     }
+     let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
+         inOpts str = str `elem` opts in
+     MTPlan $
+      [PlanAnalyze  | inOpts "analyze" ] ++
+      [PlanVerbose  | inOpts "verbose" ] ++
+      [PlanCosts    | inOpts "costs"   ] ++
+      [PlanSettings | inOpts "settings"] ++
+      [PlanBuffers  | inOpts "buffers" ] ++
+      [PlanWAL      | inOpts "wal"     ] ++
+      [PlanTiming   | inOpts "timing"  ] ++
+      [PlanSummary  | inOpts "summary" ]

@@ -29,7 +29,7 @@ spec _ =
               "Startup Cost": 15.61,
               "Total Cost": 15.63,
               "Plan Rows": 1,
-              "Plan Width": 144,
+              "Plan Width": 112,
               "Plans": [
                 {
                   "Node Type": "Bitmap Heap Scan",

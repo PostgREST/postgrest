@@ -37,6 +37,7 @@ module PostgREST.Query.SqlFragment
   , sourceCTEName
   , unknownEncoder
   , intercalateSnippet
+  , explainF
   ) where
 
 import qualified Data.ByteString.Char8           as BS
@@ -50,6 +51,7 @@ import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
+import PostgREST.MediaType               (MTPlanOption (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.ReadQuery       (SelectItem)
@@ -367,3 +369,19 @@ unknownLiteral = unknownEncoder . encodeUtf8
 intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
+
+explainF :: [MTPlanOption] -> SQL.Snippet -> SQL.Snippet
+explainF opts snip =
+  "EXPLAIN (" <>
+    SQL.sql (BS.intercalate ", " ("FORMAT JSON" : (fmtPlanOpt <$> opts))) <>
+  ") " <> snip
+  where
+    fmtPlanOpt :: MTPlanOption -> BS.ByteString
+    fmtPlanOpt PlanAnalyze  = "ANALYZE"
+    fmtPlanOpt PlanVerbose  = "VERBOSE"
+    fmtPlanOpt PlanCosts    = "COSTS"
+    fmtPlanOpt PlanSettings = "SETTINGS"
+    fmtPlanOpt PlanBuffers  = "BUFFERS"
+    fmtPlanOpt PlanWAL      = "WAL"
+    fmtPlanOpt PlanTiming   = "TIMING"
+    fmtPlanOpt PlanSummary  = "SUMMARY"
