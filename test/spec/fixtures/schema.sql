@@ -31,6 +31,7 @@ COMMENT ON SCHEMA v2 IS 'v2 schema';
 --
 
 CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+CREATE EXTENSION pg_stat_statements;
 
 SET search_path = public, pg_catalog;
 
