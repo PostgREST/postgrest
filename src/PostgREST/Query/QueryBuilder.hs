@@ -154,8 +154,8 @@ mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnin
       else "WITH " <> normalizedBody body <> " ") <>
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
     (if not (null logicForest) || hasEmptyBody
-      then mempty else
-      "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
+      then mempty
+      else "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
     "WHERE " <> whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 

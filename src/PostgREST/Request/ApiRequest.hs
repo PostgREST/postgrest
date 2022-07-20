@@ -71,7 +71,7 @@ import qualified PostgREST.Request.Preferences as Preferences
 import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude
---import Debug.Trace as BUG
+
 
 type RequestBody = LBS.ByteString
 
@@ -271,7 +271,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   payload :: Either ByteString Payload
   payload = case (contentMediaType, pathIsProc) of
     (MTApplicationJSON, _) ->
-      if isJust columns -- || method == "DELETE" -- For DELETES, always searches for primary keys only
+      if isJust columns
         then Right $ RawJSON reqBody
         else note "All object keys must match" . payloadAttributes reqBody
                =<< if LBS.null reqBody && pathIsProc

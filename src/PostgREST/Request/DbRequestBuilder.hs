@@ -56,7 +56,7 @@ import PostgREST.Request.Types
 import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude hiding (from)
---import Debug.Trace as BUG
+
 -- | Builds the ReadRequest tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
