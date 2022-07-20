@@ -426,8 +426,9 @@ requestMediaTypes conf action path =
         ++ rawMediaTypes
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
-      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV, MTPlanJSON]
+      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV, defaultMTPlan]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
+    defaultMTPlan = MTPlan False False False False False False False False
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,

@@ -93,16 +93,29 @@ data ResWithCount
   = Res (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
   | Expl BS.ByteString
 
-explainSnippet :: SQL.Snippet -> SQL.Snippet
-explainSnippet otherSnip =
-  "EXPLAIN (FORMAT JSON) " <> otherSnip
+explainSnippet :: Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> Bool -> SQL.Snippet -> SQL.Snippet
+explainSnippet analyze verbose costs settings buffers wal timing summary otherSnip =
+  "EXPLAIN (" <>
+  (if analyze then "ANALYZE, " else mempty) <>
+  (if verbose then "VERBOSE, " else mempty) <>
+  (if costs then "COSTS, " else mempty) <>
+  (if settings then "SETTINGS, " else mempty) <>
+  (if buffers then "BUFFERS, " else mempty) <>
+  (if wal then "WAL, " else mempty) <>
+  (if timing then "TIMING, " else mempty) <>
+  (if summary then "SUMMARY, " else mempty) <>
+  "FORMAT JSON ) " <> otherSnip
 
 createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool ->
                        SQL.Statement () ResWithCount
 createReadStatement selectQuery countQuery countTotal mediaType binaryField =
   SQL.dynamicallyParameterized
-  (if mediaType == MTPlanJSON then explainSnippet snippet else snippet)
-  (if mediaType == MTPlanJSON then decodeExplain else decodeStandard)
+  (case mediaType of
+    MTPlan analyze verbose costs settings buffers wal timing summary -> explainSnippet analyze verbose costs settings buffers wal timing summary snippet
+    _ -> snippet)
+  (case mediaType of
+    MTPlan{} -> decodeExplain
+    _        -> decodeStandard)
  where
   snippet =
     "WITH " <>

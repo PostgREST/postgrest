@@ -23,12 +23,29 @@ data MediaType
   | MTTextPlain
   | MTTextXML
   | MTOpenAPI
-  | MTPlanJSON
   | MTUrlEncoded
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  deriving (Eq)
+  | MTPlan {
+      planAnalyze :: Bool, planVerbose  :: Bool,
+      planCosts   :: Bool, planSettings :: Bool,
+      planBuffers :: Bool, planWAL      :: Bool,
+      planTiming  :: Bool, planSummary  :: Bool }
+instance Eq MediaType where
+  MTApplicationJSON == MTApplicationJSON = True
+  MTSingularJSON == MTSingularJSON       = True
+  MTGeoJSON == MTGeoJSON                 = True
+  MTTextCSV == MTTextCSV                 = True
+  MTTextPlain == MTTextPlain             = True
+  MTTextXML == MTTextXML                 = True
+  MTOpenAPI == MTOpenAPI                 = True
+  MTUrlEncoded == MTUrlEncoded           = True
+  MTOctetStream == MTOctetStream         = True
+  MTAny == MTAny                         = True
+  MTPlan {} == MTPlan {}                 = True
+  MTOther bs1 == MTOther bs2             = bs1 == bs2
+  _ == _                                 = False
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -50,25 +67,35 @@ toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
-toMime MTPlanJSON        = "application/vnd.pgrst.plan+json"
+toMime MTPlan{}          = "application/vnd.pgrst.plan+json"
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
-decodeMediaType ct =
-  case BS.takeWhile (/= BS.c2w ';') ct of
-    "application/json"                  -> MTApplicationJSON
-    "application/geo+json"              -> MTGeoJSON
-    "text/csv"                          -> MTTextCSV
-    "text/plain"                        -> MTTextPlain
-    "text/xml"                          -> MTTextXML
-    "application/openapi+json"          -> MTOpenAPI
-    "application/vnd.pgrst.object+json" -> MTSingularJSON
-    "application/vnd.pgrst.object"      -> MTSingularJSON
-    "application/x-www-form-urlencoded" -> MTUrlEncoded
-    "application/octet-stream"          -> MTOctetStream
-    "application/vnd.pgrst.plan+json"   -> MTPlanJSON
-    "application/vnd.pgrst.plan"        -> MTPlanJSON
-    "*/*"                               -> MTAny
-    ct'                                 -> MTOther ct'
+decodeMediaType mt =
+  case BS.split (BS.c2w ';') mt of
+    "application/json":_                   -> MTApplicationJSON
+    "application/geo+json":_               -> MTGeoJSON
+    "text/csv":_                           -> MTTextCSV
+    "text/plain":_                         -> MTTextPlain
+    "text/xml":_                           -> MTTextXML
+    "application/openapi+json":_           -> MTOpenAPI
+    "application/vnd.pgrst.object+json":_  -> MTSingularJSON
+    "application/vnd.pgrst.object":_       -> MTSingularJSON
+    "application/x-www-form-urlencoded":_  -> MTUrlEncoded
+    "application/octet-stream":_           -> MTOctetStream
+    "application/vnd.pgrst.plan":rest      -> getPlan rest
+    "application/vnd.pgrst.plan+json":rest -> getPlan rest
+    "*/*":_                                -> MTAny
+    other:_                                -> MTOther other
+    []                                     -> MTAny
+  where
+    getPlan rest =
+     let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< head rest) in
+     MTPlan {
+      planAnalyze  = "analyze" `elem` opts, planVerbose  = "verbose" `elem` opts,
+      planCosts    = "costs" `elem` opts,   planSettings = "settings" `elem` opts,
+      planBuffers  = "buffers" `elem` opts, planWAL      = "wal" `elem` opts,
+      planTiming   = "timing" `elem` opts,  planSummary  = "summary" `elem` opts
+     }
