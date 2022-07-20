@@ -137,119 +137,158 @@ spec =
           { matchStatus  = 204 }
 
     context "deleting with an empty/missing body and without filters and limits" $ do
-      it "makes no deletes and returns 204 without return= and without ?select=" $ do
+      it "makes no deletes and returns 422 without return= and without ?select=" $ do
         request methodDelete "/items"
             []
             mempty
           `shouldRespondWith`
             [json|{
               "code":"PGRST118",
-              "hint":"Filter the request by sending a body or by using filters or limits in the query string.",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
               "details":null,
               "message":"A full delete without a body, filters or limits is not allowed"
               }|]
             { matchStatus  = 422
             , matchHeaders = [matchContentTypeJson]
             }
-        -- TODO: 422 for the rest of cases
+
         request methodDelete "/items"
             []
             [json| {} |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
         request methodDelete "/items"
             []
             [json| [] |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
         request methodDelete "/items"
             []
             [json| [{}] |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
-      it "makes no deletes and returns 204 without return= and with ?select=" $ do
+      it "makes no deletes and returns 422 without return= and with ?select=" $ do
         request methodDelete "/items?select=id"
             []
             mempty
           `shouldRespondWith`
             [json|{
               "code":"PGRST118",
-              "hint":"Filter the request by sending a body or by using filters or limits in the query string.",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
               "details":null,
               "message":"A full delete without a body, filters or limits is not allowed"
               }|]
             { matchStatus  = 422
             , matchHeaders = [matchContentTypeJson]
             }
-        -- TODO: 422 for the rest of cases
+
         request methodDelete "/items?select=id"
             []
             [json| {} |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
         request methodDelete "/items?select=id"
             []
             [json| [] |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
         request methodDelete "/items?select=id"
             []
             [json| [{}] |]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
             }
 
-      it "makes no deletes and returns 200 with return=rep and without ?select=" $
+      it "makes no deletes and returns 422 with return=rep and without ?select=" $
         request methodDelete "/items" [("Prefer", "return=representation")] [json| {} |]
-          `shouldRespondWith` "[]"
-          {
-            matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          `shouldRespondWith`
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-      it "makes no deletes and returns 200 with return=rep and with ?select=" $
+      it "makes no deletes and returns 422 with return=rep and with ?select=" $
         request methodDelete "/items?select=id" [("Prefer", "return=representation")] [json| {} |]
-          `shouldRespondWith` "[]"
-          {
-            matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          `shouldRespondWith`
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-      it "makes no deletes and returns 200 with return=rep and with ?select= for overloaded computed columns" $
+      it "makes no deletes and returns 422 with return=rep and with ?select= for overloaded computed columns" $
         request methodDelete "/items?select=id,computed_overload" [("Prefer", "return=representation")] [json| {} |]
-          `shouldRespondWith` "[]"
-          {
-            matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          `shouldRespondWith`
+            [json|{
+              "code":"PGRST118",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
+              "details":null,
+              "message":"A full delete without a body, filters or limits is not allowed"
+              }|]
+            { matchStatus  = 422
+            , matchHeaders = [matchContentTypeJson]
+            }
 
     context "known route, no records matched" $
       it "includes [] body if return=rep" $
@@ -628,24 +667,16 @@ spec =
             ]|]
           `shouldRespondWith`
             [json|{
-              "code":"22023",
+              "code":"PGRST102",
               "hint":null,
               "details":null,
-              "message":"argument of json_populate_recordset must be an array of objects"
+              "message":"All object keys must match"
               }|]
             { matchStatus  = 400
             , matchHeaders = [matchContentTypeJson]
             }
 
-      it "works with a json array that has objects with different keys" $ do
-        get "/bulk_delete_items_cpk"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1", "observation": null }
-            , { "id": 2, "name": "item-2", "observation": null }
-            , { "id": 3, "name": "item-3", "observation": null }
-            ]|]
-
+      it "rejects a json array that has objects with different keys" $ do
         request methodDelete "/bulk_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
@@ -655,17 +686,12 @@ spec =
             , { "id": 3, "name": "item-3", "observation": null }
             ]|]
           `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = ["Content-Range" <:> "*/2"]
+            [json|{
+              "code":"PGRST102",
+              "hint":null,
+              "details":null,
+              "message":"All object keys must match"
+              }|]
+            { matchStatus  = 400
+            , matchHeaders = [matchContentTypeJson]
             }
-
-        get "/bulk_delete_items_cpk?order=id"
-          `shouldRespondWith`
-            [json|[ { "id": 2, "name": "item-2", "observation": null } ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "bulk_delete_items_cpk"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }

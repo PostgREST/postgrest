@@ -108,7 +108,7 @@ spec =
           `shouldRespondWith`
             [json|{
               "code":"PGRST118",
-              "hint":"Filter the request by sending a body or by using filters or limits in the query string.",
+              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
               "details":null,
               "message":"A full delete without a body, filters or limits is not allowed"
               }|]

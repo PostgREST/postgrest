@@ -145,7 +145,7 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode18,
     "message" .= ("A full " <> method <> " without a body, filters or limits is not allowed" :: Text),
     "details" .= JSON.Null,
-    "hint"    .= ("Filter the request by sending a body or by using filters or limits in the query string." :: Text)]
+    "hint"    .= ("Filter the request by sending primary keys in the body or by using filters or limits in the query string." :: Text)]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
