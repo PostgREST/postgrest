@@ -130,11 +130,9 @@ standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
                       <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
                       <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
 
-type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
-
 callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                      MediaType -> Bool -> Maybe FieldName -> Bool ->
-                     SQL.Statement () ProcResults
+                     SQL.Statement () ResultsWithCount
 callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mediaType multObjects binaryField =
   SQL.dynamicallyParameterized snippet decodeProc
   where
@@ -161,16 +159,16 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
      | returnsSingle && not multObjects             = asJsonSingleF returnsScalar
      | otherwise                                    = asJsonF returnsScalar
 
-    decodeProc :: HD.Result ProcResults
+    decodeProc :: HD.Result ResultsWithCount
     decodeProc =
-      fromMaybe (Just 0, 0, mempty, defGucHeaders, defGucStatus) <$> HD.rowMaybe procRow
+      fromMaybe (Just 0, 0, mempty, mempty, defGucHeaders, defGucStatus) <$> HD.rowMaybe procRow
       where
         defGucHeaders = Right []
         defGucStatus  = Right Nothing
-        procRow = (,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                         <*> column HD.bytea
-                         <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
-                         <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
+        procRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
+                          <*> pure mempty <*> column HD.bytea
+                          <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
+                          <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
 
 createExplainStatement :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 createExplainStatement countQuery =

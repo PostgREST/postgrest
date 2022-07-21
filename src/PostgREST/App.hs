@@ -453,7 +453,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 
   let callReq = ReqBuilder.callRequest proc ctxApiRequest req
 
-  (tableTotal, queryTotal, body, gucHeaders, gucStatus) <-
+  (tableTotal, queryTotal, _, body, gucHeaders, gucStatus) <-
     lift . SQL.statement mempty $
       Statements.callProcStatement
         (Proc.procReturnsScalar proc)
