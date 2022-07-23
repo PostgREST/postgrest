@@ -7,7 +7,7 @@ import Network.Wai.Test (SResponse (..))
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 import Network.HTTP.Types
-import Test.Hspec         hiding (pendingWith)
+import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
@@ -176,3 +176,18 @@ spec actualPgVersion = do
       liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
 
       liftIO $ totalCost `shouldBe` Just [aesonQQ|15.68|]
+
+  describe "function plan" $ do
+    it "outputs the total cost for a function call" $ do
+      r <- request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+
+      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+
+      liftIO $ totalCost `shouldBe` Just [aesonQQ|68.57|]
