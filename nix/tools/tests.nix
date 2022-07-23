@@ -22,7 +22,7 @@ let
     checkedShellScript
       {
         name = "postgrest-test-spec";
-        docs = "Run the Haskell test suite";
+        docs = "Run the Haskell test suite. Use --match PATTERN for running individual specs";
         args = [ "ARG_LEFTOVERS([hspec arguments])" ];
         inRootDir = true;
         withEnv = postgrest.env;
