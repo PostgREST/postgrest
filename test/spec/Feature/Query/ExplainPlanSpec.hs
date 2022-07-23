@@ -170,6 +170,23 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` Just [aesonQQ|15.68|]
 
+    it "outputs the total cost for a single upsert" $ do
+      r <- request methodPut "/tiobe_pls?name=eq.Go"
+            (acceptHdrs "application/vnd.pgrst.plan")
+            [json| [ { "name": "Go", "rank": 19 } ]|]
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe`
+          if actualPgVersion >= pgVersion120
+            then Just [aesonQQ|1.3|]
+            else Just [aesonQQ|1.35|]
+
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/rpc/getallprojects?id=in.(1,2,3)"

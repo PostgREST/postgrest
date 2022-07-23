@@ -97,7 +97,7 @@ decodeMediaType mt =
     "application/vnd.pgrst.plan+json":rest -> getPlan rest
     "*/*":_                                -> MTAny
     other:_                                -> MTOther other
-    []                                     -> MTAny
+    _                                      -> MTAny
   where
     getPlan rest =
      let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
