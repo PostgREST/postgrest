@@ -195,7 +195,7 @@ test-suite spec
                       Feature.Query.DeleteSpec
                       Feature.Query.EmbedDisambiguationSpec
                       Feature.Query.EmbedInnerJoinSpec
-                      Feature.Query.ExplainPlanSpec
+                      Feature.Query.PlanSpec
                       Feature.Query.HtmlRawOutputSpec
                       Feature.Query.InsertSpec
                       Feature.Query.JsonOperatorSpec
