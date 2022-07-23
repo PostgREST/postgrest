@@ -27,14 +27,13 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe`
-        if actualPgVersion > pgVersion120
-          then Just [aesonQQ|15.63|]
-          else Just [aesonQQ|15.69|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|15.63|]
+            else Just [aesonQQ|15.69|]
 
     it "outputs the total cost for a single filter on a view" $ do
       r <- request methodGet "/projects_view?id=gt.2"
@@ -44,14 +43,13 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe`
-        if actualPgVersion > pgVersion120
-          then Just [aesonQQ|24.28|]
-          else Just [aesonQQ|32.28|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|24.28|]
+            else Just [aesonQQ|32.28|]
 
     it "outputs blocks info when using the buffers option" $
       if actualPgVersion >= pgVersion130
@@ -61,23 +59,23 @@ spec actualPgVersion = do
           let blocks  = simpleBody r ^? nth 0 . key "Planning"
               resHeaders = simpleHeaders r
 
-          liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=buffers; charset=utf-8")
-
-          liftIO $ blocks `shouldBe`
-            Just [aesonQQ|
-              {
-                "Shared Hit Blocks": 0,
-                "Shared Read Blocks": 0,
-                "Shared Dirtied Blocks": 0,
-                "Shared Written Blocks": 0,
-                "Local Hit Blocks": 0,
-                "Local Read Blocks": 0,
-                "Local Dirtied Blocks": 0,
-                "Local Written Blocks": 0,
-                "Temp Read Blocks": 0,
-                "Temp Written Blocks": 0
-              }
-            |]
+          liftIO $ do
+            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=buffers; charset=utf-8")
+            blocks `shouldBe`
+              Just [aesonQQ|
+                {
+                  "Shared Hit Blocks": 0,
+                  "Shared Read Blocks": 0,
+                  "Shared Dirtied Blocks": 0,
+                  "Shared Written Blocks": 0,
+                  "Local Hit Blocks": 0,
+                  "Local Read Blocks": 0,
+                  "Local Dirtied Blocks": 0,
+                  "Local Written Blocks": 0,
+                  "Temp Read Blocks": 0,
+                  "Temp Written Blocks": 0
+                }
+              |]
         else do
           -- analyze is required for buffers on pg < 13
           r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|buffers") ""
@@ -85,9 +83,9 @@ spec actualPgVersion = do
           let blocks  = simpleBody r ^? nth 0 . key "Plan" . key "Shared Hit Blocks"
               resHeaders = simpleHeaders r
 
-          liftIO $ blocks `shouldBe` Just [aesonQQ| 1.0 |]
-
-          liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|buffers; charset=utf-8")
+          liftIO $ do
+            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|buffers; charset=utf-8")
+            blocks `shouldBe` Just [aesonQQ| 1.0 |]
 
     when (actualPgVersion >= pgVersion120) $
       it "outputs the search path when using the settings option" $ do
@@ -96,14 +94,14 @@ spec actualPgVersion = do
         let searchPath  = simpleBody r ^? nth 0 . key "Settings"
             resHeaders = simpleHeaders r
 
-        liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=settings; charset=utf-8")
-
-        liftIO $ searchPath `shouldBe`
-          Just [aesonQQ|
-            {
-              "search_path": "\"test\""
-            }
-          |]
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=settings; charset=utf-8")
+          searchPath `shouldBe`
+            Just [aesonQQ|
+              {
+                "search_path": "\"test\""
+              }
+            |]
 
     when (actualPgVersion >= pgVersion130) $
       it "outputs WAL info when using the wal option" $ do
@@ -112,10 +110,9 @@ spec actualPgVersion = do
         let walRecords  = simpleBody r ^? nth 0 . key "Plan" . key "WAL Records"
             resHeaders = simpleHeaders r
 
-        liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|wal; charset=utf-8")
-
-        liftIO $ walRecords `shouldBe`
-          Just [aesonQQ|0|]
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|wal; charset=utf-8")
+          walRecords `shouldBe` Just [aesonQQ|0|]
 
     it "outputs columns info when using the verbose option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=verbose") ""
@@ -123,10 +120,9 @@ spec actualPgVersion = do
       let cols  = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Output"
           resHeaders = simpleHeaders r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=verbose; charset=utf-8")
-
-      liftIO $ cols `shouldBe`
-        Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=verbose; charset=utf-8")
+        cols `shouldBe` Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
 
   describe "writes plans" $ do
     it "outputs the total cost for an insert" $ do
@@ -137,14 +133,13 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe`
-        if actualPgVersion > pgVersion120
-          then Just [aesonQQ|3.28|]
-          else Just [aesonQQ|3.33|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|3.28|]
+            else Just [aesonQQ|3.33|]
 
     it "outputs the total cost for an update" $ do
       r <- request methodGet "/projects?id=eq.3"
@@ -154,14 +149,13 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe`
-        if actualPgVersion > pgVersion120
-          then Just [aesonQQ|8.2|]
-          else Just [aesonQQ|8.22|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|8.2|]
+            else Just [aesonQQ|8.22|]
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
@@ -171,11 +165,10 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe` Just [aesonQQ|15.68|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` Just [aesonQQ|15.68|]
 
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
@@ -186,8 +179,7 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
-      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
-
-      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-
-      liftIO $ totalCost `shouldBe` Just [aesonQQ|68.57|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` Just [aesonQQ|68.57|]
