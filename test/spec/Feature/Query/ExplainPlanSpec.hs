@@ -9,6 +9,7 @@ import Data.Aeson.QQ
 import Network.HTTP.Types
 import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
                                    pgVersion130)
@@ -16,7 +17,7 @@ import Protolude                  hiding (get)
 import SpecHelper
 
 spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion =
+spec actualPgVersion = do
   describe "read table/view plan" $ do
     it "outputs the total cost for a single filter on a table" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"
@@ -126,3 +127,52 @@ spec actualPgVersion =
 
       liftIO $ cols `shouldBe`
         Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
+
+  describe "writes plans" $ do
+    it "outputs the total cost for an insert" $ do
+      r <- request methodPost "/projects"
+             (acceptHdrs "application/vnd.pgrst.plan") [json|{"id":100, "name": "Project 100"}|]
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+
+      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+
+      liftIO $ totalCost `shouldBe`
+        if actualPgVersion > pgVersion120
+          then Just [aesonQQ|3.28|]
+          else Just [aesonQQ|3.33|]
+
+    it "outputs the total cost for an update" $ do
+      r <- request methodGet "/projects?id=eq.3"
+             (acceptHdrs "application/vnd.pgrst.plan") [json|{"name": "Patched Project"}|]
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+
+      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+
+      liftIO $ totalCost `shouldBe`
+        if actualPgVersion > pgVersion120
+          then Just [aesonQQ|8.2|]
+          else Just [aesonQQ|8.22|]
+
+    it "outputs the total cost for a delete" $ do
+      r <- request methodDelete "/projects?id=in.(1,2,3)"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+
+      liftIO $ resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+
+      liftIO $ totalCost `shouldBe` Just [aesonQQ|15.68|]
