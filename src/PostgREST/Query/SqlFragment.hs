@@ -379,9 +379,6 @@ explainF opts snip =
     fmtPlanOpt :: MTPlanOption -> BS.ByteString
     fmtPlanOpt PlanAnalyze  = "ANALYZE"
     fmtPlanOpt PlanVerbose  = "VERBOSE"
-    fmtPlanOpt PlanCosts    = "COSTS"
     fmtPlanOpt PlanSettings = "SETTINGS"
     fmtPlanOpt PlanBuffers  = "BUFFERS"
     fmtPlanOpt PlanWAL      = "WAL"
-    fmtPlanOpt PlanTiming   = "TIMING"
-    fmtPlanOpt PlanSummary  = "SUMMARY"

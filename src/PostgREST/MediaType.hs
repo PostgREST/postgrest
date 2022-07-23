@@ -46,7 +46,7 @@ instance Eq MediaType where
   _ == _                                 = False
 
 data MTPlanOption
-  = PlanAnalyze | PlanVerbose | PlanCosts | PlanSettings | PlanBuffers | PlanWAL | PlanTiming | PlanSummary
+  = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -75,12 +75,9 @@ toMime (MTOther ct)      = ct
 toMimePlanOption :: MTPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
 toMimePlanOption PlanVerbose  = "verbose"
-toMimePlanOption PlanCosts    = "costs"
 toMimePlanOption PlanSettings = "settings"
 toMimePlanOption PlanBuffers  = "buffers"
 toMimePlanOption PlanWAL      = "wal"
-toMimePlanOption PlanTiming   = "timing"
-toMimePlanOption PlanSummary  = "summary"
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
@@ -108,9 +105,6 @@ decodeMediaType mt =
      MTPlan $
       [PlanAnalyze  | inOpts "analyze" ] ++
       [PlanVerbose  | inOpts "verbose" ] ++
-      [PlanCosts    | inOpts "costs"   ] ++
       [PlanSettings | inOpts "settings"] ++
       [PlanBuffers  | inOpts "buffers" ] ++
-      [PlanWAL      | inOpts "wal"     ] ++
-      [PlanTiming   | inOpts "timing"  ] ++
-      [PlanSummary  | inOpts "summary" ]
+      [PlanWAL      | inOpts "wal"     ]

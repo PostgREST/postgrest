@@ -1,16 +1,17 @@
 module Feature.Query.ExplainPlanSpec where
 
 import Control.Lens     ((^?))
-import Network.Wai (Application)
+import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
 import Data.Aeson.Lens
 import Data.Aeson.QQ
 import Network.HTTP.Types
-import Test.Hspec          hiding (pendingWith)
+import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion120, pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
+                                   pgVersion130)
 import Protolude                  hiding (get)
 import SpecHelper
 
