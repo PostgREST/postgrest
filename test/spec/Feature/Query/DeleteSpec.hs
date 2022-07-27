@@ -103,6 +103,39 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
+      it "works with a simple primary key filter and ignores other keys in the json body" $ do
+        get "/body_delete_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodDelete "/body_delete_items"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json| { "id": 3, "name": "item-2", "other": "value" } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/1"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/body_delete_items?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            ]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "body_delete_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
       it "works with a composite primary key filter in the json body" $ do
         get "/body_delete_items_cpk"
           `shouldRespondWith`
@@ -115,6 +148,39 @@ spec =
         request methodDelete "/body_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json| { "id": 3, "name": "item-3" } |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/1"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/body_delete_items_cpk?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            ]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "body_delete_items_cpk"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "works with a composite primary key filter and ignores other keys in the json body" $ do
+        get "/body_delete_items_cpk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodDelete "/body_delete_items_cpk"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json| { "id": 3, "name": "item-3", "observation": "an observation", "other": "value" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -725,6 +791,39 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
+      it "can delete tables with simple pk and ignores other keys in the json body" $ do
+        get "/bulk_delete_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodDelete "/bulk_delete_items"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json|[
+              { "id": 1, "name": "item", "other": "value" }
+            , { "id": 3, "name": null, "other": "value" }
+            ]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/2"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/bulk_delete_items?order=id"
+          `shouldRespondWith`
+            [json|[{ "id": 2, "name": "item-2", "observation": null }]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "bulk_delete_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
       it "can delete tables with composite pk" $ do
         get "/bulk_delete_items_cpk"
           `shouldRespondWith`
@@ -739,6 +838,39 @@ spec =
             [json|[
               { "id": 1, "name": "item-1" }
             , { "id": 2, "name": "item-2" }
+            ]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/2"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/bulk_delete_items_cpk?order=id"
+          `shouldRespondWith`
+            [json|[{ "id": 3, "name": "item-3", "observation": null }]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "bulk_delete_items_cpk"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
+      it "can delete tables with composite pk and ignores other keys in the json body" $ do
+        get "/bulk_delete_items_cpk"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodDelete "/bulk_delete_items_cpk"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json|[
+              { "id": 1, "name": "item-1", "observation": "an observation", "other": "value" }
+            , { "id": 2, "name": "item-2", "observation": "none", "other": "value" }
             ]|]
           `shouldRespondWith`
             ""
