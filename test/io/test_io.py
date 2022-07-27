@@ -588,9 +588,9 @@ def test_iat_claim(defaultenv):
             time.sleep(0.1)
 
 
-def test_app_settings(defaultenv):
+def test_app_settings_flush_pool(defaultenv):
     """
-    App settings should not reset when the db pool times out.
+    App settings should not reset when the db pool is flushed.
 
     See: https://github.com/PostgREST/postgrest/issues/1141
 
@@ -599,12 +599,16 @@ def test_app_settings(defaultenv):
     env = {**defaultenv, "PGRST_APP_SETTINGS_EXTERNAL_API_SECRET": "0123456789abcdef"}
 
     with run(env=env) as postgrest:
-        # Wait for the db pool to time out, set to 1s in config
-        time.sleep(2)
+        uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
+        response = postgrest.session.get(uri)
+        assert response.text == '"0123456789abcdef"'
+
+        # SIGUSR1 causes the postgres connection pool to be flushed
+        postgrest.process.send_signal(signal.SIGUSR1)
+        time.sleep(0.1)
 
         uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
         response = postgrest.session.get(uri)
-
         assert response.text == '"0123456789abcdef"'
 
 
