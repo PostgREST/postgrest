@@ -31,6 +31,16 @@ let
       #
       # To get the sha256:
       #   nix-prefetch-url --unpack https://github.com/<owner>/<repo>/archive/<commit>.tar.gz
+
+      hasql-pool = lib.dontCheck (
+        prev.callCabal2nix "hasql-pool"
+          (super.fetchFromGitHub {
+            owner = "PostgREST";
+            repo = "hasql-pool";
+            rev = "4d462c4d47d762effefc7de6c85eaed55f144f1d"; # master as of 2022-08-26
+            sha256 = "sha256-UwX1PynimrQHm1KCs4BQXMwYYY3h4T5UAkgtEJ0EZQQ=";
+          })
+          { });
     } // extraOverrides final prev;
 in
 {

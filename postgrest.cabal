@@ -88,7 +88,7 @@ library
                     , hasql                     >= 1.4 && < 1.6
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.1 && < 0.3
-                    , hasql-pool                >= 0.5 && < 0.6
+                    , hasql-pool                >= 0.7.2 && < 0.8
                     , hasql-transaction         >= 1.0.1 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
@@ -226,7 +226,7 @@ test-suite spec
                     , bytestring        >= 0.10.8 && < 0.12
                     , case-insensitive  >= 1.2 && < 1.3
                     , containers        >= 0.5.7 && < 0.7
-                    , hasql-pool        >= 0.5 && < 0.6
+                    , hasql-pool        >= 0.7.2 && < 0.8
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.9
@@ -269,7 +269,7 @@ test-suite querycost
                     , contravariant     >= 1.4 && < 1.6
                     , hasql             >= 1.4 && < 1.6
                     , hasql-dynamic-statements >= 0.3.1 && < 0.4
-                    , hasql-pool        >= 0.5 && < 0.6
+                    , hasql-pool        >= 0.7.2 && < 0.8
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.9

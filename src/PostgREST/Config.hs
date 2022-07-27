@@ -46,7 +46,6 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
-import Data.Time.Clock         (NominalDiffTime)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -71,7 +70,6 @@ data AppConfig = AppConfig
   , configDbMaxRows             :: Maybe Integer
   , configDbPlanEnabled         :: Bool
   , configDbPoolSize            :: Int
-  , configDbPoolTimeout         :: NominalDiffTime
   , configDbPreRequest          :: Maybe QualifiedIdentifier
   , configDbPreparedStatements  :: Bool
   , configDbRootSpec            :: Maybe QualifiedIdentifier
@@ -131,7 +129,6 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
       ,("db-pool",                       show . configDbPoolSize)
-      ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
@@ -220,7 +217,6 @@ parser optPath env dbSettings =
                      (optInt "max-rows")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
     <*> (fromMaybe 10 <$> optInt "db-pool")
-    <*> (fromIntegral . fromMaybe 3600 <$> optInt "db-pool-timeout")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
@@ -356,7 +352,7 @@ parser optPath env dbSettings =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
-            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_timeout", "db_config"]
+            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Deprecated
 
 - #1385, Deprecate bulk-calls when including the `Prefer: params=multiple-objects` in the request. A function with a JSON array or object parameter should be used instead for a better performance.
+ - #2401, #2444, Fix SIGUSR1 to fully flush connections pool, remove `db-pool-timeout`. - @robx
 
 ## [10.0.0] - 2022-08-18
 
@@ -74,6 +75,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2410, Fix loop crash error on startup in Postgres 15 beta 3. Log: "UNION types \"char\" and text cannot be matched". - @yevon
  - #2397, Fix race conditions managing database connection helper - @robx
  - #2269, Allow `limit=0` in the request query to return an empty array - @gautam1168, @laurenceisla
+ - #2401, Ensure database connections can't outlive SIGUSR1 - @robx
 
 ### Changed
 

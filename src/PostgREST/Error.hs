@@ -225,12 +225,17 @@ instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
 
 instance JSON.ToJSON SQL.UsageError where
-  toJSON (SQL.ConnectionError e) = JSON.object [
+  toJSON (SQL.ConnectionUsageError e) = JSON.object [
     "code"    .= ConnectionErrorCode00,
     "message" .= ("Database connection error. Retrying the connection." :: Text),
     "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text),
     "hint"    .= JSON.Null]
-  toJSON (SQL.SessionError e) = JSON.toJSON e -- SQL.Error
+  toJSON (SQL.SessionUsageError e) = JSON.toJSON e -- SQL.Error
+  toJSON SQL.PoolIsReleasedUsageError = JSON.object [
+    "code"    .= InternalErrorCode00,
+    "message" .= ("Use of released pool" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
 
 instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
@@ -255,9 +260,10 @@ instance JSON.ToJSON SQL.CommandError where
     "hint"    .= JSON.Null]
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
-pgErrorStatus _      (SQL.ConnectionError _)                                      = HTTP.status503
-pgErrorStatus _      (SQL.SessionError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
-pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rError))) =
+pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
+pgErrorStatus _      SQL.PoolIsReleasedUsageError = HTTP.status500
+pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
+pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
   case rError of
     (SQL.ServerError c m _ _) ->
       case BS.unpack c of
@@ -296,12 +302,12 @@ pgErrorStatus authed (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError rErr
     _                       -> HTTP.status500
 
 checkIsFatal :: PgError -> Maybe Text
-checkIsFatal (PgError _ (SQL.ConnectionError e))
+checkIsFatal (PgError _ (SQL.ConnectionUsageError e))
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
   where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` failureMessage
         failureMessage = BS.unpack $ fromMaybe mempty e
-checkIsFatal (PgError _ (SQL.SessionError (SQL.QueryError _ _ (SQL.ResultError serverError))))
+checkIsFatal (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError))))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
       SQL.ServerError "42601" _ _ _
