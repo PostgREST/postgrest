@@ -69,6 +69,7 @@ data AppConfig = AppConfig
   , configDbChannelEnabled      :: Bool
   , configDbExtraSearchPath     :: [Text]
   , configDbMaxRows             :: Maybe Integer
+  , configDbPlanEnabled         :: Bool
   , configDbPoolSize            :: Int
   , configDbPoolTimeout         :: NominalDiffTime
   , configDbPreRequest          :: Maybe QualifiedIdentifier
@@ -128,6 +129,7 @@ toText conf =
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
+      ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-timeout",               show . floor . configDbPoolTimeout)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
@@ -216,6 +218,7 @@ parser optPath env dbSettings =
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
+    <*> (fromMaybe False <$> optBool "db-plan-enabled")
     <*> (fromMaybe 10 <$> optInt "db-pool")
     <*> (fromIntegral . fromMaybe 3600 <$> optInt "db-pool-timeout")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")

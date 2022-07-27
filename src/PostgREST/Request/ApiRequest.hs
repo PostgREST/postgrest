@@ -426,7 +426,8 @@ requestMediaTypes conf action path =
         ++ rawMediaTypes
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
-      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV, MTPlan mempty]
+      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
+      [MTPlan mempty | configDbPlanEnabled conf]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 {-|

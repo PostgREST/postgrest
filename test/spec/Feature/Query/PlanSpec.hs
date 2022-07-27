@@ -200,3 +200,18 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` Just [aesonQQ|68.57|]
+
+disabledSpec :: SpecWith ((), Application)
+disabledSpec =
+  it "doesn't work if db-plan-enabled=false(the default)" $ do
+    request methodGet "/projects?id=in.(1,2,3)"
+         (acceptHdrs "application/vnd.pgrst.plan") ""
+      `shouldRespondWith` 415
+
+    request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
+      (acceptHdrs "application/vnd.pgrst.plan") ""
+      `shouldRespondWith` 415
+
+    request methodDelete "/projects?id=in.(1,2,3)"
+           (acceptHdrs "application/vnd.pgrst.plan") ""
+      `shouldRespondWith` 415
