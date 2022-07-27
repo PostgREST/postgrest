@@ -33,12 +33,12 @@ packages:
   original:
     hackage: hasql-implicits-0.1.0.4@sha256:0848d3cbc9d94e1e539948fa0be4d0326b26335034161bf8076785293444ca6f,1361
 - completed:
-    hackage: hasql-pool-0.5.2.2@sha256:b56d4dea112d97a2ef4b2749508c0ca646828cb2d77b827e8dc433d249bb2062,2438
+    hackage: hasql-pool-0.7.2@sha256:3f9178ab710e71e241617158c7d8e96a6c27de8e5bc8d140885dd13667899467,2414
     pantry-tree:
-      size: 412
-      sha256: 2741a33f947d28b4076c798c20c1f646beecd21f5eaf522c8256cbeb34d4d6d0
+      size: 345
+      sha256: 70142f456d6613f8e0465321fdaa25811c013eca96c240501a490cbdb47d1c4a
   original:
-    hackage: hasql-pool-0.5.2.2@sha256:b56d4dea112d97a2ef4b2749508c0ca646828cb2d77b827e8dc433d249bb2062,2438
+    hackage: hasql-pool-0.7.2@sha256:3f9178ab710e71e241617158c7d8e96a6c27de8e5bc8d140885dd13667899467,2414
 - completed:
     hackage: lens-aeson-1.1.3@sha256:52c8eaecd2d1c2a969c0762277c4a8ee72c339a686727d5785932e72ef9c3050,1764
     pantry-tree:

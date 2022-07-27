@@ -79,7 +79,6 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbMaxRows             = Nothing
   , configDbPlanEnabled         = False
   , configDbPoolSize            = 10
-  , configDbPoolTimeout         = 10
   , configDbPreRequest          = Just $ QualifiedIdentifier "test" "switch_role"
   , configDbPreparedStatements  = True
   , configDbRootSpec            = Nothing

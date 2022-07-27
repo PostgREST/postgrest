@@ -123,7 +123,6 @@ def defaultenv(baseenv):
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
         "PGRST_DB_POOL": "1",
-        "PGRST_DB_POOL_TIMEOUT": "1",
     }
 
 
@@ -139,7 +138,6 @@ def metapostgrest():
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
         "PGRST_DB_POOL": "1",
-        "PGRST_DB_POOL_TIMEOUT": "1",
     }
     with run(env=env) as postgrest:
         yield postgrest
@@ -970,7 +968,6 @@ def test_pool_size(defaultenv, metapostgrest):
         assert delta > 1 and delta < 1.5
 
 
-@pytest.mark.xfail(reason="issue #2401")
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"
 

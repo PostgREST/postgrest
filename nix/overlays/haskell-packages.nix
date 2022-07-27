@@ -31,6 +31,8 @@ let
       #
       # To get the sha256:
       #   nix-prefetch-url --unpack https://github.com/<owner>/<repo>/archive/<commit>.tar.gz
+
+      hasql-pool = lib.dontCheck prev.hasql-pool_0_7_2;
     } // extraOverrides final prev;
 in
 {
