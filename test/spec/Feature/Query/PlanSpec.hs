@@ -143,7 +143,7 @@ spec actualPgVersion = do
             else Just [aesonQQ|3.33|]
 
     it "outputs the total cost for an update" $ do
-      r <- request methodGet "/projects?id=eq.3"
+      r <- request methodPatch "/projects?id=eq.3"
              (acceptHdrs "application/vnd.pgrst.plan") [json|{"name": "Patched Project"}|]
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
@@ -155,8 +155,8 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|8.2|]
-            else Just [aesonQQ|8.22|]
+            then Just [aesonQQ|12.45|]
+            else Just [aesonQQ|12.5|]
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
