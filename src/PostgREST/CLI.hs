@@ -144,6 +144,9 @@ exampleConfigFile =
       |## Limit rows in response
       |# db-max-rows = 1000
       |
+      |## Allow getting the EXPLAIN plan through the `Accept: application/vnd.pgrst.plan` header
+      |# db-plan-enabled = false
+      |
       |## Number of open connections in the pool
       |db-pool = 10
       |
