@@ -38,9 +38,9 @@ data MutateQuery
       }
   | Delete
       { in_       :: QualifiedIdentifier
+      , delCols   :: S.Set FieldName
       , delBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
-      , pkFilters :: [FieldName]
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]

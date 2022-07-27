@@ -256,6 +256,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   columns = case action of
     ActionMutate MutationCreate -> qsColumns
     ActionMutate MutationUpdate -> qsColumns
+    ActionMutate MutationDelete -> qsColumns
     ActionInvoke InvPost        -> qsColumns
     _                           -> Nothing
 

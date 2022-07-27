@@ -144,10 +144,10 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnings)
+mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returnings)
   -- The body is not mandatory, although a delete without filters is not possible.
   | range == allRange =
-    let whereLogic | null logicForest = if hasEmptyBody || null pkFlts then "FALSE" else pgrstDeleteBodyF
+    let whereLogic | null logicForest = if hasEmptyBody || S.null dCols then "FALSE" else pgrstDeleteBodyF
                    | otherwise        = logicForestF in
     (if not (null logicForest) || hasEmptyBody
       then mempty
@@ -178,7 +178,7 @@ mutateRequestToQuery (Delete mainQi body logicForest pkFlts range ordts returnin
   where
     hasEmptyBody = body == mempty
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> pkFlts)
+    pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> S.toList dCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
