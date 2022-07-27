@@ -33,13 +33,6 @@ packages:
   original:
     hackage: hasql-implicits-0.1.0.4@sha256:0848d3cbc9d94e1e539948fa0be4d0326b26335034161bf8076785293444ca6f,1361
 - completed:
-    hackage: hasql-pool-0.5.2.2@sha256:b56d4dea112d97a2ef4b2749508c0ca646828cb2d77b827e8dc433d249bb2062,2438
-    pantry-tree:
-      size: 412
-      sha256: 2741a33f947d28b4076c798c20c1f646beecd21f5eaf522c8256cbeb34d4d6d0
-  original:
-    hackage: hasql-pool-0.5.2.2@sha256:b56d4dea112d97a2ef4b2749508c0ca646828cb2d77b827e8dc433d249bb2062,2438
-- completed:
     hackage: lens-aeson-1.1.3@sha256:52c8eaecd2d1c2a969c0762277c4a8ee72c339a686727d5785932e72ef9c3050,1764
     pantry-tree:
       size: 541
@@ -67,6 +60,17 @@ packages:
       sha256: 557c438345de19f82bf01d676100da2a191ef06f624e7a4b90b09ac17cbb52a5
   original:
     hackage: ptr-0.16.8.2@sha256:708ebb95117f2872d2c5a554eb6804cf1126e86abe793b2673f913f14e5eb1ac,3959
+- completed:
+    name: hasql-pool
+    version: 0.7.2
+    git: https://github.com/PostgREST/hasql-pool.git
+    pantry-tree:
+      size: 570
+      sha256: a388a9fc47252f7ba06874bc7e8fca769e6f33752320a29724801c298be00816
+    commit: 4d462c4d47d762effefc7de6c85eaed55f144f1d
+  original:
+    git: https://github.com/PostgREST/hasql-pool.git
+    commit: 4d462c4d47d762effefc7de6c85eaed55f144f1d
 snapshots:
 - completed:
     size: 618951

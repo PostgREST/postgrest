@@ -74,12 +74,12 @@ data AppState = AppState
 
 init :: AppConfig -> IO AppState
 init conf = do
-  newPool <- initPool conf
-  initWithPool newPool conf
+  pool <- initPool conf
+  initWithPool pool conf
 
 initWithPool :: SQL.Pool -> AppConfig -> IO AppState
-initWithPool newPool conf =
-  AppState newPool
+initWithPool pool conf =
+  AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef mempty
@@ -93,23 +93,24 @@ initWithPool newPool conf =
     <*> newIORef 0
 
 destroy :: AppState -> IO ()
-destroy AppState{..} = SQL.release statePool
+destroy = destroyPool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  SQL.acquire (configDbPoolSize, configDbPoolTimeout, toUtf8 configDbUri)
+  SQL.acquire configDbPoolSize $ toUtf8 configDbUri
 
+-- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool AppState{..} = SQL.use statePool
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
---
--- FIXME: #2401 Connections that are in-use during the call to flushPool
--- will currently be returned to the pool and reused afterwards, in
--- conflict with the intention.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool AppState{..} = SQL.flush statePool
+
+-- | Destroy the pool on shutdown.
+destroyPool :: AppState -> IO ()
+destroyPool AppState{..} = SQL.release statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion

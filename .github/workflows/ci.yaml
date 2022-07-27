@@ -224,6 +224,9 @@ jobs:
         run: |
           ghcup install ghc ${{ matrix.ghc }}
           ghcup set ghc ${{ matrix.ghc }}
+      - name: Copy cabal.project
+        run: |
+          cp cabal.project.non-nix cabal.project
       - name: Cache
         uses: actions/cache@v3
         with:
