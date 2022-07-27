@@ -36,8 +36,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + In case of multiple geometries in the same table, you can choose which one will go into the `geometry` key with the usual `?select` query parameter.
  - #1082, Add security definitions to the OpenAPI output - @laurenceisla
  - #2378, Support http OPTIONS method on RPC and root path - @steve-chavez
- - #2354, Allow getting the execution plan of a request by using the `Accept: application/vnd.pgrst.plan` header - @steve-chavez
-   + Only allowed if db-plan-enabled=true
+ - #2354, Allow getting the EXPLAIN plan of a request by using the `Accept: application/vnd.pgrst.plan` header - @steve-chavez
+   + Only allowed if the `db-plan-enabled` config is set to true
+   + Limited to generating the plan of a json representation(`application/json`) but can be extended later to allow other representations.
+   + The plan can be obtained in text(`Accept: application/vnd.pgrst.plan+text`) and json(`Accept: application/vnd.pgrst.plan+json` or `Accept: application/vnd.pgrst.plan`) format.
 
 ### Fixed
 

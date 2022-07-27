@@ -4,12 +4,13 @@ import Control.Lens     ((^?))
 import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (..))
 
-import Data.Aeson.Lens
-import Data.Aeson.QQ
-import Network.HTTP.Types
-import Test.Hspec          hiding (pendingWith)
-import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
+import           Data.Aeson.Lens
+import           Data.Aeson.QQ
+import qualified Data.ByteString.Lazy as LBS
+import           Network.HTTP.Types
+import           Test.Hspec           hiding (pendingWith)
+import           Test.Hspec.Wai
+import           Test.Hspec.Wai.JSON
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
                                    pgVersion130)
@@ -200,6 +201,20 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` Just [aesonQQ|68.57|]
+
+  describe "text format" $
+    it "outputs the total cost for a function call" $ do
+      r <- request methodGet "/projects?id=in.(1,2,3)"
+             (acceptHdrs "application/vnd.pgrst.plan+text") ""
+
+      let resBody    = simpleBody r
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =

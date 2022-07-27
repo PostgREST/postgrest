@@ -514,8 +514,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
             (contentTypeHeaders context ++ [contentRange])
             (if invMethod == InvHead then mempty else LBS.fromStrict rsBody)
 
-    RSPlan body ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict body
+    RSPlan plan ->
+      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do

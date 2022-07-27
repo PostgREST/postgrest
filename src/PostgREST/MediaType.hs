@@ -3,6 +3,7 @@
 module PostgREST.MediaType
   ( MediaType(..)
   , MTPlanOption (..)
+  , MTPlanFormat (..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -28,7 +29,7 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  | MTPlan [MTPlanOption]
+  | MTPlan MTPlanFormat [MTPlanOption]
 
 instance Eq MediaType where
   MTApplicationJSON == MTApplicationJSON = True
@@ -47,6 +48,9 @@ instance Eq MediaType where
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
+
+data MTPlanFormat
+  = PlanJSON | PlanText
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -68,7 +72,8 @@ toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
-toMime (MTPlan opts)     = "application/vnd.pgrst.plan+json" <> if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
+toMime (MTPlan fmt opts) = "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
+                            if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
 
@@ -78,6 +83,10 @@ toMimePlanOption PlanVerbose  = "verbose"
 toMimePlanOption PlanSettings = "settings"
 toMimePlanOption PlanBuffers  = "buffers"
 toMimePlanOption PlanWAL      = "wal"
+
+toMimePlanFormat :: MTPlanFormat -> ByteString
+toMimePlanFormat PlanJSON = "json"
+toMimePlanFormat PlanText = "text"
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
@@ -93,16 +102,17 @@ decodeMediaType mt =
     "application/vnd.pgrst.object":_       -> MTSingularJSON
     "application/x-www-form-urlencoded":_  -> MTUrlEncoded
     "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan rest
+    "application/vnd.pgrst.plan":rest      -> getPlan PlanJSON rest
+    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
+    "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
     "*/*":_                                -> MTAny
     other:_                                -> MTOther other
     _                                      -> MTAny
   where
-    getPlan rest =
+    getPlan fmt rest =
      let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
          inOpts str = str `elem` opts in
-     MTPlan $
+     MTPlan fmt $
       [PlanAnalyze  | inOpts "analyze" ] ++
       [PlanVerbose  | inOpts "verbose" ] ++
       [PlanSettings | inOpts "settings"] ++
