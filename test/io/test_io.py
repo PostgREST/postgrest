@@ -97,6 +97,22 @@ def defaultenv():
     }
 
 
+@pytest.fixture(scope="module")
+def metapostgrest():
+    "A shared postgrest instance to use for interacting with the database independently of the instance under test"
+    role = "meta_authenticator"
+    env = {
+        "PGDATABASE": os.environ["PGDATABASE"],
+        "PGHOST": os.environ["PGHOST"],
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_DB_CONFIG": "true",
+        "PGRST_LOG_LEVEL": "info",
+    }
+    with run(env=env) as postgrest:
+        yield postgrest
+
+
 def hpctixfile():
     "Returns an individual filename for each test, if the HPCTIXFILE environment variable is set."
     if "HPCTIXFILE" not in os.environ:
@@ -818,6 +834,83 @@ def test_db_prepared_statements_disable(defaultenv):
         assert response.text == "false"
 
 
+def set_statement_timeout(postgrest, role, milliseconds):
+    """Set the statement timeout for the given role.
+    For this to work reliably with low previous timeout settings,
+    use a postgrest instance that doesn't use the affected role."""
+
+    response = postgrest.session.post(
+        "/rpc/set_statement_timeout",
+        data={"role": role, "milliseconds": milliseconds}
+    )
+    assert response.status_code == 204
+
+
+def reset_statement_timeout(postgrest, role):
+    "Reset the statement timeout for the given role to the default 0 (no timeout)"
+    set_statement_timeout(postgrest, role, 0)
+
+
+def test_statement_timeout(defaultenv, metapostgrest):
+    "Statement timeout times out slow statements"
+
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 1000) # 1 second
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+        assert response.status_code == 204
+
+        response = postgrest.session.get("/rpc/sleep?seconds=2")
+        assert response.status_code == 500
+        data = response.json()
+        assert data["message"] == "canceling statement due to statement timeout"
+
+
+def test_change_statement_timeout(defaultenv, metapostgrest):
+    "Statement timeout changes take effect immediately"
+
+    role = "timeout_authenticator"
+    reset_statement_timeout(metapostgrest, role)
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+    }
+
+    with run(env=env) as postgrest:
+        # no limit initially
+        response = postgrest.session.get("/rpc/sleep?seconds=1")
+        assert response.status_code == 204
+
+        set_statement_timeout(metapostgrest, role, 500) # 0.5s
+
+        # trigger schema refresh
+        postgrest.process.send_signal(signal.SIGUSR1)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/rpc/sleep?seconds=1")
+        assert response.status_code == 500
+        data = response.json()
+        assert data["message"] == "canceling statement due to statement timeout"
+
+        set_statement_timeout(metapostgrest, role, 2000) # 2s
+
+        # trigger role setting refresh
+        postgrest.process.send_signal(signal.SIGUSR1)
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/rpc/sleep?seconds=1")
+        assert response.status_code == 204
+
+
 def test_admin_ready_w_channel(defaultenv):
     "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
@@ -844,22 +937,22 @@ def test_admin_ready_wo_channel(defaultenv):
         assert response.status_code == 200
 
 
-def test_admin_ready_includes_schema_cache_state(defaultenv):
+def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     "Should get a failed response from the admin server ready endpoint when the schema cache is not loaded"
+
+    role = "timeout_authenticator"
+    reset_statement_timeout(metapostgrest, role)
 
     env = {
         **defaultenv,
-        "PGUSER": "limited_authenticator",
-        "PGRST_DB_ANON_ROLE": "limited_authenticator",
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
     }
 
     with run(env=env) as postgrest:
 
-        # make it impossible to load the schema cache
-        response = postgrest.session.post(
-            "/rpc/no_schema_cache_for_limited_authenticator"
-        )
-        assert response.status_code == 204
+        # make it impossible to load the schema cache, by setting statement timeout to 1ms
+        set_statement_timeout(metapostgrest, role, 1)
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
