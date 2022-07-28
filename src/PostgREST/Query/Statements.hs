@@ -33,7 +33,8 @@ import PostgREST.Error     (Error (..))
 import PostgREST.GucHeader (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
-import PostgREST.MediaType               (MTPlanFormat (..),
+import PostgREST.MediaType               (MTPlanAttrs (..),
+                                          MTPlanFormat (..),
                                           MediaType (..))
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Preferences
@@ -193,8 +194,8 @@ standardRow noLocation =
 
 mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
 mtSnippet mediaType snippet = case mediaType of
-  MTPlan fmt opts -> explainF fmt opts snippet
-  _               -> snippet
+  MTPlan (MTPlanAttrs fmt opts) -> explainF fmt opts snippet
+  _                             -> snippet
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet

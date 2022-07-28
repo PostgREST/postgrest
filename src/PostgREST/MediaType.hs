@@ -4,6 +4,7 @@ module PostgREST.MediaType
   ( MediaType(..)
   , MTPlanOption (..)
   , MTPlanFormat (..)
+  , MTPlanAttrs(..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -29,22 +30,12 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  | MTPlan MTPlanFormat [MTPlanOption]
+  | MTPlan MTPlanAttrs
+  deriving Eq
 
-instance Eq MediaType where
-  MTApplicationJSON == MTApplicationJSON = True
-  MTSingularJSON == MTSingularJSON       = True
-  MTGeoJSON == MTGeoJSON                 = True
-  MTTextCSV == MTTextCSV                 = True
-  MTTextPlain == MTTextPlain             = True
-  MTTextXML == MTTextXML                 = True
-  MTOpenAPI == MTOpenAPI                 = True
-  MTUrlEncoded == MTUrlEncoded           = True
-  MTOctetStream == MTOctetStream         = True
-  MTAny == MTAny                         = True
-  MTOther bs1 == MTOther bs2             = bs1 == bs2
-  MTPlan {} == MTPlan {}                 = True
-  _ == _                                 = False
+data MTPlanAttrs = MTPlanAttrs MTPlanFormat [MTPlanOption]
+instance Eq MTPlanAttrs where
+  MTPlanAttrs {} == MTPlanAttrs {} = True -- we don't care about the attributes when comparing two MTPlan media types
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
@@ -72,10 +63,10 @@ toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
-toMime (MTPlan fmt opts) = "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
-                            if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
+toMime (MTPlan (MTPlanAttrs fmt opts)) = "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
+                            if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
 
 toMimePlanOption :: MTPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
@@ -112,7 +103,7 @@ decodeMediaType mt =
     getPlan fmt rest =
      let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
          inOpts str = str `elem` opts in
-     MTPlan fmt $
+     MTPlan $ MTPlanAttrs fmt $
       [PlanAnalyze  | inOpts "analyze" ] ++
       [PlanVerbose  | inOpts "verbose" ] ++
       [PlanSettings | inOpts "settings"] ++

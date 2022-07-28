@@ -51,7 +51,8 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcParam (..), ProcsMap)
-import PostgREST.MediaType               (MTPlanFormat (..),
+import PostgREST.MediaType               (MTPlanAttrs (..),
+                                          MTPlanFormat (..),
                                           MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           hasLimitZero,
@@ -428,7 +429,7 @@ requestMediaTypes conf action path =
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
-      [MTPlan PlanJSON mempty | configDbPlanEnabled conf]
+      [MTPlan $ MTPlanAttrs PlanJSON mempty | configDbPlanEnabled conf]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
 
 {-|
