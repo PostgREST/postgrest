@@ -991,77 +991,90 @@ spec =
               { matchStatus  = 204 }
 
     context "known route, no records matched" $ do
-      it "includes [] body if return=rep with filters in the query string" $
-        request methodDelete "/items?id=eq.101"
-          [("Prefer", "return=representation")] ""
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+      context "with filters in the query string" $
+        it "includes [] body if return=rep" $
+          request methodDelete "/items?id=eq.101"
+            [("Prefer", "return=representation")] ""
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-      it "includes [] body if return=rep with keys in the json body" $
-        request methodDelete "/body_delete_items"
-          [("Prefer", "return=representation")]
-          [json| { "id": 2, "name": "item-3" } |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+      context "with keys in the json body" $
+        it "includes [] body if return=rep with keys in the json body" $
+          request methodDelete "/body_delete_items"
+            [("Prefer", "return=representation")]
+            [json| { "id": 2, "name": "item-3" } |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-      it "includes [] body if return=rep with ?columns" $ do
-        request methodDelete "/body_delete_items?columns=id,name"
-          [("Prefer", "return=representation")]
-          [json| { "id": 5, "name": "item-3" } |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+      context "with ?columns" $ do
+        it "includes [] body if return=rep when columns are present in the json body" $ do
+          request methodDelete "/body_delete_items?columns=id,name"
+            [("Prefer", "return=representation")]
+            [json| { "id": 5, "name": "item-3" } |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-        request methodDelete "/body_delete_items?columns=id"
-          [("Prefer", "return=representation")]
-          [json| { "name": "item-3" } |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          request methodDelete "/body_delete_items?columns=id,name"
+            [("Prefer", "return=representation")]
+            [json|[
+              { "id": 5, "name": "item-3" }
+            , { "id": 6, "name": "item-2" }
+            ]|]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-        request methodDelete "/body_delete_items?columns=id"
-          [("Prefer", "return=representation")]
-          [json| {} |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+        it "includes [] body if return=rep when columns are not present in the json body" $ do
+          request methodDelete "/body_delete_items?columns=id"
+            [("Prefer", "return=representation")]
+            [json| { "name": "item-3" } |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-        request methodDelete "/body_delete_items?columns=id,name"
-          [("Prefer", "return=representation")]
-          [json|[
-            { "id": 5, "name": "item-3" }
-          , { "id": 6, "name": "item-2" }
-          ]|]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          request methodDelete "/body_delete_items?columns=id"
+            [("Prefer", "return=representation")]
+            [json|[
+              { "name": "item-3" }
+            , { "observation": "an observation" }
+            ]|]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-        request methodDelete "/body_delete_items?columns=id"
-          [("Prefer", "return=representation")]
-          [json|[
-            { "name": "item-3" }
-          , { "observation": "an observation" }
-          ]|]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+        it "includes [] body if return=rep when the body is empty/missing" $ do
+          request methodDelete "/body_delete_items?columns=id"
+            [("Prefer", "return=representation")]
+            mempty
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
-        request methodDelete "/body_delete_items?columns=id"
-          [("Prefer", "return=representation")]
-          [json| [{}] |]
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
+          request methodDelete "/body_delete_items?columns=id"
+            [("Prefer", "return=representation")]
+            [json| {} |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+          request methodDelete "/body_delete_items?columns=id"
+            [("Prefer", "return=representation")]
+            [json| [{}] |]
+            `shouldRespondWith` "[]"
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
 
     context "totally unknown route" $
       it "fails with 404" $
