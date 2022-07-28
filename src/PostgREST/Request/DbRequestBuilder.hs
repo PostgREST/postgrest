@@ -331,7 +331,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
           Left InvalidFilters
     MutationDelete
         | noBodyFilterLimit -> Left $ NoBodyFilterLimit "delete"
-        | otherwise         -> Right $ Delete qi deleteCols body combinedLogic iTopLevelRange rootOrder returnings
+        | otherwise         -> Right $ Delete qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
 
   where
     confCols = fromMaybe pkCols qsOnConflict
@@ -345,9 +345,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
-    payloadHasPks = all (`elem` iColumns) pkCols
-    noBodyFilterLimit = null qsColumns && null qsLogic && null qsFilters && null qsRanges && (isNothing body || not payloadHasPks)
-    deleteCols = if null qsColumns then S.fromList pkCols else iColumns
+    noBodyFilterLimit = null qsColumns && null qsLogic && null qsFilters && null qsRanges && (isNothing body || S.null iColumns)
 
 callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest
 callRequest proc apiReq readReq = FunctionCall {

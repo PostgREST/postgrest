@@ -70,7 +70,7 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
-      it "works with a simple primary key filter in the json body" $ do
+      it "works with a key in the json body (simple pk table)" $ do
         get "/body_delete_items"
           `shouldRespondWith`
             [json|[
@@ -81,7 +81,7 @@ spec =
 
         request methodDelete "/body_delete_items"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-            [json| { "id": 3 } |]
+            [json| { "name": "item-3" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -103,7 +103,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "works with a simple primary key filter and ignores other keys in the json body" $ do
+      it "works with more than one key in the json body (simple pk table)" $ do
         get "/body_delete_items"
           `shouldRespondWith`
             [json|[
@@ -114,7 +114,7 @@ spec =
 
         request methodDelete "/body_delete_items"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-            [json| { "id": 3, "name": "item-2", "other": "value" } |]
+            [json| { "id": 3, "name": "item-3" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -136,7 +136,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "works with a composite primary key filter in the json body" $ do
+      it "works with a key in the json body (composite pk table)" $ do
         get "/body_delete_items_cpk"
           `shouldRespondWith`
             [json|[
@@ -147,7 +147,7 @@ spec =
 
         request methodDelete "/body_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-            [json| { "id": 3, "name": "item-3" } |]
+            [json| { "name": "item-3" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -169,7 +169,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "works with a composite primary key filter and ignores other keys in the json body" $ do
+      it "works with more than one key in the json body (composite pk table)" $ do
         get "/body_delete_items_cpk"
           `shouldRespondWith`
             [json|[
@@ -180,7 +180,7 @@ spec =
 
         request methodDelete "/body_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-            [json| { "id": 3, "name": "item-3", "observation": "an observation", "other": "value" } |]
+            [json| { "id": 3, "name": "item-3" } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -280,9 +280,9 @@ spec =
                 , { "id": 3, "name": "item-3", "observation": null }
                 ]|]
 
-            request methodDelete "/body_delete_items_cpk?columns=id,name"
+            request methodDelete "/body_delete_items_cpk?columns=name"
                 [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-                [json|{ "id": 1, "name": "item-1", "observation": "an observation", "other": "value" }|]
+                [json|{ "id": 2, "name": "item-1", "observation": "an observation", "other": "value" }|]
               `shouldRespondWith`
                 ""
                 { matchStatus  = 204
@@ -489,52 +489,6 @@ spec =
               }|]
             { matchStatus  = 422
             , matchHeaders = [matchContentTypeJson]
-            }
-
-    context "known route, no records matched" $
-      it "includes [] body if return=rep" $
-        request methodDelete "/items?id=eq.101"
-          [("Prefer", "return=representation")] ""
-          `shouldRespondWith` "[]"
-          { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
-          }
-
-    context "totally unknown route" $
-      it "fails with 404" $
-        request methodDelete "/foozle?id=eq.101" [] "" `shouldRespondWith` 404
-
-    context "table with limited privileges" $ do
-      it "fails deleting the row when return=representation and selecting all the columns" $
-        request methodDelete "/app_users?id=eq.1" [("Prefer", "return=representation")] mempty
-            `shouldRespondWith` 401
-
-      it "succeeds deleting the row when return=representation and selecting only the privileged columns" $
-        request methodDelete "/app_users?id=eq.1&select=id,email" [("Prefer", "return=representation")]
-          [json| { "password": "passxyz" } |]
-            `shouldRespondWith` [json|[ { "id": 1, "email": "test@123.com" } ]|]
-            { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "*/*"]
-            }
-
-      it "suceeds deleting the row with no explicit select when using return=minimal" $
-        request methodDelete "/app_users?id=eq.2"
-            [("Prefer", "return=minimal")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
-            }
-
-      it "suceeds deleting the row with no explicit select by default" $
-        request methodDelete "/app_users?id=eq.3"
-            []
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
             }
 
     context "limited delete" $ do
@@ -758,7 +712,7 @@ spec =
           { matchStatus  = 204 }
 
     context "bulk deletes" $ do
-      it "can delete tables with simple pk" $ do
+      it "can delete tables with a key in the json body (simple pk table)" $ do
         get "/bulk_delete_items"
           `shouldRespondWith`
             [json|[
@@ -791,7 +745,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "can delete tables with simple pk and ignores other keys in the json body" $ do
+      it "can delete tables with more than one key in the json body (simple pk table)" $ do
         get "/bulk_delete_items"
           `shouldRespondWith`
             [json|[
@@ -803,8 +757,8 @@ spec =
         request methodDelete "/bulk_delete_items"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
-              { "id": 1, "name": "item", "other": "value" }
-            , { "id": 3, "name": null, "other": "value" }
+              { "id": 1, "name": "item-1" }
+            , { "id": 3, "name": "item-3" }
             ]|]
           `shouldRespondWith`
             ""
@@ -824,7 +778,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "can delete tables with composite pk" $ do
+      it "can delete tables with a key in the json body (composite pk table)" $ do
         get "/bulk_delete_items_cpk"
           `shouldRespondWith`
             [json|[
@@ -836,8 +790,8 @@ spec =
         request methodDelete "/bulk_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
+              { "name": "item-1" }
+            , { "name": "item-2" }
             ]|]
           `shouldRespondWith`
             ""
@@ -857,7 +811,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "can delete tables with composite pk and ignores other keys in the json body" $ do
+      it "can delete tables with more than one key in the json body (composite pk table)" $ do
         get "/bulk_delete_items_cpk"
           `shouldRespondWith`
             [json|[
@@ -869,8 +823,8 @@ spec =
         request methodDelete "/bulk_delete_items_cpk"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
-              { "id": 1, "name": "item-1", "observation": "an observation", "other": "value" }
-            , { "id": 2, "name": "item-2", "observation": "none", "other": "value" }
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
             ]|]
           `shouldRespondWith`
             ""
@@ -1001,7 +955,6 @@ spec =
               { matchStatus  = 204 }
 
         context "with composite pk" $ do
-
           it "ignores json keys not included in ?columns" $ do
             get "/bulk_delete_items_cpk"
               `shouldRespondWith`
@@ -1036,3 +989,113 @@ spec =
               [json| {"tbl_name": "bulk_delete_items_cpk"} |]
               `shouldRespondWith` ""
               { matchStatus  = 204 }
+
+    context "known route, no records matched" $ do
+      it "includes [] body if return=rep with filters in the query string" $
+        request methodDelete "/items?id=eq.101"
+          [("Prefer", "return=representation")] ""
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+      it "includes [] body if return=rep with keys in the json body" $
+        request methodDelete "/body_delete_items"
+          [("Prefer", "return=representation")]
+          [json| { "id": 2, "name": "item-3" } |]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+      it "includes [] body if return=rep with ?columns" $ do
+        request methodDelete "/body_delete_items?columns=id,name"
+          [("Prefer", "return=representation")]
+          [json| { "id": 5, "name": "item-3" } |]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        request methodDelete "/body_delete_items?columns=id"
+          [("Prefer", "return=representation")]
+          [json| { "name": "item-3" } |]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        request methodDelete "/body_delete_items?columns=id"
+          [("Prefer", "return=representation")]
+          [json| {} |]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        request methodDelete "/body_delete_items?columns=id,name"
+          [("Prefer", "return=representation")]
+          [json|[
+            { "id": 5, "name": "item-3" }
+          , { "id": 6, "name": "item-2" }
+          ]|]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        request methodDelete "/body_delete_items?columns=id"
+          [("Prefer", "return=representation")]
+          [json|[
+            { "name": "item-3" }
+          , { "observation": "an observation" }
+          ]|]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+        request methodDelete "/body_delete_items?columns=id"
+          [("Prefer", "return=representation")]
+          [json| [{}] |]
+          `shouldRespondWith` "[]"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/*"]
+          }
+
+    context "totally unknown route" $
+      it "fails with 404" $
+        request methodDelete "/foozle?id=eq.101" [] "" `shouldRespondWith` 404
+
+    context "table with limited privileges" $ do
+      it "fails deleting the row when return=representation and selecting all the columns" $
+        request methodDelete "/app_users?id=eq.1" [("Prefer", "return=representation")] mempty
+            `shouldRespondWith` 401
+
+      it "succeeds deleting the row when return=representation and selecting only the privileged columns" $
+        request methodDelete "/app_users?id=eq.1&select=id,email" [("Prefer", "return=representation")]
+          [json| { "password": "passxyz" } |]
+            `shouldRespondWith` [json|[ { "id": 1, "email": "test@123.com" } ]|]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/*"]
+            }
+
+      it "suceeds deleting the row with no explicit select when using return=minimal" $
+        request methodDelete "/app_users?id=eq.2"
+            [("Prefer", "return=minimal")]
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
+
+      it "suceeds deleting the row with no explicit select by default" $
+        request methodDelete "/app_users?id=eq.3"
+            []
+            mempty
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType]
+            }
