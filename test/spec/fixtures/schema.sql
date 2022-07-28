@@ -2725,24 +2725,10 @@ CREATE TABLE test.bulk_delete_items (
   observation TEXT
 );
 
-CREATE TABLE test.bulk_delete_items_cpk (
-  id INT,
-  name TEXT,
-  observation TEXT,
-  PRIMARY KEY (id, name)
-);
-
--- Tables to test deletes with body in the payload
+-- Table to test deletes with body in the payload
 
 CREATE TABLE test.body_delete_items (
   id INT PRIMARY KEY ,
   name TEXT,
   observation TEXT
-);
-
-CREATE TABLE test.body_delete_items_cpk (
-  id INT,
-  name TEXT,
-  observation TEXT,
-  PRIMARY KEY (id, name)
 );
