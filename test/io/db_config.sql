@@ -59,10 +59,15 @@ ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensi
 ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';
 ALTER ROLE other_authenticator SET pgrst.openapi_security_active = 'false';
 
--- limited authenticator used for failed schema cache loads
-CREATE ROLE limited_authenticator LOGIN NOINHERIT;
+-- authenticator used for tests that manipulate statement timeout
+CREATE ROLE timeout_authenticator LOGIN NOINHERIT;
 
-create or replace function no_schema_cache_for_limited_authenticator() returns void as $_$
+create function set_statement_timeout(role text, milliseconds int) returns void as $_$
 begin
-  ALTER ROLE limited_authenticator SET statement_timeout to 1;
-end $_$ volatile security definer language plpgsql ;
+  execute format($$
+    alter role %I set statement_timeout to %L;
+  $$, role, milliseconds);
+end $_$ volatile security definer language plpgsql;
+
+-- authenticator used for test-independent database manipulation
+CREATE ROLE meta_authenticator LOGIN NOINHERIT;
