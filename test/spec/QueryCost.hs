@@ -1,3 +1,4 @@
+-- TODO Can be replaced now by obtaining the EXPLAIN plan and adding the cost tests on PlanSpec.hs
 module Main where
 
 import           Control.Lens                      ((^?))

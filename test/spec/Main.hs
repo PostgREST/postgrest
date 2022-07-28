@@ -45,6 +45,7 @@ import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
+import qualified Feature.Query.PlanSpec
 import qualified Feature.Query.PostGISSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
@@ -110,12 +111,14 @@ main = do
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
       testCfgLegacyGucsApp = app testCfgLegacyGucs
+      planEnabledApp       = app testPlanEnabledCfg
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
       nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
       ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
+
 
   let analyze :: IO ()
       analyze = do
@@ -134,6 +137,7 @@ main = do
         , ("Feature.Query.JsonOperatorSpec"        , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
         , ("Feature.OpenApi.OpenApiSpec"           , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
         , ("Feature.OptionsSpec"                   , Feature.OptionsSpec.spec actualPgVersion)
+        , ("Feature.Query.PlanSpec.disabledSpec"   , Feature.Query.PlanSpec.disabledSpec)
         , ("Feature.Query.QuerySpec"               , Feature.Query.QuerySpec.spec actualPgVersion)
         , ("Feature.Query.RawOutputTypesSpec"      , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RpcSpec"                 , Feature.Query.RpcSpec.spec actualPgVersion)
@@ -225,6 +229,10 @@ main = do
     -- this test runs with db-uses-legacy-gucs = false
     parallel $ before testCfgLegacyGucsApp $
       describe "Feature.LegacyGucsSpec" Feature.LegacyGucsSpec.spec
+
+    -- this test runs with db-plan-enabled = true
+    parallel $ before planEnabledApp $
+      describe "Feature.Query.PlanSpec.spec" $ Feature.Query.PlanSpec.spec actualPgVersion
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

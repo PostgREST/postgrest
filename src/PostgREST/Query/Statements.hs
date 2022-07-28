@@ -8,10 +8,11 @@ This module constructs single SQL statements that can be parametrized and prepar
 - It generates the body format and some headers of the final HTTP response.
 -}
 module PostgREST.Query.Statements
-  ( createWriteStatement
-  , createReadStatement
-  , callProcStatement
-  , createExplainStatement
+  ( prepareWrite
+  , prepareRead
+  , prepareCall
+  , preparePlanRows
+  , ResultSet (..)
   ) where
 
 import qualified Data.Aeson                        as JSON
@@ -32,23 +33,38 @@ import PostgREST.Error     (Error (..))
 import PostgREST.GucHeader (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
-import PostgREST.MediaType               (MediaType (..))
+import PostgREST.MediaType               (MTPlanAttrs (..),
+                                          MTPlanFormat (..),
+                                          MediaType (..))
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Preferences
 
 import Protolude
 
-{-| The generic query result format used by API responses. The location header
-    is represented as a list of strings containing variable bindings like
-    @"k1=eq.42"@, or the empty list if there is no location header.
--}
-type ResultsWithCount = (Maybe Int64, Int64, [BS.ByteString], BS.ByteString, Either Error [GucHeader], Either Error (Maybe Status))
+-- | Standard result set format used for all queries
+data ResultSet
+  = RSStandard
+  { rsTableTotal :: Maybe Int64
+  -- ^ count of all the table rows
+  , rsQueryTotal :: Int64
+  -- ^ count of the query rows
+  , rsLocation   :: [(BS.ByteString, BS.ByteString)]
+  -- ^ The Location header(only used for inserts) is represented as a list of strings containing
+  -- variable bindings like @"k1=eq.42"@, or the empty list if there is no location header.
+  , rsBody       :: BS.ByteString
+  -- ^ the aggregated body of the query
+  , rsGucHeaders :: Either Error [GucHeader]
+  -- ^ the HTTP headers to be added to the response
+  , rsGucStatus  :: Either Error (Maybe Status)
+  -- ^ the HTTP status to be added to the response
+  }
+  | RSPlan BS.ByteString -- ^ the plan of the query
 
-createWriteStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType ->
-                        PreferRepresentation -> [Text] -> Bool ->
-                        SQL.Statement () ResultsWithCount
-createWriteStatement selectQuery mutateQuery isInsert mediaType rep pKeys =
-  SQL.dynamicallyParameterized snippet decodeStandard
+
+prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType ->
+                PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
+prepareWrite selectQuery mutateQuery isInsert mediaType rep pKeys =
+  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
  where
   snippet =
     "WITH " <> SQL.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
@@ -84,14 +100,14 @@ createWriteStatement selectQuery mutateQuery isInsert mediaType rep pKeys =
     | rep /= Full = SQL.sql ("SELECT * FROM " <> sourceCTEName)
     | otherwise   = selectQuery
 
-  decodeStandard :: HD.Result ResultsWithCount
-  decodeStandard =
-   fromMaybe (Nothing, 0, [], mempty, Right [], Right Nothing) <$> HD.rowMaybe standardRow
+  decodeIt :: HD.Result ResultSet
+  decodeIt = case mediaType of
+    MTPlan{} -> planRow
+    _        -> fromMaybe (RSStandard Nothing 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow False)
 
-createReadStatement :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool ->
-                       SQL.Statement () ResultsWithCount
-createReadStatement selectQuery countQuery countTotal mediaType binaryField =
-  SQL.dynamicallyParameterized snippet decodeStandard
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool -> SQL.Statement () ResultSet
+prepareRead selectQuery countQuery countTotal mediaType binaryField =
+  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
  where
   snippet =
     "WITH " <>
@@ -100,7 +116,6 @@ createReadStatement selectQuery countQuery countTotal mediaType binaryField =
     SQL.sql ("SELECT " <>
       countResultF <> " AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
-      noLocationF <> " AS header, " <>
       bodyF <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status " <>
@@ -116,27 +131,16 @@ createReadStatement selectQuery countQuery countTotal mediaType binaryField =
     | isJust binaryField                           = asBinaryF $ fromJust binaryField
     | otherwise                                    = asJsonF False
 
-  decodeStandard :: HD.Result ResultsWithCount
-  decodeStandard =
-    HD.singleRow standardRow
+  decodeIt :: HD.Result ResultSet
+  decodeIt = case mediaType of
+    MTPlan{} -> planRow
+    _        -> HD.singleRow $ standardRow True
 
-{-| Read and Write api requests use a similar response format which includes
-    various record counts and possible location header. This is the decoder
-    for that common type of query.
--}
-standardRow :: HD.Row ResultsWithCount
-standardRow = (,,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                      <*> arrayColumn HD.bytea <*> column HD.bytea
-                      <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
-                      <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
-
-type ProcResults = (Maybe Int64, Int64, ByteString, Either Error [GucHeader], Either Error (Maybe Status))
-
-callProcStatement :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-                     MediaType -> Bool -> Maybe FieldName -> Bool ->
-                     SQL.Statement () ProcResults
-callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mediaType multObjects binaryField =
-  SQL.dynamicallyParameterized snippet decodeProc
+prepareCall :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
+               MediaType -> Bool -> Maybe FieldName -> Bool ->
+               SQL.Statement () ResultSet
+prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mediaType multObjects binaryField =
+  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
   where
     snippet =
       "WITH " <> SQL.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
@@ -161,34 +165,41 @@ callProcStatement returnsScalar returnsSingle callProcQuery selectQuery countQue
      | returnsSingle && not multObjects             = asJsonSingleF returnsScalar
      | otherwise                                    = asJsonF returnsScalar
 
-    decodeProc :: HD.Result ProcResults
-    decodeProc =
-      fromMaybe (Just 0, 0, mempty, defGucHeaders, defGucStatus) <$> HD.rowMaybe procRow
-      where
-        defGucHeaders = Right []
-        defGucStatus  = Right Nothing
-        procRow = (,,,,) <$> nullableColumn HD.int8 <*> column HD.int8
-                         <*> column HD.bytea
-                         <*> (fromMaybe defGucHeaders <$> nullableColumn decodeGucHeaders)
-                         <*> (fromMaybe defGucStatus <$> nullableColumn decodeGucStatus)
+    decodeIt :: HD.Result ResultSet
+    decodeIt = case mediaType of
+      MTPlan{} -> planRow
+      _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow True)
 
-createExplainStatement :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
-createExplainStatement countQuery =
-  SQL.dynamicallyParameterized snippet decodeExplain
+preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
+preparePlanRows countQuery =
+  SQL.dynamicallyParameterized snippet decodeIt
   where
-    snippet = "EXPLAIN (FORMAT JSON) " <> countQuery
-    -- |
-    -- An `EXPLAIN (FORMAT JSON) select * from items;` output looks like this:
-    -- [{
-    --   "Plan": {
-    --     "Node Type": "Seq Scan", "Parallel Aware": false, "Relation Name": "items",
-    --     "Alias": "items", "Startup Cost": 0.00, "Total Cost": 32.60,
-    --     "Plan Rows": 2260,"Plan Width": 8} }]
-    -- We only obtain the Plan Rows here.
-    decodeExplain :: HD.Result (Maybe Int64)
-    decodeExplain =
+    snippet = explainF PlanJSON mempty countQuery
+    decodeIt :: HD.Result (Maybe Int64)
+    decodeIt =
       let row = HD.singleRow $ column HD.bytea in
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
+
+standardRow :: Bool -> HD.Row ResultSet
+standardRow noLocation =
+  RSStandard <$> nullableColumn HD.int8 <*> column HD.int8
+             <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea) <*> column HD.bytea
+             <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
+             <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
+  where
+    splitKeyValue :: ByteString -> (ByteString, ByteString)
+    splitKeyValue kv =
+      let (k, v) = BS.break (== '=') kv in
+      (k, BS.tail v)
+
+mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
+mtSnippet mediaType snippet = case mediaType of
+  MTPlan (MTPlanAttrs fmt opts) -> explainF fmt opts snippet
+  _                             -> snippet
+
+-- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
+planRow :: HD.Result ResultSet
+planRow = RSPlan . BS.unlines <$> HD.rowList (column HD.bytea)
 
 decodeGucHeaders :: HD.Value (Either Error [GucHeader])
 decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . LBS.fromStrict <$> HD.bytea

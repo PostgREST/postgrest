@@ -76,6 +76,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbChannelEnabled      = True
   , configDbExtraSearchPath     = []
   , configDbMaxRows             = Nothing
+  , configDbPlanEnabled         = False
   , configDbPoolSize            = 10
   , configDbPoolTimeout         = 10
   , configDbPreRequest          = Just $ QualifiedIdentifier "test" "switch_role"
@@ -137,6 +138,9 @@ testProxyCfg = baseCfg { configOpenApiServerProxyUri = Just "https://postgrest.c
 
 testSecurityOpenApiCfg :: AppConfig
 testSecurityOpenApiCfg = baseCfg { configOpenApiSecurityActive = True }
+
+testPlanEnabledCfg :: AppConfig
+testPlanEnabledCfg = baseCfg { configDbPlanEnabled = True }
 
 testCfgBinaryJWT :: AppConfig
 testCfgBinaryJWT =
