@@ -176,7 +176,7 @@ mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returning
     SQL.sql (returningF mainQi returnings)
 
   where
-    hasEmptyBody = body == mempty
+    hasEmptyBody = isNothing body
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> S.toList dCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
