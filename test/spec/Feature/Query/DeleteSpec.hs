@@ -136,6 +136,39 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
+      it "deletes with filters alongside the json body" $ do
+        get "/body_delete_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodDelete "/body_delete_items?name=in.(item-1,item-2)&observation=is.null"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json|{ "id": 2, "name": "item-2" }|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "*/1"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/body_delete_items?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "body_delete_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
+
       context "with ?columns parameter" $ do
         it "ignores json keys not included in ?columns" $ do
           get "/body_delete_items"
@@ -170,18 +203,26 @@ spec =
             `shouldRespondWith` ""
             { matchStatus  = 204 }
 
-        it "ignores body and columns if a filter is present" $ do
+        it "works with columns if a filter is present" $ do
+          void $
+            request methodPatch "/body_delete_items"
+              [("Prefer", "tx=commit")]
+              [json|[
+                { "id": 2, "observation": "new" }
+              , { "id": 3, "observation": "old" }
+              ]|]
+
           get "/body_delete_items"
             `shouldRespondWith`
               [json|[
                 { "id": 1, "name": "item-1", "observation": null }
-              , { "id": 2, "name": "item-2", "observation": null }
-              , { "id": 3, "name": "item-3", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": "new" }
+              , { "id": 3, "name": "item-3", "observation": "old" }
               ]|]
 
-          request methodDelete "/body_delete_items?id=eq.2&columns=id"
+          request methodDelete "/body_delete_items?id=gte.2&columns=observation"
               [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-              [json|{ "id": 1, "name": "item-1" }|]
+              [json|{ "observation": "old", "other": "value" }|]
             `shouldRespondWith`
               ""
               { matchStatus  = 204
@@ -194,7 +235,7 @@ spec =
             `shouldRespondWith`
               [json|[
                 { "id": 1, "name": "item-1", "observation": null }
-              , { "id": 3, "name": "item-3", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": "new" }
               ]|]
 
           request methodPost "/rpc/reset_items_tables"
@@ -644,7 +685,7 @@ spec =
           `shouldRespondWith` ""
           { matchStatus  = 204 }
 
-      it "deletes with filters and ignores the json array body" $ do
+      it "deletes with filters alongside the json array body" $ do
         get "/bulk_delete_items"
           `shouldRespondWith`
             [json|[
@@ -656,8 +697,9 @@ spec =
         request methodDelete "/bulk_delete_items?name=in.(item-1,item-2)&observation=is.null"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json|[
-              { "id": 2 }
-            , { "id": 3 }
+              { "id": 1, "name": "item-1" }
+            , { "id": 2, "name": "item-2" }
+            , { "id": 3, "name": "item-3" }
             ]|]
           `shouldRespondWith`
             ""
@@ -669,7 +711,7 @@ spec =
 
         get "/bulk_delete_items?order=id"
           `shouldRespondWith`
-            [json|[ { "id": 3, "name": "item-3", "observation": null } ]|]
+            [json| [{ "id": 3, "name": "item-3", "observation": null }] |]
 
         request methodPost "/rpc/reset_items_tables"
           [("Prefer", "tx=commit")]
@@ -752,6 +794,46 @@ spec =
             [json| {"tbl_name": "bulk_delete_items"} |]
             `shouldRespondWith` ""
             { matchStatus  = 204 }
+
+        it "works with columns if a filter is present" $ do
+          void $
+            request methodPatch "/bulk_delete_items"
+              [("Prefer", "tx=commit")]
+              [json|[
+                { "id": 2, "observation": "new" }
+              , { "id": 3, "observation": "old" }
+              ]|]
+
+          get "/bulk_delete_items"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": "new" }
+              , { "id": 3, "name": "item-3", "observation": "old" }
+              ]|]
+
+          request methodDelete "/bulk_delete_items?id=gte.2&columns=observation"
+              [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+              [json|[
+                { "id": 1, "name": "item-1" }
+              , { "id": 3 }
+              , { "name": "item-2" }
+              , { "observation": "old" }
+              ]|]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "*/1"
+                               , "Preference-Applied" <:> "tx=commit" ]
+              }
+
+          get "/bulk_delete_items?order=id"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": "new" }
+              ]|]
 
     context "known route, no records matched" $ do
       context "with filters in the query string" $
@@ -850,7 +932,7 @@ spec =
 
       it "succeeds deleting the row when return=representation and selecting only the privileged columns" $
         request methodDelete "/app_users?id=eq.1&select=id,email" [("Prefer", "return=representation")]
-          [json| { "password": "passxyz" } |]
+          mempty
             `shouldRespondWith` [json|[ { "id": 1, "email": "test@123.com" } ]|]
             { matchStatus  = 200
             , matchHeaders = ["Content-Range" <:> "*/*"]

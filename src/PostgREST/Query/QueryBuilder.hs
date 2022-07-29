@@ -147,13 +147,12 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
 mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returnings)
   -- The body is not mandatory, although a delete without filters is not possible.
   | range == allRange =
-    let whereLogic | null logicForest = if hasEmptyBody || S.null dCols then "FALSE" else pgrstDeleteBodyF
-                   | otherwise        = logicForestF in
-    (if not (null logicForest) || hasEmptyBody
+    let whereLogic = if null logicForest && hasEmptyBody then "FALSE" else logicForestAndDelBody in
+    (if hasEmptyBody
       then mempty
       else "WITH " <> normalizedBody body <> " ") <>
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
-    (if not (null logicForest) || hasEmptyBody
+    (if hasEmptyBody
       then mempty
       else "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
     "WHERE " <> whereLogic <> " " <>
@@ -161,8 +160,7 @@ mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returning
 
   -- When using limits, the payload is ignored.
   | otherwise =
-    let whereLogic | null logicForest = mempty
-                   | otherwise        = " WHERE " <> logicForestF in
+    let whereLogic = if null logicForest then mempty else " WHERE " <> logicForestF in
     "WITH " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
@@ -179,6 +177,7 @@ mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returning
     hasEmptyBody = isNothing body
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> S.toList dCols)
+    logicForestAndDelBody = intercalateSnippet " AND " ([logicForestF | not (null logicForest)] ++ [pgrstDeleteBodyF | not hasEmptyBody])
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet
