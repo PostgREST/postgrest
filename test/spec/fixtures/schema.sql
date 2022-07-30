@@ -2685,3 +2685,7 @@ $$ LANGUAGE sql;
 CREATE FUNCTION test.special_extended_schema(val text) RETURNS text AS $$
   SELECT get_val_special(val);
 $$ LANGUAGE sql;
+
+CREATE TABLE do$llar$s (
+  a$num$ numeric
+);

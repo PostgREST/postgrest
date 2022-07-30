@@ -800,3 +800,6 @@ INSERT INTO shop_bles(id, name, coords, shop_id, range_area) VALUES(2, 'Beacon-2
 
 TRUNCATE TABLE "SPECIAL ""@/\#~_-".names CASCADE;
 INSERT INTO "SPECIAL ""@/\#~_-".names (id, name) VALUES (1, 'John'), (2, 'Mary');
+
+TRUNCATE TABLE do$llar$s CASCADE;
+INSERT INTO do$llar$s (a$num$) VALUES (100), (200), (300);

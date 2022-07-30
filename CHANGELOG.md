@@ -63,6 +63,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2364, "404 Not Found" on nested routes and "405 Method Not Allowed" errors no longer start an empty database transaction - @steve-chavez
  - #2342, Fix inaccurate result count when an inner embed was selected after a normal embed in the query string - @laurenceisla
  - #2376, OPTIONS requests no longer start an empty database transaction - @steve-chavez
+ - #2395, Allow using columns with dollar sign($) without double quoting in filters and `select` - @steve-chavez
 
 ### Changed
 
@@ -70,7 +71,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Previously, those RPCs would return "null" as a body with Content-Type: application/json.
  - #2156, `limit/offset` now limits the affected rows on UPDATE/DELETE  - @steve-chavez
    + Previously, `limit/offset` only limited the returned rows but not the actual updated rows
- - #2156, using PATCH/DELETE with `limit/offset` throws an error on views - @steve-chavez
  - #2155, `max-rows` is no longer applied on POST/PATCH/PUT/DELETE returned rows - @steve-chavez
    + This was misleading because the affected rows were not really affected by `max-rows`, only the returned rows were limited
  - #2070, Restrict generated many-to-many relationships - @steve-chavez

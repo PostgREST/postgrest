@@ -1002,6 +1002,11 @@ spec actualPgVersion = do
         [json|[{":arr->ow::cast":" arrow-1 ","(inside,parens)":" parens-1 ","a.dotted.column":" dotted-1 ","  col  w  space  ":" space-1"}]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "will select and filter a column that has dollars in(without double quoting)" $
+      get "/do$llar$s?select=a$num$&a$num$=eq.100" `shouldRespondWith`
+        [json|[{"a$num$":100}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
   context "binary output" $ do
     it "can query if a single column is selected" $
       request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
