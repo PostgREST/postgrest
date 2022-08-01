@@ -5,19 +5,18 @@ module PostgREST.AppState
   , getConfig
   , getDbStructure
   , getIsListenerOn
-  , getIsWorkerOn
   , getJsonDbS
   , getMainThreadId
   , getPgVersion
-  , getTime
   , getRetryNextIn
+  , getTime
+  , getWorkerSem
   , init
   , initWithPool
   , logWithZTime
   , putConfig
   , putDbStructure
   , putIsListenerOn
-  , putIsWorkerOn
   , putJsonDbS
   , putPgVersion
   , putRetryNextIn
@@ -52,8 +51,8 @@ data AppState = AppState
   , stateDbStructure  :: IORef (Maybe DbStructure)
   -- | Cached DbStructure in json
   , stateJsonDbS      :: IORef ByteString
-  -- | Helper ref to make sure just one connectionWorker can run at a time
-  , stateIsWorkerOn   :: IORef Bool
+  -- | Binary semaphore to make sure just one connectionWorker can run at a time
+  , stateWorkerSem    :: MVar ()
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
   , stateListener     :: MVar ()
   -- | State of the LISTEN channel, used for the admin server checks
@@ -81,7 +80,7 @@ initWithPool newPool conf =
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef mempty
-    <*> newIORef False
+    <*> newEmptyMVar
     <*> newEmptyMVar
     <*> newIORef False
     <*> newIORef conf
@@ -118,11 +117,8 @@ getJsonDbS = readIORef . stateJsonDbS
 putJsonDbS :: AppState -> ByteString -> IO ()
 putJsonDbS appState = atomicWriteIORef (stateJsonDbS appState)
 
-getIsWorkerOn :: AppState -> IO Bool
-getIsWorkerOn = readIORef . stateIsWorkerOn
-
-putIsWorkerOn :: AppState -> Bool -> IO ()
-putIsWorkerOn = atomicWriteIORef . stateIsWorkerOn
+getWorkerSem :: AppState -> MVar ()
+getWorkerSem = stateWorkerSem
 
 getRetryNextIn :: AppState -> IO Int
 getRetryNextIn = readIORef . stateRetryNextIn

@@ -48,7 +48,7 @@ data SCacheStatus
 -- up-to-date schema cache(DbStructure).  This method is meant to be called
 -- multiple times by the same thread, but does nothing if the previous
 -- invocation has not terminated. In all cases this method does not halt the
--- calling thread, the work is preformed in a separate thread.
+-- calling thread, the work is performed in a separate thread.
 --
 -- Background thread that does the following :
 --  1. Tries to connect to pg server and will keep trying until success.
@@ -57,13 +57,14 @@ data SCacheStatus
 --  3. Obtains the dbStructure. If this fails, it goes back to 1.
 connectionWorker :: AppState -> IO ()
 connectionWorker appState = do
-  isWorkerOn <- AppState.getIsWorkerOn appState
+  runExclusively (AppState.getWorkerSem appState) work
   -- Prevents multiple workers to be running at the same time. Could happen on
   -- too many SIGUSR1s.
-  unless isWorkerOn $ do
-    AppState.putIsWorkerOn appState True
-    void $ forkIO work
   where
+    runExclusively mvar action = mask_ $ do
+      success <- tryPutMVar mvar ()
+      when success $ do
+        void $ forkIO $ action `finally` takeMVar mvar
     work = do
       AppConfig{..} <- AppState.getConfig appState
       AppState.logWithZTime appState "Attempting to connect to the database..."
@@ -95,7 +96,6 @@ connectionWorker appState = do
             SCFatalFail ->
               -- die if our schema cache query has an error
               killThread $ AppState.getMainThreadId appState
-          AppState.putIsWorkerOn appState False
 
 -- | Check if a connection from the pool allows access to the PostgreSQL
 -- database.  If not, the pool connections are released and a new connection is
