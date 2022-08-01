@@ -12,7 +12,6 @@ import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
-import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 
 import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,
@@ -112,14 +111,13 @@ connectionStatus appState =
   retrying retrySettings shouldRetry $
     const $ AppState.releasePool appState >> getConnectionStatus
   where
-    pool = AppState.getPool appState
     retrySettings = capDelay delayMicroseconds $ exponentialBackoff backoffMicroseconds
     delayMicroseconds = 32000000 -- 32 seconds
     backoffMicroseconds = 1000000 -- 1 second
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- SQL.use pool queryPgVersion
+      pgVersion <- AppState.usePool appState queryPgVersion
       case pgVersion of
         Left e -> do
           let err = PgError False e
@@ -155,7 +153,7 @@ loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    SQL.use (AppState.getPool appState) . transaction SQL.ReadCommitted SQL.Read $
+    AppState.usePool appState . transaction SQL.ReadCommitted SQL.Read $
       queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
@@ -234,7 +232,7 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- SQL.use (AppState.getPool appState) $ queryDbSettings configDbPreparedStatements
+      qDbSettings <- AppState.usePool appState $ queryDbSettings configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           let
