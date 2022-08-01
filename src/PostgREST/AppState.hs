@@ -9,7 +9,6 @@ module PostgREST.AppState
   , getJsonDbS
   , getMainThreadId
   , getPgVersion
-  , getPool
   , getTime
   , getRetryNextIn
   , init
@@ -94,9 +93,6 @@ initWithPool newPool conf =
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
   SQL.acquire (configDbPoolSize, configDbPoolTimeout, toUtf8 configDbUri)
-
-getPool :: AppState -> SQL.Pool
-getPool = statePool
 
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool AppState{..} = SQL.use statePool
