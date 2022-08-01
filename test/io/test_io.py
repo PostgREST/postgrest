@@ -840,8 +840,7 @@ def set_statement_timeout(postgrest, role, milliseconds):
     use a postgrest instance that doesn't use the affected role."""
 
     response = postgrest.session.post(
-        "/rpc/set_statement_timeout",
-        data={"role": role, "milliseconds": milliseconds}
+        "/rpc/set_statement_timeout", data={"role": role, "milliseconds": milliseconds}
     )
     assert response.status_code == 204
 
@@ -855,7 +854,7 @@ def test_statement_timeout(defaultenv, metapostgrest):
     "Statement timeout times out slow statements"
 
     role = "timeout_authenticator"
-    set_statement_timeout(metapostgrest, role, 1000) # 1 second
+    set_statement_timeout(metapostgrest, role, 1000)  # 1 second
 
     env = {
         **defaultenv,
@@ -890,7 +889,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
         response = postgrest.session.get("/rpc/sleep?seconds=1")
         assert response.status_code == 204
 
-        set_statement_timeout(metapostgrest, role, 500) # 0.5s
+        set_statement_timeout(metapostgrest, role, 500)  # 0.5s
 
         # trigger schema refresh
         postgrest.process.send_signal(signal.SIGUSR1)
@@ -901,7 +900,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
         data = response.json()
         assert data["message"] == "canceling statement due to statement timeout"
 
-        set_statement_timeout(metapostgrest, role, 2000) # 2s
+        set_statement_timeout(metapostgrest, role, 2000)  # 2s
 
         # trigger role setting refresh
         postgrest.process.send_signal(signal.SIGUSR1)
