@@ -10,7 +10,6 @@ import PostgREST.Config.PgVersion (PgVersion (..))
 
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
-import qualified Hasql.Pool                 as SQL
 import           Hasql.Session              (Session, statement)
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
@@ -29,11 +28,10 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow False
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-queryDbSettings :: SQL.Pool -> Bool -> IO (Either SQL.UsageError [(Text, Text)])
-queryDbSettings pool prepared =
+queryDbSettings :: Bool -> Session [(Text, Text)]
+queryDbSettings prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  SQL.use pool . transaction SQL.ReadCommitted SQL.Read $
-    SQL.statement mempty dbSettingsStatement
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty dbSettingsStatement
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
 dbSettingsStatement :: SQL.Statement () [(Text, Text)]
