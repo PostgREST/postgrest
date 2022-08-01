@@ -31,7 +31,6 @@ import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as HM
 import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
-import qualified Hasql.Pool                      as SQL
 import qualified Hasql.Transaction               as SQL
 import qualified Hasql.Transaction.Sessions      as SQL
 import qualified Network.HTTP.Types.Header       as HTTP
@@ -167,7 +166,7 @@ postgrest logLevel appState connWorker =
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse conf maybeDbStructure jsonDbS pgVer (AppState.getPool appState) authResult req
+            runExceptT $ postgrestResponse appState conf maybeDbStructure jsonDbS pgVer authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -185,15 +184,15 @@ addRetryHint shouldAdd appState response = do
   return $ Wai.mapResponseHeaders (\hs -> if shouldAdd then h:hs else hs) response
 
 postgrestResponse
-  :: AppConfig
+  :: AppState.AppState
+  -> AppConfig
   -> Maybe DbStructure
   -> ByteString
   -> PgVersion
-  -> SQL.Pool
   -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer AuthResult{..} req = do
   body <- lift $ Wai.strictRequestBody req
 
   dbStructure <-
@@ -212,15 +211,15 @@ postgrestResponse conf@AppConfig{..} maybeDbStructure jsonDbS pgVer pool AuthRes
   if iAction apiRequest == ActionInfo then
     handleInfo (iTarget apiRequest) (ctx apiRequest)
   else
-    runDbHandler pool (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
+    runDbHandler appState (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
       Middleware.optionalRollback conf apiRequest $
         Middleware.runPgLocals conf authClaims authRole (handleRequest . ctx) apiRequest jsonDbS pgVer
 
-runDbHandler :: SQL.Pool -> SQL.Mode -> Bool -> Bool -> DbHandler a -> Handler IO a
-runDbHandler pool mode authenticated prepared handler = do
+runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
+runDbHandler appState mode authenticated prepared handler = do
   dbResp <-
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-    lift . SQL.use pool . transaction SQL.ReadCommitted mode $ runExceptT handler
+    lift . AppState.usePool appState . transaction SQL.ReadCommitted mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
