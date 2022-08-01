@@ -234,7 +234,7 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- queryDbSettings (AppState.getPool appState) configDbPreparedStatements
+      qDbSettings <- SQL.use (AppState.getPool appState) $ queryDbSettings configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           let
