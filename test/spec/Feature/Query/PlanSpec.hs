@@ -125,6 +125,32 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=verbose; charset=utf-8")
         cols `shouldBe` Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
 
+    it "outputs the plan for application/json " $ do
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose") ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe`
+          if actualPgVersion >= pgVersion120
+            then Just [aesonQQ| "(COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json))::character varying" |]
+            else Just [aesonQQ| "(COALESCE(json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)), '[]'::json))::character varying" |]
+
+    it "outputs the plan for application/vnd.pgrst.object " $ do
+      r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose") ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe`
+          if actualPgVersion >= pgVersion120
+            then Just [aesonQQ| "COALESCE(((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0))::text, 'null'::text)" |]
+            else Just [aesonQQ| "COALESCE(((json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)) -> 0))::text, 'null'::text)" |]
+
   describe "writes plans" $ do
     it "outputs the total cost for an insert" $ do
       r <- request methodPost "/projects"
@@ -188,6 +214,17 @@ spec actualPgVersion = do
             then Just [aesonQQ|1.3|]
             else Just [aesonQQ|1.35|]
 
+    it "outputs the plan for application/vnd.pgrst.object" $ do
+      r <- request methodDelete "/projects?id=eq.6"
+        [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose")] ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 3
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe` Just [aesonQQ| "COALESCE(((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0))::text, 'null'::text)" |]
+
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
@@ -201,6 +238,17 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` Just [aesonQQ|68.57|]
+
+    it "outputs the plan for text/xml" $ do
+      r <- request methodGet "/rpc/return_scalar_xml"
+        (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose") ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe` Just [aesonQQ| "COALESCE(xmlagg(return_scalar_xml.pgrst_scalar), ''::xml)" |]
 
   describe "text format" $
     it "outputs the total cost for a function call" $ do

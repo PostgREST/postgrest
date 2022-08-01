@@ -73,7 +73,8 @@ import PostgREST.Error                   (Error)
 import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
-import PostgREST.MediaType               (MediaType (..))
+import PostgREST.MediaType               (MTPlanAttrs (..),
+                                          MediaType (..))
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
@@ -647,11 +648,17 @@ binaryField RequestContext{..} readReq
       if length fldNames == 1 && fieldName /= Just "*" then
         return fieldName
       else
-        throwError $ Error.BinaryFieldError (iAcceptMediaType ctxApiRequest)
+        throwError $ Error.BinaryFieldError mediaType
   | otherwise =
       return Nothing
   where
-    isRawMediaType = iAcceptMediaType ctxApiRequest `elem` configRawMediaTypes ctxConfig `union` [MTOctetStream, MTTextPlain, MTTextXML]
+    mediaType = iAcceptMediaType ctxApiRequest
+    isRawMediaType = mediaType `elem` configRawMediaTypes ctxConfig `union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan mediaType
+    isRawPlan mt = case mt of
+      MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
+      MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
+      MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
+      _                                             -> False
 
 profileHeader :: ApiRequest -> Maybe HTTP.Header
 profileHeader ApiRequest{..} =
