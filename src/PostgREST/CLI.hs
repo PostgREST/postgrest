@@ -36,18 +36,12 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing
   appState <- AppState.init conf
-
-  -- Override the config with config options from the db
-  -- TODO: the same operation is repeated on connectionWorker, ideally this
-  -- would be done only once, but dump CmdDumpConfig needs it for tests.
-  when configDbConfig $ reReadConfig True appState
-
-  exec cliCommand appState
-  where
-    exec :: Command -> AppState -> IO ()
-    exec CmdDumpConfig appState = putStr . Config.toText =<< AppState.getConfig appState
-    exec CmdDumpSchema appState = putStrLn =<< dumpSchema appState
-    exec CmdRun appState = App.run installSignalHandlers runAppWithSocket appState
+  case cliCommand of
+    CmdDumpConfig -> do
+      when configDbConfig $ reReadConfig True appState
+      putStr . Config.toText =<< AppState.getConfig appState
+    CmdDumpSchema -> putStrLn =<< dumpSchema appState
+    CmdRun -> App.run installSignalHandlers runAppWithSocket appState
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
