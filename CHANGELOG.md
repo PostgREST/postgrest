@@ -38,8 +38,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2378, Support http OPTIONS method on RPC and root path - @steve-chavez
  - #2354, Allow getting the EXPLAIN plan of a request by using the `Accept: application/vnd.pgrst.plan` header - @steve-chavez
    + Only allowed if the `db-plan-enabled` config is set to true
-   + Limited to generating the plan of a json representation(`application/json`) but can be extended later to allow other representations.
-   + The plan can be obtained in text(`Accept: application/vnd.pgrst.plan+text`) and json(`Accept: application/vnd.pgrst.plan+json` or `Accept: application/vnd.pgrst.plan`) format.
+   + Can generate the plan for different media types using the `for` parameter: `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.object"`
+   + Different options for the plan can be used with the `options` parameter: `Accept: application/vnd.pgrst.plan; options=analyze|verbose|settings|buffers|wal`
+   + The plan can be obtained in text or json by using different media type suffixes: `Accept: application/vnd.pgrst.plan+text` and `Accept: application/vnd.pgrst.plan+json`.
 
 ### Fixed
 

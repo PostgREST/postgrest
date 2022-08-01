@@ -35,7 +35,8 @@ import PostgREST.GucHeader (GucHeader)
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
-                                          MediaType (..))
+                                          MediaType (..),
+                                          getMediaType)
 import PostgREST.Query.SqlFragment
 import PostgREST.Request.Preferences
 
@@ -63,8 +64,8 @@ data ResultSet
 
 prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType ->
                 PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite selectQuery mutateQuery isInsert mediaType rep pKeys =
-  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
+prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
+  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
     "WITH " <> SQL.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
@@ -89,11 +90,11 @@ prepareWrite selectQuery mutateQuery isInsert mediaType rep pKeys =
       else noLocationF
 
   bodyF
-    | rep /= Full                 = "''"
-    | mediaType == MTTextCSV      = asCsvF
-    | mediaType == MTGeoJSON      = asGeoJsonF
-    | mediaType == MTSingularJSON = asJsonSingleF False
-    | otherwise                   = asJsonF False
+    | rep /= Full                       = "''"
+    | getMediaType mt == MTTextCSV      = asCsvF
+    | getMediaType mt == MTGeoJSON      = asGeoJsonF
+    | getMediaType mt == MTSingularJSON = asJsonSingleF False
+    | otherwise                         = asJsonF False
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
@@ -101,13 +102,13 @@ prepareWrite selectQuery mutateQuery isInsert mediaType rep pKeys =
     | otherwise   = selectQuery
 
   decodeIt :: HD.Result ResultSet
-  decodeIt = case mediaType of
+  decodeIt = case mt of
     MTPlan{} -> planRow
     _        -> fromMaybe (RSStandard Nothing 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow False)
 
 prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool -> SQL.Statement () ResultSet
-prepareRead selectQuery countQuery countTotal mediaType binaryField =
-  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
+prepareRead selectQuery countQuery countTotal mt binaryField =
+  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
     "WITH " <>
@@ -124,23 +125,23 @@ prepareRead selectQuery countQuery countTotal mediaType binaryField =
   (countCTEF, countResultF) = countF countQuery countTotal
 
   bodyF
-    | mediaType == MTTextCSV                       = asCsvF
-    | mediaType == MTSingularJSON                  = asJsonSingleF False
-    | mediaType == MTGeoJSON                       = asGeoJsonF
-    | isJust binaryField && mediaType == MTTextXML = asXmlF $ fromJust binaryField
-    | isJust binaryField                           = asBinaryF $ fromJust binaryField
-    | otherwise                                    = asJsonF False
+    | getMediaType mt == MTTextCSV                       = asCsvF
+    | getMediaType mt == MTSingularJSON                  = asJsonSingleF False
+    | getMediaType mt == MTGeoJSON                       = asGeoJsonF
+    | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
+    | isJust binaryField                                 = asBinaryF $ fromJust binaryField
+    | otherwise                                          = asJsonF False
 
   decodeIt :: HD.Result ResultSet
-  decodeIt = case mediaType of
+  decodeIt = case mt of
     MTPlan{} -> planRow
     _        -> HD.singleRow $ standardRow True
 
 prepareCall :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                MediaType -> Bool -> Maybe FieldName -> Bool ->
                SQL.Statement () ResultSet
-prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mediaType multObjects binaryField =
-  SQL.dynamicallyParameterized (mtSnippet mediaType snippet) decodeIt
+prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt multObjects binaryField =
+  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
       "WITH " <> SQL.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
@@ -157,16 +158,16 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
     (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
-     | mediaType == MTSingularJSON                  = asJsonSingleF returnsScalar
-     | mediaType == MTTextCSV                       = asCsvF
-     | mediaType == MTGeoJSON                       = asGeoJsonF
-     | isJust binaryField && mediaType == MTTextXML = asXmlF $ fromJust binaryField
-     | isJust binaryField                           = asBinaryF $ fromJust binaryField
-     | returnsSingle && not multObjects             = asJsonSingleF returnsScalar
-     | otherwise                                    = asJsonF returnsScalar
+     | getMediaType mt == MTSingularJSON                  = asJsonSingleF returnsScalar
+     | getMediaType mt == MTTextCSV                       = asCsvF
+     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
+     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
+     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
+     | returnsSingle && not multObjects                   = asJsonSingleF returnsScalar
+     | otherwise                                          = asJsonF returnsScalar
 
     decodeIt :: HD.Result ResultSet
-    decodeIt = case mediaType of
+    decodeIt = case mt of
       MTPlan{} -> planRow
       _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow True)
 
@@ -194,8 +195,8 @@ standardRow noLocation =
 
 mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
 mtSnippet mediaType snippet = case mediaType of
-  MTPlan (MTPlanAttrs fmt opts) -> explainF fmt opts snippet
-  _                             -> snippet
+  MTPlan (MTPlanAttrs _ fmt opts) -> explainF fmt opts snippet
+  _                               -> snippet
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet

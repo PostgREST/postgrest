@@ -8,10 +8,12 @@ module PostgREST.MediaType
   , toContentType
   , toMime
   , decodeMediaType
+  , getMediaType
   ) where
 
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
+import           Data.Maybe               (fromJust)
 
 import Network.HTTP.Types.Header (Header, hContentType)
 
@@ -33,7 +35,7 @@ data MediaType
   | MTPlan MTPlanAttrs
   deriving Eq
 
-data MTPlanAttrs = MTPlanAttrs MTPlanFormat [MTPlanOption]
+data MTPlanAttrs = MTPlanAttrs (Maybe MediaType) MTPlanFormat [MTPlanOption]
 instance Eq MTPlanAttrs where
   MTPlanAttrs {} == MTPlanAttrs {} = True -- we don't care about the attributes when comparing two MTPlan media types
 
@@ -65,8 +67,10 @@ toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
-toMime (MTPlan (MTPlanAttrs fmt opts)) = "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
-                            if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts)
+toMime (MTPlan (MTPlanAttrs mt fmt opts)) =
+  "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
+  (if isNothing mt then mempty else "; for=\"" <> toMime (fromJust mt) <> "\"") <>
+  (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
 
 toMimePlanOption :: MTPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
@@ -101,11 +105,20 @@ decodeMediaType mt =
     _                                      -> MTAny
   where
     getPlan fmt rest =
-     let opts = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
-         inOpts str = str `elem` opts in
-     MTPlan $ MTPlanAttrs fmt $
+     let
+       opts         = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
+       inOpts str   = str `elem` opts
+       mtFor        = decodeMediaType . dropAround (== BS.c2w '"') <$> (BS.stripPrefix "for=" =<< find (BS.isPrefixOf "for=") rest)
+       dropAround p = BS.dropWhile p . BS.dropWhileEnd p in
+     MTPlan $ MTPlanAttrs mtFor fmt $
       [PlanAnalyze  | inOpts "analyze" ] ++
       [PlanVerbose  | inOpts "verbose" ] ++
       [PlanSettings | inOpts "settings"] ++
       [PlanBuffers  | inOpts "buffers" ] ++
       [PlanWAL      | inOpts "wal"     ]
+
+getMediaType :: MediaType -> MediaType
+getMediaType mt = case mt of
+  MTPlan (MTPlanAttrs (Just mType) _ _) -> mType
+  MTPlan (MTPlanAttrs Nothing _ _)      -> MTApplicationJSON
+  other                                 -> other
