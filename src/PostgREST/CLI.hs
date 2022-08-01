@@ -11,7 +11,6 @@ module PostgREST.CLI
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
-import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
 
@@ -49,7 +48,7 @@ dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    SQL.use (AppState.getPool appState) $
+    AppState.usePool appState $
       transaction SQL.ReadCommitted SQL.Read $
         queryDbStructure
           (toList configDbSchemas)

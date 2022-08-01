@@ -11,7 +11,6 @@ import Network.Socket.ByteString
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 
-import qualified Hasql.Pool    as SQL
 import qualified Hasql.Session as SQL
 
 import qualified PostgREST.AppState as AppState
@@ -27,7 +26,7 @@ postgrestAdmin appState appConfig req respond  = do
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
-      else isRight <$> SQL.use (AppState.getPool appState) (SQL.sql "SELECT 1")
+      else isRight <$> AppState.usePool appState (SQL.sql "SELECT 1")
 
   case Wai.pathInfo req of
     ["ready"] ->

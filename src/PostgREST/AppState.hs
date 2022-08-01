@@ -24,10 +24,12 @@ module PostgREST.AppState
   , putRetryNextIn
   , releasePool
   , signalListener
+  , usePool
   , waitListener
   ) where
 
-import qualified Hasql.Pool as SQL
+import qualified Hasql.Pool    as SQL
+import qualified Hasql.Session as SQL
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -95,6 +97,9 @@ initPool AppConfig{..} =
 
 getPool :: AppState -> SQL.Pool
 getPool = statePool
+
+usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool AppState{..} = SQL.use statePool
 
 releasePool :: AppState -> IO ()
 releasePool AppState{..} = SQL.release statePool
