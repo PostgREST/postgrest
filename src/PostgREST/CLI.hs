@@ -55,7 +55,7 @@ dumpSchema appState = do
           (toList configDbSchemas)
           configDbExtraSearchPath
           configDbPreparedStatements
-  SQL.release $ AppState.getPool appState
+  AppState.releasePool appState
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
