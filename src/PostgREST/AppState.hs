@@ -97,7 +97,7 @@ getPool :: AppState -> SQL.Pool
 getPool = statePool
 
 releasePool :: AppState -> IO ()
-releasePool AppState{..} = SQL.release statePool >> throwTo stateMainThreadId UserInterrupt
+releasePool AppState{..} = SQL.release statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
