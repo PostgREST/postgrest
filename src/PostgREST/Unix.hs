@@ -45,8 +45,11 @@ installSignalHandlers :: AppState.AppState -> IO ()
 installSignalHandlers appState = do
   -- Releases the connection pool whenever the program is terminated,
   -- see https://github.com/PostgREST/postgrest/issues/268
-  install Signals.sigINT $ AppState.releasePool appState
-  install Signals.sigTERM $ AppState.releasePool appState
+  let interrupt = do
+        AppState.releasePool appState
+        throwTo (AppState.getMainThreadId appState) UserInterrupt
+  install Signals.sigINT interrupt
+  install Signals.sigTERM interrupt
 
   -- The SIGUSR1 signal updates the internal 'DbStructure' by running
   -- 'connectionWorker' exactly as before.
