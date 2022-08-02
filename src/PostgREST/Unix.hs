@@ -43,11 +43,7 @@ runAppWithSocket settings app socketFileMode socketFilePath =
 -- | Set signal handlers, only for systems with signals
 installSignalHandlers :: AppState.AppState -> IO ()
 installSignalHandlers appState = do
-  -- Releases the connection pool whenever the program is terminated,
-  -- see https://github.com/PostgREST/postgrest/issues/268
-  let interrupt = do
-        AppState.releasePool appState
-        throwTo (AppState.getMainThreadId appState) UserInterrupt
+  let interrupt = throwTo (AppState.getMainThreadId appState) UserInterrupt
   install Signals.sigINT interrupt
   install Signals.sigTERM interrupt
 
