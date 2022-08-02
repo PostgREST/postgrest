@@ -13,6 +13,7 @@ import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
 import urllib.parse
 
@@ -44,6 +45,25 @@ def itemgetter(*items):
             return tuple(obj.get(item) for item in items)
 
     return g
+
+
+class Thread(threading.Thread):
+    "Variant of threading.Thread that re-raises any exceptions when joining the thread"
+
+    def __init__(self, *args, **kwargs):
+        self._exception = None
+        super(Thread, self).__init__(*args, **kwargs)
+
+    def run(self):
+        try:
+            super(Thread, self).run()
+        except Exception as e:
+            self._exception = e
+
+    def join(self):
+        super(Thread, self).join()
+        if self._exception is not None:
+            raise self._exception
 
 
 class PostgrestTimedOut(Exception):
