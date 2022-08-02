@@ -970,6 +970,57 @@ def test_pool_size(defaultenv, metapostgrest):
         assert delta > 1 and delta < 1.5
 
 
+@pytest.mark.xfail(reason="issue #2401")
+def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
+    "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"
+
+    role = "timeout_authenticator"
+    reset_statement_timeout(metapostgrest, role)
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_DB_POOL": "2",
+    }
+
+    with run(env=env) as postgrest:
+        # start a slow request that holds a pool connection
+        def hold_connection():
+            response = postgrest.session.get("/rpc/sleep?seconds=1")
+            assert response.status_code == 204
+
+        hold = Thread(target=hold_connection)
+        hold.start()
+        # give the request time to start before SIGUSR1 flushes the pool
+        time.sleep(0.1)
+
+        set_statement_timeout(metapostgrest, role, 500)  # 0.5s
+        # trigger schema refresh; flushes pool and establishes a new connection
+        postgrest.process.send_signal(signal.SIGUSR1)
+
+        # wait for the slow request's connection to be returned to the pool
+        hold.join()
+
+        # subsequent requests should fail due to the lowered timeout; run several in parallel
+        # to ensure we use the full pool
+        threads = []
+        for i in range(2):
+
+            def sleep(i=i):
+                response = postgrest.session.get("/rpc/sleep?seconds=1")
+                assert response.status_code == 500, "thread {}".format(i)
+                data = response.json()
+                assert data["message"] == "canceling statement due to statement timeout"
+
+            thread = Thread(target=sleep)
+            thread.start()
+            threads.append(thread)
+
+        for t in threads:
+            t.join()
+
+
 def test_admin_ready_w_channel(defaultenv):
     "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
