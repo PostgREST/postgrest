@@ -2,6 +2,7 @@
 
 module PostgREST.AppState
   ( AppState
+  , destroy
   , getConfig
   , getDbStructure
   , getIsListenerOn
@@ -88,6 +89,9 @@ initWithPool newPool conf =
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
     <*> myThreadId
     <*> newIORef 0
+
+destroy :: AppState -> IO ()
+destroy = releasePool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =

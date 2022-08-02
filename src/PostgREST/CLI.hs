@@ -34,13 +34,19 @@ main :: App.SignalHandlerInstaller -> Maybe App.SocketRunner -> CLI -> IO ()
 main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing
-  appState <- AppState.init conf
-  case cliCommand of
-    CmdDumpConfig -> do
-      when configDbConfig $ reReadConfig True appState
-      putStr . Config.toText =<< AppState.getConfig appState
-    CmdDumpSchema -> putStrLn =<< dumpSchema appState
-    CmdRun -> App.run installSignalHandlers runAppWithSocket appState
+
+  -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
+  -- explicitly close the connections to PostgreSQL on shutdown.
+  -- 'AppState.destroy' takes care of that.
+  bracket
+    (AppState.init conf)
+    AppState.destroy
+    (\appState -> case cliCommand of
+      CmdDumpConfig -> do
+        when configDbConfig $ reReadConfig True appState
+        putStr . Config.toText =<< AppState.getConfig appState
+      CmdDumpSchema -> putStrLn =<< dumpSchema appState
+      CmdRun -> App.run installSignalHandlers runAppWithSocket appState)
 
 -- | Dump DbStructure schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -54,7 +60,6 @@ dumpSchema appState = do
           (toList configDbSchemas)
           configDbExtraSearchPath
           configDbPreparedStatements
-  AppState.releasePool appState
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
