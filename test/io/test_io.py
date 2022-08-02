@@ -86,12 +86,20 @@ def dburi():
 
 
 @pytest.fixture
-def defaultenv():
-    "Default environment for PostgREST."
+def baseenv():
+    "Base environment to connect to PostgreSQL"
     return {
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
         "PGUSER": os.environ["PGUSER"],
+    }
+
+
+@pytest.fixture
+def defaultenv(baseenv):
+    "Default environment for PostgREST."
+    return {
+        **baseenv,
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
     }
@@ -345,13 +353,13 @@ def test_expected_config_from_environment():
         ("other_authenticator", "no-defaults-with-db-other-authenticator.config"),
     ],
 )
-def test_expected_config_from_db_settings(defaultenv, role, expectedconfig):
+def test_expected_config_from_db_settings(baseenv, role, expectedconfig):
     "Config should be overriden from database settings"
 
     config = CONFIGSDIR / "no-defaults.config"
 
     env = {
-        **defaultenv,
+        **baseenv,
         "PGUSER": role,
         "PGRST_DB_URI": "postgresql://",
         "PGRST_DB_CONFIG": "true",
