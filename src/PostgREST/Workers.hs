@@ -109,7 +109,7 @@ connectionWorker appState = do
 connectionStatus :: AppState -> IO ConnectionStatus
 connectionStatus appState =
   retrying retrySettings shouldRetry $
-    const $ AppState.releasePool appState >> getConnectionStatus
+    const $ AppState.flushPool appState >> getConnectionStatus
   where
     retrySettings = capDelay delayMicroseconds $ exponentialBackoff backoffMicroseconds
     delayMicroseconds = 32000000 -- 32 seconds

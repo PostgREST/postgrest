@@ -3,6 +3,7 @@
 module PostgREST.AppState
   ( AppState
   , destroy
+  , flushPool
   , getConfig
   , getDbStructure
   , getIsListenerOn
@@ -21,7 +22,6 @@ module PostgREST.AppState
   , putJsonDbS
   , putPgVersion
   , putRetryNextIn
-  , releasePool
   , signalListener
   , usePool
   , waitListener
@@ -46,7 +46,9 @@ import Protolude
 
 
 data AppState = AppState
-  { statePool         :: SQL.Pool -- | Connection pool, either a 'Connection' or a 'ConnectionError'
+  -- | Database connection pool
+  { statePool         :: SQL.Pool
+  -- | Database server version, will be updated by the connectionWorker
   , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateDbStructure  :: IORef (Maybe DbStructure)
@@ -91,7 +93,7 @@ initWithPool newPool conf =
     <*> newIORef 0
 
 destroy :: AppState -> IO ()
-destroy = releasePool
+destroy AppState{..} = SQL.release statePool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
@@ -100,8 +102,14 @@ initPool AppConfig{..} =
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool AppState{..} = SQL.use statePool
 
-releasePool :: AppState -> IO ()
-releasePool AppState{..} = SQL.release statePool
+-- | Flush the connection pool so that any future use of the pool will
+-- use connections freshly established after this call.
+--
+-- FIXME: #2401 Connections that are in-use during the call to flushPool
+-- will currently be returned to the pool and reused afterwards, in
+-- conflict with the intention.
+flushPool :: AppState -> IO ()
+flushPool AppState{..} = SQL.release statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
