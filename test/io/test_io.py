@@ -102,6 +102,8 @@ def defaultenv(baseenv):
         **baseenv,
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_TIMEOUT": "1",
     }
 
 
@@ -116,6 +118,8 @@ def metapostgrest():
         "PGRST_DB_ANON_ROLE": role,
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_TIMEOUT": "1",
     }
     with run(env=env) as postgrest:
         yield postgrest
@@ -173,9 +177,6 @@ def run(
     no_pool_connection_available=False,
 ):
     "Run PostgREST and yield an endpoint that is ready for connections."
-    env = env or {}
-    env["PGRST_DB_POOL"] = "1"
-    env["PGRST_DB_POOL_TIMEOUT"] = "1"
 
     with tempfile.TemporaryDirectory() as tmpdir:
         if port:
