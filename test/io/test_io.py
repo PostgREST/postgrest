@@ -939,6 +939,37 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
         assert response.status_code == 204
 
 
+def test_pool_size(defaultenv, metapostgrest):
+    "Verify that PGRST_DB_POOL setting allows the correct number of parallel requests"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "2",
+    }
+
+    with run(env=env) as postgrest:
+
+        start = time.time()
+        threads = []
+        for i in range(4):
+
+            def sleep(i=i):
+                response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+                assert response.status_code == 204, "thread {}".format(i)
+
+            t = Thread(target=sleep)
+            t.start()
+            threads.append(t)
+        for t in threads:
+            t.join()
+        end = time.time()
+        delta = end - start
+
+        # sleep 4 times for 0.5s each, with 2 requests in parallel
+        # => total time roughly 1s
+        assert delta > 1 and delta < 1.5
+
+
 def test_admin_ready_w_channel(defaultenv):
     "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
