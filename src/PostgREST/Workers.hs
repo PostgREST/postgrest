@@ -68,13 +68,13 @@ connectionWorker appState = do
     work = do
       AppConfig{..} <- AppState.getConfig appState
       AppState.logWithZTime appState "Attempting to connect to the database..."
-      connected <- connectionStatus appState
+      connected <- establishConnection appState
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
           AppState.logWithZTime appState reason >> killThread (AppState.getMainThreadId appState)
         NotConnected ->
-          -- Unreachable because connectionStatus will keep trying to connect
+          -- Unreachable because establishConnection will keep trying to connect
           return ()
         Connected actualPgVersion -> do
           -- Procede with initialization
@@ -97,17 +97,18 @@ connectionWorker appState = do
               -- die if our schema cache query has an error
               killThread $ AppState.getMainThreadId appState
 
--- | Check if a connection from the pool allows access to the PostgreSQL
--- database.  If not, the pool connections are released and a new connection is
--- tried.  Releasing the pool is key for rapid recovery. Otherwise, the pool
+-- | Repeatedly flush the pool, and check if a connection from the
+-- pool allows access to the PostgreSQL database.
+--
+-- Releasing the pool is key for rapid recovery. Otherwise, the pool
 -- timeout would have to be reached for new healthy connections to be acquired.
 -- Which might not happen if the server is busy with requests. No idle
 -- connection, no pool timeout.
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
-connectionStatus :: AppState -> IO ConnectionStatus
-connectionStatus appState =
+establishConnection :: AppState -> IO ConnectionStatus
+establishConnection appState =
   retrying retrySettings shouldRetry $
     const $ AppState.flushPool appState >> getConnectionStatus
   where
