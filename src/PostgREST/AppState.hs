@@ -46,7 +46,9 @@ import Protolude
 
 
 data AppState = AppState
-  { statePool         :: SQL.Pool -- | Connection pool, either a 'Connection' or a 'ConnectionError'
+  -- | Database connection pool
+  { statePool         :: SQL.Pool
+  -- | Database server version, will be updated by the connectionWorker
   , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateDbStructure  :: IORef (Maybe DbStructure)
