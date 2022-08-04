@@ -136,17 +136,12 @@ flushPool appState@AppState{..} = do
     case old of
       Nothing -> (Nothing, old)
       _       -> (Just newPool, old)
-  case oldPool of
-    Nothing  -> return ()
-    Just old -> SQL.release old
+  mapM_ SQL.release oldPool
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = do
-  pool <- readIORef statePool
-  case pool of
-    Nothing -> return ()
-    Just p  -> SQL.release p
+destroyPool AppState{..} =
+  readIORef statePool >>= mapM_ SQL.release
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
