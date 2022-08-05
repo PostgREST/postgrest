@@ -31,6 +31,7 @@ module PostgREST.Request.Types
   , TrileanVal(..)
   , SimpleOperator(..)
   , FtsOperator(..)
+  , BodyOperator(..)
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -179,6 +180,7 @@ data Operation
   | In ListVal
   | Is TrileanVal
   | Fts FtsOperator (Maybe Language) SingleVal
+  | BodOp BodyOperator SingleVal
   deriving (Eq)
 
 type Language = Text
@@ -224,4 +226,9 @@ data FtsOperator
   | FilterFtsPlain
   | FilterFtsPhrase
   | FilterFtsWebsearch
+  deriving Eq
+
+-- | Operators for filtering using the request body
+data BodyOperator
+  = BodyOpEqual
   deriving Eq

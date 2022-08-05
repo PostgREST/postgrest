@@ -45,7 +45,8 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeOffset, restrictRange)
 
 import PostgREST.Request.ReadQuery (SelectItem)
-import PostgREST.Request.Types     (EmbedParam (..), EmbedPath, Field,
+import PostgREST.Request.Types     (EmbedParam (..), BodyOperator (..),
+                                    EmbedPath, Field,
                                     Filter (..), FtsOperator (..),
                                     JoinType (..), JsonOperand (..),
                                     JsonOperation (..), JsonPath,
@@ -183,7 +184,7 @@ parse qs =
         "not" : _ : _ -> True
         "is" : _      -> True
         "in" : _      -> True
-        x : _         -> isJust (operator x) || isJust (ftsOperator x)
+        x : _         -> isJust (operator x) || isJust (ftsOperator x) || isJust (bodyOperator x)
         _             -> False
 
     hasFtsOperator val =
@@ -237,6 +238,11 @@ ftsOperator = \case
   "phfts" -> Just FilterFtsPhrase
   "wfts"  -> Just FilterFtsWebsearch
   _       -> Nothing
+
+bodyOperator :: Text -> Maybe BodyOperator
+bodyOperator = \case
+  "_eq" -> Just BodyOpEqual
+  _     -> Nothing
 
 
 -- PARSERS
@@ -407,7 +413,7 @@ pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
     pOperation :: Parser Operation
-    pOperation = pIn <|> pIs <|> try pFts <|> pOp <?> "operator (eq, gt, ...)"
+    pOperation = pIn <|> pIs <|> try pFts <|> try pBodOp <|> pOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
     pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
@@ -428,6 +434,11 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
       op <- parseMaybe ("unknown fts operator " <> opStr) . ftsOperator $ toS opStr
       lang <- optionMaybe $ try (between (char '(') (char ')') $ many pIdentifierChar)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
+
+    pBodOp = do
+      opStr <- try (P.many (noneOf "."))
+      op <- parseMaybe ("unknown body operator " <> opStr) . bodyOperator $ toS opStr
+      pDelimiter >> BodOp op <$> pSVal
 
     parseMaybe :: [Char] -> Maybe a -> Parser a
     parseMaybe err Nothing = parserFail err

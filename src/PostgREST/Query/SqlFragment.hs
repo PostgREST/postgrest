@@ -56,7 +56,9 @@ import PostgREST.MediaType               (MTPlanFormat (..),
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.ReadQuery       (SelectItem)
-import PostgREST.Request.Types           (Alias, Field, Filter (..),
+import PostgREST.Request.Types           (Alias,
+                                          BodyOperator (..),
+                                          Field, Filter (..),
                                           FtsOperator (..),
                                           JoinCondition (..),
                                           JsonOperand (..),
@@ -110,6 +112,10 @@ ftsOperator = \case
   FilterFtsPlain     -> "@@ plainto_tsquery"
   FilterFtsPhrase    -> "@@ phraseto_tsquery"
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
+
+bodySingleOperator :: BodyOperator -> SqlFragment
+bodySingleOperator = \case
+  BodyOpEqual -> "="
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
@@ -274,10 +280,13 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
 
    Fts op lang val ->
      pgFmtFieldFts op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+
+   BodOp op val  -> pgFmtFieldBodOp op <> " " <> SQL.sql (pgFmtColumn (QualifiedIdentifier mempty "pgrst_recordset_body") val)
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    pgFmtFieldOp op = pgFmtField table fld <> " " <> SQL.sql (singleValOperator op)
    pgFmtFieldFts op = pgFmtField table fld <> " " <> SQL.sql (ftsOperator op)
+   pgFmtFieldBodOp op = pgFmtField table fld <> " " <> SQL.sql (bodySingleOperator op)
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
 

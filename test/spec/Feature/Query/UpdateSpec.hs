@@ -388,16 +388,39 @@ spec = do
           }
 
   context "limited update" $ do
-    it "does not work when no limit query or filter is given" $
+    it "works when no limit query or filter is given" $ do
+      get "/limited_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
       request methodPatch "/limited_update_items"
           [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
           ""
-          { matchStatus  = 404
+          { matchStatus  = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Content-Range" <:> "*/0" ]
+                           , "Content-Range" <:> "0-2/3"
+                           , "Preference-Applied" <:> "tx=commit" ]
           }
+
+      get "/limited_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "updated-item" }
+          , { "id": 2, "name": "updated-item" }
+          , { "id": 3, "name": "updated-item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "limited_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
 
     it "works with the limit query param" $ do
       get "/limited_update_items"
@@ -635,7 +658,7 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null }
           ]|]
 
-      request methodPatch "/bulk_update_items"
+      request methodPatch "/bulk_update_items?id=_eq.id"
           [("Prefer", "tx=commit")]
           [json|[
             { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
@@ -672,7 +695,7 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null }
           ]|]
 
-      request methodPatch "/bulk_update_items_cpk"
+      request methodPatch "/bulk_update_items_cpk?id=_eq.id&name=_eq.name"
           [("Prefer", "tx=commit")]
           [json|[
             { "id": 1, "name": "item-1", "observation": "Lost item" }
