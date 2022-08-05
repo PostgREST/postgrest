@@ -64,7 +64,9 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferResolution (..),
                                           PreferTransaction (..))
 import PostgREST.Request.QueryParams     (QueryParams (..))
-import PostgREST.Request.Types           (ApiRequestError (..))
+import PostgREST.Request.Types           (ApiRequestError (..),
+                                          Filter (..), OpExpr (..),
+                                          Operation (..))
 
 import qualified PostgREST.MediaType           as MediaType
 import qualified PostgREST.Request.Preferences as Preferences
@@ -220,6 +222,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   | isInvalidRange = Left InvalidRange
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
+  | bodyFilterNotAllowed = Left $ BodyFilterNotAllowed "Body filter _eq is not allowed for this method"
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
@@ -250,6 +253,13 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
 
   expectParams = pathIsProc && method /= "POST"
+
+  bodyFilterNotAllowed = findBodyFilter && (method `notElem` ["PATCH", "PUT", "POST"] || pathIsProc)
+  findBodyFilter = any hasBodOp qsFilters
+    where
+      hasBodOp o = case  opExpr (snd o) of
+        OpExpr _ BodOp{} -> True
+        _                -> False
 
   contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
 

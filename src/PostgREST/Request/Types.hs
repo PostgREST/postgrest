@@ -50,6 +50,7 @@ import Protolude
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
+  | BodyFilterNotAllowed Text
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
