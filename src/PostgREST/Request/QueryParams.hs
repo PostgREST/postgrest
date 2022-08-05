@@ -68,6 +68,7 @@ import Protolude hiding (try)
 -- >>> deriving instance Show TrileanVal
 -- >>> deriving instance Show FtsOperator
 -- >>> deriving instance Show SimpleOperator
+-- >>> deriving instance Show BodyOperator
 -- >>> deriving instance Show Operation
 -- >>> deriving instance Show OpExpr
 -- >>> deriving instance Show JsonOperand
