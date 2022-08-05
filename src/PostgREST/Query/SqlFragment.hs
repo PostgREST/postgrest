@@ -56,8 +56,7 @@ import PostgREST.MediaType               (MTPlanFormat (..),
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.ReadQuery       (SelectItem)
-import PostgREST.Request.Types           (Alias,
-                                          BodyOperator (..),
+import PostgREST.Request.Types           (Alias, BodyOperator (..),
                                           Field, Filter (..),
                                           FtsOperator (..),
                                           JoinCondition (..),

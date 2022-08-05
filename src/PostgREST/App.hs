@@ -360,12 +360,8 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@RequestContext{..} = do
-  let
-    ApiRequest{..} = ctxApiRequest
-    pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
-
-  resultSet <- writeQuery MutationUpdate identifier False pkCols context
+handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+  resultSet <- writeQuery MutationUpdate identifier False mempty context
 
   case resultSet of
     RSStandard{..} -> do

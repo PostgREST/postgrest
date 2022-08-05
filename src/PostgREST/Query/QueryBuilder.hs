@@ -110,7 +110,7 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
 
 -- An update without a limit is always filtered with a WHERE
-mutateRequestToQuery (Update mainQi uCols body logicForest _ range ordts returnings)
+mutateRequestToQuery (Update mainQi uCols body logicForest range ordts returnings)
   | S.null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -139,7 +139,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest _ range ordts returni
     SQL.sql (returningF mainQi returnings)
 
   where
-    
+
     mainTbl = SQL.sql (fromQi mainQi)
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     whereLogic = if null logicForest then mempty else " WHERE " <> logicForestF

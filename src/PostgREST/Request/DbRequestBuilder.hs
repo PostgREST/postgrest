@@ -318,7 +318,7 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
-    MutationUpdate -> Right $ Update qi iColumns body combinedLogic pkCols iTopLevelRange rootOrder returnings
+    MutationUpdate -> Right $ Update qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&

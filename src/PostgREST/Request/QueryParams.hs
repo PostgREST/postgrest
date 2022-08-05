@@ -45,8 +45,8 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeOffset, restrictRange)
 
 import PostgREST.Request.ReadQuery (SelectItem)
-import PostgREST.Request.Types     (EmbedParam (..), BodyOperator (..),
-                                    EmbedPath, Field,
+import PostgREST.Request.Types     (BodyOperator (..),
+                                    EmbedParam (..), EmbedPath, Field,
                                     Filter (..), FtsOperator (..),
                                     JoinType (..), JsonOperand (..),
                                     JsonOperation (..), JsonPath,
