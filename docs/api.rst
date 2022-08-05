@@ -67,8 +67,8 @@ gte           :code:`>=`                greater than or equal
 lt            :code:`<`                 less than
 lte           :code:`<=`                less than or equal
 neq           :code:`<>` or :code:`!=`  not equal
-like          :code:`LIKE`              LIKE operator (use * in place of %)
-ilike         :code:`ILIKE`             ILIKE operator (use * in place of %)
+like          :code:`LIKE`              LIKE operator (to avoid `URL encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_ you can use ``*`` as an alias of the percent sign ``%`` for the pattern)
+ilike         :code:`ILIKE`             ILIKE operator (to avoid `URL encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_ you can use ``*`` as an alias of the percent sign ``%`` for the pattern)
 match         :code:`~`                 ~ operator, see :ref:`pattern_matching`
 imatch        :code:`~*`                ~* operator, see :ref:`pattern_matching`
 in            :code:`IN`                one of a list of values, e.g. :code:`?a=in.(1,2,3)`
