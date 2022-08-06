@@ -14,8 +14,8 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
-                                   pgVersion130, pgVersion100)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion120, pgVersion130)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -274,8 +274,8 @@ spec actualPgVersion = do
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
       liftIO $ totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|58.26|]
-            else Just [aesonQQ|33.25|]
+            then Just [aesonQQ|33.25|]
+            else Just [aesonQQ|33.27|]
 
     it "a many to one doesn't surpass a threshold" $ do
       r <- request methodGet "/projects?select=*,clients(*)&id=eq.1"
@@ -293,9 +293,9 @@ spec actualPgVersion = do
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
       liftIO $ totalCost `shouldBe`
-          if | actualPgVersion > pgVersion120 -> Just [aesonQQ|130.44|]
-             | actualPgVersion > pgVersion100 -> Just [aesonQQ|69.34|]
-             | otherwise                      -> Just [aesonQQ|70.79|]
+          if | actualPgVersion > pgVersion120 -> Just [aesonQQ|69.34|]
+             | actualPgVersion > pgVersion100 -> Just [aesonQQ|69.36|]
+             | otherwise                      -> Just [aesonQQ|70.81|]
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
