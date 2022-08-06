@@ -822,6 +822,14 @@ spec actualPgVersion =
           `shouldRespondWith` "3"
           { matchHeaders = [matchContentTypeJson] }
 
+      it "fails if a body filter operator is given" $ do
+        get "/rpc/sayhello?name=_eq.John"
+          `shouldRespondWith` [json| {"details":null,"message":"Body filter _eq is not allowed for RPC","code":"PGRST118","hint":null} |]
+          { matchStatus  = 400 }
+        post "/rpc/sayhello?name=_eq.name" [json|{name: "John"}|]
+          `shouldRespondWith` [json| {"details":null,"message":"Body filter _eq is not allowed for RPC","code":"PGRST118","hint":null} |]
+          { matchStatus  = 400 }
+
     context "bulk RPC with params=multiple-objects" $ do
       it "works with a scalar function an returns a json array" $
         request methodPost "/rpc/add_them" [("Prefer", "params=multiple-objects")]

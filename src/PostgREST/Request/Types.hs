@@ -32,6 +32,7 @@ module PostgREST.Request.Types
   , SimpleOperator(..)
   , FtsOperator(..)
   , BodyOperator(..)
+  , BodyRecordset(..)
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -50,7 +51,7 @@ import Protolude
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
-  | BodyFilterNotAllowed Text
+  | BodyFilterNotAllowed ByteString Bool
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
@@ -233,3 +234,10 @@ data FtsOperator
 data BodyOperator
   = BodyOpEqual
   deriving Eq
+
+-- | Information of the transformed body using json_populate_recordset
+-- to be used for filtering using body operators
+data BodyRecordset = BodyRecordset
+  { brName      :: ByteString
+  , isDirectRef :: Bool
+  }

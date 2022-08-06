@@ -122,9 +122,9 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
-  toJSON (BodyFilterNotAllowed message) = JSON.object [
+  toJSON (BodyFilterNotAllowed method isRpc) = JSON.object [
     "code"    .= ApiRequestErrorCode18,
-    "message" .= message,
+    "message" .= ("Body filter _eq is not allowed for " <> if isRpc then "RPC" else T.decodeUtf8 method),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
