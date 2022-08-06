@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiWayIf #-}
+
 module Feature.Query.PlanSpec where
 
 import Control.Lens     ((^?))
@@ -13,7 +15,7 @@ import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
-                                   pgVersion130)
+                                   pgVersion130, pgVersion100)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -263,6 +265,37 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
+
+  describe "resource embedding costs" $ do
+    it "a one to many doesn't surpass a threshold" $ do
+      r <- request methodGet "/clients?select=*,projects(*)&id=eq.1"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      liftIO $ totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|58.26|]
+            else Just [aesonQQ|33.25|]
+
+    it "a many to one doesn't surpass a threshold" $ do
+      r <- request methodGet "/projects?select=*,clients(*)&id=eq.1"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      liftIO $ totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then Just [aesonQQ|16.39|]
+            else Just [aesonQQ|16.41|]
+
+    it "a many to many doesn't surpass a threshold" $ do
+      r <- request methodGet "/users?select=*,tasks(*)&id=eq.1"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      liftIO $ totalCost `shouldBe`
+          if | actualPgVersion > pgVersion120 -> Just [aesonQQ|130.44|]
+             | actualPgVersion > pgVersion100 -> Just [aesonQQ|69.34|]
+             | otherwise                      -> Just [aesonQQ|70.79|]
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
