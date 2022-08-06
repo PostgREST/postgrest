@@ -38,7 +38,7 @@ import Protolude
 readRequestToQuery :: ReadRequest -> SQL.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <> " " <>
   "FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null joinConditions_
@@ -50,38 +50,31 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
     implJs = fromQi <$> implJoins
     tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
     qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
-    (joins, selects) = foldr getJoinsSelects ([],[]) forest
+    (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
-getJoinsSelects :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getJoinsSelects rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (joins,selects) =
-  let subquery = readRequestToQuery rr in
-  case card of
-    M2O _ _ ->
-      let aliasOrName = fromMaybe name alias
-          localTableName = pgFmtIdent $ table <> "_" <> aliasOrName
-          sel = SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
-          joi = (if joinType == Just JTInner then " INNER" else " LEFT")
-            <> " JOIN LATERAL( " <> subquery <> " ) AS " <> SQL.sql localTableName <> " ON TRUE " in
-      (joi:joins,sel:selects)
-    _ -> case joinType of
-      Just JTInner ->
-        let aliasOrName = fromMaybe name alias
-            locTblName = table <> "_" <> aliasOrName
-            localTableName = pgFmtIdent locTblName
-            internalTableName = pgFmtIdent $ "_" <> locTblName
-            sel = SQL.sql $ localTableName <> "." <> internalTableName <> " AS " <> pgFmtIdent aliasOrName
-            joi = "INNER JOIN LATERAL(" <>
-                    "SELECT json_agg(" <> SQL.sql internalTableName <> ") AS " <> SQL.sql internalTableName <>
-                    "FROM (" <> subquery <> " ) AS " <> SQL.sql internalTableName <>
-                  ") AS " <> SQL.sql localTableName <> " ON " <> SQL.sql localTableName <> "IS NOT NULL" in
-        (joi:joins,sel:selects)
+getSelectsJoins :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
+getSelectsJoins rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (selects,joins) =
+  let
+    subquery = readRequestToQuery rr
+    aliasOrName = fromMaybe name alias
+    locTblName = table <> "_" <> aliasOrName
+    localTableName = pgFmtIdent locTblName
+    internalTableName = pgFmtIdent $ "_" <> locTblName
+    correlatedSubquery sub al cond =
+      (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
+    (sel, joi) = case card of
+      M2O _ _ ->
+        ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
+        , correlatedSubquery subquery localTableName "TRUE")
       _ ->
-        let sel = "COALESCE (("
-               <> "SELECT json_agg(" <> SQL.sql (pgFmtIdent table) <> ".*) "
-               <> "FROM (" <> subquery <> ") " <> SQL.sql (pgFmtIdent table) <> " "
-               <> "), '[]') AS " <> SQL.sql (pgFmtIdent (fromMaybe name alias)) in
-        (joins,sel:selects)
-getJoinsSelects (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
+        ( SQL.sql $ "COALESCE( " <> localTableName <> "." <> internalTableName <> ", '[]') AS " <> pgFmtIdent aliasOrName
+        , correlatedSubquery (
+            "SELECT json_agg(" <> SQL.sql internalTableName <> ") AS " <> SQL.sql internalTableName <>
+            "FROM (" <> subquery <> " ) AS " <> SQL.sql internalTableName
+          ) localTableName $ if joinType == Just JTInner then SQL.sql localTableName <> " IS NOT NULL" else "TRUE")
+  in
+  (sel:selects, joi:joins)
+getSelectsJoins (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> SQL.Snippet
 mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
