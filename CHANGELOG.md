@@ -40,7 +40,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Can generate the plan for different media types using the `for` parameter: `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.object"`
    + Different options for the plan can be used with the `options` parameter: `Accept: application/vnd.pgrst.plan; options=analyze|verbose|settings|buffers|wal`
    + The plan can be obtained in text or json by using different media type suffixes: `Accept: application/vnd.pgrst.plan+text` and `Accept: application/vnd.pgrst.plan+json`.
- - #2397, Fix race conditions managing database connection helper - @robx
+ - #2144, Allow extending/overriding relationships for resource embedding - @steve-chavez
 
 ### Fixed
 
@@ -65,6 +65,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2376, OPTIONS requests no longer start an empty database transaction - @steve-chavez
  - #2395, Allow using columns with dollar sign($) without double quoting in filters and `select` - @steve-chavez
  - #2410, Fix loop crash error on startup in Postgres 15 beta 2. Log: "UNION types \"char\" and text cannot be matched". - @yevon
+ - #2397, Fix race conditions managing database connection helper - @robx
 
 ### Changed
 

@@ -806,3 +806,9 @@ TRUNCATE TABLE unsafe_update_items CASCADE;
 INSERT INTO unsafe_update_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
 TRUNCATE TABLE unsafe_delete_items CASCADE;
 INSERT INTO unsafe_delete_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+
+TRUNCATE TABLE designers CASCADE;
+INSERT INTO designers(id, name) VALUES (1, 'Sid Meier'), (2, 'Hironobu Sakaguchi');
+
+TRUNCATE TABLE videogames CASCADE;
+INSERT INTO videogames(id, name, designer_id) VALUES (1, 'Civilization I', 1), (2, 'Civilization II', 1), (3, 'Final Fantasy I', 2), (4, 'Final Fantasy II', 2);

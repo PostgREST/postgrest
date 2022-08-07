@@ -90,18 +90,36 @@ queryDbStructure schemas extraSearchPath prepared = do
   keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
+  cRels   <- SQL.statement mempty $ allComputedRels prepared
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels          = relsToMap $ addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
+      rels          = addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabsWViewsPks
-    , dbRelationships = rels
+    , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbProcs = procs
     }
+
+-- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
+getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap
+getOverrideRelationshipsMap rels cRels =
+  sort <$> deformedRelMap patchedRels
   where
-    relsToMap = map sort . HM.fromListWith (++) . map ((\(x, fSch, y) -> ((x, fSch), [y])) . addKey)
-    addKey rel = (relTable rel, qiSchema $ relForeignTable rel, rel)
+    -- there can only be a single (table_type, func_name) pair in a function definition `test.function(table_type)`, so we use HM.fromList to disallow duplicates
+    computedRels  = HM.fromList $ relMapKey <$> cRels
+    -- here we override the detected relationships with the user computed relationships, HM.union makes sure computedRels prevail
+    patchedRels   = HM.union computedRels (relsMap rels)
+    relsMap = HM.fromListWith (++) . fmap relMapKey
+    relMapKey rel = case rel of
+      Relationship{relTable,relForeignTable} -> ((relTable, relForeignTable), [rel])
+      -- we use (relTable, relFunction) as key to override detected relationships with the function name
+      ComputedRelationship{relTable,relFunction} -> ((relTable, relFunction), [rel])
+    -- Since a relationship is between a table and foreign table, the logical way to index/search is by their table/ftable QualifiedIdentifier
+    -- However, because we allow searching a relationship by the columns of the foreign key(using the "column as target" disambiguation) we lose the
+    -- ability to index by the foreign table name, so we deform the key. TODO remove once support for "column as target" is gone.
+    deformedRelMap = HM.fromListWith (++) . fmap addDeformedRelKey . HM.toList
+    addDeformedRelKey ((relT, relFT), rls) = ((relT, qiSchema relFT), rls)
 
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
 removeInternal :: [Schema] -> DbStructure -> DbStructure
@@ -113,7 +131,8 @@ removeInternal schemas dbStruct =
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
-    hasInternalJunction rel = case relCardinality rel of
+    hasInternalJunction ComputedRelationship{} = False
+    hasInternalJunction Relationship{relCardinality=card} = case card of
       M2M Junction{junTable} -> qiSchema junTable `notElem` schemas
       _                      -> False
 
@@ -642,6 +661,50 @@ allM2ORels pgVer =
       then " and conparentid = 0 "
       else mempty) <>
     "ORDER BY conrelid, conname"
+
+allComputedRels :: Bool -> SQL.Statement () [Relationship]
+allComputedRels =
+  SQL.Statement sql HE.noParams (HD.rowList cRelRow)
+ where
+  sql = [q|
+    with
+    all_relations as (
+      select reltype
+      from pg_class
+      where relkind in ('v','r','m','f','p')
+    ),
+    computed_rels as (
+      select
+        p.pronamespace::regnamespace::text as schema,
+        p.proname::text                    as name,
+        arg_schema.nspname::text           as rel_table_schema,
+        arg_name.typname::text             as rel_table_name,
+        ret_schema.nspname::text           as rel_ftable_schema,
+        ret_name.typname::text             as rel_ftable_name,
+        p.prorows = 1                      as single_row
+      from pg_proc p
+        join pg_type      arg_name   on arg_name.oid = p.proargtypes[0]
+        join pg_namespace arg_schema on arg_schema.oid = arg_name.typnamespace
+        join pg_type      ret_name   on ret_name.oid = p.prorettype
+        join pg_namespace ret_schema on ret_schema.oid = ret_name.typnamespace
+      where
+        p.pronargs = 1
+        and p.proargtypes[0] in (select reltype from all_relations)
+        and p.prorettype in (select reltype from all_relations)
+    )
+    select
+      *,
+      row(rel_table_schema, rel_table_name) = row(rel_ftable_schema, rel_ftable_name) as is_self
+    from computed_rels;
+  |]
+
+  cRelRow =
+    ComputedRelationship <$>
+    (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    column HD.bool <*>
+    column HD.bool
 
 -- | Returns all the views' primary keys and foreign keys dependencies
 allViewsKeyDependencies :: Bool -> SQL.Statement ([Schema], [Schema]) [ViewKeyDependency]

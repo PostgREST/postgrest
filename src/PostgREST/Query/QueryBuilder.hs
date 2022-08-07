@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 {-|
 Module      : PostgREST.Query.QueryBuilder
 Description : PostgREST SQL queries generating functions.
@@ -40,7 +41,7 @@ readRequestToQuery :: ReadRequest -> SQL.Snippet
 readRequestToQuery (Node (Select colSelects mainQi tblAlias logicForest joinConditions_ ordts range, (_, rel, _, _, _, _)) forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <> " " <>
-  "FROM " <> SQL.sql tabl <> implicitJoinF rel <> " " <>
+  fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null joinConditions_
     then mempty
@@ -48,23 +49,26 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias logicForest joinCond
   orderF qi ordts <> " " <>
   limitOffsetF range
   where
-    tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
-    qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
+    fromFrag = fromF rel mainQi tblAlias
+    qi = getQualifiedIdentifier rel mainQi tblAlias
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
-getSelectsJoins rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (selects,joins) =
+getSelectsJoins rr@(Node (_, (name, Just rel, alias, _, joinType, _)) _) (selects,joins) =
   let
     subquery = readRequestToQuery rr
     aliasOrName = fromMaybe name alias
-    locTblName = table <> "_" <> aliasOrName
+    locTblName = qiName (relTable rel) <> "_" <> aliasOrName
     localTableName = pgFmtIdent locTblName
     internalTableName = pgFmtIdent $ "_" <> locTblName
     correlatedSubquery sub al cond =
       (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
-    (sel, joi) = case card of
-      M2O _ _ ->
+    (sel, joi) = case rel of
+      Relationship{relCardinality=M2O _ _} ->
+        ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
+        , correlatedSubquery subquery localTableName "TRUE")
+      ComputedRelationship{relToOne=True} ->
         ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
         , correlatedSubquery subquery localTableName "TRUE")
       _ ->
@@ -219,7 +223,7 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
 -- Only for the nodes that have an INNER JOIN linked to the root level.
 readRequestToCountQuery :: ReadRequest -> SQL.Snippet
 readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_}, (_, rel, _, _, _, _)) forest) =
-  "SELECT 1 FROM " <> SQL.sql tabl <> implicitJoinF rel <>
+  "SELECT 1 " <> fromFrag <>
   (if null logicForest && null joinConditions_ && null subQueries
     then mempty
     else " WHERE " ) <>
@@ -229,8 +233,8 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=lo
     subQueries
   )
   where
-    qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
-    tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
+    qi = getQualifiedIdentifier rel mainQi tblAlias
+    fromFrag = fromF rel mainQi tblAlias
     subQueries = foldr existsSubquery [] forest
     existsSubquery :: ReadRequest -> [SQL.Snippet] -> [SQL.Snippet]
     existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =
@@ -241,7 +245,19 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=lo
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
 
-implicitJoinF :: Maybe Relationship -> SQL.Snippet
-implicitJoinF rel = case relCardinality <$> rel of
-  Just (M2M Junction{junTable=jt}) -> ", " <> SQL.sql (fromQi jt)
-  _                                -> mempty
+-- TODO refactor so this function is uneeded and ComputedRelationship QualifiedIdentifier comes from the ReadQuery type
+getQualifiedIdentifier :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> QualifiedIdentifier
+getQualifiedIdentifier rel mainQi tblAlias = case rel of
+  Just ComputedRelationship{relFunction} -> QualifiedIdentifier mempty $ fromMaybe (qiName relFunction) tblAlias
+  _                                      -> maybe mainQi (QualifiedIdentifier mempty) tblAlias
+
+-- FROM clause plus implicit joins
+fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
+fromF rel mainQi tblAlias = SQL.sql $ "FROM " <>
+  (case rel of
+    Just ComputedRelationship{relFunction,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTable) <> ")"
+    _                                               -> fromQi mainQi) <>
+  maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias <>
+  (case rel of
+    Just Relationship{relCardinality=M2M Junction{junTable=jt}} -> ", " <> fromQi jt
+    _                                                           -> mempty)

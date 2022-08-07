@@ -171,6 +171,8 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
 
 compressedRel :: Relationship -> JSON.Value
+-- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
+compressedRel ComputedRelationship{} = JSON.object mempty
 compressedRel Relationship{..} =
   let
     fmtEls els = "(" <> T.intercalate ", " els <> ")"
@@ -200,6 +202,8 @@ relHint rels = T.intercalate ", " (hintList <$> rels)
         M2M Junction{..} -> buildHint (qiName junTable)
         M2O cons _       -> buildHint cons
         O2M cons _       -> buildHint cons
+    -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
+    hintList ComputedRelationship{} = mempty
 
 data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool

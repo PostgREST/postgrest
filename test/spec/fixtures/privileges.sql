@@ -197,6 +197,8 @@ GRANT ALL ON TABLE
     , safe_delete_items
     , unsafe_update_items
     , unsafe_delete_items
+    , videogames
+    , designers
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
