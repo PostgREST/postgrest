@@ -26,6 +26,13 @@ data Relationship = Relationship
   , relTableIsView  :: Bool
   , relFTableIsView :: Bool
   }
+  | ComputedRelationship
+  { relFunction     :: QualifiedIdentifier
+  , relTable        :: QualifiedIdentifier
+  , relForeignTable :: QualifiedIdentifier
+  , relToOne        :: Bool
+  , relIsSelf       :: Bool
+  }
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 -- | The relationship cardinality

@@ -37,6 +37,7 @@ import qualified Feature.OpenApi.RootSpec
 import qualified Feature.OpenApi.SecurityOpenApiSpec
 import qualified Feature.OptionsSpec
 import qualified Feature.Query.AndOrParamsSpec
+import qualified Feature.Query.ComputedRelsSpec
 import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
@@ -147,6 +148,7 @@ main = do
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
+        , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         ]
 
   hspec $ do

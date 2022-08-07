@@ -137,6 +137,7 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
 -- applies aliasing to join conditions TODO refactor, this should go into the querybuilder module
 addJoinConditions :: Maybe Alias -> ReadRequest -> ReadRequest
 addJoinConditions _ (Node node@(Select{fromAlias=tblAlias}, (_, Nothing, _, _, _, _)) forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions _ (Node node@(Select{fromAlias=tblAlias}, (_, Just ComputedRelationship{}, _, _, _, _)) forest) = Node node (addJoinConditions tblAlias <$> forest)
 addJoinConditions previousAlias (Node (query@Select{fromAlias=tblAlias}, nodeProps@(_, Just (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card _ _), _, _, _, _)) forest) =
   Node (query{joinConditions=joinConds}, nodeProps) (addJoinConditions tblAlias <$> forest)
   where
@@ -188,8 +189,9 @@ findRel schema allRels origin target hint =
     isO2M card = case card of
       O2M _ _ -> True
       _       -> False
-    rels = filter (
-      \Relationship{..} ->
+    rels = filter (\case
+      ComputedRelationship{relFunction} -> target == qiName relFunction
+      Relationship{..} ->
         -- In a self-relationship we have a single foreign key but two relationships with different cardinalities: M2O/O2M. For disambiguation, we use the convention of getting:
         -- TODO: handle one-to-one and many-to-many self-relationships
         if relIsSelf
@@ -365,6 +367,10 @@ returningCols rr@(Node _ forest) pkCols
         Node (_, (_, Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}, _, _, _, _)) _ -> Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
         _                                                        -> Nothing
       ) forest
+    hasComputedRel = isJust $ find (\case
+      Node (_, (_, Just ComputedRelationship{}, _, _, _, _)) _ -> True
+      _ -> False
+      ) forest
     -- However if the "client_id" is present, e.g. mutateRequest to
     -- /projects?select=client_id,name,clients(name) we would get `RETURNING
     -- client_id, name, client_id` and then we would produce the "column
@@ -372,7 +378,10 @@ returningCols rr@(Node _ forest) pkCols
     -- deduplicate with Set: We are adding the primary key columns as well to
     -- make sure, that a proper location header can always be built for
     -- INSERT/POST
-    returnings = S.toList . S.fromList $ fldNames ++ fkCols ++ pkCols
+    returnings =
+      if not hasComputedRel
+        then S.toList . S.fromList $ fldNames ++ fkCols ++ pkCols
+        else ["*"] -- on computed relationships we cannot know the required columns for an embedding to succeed, so we just return all
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder

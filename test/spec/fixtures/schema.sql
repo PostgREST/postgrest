@@ -2707,3 +2707,49 @@ CREATE OR REPLACE FUNCTION test.load_safeupdate() RETURNS VOID AS $$
 BEGIN
   LOAD 'safeupdate';
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TABLE designers (
+  id int primary key
+, name text
+);
+
+CREATE TABLE videogames (
+  id int primary key
+, name text
+, designer_id int references designers(id)
+);
+
+-- computed relationships
+CREATE FUNCTION test.computed_designers(test.videogames) RETURNS SETOF test.designers AS $$
+  SELECT * FROM test.designers WHERE id = $1.designer_id;
+$$ LANGUAGE sql STABLE ROWS 1;
+
+CREATE FUNCTION test.computed_videogames(test.designers) RETURNS SETOF test.videogames AS $$
+  SELECT * FROM test.videogames WHERE designer_id = $1.id;
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION test.getallvideogames() RETURNS SETOF test.videogames AS $$
+  SELECT * FROM test.videogames;
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION test.getalldesigners() RETURNS SETOF test.designers AS $$
+  SELECT * FROM test.designers;
+$$ LANGUAGE sql STABLE;
+
+-- self join for computed relationships
+CREATE FUNCTION test.child_web_content(test.web_content) RETURNS SETOF test.web_content AS $$
+  SELECT * FROM test.web_content WHERE $1.id = p_web_id;
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION test.parent_web_content(test.web_content) RETURNS SETOF test.web_content AS $$
+  SELECT * FROM test.web_content WHERE $1.p_web_id = id;
+$$ LANGUAGE sql STABLE ROWS 1;
+
+-- overriding computed rels that empty the results
+CREATE FUNCTION test.designers(test.videogames) RETURNS SETOF test.designers AS $$
+  SELECT * FROM test.designers WHERE FALSE;
+$$ LANGUAGE sql STABLE ROWS 1;
+
+CREATE FUNCTION test.videogames(test.designers) RETURNS SETOF test.videogames AS $$
+  SELECT * FROM test.videogames WHERE FALSE;
+$$ LANGUAGE sql STABLE;
