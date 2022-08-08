@@ -610,6 +610,27 @@ def test_app_settings(defaultenv):
         assert response.text == '"0123456789abcdef"'
 
 
+def test_flush_pool_no_interrupt(defaultenv):
+    "Flushing the pool via SIGUSR1 doesn't interrupt ongoing requests"
+
+    with run(env=defaultenv) as postgrest:
+
+        def sleep():
+            response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+            assert response.status_code == 204
+
+        t = Thread(target=sleep)
+        t.start()
+
+        # make sure the request has started
+        time.sleep(0.1)
+
+        # SIGUSR1 causes the postgres connection pool to be flushed
+        postgrest.process.send_signal(signal.SIGUSR1)
+
+        t.join()
+
+
 def test_app_settings_reload(tmp_path, defaultenv):
     "App settings should be reloaded from file when PostgREST is sent SIGUSR2."
     config = (CONFIGSDIR / "sigusr2-settings.config").read_text()
