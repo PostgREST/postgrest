@@ -118,7 +118,9 @@ usePool appState@AppState{..} session = do
     Just p -> do
       res <- SQL.use p session
       case res of
-        Left SQL.PoolIsReleasedUsageError -> usePool appState session
+        Left SQL.PoolIsReleasedUsageError -> do
+          logWithZTime appState "Attempted to used flushed pool, retrying"
+          usePool appState session
         _                                 -> return res
 
 -- | Flush the connection pool so that any future use of the pool will
