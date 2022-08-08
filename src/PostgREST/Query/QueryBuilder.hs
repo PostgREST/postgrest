@@ -24,6 +24,7 @@ import Data.Tree (Tree (..))
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcParam (..))
 import PostgREST.DbStructure.Relationship (Cardinality (..),
+                                           Junction (..),
                                            Relationship (..))
 import PostgREST.Request.Preferences      (PreferResolution (..))
 
@@ -36,10 +37,10 @@ import PostgREST.Request.Types
 import Protolude
 
 readRequestToQuery :: ReadRequest -> SQL.Snippet
-readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicForest joinConditions_ ordts range, _) forest) =
+readRequestToQuery (Node (Select colSelects mainQi tblAlias logicForest joinConditions_ ordts range, (_, rel, _, _, _, _)) forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <> " " <>
-  "FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <> " " <>
+  "FROM " <> SQL.sql tabl <> implicitJoinF rel <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null joinConditions_
     then mempty
@@ -47,12 +48,12 @@ readRequestToQuery (Node (Select colSelects mainQi tblAlias implJoins logicFores
   orderF qi ordts <> " " <>
   limitOffsetF range
   where
-    implJs = fromQi <$> implJoins
     tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
     qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
+getSelectsJoins (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
 getSelectsJoins rr@(Node (_, (name, Just Relationship{relCardinality=card,relTable=QualifiedIdentifier{qiName=table}}, alias, _, joinType, _)) _) (selects,joins) =
   let
     subquery = readRequestToQuery rr
@@ -74,7 +75,6 @@ getSelectsJoins rr@(Node (_, (name, Just Relationship{relCardinality=card,relTab
           ) localTableName $ if joinType == Just JTInner then SQL.sql localTableName <> " IS NOT NULL" else "TRUE")
   in
   (sel:selects, joi:joins)
-getSelectsJoins (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
 
 mutateRequestToQuery :: MutateRequest -> SQL.Snippet
 mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
@@ -218,20 +218,19 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
 readRequestToCountQuery :: ReadRequest -> SQL.Snippet
-readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, implicitJoins=implJoins, where_=logicForest, joinConditions=joinConditions_}, _) forest) =
-  "SELECT 1 FROM " <> SQL.sql (BS.intercalate ", " (tabl : implJs)) <>
+readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_}, (_, rel, _, _, _, _)) forest) =
+  "SELECT 1 FROM " <> SQL.sql tabl <> implicitJoinF rel <>
   (if null logicForest && null joinConditions_ && null subQueries
     then mempty
     else " WHERE " ) <>
   intercalateSnippet " AND " (
-    map (pgFmtLogicTree treeQi) logicForest ++
+    map (pgFmtLogicTree qi) logicForest ++
     map pgFmtJoinCondition joinConditions_ ++
     subQueries
   )
   where
-    treeQi = maybe mainQi (QualifiedIdentifier (qiSchema mainQi)) tblAlias
+    qi = maybe mainQi (QualifiedIdentifier mempty) tblAlias
     tabl = fromQi mainQi <> maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias
-    implJs = fromQi <$> implJoins
     subQueries = foldr existsSubquery [] forest
     existsSubquery :: ReadRequest -> [SQL.Snippet] -> [SQL.Snippet]
     existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =
@@ -241,3 +240,8 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, implicitJ
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
+
+implicitJoinF :: Maybe Relationship -> SQL.Snippet
+implicitJoinF rel = case relCardinality <$> rel of
+  Just (M2M Junction{junTable=jt}) -> ", " <> SQL.sql (fromQi jt)
+  _                                -> mempty

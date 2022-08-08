@@ -31,10 +31,8 @@ type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe Hint, Maybe JoinType)
 data ReadQuery = Select
   { select         :: [SelectItem]
   , from           :: QualifiedIdentifier
-  -- ^ A table alias is used in case of self joins
   , fromAlias      :: Maybe Alias
-  -- ^ Only used for Many to Many joins. Parent and Child joins use explicit joins.
-  , implicitJoins  :: [QualifiedIdentifier]
+  -- ^ A table alias is used in case of self joins
   , where_         :: [LogicTree]
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
