@@ -87,7 +87,7 @@ initReadRequest rootQi rootAlias =
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (Select [] rootQi rootAlias [] [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
+    initial = Node (Select [] rootQi rootAlias [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
     treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
     treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node (q, i) rForest) =
       let nxtDepth = succ depth in
@@ -95,7 +95,7 @@ initReadRequest rootQi rootAlias =
         [] -> Node (q {select=fld:select q}, i) rForest
         _  -> Node (q, i) $
               foldr (treeEntry nxtDepth)
-              (Node (Select [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] [] allRange,
+              (Node (Select [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] allRange,
                 (fn, Nothing, alias, hint, joinType, nxtDepth)) [])
               fldForest:rForest
 
@@ -109,16 +109,19 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
 
 augmentRequestWithJoin :: Schema -> RelationshipsMap -> ReadRequest -> Either ApiRequestError ReadRequest
 augmentRequestWithJoin schema allRels request =
-  addRels schema allRels Nothing request
-  >>= addJoinConditions Nothing
+ addJoinConditions Nothing <$> addRels schema allRels Nothing request
 
 addRels :: Schema -> RelationshipsMap -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
   case parentNode of
     Just (Node (Select{from=parentNodeQi, fromAlias=aliasQi}, _) _) ->
       let newFrom r = if qiName tbl == nodeName then relForeignTable r else tbl
-          newReadNode = (\r -> (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))) <$> rel
-          origin = if depth == 1 -- Only on depth 1 we check if the parent(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
+          newReadNode = (\r ->
+            if not $ relIsSelf r -- add alias if self rel TODO consolidate aliasing in another function
+              then (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))
+              else (query{from=newFrom r, fromAlias=Just (qiName (newFrom r) <> "_" <> show depth)}, (nodeName, Just r, alias, hint, joinType, depth))
+            ) <$> rel
+          origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
             then fromMaybe (qiName parentNodeQi) aliasQi
             else qiName parentNodeQi
           rel = findRel schema allRels origin nodeName hint
@@ -130,6 +133,27 @@ addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, a
   where
     updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
     updateForest rq = addRels schema allRels rq `traverse` forest
+
+-- applies aliasing to join conditions TODO refactor, this should go into the querybuilder module
+addJoinConditions :: Maybe Alias -> ReadRequest -> ReadRequest
+addJoinConditions _ (Node node@(Select{fromAlias=tblAlias}, (_, Nothing, _, _, _, _)) forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions previousAlias (Node (query@Select{fromAlias=tblAlias}, nodeProps@(_, Just (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card _ _), _, _, _, _)) forest) =
+  Node (query{joinConditions=joinConds}, nodeProps) (addJoinConditions tblAlias <$> forest)
+  where
+    joinConds =
+      case card of
+        M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
+           (toJoinCondition Nothing Nothing ftN jtn <$> jcols2) ++ (toJoinCondition previousAlias tblAlias tN jtn <$> jcols1)
+        O2M _ cols ->
+          toJoinCondition previousAlias tblAlias tN ftN <$> cols
+        M2O _ cols ->
+          toJoinCondition previousAlias tblAlias tN ftN <$> cols
+    toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
+    toJoinCondition prAl newAl tb ftb (c, fc) =
+      let qi1 = QualifiedIdentifier tSchema ftb
+          qi2 = QualifiedIdentifier tSchema tb in
+        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) newAl, fc)
+                      (maybe qi2 (QualifiedIdentifier mempty) prAl, c)
 
 -- Finds a relationship between an origin and a target in the request:
 -- /origin?select=target(*) If more than one relationship is found then the
@@ -209,46 +233,6 @@ findRel schema allRels origin target hint =
               matchJunction hnt relCardinality -- users_tasks
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
-
--- previousAlias is only used for the case of self joins
-addJoinConditions :: Maybe Alias -> ReadRequest -> Either ApiRequestError ReadRequest
-addJoinConditions previousAlias (Node node@(query@Select{from=tbl,fromAlias=tblAlias}, nodeProps@(_, rel, _, _, _, depth)) forest) =
-  case rel of
-    Just r@Relationship{relCardinality=M2M Junction{junTable}} ->
-      let rq = augmentQuery r in
-      Node (rq{implicitJoins=junTable:implicitJoins rq}, nodeProps) <$> updatedForest
-    Just r -> Node (augmentQuery r, nodeProps) <$> updatedForest
-    Nothing -> Node node <$> updatedForest
-  where
-    newAlias = if depth == 0
-      then tblAlias -- only use the alias on the root node(depth 0) for when the sourceCTEName alias is used for joining
-      else case relIsSelf <$> rel of -- no need to apply the self reference alias on depth 0 only on the next depths
-        Just True -> Just (qiName tbl <> "_" <> show depth)
-        _         -> Nothing
-    augmentQuery r =
-      foldr
-        (\jc rq@Select{joinConditions=jcs} -> rq{joinConditions=jc:jcs})
-        query{fromAlias=newAlias}
-        (getJoinConditions previousAlias newAlias r)
-    updatedForest = addJoinConditions newAlias `traverse` forest
-
--- previousAlias and newAlias are used in the case of self joins
-getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
-getJoinConditions previousAlias newAlias (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card _ _) =
-  case card of
-    M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
-      (toJoinCondition previousAlias newAlias tN jtn <$> jcols1) ++ (toJoinCondition Nothing Nothing ftN jtn <$> jcols2)
-    O2M _ cols ->
-      toJoinCondition previousAlias newAlias tN ftN <$> cols
-    M2O _ cols ->
-      toJoinCondition previousAlias newAlias tN ftN <$> cols
-  where
-    toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
-    toJoinCondition prAl newAl tb ftb (c, fc) =
-      let qi1 = QualifiedIdentifier tSchema tb
-          qi2 = QualifiedIdentifier tSchema ftb in
-        JoinCondition (maybe qi1 (QualifiedIdentifier mempty) prAl, c)
-                      (maybe qi2 (QualifiedIdentifier mempty) newAl, fc)
 
 addFilters :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
 addFilters ApiRequest{..} rReq =
