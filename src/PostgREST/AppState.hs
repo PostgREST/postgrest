@@ -122,7 +122,8 @@ usePool appState@AppState{..} session = do
         _                                 -> return res
 
 -- | Flush the connection pool so that any future use of the pool will
--- use connections freshly established after this call.
+-- use connections freshly established after this call. In-use
+-- connections aren't affected, they just won't be reused anymore.
 --
 -- Does nothing if the pool has been destroyed.
 flushPool :: AppState -> IO ()
@@ -139,6 +140,7 @@ flushPool appState@AppState{..} = do
   mapM_ SQL.release oldPool
 
 -- | Destroy the pool on shutdown.
+-- This doesn't interrupt in-use connections.
 destroyPool :: AppState -> IO ()
 destroyPool AppState{..} =
   readIORef statePool >>= mapM_ SQL.release
