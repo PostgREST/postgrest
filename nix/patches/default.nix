@@ -18,10 +18,6 @@
         done
       '';
 
-  # See: https://github.com/NixOS/nixpkgs/pull/87879
-  nixpkgs-openssl-split-runtime-dependencies-of-static-builds =
-    ./nixpkgs-openssl-split-runtime-dependencies-of-static-builds.patch;
-
   static-haskell-nix-ncurses =
     ./static-haskell-nix-ncurses.patch;
   static-haskell-nix-ghc-bignum =
