@@ -21,13 +21,6 @@ let
         patches.static-haskell-nix-ghc-bignum
       ];
 
-  patchedNixpkgs =
-    patches.applyPatches "patched-nixpkgs"
-      nixpkgs
-      [
-        patches.nixpkgs-openssl-split-runtime-dependencies-of-static-builds
-      ];
-
   extraOverrides =
     final: prev:
     rec {
@@ -51,14 +44,13 @@ let
       )
     ];
 
-  # Apply our overlay to the given pkgs.
+  # Apply our overlay to nixpkgs.
   normalPkgs =
-    import patchedNixpkgs { inherit overlays; };
+    import nixpkgs { inherit overlays; };
 
   defaultCabalPackageVersionComingWithGhc =
     {
-      ghc8107 = "Cabal_3_2_1_0";
-      ghc923 = "Cabal_3_6_3_0";
+      ghc924 = "Cabal_3_6_3_0";
     }."${compiler}";
 
   # The static-haskell-nix 'survey' derives a full static set of Haskell

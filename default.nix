@@ -3,7 +3,7 @@ let
     "postgrest";
 
   compiler =
-    "ghc923";
+    "ghc924";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as litte as possible, as the files
