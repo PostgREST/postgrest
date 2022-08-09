@@ -2689,3 +2689,20 @@ $$ LANGUAGE sql;
 CREATE TABLE do$llar$s (
   a$num$ numeric
 );
+
+-- Tables and functions to test the pg-safeupdate library
+
+CREATE TABLE safe_update(
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE safe_delete(
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE OR REPLACE FUNCTION load_safeupdate() RETURNS VOID AS $$
+BEGIN
+  LOAD 'safeupdate';
+END; $$ LANGUAGE plpgsql SECURITY DEFINER;

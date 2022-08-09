@@ -196,6 +196,9 @@ testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2", "SPECI
 testCfgLegacyGucs :: AppConfig
 testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
+testPgSafeUpdateEnabledCfg :: AppConfig
+testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "load_safeupdate" }
+
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =
   void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []

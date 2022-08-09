@@ -803,3 +803,8 @@ INSERT INTO "SPECIAL ""@/\#~_-".names (id, name) VALUES (1, 'John'), (2, 'Mary')
 
 TRUNCATE TABLE do$llar$s CASCADE;
 INSERT INTO do$llar$s (a$num$) VALUES (100), (200), (300);
+
+TRUNCATE TABLE safe_update CASCADE;
+INSERT INTO safe_update(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
+TRUNCATE TABLE safe_delete CASCADE;
+INSERT INTO safe_delete(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
