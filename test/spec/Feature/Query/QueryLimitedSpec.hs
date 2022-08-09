@@ -93,13 +93,16 @@ spec =
               { "id": 8, "name": "HaikuOS" } ]|]
             { matchStatus  = 201 }
 
-      it "doesn't affect updates(2 rows would be modified if it did)" $
+      it "doesn't affect updates" $
         request methodPatch "/employees?select=first_name,last_name,occupation"
             [("Prefer", "return=representation")]
             [json| [{"occupation": "Barista"}] |]
           `shouldRespondWith`
-            [json|[]|]
-            { matchStatus  = 404 }
+            [json|[
+                { "first_name": "Frances M.", "last_name": "Roe", "occupation": "Barista" },
+                { "first_name": "Daniel B.", "last_name": "Lyon", "occupation": "Barista" },
+                { "first_name": "Edwin S.", "last_name": "Smith", "occupation": "Barista" } ]|]
+            { matchStatus  = 200 }
 
       it "doesn't affect deletions" $
         request methodDelete "/employees?select=first_name,last_name"

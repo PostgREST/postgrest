@@ -388,16 +388,39 @@ spec = do
           }
 
   context "limited update" $ do
-    it "does not work when no limit query or filter is given" $
+    it "updates the whole table when no limit query or filter is given" $ do
+      get "/limited_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
       request methodPatch "/limited_update_items"
           [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
           ""
-          { matchStatus  = 404
+          { matchStatus  = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Content-Range" <:> "*/0" ]
+                           , "Content-Range" <:> "0-2/3"
+                           , "Preference-Applied" <:> "tx=commit" ]
           }
+
+      get "/limited_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "updated-item" }
+          , { "id": 2, "name": "updated-item" }
+          , { "id": 3, "name": "updated-item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "limited_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
 
     it "works with the limit query param" $ do
       get "/limited_update_items"
@@ -700,6 +723,80 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
+    it "updates with pk in ?columns" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?columns=id,observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": "New item" }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": "New item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates with composite pk in ?columns" $ do
+      get "/bulk_update_items_cpk"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items_cpk?columns=id,name,observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 3, "name": "item-3", "observation": "New item" }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items_cpk?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": "New item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items_cpk"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
     it "updates with filters taking only the first item in the json array body" $ do
       get "/bulk_update_items"
         `shouldRespondWith`
@@ -771,6 +868,117 @@ spec = do
       request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
         [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates the whole table wihtout filters, taking only the first item in the json array body" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-all", "observation": "Damaged item" }
+          , { "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-2/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-all", "observation": "Damaged item" }
+          , { "id": 2, "name": "item-all", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-all", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates the whole table without filters and no pk in ?columns, taking only the first item in the json array body" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?columns=observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-4", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-2/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Damaged item" }
+          , { "id": 2, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates the whole table without filters and no composite pk in ?columns, taking only the first item in the json array body" $ do
+      get "/bulk_update_items_cpk"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items_cpk?columns=id,observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-4", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-2/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items_cpk?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Damaged item" }
+          , { "id": 1, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 1, "name": "item-3", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items_cpk"} |]
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
