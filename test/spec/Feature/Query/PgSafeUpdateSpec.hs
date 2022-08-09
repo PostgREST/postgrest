@@ -14,7 +14,7 @@ spec :: SpecWith ((), Application)
 spec =
   describe "Enabling pg-safeupdate" $ do
     context "Full table update" $ do
-      it "does not work when no limit query or filter is given" $
+      it "does not update and throws no error if no condition is present" $
         request methodPatch "/safe_update"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             [json| {"name": "New name"} |]
@@ -25,8 +25,8 @@ spec =
                              , "Content-Range" <:> "*/0" ]
             }
 
-    context "full table delete" $ do
-      it "throws error if no filter is present" $
+    context "Full table delete" $ do
+      it "does not delete and throws error if no condition is present" $
         request methodDelete "/safe_delete"
             [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
             mempty
