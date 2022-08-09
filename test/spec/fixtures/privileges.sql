@@ -191,6 +191,7 @@ GRANT ALL ON TABLE
     , view_test
     , bulk_update_items
     , bulk_update_items_cpk
+    , bulk_update_items_no_pk
     , shops
     , shop_bles
     , "SPECIAL ""@/\#~_-".names

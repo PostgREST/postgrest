@@ -982,6 +982,43 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
+    it "updates the whole table with no pk defined in it" $ do
+      get "/bulk_update_items_no_pk"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items_no_pk"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items_no_pk?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          , { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items_no_pk"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
     it "rejects a json array that isn't exclusively composed of objects" $
       request methodPatch "/bulk_update_items"
           [("Prefer", "tx=commit")]
