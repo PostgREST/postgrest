@@ -280,6 +280,75 @@ spec = do
               matchHeaders = ["Content-Range" <:> "*/*"]
             }
 
+      context "when using underscore body filters" $ do
+        it "updates table" $ do
+          get "/body_update_items"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": null }
+              , { "id": 3, "name": "item-3", "observation": null }
+              ]|]
+
+          request methodPatch "/body_update_items?id=_eq.id"
+              [("Prefer", "tx=commit")]
+              [json|{ "id": 2, "name": "item-2 - 2nd", "observation": "Lost item" }|]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "tx=commit" ]
+              }
+
+          get "/body_update_items?order=id"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2 - 2nd", "observation": "Lost item" }
+              , { "id": 3, "name": "item-3", "observation": null }
+              ]|]
+
+          request methodPost "/rpc/reset_items_tables"
+            [("Prefer", "tx=commit")]
+            [json| {"tbl_name": "body_update_items"} |]
+            `shouldRespondWith` ""
+            { matchStatus  = 204 }
+
+        it "updates table alongside a query filter" $ do
+          get "/body_update_items"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2", "observation": null }
+              , { "id": 3, "name": "item-3", "observation": null }
+              ]|]
+
+          request methodPatch "/body_update_items?name=eq.item-2&id=_eq.id"
+              [("Prefer", "tx=commit")]
+              [json|{ "id": 2, "name": "item-2 - 2nd", "observation": "Lost item" }|]
+            `shouldRespondWith`
+              ""
+              { matchStatus  = 204
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "tx=commit" ]
+              }
+
+          get "/body_update_items?order=id"
+            `shouldRespondWith`
+              [json|[
+                { "id": 1, "name": "item-1", "observation": null }
+              , { "id": 2, "name": "item-2 - 2nd", "observation": "Lost item" }
+              , { "id": 3, "name": "item-3", "observation": null }
+              ]|]
+
+          request methodPost "/rpc/reset_items_tables"
+            [("Prefer", "tx=commit")]
+            [json| {"tbl_name": "body_update_items"} |]
+            `shouldRespondWith` ""
+            { matchStatus  = 204 }
+
     context "with unicode values" $
       it "succeeds and returns values intact" $ do
         request methodPatch "/no_pk?a=eq.1"
@@ -299,6 +368,40 @@ spec = do
       it "ignores json keys and gives 404 if no record updated" $
         request methodPatch "/articles?id=eq.2001&columns=body" [("Prefer", "return=representation")]
           [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith` 404
+
+      it "updates alongside underscore body filters" $ do
+        get "/body_update_items"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": null }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodPatch "/body_update_items?id=_eq.id&columns=observation"
+            [("Prefer", "tx=commit")]
+            [json|{ "id": 2, "name": "item-2 - 2nd", "observation": "Lost item" }|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
+
+        get "/body_update_items?order=id"
+          `shouldRespondWith`
+            [json|[
+              { "id": 1, "name": "item-1", "observation": null }
+            , { "id": 2, "name": "item-2", "observation": "Lost item" }
+            , { "id": 3, "name": "item-3", "observation": null }
+            ]|]
+
+        request methodPost "/rpc/reset_items_tables"
+          [("Prefer", "tx=commit")]
+          [json| {"tbl_name": "body_update_items"} |]
+          `shouldRespondWith` ""
+          { matchStatus  = 204 }
 
   context "tables with self reference foreign keys" $ do
     it "embeds children after update" $
@@ -388,16 +491,39 @@ spec = do
           }
 
   context "limited update" $ do
-    it "does not work when no limit query or filter is given" $
+    it "works when no limit query or filter is given" $ do
+      get "/limited_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
       request methodPatch "/limited_update_items"
           [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
           [json| {"name": "updated-item"} |]
         `shouldRespondWith`
           ""
-          { matchStatus  = 404
+          { matchStatus  = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Content-Range" <:> "*/0" ]
+                           , "Content-Range" <:> "0-2/3"
+                           , "Preference-Applied" <:> "tx=commit" ]
           }
+
+      get "/limited_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "updated-item" }
+          , { "id": 2, "name": "updated-item" }
+          , { "id": 3, "name": "updated-item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "limited_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
 
     it "works with the limit query param" $ do
       get "/limited_update_items"
@@ -445,6 +571,39 @@ spec = do
       request methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
           [("Prefer", "tx=commit")]
           [json| {"name": "updated-item"} |]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/limited_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "updated-item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "limited_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "works with the limit query param plus an underscore body filter" $ do
+      get "/limited_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1" }
+          , { "id": 2, "name": "item-2" }
+          , { "id": 3, "name": "item-3" }
+          ]|]
+
+      request methodPatch "/limited_update_items?order=id&limit=1&id=_eq.id"
+          [("Prefer", "tx=commit")]
+          [json| {"id": 3, "name": "updated-item"} |]
         `shouldRespondWith`
           ""
           { matchStatus  = 204
@@ -626,7 +785,7 @@ spec = do
         { matchStatus  = 204 }
 
   context "bulk updates" $ do
-    it "can update tables with simple pk" $ do
+    it "can update tables with simple pk using underscore body filters" $ do
       get "/bulk_update_items"
         `shouldRespondWith`
           [json|[
@@ -635,7 +794,7 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null }
           ]|]
 
-      request methodPatch "/bulk_update_items"
+      request methodPatch "/bulk_update_items?id=_eq.id"
           [("Prefer", "tx=commit")]
           [json|[
             { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
@@ -663,7 +822,7 @@ spec = do
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
-    it "can update tables with composite pk" $ do
+    it "can update tables with composite pk using underscore body filters" $ do
       get "/bulk_update_items_cpk"
         `shouldRespondWith`
           [json|[
@@ -672,7 +831,7 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null }
           ]|]
 
-      request methodPatch "/bulk_update_items_cpk"
+      request methodPatch "/bulk_update_items_cpk?id=_eq.id&name=_eq.name"
           [("Prefer", "tx=commit")]
           [json|[
             { "id": 1, "name": "item-1", "observation": "Lost item" }
@@ -694,9 +853,117 @@ spec = do
           , { "id": 3, "name": "item-3", "observation": null  }
           ]|]
 
+    it "updates using underscore body filters for any key" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?name=_eq.name"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-1", "observation": "Lost item" }
+          , { "name": "item-2", "observation": "Damaged item" }
+          , { "name": "item-x", "observation": "Does not exist" }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3", "observation": null  }
+          ]|]
+
       request methodPost "/rpc/reset_items_tables"
         [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "bulk_update_items_cpk"} |]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates using underscore body filters and query filters" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?name=_eq.name&id=eq.2"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-1", "observation": "Lost item" }
+          , { "name": "item-2", "observation": "Damaged item" }
+          , { "name": "item-x", "observation": "Does not exist" }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-0/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3", "observation": null  }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates using underscore body filters and ?columns" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?name=_eq.name&columns=observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-1", "observation": "Lost item" }
+          , { "name": "item-2", "observation": "Damaged item" }
+          , { "name": "item-x", "observation": "Does not exist" }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-1/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Lost item" }
+          , { "id": 2, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3", "observation": null  }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
         `shouldRespondWith` ""
         { matchStatus  = 204 }
 
@@ -729,6 +996,43 @@ spec = do
             { "id": 1, "name": "item-1", "observation": null }
           , { "id": 3, "name": "item-3", "observation": null }
           , { "id": 4, "name": "item-4", "observation": "Damaged item" }
+          ]|]
+
+      request methodPost "/rpc/reset_items_tables"
+        [("Prefer", "tx=commit")]
+        [json| {"tbl_name": "bulk_update_items"} |]
+        `shouldRespondWith` ""
+        { matchStatus  = 204 }
+
+    it "updates the full table with only ?columns, taking only the first item in the json array body" $ do
+      get "/bulk_update_items"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 2, "name": "item-2", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+
+      request methodPatch "/bulk_update_items?columns=observation"
+          [("Prefer", "tx=commit")]
+          [json|[
+            { "name": "item-4", "observation": "Damaged item" }
+          , { "name": "item-3 - 3rd", "observation": null }
+          ]|]
+        `shouldRespondWith`
+          ""
+          { matchStatus  = 204
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Range" <:> "0-2/*"
+                           , "Preference-Applied" <:> "tx=commit" ]
+          }
+
+      get "/bulk_update_items?order=id"
+        `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": "Damaged item" }
+          , { "id": 2, "name": "item-2", "observation": "Damaged item" }
+          , { "id": 3, "name": "item-3", "observation": "Damaged item" }
           ]|]
 
       request methodPost "/rpc/reset_items_tables"

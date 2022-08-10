@@ -31,6 +31,8 @@ module PostgREST.Request.Types
   , TrileanVal(..)
   , SimpleOperator(..)
   , FtsOperator(..)
+  , BodyOperator(..)
+  , BodyRecordset(..)
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -49,6 +51,7 @@ import Protolude
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
+  | BodyFilterNotAllowed ByteString Bool
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
@@ -179,6 +182,7 @@ data Operation
   | In ListVal
   | Is TrileanVal
   | Fts FtsOperator (Maybe Language) SingleVal
+  | BodOp BodyOperator SingleVal
   deriving (Eq)
 
 type Language = Text
@@ -225,3 +229,15 @@ data FtsOperator
   | FilterFtsPhrase
   | FilterFtsWebsearch
   deriving Eq
+
+-- | Operators for filtering using the request body
+data BodyOperator
+  = BodyOpEqual
+  deriving Eq
+
+-- | Information of the transformed body using json_populate_recordset
+-- to be used for filtering using body operators
+data BodyRecordset = BodyRecordset
+  { brName      :: ByteString
+  , isDirectRef :: Bool
+  }

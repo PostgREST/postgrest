@@ -70,6 +70,12 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
+      it "fails if a body filter operator is given" $
+        request methodDelete "/tasks?id=_eq.id" [] mempty
+          `shouldRespondWith`
+            [json|{"details":null,"message":"Body filter _eq is not allowed for DELETE","code":"PGRST118","hint":null} |]
+            { matchStatus  = 400 }
+
     context "known route, no records matched" $
       it "includes [] body if return=rep" $
         request methodDelete "/items?id=eq.101"

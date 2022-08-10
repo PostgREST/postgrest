@@ -56,7 +56,9 @@ import PostgREST.MediaType               (MTPlanFormat (..),
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.Request.ReadQuery       (SelectItem)
-import PostgREST.Request.Types           (Alias, Field, Filter (..),
+import PostgREST.Request.Types           (Alias, BodyOperator (..),
+                                          BodyRecordset (..), Field,
+                                          Filter (..),
                                           FtsOperator (..),
                                           JoinCondition (..),
                                           JsonOperand (..),
@@ -110,6 +112,10 @@ ftsOperator = \case
   FilterFtsPlain     -> "@@ plainto_tsquery"
   FilterFtsPhrase    -> "@@ phraseto_tsquery"
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
+
+bodySingleOperator :: BodyOperator -> SqlFragment
+bodySingleOperator = \case
+  BodyOpEqual -> "="
 
 -- |
 -- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
@@ -248,8 +254,8 @@ pgFmtOrderTerm qi ot =
     nullOrder OrderNullsLast  = "NULLS LAST"
 
 
-pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
-pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
+pgFmtFilter :: QualifiedIdentifier -> Maybe BodyRecordset -> Filter -> SQL.Snippet
+pgFmtFilter table bodyRec (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      OpLike  -> unknownLiteral (T.map star val)
      OpILike -> unknownLiteral (T.map star val)
@@ -274,10 +280,18 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
 
    Fts op lang val ->
      pgFmtFieldFts op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+
+   BodOp op val -> pgFmtFieldBodOp op <> " " <> fmtBodOpFilter val
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    pgFmtFieldOp op = pgFmtField table fld <> " " <> SQL.sql (singleValOperator op)
    pgFmtFieldFts op = pgFmtField table fld <> " " <> SQL.sql (ftsOperator op)
+   pgFmtFieldBodOp op = pgFmtField table fld <> " " <> SQL.sql (bodySingleOperator op)
+   fmtBodOpFilter val = case bodyRec of
+     Just (BodyRecordset bodName direct)
+       | direct -> SQL.sql (pgFmtColumn (QualifiedIdentifier mempty (decodeUtf8 bodName)) val)
+       | otherwise -> SQL.sql ("(SELECT " <> pgFmtIdent val <> " FROM " <> bodName <> ")")
+     Nothing -> mempty
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
 
@@ -285,14 +299,14 @@ pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
   SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
-pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SQL.Snippet
-pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
+pgFmtLogicTree :: QualifiedIdentifier -> Maybe BodyRecordset -> LogicTree -> SQL.Snippet
+pgFmtLogicTree qi bodyRec (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi bodyRec <$> forest) <> ")"
   where
     notOp =  if hasNot then "NOT" else mempty
 
     opSql And = " AND "
     opSql Or  = " OR "
-pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
+pgFmtLogicTree qi bodyRec (Stmnt flt) = pgFmtFilter qi bodyRec flt
 
 pgFmtJsonPath :: JsonPath -> SQL.Snippet
 pgFmtJsonPath = \case

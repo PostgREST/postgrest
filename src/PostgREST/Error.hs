@@ -56,6 +56,7 @@ class (JSON.ToJSON a) => PgrstError a where
 instance PgrstError ApiRequestError where
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
+  status BodyFilterNotAllowed{}  = HTTP.status400
   status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
@@ -121,6 +122,11 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
+  toJSON (BodyFilterNotAllowed method isRpc) = JSON.object [
+    "code"    .= ApiRequestErrorCode18,
+    "message" .= ("Body filter _eq is not allowed for " <> if isRpc then "RPC" else T.decodeUtf8 method),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
 
   toJSON LimitNoOrderError = JSON.object [
     "code"    .= ApiRequestErrorCode09,
@@ -441,6 +447,7 @@ data ErrorCode
   | ApiRequestErrorCode15
   | ApiRequestErrorCode16
   | ApiRequestErrorCode17
+  | ApiRequestErrorCode18
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -482,6 +489,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode15  -> "115"
   ApiRequestErrorCode16  -> "116"
   ApiRequestErrorCode17  -> "117"
+  ApiRequestErrorCode18  -> "118"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"

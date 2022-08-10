@@ -2653,6 +2653,12 @@ CREATE TABLE test.bulk_update_items_cpk (
   PRIMARY KEY (id, name)
 );
 
+CREATE TABLE test.body_update_items (
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT
+);
+
 create extension if not exists postgis with schema extensions;
 
 create table shops (

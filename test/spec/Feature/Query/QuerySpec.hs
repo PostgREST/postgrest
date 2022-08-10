@@ -983,6 +983,12 @@ spec actualPgVersion = do
         , matchHeaders = [matchContentTypeJson]
         }
 
+    it "fails if a body filter operator is given" $
+      get "/ghostBusters?id=_eq.id" `shouldRespondWith` [json| {"details":null,"message":"Body filter _eq is not allowed for GET","code":"PGRST118","hint":null} |]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+
     it "will embed a collection" $
       get "/Escap3e;?select=ghostBusters(*)" `shouldRespondWith`
         [json| [{"ghostBusters":[{"escapeId":1}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":3}]},{"ghostBusters":[]},{"ghostBusters":[{"escapeId":5}]}] |]
