@@ -808,3 +808,7 @@ TRUNCATE TABLE safe_update CASCADE;
 INSERT INTO safe_update(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
 TRUNCATE TABLE safe_delete CASCADE;
 INSERT INTO safe_delete(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
+TRUNCATE TABLE unsafe_update CASCADE;
+INSERT INTO unsafe_update(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
+TRUNCATE TABLE unsafe_delete CASCADE;
+INSERT INTO unsafe_delete(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');

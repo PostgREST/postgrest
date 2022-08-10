@@ -197,7 +197,7 @@ testCfgLegacyGucs :: AppConfig
 testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
 testPgSafeUpdateEnabledCfg :: AppConfig
-testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "load_safeupdate" }
+testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

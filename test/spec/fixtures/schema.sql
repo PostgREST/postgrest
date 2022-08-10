@@ -2692,17 +2692,27 @@ CREATE TABLE do$llar$s (
 
 -- Tables and functions to test the pg-safeupdate library
 
-CREATE TABLE safe_update(
+CREATE TABLE test.safe_update(
   id INT PRIMARY KEY,
   name TEXT
 );
 
-CREATE TABLE safe_delete(
+CREATE TABLE test.safe_delete(
   id INT PRIMARY KEY,
   name TEXT
 );
 
-CREATE OR REPLACE FUNCTION load_safeupdate() RETURNS VOID AS $$
+CREATE TABLE test.unsafe_update(
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE test.unsafe_delete(
+  id INT PRIMARY KEY,
+  name TEXT
+);
+
+CREATE OR REPLACE FUNCTION test.load_safeupdate() RETURNS VOID AS $$
 BEGIN
   LOAD 'safeupdate';
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
