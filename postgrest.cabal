@@ -201,6 +201,7 @@ test-suite spec
                       Feature.Query.JsonOperatorSpec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.ErrorSpec
+                      Feature.Query.PgSafeUpdateSpec
                       Feature.Query.PostGISSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec

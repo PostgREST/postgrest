@@ -45,6 +45,7 @@ import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
+import qualified Feature.Query.PgSafeUpdateSpec
 import qualified Feature.Query.PlanSpec
 import qualified Feature.Query.PostGISSpec
 import qualified Feature.Query.QueryLimitedSpec
@@ -112,6 +113,7 @@ main = do
       forceRollbackApp     = app testCfgForceRollback
       testCfgLegacyGucsApp = app testCfgLegacyGucs
       planEnabledApp       = app testPlanEnabledCfg
+      pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -126,24 +128,25 @@ main = do
         analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.Query.AndOrParamsSpec"         , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
-        , ("Feature.Auth.AuthSpec"                 , Feature.Auth.AuthSpec.spec actualPgVersion)
-        , ("Feature.ConcurrentSpec"                , Feature.ConcurrentSpec.spec)
-        , ("Feature.CorsSpec"                      , Feature.CorsSpec.spec)
-        , ("Feature.Query.DeleteSpec"              , Feature.Query.DeleteSpec.spec)
-        , ("Feature.Query.EmbedDisambiguationSpec" , Feature.Query.EmbedDisambiguationSpec.spec)
-        , ("Feature.Query.EmbedInnerJoinSpec"      , Feature.Query.EmbedInnerJoinSpec.spec)
-        , ("Feature.Query.InsertSpec"              , Feature.Query.InsertSpec.spec actualPgVersion)
-        , ("Feature.Query.JsonOperatorSpec"        , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.OpenApi.OpenApiSpec"           , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
-        , ("Feature.OptionsSpec"                   , Feature.OptionsSpec.spec actualPgVersion)
-        , ("Feature.Query.PlanSpec.disabledSpec"   , Feature.Query.PlanSpec.disabledSpec)
-        , ("Feature.Query.QuerySpec"               , Feature.Query.QuerySpec.spec actualPgVersion)
-        , ("Feature.Query.RawOutputTypesSpec"      , Feature.Query.RawOutputTypesSpec.spec)
-        , ("Feature.Query.RpcSpec"                 , Feature.Query.RpcSpec.spec actualPgVersion)
-        , ("Feature.Query.SingularSpec"            , Feature.Query.SingularSpec.spec)
-        , ("Feature.Query.UpdateSpec"              , Feature.Query.UpdateSpec.spec)
-        , ("Feature.Query.UpsertSpec"              , Feature.Query.UpsertSpec.spec actualPgVersion)
+          ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
+        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec actualPgVersion)
+        , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
+        , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
+        , ("Feature.Query.DeleteSpec"                    , Feature.Query.DeleteSpec.spec)
+        , ("Feature.Query.EmbedDisambiguationSpec"       , Feature.Query.EmbedDisambiguationSpec.spec)
+        , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
+        , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec actualPgVersion)
+        , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
+        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
+        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec actualPgVersion)
+        , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
+        , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
+        , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec actualPgVersion)
+        , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
+        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
+        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
+        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
         ]
 
   hspec $ do
@@ -233,6 +236,10 @@ main = do
     -- this test runs with db-plan-enabled = true
     parallel $ before planEnabledApp $
       describe "Feature.Query.PlanSpec.spec" $ Feature.Query.PlanSpec.spec actualPgVersion
+
+    -- this test runs with a pre request to enable the pg-safeupdate library per-session
+    parallel $ before pgSafeUpdateApp $
+      describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

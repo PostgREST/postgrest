@@ -195,6 +195,10 @@ GRANT ALL ON TABLE
     , shop_bles
     , "SPECIAL ""@/\#~_-".names
     , do$llar$s
+    , safe_update
+    , safe_delete
+    , unsafe_update
+    , unsafe_delete
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
