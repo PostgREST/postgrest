@@ -16,7 +16,7 @@ spec =
     context "Full table update" $
       it "does not update and throws no error if no condition is present" $
         request methodPatch "/safe_update"
-            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [("Prefer", "count=exact")]
             [json| {"name": "New name"} |]
           `shouldRespondWith`
             ""
@@ -38,7 +38,9 @@ spec =
             { matchStatus  = 400 }
 
       it "allows full table delete if a filter is present" $
-        request methodDelete "/safe_delete?id=gt.0" [("Prefer", "count=exact")] mempty
+        request methodDelete "/safe_delete?id=gt.0"
+            [("Prefer", "count=exact")]
+            mempty
           `shouldRespondWith`
             ""
             { matchStatus  = 204
@@ -52,7 +54,7 @@ disabledSpec =
     context "Full table update" $
       it "does not update and does not throw error if no condition is present" $
         request methodPatch "/unsafe_update"
-            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [("Prefer", "count=exact")]
             [json| {"name": "New name"} |]
           `shouldRespondWith`
             ""
