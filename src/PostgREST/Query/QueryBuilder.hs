@@ -138,7 +138,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
 
   where
     mainTbl = SQL.sql (fromQi mainQi)
-    pkInCols = all (`elem` uCols) pkFlts
+    pkInCols = S.fromList pkFlts `S.isSubsetOf` uCols
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstUpdateBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_update_body") x) <$> pkFlts)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
