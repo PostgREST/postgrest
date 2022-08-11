@@ -2534,7 +2534,7 @@ select * from limited_delete_items_cpk;
 create function reset_items_tables(tbl_name text default '') returns void as $_$ begin
   execute format(
   $$
-    delete from %I;
+    delete from %I where true;
     insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
   $$::text,
   tbl_name, tbl_name);
@@ -2698,24 +2698,54 @@ CREATE TABLE do$llar$s (
 
 -- Tables and functions to test the pg-safeupdate library
 
-CREATE TABLE test.safe_update(
+CREATE TABLE test.safe_update_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
-CREATE TABLE test.safe_delete(
-  id INT PRIMARY KEY,
-  name TEXT
+CREATE TABLE test.safe_update_items_cpk(
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
 );
 
-CREATE TABLE test.unsafe_update(
-  id INT PRIMARY KEY,
-  name TEXT
+CREATE TABLE test.safe_update_items_no_pk(
+  id INT,
+  name TEXT,
+  observation TEXT
 );
 
-CREATE TABLE test.unsafe_delete(
+CREATE TABLE test.safe_delete_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
+);
+
+CREATE TABLE test.unsafe_update_items(
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT
+);
+
+CREATE TABLE test.unsafe_update_items_cpk(
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
+);
+
+CREATE TABLE test.unsafe_update_items_no_pk(
+  id INT,
+  name TEXT,
+  observation TEXT
+);
+
+CREATE TABLE test.unsafe_delete_items(
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT
 );
 
 CREATE OR REPLACE FUNCTION test.load_safeupdate() RETURNS VOID AS $$
