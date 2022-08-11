@@ -93,7 +93,7 @@ spec =
               { "id": 8, "name": "HaikuOS" } ]|]
             { matchStatus  = 201 }
 
-      it "doesn't affect updates" $
+      it "doesn't affect updates(2 rows would be modified if it did)" $
         request methodPatch "/employees?select=first_name,last_name,occupation"
             [("Prefer", "return=representation")]
             [json| [{"occupation": "Barista"}] |]
