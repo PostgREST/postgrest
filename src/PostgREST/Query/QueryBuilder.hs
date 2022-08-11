@@ -111,8 +111,9 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
     SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
   | range == allRange =
-    let whereLogic | null logicForest = if null pkFlts || not colsHavePk then mempty else " WHERE " <> pgrstUpdateBodyF
-                   | otherwise        = " WHERE " <> logicForestF in
+    let whereLogic | not (null logicForest)        = " WHERE " <> logicForestF
+                   | not (null pkFlts) && pkInCols = " WHERE " <> pgrstUpdateBodyF
+                   | otherwise                     =  mempty in
     "WITH " <> normalizedBody body <> " " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
     "FROM (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " )) pgrst_update_body " <>
@@ -137,7 +138,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
 
   where
     mainTbl = SQL.sql (fromQi mainQi)
-    colsHavePk = all (`elem` uCols) pkFlts
+    pkInCols = all (`elem` uCols) pkFlts
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstUpdateBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_update_body") x) <$> pkFlts)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
