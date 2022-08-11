@@ -787,6 +787,9 @@ INSERT INTO test.bulk_update_items (id, name, observation) VALUES (1, 'item-1', 
 TRUNCATE TABLE test.bulk_update_items_cpk CASCADE;
 INSERT INTO test.bulk_update_items_cpk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
 
+TRUNCATE TABLE test.bulk_update_items_no_pk CASCADE;
+INSERT INTO test.bulk_update_items_no_pk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+
 TRUNCATE TABLE shops CASCADE;
 INSERT INTO shops(id, address, shop_geom) VALUES(1, '1369 Cambridge St', 'SRID=4326;POINT(-71.10044 42.373695)');
 INSERT INTO shops(id, address, shop_geom) VALUES(2, '757 Massachusetts Ave', 'SRID=4326;POINT(-71.10543 42.366432)');
@@ -818,12 +821,6 @@ INSERT INTO safe_delete_items(id, name, observation) VALUES (1, 'item-1', NULL),
 
 TRUNCATE TABLE unsafe_update_items CASCADE;
 INSERT INTO unsafe_update_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
-
-TRUNCATE TABLE unsafe_update_items_cpk CASCADE;
-INSERT INTO unsafe_update_items_cpk(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
-
-TRUNCATE TABLE unsafe_update_items_no_pk CASCADE;
-INSERT INTO unsafe_update_items_no_pk(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
 
 TRUNCATE TABLE unsafe_delete_items CASCADE;
 INSERT INTO unsafe_delete_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);

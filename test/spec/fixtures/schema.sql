@@ -2729,19 +2729,6 @@ CREATE TABLE test.unsafe_update_items(
   observation TEXT
 );
 
-CREATE TABLE test.unsafe_update_items_cpk(
-  id INT,
-  name TEXT,
-  observation TEXT,
-  PRIMARY KEY (id, name)
-);
-
-CREATE TABLE test.unsafe_update_items_no_pk(
-  id INT,
-  name TEXT,
-  observation TEXT
-);
-
 CREATE TABLE test.unsafe_delete_items(
   id INT PRIMARY KEY,
   name TEXT,

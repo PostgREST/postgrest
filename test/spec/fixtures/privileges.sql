@@ -201,8 +201,6 @@ GRANT ALL ON TABLE
     , safe_update_items_no_pk
     , safe_delete_items
     , unsafe_update_items
-    , unsafe_update_items_cpk
-    , unsafe_update_items_no_pk
     , unsafe_delete_items
 TO postgrest_test_anonymous;
 
