@@ -145,9 +145,10 @@ mutateRequestToQuery (Update mainQi uCols body logicForest pkFlts range ordts re
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returnings)
-  -- The body is not mandatory, although a delete without filters is not possible.
+  -- The body is not mandatory
   | range == allRange =
-    let whereLogic = if null logicForest && hasEmptyBody then "FALSE" else logicForestAndDelBody in
+    let whereLogic | null logicForest && hasEmptyBody = mempty 
+                   | otherwise                        = "WHERE " <> logicForestAndDelBodyF in
     (if hasEmptyBody
       then mempty
       else "WITH " <> normalizedBody body <> " ") <>
@@ -155,7 +156,7 @@ mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returning
     (if hasEmptyBody
       then mempty
       else "USING (SELECT * FROM json_populate_recordset (null::" <> SQL.sql (fromQi mainQi) <> " , " <> SQL.sql selectBody <> " )) pgrst_delete_body ") <>
-    "WHERE " <> whereLogic <> " " <>
+    whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   -- When using limits, the payload is ignored.
@@ -174,10 +175,10 @@ mutateRequestToQuery (Delete mainQi dCols body logicForest range ordts returning
     SQL.sql (returningF mainQi returnings)
 
   where
-    hasEmptyBody = isNothing body
+    hasEmptyBody = isNothing body || null dCols
     logicForestF = intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     pgrstDeleteBodyF = SQL.sql (BS.intercalate " AND " $ (\x -> pgFmtColumn mainQi x <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_delete_body") x) <$> S.toList dCols)
-    logicForestAndDelBody = intercalateSnippet " AND " ([logicForestF | not (null logicForest)] ++ [pgrstDeleteBodyF | not hasEmptyBody])
+    logicForestAndDelBodyF = intercalateSnippet " AND " ([logicForestF | not (null logicForest)] ++ [pgrstDeleteBodyF | not hasEmptyBody])
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 requestToCallProcQuery :: CallRequest -> SQL.Snippet

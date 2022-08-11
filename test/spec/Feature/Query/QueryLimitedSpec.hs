@@ -101,15 +101,13 @@ spec =
             [json|[]|]
             { matchStatus  = 404 }
 
-      it "doesn't affect deletions(2 rows would be modified if it did)" $
+      it "doesn't affect deletions" $
         request methodDelete "/employees?select=first_name,last_name"
             [("Prefer", "return=representation")]
             mempty
           `shouldRespondWith`
-            [json|{
-              "code":"PGRST118",
-              "hint":"Filter the request by sending primary keys in the body or by using filters or limits in the query string.",
-              "details":null,
-              "message":"A full delete without a body, filters or limits is not allowed"
-              }|]
-            { matchStatus  = 422 }
+            [json| [
+              { "first_name": "Frances M.", "last_name": "Roe" },
+              { "first_name": "Daniel B.", "last_name": "Lyon" },
+              { "first_name": "Edwin S.", "last_name": "Smith" } ]|]
+            { matchStatus  = 200 }

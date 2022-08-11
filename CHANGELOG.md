@@ -69,7 +69,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2342, Fix inaccurate result count when an inner embed was selected after a normal embed in the query string - @laurenceisla
  - #2376, OPTIONS requests no longer start an empty database transaction - @steve-chavez
  - #2395, Allow using columns with dollar sign($) without double quoting in filters and `select` - @steve-chavez
- - #699, #2314, Accidental full table DELETE (without filters) is not possible anymore, it requires filters or a `limit` parameter - @laurenceisla 
 
 ### Changed
 
@@ -87,7 +86,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1959, A full table PATCH(without filters) is now restricted, it requires a `limit` parameter - @steve-chavez
    + A `PATCH /tbl` will now result in 0 rows updated, unless `PATCH /tbl?limit=10&order=<pkcol>` is done
  - #2312, Using `Prefer: return=representation` no longer returns a `Location` header - @laurenceisla
- - #699, #2314 A full table DELETE (without filters) is now restricted, it requires a `limit` parameter - @laurenceisla
 
 ## [9.0.1] - 2022-06-03
 
