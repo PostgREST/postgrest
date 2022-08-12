@@ -2531,7 +2531,7 @@ select *, 'static'::text as static from limited_delete_items;
 create view limited_delete_items_cpk_view as
 select * from limited_delete_items_cpk;
 
-create function reset_table(tbl_name text default '', tbl_data json default '{}') returns void as $_$ begin
+create function reset_table(tbl_name text default '', tbl_data json default '[]') returns void as $_$ begin
   execute format(
   $$
     delete from %I where true; -- WHERE is required for pg-safeupdate tests
