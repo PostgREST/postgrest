@@ -2534,7 +2534,7 @@ select * from limited_delete_items_cpk;
 create function reset_items_tables(tbl_name text default '') returns void as $_$ begin
   execute format(
   $$
-    delete from %I;
+    delete from %I where true; -- WHERE is required for pg-safeupdate tests
     insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
   $$::text,
   tbl_name, tbl_name);
@@ -2638,21 +2638,6 @@ CREATE TABLE test.test (
 CREATE OR REPLACE VIEW test.view_test AS
   SELECT id FROM test.test;
 
--- Tables to test bulk updates
-
-CREATE TABLE test.bulk_update_items (
-  id INT PRIMARY KEY,
-  name TEXT,
-  observation TEXT
-);
-
-CREATE TABLE test.bulk_update_items_cpk (
-  id INT,
-  name TEXT,
-  observation TEXT,
-  PRIMARY KEY (id, name)
-);
-
 create extension if not exists postgis with schema extensions;
 
 create table shops (
@@ -2692,24 +2677,28 @@ CREATE TABLE do$llar$s (
 
 -- Tables and functions to test the pg-safeupdate library
 
-CREATE TABLE test.safe_update(
+CREATE TABLE test.safe_update_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
-CREATE TABLE test.safe_delete(
+CREATE TABLE test.safe_delete_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
-CREATE TABLE test.unsafe_update(
+CREATE TABLE test.unsafe_update_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
-CREATE TABLE test.unsafe_delete(
+CREATE TABLE test.unsafe_delete_items(
   id INT PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  observation TEXT
 );
 
 CREATE OR REPLACE FUNCTION test.load_safeupdate() RETURNS VOID AS $$

@@ -65,7 +65,7 @@ spec =
             }
 
       it "raises an error for multiple rows" $ do
-        request methodPatch "/addresses?limit=4&order=id"
+        request methodPatch "/addresses"
             [("Prefer", "tx=commit"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`
@@ -81,7 +81,7 @@ spec =
             [json|[{"id":1,"address":"address 1"}]|]
 
       it "raises an error for multiple rows with return=rep" $ do
-        request methodPatch "/addresses?limit=4&order=id"
+        request methodPatch "/addresses"
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`

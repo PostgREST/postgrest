@@ -781,12 +781,6 @@ INSERT INTO private.internal_job (id, parent_id) VALUES (2, 1);
 TRUNCATE TABLE test.test CASCADE;
 INSERT INTO test.test (id, parent_id) VALUES (1, null), (2, 1);
 
-TRUNCATE TABLE test.bulk_update_items CASCADE;
-INSERT INTO test.bulk_update_items (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
-
-TRUNCATE TABLE test.bulk_update_items_cpk CASCADE;
-INSERT INTO test.bulk_update_items_cpk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
-
 TRUNCATE TABLE shops CASCADE;
 INSERT INTO shops(id, address, shop_geom) VALUES(1, '1369 Cambridge St', 'SRID=4326;POINT(-71.10044 42.373695)');
 INSERT INTO shops(id, address, shop_geom) VALUES(2, '757 Massachusetts Ave', 'SRID=4326;POINT(-71.10543 42.366432)');
@@ -804,11 +798,11 @@ INSERT INTO "SPECIAL ""@/\#~_-".names (id, name) VALUES (1, 'John'), (2, 'Mary')
 TRUNCATE TABLE do$llar$s CASCADE;
 INSERT INTO do$llar$s (a$num$) VALUES (100), (200), (300);
 
-TRUNCATE TABLE safe_update CASCADE;
-INSERT INTO safe_update(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
-TRUNCATE TABLE safe_delete CASCADE;
-INSERT INTO safe_delete(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
-TRUNCATE TABLE unsafe_update CASCADE;
-INSERT INTO unsafe_update(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
-TRUNCATE TABLE unsafe_delete CASCADE;
-INSERT INTO unsafe_delete(id, name) VALUES (1, 'First'), (2, 'Second'), (3, 'Third');
+TRUNCATE TABLE safe_update_items CASCADE;
+INSERT INTO safe_update_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+TRUNCATE TABLE safe_delete_items CASCADE;
+INSERT INTO safe_delete_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+TRUNCATE TABLE unsafe_update_items CASCADE;
+INSERT INTO unsafe_update_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+TRUNCATE TABLE unsafe_delete_items CASCADE;
+INSERT INTO unsafe_delete_items(id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);

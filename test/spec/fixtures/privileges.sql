@@ -189,16 +189,14 @@ GRANT ALL ON TABLE
     , series_popularity
     , test
     , view_test
-    , bulk_update_items
-    , bulk_update_items_cpk
     , shops
     , shop_bles
     , "SPECIAL ""@/\#~_-".names
     , do$llar$s
-    , safe_update
-    , safe_delete
-    , unsafe_update
-    , unsafe_delete
+    , safe_update_items
+    , safe_delete_items
+    , unsafe_update_items
+    , unsafe_delete_items
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
