@@ -273,6 +273,7 @@ test-suite querycost
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.9
                     , hspec-wai         >= 0.10 && < 0.12
+                    , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
                     , lens              >= 4.14 && < 5.2
                     , lens-aeson        >= 1.0.1 && < 1.2
