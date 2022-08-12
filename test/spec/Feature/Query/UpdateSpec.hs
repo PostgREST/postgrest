@@ -1,5 +1,7 @@
 module Feature.Query.UpdateSpec where
 
+import Data.Aeson.QQ
+
 import Network.Wai (Application)
 import Test.Hspec  hiding (pendingWith)
 
@@ -9,6 +11,12 @@ import Test.Hspec.Wai.JSON
 
 import Protolude  hiding (get)
 import SpecHelper
+
+tblDataBefore = [aesonQQ|[
+                  { "id": 1, "name": "item-1" }
+                , { "id": 2, "name": "item-2" }
+                , { "id": 3, "name": "item-3" }
+                ]|]
 
 spec :: SpecWith ((), Application)
 spec = do
@@ -388,105 +396,60 @@ spec = do
           }
 
   context "limited update" $ do
-    it "works with the limit query param" $ do
-      get "/limited_update_items"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
+    it "works with the limit query param" $
+      verifyMutation "limited_update_items" tblDataBefore
+        [json|[
+          { "id": 1, "name": "updated-item" }
+        , { "id": 2, "name": "updated-item" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items?order=id&limit=2"
+            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-1/2"
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-      request methodPatch "/limited_update_items?order=id&limit=2"
-          [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Content-Range" <:> "0-1/2"
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
+    it "works with the limit query param plus a filter" $
+      verifyMutation "limited_update_items" tblDataBefore
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 2, "name": "item-2" }
+        , { "id": 3, "name": "updated-item" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
+            [("Prefer", "tx=commit")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-      get "/limited_update_items?order=id"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "updated-item" }
-          , { "id": 2, "name": "updated-item" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
-
-    it "works with the limit query param plus a filter" $ do
-      get "/limited_update_items"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
-          [("Prefer", "tx=commit")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
-
-      get "/limited_update_items?order=id"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "updated-item" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
-
-    it "works with the limit and offset query params" $ do
-      get "/limited_update_items"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPatch "/limited_update_items?order=id&limit=1&offset=1"
-          [("Prefer", "tx=commit")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
-
-      get "/limited_update_items?order=id"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "updated-item" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
+    it "works with the limit and offset query params" $
+      verifyMutation "limited_update_items" tblDataBefore
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 2, "name": "updated-item" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
     it "fails without an explicit order by" $
       request methodPatch "/limited_update_items?limit=1&offset=1"
@@ -514,102 +477,56 @@ spec = do
             }|]
           { matchStatus  = 400 }
 
-    it "works with views with an explicit order by unique col" $ do
-      get "/limited_update_items_view"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
+    it "works with views with an explicit order by unique col" $
+      verifyMutation "limited_update_items_view" tblDataBefore
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 2, "name": "updated-item" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-      request methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
-          [("Prefer", "tx=commit")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
+    it "works with views with an explicit order by composite pk" $
+      verifyMutation "limited_update_items_cpk_view" tblDataBefore
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 2, "name": "updated-item" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
+            [("Prefer", "tx=commit")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }
 
-      get "/limited_update_items_view?order=id"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "updated-item" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items_view"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
-
-    it "works with views with an explicit order by composite pk" $ do
-      get "/limited_update_items_cpk_view"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
-          [("Prefer", "tx=commit")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
-
-      get "/limited_update_items_cpk_view?order=id,name"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "updated-item" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items_cpk_view"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
-
-
-    it "works on a table without a pk by ordering by 'ctid'" $ do
-      get "/limited_update_items_no_pk"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
-          [("Prefer", "tx=commit")]
-          [json| {"name": "updated-item"} |]
-        `shouldRespondWith`
-          ""
-          { matchStatus  = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType
-                           , "Preference-Applied" <:> "tx=commit" ]
-          }
-
-      get "/limited_update_items_no_pk?order=id"
-        `shouldRespondWith`
-          [json|[
-            { "id": 1, "name": "updated-item" }
-          , { "id": 2, "name": "item-2" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-
-      request methodPost "/rpc/reset_items_tables"
-        [("Prefer", "tx=commit")]
-        [json| {"tbl_name": "limited_update_items_no_pk"} |]
-        `shouldRespondWith` ""
-        { matchStatus  = 204 }
+    it "works on a table without a pk by ordering by 'ctid'" $
+      verifyMutation "limited_update_items_no_pk" tblDataBefore
+        [json|[
+          { "id": 1, "name": "updated-item" }
+        , { "id": 2, "name": "item-2" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+        $
+        request methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
+            [("Prefer", "tx=commit")]
+            [json| {"name": "updated-item"} |]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "tx=commit" ]
+            }

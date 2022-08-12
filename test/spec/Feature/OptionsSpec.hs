@@ -91,7 +91,7 @@ spec actualPgVersion = describe "Allow header" $ do
 
   context "a function" $ do
     it "includes the POST method for a volatile function" $ do
-      r <- request methodOptions "/rpc/reset_items_tables" [] ""
+      r <- request methodOptions "/rpc/reset_table" [] ""
       liftIO $
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,POST"

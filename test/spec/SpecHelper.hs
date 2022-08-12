@@ -18,6 +18,7 @@ import Text.Regex.TDFA      ((=~))
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
+import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
 import PostgREST.Config                  (AppConfig (..),
@@ -27,7 +28,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           parseSecret)
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..))
 import PostgREST.MediaType               (MediaType (..))
-import Protolude                         hiding (toS)
+import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
 
 matchContentTypeJson :: MatchHeader
@@ -243,3 +244,20 @@ isErrorFormat s =
   obj = decode s :: Maybe (M.Map Text Value)
   keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]
+
+-- | Follows these steps to verify if the table data changed in the db:
+--  * Verifies the table data in the db before the change
+--  * Does the mutation
+--  * Verifies that the table data changed in the db
+--  * Resets the table with the original data
+verifyMutation :: ByteString -> Value -> ResponseMatcher -> WaiExpectation m -> WaiSession m ()
+verifyMutation tblName dataBefore dataAfter mutation = do
+  get ("/" <> tblName) `shouldRespondWith` [json|#{dataBefore}|]
+  mutation
+  get ("/" <> tblName <> "?order=id") `shouldRespondWith` dataAfter
+  request methodPost "/rpc/reset_table"
+    [("Prefer", "tx=commit")]
+    [json| {"tbl_name": #{decodeUtf8 tblName},
+            "tbl_data": #{dataBefore}} |]
+  `shouldRespondWith` ""
+    { matchStatus  = 204 }
