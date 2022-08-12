@@ -98,8 +98,11 @@ spec =
             [("Prefer", "return=representation")]
             [json| [{"occupation": "Barista"}] |]
           `shouldRespondWith`
-            [json|[]|]
-            { matchStatus  = 404 }
+            [json|[
+                { "first_name": "Frances M.", "last_name": "Roe", "occupation": "Barista" },
+                { "first_name": "Daniel B.", "last_name": "Lyon", "occupation": "Barista" },
+                { "first_name": "Edwin S.", "last_name": "Smith", "occupation": "Barista" } ]|]
+            { matchStatus  = 200 }
 
       it "doesn't affect deletions" $
         request methodDelete "/employees?select=first_name,last_name"
