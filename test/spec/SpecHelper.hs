@@ -261,3 +261,28 @@ verifyMutation tblName dataBefore dataAfter mutation = do
             "tbl_data": #{dataBefore}} |]
   `shouldRespondWith` ""
     { matchStatus  = 204 }
+
+shouldMutateInto :: MutationCheck -> ResponseMatcher -> WaiExpectation ()
+shouldMutateInto (MutationCheck (BaseTable tblName tblOrd dataBefore) mutation) dataAfter = do
+  get ("/" <> tblName) `shouldRespondWith` [json|#{dataBefore}|]
+  mutation
+  get ("/" <> tblName <> "?" <> tblOrd) `shouldRespondWith` dataAfter
+  request methodPost "/rpc/reset_table"
+    [("Prefer", "tx=commit")]
+    [json| {"tbl_name": #{decodeUtf8 tblName},
+            "tbl_data": #{dataBefore}} |]
+  `shouldRespondWith` ""
+    { matchStatus  = 204 }
+
+mutatesWith :: BaseTable -> WaiExpectation () -> MutationCheck
+mutatesWith baseTbl reqMut = MutationCheck baseTbl reqMut
+
+baseTable :: ByteString -> ByteString -> Value -> BaseTable
+baseTable tbl ordr base = BaseTable tbl ordr base
+
+requestMutation :: Method -> ByteString -> BL.ByteString -> WaiExpectation ()
+requestMutation method path body =
+  request method path [("Prefer", "tx=commit")] body `shouldRespondWith` 204
+
+data BaseTable = BaseTable ByteString ByteString Value
+data MutationCheck = MutationCheck BaseTable (WaiExpectation ())

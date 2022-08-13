@@ -514,19 +514,13 @@ spec = do
             }
 
     it "works on a table without a pk by ordering by 'ctid'" $
-      verifyMutation "limited_update_items_no_pk" tblDataBefore
+      baseTable "limited_update_items_no_pk" "order=id" tblDataBefore 
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
         [json|[
           { "id": 1, "name": "updated-item" }
         , { "id": 2, "name": "item-2" }
         , { "id": 3, "name": "item-3" }
         ]|]
-        $
-        request methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
-            [("Prefer", "tx=commit")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
