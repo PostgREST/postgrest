@@ -2531,13 +2531,15 @@ select *, 'static'::text as static from limited_delete_items;
 create view limited_delete_items_cpk_view as
 select * from limited_delete_items_cpk;
 
-create function reset_items_tables(tbl_name text default '') returns void as $_$ begin
+create function reset_table(tbl_name text default '', tbl_data json default '[]') returns void as $_$ begin
   execute format(
   $$
     delete from %I where true; -- WHERE is required for pg-safeupdate tests
-    insert into %I values (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
+    insert into %I
+    select * from json_populate_recordset(null::%I, $1);
   $$::text,
-  tbl_name, tbl_name);
+  tbl_name, tbl_name, tbl_name)
+  using tbl_data;
 end; $_$ language plpgsql volatile;
 
 -- tables for ensuring we generate real junctions for many-to-many relationships

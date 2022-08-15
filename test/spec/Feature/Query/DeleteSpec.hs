@@ -1,5 +1,7 @@
 module Feature.Query.DeleteSpec where
 
+import Data.Aeson.QQ
+
 import Network.Wai (Application)
 
 import Network.HTTP.Types
@@ -9,6 +11,12 @@ import Test.Hspec.Wai.JSON
 
 import Protolude  hiding (get)
 import SpecHelper
+
+tblDataBefore = [aesonQQ|[
+                  { "id": 1, "name": "item-1" }
+                , { "id": 2, "name": "item-2" }
+                , { "id": 3, "name": "item-3" }
+                ]|]
 
 spec :: SpecWith ((), Application)
 spec =
@@ -117,69 +125,25 @@ spec =
             }
 
     context "limited delete" $ do
-      it "works with the limit and offset query params" $ do
-        get "/limited_delete_items"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
+      it "works with the limit and offset query params" $
+        baseTable "limited_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
-        request methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
-
-        get "/limited_delete_items?order=id"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "limited_delete_items"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }
-
-      it "works with the limit query param plus a filter" $ do
-        get "/limited_delete_items"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1"
-            [("Prefer", "tx=commit")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
-
-        get "/limited_delete_items?order=id"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "limited_delete_items"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }
+      it "works with the limit query param plus a filter" $
+        baseTable "limited_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
       it "fails without an explicit order by" $
         request methodDelete "/limited_delete_items?limit=1&offset=1"
@@ -207,98 +171,32 @@ spec =
               }|]
             { matchStatus  = 400 }
 
-      it "works with views with an explicit order by unique col" $ do
-        get "/limited_delete_items_view"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
+      it "works with views with an explicit order by unique col" $
+        baseTable "limited_delete_items_view" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
-        request methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      it "works with views with an explicit order by composite pk" $
+        baseTable "limited_delete_items_cpk_view" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
-        get "/limited_delete_items_view"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "limited_delete_items_view"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }
-
-      it "works with views with an explicit order by composite pk" $ do
-        get "/limited_delete_items_cpk_view"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
-
-        get "/limited_delete_items_cpk_view"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "limited_delete_items_cpk_view"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }
-
-      it "works on a table without a pk by ordering by 'ctid'" $ do
-        get "/limited_delete_items_no_pk"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 2, "name": "item-2" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            mempty
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
-
-        get "/limited_delete_items_no_pk"
-          `shouldRespondWith`
-            [json|[
-              { "id": 1, "name": "item-1" }
-            , { "id": 3, "name": "item-3" }
-            ]|]
-
-        request methodPost "/rpc/reset_items_tables"
-          [("Prefer", "tx=commit")]
-          [json| {"tbl_name": "limited_delete_items_no_pk"} |]
-          `shouldRespondWith` ""
-          { matchStatus  = 204 }
+      it "works on a table without a pk by ordering by 'ctid'" $
+        baseTable "limited_delete_items_no_pk" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
