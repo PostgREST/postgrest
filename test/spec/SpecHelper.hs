@@ -250,36 +250,26 @@ isErrorFormat s =
 --  * Does the mutation
 --  * Verifies that the table data changed in the db
 --  * Resets the table with the original data
-verifyMutation :: ByteString -> Value -> ResponseMatcher -> WaiExpectation m -> WaiSession m ()
-verifyMutation tblName dataBefore dataAfter mutation = do
-  get ("/" <> tblName) `shouldRespondWith` [json|#{dataBefore}|]
-  mutation
-  get ("/" <> tblName <> "?order=id") `shouldRespondWith` dataAfter
-  request methodPost "/rpc/reset_table"
-    [("Prefer", "tx=commit")]
-    [json| {"tbl_name": #{decodeUtf8 tblName},
-            "tbl_data": #{dataBefore}} |]
-  `shouldRespondWith` ""
-    { matchStatus  = 204 }
-
 shouldMutateInto :: MutationCheck -> ResponseMatcher -> WaiExpectation ()
 shouldMutateInto (MutationCheck (BaseTable tblName tblOrd dataBefore) mutation) dataAfter = do
   get ("/" <> tblName) `shouldRespondWith` [json|#{dataBefore}|]
   mutation
-  get ("/" <> tblName <> "?" <> tblOrd) `shouldRespondWith` dataAfter
+  get ("/" <> tblName <> "?order=" <> tblOrd) `shouldRespondWith` dataAfter
   request methodPost "/rpc/reset_table"
     [("Prefer", "tx=commit")]
-    [json| {"tbl_name": #{decodeUtf8 tblName},
-            "tbl_data": #{dataBefore}} |]
-  `shouldRespondWith` ""
-    { matchStatus  = 204 }
+    [json| {"tbl_name": #{decodeUtf8 tblName}, "tbl_data": #{dataBefore}} |]
+  `shouldRespondWith` 204
 
+-- | Mutates the base table data using the requested mutation
 mutatesWith :: BaseTable -> WaiExpectation () -> MutationCheck
 mutatesWith baseTbl reqMut = MutationCheck baseTbl reqMut
 
+-- | The original table data before it is modified.
+-- The column order is needed for an accurate comparison after the mutation
 baseTable :: ByteString -> ByteString -> Value -> BaseTable
 baseTable tbl ordr base = BaseTable tbl ordr base
 
+-- | The mutation (update/delete) that will be applied to the base table
 requestMutation :: Method -> ByteString -> BL.ByteString -> WaiExpectation ()
 requestMutation method path body =
   request method path [("Prefer", "tx=commit")] body `shouldRespondWith` 204

@@ -126,38 +126,24 @@ spec =
 
     context "limited delete" $ do
       it "works with the limit and offset query params" $
-        verifyMutation "limited_delete_items" tblDataBefore
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-          $
-          request methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
-              [("Prefer", "tx=commit")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "limited_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
       it "works with the limit query param plus a filter" $
-        verifyMutation "limited_delete_items" tblDataBefore
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-          $
-          request methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1"
-              [("Prefer", "tx=commit")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "limited_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
       it "fails without an explicit order by" $
         request methodDelete "/limited_delete_items?limit=1&offset=1"
@@ -186,52 +172,31 @@ spec =
             { matchStatus  = 400 }
 
       it "works with views with an explicit order by unique col" $
-        verifyMutation "limited_delete_items_view" tblDataBefore
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-          $
-          request methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1"
-              [("Prefer", "tx=commit")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "limited_delete_items_view" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
       it "works with views with an explicit order by composite pk" $
-        verifyMutation "limited_delete_items_cpk_view" tblDataBefore
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-          $
-          request methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1"
-              [("Prefer", "tx=commit")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "limited_delete_items_cpk_view" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
 
       it "works on a table without a pk by ordering by 'ctid'" $
-        verifyMutation "limited_delete_items_no_pk" tblDataBefore
-          [json|[
-            { "id": 1, "name": "item-1" }
-          , { "id": 3, "name": "item-3" }
-          ]|]
-          $
-          request methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1"
-              [("Prefer", "tx=commit")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "limited_delete_items_no_pk" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1" mempty
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]

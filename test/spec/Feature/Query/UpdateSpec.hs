@@ -397,59 +397,40 @@ spec = do
 
   context "limited update" $ do
     it "works with the limit query param" $
-      verifyMutation "limited_update_items" tblDataBefore
-        [json|[
-          { "id": 1, "name": "updated-item" }
-        , { "id": 2, "name": "updated-item" }
-        , { "id": 3, "name": "item-3" }
-        ]|]
-        $
-        request methodPatch "/limited_update_items?order=id&limit=2"
-            [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "0-1/2"
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      baseTable "limited_update_items" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items?order=id&limit=2"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "updated-item" }
+      , { "id": 2, "name": "updated-item" }
+      , { "id": 3, "name": "item-3" }
+      ]|]
 
     it "works with the limit query param plus a filter" $
-      verifyMutation "limited_update_items" tblDataBefore
-        [json|[
-          { "id": 1, "name": "item-1" }
-        , { "id": 2, "name": "item-2" }
-        , { "id": 3, "name": "updated-item" }
-        ]|]
-        $
-        request methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
-            [("Prefer", "tx=commit")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      baseTable "limited_update_items" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1" }
+      , { "id": 2, "name": "item-2" }
+      , { "id": 3, "name": "updated-item" }
+      ]|]
 
     it "works with the limit and offset query params" $
-      verifyMutation "limited_update_items" tblDataBefore
-        [json|[
-          { "id": 1, "name": "item-1" }
-        , { "id": 2, "name": "updated-item" }
-        , { "id": 3, "name": "item-3" }
-        ]|]
-        $
-        request methodPatch "/limited_update_items?order=id&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      baseTable "limited_update_items" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1" }
+      , { "id": 2, "name": "updated-item" }
+      , { "id": 3, "name": "item-3" }
+      ]|]
 
     it "fails without an explicit order by" $
       request methodPatch "/limited_update_items?limit=1&offset=1"
@@ -478,49 +459,37 @@ spec = do
           { matchStatus  = 400 }
 
     it "works with views with an explicit order by unique col" $
-      verifyMutation "limited_update_items_view" tblDataBefore
-        [json|[
-          { "id": 1, "name": "item-1" }
-        , { "id": 2, "name": "updated-item" }
-        , { "id": 3, "name": "item-3" }
-        ]|]
-        $
-        request methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      baseTable "limited_update_items_view" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1" }
+      , { "id": 2, "name": "updated-item" }
+      , { "id": 3, "name": "item-3" }
+      ]|]
 
     it "works with views with an explicit order by composite pk" $
-      verifyMutation "limited_update_items_cpk_view" tblDataBefore
-        [json|[
-          { "id": 1, "name": "item-1" }
-        , { "id": 2, "name": "updated-item" }
-        , { "id": 3, "name": "item-3" }
-        ]|]
-        $
-        request methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
-            [("Prefer", "tx=commit")]
-            [json| {"name": "updated-item"} |]
-          `shouldRespondWith`
-            ""
-            { matchStatus  = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Preference-Applied" <:> "tx=commit" ]
-            }
+      baseTable "limited_update_items_cpk_view" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1" }
+      , { "id": 2, "name": "updated-item" }
+      , { "id": 3, "name": "item-3" }
+      ]|]
 
     it "works on a table without a pk by ordering by 'ctid'" $
-      baseTable "limited_update_items_no_pk" "order=id" tblDataBefore 
+      baseTable "limited_update_items_no_pk" "id" tblDataBefore
       `mutatesWith`
       requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
-        [json|[
-          { "id": 1, "name": "updated-item" }
-        , { "id": 2, "name": "item-2" }
-        , { "id": 3, "name": "item-3" }
-        ]|]
+      [json|[
+        { "id": 1, "name": "updated-item" }
+      , { "id": 2, "name": "item-2" }
+      , { "id": 3, "name": "item-3" }
+      ]|]

@@ -36,23 +36,15 @@ spec =
             { matchStatus  = 400 }
 
       it "allows full table update if a filter is present" $
-        verifyMutation "safe_update_items" tblDataBefore
-          [json|[
-            { "id": 1, "name": "updated-item", "observation": null }
-          , { "id": 2, "name": "updated-item", "observation": null }
-          , { "id": 3, "name": "updated-item", "observation": null }
-          ]|]
-          $
-          request methodPatch "/safe_update_items?id=gt.0"
-              [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-              [json| {"name": "updated-item"} |]
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "0-2/3"
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "safe_update_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodPatch "/safe_update_items?id=gt.0" [json| {"name": "updated-item"} |]
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "updated-item", "observation": null }
+        , { "id": 2, "name": "updated-item", "observation": null }
+        , { "id": 3, "name": "updated-item", "observation": null }
+        ]|]
 
     context "Full table delete" $ do
       it "does not delete and throws error if no condition is present" $
@@ -67,55 +59,31 @@ spec =
             { matchStatus  = 400 }
 
       it "allows full table delete if a filter is present" $
-        verifyMutation "safe_delete_items" tblDataBefore
-          [json|[]|]
-          $
-          request methodDelete "/safe_delete_items?id=gt.0"
-              [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "*/3"
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "safe_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/safe_delete_items?id=gt.0" mempty
+        `shouldMutateInto`
+        [json|[]|]
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
   describe "Disabling pg-safeupdate" $ do
     context "Full table update" $ do
       it "works if no condition is present" $
-        verifyMutation "unsafe_update_items" tblDataBefore
-          [json|[
-            { "id": 1, "name": "updated-item", "observation": null }
-          , { "id": 2, "name": "updated-item", "observation": null }
-          , { "id": 3, "name": "updated-item", "observation": null }
-          ]|]
-          $
-          request methodPatch "/unsafe_update_items"
-              [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-              [json| {"name": "updated-item"} |]
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "0-2/3"
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "unsafe_update_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodPatch "/unsafe_update_items" [json| {"name": "updated-item"} |]
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "updated-item", "observation": null }
+        , { "id": 2, "name": "updated-item", "observation": null }
+        , { "id": 3, "name": "updated-item", "observation": null }
+        ]|]
 
     context "Full table delete" $ do
       it "works if no condition is present" $
-        verifyMutation "unsafe_delete_items" tblDataBefore
-          [json|[]|]
-          $
-          request methodDelete "/unsafe_delete_items"
-              [("Prefer", "tx=commit"), ("Prefer", "count=exact")]
-              mempty
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "*/3"
-                               , "Preference-Applied" <:> "tx=commit" ]
-              }
+        baseTable "unsafe_delete_items" "id" tblDataBefore
+        `mutatesWith`
+        requestMutation methodDelete "/unsafe_delete_items" mempty
+        `shouldMutateInto`
+        [json|[]|]
