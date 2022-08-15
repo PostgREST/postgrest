@@ -260,14 +260,14 @@ shouldMutateInto (MutationCheck (BaseTable tblName tblOrd dataBefore) mutation) 
     [json| {"tbl_name": #{decodeUtf8 tblName}, "tbl_data": #{dataBefore}} |]
   `shouldRespondWith` 204
 
--- | Mutates the base table data using the requested mutation
+-- | How the base table data will change using the requested mutation
 mutatesWith :: BaseTable -> WaiExpectation () -> MutationCheck
-mutatesWith baseTbl reqMut = MutationCheck baseTbl reqMut
+mutatesWith = MutationCheck
 
 -- | The original table data before it is modified.
 -- The column order is needed for an accurate comparison after the mutation
 baseTable :: ByteString -> ByteString -> Value -> BaseTable
-baseTable tbl ordr base = BaseTable tbl ordr base
+baseTable = BaseTable
 
 -- | The mutation (update/delete) that will be applied to the base table
 requestMutation :: Method -> ByteString -> BL.ByteString -> WaiExpectation ()
