@@ -1,3 +1,5 @@
+{ system ? builtins.currentSystem }:
+
 let
   name =
     "postgrest";
@@ -42,7 +44,7 @@ let
 
   # Evaluated expression of the Nixpkgs repository.
   pkgs =
-    import nixpkgs { inherit overlays; };
+    import nixpkgs { inherit overlays system; };
 
   postgresqlVersions =
     [
@@ -64,7 +66,7 @@ let
   # Function that derives a fully static Haskell package based on
   # nh2/static-haskell-nix
   staticHaskellPackage =
-    import nix/static-haskell-package.nix { inherit nixpkgs compiler patches allOverlays; };
+    import nix/static-haskell-package.nix { inherit nixpkgs system compiler patches allOverlays; };
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =

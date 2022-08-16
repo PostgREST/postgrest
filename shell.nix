@@ -11,7 +11,7 @@
 }:
 let
   postgrest =
-    import ./default.nix;
+    import ./default.nix { };
 
   inherit (postgrest) pkgs;
 
