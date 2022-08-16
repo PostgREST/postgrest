@@ -656,7 +656,7 @@ allViewsKeyDependencies =
       pks_fks as (
         -- pk + fk referencing col
         select
-          cast(contype as text) contype,
+          contype::text as contype,
           conname,
           conrelid as resorigtbl,
           unnest(conkey) as resorigcol
