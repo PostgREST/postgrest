@@ -66,6 +66,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2342, Fix inaccurate result count when an inner embed was selected after a normal embed in the query string - @laurenceisla
  - #2376, OPTIONS requests no longer start an empty database transaction - @steve-chavez
  - #2395, Allow using columns with dollar sign($) without double quoting in filters and `select` - @steve-chavez
+ - #2410, Fix loop crash error on startup in Postgres 15 beta 2. Log: "UNION types \"char\" and text cannot be matched". - @yevon
 
 ### Changed
 
