@@ -97,9 +97,9 @@ decodeMediaType mt =
     "application/vnd.pgrst.object":_       -> MTSingularJSON
     "application/x-www-form-urlencoded":_  -> MTUrlEncoded
     "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan PlanJSON rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
+    "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
     "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
     "*/*":_                                -> MTAny
     other:_                                -> MTOther other
     _                                      -> MTAny
