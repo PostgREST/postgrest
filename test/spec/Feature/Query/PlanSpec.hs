@@ -24,7 +24,7 @@ spec actualPgVersion = do
   describe "read table/view plan" $ do
     it "outputs the total cost for a single filter on a table" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
           resHeaders = simpleHeaders r
@@ -156,7 +156,7 @@ spec actualPgVersion = do
   describe "writes plans" $ do
     it "outputs the total cost for an insert" $ do
       r <- request methodPost "/projects"
-             (acceptHdrs "application/vnd.pgrst.plan") [json|{"id":100, "name": "Project 100"}|]
+             (acceptHdrs "application/vnd.pgrst.plan+json") [json|{"id":100, "name": "Project 100"}|]
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
           resHeaders = simpleHeaders r
@@ -172,7 +172,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for an update" $ do
       r <- request methodPatch "/projects?id=eq.3"
-             (acceptHdrs "application/vnd.pgrst.plan") [json|{"name": "Patched Project"}|]
+             (acceptHdrs "application/vnd.pgrst.plan+json") [json|{"name": "Patched Project"}|]
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
           resHeaders = simpleHeaders r
@@ -188,7 +188,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
           resHeaders = simpleHeaders r
@@ -201,7 +201,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for a single upsert" $ do
       r <- request methodPut "/tiobe_pls?name=eq.Go"
-            (acceptHdrs "application/vnd.pgrst.plan")
+            (acceptHdrs "application/vnd.pgrst.plan+json")
             [json| [ { "name": "Go", "rank": 19 } ]|]
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
@@ -230,7 +230,7 @@ spec actualPgVersion = do
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
           resHeaders = simpleHeaders r
@@ -252,7 +252,7 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
         aggCol `shouldBe` Just [aesonQQ| "COALESCE(xmlagg(return_scalar_xml.pgrst_scalar), ''::xml)" |]
 
-  describe "text format" $
+  describe "text format" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"
              (acceptHdrs "application/vnd.pgrst.plan+text") ""
@@ -266,10 +266,23 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 
+    it "outputs in text format by default" $ do
+      r <- request methodGet "/projects?id=in.(1,2,3)"
+             (acceptHdrs "application/vnd.pgrst.plan") ""
+
+      let resBody    = simpleBody r
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
+
   describe "resource embedding costs" $ do
     it "a one to many doesn't surpass a threshold" $ do
       r <- request methodGet "/clients?select=*,projects(*)&id=eq.1"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
       liftIO $ totalCost `shouldBe`
@@ -279,7 +292,7 @@ spec actualPgVersion = do
 
     it "a many to one doesn't surpass a threshold" $ do
       r <- request methodGet "/projects?select=*,clients(*)&id=eq.1"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
       liftIO $ totalCost `shouldBe`
@@ -289,7 +302,7 @@ spec actualPgVersion = do
 
     it "a many to many doesn't surpass a threshold" $ do
       r <- request methodGet "/users?select=*,tasks(*)&id=eq.1"
-             (acceptHdrs "application/vnd.pgrst.plan") ""
+             (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
       liftIO $ totalCost `shouldBe`
