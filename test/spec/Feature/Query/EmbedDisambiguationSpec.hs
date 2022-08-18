@@ -106,6 +106,20 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
+      it "errs on an ambiguous embed that has two one-to-one relationships" $
+        get "/first?select=second(*)" `shouldRespondWith`
+          [json| {
+            "code":"PGRST201",
+            "details":[
+              {"cardinality":"one-to-one","embedding":"first with second","relationship":"first_second_id_1_fkey using first(second_id_1) and second(id)"},
+              {"cardinality":"one-to-one","embedding":"first with second","relationship":"first_second_id_2_fkey using first(second_id_2) and second(id)"}
+            ],
+            "hint":"Try changing 'second' to one of the following: 'second!first_second_id_1_fkey', 'second!first_second_id_2_fkey'. Find the desired relationship in the 'details' key.","message":"Could not embed because more than one relationship was found for 'first' and 'second'"
+            }|]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
     context "disambiguating requests with embed hints" $ do
 
       context "using FK to specify the relationship" $ do

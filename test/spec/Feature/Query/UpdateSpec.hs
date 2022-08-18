@@ -374,6 +374,34 @@ spec = do
           matchHeaders = [matchContentTypeJson]
         }
 
+    it "embeds an O2O relationship after update" $ do
+      request methodPatch "/students?id=eq.1&select=name,students_info(address)"
+              [("Prefer", "return=representation")]
+        [json|{"name": "Johnny Doe"}|]
+        `shouldRespondWith`
+        [json|[
+          {
+            "name": "Johnny Doe",
+            "students_info":{"address":"Street 1"}
+          }
+        ]|]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }
+      request methodPatch "/students_info?id=eq.1&select=address,students(name)"
+              [("Prefer", "return=representation")]
+        [json|{"address": "New Street 1"}|]
+        `shouldRespondWith`
+        [json|[
+          {
+            "address": "New Street 1",
+            "students":{"name": "John Doe"}
+          }
+        ]|]
+        { matchStatus  = 200,
+          matchHeaders = [matchContentTypeJson]
+        }
+
   context "table with limited privileges" $ do
     it "succeeds updating row and gives a 204 when using return=minimal" $
       request methodPatch "/app_users?id=eq.1"

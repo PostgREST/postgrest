@@ -460,6 +460,51 @@ spec actualPgVersion = do
         [json|[]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    context "one to one relationships" $ do
+      it "works when having a pk as fk" $ do
+        get "/students_info?select=address,students(name)" `shouldRespondWith`
+          [json|[{"address":"Street 1","students":{"name":"John Doe"}}, {"address":"Street 2","students":{"name":"Jane Doe"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/students?select=name,students_info(address)" `shouldRespondWith`
+          [json|[{"name":"John Doe","students_info":{"address":"Street 1"}},{"name":"Jane Doe","students_info":{"address":"Street 2"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when having a fk with a unique constraint" $ do
+        get "/country?select=name,capital(name)" `shouldRespondWith`
+          [json|[{"name":"Afghanistan","capital":{"name":"Kabul"}}, {"name":"Algeria","capital":{"name":"Algiers"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/capital?select=name,country(name)" `shouldRespondWith`
+          [json|[{"name":"Kabul","country":{"name":"Afghanistan"}}, {"name":"Algiers","country":{"name":"Algeria"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when using column as target" $ do
+        get "/capital?select=name,country_id(name)" `shouldRespondWith`
+          [json|[{"name":"Kabul","country_id":{"name":"Afghanistan"}}, {"name":"Algiers","country_id":{"name":"Algeria"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/capital?select=name,capital_country_id_fkey(name)" `shouldRespondWith`
+          [json|[{"name":"Kabul","capital_country_id_fkey":{"name":"Afghanistan"}}, {"name":"Algiers","capital_country_id_fkey":{"name":"Algeria"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/country?select=name,capital_country_id_fkey(name)" `shouldRespondWith`
+          [json|[{"name":"Afghanistan","capital_country_id_fkey":{"name":"Kabul"}}, {"name":"Algeria","capital_country_id_fkey":{"name":"Algiers"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/country?select=name,id(name)" `shouldRespondWith`
+          [json|[{"name":"Afghanistan","id":{"name":"Kabul"}}, {"name":"Algeria","id":{"name":"Algiers"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works when using column as hint" $ do
+        get "/country?select=name,capital!id(name)" `shouldRespondWith`
+          [json|[{"name":"Afghanistan","capital":{"name":"Kabul"}}, {"name":"Algeria","capital":{"name":"Algiers"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/country?select=name,capital!country_id(name)" `shouldRespondWith`
+          [json|[{"name":"Afghanistan","capital":{"name":"Kabul"}}, {"name":"Algeria","capital":{"name":"Algiers"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/capital?select=name,country!id(name)" `shouldRespondWith`
+          [json|[{"name":"Kabul","country":{"name":"Afghanistan"}}, {"name":"Algiers","country":{"name":"Algeria"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/capital?select=name,country!country_id(name)" `shouldRespondWith`
+          [json|[{"name":"Kabul","country":{"name":"Afghanistan"}}, {"name":"Algiers","country":{"name":"Algeria"}}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
     describe "computed columns" $ do
       it "computed column on table" $
         get "/items?id=eq.1&select=id,always_true" `shouldRespondWith`
@@ -705,6 +750,20 @@ spec actualPgVersion = do
       it "can embed a view that has a subselect containing a select in a where" $
         get "/authors_w_entities?select=name,entities,books(title)&id=eq.1" `shouldRespondWith`
           [json| [{"name":"George Orwell","entities":[3, 4],"books":[{"title":"1984"}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "works with one to one relationships" $ do
+        get "/students_view?select=name,students_info(address)" `shouldRespondWith`
+          [json| [{"name":"John Doe","students_info":{"address":"Street 1"}}, {"name":"Jane Doe","students_info":{"address":"Street 2"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/students_view?select=name,students_info_view(address)" `shouldRespondWith`
+          [json| [{"name":"John Doe","students_info_view":{"address":"Street 1"}}, {"name":"Jane Doe","students_info_view":{"address":"Street 2"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/students_info_view?select=address,students(name)" `shouldRespondWith`
+          [json| [{"address":"Street 1","students":{"name":"John Doe"}}, {"address":"Street 2","students":{"name":"Jane Doe"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/students_info_view?select=address,students_view(name)" `shouldRespondWith`
+          [json| [{"address":"Street 1","students_view":{"name":"John Doe"}}, {"address":"Street 2","students_view":{"name":"Jane Doe"}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
     describe "aliased embeds" $ do

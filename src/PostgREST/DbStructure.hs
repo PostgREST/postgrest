@@ -88,12 +88,12 @@ queryDbStructure schemas extraSearchPath prepared = do
   pgVer   <- SQL.statement mempty pgVersionStatement
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
-  m2oRels <- SQL.statement mempty $ allM2ORels pgVer prepared
+  m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
-      rels          = addO2MRels $ addM2MRels tabsWViewsPks $ addViewM2ORels keyDeps m2oRels
+      rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
   return $ removeInternal schemas $ DbStructure {
       dbTables = tabsWViewsPks
@@ -163,14 +163,15 @@ decodeRels :: HD.Result [Relationship]
 decodeRels =
  HD.rowList relRow
  where
-  relRow =
-    Relationship <$>
+  relRow = (\(qi1, qi2, isSelf, constr, cols, isOneToOne) -> Relationship qi1 qi2 isSelf ((if isOneToOne then O2O else M2O) constr cols) False False) <$> row
+  row =
+    (,,,,,) <$>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     column HD.bool <*>
-    (M2O <$> column HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)) <*>
-    pure False <*>
-    pure False
+    column HD.text <*>
+    compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) <*>
+    column HD.bool
 
 decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
 decodeViewKeyDeps =
@@ -337,9 +338,9 @@ accessibleTables pgVer =
   sql = tablesSqlQuery False pgVer
 
 {-
-Adds M2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
+Adds M2O and O2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
 
---allM2ORels sample query result--
+--allM2OandO2ORels sample query result--
 private      | personnages          | private    | actors           | personnages_role_id_fkey   | {"(role_id,id)"}
 
 --allViewsKeyDependencies sample query result--
@@ -351,32 +352,37 @@ test         | personnages_view     | private    | actors           | personnage
 private      | personnages          | test       | actors_view      | personnages_role_id_fkey   | f_ref    | {"(role_id,actorId)"} | tableViewM2O
 test         | personnages_view     | test       | actors_view      | personnages_role_id_fkey   | f,r_ref  | {"(roleId,actorId)"}  | viewViewM2O
 -}
-addViewM2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
-addViewM2ORels keyDeps rels =
+addViewM2OAndO2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
+addViewM2OAndO2ORels keyDeps rels =
   rels ++ concat (viewRels <$> rels)
   where
-    viewRels Relationship{relTable,relForeignTable,relCardinality=M2O cons relColumns} =
+    isM2O card = case card of {M2O _ _ -> True; _ -> False;}
+    isO2O card = case card of {O2O _ _ -> True; _ -> False;}
+    viewRels Relationship{relTable,relForeignTable,relCardinality=card} =
+      if isM2O card || isO2O card then
       let
-        viewTableM2Os = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relTable        && keyDepCons == cons && keyDepType == FKDep)    keyDeps
-        tableViewM2Os = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relForeignTable && keyDepCons == cons && keyDepType == FKDepRef) keyDeps
+        cons = relCons card
+        relCols = relColumns card
+        viewTableRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relTable        && keyDepCons == cons && keyDepType == FKDep)    keyDeps
+        tableViewRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relForeignTable && keyDepCons == cons && keyDepType == FKDepRef) keyDeps
       in
         [ Relationship
             (keyDepView vwTbl)
             relForeignTable
             False
-            (M2O cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) (keyDepCols vwTbl) relColumns)
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) (keyDepCols vwTbl) relCols)
             True
             False
-        | vwTbl <- viewTableM2Os ]
+        | vwTbl <- viewTableRels ]
         ++
         [ Relationship
             relTable
             (keyDepView tblVw)
             False
-            (M2O cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relColumns (keyDepCols tblVw))
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols (keyDepCols tblVw))
             False
             True
-        | tblVw <- tableViewM2Os ]
+        | tblVw <- tableViewRels ]
         ++
         [
           let
@@ -387,17 +393,19 @@ addViewM2ORels keyDeps rels =
             vw1
             vw2
             (vw1 == vw2)
-            (M2O cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) (keyDepCols vwTbl) (keyDepCols tblVw))
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) (keyDepCols vwTbl) (keyDepCols tblVw))
             True
             True
-        | vwTbl <- viewTableM2Os
-        , tblVw <- tableViewM2Os ]
+        | vwTbl <- viewTableRels
+        , tblVw <- tableViewRels ]
+      else []
     viewRels _ = []
 
-
-addO2MRels :: [Relationship] -> [Relationship]
-addO2MRels rels = rels ++ [ Relationship ft t isSelf (O2M cons (swap <$> cols)) fTableIsView tableIsView
-                          | Relationship t ft isSelf (M2O cons cols) tableIsView fTableIsView <- rels ]
+addInverseRels :: [Relationship] -> [Relationship]
+addInverseRels rels =
+  rels ++
+  [ Relationship ft t isSelf (O2M cons (swap <$> cols)) fTableIsView tableIsView | Relationship t ft isSelf (M2O cons cols) tableIsView fTableIsView <- rels ] ++
+  [ Relationship ft t isSelf (O2O cons (swap <$> cols)) fTableIsView tableIsView | Relationship t ft isSelf (O2O cons cols) tableIsView fTableIsView <- rels ]
 
 -- | Adds a m2m relationship if a table has FKs to two other tables and the FK columns are part of the PK columns
 addM2MRels :: TablesMap -> [Relationship] -> [Relationship]
@@ -634,11 +642,31 @@ tablesSqlQuery getAll pgVer =
       )|]
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
 
-allM2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
-allM2ORels pgVer =
+
+-- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
+allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
+allM2OandO2ORels pgVer =
   SQL.Statement sql HE.noParams decodeRels
  where
+  -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
   sql = [q|
+    WITH
+    pks_uniques_cols AS (
+      SELECT
+        connamespace,
+        conrelid,
+        jsonb_agg(column_info.cols) as cols
+      FROM pg_constraint
+      JOIN lateral (
+        SELECT array_agg(cols.attname order by cols.attnum) as cols
+        FROM ( select unnest(conkey) as col) _
+        JOIN pg_attribute cols on cols.attrelid = conrelid and cols.attnum = col
+      ) column_info ON TRUE
+      WHERE
+        contype IN ('p', 'u') and
+        connamespace::regnamespace::text <> 'pg_catalog'
+      GROUP BY connamespace, conrelid
+    )
     SELECT
       ns1.nspname AS table_schema,
       tab.relname AS table_name,
@@ -646,10 +674,13 @@ allM2ORels pgVer =
       other.relname AS foreign_table_name,
       (ns1.nspname, tab.relname) = (ns2.nspname, other.relname) AS is_self,
       traint.conname  AS constraint_name,
-      column_info.cols_and_fcols
+      column_info.cols_and_fcols,
+      (column_info.cols IN (SELECT * FROM jsonb_array_elements(pks_uqs.cols))) AS one_to_one
     FROM pg_constraint traint
     JOIN LATERAL (
-      SELECT array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols_and_fcols
+      SELECT
+        array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols_and_fcols,
+        jsonb_agg(cols.attname order by cols.attnum) AS cols
       FROM ( SELECT unnest(traint.conkey) AS col, unnest(traint.confkey) AS ref) _
       JOIN pg_attribute cols ON cols.attrelid = traint.conrelid AND cols.attnum = col
       JOIN pg_attribute refs ON refs.attrelid = traint.confrelid AND refs.attnum = ref
@@ -658,6 +689,7 @@ allM2ORels pgVer =
     JOIN pg_class tab ON tab.oid = traint.conrelid
     JOIN pg_class other ON other.oid = traint.confrelid
     JOIN pg_namespace ns2 ON ns2.oid = other.relnamespace
+    LEFT JOIN pks_uniques_cols pks_uqs ON pks_uqs.connamespace = traint.connamespace AND pks_uqs.conrelid = traint.conrelid
     WHERE traint.contype = 'f'
   |] <>
     (if pgVer >= pgVersion110

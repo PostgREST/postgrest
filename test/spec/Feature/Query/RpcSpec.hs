@@ -269,6 +269,20 @@ spec actualPgVersion =
           ]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "can embed an O2O relationship" $ do
+        get "/rpc/allcapitals?select=name,country(name)"
+          `shouldRespondWith` [json|[
+            {"name":"Kabul","country":{"name":"Afghanistan"}},
+            {"name":"Algiers","country":{"name":"Algeria"}}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/allcountries?select=name,capital(name)"
+          `shouldRespondWith` [json|[
+            {"name":"Afghanistan","capital":{"name":"Kabul"}},
+            {"name":"Algeria","capital":{"name":"Algiers"}}
+          ]|]
+          { matchHeaders = [matchContentTypeJson] }
+
       when (actualPgVersion >= pgVersion110) $
         it "can embed if rpc returns domain of table type" $ do
           post "/rpc/getproject_domain?select=id,name,client:clients(id),tasks(id)"

@@ -37,12 +37,13 @@ data Relationship = Relationship
 
 -- | The relationship cardinality
 -- | https://en.wikipedia.org/wiki/Cardinality_(data_modeling)
--- TODO: missing one-to-one
 data Cardinality
   = O2M {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
   -- ^ one-to-many
   | M2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
   -- ^ many-to-one
+  | O2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
+  -- ^ one-to-one, this is a refinement over M2O so operating on it is pretty much the same as M2O
   | M2M Junction
   -- ^ many-to-many
   deriving (Eq, Ord, Generic, JSON.ToJSON)

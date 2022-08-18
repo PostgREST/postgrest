@@ -92,10 +92,18 @@ spec = describe "computed relationships" $ do
         {"name":"fezz","child_web_content":[{"name":"wut"}],"parent_web_content":{"name":"tardis"}}
       ]|] { matchHeaders = [matchContentTypeJson] }
 
-  it "can override detected relationships" $ do
+  it "can override many-to-one and one-to-many relationships" $ do
     get "/videogames?select=*,designers!inner(*)"
       `shouldRespondWith`
       [json|[]|] { matchHeaders = [matchContentTypeJson] }
     get "/designers?select=*,videogames!inner(*)"
+      `shouldRespondWith`
+      [json|[]|] { matchHeaders = [matchContentTypeJson] }
+
+  it "can override one-to-one relationships(would give disambiguation errors otherwise)" $ do
+    get "/first_1?select=*,second_1(*)"
+      `shouldRespondWith`
+      [json|[]|] { matchHeaders = [matchContentTypeJson] }
+    get "/second_1?select=*,first_1(*)"
       `shouldRespondWith`
       [json|[]|] { matchHeaders = [matchContentTypeJson] }

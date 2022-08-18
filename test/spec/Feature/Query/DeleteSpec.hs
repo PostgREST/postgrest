@@ -78,6 +78,32 @@ spec =
           , matchHeaders = ["Content-Range" <:> "*/*"]
           }
 
+      it "embeds an O2O relationship after delete" $ do
+        request methodDelete "/students?id=eq.1&select=name,students_info(address)"
+                [("Prefer", "return=representation")] ""
+          `shouldRespondWith`
+          [json|[
+            {
+              "name": "John Doe",
+              "students_info":{"address":"Street 1"}
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+        request methodDelete "/students_info?id=eq.1&select=address,students(name)"
+                [("Prefer", "return=representation")] ""
+          `shouldRespondWith`
+          [json|[
+            {
+              "address": "Street 1",
+              "students":{"name": "John Doe"}
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+
     context "known route, no records matched" $
       it "includes [] body if return=rep" $
         request methodDelete "/items?id=eq.101"

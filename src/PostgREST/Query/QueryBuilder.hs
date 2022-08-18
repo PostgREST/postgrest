@@ -64,14 +64,16 @@ getSelectsJoins rr@(Node (_, (name, Just rel, alias, _, joinType, _)) _) (select
     internalTableName = pgFmtIdent $ "_" <> locTblName
     correlatedSubquery sub al cond =
       (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
-    (sel, joi) = case rel of
-      Relationship{relCardinality=M2O _ _} ->
+    isToOne = case rel of
+      Relationship{relCardinality=M2O _ _} -> True
+      Relationship{relCardinality=O2O _ _} -> True
+      ComputedRelationship{relToOne=True}  -> True
+      _                                    -> False
+    (sel, joi) = if isToOne
+      then
         ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
         , correlatedSubquery subquery localTableName "TRUE")
-      ComputedRelationship{relToOne=True} ->
-        ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
-        , correlatedSubquery subquery localTableName "TRUE")
-      _ ->
+      else
         ( SQL.sql $ "COALESCE( " <> localTableName <> "." <> internalTableName <> ", '[]') AS " <> pgFmtIdent aliasOrName
         , correlatedSubquery (
             "SELECT json_agg(" <> SQL.sql internalTableName <> ") AS " <> SQL.sql internalTableName <>
