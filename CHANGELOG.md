@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [10.0.0] - 2022-08-18
+
 ### Added
 
  - #1933, #2109, Add a minimal health check endpoint - @steve-chavez
