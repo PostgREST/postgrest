@@ -149,6 +149,8 @@ addJoinConditions previousAlias (Node (query@Select{fromAlias=tblAlias}, nodePro
           toJoinCondition previousAlias tblAlias tN ftN <$> cols
         M2O _ cols ->
           toJoinCondition previousAlias tblAlias tN ftN <$> cols
+        O2O _ cols ->
+          toJoinCondition previousAlias tblAlias tN ftN <$> cols
     toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
     toJoinCondition prAl newAl tb ftb (c, fc) =
       let qi1 = QualifiedIdentifier tSchema ftb
@@ -171,14 +173,17 @@ findRel schema allRels origin target hint =
     matchFKSingleCol hint_ card = case card of
       O2M _ [(col, _)] -> hint_ == col
       M2O _ [(col, _)] -> hint_ == col
+      O2O _ [(col, _)] -> hint_ == col
       _                -> False
     matchFKRefSingleCol hint_ card  = case card of
       O2M _ [(_, fCol)] -> hint_ == fCol
       M2O _ [(_, fCol)] -> hint_ == fCol
+      O2O _ [(_, fCol)] -> hint_ == fCol
       _                 -> False
     matchConstraint tar card = case card of
       O2M cons _ -> tar == cons
       M2O cons _ -> tar == cons
+      O2O cons _ -> tar == cons
       _          -> False
     matchJunction hint_ card = case card of
       M2M Junction{junTable} -> hint_ == qiName junTable
@@ -364,6 +369,7 @@ returningCols rr@(Node _ forest) pkCols
     fkCols = concat $ mapMaybe (\case
         Node (_, (_, Just Relationship{relCardinality=O2M _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
         Node (_, (_, Just Relationship{relCardinality=M2O _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
+        Node (_, (_, Just Relationship{relCardinality=O2O _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
         Node (_, (_, Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}, _, _, _, _)) _ -> Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
         _                                                        -> Nothing
       ) forest

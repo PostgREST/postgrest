@@ -812,3 +812,15 @@ INSERT INTO designers(id, name) VALUES (1, 'Sid Meier'), (2, 'Hironobu Sakaguchi
 
 TRUNCATE TABLE videogames CASCADE;
 INSERT INTO videogames(id, name, designer_id) VALUES (1, 'Civilization I', 1), (2, 'Civilization II', 1), (3, 'Final Fantasy I', 2), (4, 'Final Fantasy II', 2);
+
+TRUNCATE TABLE students CASCADE;
+INSERT INTO students(id, code, name) VALUES (1, '0001', 'John Doe'), (2, '0002', 'Jane Doe');
+
+TRUNCATE TABLE students_info CASCADE;
+INSERT INTO students_info(id, code, address) VALUES (1, '0001', 'Street 1'), (2, '0002', 'Street 2');
+
+TRUNCATE TABLE country CASCADE;
+INSERT INTO country(id, name) VALUES (1, 'Afghanistan'), (2, 'Algeria');
+
+TRUNCATE TABLE capital CASCADE;
+INSERT INTO capital(id, name, country_id) VALUES (1, 'Kabul', 1), (2, 'Algiers', 2);

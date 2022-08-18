@@ -199,6 +199,16 @@ GRANT ALL ON TABLE
     , unsafe_delete_items
     , videogames
     , designers
+    , students
+    , students_info
+    , students_view
+    , students_info_view
+    , country
+    , capital
+    , first
+    , second
+    , first_1
+    , second_1
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

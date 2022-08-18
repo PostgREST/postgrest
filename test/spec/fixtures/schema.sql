@@ -2400,7 +2400,7 @@ CREATE TABLE contact (
 
 CREATE TABLE clientinfo (
   id serial primary key
-, clientid int unique references client(id)
+, clientid int references client(id)
 , other text
 );
 
@@ -2753,3 +2753,76 @@ $$ LANGUAGE sql STABLE ROWS 1;
 CREATE FUNCTION test.videogames(test.designers) RETURNS SETOF test.videogames AS $$
   SELECT * FROM test.videogames WHERE FALSE;
 $$ LANGUAGE sql STABLE;
+
+CREATE TABLE test.students(
+  id int
+, code text
+, name text
+, primary key(id, code)
+);
+
+CREATE TABLE test.students_info(
+  id int
+, code text
+, address text
+, primary key(id, code)
+, foreign key (id, code) references test.students(id, code) on delete cascade
+);
+
+CREATE TABLE test.country(
+  id int primary key
+, name text
+);
+
+CREATE TABLE test.capital(
+  id int primary key
+, name text
+, country_id int unique
+, foreign key (country_id) references test.country(id)
+);
+
+CREATE FUNCTION test.allcountries() RETURNS SETOF test.country AS $$
+  SELECT * FROM test.country;
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION test.allcapitals() RETURNS SETOF test.capital AS $$
+  SELECT * FROM test.capital;
+$$ LANGUAGE sql STABLE;
+
+create view students_view as
+select * from students;
+
+create view students_info_view as
+select * from students_info;
+
+create table test.second (
+  id int primary key,
+  name text
+);
+
+create table test.first (
+  id int primary key,
+  name text,
+  second_id_1 int references test.second unique,
+  second_id_2 int references test.second unique
+);
+
+create table test.second_1 (
+  id int primary key,
+  name text
+);
+
+create table test.first_1 (
+  id int primary key,
+  name text,
+  second_id_1 int references test.second unique,
+  second_id_2 int references test.second unique
+);
+
+CREATE FUNCTION test.second_1(test.first_1) RETURNS SETOF test.second_1 AS $$
+  SELECT * FROM test.second_1 WHERE id = $1.second_id_1;
+$$ LANGUAGE sql STABLE ROWS 1;
+
+CREATE FUNCTION test.first_1(test.second_1) RETURNS SETOF test.first_1 AS $$
+  SELECT * FROM test.first_1 WHERE second_id_1 = $1.id;
+$$ LANGUAGE sql STABLE ROWS 1;

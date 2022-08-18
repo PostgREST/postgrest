@@ -41,6 +41,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Different options for the plan can be used with the `options` parameter: `Accept: application/vnd.pgrst.plan; options=analyze|verbose|settings|buffers|wal`
    + The plan can be obtained in text or json by using different media type suffixes: `Accept: application/vnd.pgrst.plan+text` and `Accept: application/vnd.pgrst.plan+json`.
  - #2144, Allow extending/overriding relationships for resource embedding - @steve-chavez
+ - #1984, Detect one-to-one relationships for resource embedding  - @steve-chavez
+   + Detected when there's a foreign key with a unique constraint or when a foreign key is also a primary key
 
 ### Fixed
 
@@ -81,6 +83,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This embedding form was easily made ambiguous whenever a new view was added.
    + For migrating, clients must be updated to the embedding form of `/view?select=*,other_view!column(*)`.
  - #2312, Using `Prefer: return=representation` no longer returns a `Location` header - @laurenceisla
+ - #1984, For the cases where one to one relationships are detected, json objects will be returned instead of json arrays of length 1
+   + If you wish to override this behavior, you can use computed relationships to return arrays again
 
 ## [9.0.1] - 2022-06-03
 
