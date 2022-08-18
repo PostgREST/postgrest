@@ -25,7 +25,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2176, Errors raised with `SQLSTATE` now include the message and the code in the response body - @laurenceisla
  - #2236, Support POSIX regular expression operators for row filtering - @enote-kane
  - #2202, Allow returning XML from RPCs - @fjf2002
- - #2269, Allow `limit=0` in the request query to return an empty array - @gautam1168, @laurenceisla
  - #2268, Allow returning XML from single-column queries - @fjf2002
  - #2300, RPC POST for function w/single unnamed XML param #2300 - @fjf2002
  - #1564, Allow geojson output by specifying the `Accept: application/geo+json` media type - @steve-chavez
@@ -64,8 +63,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2342, Fix inaccurate result count when an inner embed was selected after a normal embed in the query string - @laurenceisla
  - #2376, OPTIONS requests no longer start an empty database transaction - @steve-chavez
  - #2395, Allow using columns with dollar sign($) without double quoting in filters and `select` - @steve-chavez
- - #2410, Fix loop crash error on startup in Postgres 15 beta 2. Log: "UNION types \"char\" and text cannot be matched". - @yevon
+ - #2410, Fix loop crash error on startup in Postgres 15 beta 3. Log: "UNION types \"char\" and text cannot be matched". - @yevon
  - #2397, Fix race conditions managing database connection helper - @robx
+ - #2269, Allow `limit=0` in the request query to return an empty array - @gautam1168, @laurenceisla
 
 ### Changed
 
