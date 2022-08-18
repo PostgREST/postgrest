@@ -639,28 +639,31 @@ allM2ORels pgVer =
   SQL.Statement sql HE.noParams decodeRels
  where
   sql = [q|
-    SELECT ns1.nspname AS table_schema,
-           tab.relname AS table_name,
-           ns2.nspname AS foreign_table_schema,
-           other.relname AS foreign_table_name,
-           (ns1.nspname, tab.relname) = (ns2.nspname, other.relname) AS is_self,
-           conname     AS constraint_name,
-           column_info.cols AS columns
-    FROM pg_constraint,
-    LATERAL (
-      SELECT array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols
-      FROM ( SELECT unnest(conkey) AS col, unnest(confkey) AS ref) k,
-      LATERAL (SELECT * FROM pg_attribute WHERE attrelid = conrelid AND attnum = col) AS cols,
-      LATERAL (SELECT * FROM pg_attribute WHERE attrelid = confrelid AND attnum = ref) AS refs) AS column_info,
-    LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = connamespace) AS ns1,
-    LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = conrelid) AS tab,
-    LATERAL (SELECT * FROM pg_class WHERE pg_class.oid = confrelid) AS other,
-    LATERAL (SELECT * FROM pg_namespace WHERE pg_namespace.oid = other.relnamespace) AS ns2
-    WHERE contype = 'f'|] <>
+    SELECT
+      ns1.nspname AS table_schema,
+      tab.relname AS table_name,
+      ns2.nspname AS foreign_table_schema,
+      other.relname AS foreign_table_name,
+      (ns1.nspname, tab.relname) = (ns2.nspname, other.relname) AS is_self,
+      traint.conname  AS constraint_name,
+      column_info.cols_and_fcols
+    FROM pg_constraint traint
+    JOIN LATERAL (
+      SELECT array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols_and_fcols
+      FROM ( SELECT unnest(traint.conkey) AS col, unnest(traint.confkey) AS ref) _
+      JOIN pg_attribute cols ON cols.attrelid = traint.conrelid AND cols.attnum = col
+      JOIN pg_attribute refs ON refs.attrelid = traint.confrelid AND refs.attnum = ref
+    ) AS column_info ON TRUE
+    JOIN pg_namespace ns1 ON ns1.oid = traint.connamespace
+    JOIN pg_class tab ON tab.oid = traint.conrelid
+    JOIN pg_class other ON other.oid = traint.confrelid
+    JOIN pg_namespace ns2 ON ns2.oid = other.relnamespace
+    WHERE traint.contype = 'f'
+  |] <>
     (if pgVer >= pgVersion110
-      then " and conparentid = 0 "
+      then " and traint.conparentid = 0 "
       else mempty) <>
-    "ORDER BY conrelid, conname"
+    "ORDER BY traint.conrelid, traint.conname"
 
 allComputedRels :: Bool -> SQL.Statement () [Relationship]
 allComputedRels =
