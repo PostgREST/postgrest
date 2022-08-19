@@ -1,6 +1,6 @@
 -- |
 -- Module      : PostgREST.Request.QueryParams
--- Description : Parser for PostgREST Query paramters
+-- Description : Parser for PostgREST Query parameters
 --
 -- This module is in charge of parsing all the querystring values in an url, e.g.
 -- the select, id, order in `/projects?select=id,name&id=eq.1&order=id,name.desc`.
@@ -105,7 +105,7 @@ data QueryParams =
 -- |
 -- Parse query parameters from a query string like "id=eq.1&select=name".
 --
--- The canonical representation of the query string has paramters sorted alphabetically:
+-- The canonical representation of the query string has parameters sorted alphabetically:
 --
 -- >>> qsCanonical <$> parse "a=1&c=3&b=2&d"
 -- Right "a=1&b=2&c=3&d="
