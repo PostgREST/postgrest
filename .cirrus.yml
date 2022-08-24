@@ -3,7 +3,7 @@ freebsd_instance:
 
 build_task:
   name: Build FreeBSD (Stack)
-  install_script: pkg install -y postgresql13-client hs-stack
+  install_script: pkg install -y postgresql13-client hs-stack git
 
   stack_cache:
     folders: /.stack
