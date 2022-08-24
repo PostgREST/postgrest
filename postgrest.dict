@@ -43,6 +43,7 @@ filename
 FreeBSD
 fts
 GC
+GeoJSON
 GHC
 Github
 Google
@@ -118,6 +119,7 @@ phraseto
 plainto
 plfts
 poolers
+POSIX
 PostGIS
 PostgreSQL
 PostgreSQL's
@@ -165,6 +167,7 @@ Stolarz
 subselect
 SuperAgent
 SvelteKit
+SwaggerUI
 syslog
 systemd
 Tcl
@@ -200,3 +203,5 @@ Websockets
 webuser
 wfts
 ZeroMQ
+Customizable
+customizable

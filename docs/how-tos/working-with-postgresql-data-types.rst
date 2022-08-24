@@ -597,6 +597,8 @@ You can also query and filter the value of a ``hstore`` column using the arrow o
 
   [{ "native": "مصر" }]
 
+.. _ww_postgis:
+
 PostGIS
 -------
 
@@ -638,76 +640,81 @@ Say you want to add areas in polygon format. The request using string representa
       ]
     EOF
 
-Now, when you request the information, PostgREST will automatically cast the ``area`` column to ``JSON`` format. Although this output is useful, you will want to use the PostGIS functions to have more control on filters or casts. For these cases, creating a ``function`` is your best option. For example, let's use some of the functions to get the data in `GeoJSON format <https://geojson.org/>`_ and to calculate the area in square units:
-
-.. code-block:: postgres
-
-  create or replace function coverage_geo(filter text) returns json as $$
-    select
-      json_build_object(
-          'name', c.name,
-        -- Get the Geometry Object
-          'geo_geometry', st_AsGeoJSON(c.area)::json,
-        -- Get the Feature Object
-          'geo_feature', st_AsGeoJSON(c.*)::json,
-        -- Calculate the area in square units
-          'square_units', st_area(c.area)
-        )
-    from coverage c
-    where c.name = filter;
-  $$ language sql;
-
-  -- Create another function for the FeatureCollection Object
-  -- for the sake of making the examples clearer
-  create or replace function coverage_geo_collection() returns json as $$
-    select
-      json_build_object(
-          'type', 'FeatureCollection',
-          'features', json_agg(st_AsGeoJSON(c.*)::json)
-        )
-        as geo_feature_collection
-    from coverage c;
-  $$ language sql;
-
-Now the query will return the information as you expected:
+Now, when you request the information, PostgREST will automatically cast the ``area`` column into a ``Polygon`` geometry type. Although this is useful, you may need the whole output to be in `GeoJSON <https://geojson.org/>`_ format out of the box, which can be done by including the ``Accept: application/geo+json`` in the request. This will work for PostGIS versions 3.0.0 and up and will return the output as a `FeatureCollection Object <https://www.rfc-editor.org/rfc/rfc7946#section-3.3>`_:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /rpc/coverage_geo?filter=big HTTP/1.1
+    GET /coverage HTTP/1.1
+    Accept: application/geo+json
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/rpc/coverage_geo?filter=big"
+    curl "http://localhost:3000/coverage" \
+      -H "Accept: application/geo+json"
 
 .. code-block:: json
 
   {
-    "name": "big",
-    "geo_geometry": {
-      "type": "Polygon",
-      "coordinates": [
-        [[0,0],[10,0],[10,10],[0,10],[0,0]]
-      ]
-    },
-    "geo_feature": {
-      "type": "Feature",
-      "geometry": {
-        "type": "Polygon",
-        "coordinates": [
-          [[0,0],[10,0],[10,10],[0,10],[0,0]]
-        ]
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [[0,0],[1,0],[1,1],[0,1],[0,0]]
+          ]
+        },
+        "properties": {
+          "id": 1,
+          "name": "small"
+        }
       },
-      "properties": {
-        "id": 2,
-        "name": "big"
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [[0,0],[10,0],[10,10],[0,10],[0,0]]
+          ]
+        },
+        "properties": {
+          "id": 2,
+          "name": "big"
+        }
       }
-    },
-    "square_units": 100
+    ]
   }
 
-And for the Feature Collection format:
+If you need to add an extra property, like the area in square units by using ``st_area(area)``, you could add a generated column to the table and it will appear in the ``properties`` key of each ``Feature``.
+
+.. code-block:: postgres
+
+  alter table coverage
+    add square_units double precision generated always as ( st_area(area) ) stored;
+
+In the case that you are using older PostGIS versions, then creating a function is your best option. For example:
+
+.. code-block:: postgres
+
+  create or replace function coverage_geo_collection() returns json as $$
+    select
+      json_build_object(
+        'type', 'FeatureCollection',
+        'features', json_agg(
+          json_build_object(
+            'type', 'Feature',
+            'geometry', st_AsGeoJSON(c.area)::json,
+            'properties', json_build_object('id', c.id, 'name', c.name)
+          )
+        )
+      )
+    from coverage c;
+  $$ language sql;
+
+Now this query will return the same results:
 
 .. tabs::
 
@@ -722,35 +729,33 @@ And for the Feature Collection format:
 .. code-block:: json
 
   {
-    "geo_feature_collection": {
-      "type": "FeatureCollection",
-      "features": [
-        {
-          "type": "Feature",
-          "geometry": {
-              "type": "Polygon",
-              "coordinates": [
-                [[0,0],[1,0],[1,1],[0,1],[0,0]]
-              ]
-          },
-          "properties": {
-            "id": 1,
-            "name": "small"
-          }
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [[0,0],[1,0],[1,1],[0,1],[0,0]]
+          ]
         },
-        {
-          "type": "Feature",
-          "geometry": {
-              "type": "Polygon",
-              "coordinates": [
-                [[0,0],[10,0],[10,10],[0,10],[0,0]]
-              ]
-          },
-          "properties": {
-            "id": 2,
-            "name": "big"
-          }
+        "properties": {
+          "id": 1,
+          "name": "small"
         }
-      ]
-    }
+      },
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [[0,0],[10,0],[10,10],[0,10],[0,0]]
+          ]
+        },
+        "properties": {
+          "id": 2,
+          "name": "big"
+        }
+      }
+    ]
   }

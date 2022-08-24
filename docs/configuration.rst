@@ -154,8 +154,9 @@ db-channel-enabled       Boolean True              Y
 db-config                Boolean True              Y
 db-extra-search-path     String  public            Y
 db-max-rows              Int     ∞                 Y
+db-plan-enabled          Boolean False             Y
 db-pool                  Int     10
-db-pool-timeout          Int     10
+db-pool-timeout          Int     3600
 db-pre-request           String                    Y
 db-prepared-statements   Boolean True              Y
 db-schemas               String  public            Y
@@ -168,6 +169,7 @@ jwt-secret               String                    Y
 jwt-secret-is-base64     Boolean False             Y
 log-level                String  error             Y
 openapi-mode             String  follow-privileges Y
+openapi-security-active  Boolean False             Y
 openapi-server-proxy-uri String                    Y
 raw-media-types          String                    Y
 server-host              String  !4
@@ -281,6 +283,18 @@ db-max-rows
   =============== =================
 
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
+
+.. _db-plan-enabled:
+
+db-plan-enabled
+---------------
+
+  =============== =====================
+  **Environment** PGRST_DB_PLAN_ENABLED
+  **In-Database** pgrst.db_plan_enabled
+  =============== =====================
+
+  When this is set to :code:`true`, the execution plan of a request can be retrieved by using the :code:`Accept: application/vnd.pgrst.plan` header. See :ref:`explain_plan`.
 
 .. _db-pool:
 
@@ -550,6 +564,18 @@ openapi-mode
     # Disables the OpenApi output altogether.
     # Throws a `404 Not Found` error when accessing the API root path
     openapi-mode = "disabled"
+
+.. _openapi-security-active:
+
+openapi-security-active
+-----------------------
+
+  =============== =============================
+  **Environment** PGRST_OPENAPI_SECURITY_ACTIVE
+  **In-Database** pgrst.openapi_security_active
+  =============== =============================
+
+When this is set to :code:`true`, security options are included in the :ref:`OpenAPI output <open-api>`.
 
 .. _openapi-server-proxy-uri:
 

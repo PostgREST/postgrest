@@ -801,6 +801,7 @@ The current possibilities are:
 * ``text/csv``
 * ``application/json``
 * ``application/openapi+json``
+* ``application/geo+json``
 
 and in the special case of a single-column select the following additional three formats;
 also see the section :ref:`scalar_return_formats`:
@@ -870,35 +871,56 @@ In addition to providing RESTful routes for each table and view, PostgREST allow
 API call. This reduces the need for multiple API requests. The server uses **foreign keys** to determine which tables and views can be
 returned together. For example, consider a database of films and their awards:
 
-.. important::
-
-  PostgREST needs `FOREIGN KEY constraints <https://www.postgresql.org/docs/current/tutorial-fk.html>`_ to be able to do Resource Embedding.
-
 .. image:: _static/film.png
 
-As seen above in :ref:`v_filter` we can request the titles of all films like this:
+.. important::
+
+  * PostgREST needs `FOREIGN KEY constraints <https://www.postgresql.org/docs/current/tutorial-fk.html>`_ to be able to do Resource Embedding.
+  * Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
+
+.. _one-to-many:
+
+One-to-many relationships
+-------------------------
+
+When a one-to-many relationship is detected, the embedded resource is returned as a JSON array. For example, we can request the Directors and the Films they directed because there is a foreign key constraint between them, like this:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /films?select=title HTTP/1.1
+    GET /directors?select=last_name,films(title) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/films?select=title"
-
-This might return something like
+    curl "http://localhost:3000/directors?select=last_name,films(title)"
 
 .. code-block:: json
 
   [
-    { "title": "Workers Leaving The Lumière Factory In Lyon" },
-    { "title": "The Dickson Experimental Sound Film" },
-    { "title": "The Haunted Castle" }
+    { "last_name": "Lumière",
+      "films": [
+        {"title": "Workers Leaving The Lumière Factory In Lyon"}
+      ]
+    },
+    { "last_name": "Dickson",
+      "films": [
+        {"title": "The Dickson Experimental Sound Film"}
+      ]
+    },
+    { "last_name": "Méliès",
+      "films": [
+        {"title": "The Haunted Castle"}
+      ]
+    }
   ]
 
-However because a foreign key constraint exists between Films and Directors, we can request this information be included:
+.. _many-to-one:
+
+Many-to-one relationships
+-------------------------
+
+When a many-to-one relationship is detected, the embedded resource is returned as a JSON object. For example, we can request all the Films and the Director for each film like this:
 
 .. tabs::
 
@@ -909,8 +931,6 @@ However because a foreign key constraint exists between Films and Directors, we 
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/films?select=title,directors(id,last_name)"
-
-Which would return
 
 .. code-block:: json
 
@@ -935,10 +955,7 @@ Which would return
     }
   ]
 
-In this example, since the relationship is a forward relationship, there is
-only one director associated with a film. As the table name is plural it might
-be preferable for it to be singular instead. An table name alias can accomplish
-this:
+However, the table name is in plural, which is not accurate since a Film is directed by only one Director. Using a table name alias can solve this:
 
 .. tabs::
 
@@ -950,34 +967,31 @@ this:
 
     curl "http://localhost:3000/films?select=title,director:directors(id,last_name)"
 
-.. important::
+.. _many-to-many:
 
-  Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
-
-Embedding through join tables
------------------------------
+Many-to-many relationships
+--------------------------
 
 PostgREST can also detect many-to-many relationships going through join tables. For this, the join table must contain foreign keys to the tables in
-the many-to-many relationship and its primary key must include these foreign key columns.
+the many-to-many relationship and its composite primary key must include these foreign key columns.
 
 .. code-block:: postgresql
 
-  create table "Roles"(
-    film_id int references "Films"(id)
-  , actor_id int references "Actors"(id)
+  create table roles(
+    film_id int references films(id)
+  , actor_id int references actors(id)
   , primary key(film_id, actor_id)
-  )
+  );
 
   -- the many-to-many relationship can also be detected if the join table has a surrogate key,
   -- as long as the foreign key columns are also part of the primary key
 
-  create table "Roles"(
+  create table roles(
     id int generated always as identity,
-  , film_id int references "Films"(id)
-  , actor_id int references "Actors"(id)
+  , film_id int references films(id)
+  , actor_id int references actors(id)
   , primary key(id, film_id, actor_id)
-  )
-
+  );
 
 Then you can request the Actors for Films (which in this case finds the information through Roles).
 
@@ -990,6 +1004,84 @@ Then you can request the Actors for Films (which in this case finds the informat
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/actors?select=films(title,year)"
+
+.. _one-to-one:
+
+One-to-one relationships
+------------------------
+
+PostgREST detects one-to-one relationships when a foreign key is also the primary key of the table or when the foreign key has a ``UNIQUE`` constraint.
+
+.. code-block:: postgresql
+
+  -- references Films using the primary key as a foreign key
+  CREATE TABLE technical_specs(
+    film_id INT PRIMARY KEY REFERENCES films,
+    runtime TIME,
+    camera TEXT,
+    sound TEXT
+  );
+
+  -- references Films using a foreign key with unique constraint
+  CREATE TABLE technical_specs(
+    film_id INT REFERENCES films UNIQUE,
+    runtime TIME,
+    camera TEXT,
+    sound TEXT
+  );
+
+Now, the embedding between Films and Technical_Specs is returned as a JSON object no matter the order.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,technical_specs(*) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,technical_specs(*)"
+
+.. _computed_relationships:
+
+Computed Relationships
+----------------------
+
+You can customize how PostgREST detects relationships between two tables. To do this, you need to create a function that has one of the tables as a single parameter and the other as its return type. For instance:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION director_competition(directors) RETURNS SETOF competitions AS $$
+    SELECT c.*
+    FROM competitions c
+    JOIN nominations n ON c.id = n.competition_id
+    JOIN films f ON n.film_id = f.id
+    WHERE f.director_id = $1.id
+  $$ STABLE LANGUAGE sql;
+
+The above function allows a direct relationship between ``directors`` and ``competitions``:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /directors?select=*,competitions:director_competition(name) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/directors?select=*,competitions:director_competition(name)"
+
+Take into consideration that the opposite relationship will not be detected, so you need to create another function for that.
+
+Computed relationships also allow you to override the ones that are detected by default. For example, this function can change the ``/films?select=directors(*)`` embedding:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION directors(films) RETURNS SETOF directors ROW 1 AS $$
+    -- Override the relationship here
+  $$ STABLE LANGUAGE sql;
+
+Note that if ``ROW 1`` is added, PostgREST will detect a :ref:`many-to-one relationship <many-to-one>` and return a JSON object instead of an array embedding.
 
 .. _nested_embedding:
 
@@ -1460,25 +1552,24 @@ Hint Disambiguation
 If specifying the **target** is not enough for unambiguous embedding, you can add a **hint**. For example, let's assume we create
 two views of ``addresses``: ``central_addresses`` and ``eastern_addresses``.
 
-Since PostgREST supports :ref:`embedding_views` by detecting **source foreign keys** in the views, embedding with the foreign key
-as the **target** will not be enough for an unambiguous embed:
+PostgREST cannot detect a view as an embedded resource by using a column name or foreign key name as targets, that is why we need to use the view name ``central_addresses`` instead. But, still, this is not enough for an unambiguous embed.
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /orders?select=*,billing_address(*) HTTP/1.1
+    GET /orders?select=*,central_addresses(*) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/orders?select=*,billing_address(*)" -i
+    curl "http://localhost:3000/orders?select=*,central_addresses(*)" -i
 
 .. code-block:: http
 
   HTTP/1.1 300 Multiple Choices
 
 For solving this case, in addition to the **target**, we can add a **hint**.
-Here we specify ``central_addresses`` as the **target** and the ``billing_address`` foreign key as the **hint**:
+Here, we still specify ``central_addresses`` as the **target** and use the ``billing_address`` foreign key as the **hint**:
 
 .. tabs::
 
@@ -1509,6 +1600,10 @@ Hints also work alongside ``!inner`` if a top level filtering is needed. From th
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/orders?select=*,central_addresses!billing_address!inner(*)&central_addresses.code=AB1000"
+
+.. note::
+
+  If the relationship is so complex that hint disambiguation does not solve it, then using :ref:`computed_relationships` is the best alternative.
 
 .. _insert:
 
@@ -1694,39 +1789,6 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
 Doing a full table update without filters is not allowed and will result in 0 updated rows. To make a an update without filters, you must limit the rows affected. See :ref:`limited_update_delete`.
 
 Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. _bulk_update:
-
-Bulk Update
------------
-
-You can update rows with different data by providing a JSON array of objects having uniform keys, the rows will be chosen based on the primary key column(s) values.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    PATCH /employees HTTP/1.1
-
-    [
-      { "id": 1, "name": "Renamed employee 1", "salary": 40000 },
-      { "id": 2, "name": "Renamed employee 2", "salary": 52000 },
-      { "id": 3, "name": "Renamed employee 3", "salary": 60000 }
-    ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/employees" \
-      -X PATCH -H "Content-Type: application/json" \
-      -d @- << EOF
-    [
-      { "id": 1, "name": "Renamed employee 1", "salary": 40000 },
-      { "id": 2, "name": "Renamed employee 2", "salary": 52000 },
-      { "id": 3, "name": "Renamed employee 3", "salary": 60000 }
-    ]
-    EOF
-
-You must not include any filters for this to work. If you provide filters, only the values of the first object in the array will be used for the update.
 
 .. _upsert:
 
@@ -2497,6 +2559,8 @@ Also if you wish to generate a ``summary`` field you can do it by having a multi
     spans
     multiple lines$$;
 
+If you need to include the ``security`` and ``securityDefinitions`` options, set the :ref:`openapi-security-active` configuration to ``true``.
+
 You can use a tool like `Swagger UI <https://swagger.io/tools/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
 .. important::
@@ -2550,7 +2614,7 @@ For a view, the methods are determined by the presence of INSTEAD OF TRIGGERS.
    | `auto-updatable views <https://www.postgresql.org/docs/current/sql-createview.html#SQL-CREATEVIEW-UPDATABLE-VIEWS>`_ |
    +--------------------+-------------------------------------------------------------------------------------------------+
 
-For functions, OPTIONS requests are not supported.
+For functions, the methods depend on their volatility. ``VOLATILE`` functions allow only ``OPTIONS,POST``, whereas the rest also permit ``GET,HEAD``.
 
 .. important::
 
@@ -2817,3 +2881,83 @@ Returns:
     "hint": "Upgrade your plan",
     "code": "PT402"
   }
+
+.. _explain_plan:
+
+Execution plan
+--------------
+
+You can get the execution plan of a request by adding the ``Accept: application/vnd.pgrst.plan`` header after setting the :ref:`db-plan-enabled` configuration to ``true``. It is useful to verify why a certain operation might be expensive as a result of using `EXPLAIN <https://www.postgresql.org/docs/current/sql-explain.html>`_ on the generated query for the request.
+
+The output of the plan is generated in ``text`` format by default:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users?select=name&order=id HTTP/1.1
+    Accept: application/vnd.pgrst.plan
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users?select=name&order=id" \
+      -H "Accept: application/vnd.pgrst.plan"
+
+.. code-block:: psql
+
+  Aggregate  (cost=73.65..73.68 rows=1 width=112)
+    ->  Index Scan using users_pkey on users  (cost=0.15..60.90 rows=850 width=36)
+
+The same execution can be returned in ``json`` format by using the ``Accept: application/vnd.pgrst.plan+json`` header instead:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users?select=name&order=id HTTP/1.1
+    Accept: application/vnd.pgrst.plan+json
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users?select=name&order=id" \
+      -H "Accept: application/vnd.pgrst.plan+json"
+
+.. code-block:: json
+
+  [
+    {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Strategy": "Plain",
+        "Partial Mode": "Simple",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 73.65,
+        "Total Cost": 73.68,
+        "Plan Rows": 1,
+        "Plan Width": 112,
+        "Plans": [
+          {
+            "Node Type": "Index Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Scan Direction": "Forward",
+            "Index Name": "users_pkey",
+            "Relation Name": "users",
+            "Alias": "users",
+            "Startup Cost": 0.15,
+            "Total Cost": 60.90,
+            "Plan Rows": 850,
+            "Plan Width": 36
+          }
+        ]
+      }
+    }
+  ]
+
+You can also get the result plan of the different media types that PostgREST supports by adding them to the header using ``for``. For instance, to obtain the plan for a :ref:`text/xml <scalar_return_formats>` media type in json format, you need to add the ``Accept: application/vnd.pgrst.plan; for=text/xml`` header.
+
+Additionally, the deactivated parameters of the ``EXPLAIN`` command can be enabled by adding them to the header using ``options``. The available parameters are ``analyze``, ``verbose``, ``settings``, ``buffers`` and ``wal``, while the remaining ones are active by default.  For example, to add the ``analyze`` and ``wal`` parameters, add the ``Accept: application/vnd.pgrst.plan; options=analyze|wal`` header.
+
+Note that any changes done will be committed when activating the ``analyze`` option. To avoid this, set the :ref:`db-tx-end` configuration in a way that allows to rollback the changes according to your preference.
