@@ -211,6 +211,33 @@ jobs:
           path: postgrest
           if-no-files-found: error
 
+  Build-Cabal:
+    strategy:
+      matrix:
+        ghc: ['8.10.7', '9.2.4']
+      fail-fast: false
+    name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: ghcup
+        run: |
+          ghcup install ghc ${{ matrix.ghc }}
+          ghcup set ghc ${{ matrix.ghc }}
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.cabal
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.ghc }}-
+      - name: Install dependencies
+        run: |
+          cabal update
+          cabal build --only-dependencies --enable-tests --enable-benchmarks
+      - name: Build
+        run: cabal build --enable-tests --enable-benchmarks all
+
   Build-Cabal-Arm:
     name: Build aarch64 (Cabal)
     if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-') }}
