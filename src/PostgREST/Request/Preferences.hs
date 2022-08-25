@@ -171,6 +171,7 @@ data PreferParameters
   | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure.
   deriving Eq
 
+-- TODO: Deprecate params=multiple-objects in next major version
 instance ToHeaderValue PreferParameters where
   toHeaderValue SingleObject    = "params=single-object"
   toHeaderValue MultipleObjects = "params=multiple-objects"
