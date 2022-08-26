@@ -148,6 +148,9 @@ exampleConfigFile =
       |## Number of open connections in the pool
       |db-pool = 10
       |
+      |## Time in seconds to wait to acquire a slot from the connection pool
+      |# db-pool-acquisition-timeout = 10
+      |
       |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"
       |

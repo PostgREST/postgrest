@@ -548,6 +548,22 @@ def test_pool_size(defaultenv, metapostgrest):
         assert delta > 1 and delta < 1.5
 
 
+def test_pool_acquisition_timeout(defaultenv, metapostgrest):
+    "Verify that PGRST_DB_POOL_ACQUISITON_TIMEOUT times out when the pool is empty"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "1",  # 1 second
+    }
+
+    with run(env=env, no_pool_connection_available=True) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 504
+        data = response.json()
+        assert data["message"] == "Timed out acquiring connection from connection pool."
+
+
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"
 

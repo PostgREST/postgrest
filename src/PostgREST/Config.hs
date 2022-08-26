@@ -62,39 +62,40 @@ import Protolude hiding (Proxy, toList)
 
 
 data AppConfig = AppConfig
-  { configAppSettings           :: [(Text, Text)]
-  , configDbAnonRole            :: Maybe Text
-  , configDbChannel             :: Text
-  , configDbChannelEnabled      :: Bool
-  , configDbExtraSearchPath     :: [Text]
-  , configDbMaxRows             :: Maybe Integer
-  , configDbPlanEnabled         :: Bool
-  , configDbPoolSize            :: Int
-  , configDbPreRequest          :: Maybe QualifiedIdentifier
-  , configDbPreparedStatements  :: Bool
-  , configDbRootSpec            :: Maybe QualifiedIdentifier
-  , configDbSchemas             :: NonEmpty Text
-  , configDbConfig              :: Bool
-  , configDbTxAllowOverride     :: Bool
-  , configDbTxRollbackAll       :: Bool
-  , configDbUri                 :: Text
-  , configDbUseLegacyGucs       :: Bool
-  , configFilePath              :: Maybe FilePath
-  , configJWKS                  :: Maybe JWKSet
-  , configJwtAudience           :: Maybe StringOrURI
-  , configJwtRoleClaimKey       :: JSPath
-  , configJwtSecret             :: Maybe BS.ByteString
-  , configJwtSecretIsBase64     :: Bool
-  , configLogLevel              :: LogLevel
-  , configOpenApiMode           :: OpenAPIMode
-  , configOpenApiSecurityActive :: Bool
-  , configOpenApiServerProxyUri :: Maybe Text
-  , configRawMediaTypes         :: [MediaType]
-  , configServerHost            :: Text
-  , configServerPort            :: Int
-  , configServerUnixSocket      :: Maybe FilePath
-  , configServerUnixSocketMode  :: FileMode
-  , configAdminServerPort       :: Maybe Int
+  { configAppSettings              :: [(Text, Text)]
+  , configDbAnonRole               :: Maybe Text
+  , configDbChannel                :: Text
+  , configDbChannelEnabled         :: Bool
+  , configDbExtraSearchPath        :: [Text]
+  , configDbMaxRows                :: Maybe Integer
+  , configDbPlanEnabled            :: Bool
+  , configDbPoolSize               :: Int
+  , configDbPoolAcquisitionTimeout :: Maybe Int
+  , configDbPreRequest             :: Maybe QualifiedIdentifier
+  , configDbPreparedStatements     :: Bool
+  , configDbRootSpec               :: Maybe QualifiedIdentifier
+  , configDbSchemas                :: NonEmpty Text
+  , configDbConfig                 :: Bool
+  , configDbTxAllowOverride        :: Bool
+  , configDbTxRollbackAll          :: Bool
+  , configDbUri                    :: Text
+  , configDbUseLegacyGucs          :: Bool
+  , configFilePath                 :: Maybe FilePath
+  , configJWKS                     :: Maybe JWKSet
+  , configJwtAudience              :: Maybe StringOrURI
+  , configJwtRoleClaimKey          :: JSPath
+  , configJwtSecret                :: Maybe BS.ByteString
+  , configJwtSecretIsBase64        :: Bool
+  , configLogLevel                 :: LogLevel
+  , configOpenApiMode              :: OpenAPIMode
+  , configOpenApiSecurityActive    :: Bool
+  , configOpenApiServerProxyUri    :: Maybe Text
+  , configRawMediaTypes            :: [MediaType]
+  , configServerHost               :: Text
+  , configServerPort               :: Int
+  , configServerUnixSocket         :: Maybe FilePath
+  , configServerUnixSocketMode     :: FileMode
+  , configAdminServerPort          :: Maybe Int
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
@@ -129,6 +130,7 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
       ,("db-pool",                       show . configDbPoolSize)
+      ,("db-pool-acquisition-timeout",   maybe "\"\"" show . configDbPoolAcquisitionTimeout)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
@@ -217,6 +219,7 @@ parser optPath env dbSettings =
                      (optInt "max-rows")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
     <*> (fromMaybe 10 <$> optInt "db-pool")
+    <*> optInt "db-pool-acquisition-timeout"
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
@@ -352,7 +355,7 @@ parser optPath env dbSettings =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
-            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_config"]
+            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_acquisition_timeout", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 

@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2401, #2444, Fix SIGUSR1 to fully flush connections pool, remove `db-pool-timeout`. - @robx
+ - #2348, Add `db-pool-acquisition-timeout` configuration option, time in seconds to wait to acquire a connection. - @robx
 
 ### Deprecated
 
