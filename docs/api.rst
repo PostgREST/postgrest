@@ -875,52 +875,15 @@ returned together. For example, consider a database of films and their awards:
 
 .. important::
 
-  * PostgREST needs `FOREIGN KEY constraints <https://www.postgresql.org/docs/current/tutorial-fk.html>`_ to be able to do Resource Embedding.
-  * Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
-
-.. _one-to-many:
-
-One-to-many relationships
--------------------------
-
-When a one-to-many relationship is detected, the embedded resource is returned as a JSON array. For example, we can request the Directors and the Films they directed because there is a foreign key constraint between them, like this:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /directors?select=last_name,films(title) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/directors?select=last_name,films(title)"
-
-.. code-block:: json
-
-  [
-    { "last_name": "Lumière",
-      "films": [
-        {"title": "Workers Leaving The Lumière Factory In Lyon"}
-      ]
-    },
-    { "last_name": "Dickson",
-      "films": [
-        {"title": "The Dickson Experimental Sound Film"}
-      ]
-    },
-    { "last_name": "Méliès",
-      "films": [
-        {"title": "The Haunted Castle"}
-      ]
-    }
-  ]
+  Whenever FOREIGN KEY constraints change in the database schema you must refresh PostgREST's schema cache for Resource Embedding to work properly. See the section :ref:`schema_reloading`.
 
 .. _many-to-one:
 
 Many-to-one relationships
 -------------------------
 
-When a many-to-one relationship is detected, the embedded resource is returned as a JSON object. For example, we can request all the Films and the Director for each film like this:
+Since ``films`` has a **foreign key** referencing ``directors``, this establishes a many-to-one relationship between them. Because of this, we're able
+to request all the films and the director for each film.
 
 .. tabs::
 
@@ -955,7 +918,9 @@ When a many-to-one relationship is detected, the embedded resource is returned a
     }
   ]
 
-However, the table name is in plural, which is not accurate since a Film is directed by only one Director. Using a table name alias can solve this:
+Note that the embedded ``directors`` is returned as a JSON object because of the "to-one" end.
+
+Since the table name is plural, we can be more accurate by making it singular with an alias.
 
 .. tabs::
 
@@ -967,13 +932,64 @@ However, the table name is in plural, which is not accurate since a Film is dire
 
     curl "http://localhost:3000/films?select=title,director:directors(id,last_name)"
 
+.. code-block:: json
+
+  [
+    { "title": "Workers Leaving The Lumière Factory In Lyon",
+      "director": {
+        "id": 2,
+        "last_name": "Lumière"
+      }
+    },
+    ".."
+  ]
+
+.. _one-to-many:
+
+One-to-many relationships
+-------------------------
+
+The inverse one-to-many relationship between ``directors`` and ``films`` is detected based on the **foreign key** reference. In this case, the embedded ``films`` are returned as a JSON array because of the "to-many" end.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /directors?select=last_name,films(title) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/directors?select=last_name,films(title)"
+
+.. code-block:: json
+
+  [
+    { "last_name": "Lumière",
+      "films": [
+        {"title": "Workers Leaving The Lumière Factory In Lyon"}
+      ]
+    },
+    { "last_name": "Dickson",
+      "films": [
+        {"title": "The Dickson Experimental Sound Film"}
+      ]
+    },
+    { "last_name": "Méliès",
+      "films": [
+        {"title": "The Haunted Castle"}
+      ]
+    }
+  ]
+
 .. _many-to-many:
 
 Many-to-many relationships
 --------------------------
 
-PostgREST can also detect many-to-many relationships going through join tables. For this, the join table must contain foreign keys to the tables in
-the many-to-many relationship and its composite primary key must include these foreign key columns.
+Many-to-many relationships are detected based on the join table. The join table must contain foreign keys to other two tables
+and they must be part of its composite key.
+
+For the many-to-many relationship between ``films`` and ``actors``, the join table ``roles`` would be:
 
 .. code-block:: postgresql
 
@@ -983,8 +999,7 @@ the many-to-many relationship and its composite primary key must include these f
   , primary key(film_id, actor_id)
   );
 
-  -- the many-to-many relationship can also be detected if the join table has a surrogate key,
-  -- as long as the foreign key columns are also part of the primary key
+  -- the join table can also be detected if the composite key has additional columns
 
   create table roles(
     id int generated always as identity,
@@ -993,24 +1008,45 @@ the many-to-many relationship and its composite primary key must include these f
   , primary key(id, film_id, actor_id)
   );
 
-Then you can request the Actors for Films (which in this case finds the information through Roles).
-
 .. tabs::
 
   .. code-tab:: http
 
-    GET /actors?select=films(title,year) HTTP/1.1
+    GET /actors?select=first_name,last_name,films(title) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/actors?select=films(title,year)"
+    curl "http://localhost:3000/actors?select=first_name,last_name,films(title)"
+
+.. code-block:: json
+
+  [
+    { "first_name": "Willem",
+      "last_name": "Dafoe",
+      "films": [
+        {"title": "The Lighthouse"}
+      ]
+    },
+    ".."
+  ]
 
 .. _one-to-one:
 
 One-to-one relationships
 ------------------------
 
-PostgREST detects one-to-one relationships when a foreign key is also the primary key of the table or when the foreign key has a ``UNIQUE`` constraint.
+one-to-one relationships are detected if there's an unique constraint on a foreign key.
+
+.. code-block:: postgresql
+
+  CREATE TABLE technical_specs(
+    film_id INT REFERENCES films UNIQUE,
+    runtime TIME,
+    camera TEXT,
+    sound TEXT
+  );
+
+Or if the foreign key is also a primary key.
 
 .. code-block:: postgresql
 
@@ -1022,66 +1058,117 @@ PostgREST detects one-to-one relationships when a foreign key is also the primar
     sound TEXT
   );
 
-  -- references Films using a foreign key with unique constraint
-  CREATE TABLE technical_specs(
-    film_id INT REFERENCES films UNIQUE,
-    runtime TIME,
-    camera TEXT,
-    sound TEXT
-  );
-
-Now, the embedding between Films and Technical_Specs is returned as a JSON object no matter the order.
-
 .. tabs::
 
   .. code-tab:: http
 
-    GET /films?select=title,technical_specs(*) HTTP/1.1
+    GET /films?select=title,technical_specs(runtime) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/films?select=title,technical_specs(*)"
+    curl "http://localhost:3000/films?select=title,technical_specs(runtime)"
+
+.. code-block:: json
+
+  [
+    {
+      "title": "Pulp Fiction",
+      "technical_specs": {"camera": "Arriflex 35-III"}
+    },
+    ".."
+  ]
 
 .. _computed_relationships:
 
-Computed Relationships
+Computed relationships
 ----------------------
 
-You can customize how PostgREST detects relationships between two tables. To do this, you need to create a function that has one of the tables as a single parameter and the other as its return type. For instance:
+You can manually define relationships between resources. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
+To do this, you can create functions similar to :ref:`computed_cols`.
+
+Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
 .. code-block:: postgres
 
-  CREATE FUNCTION director_competition(directors) RETURNS SETOF competitions AS $$
-    SELECT c.*
-    FROM competitions c
-    JOIN nominations n ON c.id = n.competition_id
-    JOIN films f ON n.film_id = f.id
-    WHERE f.director_id = $1.id
-  $$ STABLE LANGUAGE sql;
+  create foreign table premieres (
+    id integer,
+    location text,
+    "date" date,
+    film_id integer
+  ) server import_csv options ( filename '/tmp/directors.csv', format 'csv');
 
-The above function allows a direct relationship between ``directors`` and ``competitions``:
+  create function film(premieres) returns setof films rows 1 as $$
+    select * from films where id = $1.film_id
+  $$ stable language sql;
+
+The above function defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type) and since there's a ``rows 1``, this defines a many-to-one relationship.
+The name of the function ``film`` is arbitrary and can be used to do the embedding:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /directors?select=*,competitions:director_competition(name) HTTP/1.1
+    GET /premieres?select=location,film(name) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/directors?select=*,competitions:director_competition(name)"
+    curl "http://localhost:3000/premieres?select=location,film(name)"
 
-Take into consideration that the opposite relationship will not be detected, so you need to create another function for that.
+.. code-block:: json
 
-Computed relationships also allow you to override the ones that are detected by default. For example, this function can change the ``/films?select=directors(*)`` embedding:
+  [
+    {
+      "location": "Cannes Film Festival",
+      "film": {"name": "Pulp Fiction"}
+    },
+    ".."
+  ]
+
+Now let's define the opposite one-to-many relationship with another function.
 
 .. code-block:: postgres
 
-  CREATE FUNCTION directors(films) RETURNS SETOF directors ROW 1 AS $$
-    -- Override the relationship here
-  $$ STABLE LANGUAGE sql;
+  create function premieres(films) returns setof premieres as $$
+    select * from premieres where film_id = $1.director_id
+  $$ stable language sql;
 
-Note that if ``ROW 1`` is added, PostgREST will detect a :ref:`many-to-one relationship <many-to-one>` and return a JSON object instead of an array embedding.
+Similarly, this function defines a relationship between the parameter ``films`` and the return type ``premieres``.
+In this case there's an implicit ``ROWS 1000`` defined by PostgreSQL(`search "result_rows" on this PostgreSQL doc <https://www.postgresql.org/docs/current/sql-createfunction.html>`_),
+we consider any value greater than 1 as "many" so this defines a one-to-many relationship.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=name,premieres(name) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=name,premieres(name)"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "Pulp Ficiton",
+      "premieres": [{"location": "Cannes Festival"}]
+    },
+    ".."
+  ]
+
+Computed relationships also allow you to override the ones that are automatically detected by PostgREST.
+
+For example, to override the :ref:`many-to-one relationship <many-to-one>` between ``films`` and ``directors``.
+
+.. code-block:: postgres
+
+  create function directors(films) returns setof directors rows 1 as $$
+    select * from directors where id = $1.director_id
+  $$ stable language sql;
+
+Taking advantage of overloaded functions, you can use the same function name for different parameters and thus define relationships from other tables/views to ``directors``.
+
+Computed relationships have good performance as they follow the `Inlining conditions for table functions <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
 
 .. _nested_embedding:
 
@@ -1327,22 +1414,15 @@ Since this view contains ``nominations.film_id``, which has a **foreign key** re
 
 It's also possible to embed `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
 
-.. warning::
-
-   It's not guaranteed that all kinds of views will be embeddable. In particular, views that contain
-   UNIONs will not be made embeddable.
-
-   Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
-   This may fail depending on the complexity of the view.
-
-   `Report an issue <https://github.com/PostgREST/postgrest/issues>`_ if your view is not made embeddable so we can
-   keep continue improving foreign key detection.
-
-   In the future we'll include a way to manually specify views source foreign keys to address this limitation.
-
 .. important::
 
-  If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
+  - It's not guaranteed that all kinds of views will be embeddable. In particular, views that contain UNIONs will not be made embeddable.
+
+    + Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
+      This may fail depending on the complexity of the view.
+    + As a workaround, you can use :ref:`computed_relationships` to define manual relationships for views.
+
+  - If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
 
 .. _embedding_view_chains:
 
@@ -1603,7 +1683,7 @@ Hints also work alongside ``!inner`` if a top level filtering is needed. From th
 
 .. note::
 
-  If the relationship is so complex that hint disambiguation does not solve it, then using :ref:`computed_relationships` is the best alternative.
+  If the relationship is so complex that hint disambiguation does not solve it, you can use :ref:`computed_relationships`.
 
 .. _insert:
 
@@ -2887,9 +2967,7 @@ Returns:
 Execution plan
 --------------
 
-You can get the execution plan of a request by adding the ``Accept: application/vnd.pgrst.plan`` header after setting the :ref:`db-plan-enabled` configuration to ``true``. It is useful to verify why a certain operation might be expensive as a result of using `EXPLAIN <https://www.postgresql.org/docs/current/sql-explain.html>`_ on the generated query for the request.
-
-The output of the plan is generated in ``text`` format by default:
+You can get the `EXPLAIN execution plan <https://www.postgresql.org/docs/current/sql-explain.html>`_ of a request by adding the ``Accept: application/vnd.pgrst.plan`` header when :ref:`db-plan-enabled` is set to ``true``.
 
 .. tabs::
 
@@ -2908,7 +2986,7 @@ The output of the plan is generated in ``text`` format by default:
   Aggregate  (cost=73.65..73.68 rows=1 width=112)
     ->  Index Scan using users_pkey on users  (cost=0.15..60.90 rows=850 width=36)
 
-The same execution can be returned in ``json`` format by using the ``Accept: application/vnd.pgrst.plan+json`` header instead:
+The output of the plan is generated in ``text`` format by default but you can change it to JSON by using the ``+json`` suffix.
 
 .. tabs::
 
@@ -2956,8 +3034,8 @@ The same execution can be returned in ``json`` format by using the ``Accept: app
     }
   ]
 
-You can also get the result plan of the different media types that PostgREST supports by adding them to the header using ``for``. For instance, to obtain the plan for a :ref:`text/xml <scalar_return_formats>` media type in json format, you need to add the ``Accept: application/vnd.pgrst.plan; for=text/xml`` header.
+By default the plan is assumed to generate the JSON representation of a resource(``application/json``), but you can obtain the plan for the :ref:`different representations that PostgREST supports <res_format>` by adding them to the ``for`` parameter. For instance, to obtain the plan for a ``text/xml``, you would use ``Accept: application/vnd.pgrst.plan; for="text/xml``.
 
-Additionally, the deactivated parameters of the ``EXPLAIN`` command can be enabled by adding them to the header using ``options``. The available parameters are ``analyze``, ``verbose``, ``settings``, ``buffers`` and ``wal``, while the remaining ones are active by default.  For example, to add the ``analyze`` and ``wal`` parameters, add the ``Accept: application/vnd.pgrst.plan; options=analyze|wal`` header.
+The other available parameters are ``analyze``, ``verbose``, ``settings``, ``buffers`` and ``wal``, which correspond to the `EXPLAIN command options <https://www.postgresql.org/docs/current/sql-explain.html>`_. To use the ``analyze`` and ``wal`` parameters for example, you would add them like ``Accept: application/vnd.pgrst.plan; options=analyze|wal``.
 
-Note that any changes done will be committed when activating the ``analyze`` option. To avoid this, set the :ref:`db-tx-end` configuration in a way that allows to rollback the changes according to your preference.
+Note that akin to the EXPLAIN command, the changes will be committed when using the ``analyze`` option. To avoid this, you can use the :ref:`db-tx-end` and the ``Prefer: tx=rollback`` header.
