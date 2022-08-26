@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Deprecated
+
+- #1385, Deprecate bulk-calls when including the `Prefer: params=multiple-objects` in the request. A function with a JSON array or object parameter should be used instead for a better performance.
+
 ## [10.0.0] - 2022-08-18
 
 ### Added
