@@ -93,3 +93,18 @@ Image efficiency score: 100 %
 
 Count   Total Space  Path
 ```
+
+# Deriving from the optimized image
+
+Since the docker image is minimal, it does not contain a shell or other utilities.
+To derive a non-minimal image, you can do the following:
+
+```Dockerfile
+# derive from any base image you want
+FROM alpine:latest
+
+# copy PostgREST over
+COPY --from=postgrest/postgrest /bin/postgrest /bin
+
+# add your other stuff
+```
