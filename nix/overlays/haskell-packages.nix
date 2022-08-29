@@ -32,14 +32,26 @@ let
       # To get the sha256:
       #   nix-prefetch-url --unpack https://github.com/<owner>/<repo>/archive/<commit>.tar.gz
 
-      hasql-pool = lib.dontCheck (
-        prev.callCabal2nix "hasql-pool"
-          (super.fetchFromGitHub {
-            owner = "PostgREST";
-            repo = "hasql-pool";
-            rev = "4d462c4d47d762effefc7de6c85eaed55f144f1d"; # master as of 2022-08-26
-            sha256 = "sha256-UwX1PynimrQHm1KCs4BQXMwYYY3h4T5UAkgtEJ0EZQQ=";
-          })
+      hasql = lib.dontCheck prev.hasql_1_6_0_1;
+      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
+      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_0_1_2;
+
+      hasql-notifications = lib.dontCheck
+        (prev.callHackageDirect
+          {
+            pkg = "hasql-notifications";
+            ver = "0.2.0.3";
+            sha256 = "sha256-x8EGEMVYSw4O1Kn6MxOB+/3y3ITxqESDfrYgM8B1hOw=";
+          }
+          { });
+
+      hasql-pool = lib.dontCheck
+        (prev.callHackageDirect
+          {
+            pkg = "hasql-pool";
+            ver = "0.8.0.2";
+            sha256 = "sha256-9GE9qyymTLXw4ZW6LbNnn4T2tCgNYVEuBIPcUA83xCg=";
+          }
           { });
     } // extraOverrides final prev;
 in

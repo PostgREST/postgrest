@@ -231,9 +231,9 @@ instance JSON.ToJSON SQL.UsageError where
     "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text),
     "hint"    .= JSON.Null]
   toJSON (SQL.SessionUsageError e) = JSON.toJSON e -- SQL.Error
-  toJSON SQL.PoolIsReleasedUsageError = JSON.object [
-    "code"    .= InternalErrorCode00,
-    "message" .= ("Use of released pool" :: Text),
+  toJSON SQL.AcquisitionTimeoutUsageError = JSON.object [
+    "code"    .= ConnectionErrorCode00,
+    "message" .= ("Timed out acquiring connection from connection pool." :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
@@ -241,11 +241,11 @@ instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
 instance JSON.ToJSON SQL.CommandError where
-  toJSON (SQL.ResultError (SQL.ServerError c m d h)) = JSON.object [
-    "code"    .= (T.decodeUtf8 c      :: Text),
-    "message" .= (T.decodeUtf8 m      :: Text),
-    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
-    "hint"    .= (fmap T.decodeUtf8 h :: Maybe Text)]
+  toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = JSON.object [
+    "code"     .= (T.decodeUtf8 c      :: Text),
+    "message"  .= (T.decodeUtf8 m      :: Text),
+    "details"  .= (fmap T.decodeUtf8 d :: Maybe Text),
+    "hint"     .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
   toJSON (SQL.ResultError resultError) = JSON.object [
     "code"    .= InternalErrorCode00,
@@ -259,13 +259,14 @@ instance JSON.ToJSON SQL.CommandError where
     "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
     "hint"    .= JSON.Null]
 
+
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
-pgErrorStatus _      SQL.PoolIsReleasedUsageError = HTTP.status500
+pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
 pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
 pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
   case rError of
-    (SQL.ServerError c m _ _) ->
+    (SQL.ServerError c m _ _ _) ->
       case BS.unpack c of
         '0':'8':_ -> HTTP.status503 -- pg connection err
         '0':'9':_ -> HTTP.status500 -- triggered action exception
@@ -310,17 +311,17 @@ checkIsFatal (PgError _ (SQL.ConnectionUsageError e))
 checkIsFatal (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError))))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
-      SQL.ServerError "42601" _ _ _
+      SQL.ServerError "42601" _ _ _ _
         -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
       -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
       -- This would mean that a connection pooler in transaction mode is being used
       -- while prepared statements are enabled in the PostgREST configuration,
       -- both of which are incompatible with each other.
-      SQL.ServerError "42P05" _ _ _
+      SQL.ServerError "42P05" _ _ _ _
         -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
       -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
       -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
-      SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _
+      SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _
         -> Just "Hint: Connection poolers in statement mode are not supported."
       _ -> Nothing
 checkIsFatal _ = Nothing
