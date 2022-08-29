@@ -4,7 +4,12 @@
 
 packages: .
 
-source-repository-package
-  type: git
-  location: https://github.com/PostgREST/hasql-pool.git
-  tag: 4d462c4d47d762effefc7de6c85eaed55f144f1d
+-- Example of depending on a forked repository (the same dependency
+-- would be mentioned in nix/overlays/haskell-packages.nix and
+-- stack.yaml, and should refer to a main branch commit of the
+-- repository.
+--
+-- source-repository-package
+--  type: git
+--  location: https://github.com/PostgREST/hasql-pool.git
+--  tag: 4d462c4d47d762effefc7de6c85eaed55f144f1d

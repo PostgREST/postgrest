@@ -97,7 +97,7 @@ destroy = destroyPool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  SQL.acquire configDbPoolSize $ toUtf8 configDbUri
+  SQL.acquire configDbPoolSize Nothing $ toUtf8 configDbUri
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
@@ -106,7 +106,7 @@ usePool AppState{..} = SQL.use statePool
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.flush statePool
+flushPool AppState{..} = SQL.release statePool
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()

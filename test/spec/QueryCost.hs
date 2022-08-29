@@ -24,7 +24,7 @@ import Test.Hspec
 
 main :: IO ()
 main = do
-  pool <- P.acquire 3 "postgresql://"
+  pool <- P.acquire 3 Nothing "postgresql://"
 
   hspec $ describe "QueryCost" $
     context "call proc query" $ do
