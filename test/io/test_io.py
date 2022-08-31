@@ -15,12 +15,6 @@ from util import *
 from postgrest import *
 
 
-def test_port_connection(defaultenv):
-    "Connections via a port on localhost should work."
-    with run(env=defaultenv, port=freeport()):
-        pass
-
-
 @pytest.mark.parametrize(
     "secretpath",
     [path for path in (BASEDIR / "secrets").iterdir() if path.suffix != ".jwt"],
