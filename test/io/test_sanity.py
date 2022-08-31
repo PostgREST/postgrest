@@ -28,7 +28,6 @@ def test_plain_get(defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.xfail(reason="option is broken, issue #2456")
 def test_no_pool_connection_available(defaultenv):
     "no_pool_connection_available option is functional"
     with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
