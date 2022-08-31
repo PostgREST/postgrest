@@ -92,15 +92,15 @@ def run(
 
             process.stdout.read()
 
+            if no_pool_connection_available:
+                sleep_pool_connection(baseurl, 10)
+
             yield PostgrestProcess(
                 process=process,
                 session=PostgrestSession(baseurl),
                 admin=PostgrestSession(adminurl),
             )
         finally:
-            if no_pool_connection_available:
-                sleep_pool_connection(baseurl, 10)
-
             remaining_output = process.stdout.read()
             if remaining_output:
                 print(remaining_output.decode())
