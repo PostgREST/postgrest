@@ -53,6 +53,16 @@ let
             sha256 = "sha256-9GE9qyymTLXw4ZW6LbNnn4T2tCgNYVEuBIPcUA83xCg=";
           }
           { });
+
+      postgresql-libpq = lib.dontCheck
+        (prev.callCabal2nix "postgresql-libpq"
+          (super.fetchFromGitHub {
+            owner = "PostgREST";
+            repo = "postgresql-libpq";
+            rev = "cef92cb4c07b56568dffdbf4b719258b82183119"; # master as of 2022-09-05
+            sha256 = "sha256-BWXfGHhcNuOGdFRxDshbcnxaRTDwEC1Eswwf8jOdqWQ=";
+          })
+          { });
     } // extraOverrides final prev;
 in
 {
