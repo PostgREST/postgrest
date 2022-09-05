@@ -3,6 +3,7 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
+
 packages:
 - completed:
     hackage: hasql-pool-0.8.0.2@sha256:15473f336c2bd1da161cd03635841f38b0c177d7b8662762c8708c239a428f04,1907
