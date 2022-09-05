@@ -22,3 +22,5 @@ extra-deps:
   - optparse-applicative-0.16.1.0@sha256:418c22ed6a19124d457d96bc66bd22c93ac22fad0c7100fe4972bbb4ac989731,4982
   - protolude-0.3.2@sha256:2a38b3dad40d238ab644e234b692c8911423f9d3ed0e36b62287c4a698d92cd1,2240
   - ptr-0.16.8.2@sha256:708ebb95117f2872d2c5a554eb6804cf1126e86abe793b2673f913f14e5eb1ac,3959
+  - git: https://github.com/PostgREST/postgresql-libpq.git
+    commit: 33ff97db570b5b432255f5f24a68db51453f6eb8

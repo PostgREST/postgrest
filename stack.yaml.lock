@@ -6,13 +6,6 @@
 
 packages:
 - completed:
-    hackage: hasql-pool-0.8.0.2@sha256:15473f336c2bd1da161cd03635841f38b0c177d7b8662762c8708c239a428f04,1907
-    pantry-tree:
-      size: 505
-      sha256: 495dfdf8b7f7d910e2e8a7a7e8d71c8dbf9d439e048de5bc2a66a762011cbdc2
-  original:
-    hackage: hasql-pool-0.8.0.2
-- completed:
     hackage: HTTP-4000.3.16@sha256:6042643c15a0b43e522a6693f1e322f05000d519543a84149cb80aeffee34f71,5947
     pantry-tree:
       size: 1428
@@ -55,6 +48,13 @@ packages:
   original:
     hackage: hasql-notifications-0.2.0.3@sha256:aca3f7ee847a8f0b7ef6f989dc48f4a094a06c1a34e92aa3c8bb230085966ea6,2027
 - completed:
+    hackage: hasql-pool-0.8.0.2@sha256:15473f336c2bd1da161cd03635841f38b0c177d7b8662762c8708c239a428f04,1907
+    pantry-tree:
+      size: 505
+      sha256: 495dfdf8b7f7d910e2e8a7a7e8d71c8dbf9d439e048de5bc2a66a762011cbdc2
+  original:
+    hackage: hasql-pool-0.8.0.2@sha256:15473f336c2bd1da161cd03635841f38b0c177d7b8662762c8708c239a428f04,1907
+- completed:
     hackage: hasql-transaction-1.0.1.2@sha256:297b158cd1f0727f9b0e175bd7d3741c1bcb725a8094956d0ee79b41aafdb30a,2890
     pantry-tree:
       size: 983
@@ -89,6 +89,17 @@ packages:
       sha256: 557c438345de19f82bf01d676100da2a191ef06f624e7a4b90b09ac17cbb52a5
   original:
     hackage: ptr-0.16.8.2@sha256:708ebb95117f2872d2c5a554eb6804cf1126e86abe793b2673f913f14e5eb1ac,3959
+- completed:
+    name: postgresql-libpq
+    version: 0.9.4.3
+    git: https://github.com/PostgREST/postgresql-libpq.git
+    pantry-tree:
+      size: 1081
+      sha256: 0df271e48af32eb8292a45301af45e114110d54099ee73dbc609d39770e8175e
+    commit: 33ff97db570b5b432255f5f24a68db51453f6eb8
+  original:
+    git: https://github.com/PostgREST/postgresql-libpq.git
+    commit: 33ff97db570b5b432255f5f24a68db51453f6eb8
 snapshots:
 - completed:
     size: 618951
