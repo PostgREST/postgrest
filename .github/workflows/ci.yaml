@@ -148,14 +148,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux & test
+          - name: Linux
             runs-on: ubuntu-latest
             cache: |
               ~/.stack
               .stack-work
             artifact: postgrest-ubuntu-x64
 
-          - name: MacOS & test
+          - name: MacOS
             runs-on: macos-latest
             cache: |
               ~/.stack
