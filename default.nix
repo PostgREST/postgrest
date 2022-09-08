@@ -36,6 +36,7 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
+      allOverlays.postgis
       allOverlays.postgresql-default
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
