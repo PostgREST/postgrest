@@ -52,6 +52,8 @@ let
           }
           { });
 
+      lens = lib.dontCheck prev.lens_5_2;
+
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
       hasql-transaction = lib.dontCheck prev.hasql-transaction_1_0_1_2;
 
