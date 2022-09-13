@@ -92,7 +92,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= JSON.Null]
   toJSON InvalidRange = JSON.object [
     "code"    .= ApiRequestErrorCode03,
-    "message" .= ("HTTP Range error" :: Text),
+    "message" .= ("Requested range not satisfiable" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON (ParseRequestError message details) = JSON.object [
