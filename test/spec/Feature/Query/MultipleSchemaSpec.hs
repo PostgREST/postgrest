@@ -74,10 +74,33 @@ spec =
           }
 
       it "succeeds in reading a table from a schema with uppercase and special characters in its name" $
-        request methodGet "/names" [("Accept-Profile", "SPECIAL \"@/\\#~_-")] "" `shouldRespondWith`
+        request methodGet "/names?select=id,name" [("Accept-Profile", "SPECIAL \"@/\\#~_-")] "" `shouldRespondWith`
           [json|[
-            {"id":1,"name":"John"},
-            {"id":2,"name":"Mary"}
+            {"id": 1, "name":"John"},
+            {"id": 2, "name":"Mary"},
+            {"id": 3, "name":"José"}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
+          }
+
+      it "succeeds in embedding with FK when the schema name has special characters" $
+        request methodGet "/names?select=name,languages(name)&id=in.(1,3)" [("Accept-Profile", "SPECIAL \"@/\\#~_-")] "" `shouldRespondWith`
+          [json|[
+            {"name": "John", languages: {"name": "English"}},
+            {"name": "José", languages: {"name": "Spanish"}}
+          ]|]
+          {
+            matchStatus = 200
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "SPECIAL \"@/\\#~_-"]
+          }
+
+      it "succeeds in embedding with computed relationships when the schema name has special characters" $
+        request methodGet "/names?select=name,computed_languages(name)&id=in.(1,3)" [("Accept-Profile", "SPECIAL \"@/\\#~_-")] "" `shouldRespondWith`
+          [json|[
+            {"name": "John", computed_languages: {"name": "English"}},
+            {"name": "José", computed_languages: {"name": "Spanish"}}
           ]|]
           {
             matchStatus = 200
