@@ -115,7 +115,7 @@ spec = do
               [json| {
                 "message":"Requested range not satisfiable",
                 "code":"PGRST103",
-                "details":"The lower boundary must be greater than or equal to the upper boundary in the Range header.",
+                "details":"The lower boundary must be lower than or equal to the upper boundary in the Range header.",
                 "hint":null
               }|]
             { matchStatus = 416 }
@@ -430,7 +430,7 @@ spec = do
               [json| {
                 "message":"Requested range not satisfiable",
                 "code":"PGRST103",
-                "details":"The lower boundary must be greater than or equal to the upper boundary in the Range header.",
+                "details":"The lower boundary must be lower than or equal to the upper boundary in the Range header.",
                 "hint":null
               }|]
             { matchStatus = 416 }

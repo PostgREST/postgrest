@@ -96,7 +96,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Requested range not satisfiable" :: Text),
     "details" .= (case rangeError of
                    NegativeLimit           -> "Limit should be greater than or equal to zero."
-                   LowerGTUpper            -> "The lower boundary must be greater than or equal to the upper boundary in the Range header."
+                   LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
                    OutOfBounds lower total -> "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows."),
     "hint"    .= JSON.Null]
   toJSON (ParseRequestError message details) = JSON.object [
