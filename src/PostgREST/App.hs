@@ -291,9 +291,13 @@ handleRead headersOnly identifier context@RequestContext{..} = do
             )
           ]
           ++ contentTypeHeaders context
+        rsOrErrBody = if status == HTTP.status416
+          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
+            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show total)
+          else LBS.fromStrict rsBody
 
       failNotSingular iAcceptMediaType rsQueryTotal . response status headers $
-        if headersOnly then mempty else LBS.fromStrict rsBody
+        if headersOnly then mempty else rsOrErrBody
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
@@ -501,6 +505,10 @@ handleInvoke invMethod proc context@RequestContext{..} = do
       let
         (status, contentRange) =
           RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
+        rsOrErrBody = if status == HTTP.status416
+          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
+            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+          else LBS.fromStrict rsBody
 
       failNotSingular iAcceptMediaType rsQueryTotal $
         if Proc.procReturnsVoid proc then
@@ -508,7 +516,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         else
           response status
             (contentTypeHeaders context ++ [contentRange])
-            (if invMethod == InvHead then mempty else LBS.fromStrict rsBody)
+            (if invMethod == InvHead then mempty else rsOrErrBody)
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan

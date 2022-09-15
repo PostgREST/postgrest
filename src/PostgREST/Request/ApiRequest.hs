@@ -36,7 +36,8 @@ import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup, union)
 import Data.Maybe                (fromJust)
-import Data.Ranged.Ranges        (emptyRange, rangeIntersection)
+import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
+                                  rangeIsEmpty)
 import Network.HTTP.Types.Header (hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
@@ -64,7 +65,8 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferResolution (..),
                                           PreferTransaction (..))
 import PostgREST.Request.QueryParams     (QueryParams (..))
-import PostgREST.Request.Types           (ApiRequestError (..))
+import PostgREST.Request.Types           (ApiRequestError (..),
+                                          RangeError (..))
 
 import qualified PostgREST.MediaType           as MediaType
 import qualified PostgREST.Request.Preferences as Preferences
@@ -217,7 +219,7 @@ getAction PathInfo{pathIsProc, pathIsDefSpec} method =
 apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> Either ApiRequestError ApiRequest
 apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..} path@PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
-  | isInvalidRange = Left InvalidRange
+  | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError

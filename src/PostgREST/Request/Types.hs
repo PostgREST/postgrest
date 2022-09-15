@@ -27,6 +27,7 @@ module PostgREST.Request.Types
   , OrderNulls(..)
   , OrderTerm(..)
   , QPError(..)
+  , RangeError(..)
   , SingleVal
   , TrileanVal(..)
   , SimpleOperator(..)
@@ -52,7 +53,7 @@ data ApiRequestError
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
-  | InvalidRange
+  | InvalidRange RangeError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
@@ -66,6 +67,10 @@ data ApiRequestError
   | UnsupportedMethod ByteString
 
 data QPError = QPError Text Text
+data RangeError
+  = NegativeLimit
+  | LowerGTUpper
+  | OutOfBounds Text Text
 
 type CallRequest = CallQuery
 
