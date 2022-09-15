@@ -191,6 +191,7 @@ GRANT ALL ON TABLE
     , view_test
     , shops
     , shop_bles
+    , "SPECIAL ""@/\#~_-".languages
     , "SPECIAL ""@/\#~_-".names
     , do$llar$s
     , safe_update_items

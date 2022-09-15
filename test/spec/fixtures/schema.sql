@@ -2660,10 +2660,20 @@ create function get_shop(id int) returns shops as $$
   select * from shops where id = $1;
 $$ language sql;
 
-CREATE TABLE "SPECIAL ""@/\#~_-".names(
+CREATE TABLE "SPECIAL ""@/\#~_-".languages(
   id INT PRIMARY KEY,
   name TEXT
 );
+
+CREATE TABLE "SPECIAL ""@/\#~_-".names(
+  id INT PRIMARY KEY,
+  name TEXT,
+  language_id INT REFERENCES "SPECIAL ""@/\#~_-".languages(id)
+);
+
+CREATE FUNCTION "SPECIAL ""@/\#~_-".computed_languages("SPECIAL ""@/\#~_-".names) RETURNS SETOF "SPECIAL ""@/\#~_-".languages ROWS 1 AS $$
+  SELECT * FROM "SPECIAL ""@/\#~_-".languages where id = $1.language_id;
+$$ LANGUAGE sql;
 
 CREATE FUNCTION "EXTRA ""@/\#~_-".get_val_special(val text) RETURNS text AS $$
   SELECT val;

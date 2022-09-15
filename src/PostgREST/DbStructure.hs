@@ -710,13 +710,13 @@ allComputedRels =
     ),
     computed_rels as (
       select
-        p.pronamespace::regnamespace::text as schema,
-        p.proname::text                    as name,
-        arg_schema.nspname::text           as rel_table_schema,
-        arg_name.typname::text             as rel_table_name,
-        ret_schema.nspname::text           as rel_ftable_schema,
-        ret_name.typname::text             as rel_ftable_name,
-        p.prorows = 1                      as single_row
+        (parse_ident(p.pronamespace::regnamespace::text))[1] as schema,
+        p.proname::text          as name,
+        arg_schema.nspname::text as rel_table_schema,
+        arg_name.typname::text   as rel_table_name,
+        ret_schema.nspname::text as rel_ftable_schema,
+        ret_name.typname::text   as rel_ftable_name,
+        p.prorows = 1            as single_row
       from pg_proc p
         join pg_type      arg_name   on arg_name.oid = p.proargtypes[0]
         join pg_namespace arg_schema on arg_schema.oid = arg_name.typnamespace
