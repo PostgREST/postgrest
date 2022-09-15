@@ -1129,7 +1129,7 @@ Now let's define the opposite one-to-many relationship with another function.
 .. code-block:: postgres
 
   create function premieres(films) returns setof premieres as $$
-    select * from premieres where film_id = $1.director_id
+    select * from premieres where film_id = $1.id
   $$ stable language sql;
 
 Similarly, this function defines a relationship between the parameter ``films`` and the return type ``premieres``.
