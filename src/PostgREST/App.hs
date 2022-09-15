@@ -292,7 +292,8 @@ handleRead headersOnly identifier context@RequestContext{..} = do
           ]
           ++ contentTypeHeaders context
         rsOrErrBody = if status == HTTP.status416
-          then Error.errorPayload (Error.ApiRequestError ApiRequestTypes.InvalidRange)
+          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
+            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show total)
           else LBS.fromStrict rsBody
 
       failNotSingular iAcceptMediaType rsQueryTotal . response status headers $
@@ -505,7 +506,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (status, contentRange) =
           RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
         rsOrErrBody = if status == HTTP.status416
-          then Error.errorPayload (Error.ApiRequestError ApiRequestTypes.InvalidRange)
+          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
+            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
           else LBS.fromStrict rsBody
 
       failNotSingular iAcceptMediaType rsQueryTotal $

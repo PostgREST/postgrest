@@ -43,7 +43,13 @@ spec = do
         it "refuses a range with nonzero start when there are no items" $
           request methodPost "/rpc/getitemrange?offset=1"
                   [("Prefer", "count=exact")] emptyRange
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 0 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -51,7 +57,13 @@ spec = do
         it "refuses a range requesting start past last item" $
           request methodPost "/rpc/getitemrange?offset=100"
                   [("Prefer", "count=exact")] defaultRange
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 100 was requested, but there are only 15 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
@@ -99,12 +111,25 @@ spec = do
         it "fails with 416 for offside range" $
           request methodPost  "/rpc/getitemrange"
                   (rangeHdrs $ ByteRangeFromTo 1 0) emptyRange
-            `shouldRespondWith` 416
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"The lower boundary must be greater than or equal to the upper boundary in the Range header.",
+                "hint":null
+              }|]
+            { matchStatus = 416 }
 
         it "refuses a range with nonzero start when there are no items" $
           request methodPost "/rpc/getitemrange"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) emptyRange
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 0 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -112,7 +137,13 @@ spec = do
         it "refuses a range requesting start past last item" $
           request methodPost "/rpc/getitemrange"
                   (rangeHdrsWithCount $ ByteRangeFromTo 100 199) defaultRange
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 100 was requested, but there are only 15 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
@@ -210,7 +241,13 @@ spec = do
 
       it "fails if limit is negative" $
         get "/items?select=id&limit=-1"
-          `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+          `shouldRespondWith`
+            [json| {
+              "message":"Requested range not satisfiable",
+              "code":"PGRST103",
+              "details":"Limit should be greater than or equal to zero.",
+              "hint":null
+            }|]
           { matchStatus  = 416
           , matchHeaders = [matchContentTypeJson]
           }
@@ -219,7 +256,13 @@ spec = do
         it "refuses a range with nonzero start when there are no items" $
           request methodGet "/menagerie?offset=1"
                   [("Prefer", "count=exact")] ""
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 0 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -227,7 +270,13 @@ spec = do
         it "refuses a range requesting start past last item" $
           request methodGet "/items?offset=100"
                   [("Prefer", "count=exact")] ""
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 100 was requested, but there are only 15 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
@@ -377,12 +426,25 @@ spec = do
         it "fails with 416 for offside range" $
           request methodGet  "/items"
                   (rangeHdrs $ ByteRangeFromTo 1 0) ""
-            `shouldRespondWith` 416
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"The lower boundary must be greater than or equal to the upper boundary in the Range header.",
+                "hint":null
+              }|]
+            { matchStatus = 416 }
 
         it "refuses a range with nonzero start when there are no items" $
           request methodGet "/menagerie"
                   (rangeHdrsWithCount $ ByteRangeFromTo 1 2) ""
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 0 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/0"]
             }
@@ -390,7 +452,13 @@ spec = do
         it "refuses a range requesting start past last item" $
           request methodGet "/items"
                   (rangeHdrsWithCount $ ByteRangeFromTo 100 199) ""
-            `shouldRespondWith` [json|{"message":"Requested range not satisfiable","code":"PGRST103","details":null,"hint":null}|]
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 100 was requested, but there are only 15 rows.",
+                "hint":null
+              }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }

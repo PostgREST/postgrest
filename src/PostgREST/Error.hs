@@ -32,7 +32,8 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.MediaType     (MediaType (..))
 import qualified PostgREST.MediaType     as MediaType
 import           PostgREST.Request.Types (ApiRequestError (..),
-                                          QPError (..))
+                                          QPError (..),
+                                          RangeError (..))
 
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
@@ -60,7 +61,7 @@ instance PgrstError ApiRequestError where
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
   status InvalidRpcMethod{}      = HTTP.status405
-  status InvalidRange            = HTTP.status416
+  status InvalidRange{}          = HTTP.status416
   status NotFound                = HTTP.status404
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
@@ -90,10 +91,13 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= T.decodeUtf8 errorMessage,
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
-  toJSON InvalidRange = JSON.object [
+  toJSON (InvalidRange rangeError) = JSON.object [
     "code"    .= ApiRequestErrorCode03,
     "message" .= ("Requested range not satisfiable" :: Text),
-    "details" .= JSON.Null,
+    "details" .= (case rangeError of
+                   NegativeLimit           -> "Limit should be greater than or equal to zero."
+                   LowerGTUpper            -> "The lower boundary must be greater than or equal to the upper boundary in the Range header."
+                   OutOfBounds lower total -> "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows."),
     "hint"    .= JSON.Null]
   toJSON (ParseRequestError message details) = JSON.object [
     "code"    .= ApiRequestErrorCode04,
