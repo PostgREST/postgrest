@@ -1,6 +1,6 @@
 # Pinned version of Nixpkgs, generated with postgrest-nixpkgs-upgrade.
 {
-  date = "2022-08-09";
-  rev = "9f15d6c3a74d2778c6e1af67947c95f100dc6fd2";
-  tarballHash = "14axdmi3kb6rlib39ik42yq907bm66x6vzswm5w1rsnw9vzgm31a";
+  date = "2022-09-19";
+  rev = "767542707d394ff15ac1981e903e005ba69528b5";
+  tarballHash = "0fl1sfsshg0kd9iwqfsbbfzis1lgs6j02hdvpi1jwl9x2431ynri";
 }
