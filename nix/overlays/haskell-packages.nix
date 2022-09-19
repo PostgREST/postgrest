@@ -13,13 +13,10 @@ let
       #       {
       #         pkg = "protolude";
       #         ver = "0.3.0";
-      #         sha256 = "0iwh4wsjhb7pms88lw1afhdal9f86nrrkkvv65f9wxbd1b159n72";
+      #         sha256 = "<sha256>";
       #       }
       #       { };
       #
-      # To get the sha256:
-      #   nix-prefetch-url --unpack https://hackage.haskell.org/package/protolude-0.3.0/protolude-0.3.0.tar.gz
-
       # To temporarily pin unreleased versions from GitHub:
       #   <name> =
       #     prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
@@ -29,8 +26,8 @@ let
       #       sha256 = "<sha256>";
       #    }) "--subpath=<subpath>" {};
       #
-      # To get the sha256:
-      #   nix-prefetch-url --unpack https://github.com/<owner>/<repo>/archive/<commit>.tar.gz
+      # To fill in the sha256:
+      #   update-nix-fetchgit nix/overlays/haskell-packages.nix
 
       hasql = lib.dontCheck prev.hasql_1_6_0_1;
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
