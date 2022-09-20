@@ -1,5 +1,6 @@
 { buildToolbox
 , checkedShellScript
+, coreutils
 , curl
 , jq
 , nix
@@ -33,7 +34,7 @@ let
         commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r .object.sha)"
         tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
         tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
-        currentDate="$(date --iso)"
+        currentDate="$(${coreutils}/bin/date --iso)"
 
         cat > nix/nixpkgs-version.nix << EOF
         # Pinned version of Nixpkgs, generated with ${name}.
