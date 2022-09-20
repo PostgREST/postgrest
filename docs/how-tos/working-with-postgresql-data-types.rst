@@ -14,7 +14,7 @@ PostgREST makes use of PostgreSQL string representations to work with data types
 Timestamps
 ----------
 
-You can use the **time zone** to filter or send data if needed. Let's use this table as an example:
+You can use the **time zone** to filter or send data if needed.
 
 .. code-block:: postgres
 
@@ -88,7 +88,7 @@ You can use other comparative filters and also all the `PostgreSQL special date/
 JSON
 ----
 
-To work with a ``json`` type column, you can handle the value as a JSON object. For instance, let's use this table:
+To work with a ``json`` type column, you can handle the value as a JSON object.
 
 .. code-block:: postgres
 
@@ -98,7 +98,7 @@ To work with a ``json`` type column, you can handle the value as a JSON object. 
     extra_info json
   );
 
-Now, you can insert a new product using a JSON object for the ``extra_info`` column:
+You can insert a new product using a JSON object for the ``extra_info`` column:
 
 .. tabs::
 
@@ -136,7 +136,7 @@ To query and filter the data see :ref:`json_columns` for a complete reference.
 Arrays
 ------
 
-To handle `array types <https://www.postgresql.org/docs/current/arrays.html>`_ you can use string representation or JSON array format. For instance, let's create the following table:
+To handle `array types <https://www.postgresql.org/docs/current/arrays.html>`_ you can use string representation or JSON array format.
 
 .. code-block:: postgres
 
@@ -147,7 +147,7 @@ To handle `array types <https://www.postgresql.org/docs/current/arrays.html>`_ y
     performance_times time[]
   );
 
-To insert a new value you can use string representation.
+You can insert a new value using string representation.
 
 .. tabs::
 
@@ -176,7 +176,7 @@ To insert a new value you can use string representation.
       }
     EOF
 
-Or you could send the data using a JSON array format. The following request sends the same data as the example above:
+Or you could send the same data using JSON array format:
 
 .. tabs::
 
@@ -205,20 +205,20 @@ Or you could send the data using a JSON array format. The following request send
       }
     EOF
 
-To query the data you can use the arrow operators. See :ref:`composite_array_columns`.
+To query the data you can use arrow operators. See :ref:`composite_array_columns`.
 
 Multidimensional Arrays
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Handling multidimensional arrays is no different than handling one-dimensional ones: both the string representation and the JSON array format are allowed. For example, let's add a new column to the table:
+Similarly to one-dimensional arrays, both the string representation and JSON array format are allowed.
 
 .. code-block:: postgres
 
-  -- The column stores the cinema, floor and auditorium numbers in that order
+  -- This new column stores the cinema, floor and auditorium numbers in that order
   alter table movies
   add column cinema_floor_auditorium int[][][];
 
-Now, let's update the row we inserted before using JSON array format:
+You can now update the item using JSON array format:
 
 .. tabs::
 
@@ -241,7 +241,7 @@ Now, let's update the row we inserted before using JSON array format:
       }
     EOF
 
-Now, for example, to query the auditoriums that are located in the first cinema (position 0 in the array) and on the second floor (position 1 in the next inner array), we can use the arrow operators this way:
+Then, for example, to query the auditoriums that are located in the first cinema (position 0 in the array) and on the second floor (position 1 in the next inner array), we can use the arrow operators this way:
 
 .. tabs::
 
@@ -265,7 +265,7 @@ Now, for example, to query the auditoriums that are located in the first cinema 
 Composite Types
 ---------------
 
-With PostgREST, you have two options to handle `composite type columns <https://www.postgresql.org/docs/current/rowtypes.html>`_. On one hand you can use string representation and on the other you can handle it as you would a JSON column. Let's create a type and a table for this example:
+With PostgREST, you have two options to handle `composite type columns <https://www.postgresql.org/docs/current/rowtypes.html>`_.
 
 .. code-block:: postgres
 
@@ -284,7 +284,7 @@ With PostgREST, you have two options to handle `composite type columns <https://
   insert into products (id, size)
   values (1, '(5.0,5.0,10.0,"cm")');
 
-Now, you could insert values using string representation as seen in the example above.
+On one hand you can insert values using string representation.
 
 .. tabs::
 
@@ -303,7 +303,7 @@ Now, you could insert values using string representation as seen in the example 
       { "id": 2, "size": "(0.7,0.5,1.8,\"m\")" }
     EOF
 
-Or, you could insert the data in JSON format. The following request is equivalent to the previous one:
+Or you could insert the same data in JSON format.
 
 .. tabs::
 
@@ -338,12 +338,12 @@ Or, you could insert the data in JSON format. The following request is equivalen
       }
     EOF
 
-You can also query data using the arrow operators. See :ref:`composite_array_columns`.
+You can also query the data using arrow operators. See :ref:`composite_array_columns`.
 
 Ranges
 ------
 
-To illustrate how to work with `ranges <https://www.postgresql.org/docs/current/rangetypes.html>`_, let's use the following table as an example:
+PostgREST allows you to handle `ranges <https://www.postgresql.org/docs/current/rangetypes.html>`_.
 
 .. code-block:: postgres
 
@@ -353,7 +353,7 @@ To illustrate how to work with `ranges <https://www.postgresql.org/docs/current/
      duration tsrange
    );
 
-Now, to insert a new event, specify the ``duration`` value as a string representation of the ``tsrange`` type, for example:
+To insert a new event, specify the ``duration`` value as a string representation of the ``tsrange`` type:
 
 .. tabs::
 
@@ -380,7 +380,7 @@ Now, to insert a new event, specify the ``duration`` value as a string represent
       }
     EOF
 
-You can use range :ref:`operators <operators>` to filter the data. But what if you need get the events for the New Year 2023? Doing this filter ``events?duration=cs.2023-01-01`` will return an error because PostgreSQL needs an explicit cast to timestamp of the string value. A workaround would be to use a range starting and ending in the same date, like this:
+You can use range :ref:`operators <operators>` to filter the data. But, in this case, requesting a filter like ``events?duration=cs.2023-01-01`` will return an error, because PostgreSQL needs an explicit cast from string to timestamp. A workaround is to use a range starting and ending in the same date:
 
 .. tabs::
 
@@ -470,7 +470,7 @@ Finally, do the request :ref:`casting the range column <casting_columns>`:
 Bytea
 -----
 
-To send raw binary to PostgREST you need a function with a single unnamed parameter of `bytea type <https://www.postgresql.org/docs/current/datatype-binary.html>`_. For example, let's create a table that will save some files and a function that inserts data to that table:
+To send raw binary to PostgREST you need a function with a single unnamed parameter of `bytea type <https://www.postgresql.org/docs/current/datatype-binary.html>`_.
 
 .. code-block:: postgres
 
@@ -483,7 +483,7 @@ To send raw binary to PostgREST you need a function with a single unnamed parame
      insert into files (file) values ($1);
    $$ language sql;
 
-Next, let's use the PostgREST logo for our test.
+Let's download the PostgREST logo for our test.
 
 .. code-block:: bash
 
@@ -506,8 +506,8 @@ Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: 
       -X POST -H "Content-Type: application/octet-stream" \
       --data-binary "@postgrest-logo.png"
 
-To get the image from the database, you will need to set the ``Accept: application/octet-stream`` header in the request and select only the
-``bytea`` column.
+To get the image from the database, set the ``Accept: application/octet-stream`` header and select only the
+``bytea`` type column.
 
 .. tabs::
 
@@ -521,7 +521,7 @@ To get the image from the database, you will need to set the ``Accept: applicati
     curl "http://localhost:3000/files?select=file&id=eq.1" \
       -H "Accept: application/octet-stream"
 
-You can also use more accurate headers depending on the type of the files by using the :ref:`raw-media-types` configuration. For example, adding the ``raw-media-types="image/png"`` setting to the configuration file will allow you to use the ``Accept: image/png`` header:
+Use more accurate headers according to the type of the files by using the :ref:`raw-media-types` configuration. For example, adding the ``raw-media-types="image/png"`` setting to the configuration file will allow you to use the ``Accept: image/png`` header:
 
 .. tabs::
 
@@ -544,7 +544,7 @@ See :ref:`providing_img` for a step-by-step example on how to handle images in H
 hstore
 ------
 
-You can work with data types belonging to additional supplied modules such as `hstore <https://www.postgresql.org/docs/current/hstore.html>`_. Let's use the following table:
+You can work with data types belonging to additional supplied modules such as `hstore <https://www.postgresql.org/docs/current/hstore.html>`_.
 
 .. code-block:: postgres
 
@@ -556,7 +556,7 @@ You can work with data types belonging to additional supplied modules such as `h
     name hstore unique
   );
 
-The ``name`` column will have the name of the country in different formats. You can insert values using the string representation for that data type, for instance:
+The ``name`` column will have the name of the country in different formats. You can insert values using the string representation for that data type:
 
 .. tabs::
 
@@ -583,7 +583,7 @@ The ``name`` column will have the name of the country in different formats. You 
 
 Notice that the use of ``"`` in the value of the ``name`` column needs to be escaped using a backslash ``\``.
 
-You can also query and filter the value of a ``hstore`` column using the arrow operators, as you would do for a :ref:`JSON column<json_columns>`. For example, if you want to get the native name of Egypt, the query would be:
+You can also query and filter the value of a ``hstore`` column using the arrow operators, as you would do for a :ref:`JSON column<json_columns>`. For example, if you want to get the native name of Egypt:
 
 .. tabs::
 
@@ -604,7 +604,7 @@ You can also query and filter the value of a ``hstore`` column using the arrow o
 PostGIS
 -------
 
-You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography``. As an example, let's create a table using the ``geometry`` type (you need to `install PostGIS <https://postgis.net/install/>`_ first).
+You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography`` (you need to `install PostGIS <https://postgis.net/install/>`_ first).
 
 .. code-block:: postgres
 
@@ -617,7 +617,7 @@ You can use the string representation for `PostGIS <https://postgis.net/>`_ data
     area geometry
   );
 
-Say you want to add areas in polygon format. The request using string representation would look like:
+To add areas in polygon format, you can use string representation:
 
 .. tabs::
 
@@ -697,7 +697,7 @@ If you need to add an extra property, like the area in square units by using ``s
   alter table coverage
     add square_units double precision generated always as ( st_area(area) ) stored;
 
-In the case that you are using older PostGIS versions, then creating a function is your best option. For example:
+In the case that you are using older PostGIS versions, then creating a function is your best option:
 
 .. code-block:: postgres
 
