@@ -30,50 +30,15 @@ let
       #   update-nix-fetchgit nix/overlays/haskell-packages.nix
 
       hashtables = lib.dontCheck prev.hashtables_1_3;
+      hasql = lib.dontCheck prev.hasql_1_6_1_1;
+      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
+      hasql-pool = lib.dontCheck prev.hasql-pool_0_8_0_3;
+      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_0_1_2;
       isomorphism-class = lib.unmarkBroken prev.isomorphism-class;
+      lens = lib.dontCheck prev.lens_5_2;
+      postgresql-binary = lib.dontCheck prev.postgresql-binary_0_12_5;
       text-builder = lib.dontCheck prev.text-builder_0_6_7;
       text-builder-dev = lib.dontCheck prev.text-builder-dev_0_3_3;
-
-      postgresql-binary = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "postgresql-binary";
-            ver = "0.12.5";
-            sha256 = "1vk97lw25i7d0pvjzd7s3m13nya9ycnrjr8y4qhw2jgjnvkblnzv";
-          }
-          { });
-
-      hasql = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql";
-            ver = "1.6.1.1";
-            sha256 = "1sv0500dvfln9ljxkd2jrfl9nbpkax7z5b8zjy9yjps1r6s1cmj0";
-          }
-          { });
-
-      lens = lib.dontCheck prev.lens_5_2;
-
-      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
-      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_0_1_2;
-
-      hasql-notifications = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql-notifications";
-            ver = "0.2.0.3";
-            sha256 = "1v44fp03685ngs1l9a7ihkfg5zgvh49k7ym9sh70wjsqql80dhf7";
-          }
-          { });
-
-      hasql-pool = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql-pool";
-            ver = "0.8.0.2";
-            sha256 = "0a646w7m1p430hp52q8d52sgd14zcyrjvflmw7qbak565jmksqgl";
-          }
-          { });
 
       postgresql-libpq = lib.dontCheck
         (prev.callCabal2nix "postgresql-libpq"
