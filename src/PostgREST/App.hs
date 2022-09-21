@@ -186,8 +186,9 @@ postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer Aut
     pure $ Response.infoResponse (iTarget apiRequest) dbStructure
   else
     runDbHandler appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
-      Middleware.optionalRollback conf apiRequest $
-        Middleware.runPgLocals conf authClaims authRole (handleRequest . ctx) apiRequest jsonDbS pgVer
+      Middleware.optionalRollback conf apiRequest $ do
+        Query.runPgLocals conf authClaims authRole apiRequest jsonDbS pgVer
+        handleRequest (ctx apiRequest)
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
