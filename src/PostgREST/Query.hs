@@ -8,13 +8,21 @@ module PostgREST.Query
   , singleUpsertQuery
   , txMode
   , updateQuery
+  , runPgLocals
   , DbHandler
   ) where
 
-import qualified Data.HashMap.Strict             as HM
-import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
-import qualified Hasql.Transaction               as SQL
-import qualified Hasql.Transaction.Sessions      as SQL
+import qualified Data.Aeson                        as JSON
+import qualified Data.Aeson.Key                    as K
+import qualified Data.Aeson.KeyMap                 as KM
+import qualified Data.ByteString.Lazy.Char8        as LBS
+import qualified Data.HashMap.Strict               as HM
+import qualified Data.Text.Encoding                as T
+import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
+import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.Transaction                 as SQL
+import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.DbStructure         as DbStructure
 import qualified PostgREST.DbStructure.Proc    as Proc
@@ -25,9 +33,12 @@ import qualified PostgREST.RangeQuery          as RangeQuery
 import qualified PostgREST.Request.MutateQuery as MutateRequest
 import qualified PostgREST.Request.Types       as ApiRequestTypes
 
+import Data.Scientific (FPFormat (..), formatScientific, isInteger)
+
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.Config.PgVersion        (PgVersion (..))
+import PostgREST.Config.PgVersion        (PgVersion (..),
+                                          pgVersion140)
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -38,6 +49,10 @@ import PostgREST.DbStructure.Proc        (ProcDescription (..),
 import PostgREST.DbStructure.Table       (TablesMap)
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
+                                          pgFmtIdentList,
+                                          setConfigLocal,
+                                          setConfigLocalJson)
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
@@ -169,8 +184,6 @@ txMode ApiRequest{..} =
   case (iAction, iTarget) of
     (ActionRead _, _) ->
       SQL.Read
-    (ActionInfo, _) ->
-      SQL.Read
     (ActionInspect _, _) ->
       SQL.Read
     (ActionInvoke InvGet, _) ->
@@ -214,3 +227,40 @@ failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
     lift SQL.condemn
     throwError $ Error.OffLimitsChangesError queryTotal maxChanges
 
+-- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
+runPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->
+               ApiRequest  -> ByteString -> PgVersion -> DbHandler ()
+runPgLocals conf claims role req jsonDbS actualPgVersion = do
+  lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
+    HD.noResult (configDbPreparedStatements conf)
+  lift $ traverse_ SQL.sql preReqSql
+  where
+    methodSql = setConfigLocal mempty ("request.method", iMethod req)
+    pathSql = setConfigLocal mempty ("request.path", iPath req)
+    headersSql = if usesLegacyGucs
+                   then setConfigLocal "request.header." <$> iHeaders req
+                   else setConfigLocalJson "request.headers" (iHeaders req)
+    cookiesSql = if usesLegacyGucs
+                   then setConfigLocal "request.cookie." <$> iCookies req
+                   else setConfigLocalJson "request.cookies" (iCookies req)
+    claimsSql = if usesLegacyGucs
+                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
+                  else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
+    roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
+    appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
+    searchPathSql =
+      let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath conf) in
+      setConfigLocal mempty ("search_path", schemas)
+    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
+    specSql = case iTarget req of
+      TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
+      _                             -> mempty
+    usesLegacyGucs = configDbUseLegacyGucs conf && actualPgVersion < pgVersion140
+
+    unquoted :: JSON.Value -> Text
+    unquoted (JSON.String t) = t
+    unquoted (JSON.Number n) =
+      toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
+    unquoted (JSON.Bool b) = show b
+    unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
