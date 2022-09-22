@@ -127,6 +127,7 @@ PostgREST
 postgrest
 PostgREST's
 pre
+preflight
 psql
 Qin
 RabbitMQ
