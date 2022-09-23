@@ -17,6 +17,10 @@ module PostgREST.App
   , run
   ) where
 
+
+import Data.Text.Read            (decimal)
+import Network.HTTP.Types.Status (Status)
+
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.List                (union)
@@ -26,6 +30,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
+import qualified Data.Aeson                        as JSON
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as HM
@@ -278,10 +283,10 @@ handleRead headersOnly identifier context@RequestContext{..} = do
   case resultSet of
     RSStandard{..} -> do
       total <- readTotal ctxConfig ctxApiRequest rsTableTotal countQuery
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
 
       let
         (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal total
+        response = gucResponse rsGucStatus rsGucHeaders
         headers =
           [ contentRange
           , ( "Content-Location"
@@ -331,10 +336,8 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
   case resultSet of
     RSStandard{..} -> do
-
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
-
       let
+        response = gucResponse rsGucStatus rsGucHeaders
         headers =
           catMaybes
             [ if null rsLocation then
@@ -369,9 +372,8 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   case resultSet of
     RSStandard{..} -> do
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
-
       let
+        response = gucResponse rsGucStatus rsGucHeaders
         fullRepr = iPreferRepresentation == Full
         updateIsNoOp = S.null iColumns
         status
@@ -400,8 +402,8 @@ handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiReques
 
   case resultSet of
     RSStandard {..} -> do
-
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
+      let
+        response = gucResponse rsGucStatus rsGucHeaders
 
       -- Makes sure the querystring pk matches the payload pk
       -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
@@ -427,10 +429,8 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
 
   case resultSet of
     RSStandard {..} -> do
-
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
-
       let
+        response = gucResponse rsGucStatus rsGucHeaders
         contentRangeHeader =
           RangeQuery.contentRangeH 1 0 $
             if shouldCount iPreferCount then Just rsQueryTotal else Nothing
@@ -501,8 +501,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 
   case resultSet of
     RSStandard {..} -> do
-      response <- liftEither $ gucResponse <$> rsGucStatus <*> rsGucHeaders
       let
+        response = gucResponse rsGucStatus rsGucHeaders
         (status, contentRange) =
           RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
         rsOrErrBody = if status == HTTP.status416
@@ -585,15 +585,25 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
 
 -- | Response with headers and status overridden from GUCs.
 gucResponse
-  :: Maybe HTTP.Status
-  -> [GucHeader]
+  :: Maybe Text
+  -> Maybe BS.ByteString
   -> HTTP.Status
   -> [HTTP.Header]
   -> LBS.ByteString
   -> Wai.Response
-gucResponse gucStatus gucHeaders status headers =
-  Wai.responseLBS (fromMaybe status gucStatus) $
-    addHeadersIfNotIncluded headers (map unwrapGucHeader gucHeaders)
+gucResponse rsGucStatus rsGucHeaders status headers body =
+  case (,) <$> decodeGucStatus rsGucStatus <*> decodeGucHeaders rsGucHeaders of
+    Left err -> Error.errorResponseFor err
+    Right (gucStatus, gucHeaders) ->
+      Wai.responseLBS (fromMaybe status gucStatus) (addHeadersIfNotIncluded headers (map unwrapGucHeader gucHeaders)) body
+
+decodeGucHeaders :: Maybe BS.ByteString -> Either Error [GucHeader]
+decodeGucHeaders =
+  maybe (Right []) $ first (const Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
+
+decodeGucStatus :: Maybe Text -> Either Error (Maybe Status)
+decodeGucStatus =
+  maybe (Right Nothing) $ first (const Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
