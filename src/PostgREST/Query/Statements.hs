@@ -15,10 +15,8 @@ module PostgREST.Query.Statements
   , ResultSet (..)
   ) where
 
-import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.Lens                   as L
 import qualified Data.ByteString.Char8             as BS
-import qualified Data.ByteString.Lazy              as LBS
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL
 import qualified Hasql.DynamicStatements.Statement as SQL
@@ -26,11 +24,6 @@ import qualified Hasql.Statement                   as SQL
 
 import Control.Lens              ((^?))
 import Data.Maybe                (fromJust)
-import Data.Text.Read            (decimal)
-import Network.HTTP.Types.Status (Status)
-
-import PostgREST.Error     (Error (..))
-import PostgREST.GucHeader (GucHeader)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.MediaType               (MTPlanAttrs (..),
@@ -54,9 +47,9 @@ data ResultSet
   -- variable bindings like @"k1=eq.42"@, or the empty list if there is no location header.
   , rsBody       :: BS.ByteString
   -- ^ the aggregated body of the query
-  , rsGucHeaders :: Either Error [GucHeader]
+  , rsGucHeaders :: Maybe BS.ByteString
   -- ^ the HTTP headers to be added to the response
-  , rsGucStatus  :: Either Error (Maybe Status)
+  , rsGucStatus  :: Maybe Text
   -- ^ the HTTP status to be added to the response
   }
   | RSPlan BS.ByteString -- ^ the plan of the query
@@ -104,7 +97,7 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
     MTPlan{} -> planRow
-    _        -> fromMaybe (RSStandard Nothing 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow False)
+    _        -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
 prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool -> SQL.Statement () ResultSet
 prepareRead selectQuery countQuery countTotal mt binaryField =
@@ -169,7 +162,7 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
     decodeIt :: HD.Result ResultSet
     decodeIt = case mt of
       MTPlan{} -> planRow
-      _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty (Right []) (Right Nothing)) <$> HD.rowMaybe (standardRow True)
+      _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
 preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 preparePlanRows countQuery =
@@ -185,8 +178,8 @@ standardRow :: Bool -> HD.Row ResultSet
 standardRow noLocation =
   RSStandard <$> nullableColumn HD.int8 <*> column HD.int8
              <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea) <*> column HD.bytea
-             <*> (fromMaybe (Right []) <$> nullableColumn decodeGucHeaders)
-             <*> (fromMaybe (Right Nothing) <$> nullableColumn decodeGucStatus)
+             <*> nullableColumn HD.bytea
+             <*> nullableColumn HD.text
   where
     splitKeyValue :: ByteString -> (ByteString, ByteString)
     splitKeyValue kv =
@@ -201,12 +194,6 @@ mtSnippet mediaType snippet = case mediaType of
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet
 planRow = RSPlan . BS.unlines <$> HD.rowList (column HD.bytea)
-
-decodeGucHeaders :: HD.Value (Either Error [GucHeader])
-decodeGucHeaders = first (const GucHeadersError) . JSON.eitherDecode . LBS.fromStrict <$> HD.bytea
-
-decodeGucStatus :: HD.Value (Either Error (Maybe Status))
-decodeGucStatus = first (const GucStatusError) . fmap (Just . toEnum . fst) . decimal <$> HD.text
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
