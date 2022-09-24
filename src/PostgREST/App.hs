@@ -30,7 +30,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.Aeson                        as JSON
+import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as HM
@@ -280,9 +280,11 @@ handleRead headersOnly identifier context@RequestContext{..} = do
         bField
         configDbPreparedStatements
 
+  failNotSingular iAcceptMediaType resultSet
+  total <- readTotal ctxConfig ctxApiRequest resultSet countQuery
+
   case resultSet of
     RSStandard{..} -> do
-      total <- readTotal ctxConfig ctxApiRequest rsTableTotal countQuery
 
       let
         (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal total
@@ -301,14 +303,14 @@ handleRead headersOnly identifier context@RequestContext{..} = do
             $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show total)
           else LBS.fromStrict rsBody
 
-      failNotSingular iAcceptMediaType rsQueryTotal . response status headers $
-        if headersOnly then mempty else rsOrErrBody
+      pure $ response status headers $ if headersOnly then mempty else rsOrErrBody
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
 
-readTotal :: AppConfig -> ApiRequest -> Maybe Int64 -> SQL.Snippet -> DbHandler (Maybe Int64)
-readTotal AppConfig{..} ApiRequest{..} tableTotal countQuery =
+readTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler (Maybe Int64)
+readTotal _ _ RSPlan{} _ = pure Nothing
+readTotal AppConfig{..} ApiRequest{..} RSStandard{rsTableTotal=tableTotal} countQuery =
   case iPreferCount of
     Just PlannedCount ->
       explain
@@ -334,6 +336,8 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
   resultSet <- writeQuery MutationCreate identifier True pkCols context
 
+  failNotSingular iAcceptMediaType resultSet
+
   case resultSet of
     RSStandard{..} -> do
       let
@@ -357,11 +361,10 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
                 toAppliedHeader <$> iPreferResolution
             ]
 
-      failNotSingular iAcceptMediaType rsQueryTotal $
-        if iPreferRepresentation == Full then
-          response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict rsBody)
-        else
-          response HTTP.status201 headers mempty
+      pure $ if iPreferRepresentation == Full then
+        response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict rsBody)
+      else
+        response HTTP.status201 headers mempty
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
@@ -369,6 +372,8 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   resultSet <- writeQuery MutationUpdate identifier False mempty context
+  failNotSingular iAcceptMediaType resultSet
+  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
   case resultSet of
     RSStandard{..} -> do
@@ -384,12 +389,10 @@ handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
           RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
             if shouldCount iPreferCount then Just rsQueryTotal else Nothing
 
-      failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) rsQueryTotal =<<
-        failNotSingular iAcceptMediaType rsQueryTotal (
-          if fullRepr then
-            response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict rsBody)
-          else
-            response status [contentRangeHeader] mempty)
+      pure $ if fullRepr then
+          response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict rsBody)
+        else
+          response status [contentRangeHeader] mempty
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
@@ -426,6 +429,8 @@ handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiReques
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
   resultSet <- writeQuery MutationDelete identifier False mempty context
+  failNotSingular iAcceptMediaType resultSet
+  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
   case resultSet of
     RSStandard {..} -> do
@@ -435,14 +440,12 @@ handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
           RangeQuery.contentRangeH 1 0 $
             if shouldCount iPreferCount then Just rsQueryTotal else Nothing
 
-      failChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) rsQueryTotal =<<
-        failNotSingular iAcceptMediaType rsQueryTotal (
-          if iPreferRepresentation == Full then
-            response HTTP.status200
-              (contentTypeHeaders context ++ [contentRangeHeader])
-              (LBS.fromStrict rsBody)
-          else
-            response HTTP.status204 [contentRangeHeader] mempty)
+      pure $ if iPreferRepresentation == Full then
+          response HTTP.status200
+            (contentTypeHeaders context ++ [contentRangeHeader])
+            (LBS.fromStrict rsBody)
+        else
+          response HTTP.status204 [contentRangeHeader] mempty
 
     RSPlan plan ->
       pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
@@ -499,6 +502,8 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         bField
         (configDbPreparedStatements ctxConfig)
 
+  failNotSingular iAcceptMediaType resultSet
+
   case resultSet of
     RSStandard {..} -> do
       let
@@ -510,8 +515,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
             $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
           else LBS.fromStrict rsBody
 
-      failNotSingular iAcceptMediaType rsQueryTotal $
-        if Proc.procReturnsVoid proc then
+      pure $ if Proc.procReturnsVoid proc then
           response HTTP.status204 [contentRange] mempty
         else
           response status
@@ -608,24 +612,20 @@ decodeGucStatus =
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
 -- was found.
-failNotSingular :: MediaType -> Int64 -> Wai.Response -> DbHandler Wai.Response
-failNotSingular mediaType queryTotal response =
-  if mediaType == MTSingularJSON && queryTotal /= 1 then
-    do
-      lift SQL.condemn
-      throwError $ Error.singularityError queryTotal
-  else
-    return response
+failNotSingular :: MediaType -> ResultSet -> DbHandler ()
+failNotSingular _ RSPlan{} = pure ()
+failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
+  when (mediaType == MTSingularJSON && queryTotal /= 1) $ do
+    lift SQL.condemn
+    throwError $ Error.singularityError queryTotal
 
-failChangesOffLimits :: Maybe Integer -> Int64 -> Wai.Response -> DbHandler Wai.Response
-failChangesOffLimits (Just maxChanges) queryTotal response =
-  if queryTotal > fromIntegral maxChanges
-  then do
-      lift SQL.condemn
-      throwError $ Error.OffLimitsChangesError queryTotal maxChanges
-  else
-    return response
-failChangesOffLimits _ _ response = return response
+failsChangesOffLimits :: Maybe Integer -> ResultSet -> DbHandler ()
+failsChangesOffLimits _ RSPlan{} = pure ()
+failsChangesOffLimits Nothing _  = pure ()
+failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
+  when (queryTotal > fromIntegral maxChanges) $ do
+    lift SQL.condemn
+    throwError $ Error.OffLimitsChangesError queryTotal maxChanges
 
 shouldCount :: Maybe PreferCount -> Bool
 shouldCount preferCount =

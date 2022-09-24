@@ -22,8 +22,8 @@ import qualified Hasql.DynamicStatements.Snippet   as SQL
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Statement                   as SQL
 
-import Control.Lens              ((^?))
-import Data.Maybe                (fromJust)
+import Control.Lens ((^?))
+import Data.Maybe   (fromJust)
 
 import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.MediaType               (MTPlanAttrs (..),
