@@ -67,6 +67,7 @@ library
                       PostgREST.Request.QueryParams
                       PostgREST.Request.ReadQuery
                       PostgREST.Request.Types
+                      PostgREST.Response
                       PostgREST.Version
                       PostgREST.Workers
   other-modules:      Paths_postgrest
