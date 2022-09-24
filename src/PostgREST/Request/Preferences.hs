@@ -15,6 +15,7 @@ module PostgREST.Request.Preferences
   , PreferTransaction(..)
   , fromHeaders
   , ToAppliedHeader(..)
+  , shouldCount
   ) where
 
 import qualified Data.ByteString.Char8     as BS
@@ -187,6 +188,10 @@ instance ToHeaderValue PreferCount where
   toHeaderValue ExactCount     = "count=exact"
   toHeaderValue PlannedCount   = "count=planned"
   toHeaderValue EstimatedCount = "count=estimated"
+
+shouldCount :: Maybe PreferCount -> Bool
+shouldCount prefCount =
+  prefCount == Just ExactCount || prefCount == Just EstimatedCount
 
 -- | Whether to commit or roll back transactions.
 data PreferTransaction

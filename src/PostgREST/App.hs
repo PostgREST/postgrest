@@ -18,9 +18,6 @@ module PostgREST.App
   ) where
 
 
-import Data.Text.Read            (decimal)
-import Network.HTTP.Types.Status (Status)
-
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.List                (union)
@@ -30,17 +27,10 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.Aeson                      as JSON
-import qualified Data.ByteString.Char8           as BS
-import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as HM
-import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
 import qualified Hasql.Transaction               as SQL
 import qualified Hasql.Transaction.Sessions      as SQL
-import qualified Network.HTTP.Types.Header       as HTTP
-import qualified Network.HTTP.Types.Status       as HTTP
-import qualified Network.HTTP.Types.URI          as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Handler.Warp        as Warp
 
@@ -52,13 +42,13 @@ import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
 import qualified PostgREST.Logger                   as Logger
 import qualified PostgREST.Middleware               as Middleware
-import qualified PostgREST.OpenAPI                  as OpenAPI
 import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
 import qualified PostgREST.Query.Statements         as Statements
 import qualified PostgREST.RangeQuery               as RangeQuery
 import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 import qualified PostgREST.Request.Types            as ApiRequestTypes
+import qualified PostgREST.Response                 as Response
 
 import PostgREST.AppState                (AppState)
 import PostgREST.Auth                    (AuthResult (..))
@@ -74,9 +64,6 @@ import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..))
 import PostgREST.DbStructure.Table       (Table (..))
 import PostgREST.Error                   (Error)
-import PostgREST.GucHeader               (GucHeader,
-                                          addHeadersIfNotIncluded,
-                                          unwrapGucHeader)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MediaType (..))
 import PostgREST.Query.Statements        (ResultSet (..))
@@ -87,14 +74,12 @@ import PostgREST.Request.ApiRequest      (Action (..),
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           PreferRepresentation (..),
-                                          toAppliedHeader)
-import PostgREST.Request.QueryParams     (QueryParams (..))
+                                          shouldCount)
 import PostgREST.Request.ReadQuery       (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
 
 import qualified PostgREST.DbStructure.Proc as Proc
-import qualified PostgREST.MediaType        as MediaType
 
 import Protolude hiding (Handler)
 
@@ -178,16 +163,11 @@ postgrest logLevel appState connWorker =
         -- Launch the connWorker when the connection is down.  The postgrest
         -- function can respond successfully (with a stale schema cache) before
         -- the connWorker is done.
-        let isPGAway = Wai.responseStatus response == HTTP.status503
-        when isPGAway connWorker
-        resp <- addRetryHint isPGAway appState response
+        when (Response.isServiceUnavailable response) connWorker
+        resp <- do
+          delay <- AppState.getRetryNextIn appState
+          return $ Response.addRetryHint delay response
         respond resp
-
-addRetryHint :: Bool -> AppState -> Wai.Response -> IO Wai.Response
-addRetryHint shouldAdd appState response = do
-  delay <- AppState.getRetryNextIn appState
-  let h = ("Retry-After", BS.pack $ show delay)
-  return $ Wai.mapResponseHeaders (\hs -> if shouldAdd then h:hs else hs) response
 
 postgrestResponse
   :: AppState.AppState
@@ -215,7 +195,7 @@ postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer Aut
   let ctx apiReq = RequestContext conf dbStructure apiReq pgVer
 
   if iAction apiRequest == ActionInfo then
-    handleInfo (iTarget apiRequest) (ctx apiRequest)
+    pure $ Response.infoResponse (iTarget apiRequest) dbStructure
   else
     runDbHandler appState (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
       Middleware.optionalRollback conf apiRequest $
@@ -283,30 +263,7 @@ handleRead headersOnly identifier context@RequestContext{..} = do
   failNotSingular iAcceptMediaType resultSet
   total <- readTotal ctxConfig ctxApiRequest resultSet countQuery
 
-  case resultSet of
-    RSStandard{..} -> do
-
-      let
-        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal total
-        response = gucResponse rsGucStatus rsGucHeaders
-        headers =
-          [ contentRange
-          , ( "Content-Location"
-            , "/"
-                <> toUtf8 (qiName identifier)
-                <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
-            )
-          ]
-          ++ contentTypeHeaders context
-        rsOrErrBody = if status == HTTP.status416
-          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show total)
-          else LBS.fromStrict rsBody
-
-      pure $ response status headers $ if headersOnly then mempty else rsOrErrBody
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
+  pure $ Response.readResponse headersOnly identifier ctxApiRequest total resultSet
 
 readTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler (Maybe Int64)
 readTotal _ _ RSPlan{} _ = pure Nothing
@@ -327,7 +284,7 @@ readTotal AppConfig{..} ApiRequest{..} RSStandard{rsTableTotal=tableTotal} count
         configDbPreparedStatements
 
 handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
+handleCreate identifier context@RequestContext{..} = do
   let
     ApiRequest{..} = ctxApiRequest
     pkCols = if iPreferRepresentation /= None || isJust iPreferResolution
@@ -338,140 +295,42 @@ handleCreate identifier@QualifiedIdentifier{..} context@RequestContext{..} = do
 
   failNotSingular iAcceptMediaType resultSet
 
-  case resultSet of
-    RSStandard{..} -> do
-      let
-        response = gucResponse rsGucStatus rsGucHeaders
-        headers =
-          catMaybes
-            [ if null rsLocation then
-                Nothing
-              else
-                Just
-                  ( HTTP.hLocation
-                  , "/"
-                      <> toUtf8 qiName
-                      <> HTTP.renderSimpleQuery True rsLocation
-                  )
-            , Just . RangeQuery.contentRangeH 1 0 $
-                if shouldCount iPreferCount then Just rsQueryTotal else Nothing
-            , if null pkCols && isNothing (qsOnConflict iQueryParams) then
-                Nothing
-              else
-                toAppliedHeader <$> iPreferResolution
-            ]
-
-      pure $ if iPreferRepresentation == Full then
-        response HTTP.status201 (headers ++ contentTypeHeaders context) (LBS.fromStrict rsBody)
-      else
-        response HTTP.status201 headers mempty
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
+  pure $ Response.createResponse identifier pkCols ctxApiRequest resultSet
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleUpdate identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
   resultSet <- writeQuery MutationUpdate identifier False mempty context
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
-  case resultSet of
-    RSStandard{..} -> do
-      let
-        response = gucResponse rsGucStatus rsGucHeaders
-        fullRepr = iPreferRepresentation == Full
-        updateIsNoOp = S.null iColumns
-        status
-          | rsQueryTotal == 0 && not updateIsNoOp = HTTP.status404
-          | fullRepr = HTTP.status200
-          | otherwise = HTTP.status204
-        contentRangeHeader =
-          RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
-            if shouldCount iPreferCount then Just rsQueryTotal else Nothing
-
-      pure $ if fullRepr then
-          response status (contentTypeHeaders context ++ [contentRangeHeader]) (LBS.fromStrict rsBody)
-        else
-          response status [contentRangeHeader] mempty
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
+  pure $ Response.updateResponse ctxApiRequest resultSet
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ApiRequest{..} _) = do
+handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ctxApiRequest _) = do
   let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
-
   resultSet <- writeQuery MutationSingleUpsert identifier False pkCols context
+  failPut resultSet
+  pure $ Response.singleUpsertResponse ctxApiRequest resultSet
 
-  case resultSet of
-    RSStandard {..} -> do
-      let
-        response = gucResponse rsGucStatus rsGucHeaders
-
-      -- Makes sure the querystring pk matches the payload pk
-      -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
-      -- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
-      -- If this condition is not satisfied then nothing is inserted,
-      -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-      when (rsQueryTotal /= 1) $ do
-        lift SQL.condemn
-        throwError Error.PutMatchingPkError
-
-      return $
-        if iPreferRepresentation == Full then
-          response HTTP.status200 (contentTypeHeaders context) (LBS.fromStrict rsBody)
-        else
-          response HTTP.status204 [] mempty
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
+-- Makes sure the querystring pk matches the payload pk
+-- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
+-- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
+-- If this condition is not satisfied then nothing is inserted,
+-- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
+failPut :: ResultSet -> DbHandler ()
+failPut RSPlan{} = pure ()
+failPut RSStandard{rsQueryTotal=queryTotal} =
+  when (queryTotal /= 1) $ do
+    lift SQL.condemn
+    throwError Error.PutMatchingPkError
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ApiRequest{..} _) = do
+handleDelete identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
   resultSet <- writeQuery MutationDelete identifier False mempty context
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
-  case resultSet of
-    RSStandard {..} -> do
-      let
-        response = gucResponse rsGucStatus rsGucHeaders
-        contentRangeHeader =
-          RangeQuery.contentRangeH 1 0 $
-            if shouldCount iPreferCount then Just rsQueryTotal else Nothing
-
-      pure $ if iPreferRepresentation == Full then
-          response HTTP.status200
-            (contentTypeHeaders context ++ [contentRangeHeader])
-            (LBS.fromStrict rsBody)
-        else
-          response HTTP.status204 [contentRangeHeader] mempty
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
-
-handleInfo :: Monad m => Target -> RequestContext -> Handler m Wai.Response
-handleInfo target RequestContext{..} =
-  case target of
-    TargetIdent identifier ->
-      case HM.lookup identifier (dbTables ctxDbStructure) of
-        Just tbl -> infoResponse $ allowH tbl
-        Nothing  -> throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
-    TargetProc pd _
-      | pdVolatility pd == Volatile -> infoResponse "OPTIONS,POST"
-      | otherwise                   -> infoResponse "OPTIONS,GET,HEAD,POST"
-    TargetDefaultSpec _             -> infoResponse "OPTIONS,GET,HEAD"
-  where
-    infoResponse allowHeader = return $ Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
-    allOrigins = ("Access-Control-Allow-Origin", "*")
-    allowH table =
-      let hasPK = not . null $ tablePKCols table in
-      BS.intercalate "," $
-          ["OPTIONS,GET,HEAD"] ++
-          ["POST" | tableInsertable table] ++
-          ["PUT" | tableInsertable table && tableUpdatable table && hasPK] ++
-          ["PATCH" | tableUpdatable table] ++
-          ["DELETE" | tableDeletable table]
+  pure $ Response.deleteResponse ctxApiRequest resultSet
 
 handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
@@ -503,49 +362,26 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (configDbPreparedStatements ctxConfig)
 
   failNotSingular iAcceptMediaType resultSet
-
-  case resultSet of
-    RSStandard {..} -> do
-      let
-        response = gucResponse rsGucStatus rsGucHeaders
-        (status, contentRange) =
-          RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
-        rsOrErrBody = if status == HTTP.status416
-          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
-          else LBS.fromStrict rsBody
-
-      pure $ if Proc.procReturnsVoid proc then
-          response HTTP.status204 [contentRange] mempty
-        else
-          response status
-            (contentTypeHeaders context ++ [contentRange])
-            (if invMethod == InvHead then mempty else rsOrErrBody)
-
-    RSPlan plan ->
-      pure $ Wai.responseLBS HTTP.status200 (contentTypeHeaders context) $ LBS.fromStrict plan
+  pure $ Response.invokeResponse invMethod proc ctxApiRequest resultSet
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
   body <-
     lift $ case configOpenApiMode of
       OAFollowPriv ->
-        OpenAPI.encode conf dbStructure
+        Just <$> ((,,)
            <$> SQL.statement [tSchema] (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
            <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+           <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
       OAIgnorePriv ->
-        OpenAPI.encode conf dbStructure
+        Just <$> ((,,)
               (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
               (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
-          <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements)
+          <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
       OADisabled ->
-        pure mempty
+        pure Nothing
 
-  return $
-    Wai.responseLBS HTTP.status200
-      (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader apiRequest))
-      (if headersOnly then mempty else body)
+  pure $ Response.openApiResponse headersOnly body conf dbStructure $ iProfile apiRequest
 
 txMode :: ApiRequest -> SQL.Mode
 txMode ApiRequest{..} =
@@ -587,28 +423,6 @@ writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@R
       pkCols
       (configDbPreparedStatements ctxConfig)
 
--- | Response with headers and status overridden from GUCs.
-gucResponse
-  :: Maybe Text
-  -> Maybe BS.ByteString
-  -> HTTP.Status
-  -> [HTTP.Header]
-  -> LBS.ByteString
-  -> Wai.Response
-gucResponse rsGucStatus rsGucHeaders status headers body =
-  case (,) <$> decodeGucStatus rsGucStatus <*> decodeGucHeaders rsGucHeaders of
-    Left err -> Error.errorResponseFor err
-    Right (gucStatus, gucHeaders) ->
-      Wai.responseLBS (fromMaybe status gucStatus) (addHeadersIfNotIncluded headers (map unwrapGucHeader gucHeaders)) body
-
-decodeGucHeaders :: Maybe BS.ByteString -> Either Error [GucHeader]
-decodeGucHeaders =
-  maybe (Right []) $ first (const Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
-
-decodeGucStatus :: Maybe Text -> Either Error (Maybe Status)
-decodeGucStatus =
-  maybe (Right Nothing) $ first (const Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
-
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
 -- was found.
@@ -627,10 +441,6 @@ failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
     lift SQL.condemn
     throwError $ Error.OffLimitsChangesError queryTotal maxChanges
 
-shouldCount :: Maybe PreferCount -> Bool
-shouldCount preferCount =
-  preferCount == Just ExactCount || preferCount == Just EstimatedCount
-
 returnsScalar :: ApiRequest.Target -> Bool
 returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
 returnsScalar _                   = False
@@ -641,10 +451,6 @@ readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure ap
     ReqBuilder.readRequest qiSchema qiName configDbMaxRows
       (dbRelationships dbStructure)
       apiRequest
-
-contentTypeHeaders :: RequestContext -> [HTTP.Header]
-contentTypeHeaders RequestContext{..} =
-  MediaType.toContentType (iAcceptMediaType ctxApiRequest) : maybeToList (profileHeader ctxApiRequest)
 
 -- | If raw(binary) output is requested, check that MediaType is one of the
 -- admitted rawMediaTypes and that`?select=...` contains only one field other
@@ -672,7 +478,3 @@ binaryField RequestContext{..} readReq
       MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
       MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
       _                                             -> False
-
-profileHeader :: ApiRequest -> Maybe HTTP.Header
-profileHeader ApiRequest{..} =
-  (,) "Content-Profile" <$> (toUtf8 <$> iProfile)
