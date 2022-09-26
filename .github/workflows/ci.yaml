@@ -46,7 +46,7 @@ jobs:
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
         run: postgrest-coverage
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v3.1.0
+        uses: codecov/codecov-action@v3.1.1
         with:
           files: ./coverage/codecov.json
 
