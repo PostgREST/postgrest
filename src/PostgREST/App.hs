@@ -47,6 +47,7 @@ import qualified PostgREST.Query.Statements         as Statements
 import qualified PostgREST.RangeQuery               as RangeQuery
 import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
+import qualified PostgREST.Request.MutateQuery      as MutateRequest
 import qualified PostgREST.Request.Types            as ApiRequestTypes
 import qualified PostgREST.Response                 as Response
 
@@ -237,7 +238,7 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
 
 handleRead :: Bool -> QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleRead headersOnly identifier context@RequestContext{..} = do
-  req <- readRequest identifier context
+  req <- liftEither $ readRequest identifier context
   bField <- binaryField context req
 
   let
@@ -291,7 +292,8 @@ handleCreate identifier context@RequestContext{..} = do
       then maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
       else mempty
 
-  resultSet <- writeQuery MutationCreate identifier True pkCols context
+  (mutateReq, readReq) <- liftEither $ writeRequest MutationCreate identifier context pkCols
+  resultSet <- writeQuery mutateReq readReq True pkCols context
 
   failNotSingular iAcceptMediaType resultSet
 
@@ -299,7 +301,8 @@ handleCreate identifier context@RequestContext{..} = do
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleUpdate identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
-  resultSet <- writeQuery MutationUpdate identifier False mempty context
+  (mutateReq, readReq) <- liftEither $ writeRequest MutationUpdate identifier context mempty
+  resultSet <- writeQuery mutateReq readReq False mempty context
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
@@ -308,7 +311,8 @@ handleUpdate identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..}
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
 handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ctxApiRequest _) = do
   let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
-  resultSet <- writeQuery MutationSingleUpsert identifier False pkCols context
+  (mutateReq, readReq) <- liftEither $ writeRequest MutationSingleUpsert identifier context pkCols
+  resultSet <- writeQuery mutateReq readReq False pkCols context
   failPut resultSet
   pure $ Response.singleUpsertResponse ctxApiRequest resultSet
 
@@ -326,7 +330,8 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
 
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleDelete identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
-  resultSet <- writeQuery MutationDelete identifier False mempty context
+  (mutateReq, readReq) <- liftEither $ writeRequest MutationDelete identifier context mempty
+  resultSet <- writeQuery mutateReq readReq False mempty context
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
 
@@ -342,7 +347,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-  req <- readRequest identifier context
+  req <- liftEither $ readRequest identifier context
   bField <- binaryField context req
 
   let callReq = ReqBuilder.callRequest proc ctxApiRequest req
@@ -403,16 +408,14 @@ txMode ApiRequest{..} =
     _ ->
       SQL.Write
 
-writeQuery :: Mutation -> QualifiedIdentifier -> Bool -> [Text] -> RequestContext -> DbHandler ResultSet
-writeQuery mutation identifier@QualifiedIdentifier{..} isInsert pkCols context@RequestContext{..} = do
+writeRequest :: Mutation -> QualifiedIdentifier -> RequestContext -> [FieldName] -> Either Error (MutateRequest.MutateRequest, ReadRequest)
+writeRequest mutation identifier@QualifiedIdentifier{..} context@RequestContext{..} pkCols = do
   readReq <- readRequest identifier context
+  mutateReq <- ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest pkCols readReq
+  pure (mutateReq, readReq)
 
-  mutateReq <-
-    liftEither $
-      ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest
-        pkCols
-        readReq
-
+writeQuery :: MutateRequest.MutateRequest -> ReadRequest -> Bool -> [Text] -> RequestContext -> DbHandler ResultSet
+writeQuery mutateReq readReq isInsert pkCols RequestContext{..} = do
   lift . SQL.statement mempty $
     Statements.prepareWrite
       (QueryBuilder.readRequestToQuery readReq)
@@ -445,12 +448,11 @@ returnsScalar :: ApiRequest.Target -> Bool
 returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
 returnsScalar _                   = False
 
-readRequest :: Monad m => QualifiedIdentifier -> RequestContext -> Handler m ReadRequest
+readRequest :: QualifiedIdentifier -> RequestContext -> Either Error ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
-  liftEither $
-    ReqBuilder.readRequest qiSchema qiName configDbMaxRows
-      (dbRelationships dbStructure)
-      apiRequest
+  ReqBuilder.readRequest qiSchema qiName configDbMaxRows
+    (dbRelationships dbStructure)
+    apiRequest
 
 -- | If raw(binary) output is requested, check that MediaType is one of the
 -- admitted rawMediaTypes and that`?select=...` contains only one field other
