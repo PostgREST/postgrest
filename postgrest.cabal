@@ -56,6 +56,7 @@ library
                       PostgREST.Middleware
                       PostgREST.MediaType
                       PostgREST.OpenAPI
+                      PostgREST.Query
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
                       PostgREST.Query.Statements

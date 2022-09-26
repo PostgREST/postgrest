@@ -27,24 +27,19 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.HashMap.Strict             as HM
-import qualified Hasql.DynamicStatements.Snippet as SQL (Snippet)
-import qualified Hasql.Transaction               as SQL
-import qualified Hasql.Transaction.Sessions      as SQL
-import qualified Network.Wai                     as Wai
-import qualified Network.Wai.Handler.Warp        as Warp
+import qualified Data.HashMap.Strict        as HM
+import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.Wai                as Wai
+import qualified Network.Wai.Handler.Warp   as Warp
 
 import qualified PostgREST.Admin                    as Admin
 import qualified PostgREST.AppState                 as AppState
 import qualified PostgREST.Auth                     as Auth
 import qualified PostgREST.Cors                     as Cors
-import qualified PostgREST.DbStructure              as DbStructure
 import qualified PostgREST.Error                    as Error
 import qualified PostgREST.Logger                   as Logger
 import qualified PostgREST.Middleware               as Middleware
-import qualified PostgREST.Query.QueryBuilder       as QueryBuilder
-import qualified PostgREST.Query.Statements         as Statements
-import qualified PostgREST.RangeQuery               as RangeQuery
+import qualified PostgREST.Query                    as Query
 import qualified PostgREST.Request.ApiRequest       as ApiRequest
 import qualified PostgREST.Request.DbRequestBuilder as ReqBuilder
 import qualified PostgREST.Request.MutateQuery      as MutateRequest
@@ -54,28 +49,23 @@ import qualified PostgREST.Response                 as Response
 import PostgREST.AppState                (AppState)
 import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..),
-                                          OpenAPIMode (..))
+                                          LogLevel (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.DbStructure.Proc        (ProcDescription (..),
-                                          ProcVolatility (..))
+import PostgREST.DbStructure.Proc        (ProcDescription (..))
 import PostgREST.DbStructure.Table       (Table (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MediaType (..))
-import PostgREST.Query.Statements        (ResultSet (..))
+import PostgREST.Query                   (DbHandler)
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
                                           Mutation (..), Target (..))
-import PostgREST.Request.Preferences     (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..),
-                                          shouldCount)
+import PostgREST.Request.Preferences     (PreferRepresentation (..))
 import PostgREST.Request.ReadQuery       (ReadRequest, fstFieldNames)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
@@ -93,12 +83,9 @@ data RequestContext = RequestContext
 
 type Handler = ExceptT Error
 
-type DbHandler = Handler SQL.Transaction
-
 type SignalHandlerInstaller = AppState -> IO()
 
 type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
-
 
 run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
 run installHandlers maybeRunWithSocket appState = do
@@ -198,7 +185,7 @@ postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer Aut
   if iAction apiRequest == ActionInfo then
     pure $ Response.infoResponse (iTarget apiRequest) dbStructure
   else
-    runDbHandler appState (txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
+    runDbHandler appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
       Middleware.optionalRollback conf apiRequest $
         Middleware.runPgLocals conf authClaims authRole (handleRequest . ctx) apiRequest jsonDbS pgVer
 
@@ -241,48 +228,9 @@ handleRead headersOnly identifier context@RequestContext{..} = do
   req <- liftEither $ readRequest identifier context
   bField <- binaryField context req
 
-  let
-    ApiRequest{..} = ctxApiRequest
-    AppConfig{..} = ctxConfig
-    countQuery = QueryBuilder.readRequestToCountQuery req
-
-  resultSet <-
-     lift . SQL.statement mempty $
-      Statements.prepareRead
-        (QueryBuilder.readRequestToQuery req)
-        (if iPreferCount == Just EstimatedCount then
-           -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
-           QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
-         else
-           countQuery
-        )
-        (shouldCount iPreferCount)
-        iAcceptMediaType
-        bField
-        configDbPreparedStatements
-
-  failNotSingular iAcceptMediaType resultSet
-  total <- readTotal ctxConfig ctxApiRequest resultSet countQuery
+  (resultSet, total) <- Query.readQuery req ctxConfig ctxApiRequest bField
 
   pure $ Response.readResponse headersOnly identifier ctxApiRequest total resultSet
-
-readTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler (Maybe Int64)
-readTotal _ _ RSPlan{} _ = pure Nothing
-readTotal AppConfig{..} ApiRequest{..} RSStandard{rsTableTotal=tableTotal} countQuery =
-  case iPreferCount of
-    Just PlannedCount ->
-      explain
-    Just EstimatedCount ->
-      if tableTotal > (fromIntegral <$> configDbMaxRows) then
-        max tableTotal <$> explain
-      else
-        return tableTotal
-    _ ->
-      return tableTotal
-  where
-    explain =
-      lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
-        configDbPreparedStatements
 
 handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleCreate identifier context@RequestContext{..} = do
@@ -293,156 +241,56 @@ handleCreate identifier context@RequestContext{..} = do
       else mempty
 
   (mutateReq, readReq) <- liftEither $ writeRequest MutationCreate identifier context pkCols
-  resultSet <- writeQuery mutateReq readReq True pkCols context
 
-  failNotSingular iAcceptMediaType resultSet
+  resultSet <- Query.createQuery mutateReq readReq pkCols ctxApiRequest ctxConfig
 
   pure $ Response.createResponse identifier pkCols ctxApiRequest resultSet
 
 handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
+handleUpdate identifier context@(RequestContext ctxConfig _ ctxApiRequest _) = do
   (mutateReq, readReq) <- liftEither $ writeRequest MutationUpdate identifier context mempty
-  resultSet <- writeQuery mutateReq readReq False mempty context
-  failNotSingular iAcceptMediaType resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
-
+  resultSet <- Query.updateQuery mutateReq readReq ctxApiRequest ctxConfig
   pure $ Response.updateResponse ctxApiRequest resultSet
 
 handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext _ ctxDbStructure ctxApiRequest _) = do
+handleSingleUpsert identifier context@(RequestContext ctxConfig ctxDbStructure ctxApiRequest _) = do
   let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
   (mutateReq, readReq) <- liftEither $ writeRequest MutationSingleUpsert identifier context pkCols
-  resultSet <- writeQuery mutateReq readReq False pkCols context
-  failPut resultSet
+  resultSet <- Query.singleUpsertQuery mutateReq readReq ctxApiRequest ctxConfig
   pure $ Response.singleUpsertResponse ctxApiRequest resultSet
 
--- Makes sure the querystring pk matches the payload pk
--- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
--- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
--- If this condition is not satisfied then nothing is inserted,
--- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-failPut :: ResultSet -> DbHandler ()
-failPut RSPlan{} = pure ()
-failPut RSStandard{rsQueryTotal=queryTotal} =
-  when (queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError Error.PutMatchingPkError
-
 handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext _ _ ctxApiRequest@ApiRequest{..} _) = do
+handleDelete identifier context@(RequestContext ctxConfig _ ctxApiRequest _) = do
   (mutateReq, readReq) <- liftEither $ writeRequest MutationDelete identifier context mempty
-  resultSet <- writeQuery mutateReq readReq False mempty context
-  failNotSingular iAcceptMediaType resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
-
+  resultSet <- Query.deleteQuery mutateReq readReq ctxApiRequest ctxConfig
   pure $ Response.deleteResponse ctxApiRequest resultSet
 
 handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
 handleInvoke invMethod proc context@RequestContext{..} = do
   let
-    ApiRequest{..} = ctxApiRequest
-
     identifier =
       QualifiedIdentifier
         (pdSchema proc)
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
-  req <- liftEither $ readRequest identifier context
-  bField <- binaryField context req
+  readReq <- liftEither $ readRequest identifier context
+  bField <- binaryField context readReq
+  let callReq = ReqBuilder.callRequest proc ctxApiRequest readReq
 
-  let callReq = ReqBuilder.callRequest proc ctxApiRequest req
+  resultSet <- Query.invokeQuery proc callReq readReq ctxApiRequest bField ctxConfig
 
-  resultSet <-
-    lift . SQL.statement mempty $
-      Statements.prepareCall
-        (Proc.procReturnsScalar proc)
-        (Proc.procReturnsSingle proc)
-        (QueryBuilder.requestToCallProcQuery callReq)
-        (QueryBuilder.readRequestToQuery req)
-        (QueryBuilder.readRequestToCountQuery req)
-        (shouldCount iPreferCount)
-        iAcceptMediaType
-        (iPreferParameters == Just MultipleObjects)
-        bField
-        (configDbPreparedStatements ctxConfig)
-
-  failNotSingular iAcceptMediaType resultSet
   pure $ Response.invokeResponse invMethod proc ctxApiRequest resultSet
 
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf@AppConfig{..} dbStructure apiRequest ctxPgVersion) = do
-  body <-
-    lift $ case configOpenApiMode of
-      OAFollowPriv ->
-        Just <$> ((,,)
-           <$> SQL.statement [tSchema] (DbStructure.accessibleTables ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.accessibleProcs ctxPgVersion configDbPreparedStatements)
-           <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
-      OAIgnorePriv ->
-        Just <$> ((,,)
-              (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
-              (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
-          <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
-      OADisabled ->
-        pure Nothing
-
-  pure $ Response.openApiResponse headersOnly body conf dbStructure $ iProfile apiRequest
-
-txMode :: ApiRequest -> SQL.Mode
-txMode ApiRequest{..} =
-  case (iAction, iTarget) of
-    (ActionRead _, _) ->
-      SQL.Read
-    (ActionInfo, _) ->
-      SQL.Read
-    (ActionInspect _, _) ->
-      SQL.Read
-    (ActionInvoke InvGet, _) ->
-      SQL.Read
-    (ActionInvoke InvHead, _) ->
-      SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _) ->
-      SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) ->
-      SQL.Read
-    _ ->
-      SQL.Write
+handleOpenApi headersOnly tSchema (RequestContext conf dbStructure apiRequest pgVer) = do
+  oaiResult <- Query.openApiQuery dbStructure pgVer conf tSchema
+  pure $ Response.openApiResponse headersOnly oaiResult conf dbStructure $ iProfile apiRequest
 
 writeRequest :: Mutation -> QualifiedIdentifier -> RequestContext -> [FieldName] -> Either Error (MutateRequest.MutateRequest, ReadRequest)
 writeRequest mutation identifier@QualifiedIdentifier{..} context@RequestContext{..} pkCols = do
   readReq <- readRequest identifier context
   mutateReq <- ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest pkCols readReq
   pure (mutateReq, readReq)
-
-writeQuery :: MutateRequest.MutateRequest -> ReadRequest -> Bool -> [Text] -> RequestContext -> DbHandler ResultSet
-writeQuery mutateReq readReq isInsert pkCols RequestContext{..} = do
-  lift . SQL.statement mempty $
-    Statements.prepareWrite
-      (QueryBuilder.readRequestToQuery readReq)
-      (QueryBuilder.mutateRequestToQuery mutateReq)
-      isInsert
-      (iAcceptMediaType ctxApiRequest)
-      (iPreferRepresentation ctxApiRequest)
-      pkCols
-      (configDbPreparedStatements ctxConfig)
-
--- |
--- Fail a response if a single JSON object was requested and not exactly one
--- was found.
-failNotSingular :: MediaType -> ResultSet -> DbHandler ()
-failNotSingular _ RSPlan{} = pure ()
-failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
-  when (mediaType == MTSingularJSON && queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.singularityError queryTotal
-
-failsChangesOffLimits :: Maybe Integer -> ResultSet -> DbHandler ()
-failsChangesOffLimits _ RSPlan{} = pure ()
-failsChangesOffLimits Nothing _  = pure ()
-failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
-  when (queryTotal > fromIntegral maxChanges) $ do
-    lift SQL.condemn
-    throwError $ Error.OffLimitsChangesError queryTotal maxChanges
 
 returnsScalar :: ApiRequest.Target -> Bool
 returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
