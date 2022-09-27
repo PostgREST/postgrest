@@ -167,14 +167,14 @@ postgrestResponse
   -> Wai.Request
   -> Handler IO Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer AuthResult{..} req = do
-  body <- lift $ Wai.strictRequestBody req
-
   dbStructure <-
     case maybeDbStructure of
       Just dbStructure ->
         return dbStructure
       Nothing ->
         throwError Error.NoSchemaCacheError
+
+  body <- lift $ Wai.strictRequestBody req
 
   apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
@@ -187,7 +187,7 @@ postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer Aut
   else
     runDbHandler appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
       Middleware.optionalRollback conf apiRequest $ do
-        Query.runPgLocals conf authClaims authRole apiRequest jsonDbS pgVer
+        Query.setPgLocals conf authClaims authRole apiRequest jsonDbS pgVer
         handleRequest (ctx apiRequest)
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b

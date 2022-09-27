@@ -55,7 +55,6 @@ library
                       PostgREST.Logger
                       PostgREST.Middleware
                       PostgREST.MediaType
-                      PostgREST.OpenAPI
                       PostgREST.Query
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
@@ -69,6 +68,7 @@ library
                       PostgREST.Request.ReadQuery
                       PostgREST.Request.Types
                       PostgREST.Response
+                      PostgREST.Response.OpenAPI
                       PostgREST.Version
                       PostgREST.Workers
   other-modules:      Paths_postgrest
