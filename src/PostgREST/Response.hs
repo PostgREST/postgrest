@@ -23,10 +23,10 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.HTTP.Types.URI    as HTTP
 import qualified Network.Wai               as Wai
 
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.MediaType  as MediaType
-import qualified PostgREST.OpenAPI    as OpenAPI
-import qualified PostgREST.RangeQuery as RangeQuery
+import qualified PostgREST.Error            as Error
+import qualified PostgREST.MediaType        as MediaType
+import qualified PostgREST.RangeQuery       as RangeQuery
+import qualified PostgREST.Response.OpenAPI as OpenAPI
 
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.DbStructure             (DbStructure (..))

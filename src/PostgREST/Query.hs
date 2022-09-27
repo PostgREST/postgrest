@@ -8,7 +8,7 @@ module PostgREST.Query
   , singleUpsertQuery
   , txMode
   , updateQuery
-  , runPgLocals
+  , setPgLocals
   , DbHandler
   ) where
 
@@ -228,9 +228,9 @@ failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
     throwError $ Error.OffLimitsChangesError queryTotal maxChanges
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
-runPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->
+setPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->
                ApiRequest  -> ByteString -> PgVersion -> DbHandler ()
-runPgLocals conf claims role req jsonDbS actualPgVersion = do
+setPgLocals conf claims role req jsonDbS actualPgVersion = do
   lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)

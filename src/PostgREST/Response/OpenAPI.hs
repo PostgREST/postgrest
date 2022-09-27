@@ -4,7 +4,7 @@ Description : Generates the OpenAPI output
 -}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
-module PostgREST.OpenAPI (encode) where
+module PostgREST.Response.OpenAPI (encode) where
 
 import qualified Data.Aeson            as JSON
 import qualified Data.ByteString.Char8 as BS
