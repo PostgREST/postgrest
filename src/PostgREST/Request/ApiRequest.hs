@@ -38,7 +38,7 @@ import Data.List                 (lookup, union)
 import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
-import Network.HTTP.Types.Header (hCookie)
+import Network.HTTP.Types.Header (hCookie, RequestHeaders)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
@@ -182,7 +182,8 @@ userApiRequest conf dbStructure req reqBody = do
   qPrms <- first QueryParamError $ QueryParams.parse $ rawQueryString req
   pInfo <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo $ requestMethod req
-  apiRequest conf dbStructure req reqBody qPrms pInfo act
+  mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
+  apiRequest conf dbStructure req reqBody qPrms pInfo act mediaTypes
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -216,8 +217,17 @@ getAction PathInfo{pathIsProc, pathIsDefSpec} method =
       "OPTIONS"                  -> Right ActionInfo
       _                          -> Left $ UnsupportedMethod method
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> Either ApiRequestError ApiRequest
-apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..} path@PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action
+getMediaTypes :: AppConfig -> RequestHeaders -> Action -> PathInfo -> Either ApiRequestError (MediaType, MediaType)
+getMediaTypes conf hdrs action path = do
+   acceptMediaType <- findAcceptMediaType conf action path accepts
+   pure $ (acceptMediaType, contentMediaType)
+  where
+    accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
+    contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
+    lookupHeader    = flip lookup hdrs
+
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> Either ApiRequestError ApiRequest
+apiRequest AppConfig{configDbSchemas} dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType)
   | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
@@ -225,7 +235,6 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
-     acceptMediaType <- findAcceptMediaType conf action path accepts
      checkedTarget <- target
      return ApiRequest {
       iAction = action
@@ -249,11 +258,7 @@ apiRequest conf@AppConfig{..} dbStructure req reqBody queryparams@QueryParams{..
       , iAcceptMediaType = acceptMediaType
       }
  where
-  accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-
   expectParams = pathIsProc && method /= "POST"
-
-  contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
 
   columns = case action of
     ActionMutate MutationCreate -> qsColumns
