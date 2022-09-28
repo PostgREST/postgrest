@@ -35,7 +35,6 @@ import qualified Data.Vector           as V
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup, union)
-import Data.Maybe                (fromJust)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
 import Network.HTTP.Types.Header (hCookie, RequestHeaders)
@@ -171,8 +170,8 @@ data ApiRequest = ApiRequest {
   , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                 :: ByteString                       -- ^ Raw request path
   , iMethod               :: ByteString                       -- ^ Raw request method
-  , iProfile              :: Maybe Schema                     -- ^ The request profile for enabling use of multiple schemas. Follows the spec in hhttps://www.w3.org/TR/dx-prof-conneg/ttps://www.w3.org/TR/dx-prof-conneg/.
-  , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on iProfile.
+  , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
+  , iNegotiatedByProfile  :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
   , iAcceptMediaType      :: MediaType
   }
 
@@ -183,7 +182,8 @@ userApiRequest conf dbStructure req reqBody = do
   pInfo <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo $ requestMethod req
   mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
-  apiRequest conf dbStructure req reqBody qPrms pInfo act mediaTypes
+  negotiatedSchema <- getSchema conf (requestHeaders req) (requestMethod req)
+  apiRequest dbStructure req reqBody qPrms pInfo act mediaTypes negotiatedSchema
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -226,9 +226,27 @@ getMediaTypes conf hdrs action path = do
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
     lookupHeader    = flip lookup hdrs
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> Either ApiRequestError ApiRequest
-apiRequest AppConfig{configDbSchemas} dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType)
-  | isJust profile && fromJust profile `notElem` configDbSchemas = Left $ UnacceptableSchema $ toList configDbSchemas
+getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
+getSchema AppConfig{configDbSchemas} hdrs method = do
+  case profile of
+    Just p | p `notElem` configDbSchemas -> Left $ UnacceptableSchema $ toList configDbSchemas
+           | otherwise                   -> Right (p, True)
+    Nothing -> Right (defaultSchema, length configDbSchemas /= 1) -- if we have many schemas, assume the default schema was negotiated
+  where
+    defaultSchema = NonEmptyList.head configDbSchemas
+    profile = case method of
+      -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
+      "DELETE" -> contentProfile
+      "PATCH"  -> contentProfile
+      "POST"   -> contentProfile
+      "PUT"    -> contentProfile
+      _        -> acceptProfile
+    contentProfile = T.decodeUtf8 <$> lookupHeader "Content-Profile"
+    acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
+    lookupHeader    = flip lookup hdrs
+
+apiRequest :: DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
+apiRequest dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
@@ -253,8 +271,8 @@ apiRequest AppConfig{configDbSchemas} dbStructure req reqBody queryparams@QueryP
       , iCookies = maybe [] parseCookies $ lookupHeader "Cookie"
       , iPath = rawPathInfo req
       , iMethod = method
-      , iProfile = profile
       , iSchema = schema
+      , iNegotiatedByProfile = negotiatedByProfile
       , iAcceptMediaType = acceptMediaType
       }
  where
@@ -295,23 +313,6 @@ apiRequest AppConfig{configDbSchemas} dbStructure req reqBody queryparams@QueryP
     (MTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
   topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
-
-  defaultSchema = NonEmptyList.head configDbSchemas
-  profile
-    | length configDbSchemas <= 1 -- only enable content negotiation by profile when there are multiple schemas specified in the config
-      = Nothing
-    | otherwise = case method of
-        -- POST/PATCH/PUT/DELETE don't use the same header as per the spec
-        "DELETE" -> contentProfile
-        "PATCH"  -> contentProfile
-        "POST"   -> contentProfile
-        "PUT"    -> contentProfile
-        _        -> acceptProfile
-    where
-      contentProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Content-Profile"
-      acceptProfile = Just $ maybe defaultSchema T.decodeUtf8 $ lookupHeader "Accept-Profile"
-
-  schema = fromMaybe defaultSchema profile
 
   target
     | pathIsProc    = (`TargetProc` pathIsRootSpec) <$> callFindProc schema pathName

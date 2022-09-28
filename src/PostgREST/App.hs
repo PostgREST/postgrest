@@ -285,7 +285,7 @@ handleInvoke invMethod proc context@RequestContext{..} = do
 handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
 handleOpenApi headersOnly tSchema (RequestContext conf dbStructure apiRequest pgVer) = do
   oaiResult <- Query.openApiQuery dbStructure pgVer conf tSchema
-  pure $ Response.openApiResponse headersOnly oaiResult conf dbStructure $ iProfile apiRequest
+  pure $ Response.openApiResponse headersOnly oaiResult conf dbStructure (iSchema apiRequest) (iNegotiatedByProfile apiRequest)
 
 writeRequest :: Mutation -> QualifiedIdentifier -> RequestContext -> [FieldName] -> Either Error (MutateRequest.MutateRequest, ReadRequest)
 writeRequest mutation identifier@QualifiedIdentifier{..} context@RequestContext{..} pkCols = do

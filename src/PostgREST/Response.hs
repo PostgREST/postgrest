@@ -215,10 +215,10 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> DbStructure -> Maybe Schema -> Wai.Response
-openApiResponse headersOnly body conf dbStructure iProfile =
+openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> DbStructure -> Schema -> Bool -> Wai.Response
+openApiResponse headersOnly body conf dbStructure schema negotiatedByProfile =
   Wai.responseLBS HTTP.status200
-    (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader iProfile))
+    (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
     (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode conf dbStructure x y z) body)
 
 -- | Response with headers and status overridden from GUCs.
@@ -245,11 +245,14 @@ decodeGucStatus =
 
 contentTypeHeaders :: ApiRequest -> [HTTP.Header]
 contentTypeHeaders ApiRequest{..} =
-  MediaType.toContentType iAcceptMediaType : maybeToList (profileHeader iProfile)
+  MediaType.toContentType iAcceptMediaType : maybeToList (profileHeader iSchema iNegotiatedByProfile)
 
-profileHeader :: Maybe Schema -> Maybe HTTP.Header
-profileHeader iProfile =
-  (,) "Content-Profile" <$> (toS <$> iProfile)
+profileHeader :: Schema -> Bool -> Maybe HTTP.Header
+profileHeader schema negotiatedByProfile =
+  if negotiatedByProfile
+    then Just $ (,) "Content-Profile" (toS schema)
+  else
+    Nothing
 
 addRetryHint :: Int -> Wai.Response -> Wai.Response
 addRetryHint delay response = do
