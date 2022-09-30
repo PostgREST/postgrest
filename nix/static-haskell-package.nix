@@ -19,6 +19,7 @@ let
       [
         patches.static-haskell-nix-ncurses
         patches.static-haskell-nix-ghc-bignum
+        patches.static-haskell-nix-openssl
       ];
 
   extraOverrides =
