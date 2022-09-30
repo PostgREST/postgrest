@@ -1,0 +1,12 @@
+diff --git a/survey/default.nix b/survey/default.nix
+index cf1bd31..9d34753 100644
+--- a/survey/default.nix
++++ b/survey/default.nix
+@@ -736,6 +736,7 @@ let
+     openblas = previous.openblas.override { enableStatic = true; };
+ 
+     openssl = previous.openssl.override { static = true; };
++    openssl_1_1 = previous.openssl_1_1.override { static = true; };
+ 
+     libsass = previous.libsass.overrideAttrs (old: { dontDisableStatic = true; });
+ 
