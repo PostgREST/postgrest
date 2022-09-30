@@ -2,7 +2,7 @@
 # directly, or use the .bin attribute to get the script in a bin/ directory,
 # to be used in a path for example.
 { argbash
-, bash_5
+, bash
 , coreutils
 , git
 , lib
@@ -77,7 +77,7 @@ let
 
       text =
         ''
-          #!${bash_5}/bin/bash
+          #!${bash}/bin/bash
           source ${argsParser}
           set -euo pipefail
         ''
