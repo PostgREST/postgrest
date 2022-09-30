@@ -80,7 +80,7 @@ let
     python3.withPackages (ps: [
       ps.pyjwt
       ps.pytest
-      ps.pytest_xdist
+      ps.pytest-xdist
       ps.pyyaml
       ps.requests
       ps.requests-unixsocket
