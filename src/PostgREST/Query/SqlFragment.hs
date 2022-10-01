@@ -62,7 +62,6 @@ import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
-import PostgREST.Request.ReadQuery       (SelectItem)
 import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           FtsOperator (..),
                                           JoinCondition (..),
@@ -74,7 +73,7 @@ import PostgREST.Request.Types           (Alias, Field, Filter (..),
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
-                                          OrderTerm (..),
+                                          OrderTerm (..), SelectItem,
                                           SimpleOperator (..),
                                           TrileanVal (..))
 

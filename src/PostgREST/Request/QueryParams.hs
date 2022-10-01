@@ -44,18 +44,16 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
                                           rangeOffset, restrictRange)
 
-import PostgREST.Request.ReadQuery (SelectItem)
-import PostgREST.Request.Types     (EmbedParam (..), EmbedPath, Field,
-                                    Filter (..), FtsOperator (..),
-                                    JoinType (..), JsonOperand (..),
-                                    JsonOperation (..), JsonPath,
-                                    ListVal, LogicOperator (..),
-                                    LogicTree (..), OpExpr (..),
-                                    Operation (..),
-                                    OrderDirection (..),
-                                    OrderNulls (..), OrderTerm (..),
-                                    QPError (..), SimpleOperator (..),
-                                    SingleVal, TrileanVal (..))
+import PostgREST.Request.Types (EmbedParam (..), EmbedPath, Field,
+                                Filter (..), FtsOperator (..),
+                                JoinType (..), JsonOperand (..),
+                                JsonOperation (..), JsonPath, ListVal,
+                                LogicOperator (..), LogicTree (..),
+                                OpExpr (..), Operation (..),
+                                OrderDirection (..), OrderNulls (..),
+                                OrderTerm (..), QPError (..),
+                                SelectItem, SimpleOperator (..),
+                                SingleVal, TrileanVal (..))
 
 import Protolude hiding (try)
 

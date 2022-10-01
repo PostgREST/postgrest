@@ -32,6 +32,7 @@ module PostgREST.Request.Types
   , TrileanVal(..)
   , SimpleOperator(..)
   , FtsOperator(..)
+  , SelectItem
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -45,11 +46,13 @@ import PostgREST.MediaType                (MediaType (..))
 
 import Protolude
 
-
+-- | The select value in `/tbl?select=alias:field::cast`
+type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe Hint, Maybe JoinType)
 
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
+  | BinaryFieldError MediaType
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters

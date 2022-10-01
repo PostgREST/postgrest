@@ -37,7 +37,8 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup, union)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
-import Network.HTTP.Types.Header (hCookie, RequestHeaders)
+import Data.Tree                 (Tree (..))
+import Network.HTTP.Types.Header (RequestHeaders, hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
@@ -50,7 +51,8 @@ import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
-                                          ProcParam (..), ProcsMap)
+                                          ProcParam (..), ProcsMap,
+                                          procReturnsScalar)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..))
@@ -65,7 +67,7 @@ import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferTransaction (..))
 import PostgREST.Request.QueryParams     (QueryParams (..))
 import PostgREST.Request.Types           (ApiRequestError (..),
-                                          RangeError (..))
+                                          RangeError (..), SelectItem)
 
 import qualified PostgREST.MediaType           as MediaType
 import qualified PostgREST.Request.Preferences as Preferences
@@ -172,7 +174,8 @@ data ApiRequest = ApiRequest {
   , iMethod               :: ByteString                       -- ^ Raw request method
   , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
   , iNegotiatedByProfile  :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
-  , iAcceptMediaType      :: MediaType
+  , iAcceptMediaType      :: MediaType                        -- ^ The media type in the Accept header
+  , iBinaryField          :: Maybe FieldName                  -- ^ field used for raw output
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -183,7 +186,7 @@ userApiRequest conf dbStructure req reqBody = do
   act <- getAction pInfo $ requestMethod req
   mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
   negotiatedSchema <- getSchema conf (requestHeaders req) (requestMethod req)
-  apiRequest dbStructure req reqBody qPrms pInfo act mediaTypes negotiatedSchema
+  apiRequest conf dbStructure req reqBody qPrms pInfo act mediaTypes negotiatedSchema
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -220,7 +223,7 @@ getAction PathInfo{pathIsProc, pathIsDefSpec} method =
 getMediaTypes :: AppConfig -> RequestHeaders -> Action -> PathInfo -> Either ApiRequestError (MediaType, MediaType)
 getMediaTypes conf hdrs action path = do
    acceptMediaType <- findAcceptMediaType conf action path accepts
-   pure $ (acceptMediaType, contentMediaType)
+   pure (acceptMediaType, contentMediaType)
   where
     accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
@@ -245,8 +248,8 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
     lookupHeader    = flip lookup hdrs
 
-apiRequest :: DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
-apiRequest dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
+apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
+apiRequest conf dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
@@ -254,6 +257,7 @@ apiRequest dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
      checkedTarget <- target
+     bField <- binaryField conf acceptMediaType checkedTarget queryparams
      return ApiRequest {
       iAction = action
       , iTarget = checkedTarget
@@ -274,6 +278,7 @@ apiRequest dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName
       , iSchema = schema
       , iNegotiatedByProfile = negotiatedByProfile
       , iAcceptMediaType = acceptMediaType
+      , iBinaryField = bField
       }
  where
   expectParams = pathIsProc && method /= "POST"
@@ -494,3 +499,35 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
       -- If the function has required and optional parameters, the arguments keys have to match the required parameters
       -- and can match any or none of the default parameters.
         (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)
+
+-- | If raw(binary) output is requested, check that MediaType is one of the
+-- admitted rawMediaTypes and that`?select=...` contains only one field other
+-- than `*`
+binaryField :: AppConfig -> MediaType -> Target -> QueryParams -> Either ApiRequestError (Maybe FieldName)
+binaryField AppConfig{configRawMediaTypes} acceptMediaType target QueryParams{qsSelect}
+  | returnsScalar target && isRawMediaType =
+      Right $ Just "pgrst_scalar"
+  | isRawMediaType =
+      let
+        fieldName = fstFieldName qsSelect
+      in
+      case fieldName of
+        Just fld -> Right $ Just fld
+        Nothing  -> Left $ BinaryFieldError acceptMediaType
+  | otherwise =
+      Right Nothing
+  where
+    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
+    isRawPlan mt = case mt of
+      MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
+      MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
+      MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
+      _                                             -> False
+    returnsScalar :: Target -> Bool
+    returnsScalar (TargetProc proc _) = procReturnsScalar proc
+    returnsScalar _                   = False
+
+    fstFieldName :: [Tree SelectItem] -> Maybe FieldName
+    fstFieldName [Node (("*", _), Nothing, Nothing, Nothing, Nothing) []] = Nothing
+    fstFieldName [Node ((fld, _), Nothing, Nothing, Nothing, Nothing) []] = Just fld
+    fstFieldName _                           = Nothing
