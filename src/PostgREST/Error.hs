@@ -57,6 +57,7 @@ class (JSON.ToJSON a) => PgrstError a where
 instance PgrstError ApiRequestError where
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
+  status BinaryFieldError{}      = HTTP.status406
   status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
@@ -131,6 +132,12 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("A 'limit' was applied without an explicit 'order'":: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Apply an 'order' using unique column(s)" :: Text)]
+
+  toJSON (BinaryFieldError ct) = JSON.object [
+    "code"    .= ApiRequestErrorCode13,
+    "message" .= ((T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
 
   toJSON PutRangeNotAllowedError = JSON.object [
     "code"    .= ApiRequestErrorCode14,
@@ -333,7 +340,6 @@ checkIsFatal _ = Nothing
 
 data Error
   = ApiRequestError ApiRequestError
-  | BinaryFieldError MediaType
   | GucHeadersError
   | GucStatusError
   | JwtTokenInvalid Text
@@ -347,7 +353,6 @@ data Error
 
 instance PgrstError Error where
   status (ApiRequestError err)   = status err
-  status BinaryFieldError{}      = HTTP.status406
   status GucHeadersError         = HTTP.status500
   status GucStatusError          = HTTP.status500
   status JwtTokenInvalid{}       = HTTP.unauthorized401
@@ -403,11 +408,6 @@ instance JSON.ToJSON Error where
   toJSON GucStatusError = JSON.object [
     "code"    .= ApiRequestErrorCode12,
     "message" .= ("response.status guc must be a valid status code" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON (BinaryFieldError ct) = JSON.object [
-    "code"    .= ApiRequestErrorCode13,
-    "message" .= ((T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 

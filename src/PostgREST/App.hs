@@ -20,7 +20,6 @@ module PostgREST.App
 
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
-import Data.List                (union)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
@@ -58,15 +57,13 @@ import PostgREST.DbStructure.Identifiers (FieldName,
 import PostgREST.DbStructure.Proc        (ProcDescription (..))
 import PostgREST.DbStructure.Table       (Table (..))
 import PostgREST.Error                   (Error)
-import PostgREST.MediaType               (MTPlanAttrs (..),
-                                          MediaType (..))
 import PostgREST.Query                   (DbHandler)
 import PostgREST.Request.ApiRequest      (Action (..),
                                           ApiRequest (..),
                                           InvokeMethod (..),
                                           Mutation (..), Target (..))
 import PostgREST.Request.Preferences     (PreferRepresentation (..))
-import PostgREST.Request.ReadQuery       (ReadRequest, fstFieldNames)
+import PostgREST.Request.ReadQuery       (ReadRequest)
 import PostgREST.Version                 (prettyVersion)
 import PostgREST.Workers                 (connectionWorker, listener)
 
@@ -227,9 +224,8 @@ handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
 handleRead :: Bool -> QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleRead headersOnly identifier context@RequestContext{..} = do
   req <- liftEither $ readRequest identifier context
-  bField <- binaryField context req
 
-  (resultSet, total) <- Query.readQuery req ctxConfig ctxApiRequest bField
+  (resultSet, total) <- Query.readQuery req ctxConfig ctxApiRequest
 
   pure $ Response.readResponse headersOnly identifier ctxApiRequest total resultSet
 
@@ -275,10 +271,9 @@ handleInvoke invMethod proc context@RequestContext{..} = do
         (fromMaybe (pdName proc) $ Proc.procTableName proc)
 
   readReq <- liftEither $ readRequest identifier context
-  bField <- binaryField context readReq
   let callReq = ReqBuilder.callRequest proc ctxApiRequest readReq
 
-  resultSet <- Query.invokeQuery proc callReq readReq ctxApiRequest bField ctxConfig
+  resultSet <- Query.invokeQuery proc callReq readReq ctxApiRequest ctxConfig
 
   pure $ Response.invokeResponse invMethod proc ctxApiRequest resultSet
 
@@ -293,39 +288,8 @@ writeRequest mutation identifier@QualifiedIdentifier{..} context@RequestContext{
   mutateReq <- ReqBuilder.mutateRequest mutation qiSchema qiName ctxApiRequest pkCols readReq
   pure (mutateReq, readReq)
 
-returnsScalar :: ApiRequest.Target -> Bool
-returnsScalar (TargetProc proc _) = Proc.procReturnsScalar proc
-returnsScalar _                   = False
-
 readRequest :: QualifiedIdentifier -> RequestContext -> Either Error ReadRequest
 readRequest QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
   ReqBuilder.readRequest qiSchema qiName configDbMaxRows
     (dbRelationships dbStructure)
     apiRequest
-
--- | If raw(binary) output is requested, check that MediaType is one of the
--- admitted rawMediaTypes and that`?select=...` contains only one field other
--- than `*`
-binaryField :: Monad m => RequestContext -> ReadRequest -> Handler m (Maybe FieldName)
-binaryField RequestContext{..} readReq
-  | returnsScalar (iTarget ctxApiRequest) && isRawMediaType =
-      return $ Just "pgrst_scalar"
-  | isRawMediaType =
-      let
-        fldNames = fstFieldNames readReq
-        fieldName = headMay fldNames
-      in
-      if length fldNames == 1 && fieldName /= Just "*" then
-        return fieldName
-      else
-        throwError $ Error.BinaryFieldError mediaType
-  | otherwise =
-      return Nothing
-  where
-    mediaType = iAcceptMediaType ctxApiRequest
-    isRawMediaType = mediaType `elem` configRawMediaTypes ctxConfig `union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan mediaType
-    isRawPlan mt = case mt of
-      MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
-      MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
-      MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
-      _                                             -> False

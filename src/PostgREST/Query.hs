@@ -67,8 +67,8 @@ import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-readQuery :: ReadRequest -> AppConfig -> ApiRequest -> Maybe FieldName -> DbHandler (ResultSet, Maybe Int64)
-readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} bField = do
+readQuery :: ReadRequest -> AppConfig -> ApiRequest -> DbHandler (ResultSet, Maybe Int64)
+readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
   let countQuery = QueryBuilder.readRequestToCountQuery req
   resultSet <-
      lift . SQL.statement mempty $
@@ -82,7 +82,7 @@ readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} bField = do
         )
         (shouldCount iPreferCount)
         iAcceptMediaType
-        bField
+        iBinaryField
         configDbPreparedStatements
   failNotSingular iAcceptMediaType resultSet
   total <- readTotal conf apiReq resultSet countQuery
@@ -144,8 +144,8 @@ deleteQuery mutateReq readReq apiReq@ApiRequest{..} conf = do
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   pure resultSet
 
-invokeQuery :: ProcDescription -> ApiRequestTypes.CallRequest -> ReadRequest -> ApiRequest -> Maybe FieldName -> AppConfig -> DbHandler ResultSet
-invokeQuery proc callReq readReq ApiRequest{..} bField AppConfig{..} = do
+invokeQuery :: ProcDescription -> ApiRequestTypes.CallRequest -> ReadRequest -> ApiRequest -> AppConfig -> DbHandler ResultSet
+invokeQuery proc callReq readReq ApiRequest{..} AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -157,7 +157,7 @@ invokeQuery proc callReq readReq ApiRequest{..} bField AppConfig{..} = do
         (shouldCount iPreferCount)
         iAcceptMediaType
         (iPreferParameters == Just MultipleObjects)
-        bField
+        iBinaryField
         configDbPreparedStatements
 
   failNotSingular iAcceptMediaType resultSet
