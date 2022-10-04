@@ -9,9 +9,6 @@ module PostgREST.Request.Types
   , Field
   , Filter(..)
   , Hint
-  , CallQuery(..)
-  , CallParams(..)
-  , CallRequest
   , JoinCondition(..)
   , JoinType(..)
   , JsonOperand(..)
@@ -35,12 +32,9 @@ module PostgREST.Request.Types
   , SelectItem
   ) where
 
-import qualified Data.ByteString.Lazy as LBS
-
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
-import PostgREST.DbStructure.Proc         (ProcDescription (..),
-                                           ProcParam (..))
+import PostgREST.DbStructure.Proc         (ProcDescription (..))
 import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.MediaType                (MediaType (..))
 
@@ -75,8 +69,6 @@ data RangeError
   | LowerGTUpper
   | OutOfBounds Text Text
 
-type CallRequest = CallQuery
-
 type NodeName = Text
 type Depth = Integer
 
@@ -102,19 +94,6 @@ data OrderNulls
   = OrderNullsFirst
   | OrderNullsLast
   deriving (Eq)
-
-data CallQuery = FunctionCall
-  { funCQi           :: QualifiedIdentifier
-  , funCParams       :: CallParams
-  , funCArgs         :: Maybe LBS.ByteString
-  , funCScalar       :: Bool
-  , funCMultipleCall :: Bool
-  , funCReturning    :: [FieldName]
-  }
-
-data CallParams
-  = KeyParams [ProcParam] -- ^ Call with key params: func(a := val1, b:= val2)
-  | OnePosParam ProcParam -- ^ Call with positional params(only one supported): func(val)
 
 type Field = (FieldName, JsonPath)
 type Cast = Text

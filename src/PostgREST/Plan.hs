@@ -1,9 +1,9 @@
 {-|
-Module      : PostgREST.Request.DbRequestBuilder
-Description : PostgREST database request builder
+Module      : PostgREST.Plan
+Description : PostgREST Request Planner
 
 This module is in charge of building an intermediate
-representation(ReadRequest, MutateRequest) between the HTTP request and the
+representation between the HTTP request and the
 final resulting SQL query.
 
 A query tree is built in case of resource embedding. By inferring the
@@ -15,10 +15,10 @@ resource.
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
 
-module PostgREST.Request.DbRequestBuilder
-  ( readRequest
-  , mutateRequest
-  , callRequest
+module PostgREST.Plan
+  ( readPlan
+  , mutatePlan
+  , callPlan
   ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -48,20 +48,21 @@ import PostgREST.Request.ApiRequest       (Action (..),
                                            Mutation (..),
                                            Payload (..))
 
-import PostgREST.Request.MutateQuery
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan
+import PostgREST.Plan.ReadPlan       as ReadPlan
 import PostgREST.Request.Preferences
-import PostgREST.Request.ReadQuery   as ReadQuery
 import PostgREST.Request.Types
 
 import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
--- | Builds the ReadRequest tree on a number of stages.
+-- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readRequest :: Schema -> TableName -> Maybe Integer -> RelationshipsMap -> ApiRequest -> Either Error ReadRequest
-readRequest schema rootTableName maxRows allRels apiRequest  =
+readPlan :: Schema -> TableName -> Maybe Integer -> RelationshipsMap -> ApiRequest -> Either Error ReadPlanTree
+readPlan schema rootTableName maxRows allRels apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange maxRows (iAction apiRequest) =<<
   augmentRequestWithJoin schema allRels =<<
@@ -80,67 +81,67 @@ readRequest schema rootTableName maxRows allRels apiRequest  =
 -- can differentiate the parent and child tables by having an alias like
 -- "table_depth", this is related to
 -- http://github.com/PostgREST/postgrest/issues/987.
-initReadRequest :: QualifiedIdentifier -> Maybe Alias -> [Tree SelectItem] -> ReadRequest
+initReadRequest :: QualifiedIdentifier -> Maybe Alias -> [Tree SelectItem] -> ReadPlanTree
 initReadRequest rootQi rootAlias =
   foldr (treeEntry rootDepth) initial
   where
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (Select [] rootQi rootAlias [] [] [] allRange, (rootName, Nothing, Nothing, Nothing, Nothing, rootDepth)) []
-    treeEntry :: Depth -> Tree SelectItem -> ReadRequest -> ReadRequest
-    treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node (q, i) rForest) =
+    initial = Node (ReadPlan [] rootQi rootAlias [] [] [] allRange rootName Nothing Nothing Nothing Nothing rootDepth) []
+    treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
+    treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
       case fldForest of
-        [] -> Node (q {select=fld:select q}, i) rForest
-        _  -> Node (q, i) $
+        [] -> Node q{select=fld:select q} rForest
+        _  -> Node q $
               foldr (treeEntry nxtDepth)
-              (Node (Select [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] allRange,
-                (fn, Nothing, alias, hint, joinType, nxtDepth)) [])
+              (Node (ReadPlan [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] allRange fn Nothing alias hint joinType nxtDepth) [])
               fldForest:rForest
 
 -- | Enforces the `max-rows` config on the result
-treeRestrictRange :: Maybe Integer -> Action -> ReadRequest -> Either ApiRequestError ReadRequest
+treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 treeRestrictRange _ (ActionMutate _) request = Right request
 treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
-    nodeRestrictRange :: Maybe Integer -> ReadNode -> ReadNode
-    nodeRestrictRange m (q@Select {range_=r}, i) = (q{range_=restrictRange m r }, i)
+    nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
+    nodeRestrictRange m q@ReadPlan{range_=r} = q{range_=restrictRange m r }
 
-augmentRequestWithJoin :: Schema -> RelationshipsMap -> ReadRequest -> Either ApiRequestError ReadRequest
+augmentRequestWithJoin :: Schema -> RelationshipsMap -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 augmentRequestWithJoin schema allRels request =
  addJoinConditions Nothing <$> addRels schema allRels Nothing request
 
-addRels :: Schema -> RelationshipsMap -> Maybe ReadRequest -> ReadRequest -> Either ApiRequestError ReadRequest
-addRels schema allRels parentNode (Node (query@Select{from=tbl}, (nodeName, _, alias, hint, joinType, depth)) forest) =
+addRels :: Schema -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,nodeName,nodeHint,nodeDepth} forest) =
   case parentNode of
-    Just (Node (Select{from=parentNodeQi, fromAlias=aliasQi}, _) _) ->
+    Just (Node ReadPlan{from=parentNodeQi, fromAlias=aliasQi} _) ->
       let newFrom r = if qiName tbl == nodeName then relForeignTable r else tbl
-          newReadNode = (\r ->
+          newReadPlan = (\r ->
             if not $ relIsSelf r -- add alias if self rel TODO consolidate aliasing in another function
-              then (query{from=newFrom r}, (nodeName, Just r, alias, hint, joinType, depth))
-              else (query{from=newFrom r, fromAlias=Just (qiName (newFrom r) <> "_" <> show depth)}, (nodeName, Just r, alias, hint, joinType, depth))
+              then query{from=newFrom r, nodeRel=Just r}
+              else query{from=newFrom r, nodeRel=Just r, fromAlias=Just (qiName (newFrom r) <> "_" <> show nodeDepth)}
             ) <$> rel
-          origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
+          origin = if nodeDepth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
             then fromMaybe (qiName parentNodeQi) aliasQi
             else qiName parentNodeQi
-          rel = findRel schema allRels origin nodeName hint
+          rel = findRel schema allRels origin nodeName nodeHint
       in
-      Node <$> newReadNode <*> (updateForest . hush $ Node <$> newReadNode <*> pure forest)
+      Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
     _ ->
-      let rn = (query, (nodeName, Nothing, alias, Nothing, joinType, depth)) in
-      Node rn <$> updateForest (Just $ Node rn forest)
+      Node query <$> updateForest (Just $ Node query forest)
   where
-    updateForest :: Maybe ReadRequest -> Either ApiRequestError [ReadRequest]
+    updateForest :: Maybe ReadPlanTree -> Either ApiRequestError [ReadPlanTree]
     updateForest rq = addRels schema allRels rq `traverse` forest
 
 -- applies aliasing to join conditions TODO refactor, this should go into the querybuilder module
-addJoinConditions :: Maybe Alias -> ReadRequest -> ReadRequest
-addJoinConditions _ (Node node@(Select{fromAlias=tblAlias}, (_, Nothing, _, _, _, _)) forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions _ (Node node@(Select{fromAlias=tblAlias}, (_, Just ComputedRelationship{}, _, _, _, _)) forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions previousAlias (Node (query@Select{fromAlias=tblAlias}, nodeProps@(_, Just (Relationship QualifiedIdentifier{qiSchema=tSchema, qiName=tN} QualifiedIdentifier{qiName=ftN} _ card _ _), _, _, _, _)) forest) =
-  Node (query{joinConditions=joinConds}, nodeProps) (addJoinConditions tblAlias <$> forest)
+addJoinConditions :: Maybe Alias -> ReadPlanTree -> ReadPlanTree
+addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, nodeRel=Nothing} forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, nodeRel=Just ComputedRelationship{}} forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions previousAlias (Node query@ReadPlan{fromAlias=tblAlias, nodeRel=Just Relationship{relTable=qi,relForeignTable=fQi,relCardinality=card}} forest) =
+  Node query{joinConditions=joinConds} (addJoinConditions tblAlias <$> forest)
   where
+    QualifiedIdentifier{qiSchema=tSchema, qiName=tN} = qi
+    QualifiedIdentifier{qiName=ftN} = fQi
     joinConds =
       case card of
         M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
@@ -241,7 +242,7 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
-addFilters :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addFilters :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addFilters ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
   where
@@ -254,11 +255,11 @@ addFilters ApiRequest{..} rReq =
         ActionRead _         -> qsFilters
         _                    -> qsFiltersNotRoot
 
-    addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadRequest ->  Either ApiRequestError ReadRequest
+    addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadPlanTree ->  Either ApiRequestError ReadPlanTree
     addFilterToNode =
-      updateNode (\flt (Node (q@Select {where_=lf}, i) f) -> Node (q{ReadQuery.where_=addFilterToLogicForest flt lf}, i) f)
+      updateNode (\flt (Node q@ReadPlan{where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest flt lf}  f)
 
-addOrders :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addOrders :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addOrders ApiRequest{..} rReq =
   case iAction of
     ActionMutate _ -> Right rReq
@@ -266,10 +267,10 @@ addOrders ApiRequest{..} rReq =
   where
     QueryParams.QueryParams{..} = iQueryParams
 
-    addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
-    addOrderToNode = updateNode (\o (Node (q,i) f) -> Node (q{order=o}, i) f)
+    addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addOrderToNode = updateNode (\o (Node q f) -> Node q{order=o} f)
 
-addRanges :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =
   case iAction of
     ActionMutate _ -> Right rReq
@@ -278,20 +279,20 @@ addRanges ApiRequest{..} rReq =
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
     ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` HM.toList iRange
 
-    addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
-    addRangeToNode = updateNode (\r (Node (q,i) f) -> Node (q{range_=r}, i) f)
+    addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
 
-addLogicTrees :: ApiRequest -> ReadRequest -> Either ApiRequestError ReadRequest
+addLogicTrees :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addLogicTrees ApiRequest{..} rReq =
   foldr addLogicTreeToNode (Right rReq) qsLogic
   where
     QueryParams.QueryParams{..} = iQueryParams
 
-    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
-    addLogicTreeToNode = updateNode (\t (Node (q@Select{where_=lf},i) f) -> Node (q{ReadQuery.where_=t:lf}, i) f)
+    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{where_=lf} f) -> Node q{ReadPlan.where_=t:lf} f)
 
 -- Find a Node of the Tree and apply a function to it
-updateNode :: (a -> ReadRequest -> ReadRequest) -> (EmbedPath, a) -> Either ApiRequestError ReadRequest -> Either ApiRequestError ReadRequest
+updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
 updateNode f ([], a) rr = f a <$> rr
 updateNode _ _ (Left e) = Left e
 updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
@@ -301,11 +302,11 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
       (\node -> Node rootNode $ node : delete target forest) <$>
       updateNode f (remainingPath, a) (Right target)
   where
-    findNode :: Maybe ReadRequest
-    findNode = find (\(Node (_,(nodeName,_,alias,_,_, _)) _) -> nodeName == targetNodeName || alias == Just targetNodeName) forest
+    findNode :: Maybe ReadPlanTree
+    findNode = find (\(Node ReadPlan{nodeName, nodeAlias} _) -> nodeName == targetNodeName || nodeAlias == Just targetNodeName) forest
 
-mutateRequest :: Mutation -> Schema -> TableName -> ApiRequest -> [FieldName] -> ReadRequest -> Either Error MutateRequest
-mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
+mutatePlan :: Mutation -> Schema -> TableName -> ApiRequest -> [FieldName] -> ReadPlanTree -> Either Error MutatePlan
+mutatePlan mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
@@ -334,8 +335,8 @@ mutateRequest mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiR
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
 
-callRequest :: ProcDescription -> ApiRequest -> ReadRequest -> CallRequest
-callRequest proc apiReq readReq = FunctionCall {
+callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
+callPlan proc apiReq readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
 , funCArgs = payRaw <$> iPayload apiReq
@@ -352,7 +353,7 @@ callRequest proc apiReq readReq = FunctionCall {
       prms  -> KeyParams $ specifiedParams prms
     specifiedParams = filter (\x -> ppName x `S.member` iColumns apiReq)
 
-returningCols :: ReadRequest -> [FieldName] -> [FieldName]
+returningCols :: ReadPlanTree -> [FieldName] -> [FieldName]
 returningCols rr@(Node _ forest) pkCols
   -- if * is part of the select, we must not add pk or fk columns manually -
   -- otherwise those would be selected and output twice
@@ -360,24 +361,31 @@ returningCols rr@(Node _ forest) pkCols
   | otherwise           = returnings
   where
     fldNames = fstFieldNames rr
-    -- Without fkCols, when a mutateRequest to
+    -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
     -- fail because the following JOIN would need the "client_id" column from
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node (_, (_, Just Relationship{relCardinality=O2M _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
-        Node (_, (_, Just Relationship{relCardinality=M2O _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
-        Node (_, (_, Just Relationship{relCardinality=O2O _ cols}, _, _, _, _)) _ -> Just $ fst <$> cols
-        Node (_, (_, Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}, _, _, _, _)) _ -> Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
-        _                                                        -> Nothing
+        Node ReadPlan{nodeRel=Just Relationship{relCardinality=O2M _ cols}} _ ->
+          Just $ fst <$> cols
+        Node ReadPlan{nodeRel=Just Relationship{relCardinality=M2O _ cols}} _ ->
+          Just $ fst <$> cols
+        Node ReadPlan{nodeRel=Just Relationship{relCardinality=O2O _ cols}} _ ->
+          Just $ fst <$> cols
+        Node ReadPlan{nodeRel=Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}} _ ->
+          Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
+        Node ReadPlan{nodeRel=Just ComputedRelationship{}} _ ->
+          Nothing
+        Node ReadPlan{nodeRel=Nothing} _ ->
+          Nothing
       ) forest
     hasComputedRel = isJust $ find (\case
-      Node (_, (_, Just ComputedRelationship{}, _, _, _, _)) _ -> True
-      _ -> False
+      Node ReadPlan{nodeRel=Just ComputedRelationship{}} _ -> True
+      _                                                    -> False
       ) forest
-    -- However if the "client_id" is present, e.g. mutateRequest to
+    -- However if the "client_id" is present, e.g. mutatePlan to
     -- /projects?select=client_id,name,clients(name) we would get `RETURNING
     -- client_id, name, client_id` and then we would produce the "column
     -- reference \"client_id\" is ambiguous" error from PostgreSQL. So we

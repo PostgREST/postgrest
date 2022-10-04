@@ -24,14 +24,12 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
-import qualified PostgREST.DbStructure         as DbStructure
-import qualified PostgREST.DbStructure.Proc    as Proc
-import qualified PostgREST.Error               as Error
-import qualified PostgREST.Query.QueryBuilder  as QueryBuilder
-import qualified PostgREST.Query.Statements    as Statements
-import qualified PostgREST.RangeQuery          as RangeQuery
-import qualified PostgREST.Request.MutateQuery as MutateRequest
-import qualified PostgREST.Request.Types       as ApiRequestTypes
+import qualified PostgREST.DbStructure        as DbStructure
+import qualified PostgREST.DbStructure.Proc   as Proc
+import qualified PostgREST.Error              as Error
+import qualified PostgREST.Query.QueryBuilder as QueryBuilder
+import qualified PostgREST.Query.Statements   as Statements
+import qualified PostgREST.RangeQuery         as RangeQuery
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
@@ -49,6 +47,9 @@ import PostgREST.DbStructure.Proc        (ProcDescription (..),
 import PostgREST.DbStructure.Table       (TablesMap)
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.Plan.CallPlan           (CallPlan)
+import PostgREST.Plan.MutatePlan         (MutatePlan)
+import PostgREST.Plan.ReadPlan           (ReadPlanTree)
 import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
                                           pgFmtIdentList,
                                           setConfigLocal,
@@ -61,19 +62,18 @@ import PostgREST.Request.ApiRequest      (Action (..),
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
                                           shouldCount)
-import PostgREST.Request.ReadQuery       (ReadRequest)
 
 import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-readQuery :: ReadRequest -> AppConfig -> ApiRequest -> DbHandler (ResultSet, Maybe Int64)
+readQuery :: ReadPlanTree -> AppConfig -> ApiRequest -> DbHandler (ResultSet, Maybe Int64)
 readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
-  let countQuery = QueryBuilder.readRequestToCountQuery req
+  let countQuery = QueryBuilder.readPlanToCountQuery req
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
-        (QueryBuilder.readRequestToQuery req)
+        (QueryBuilder.readPlanToQuery req)
         (if iPreferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
@@ -106,20 +106,20 @@ readTotal AppConfig{..} ApiRequest{..} RSStandard{rsTableTotal=tableTotal} count
       lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
         configDbPreparedStatements
 
-createQuery :: MutateRequest.MutateRequest -> ReadRequest -> [FieldName] -> ApiRequest -> AppConfig -> DbHandler ResultSet
+createQuery :: MutatePlan -> ReadPlanTree -> [FieldName] -> ApiRequest -> AppConfig -> DbHandler ResultSet
 createQuery mutateReq readReq pkCols apiReq@ApiRequest{..} conf = do
   resultSet <- writeQuery mutateReq readReq True pkCols apiReq conf
   failNotSingular iAcceptMediaType resultSet
   pure resultSet
 
-updateQuery :: MutateRequest.MutateRequest -> ReadRequest -> ApiRequest -> AppConfig -> DbHandler ResultSet
+updateQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
 updateQuery mutateReq readReq apiReq@ApiRequest{..} conf = do
   resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   pure resultSet
 
-singleUpsertQuery :: MutateRequest.MutateRequest -> ReadRequest -> ApiRequest -> AppConfig -> DbHandler ResultSet
+singleUpsertQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
 singleUpsertQuery mutateReq readReq apiReq conf = do
   resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
   failPut resultSet
@@ -137,23 +137,23 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
     lift SQL.condemn
     throwError Error.PutMatchingPkError
 
-deleteQuery :: MutateRequest.MutateRequest -> ReadRequest -> ApiRequest -> AppConfig -> DbHandler ResultSet
+deleteQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
 deleteQuery mutateReq readReq apiReq@ApiRequest{..} conf = do
   resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   pure resultSet
 
-invokeQuery :: ProcDescription -> ApiRequestTypes.CallRequest -> ReadRequest -> ApiRequest -> AppConfig -> DbHandler ResultSet
+invokeQuery :: ProcDescription -> CallPlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
 invokeQuery proc callReq readReq ApiRequest{..} AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
-        (QueryBuilder.requestToCallProcQuery callReq)
-        (QueryBuilder.readRequestToQuery readReq)
-        (QueryBuilder.readRequestToCountQuery readReq)
+        (QueryBuilder.callPlanToQuery callReq)
+        (QueryBuilder.readPlanToQuery readReq)
+        (QueryBuilder.readPlanToCountQuery readReq)
         (shouldCount iPreferCount)
         iAcceptMediaType
         (iPreferParameters == Just MultipleObjects)
@@ -197,12 +197,12 @@ txMode ApiRequest{..} =
     _ ->
       SQL.Write
 
-writeQuery :: MutateRequest.MutateRequest -> ReadRequest -> Bool -> [Text] -> ApiRequest -> AppConfig  -> DbHandler ResultSet
+writeQuery :: MutatePlan -> ReadPlanTree -> Bool -> [Text] -> ApiRequest -> AppConfig  -> DbHandler ResultSet
 writeQuery mutateReq readReq isInsert pkCols apiReq conf = do
   lift . SQL.statement mempty $
     Statements.prepareWrite
-      (QueryBuilder.readRequestToQuery readReq)
-      (QueryBuilder.mutateRequestToQuery mutateReq)
+      (QueryBuilder.readPlanToQuery readReq)
+      (QueryBuilder.mutatePlanToQuery mutateReq)
       isInsert
       (iAcceptMediaType apiReq)
       (iPreferRepresentation apiReq)

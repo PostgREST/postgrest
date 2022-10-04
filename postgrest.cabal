@@ -59,13 +59,14 @@ library
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
                       PostgREST.Query.Statements
+                      PostgREST.Plan
+                      PostgREST.Plan.CallPlan
+                      PostgREST.Plan.MutatePlan
+                      PostgREST.Plan.ReadPlan
                       PostgREST.RangeQuery
                       PostgREST.Request.ApiRequest
-                      PostgREST.Request.DbRequestBuilder
-                      PostgREST.Request.MutateQuery
                       PostgREST.Request.Preferences
                       PostgREST.Request.QueryParams
-                      PostgREST.Request.ReadQuery
                       PostgREST.Request.Types
                       PostgREST.Response
                       PostgREST.Response.OpenAPI

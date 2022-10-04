@@ -1,6 +1,5 @@
-module PostgREST.Request.MutateQuery
-  ( MutateQuery(..)
-  , MutateRequest
+module PostgREST.Plan.MutatePlan
+  ( MutatePlan(..)
   )
 where
 
@@ -15,9 +14,7 @@ import PostgREST.Request.Types           (LogicTree, OrderTerm)
 
 import Protolude
 
-type MutateRequest = MutateQuery
-
-data MutateQuery
+data MutatePlan
   = Insert
       { in_        :: QualifiedIdentifier
       , insCols    :: S.Set FieldName
