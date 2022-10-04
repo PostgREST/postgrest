@@ -1,7 +1,7 @@
-module PostgREST.Request.ReadQuery
-  ( ReadNode
-  , ReadQuery(..)
-  , ReadRequest
+{-# LANGUAGE NamedFieldPuns #-}
+module PostgREST.Plan.ReadPlan
+  ( ReadPlanTree
+  , ReadPlan(..)
   , fstFieldNames
   ) where
 
@@ -19,12 +19,9 @@ import PostgREST.Request.Types            (Alias, Depth, Hint,
 
 import Protolude
 
-type ReadRequest = Tree ReadNode
+type ReadPlanTree = Tree ReadPlan
 
-type ReadNode =
-  (ReadQuery, (NodeName, Maybe Relationship, Maybe Alias, Maybe Hint, Maybe JoinType, Depth))
-
-data ReadQuery = Select
+data ReadPlan = ReadPlan
   { select         :: [SelectItem]
   , from           :: QualifiedIdentifier
   , fromAlias      :: Maybe Alias
@@ -33,10 +30,16 @@ data ReadQuery = Select
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
   , range_         :: NonnegRange
+  , nodeName       :: NodeName
+  , nodeRel        :: Maybe Relationship
+  , nodeAlias      :: Maybe Alias
+  , nodeHint       :: Maybe Hint
+  , nodeJoinType   :: Maybe JoinType
+  , nodeDepth      :: Depth
   }
   deriving (Eq)
 
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
-fstFieldNames :: ReadRequest -> [FieldName]
-fstFieldNames (Node (sel, _) _) =
-  fst . (\(f, _, _, _, _) -> f) <$> select sel
+fstFieldNames :: ReadPlanTree -> [FieldName]
+fstFieldNames (Node ReadPlan{select} _) =
+  fst . (\(f, _, _, _, _) -> f) <$> select

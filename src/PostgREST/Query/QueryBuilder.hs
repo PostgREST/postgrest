@@ -5,14 +5,14 @@ Module      : PostgREST.Query.QueryBuilder
 Description : PostgREST SQL queries generating functions.
 
 This module provides functions to consume data types that
-represent database queries (e.g. ReadRequest, MutateRequest) and SqlFragment
+represent database queries (e.g. ReadPlanTree, MutatePlan) and SqlFragment
 to produce SqlQuery type outputs.
 -}
 module PostgREST.Query.QueryBuilder
-  ( readRequestToQuery
-  , mutateRequestToQuery
-  , readRequestToCountQuery
-  , requestToCallProcQuery
+  ( readPlanToQuery
+  , mutatePlanToQuery
+  , readPlanToCountQuery
+  , callPlanToQuery
   , limitedQuery
   ) where
 
@@ -29,35 +29,36 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Relationship (..))
 import PostgREST.Request.Preferences      (PreferResolution (..))
 
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan
+import PostgREST.Plan.ReadPlan
 import PostgREST.Query.SqlFragment
-import PostgREST.RangeQuery          (allRange)
-import PostgREST.Request.MutateQuery
-import PostgREST.Request.ReadQuery
+import PostgREST.RangeQuery        (allRange)
 import PostgREST.Request.Types
 
 import Protolude
 
-readRequestToQuery :: ReadRequest -> SQL.Snippet
-readRequestToQuery (Node (Select colSelects mainQi tblAlias logicForest joinConditions_ ordts range, (_, rel, _, _, _, _)) forest) =
+readPlanToQuery :: ReadPlanTree -> SQL.Snippet
+readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,joinConditions, order, range_=readRange, nodeRel} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> colSelects) ++ selects) <> " " <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> select) ++ selects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
-  (if null logicForest && null joinConditions_
+  (if null logicForest && null joinConditions
     then mempty
-    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions_)) <> " " <>
-  orderF qi ordts <> " " <>
-  limitOffsetF range
+    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions)) <> " " <>
+  orderF qi order <> " " <>
+  limitOffsetF readRange
   where
-    fromFrag = fromF rel mainQi tblAlias
-    qi = getQualifiedIdentifier rel mainQi tblAlias
+    fromFrag = fromF nodeRel mainQi fromAlias
+    qi = getQualifiedIdentifier nodeRel mainQi fromAlias
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
-getSelectsJoins :: ReadRequest -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getSelectsJoins (Node (_, (_, Nothing, _, _, _, _)) _) _ = ([], [])
-getSelectsJoins rr@(Node (_, (name, Just rel, alias, _, joinType, _)) _) (selects,joins) =
+getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
+getSelectsJoins (Node ReadPlan{nodeRel=Nothing} _) _ = ([], [])
+getSelectsJoins rr@(Node ReadPlan{nodeName=name, nodeRel=Just rel, nodeAlias=alias, nodeJoinType=joinType} _) (selects,joins) =
   let
-    subquery = readRequestToQuery rr
+    subquery = readPlanToQuery rr
     aliasOrName = fromMaybe name alias
     locTblName = qiName (relTable rel) <> "_" <> aliasOrName
     localTableName = pgFmtIdent locTblName
@@ -82,8 +83,8 @@ getSelectsJoins rr@(Node (_, (name, Just rel, alias, _, joinType, _)) _) (select
   in
   (sel:selects, joi:joins)
 
-mutateRequestToQuery :: MutateRequest -> SQL.Snippet
-mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
+mutatePlanToQuery :: MutatePlan -> SQL.Snippet
+mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
   "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
   "SELECT " <> SQL.sql cols <> " " <>
@@ -109,7 +110,7 @@ mutateRequestToQuery (Insert mainQi iCols body onConflct putConditions returning
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
 
 -- An update without a limit is always filtered with a WHERE
-mutateRequestToQuery (Update mainQi uCols body logicForest range ordts returnings)
+mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
   | S.null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -145,7 +146,7 @@ mutateRequestToQuery (Update mainQi uCols body logicForest range ordts returning
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-mutateRequestToQuery (Delete mainQi logicForest range ordts returnings)
+mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
   | range == allRange =
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
     whereLogic <> " " <>
@@ -168,8 +169,8 @@ mutateRequestToQuery (Delete mainQi logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-requestToCallProcQuery :: CallRequest -> SQL.Snippet
-requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
+callPlanToQuery :: CallPlan -> SQL.Snippet
+callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
   prmsCTE <> argsBody
   where
     (prmsCTE, argFrag) = case params of
@@ -223,8 +224,8 @@ requestToCallProcQuery (FunctionCall qi params args returnsScalar multipleCall r
 -- For this case, we use a WHERE EXISTS instead of an INNER JOIN on the count query.
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
-readRequestToCountQuery :: ReadRequest -> SQL.Snippet
-readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_}, (_, rel, _, _, _, _)) forest) =
+readPlanToCountQuery :: ReadPlanTree -> SQL.Snippet
+readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_, nodeRel=rel} forest) =
   "SELECT 1 " <> fromFrag <>
   (if null logicForest && null joinConditions_ && null subQueries
     then mempty
@@ -238,16 +239,16 @@ readRequestToCountQuery (Node (Select{from=mainQi, fromAlias=tblAlias, where_=lo
     qi = getQualifiedIdentifier rel mainQi tblAlias
     fromFrag = fromF rel mainQi tblAlias
     subQueries = foldr existsSubquery [] forest
-    existsSubquery :: ReadRequest -> [SQL.Snippet] -> [SQL.Snippet]
-    existsSubquery readReq@(Node (_, (_, _, _, _, joinType, _)) _) rest =
+    existsSubquery :: ReadPlanTree -> [SQL.Snippet] -> [SQL.Snippet]
+    existsSubquery readReq@(Node ReadPlan{nodeJoinType=joinType} _) rest =
       if joinType == Just JTInner
-        then ("EXISTS (" <> readRequestToCountQuery readReq <> " )"):rest
+        then ("EXISTS (" <> readPlanToCountQuery readReq <> " )"):rest
         else rest
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
 
--- TODO refactor so this function is uneeded and ComputedRelationship QualifiedIdentifier comes from the ReadQuery type
+-- TODO refactor so this function is uneeded and ComputedRelationship QualifiedIdentifier comes from the ReadPlan type
 getQualifiedIdentifier :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> QualifiedIdentifier
 getQualifiedIdentifier rel mainQi tblAlias = case rel of
   Just ComputedRelationship{relFunction} -> QualifiedIdentifier mempty $ fromMaybe (qiName relFunction) tblAlias
