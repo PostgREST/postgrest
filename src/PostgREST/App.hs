@@ -225,9 +225,9 @@ handleRead :: Bool -> QualifiedIdentifier -> RequestContext -> DbHandler Wai.Res
 handleRead headersOnly identifier context@RequestContext{..} = do
   req <- liftEither $ readPlan identifier context
 
-  (resultSet, total) <- Query.readQuery req ctxConfig ctxApiRequest
+  resultSet <- Query.readQuery req ctxConfig ctxApiRequest
 
-  pure $ Response.readResponse headersOnly identifier ctxApiRequest total resultSet
+  pure $ Response.readResponse headersOnly identifier ctxApiRequest resultSet
 
 handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
 handleCreate identifier context@RequestContext{..} = do
