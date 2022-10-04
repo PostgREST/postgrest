@@ -56,12 +56,11 @@ import qualified PostgREST.Request.Types    as ApiRequestTypes
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
 
-
-readResponse :: Bool -> QualifiedIdentifier -> ApiRequest -> Maybe Int64 -> ResultSet -> Wai.Response
-readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} total resultSet = case resultSet of
+readResponse :: Bool -> QualifiedIdentifier -> ApiRequest -> ResultSet -> Wai.Response
+readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
-      (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal total
+      (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
       response = gucResponse rsGucStatus rsGucHeaders
       headers =
         [ contentRange
@@ -74,7 +73,7 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} total resultSet
         ++ contentTypeHeaders ctxApiRequest
       rsOrErrBody = if status == HTTP.status416
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show total)
+          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
 
     response status headers $ if headersOnly then mempty else rsOrErrBody

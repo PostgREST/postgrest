@@ -67,7 +67,7 @@ import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-readQuery :: ReadPlanTree -> AppConfig -> ApiRequest -> DbHandler (ResultSet, Maybe Int64)
+readQuery :: ReadPlanTree -> AppConfig -> ApiRequest -> DbHandler ResultSet
 readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
   let countQuery = QueryBuilder.readPlanToCountQuery req
   resultSet <-
@@ -85,22 +85,25 @@ readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
         iBinaryField
         configDbPreparedStatements
   failNotSingular iAcceptMediaType resultSet
-  total <- readTotal conf apiReq resultSet countQuery
-  pure (resultSet, total)
+  resultSetWTotal conf apiReq resultSet countQuery
 
-readTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler (Maybe Int64)
-readTotal _ _ RSPlan{} _ = pure Nothing
-readTotal AppConfig{..} ApiRequest{..} RSStandard{rsTableTotal=tableTotal} countQuery =
+resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
+resultSetWTotal _ _ rs@RSPlan{} _ = return rs
+resultSetWTotal AppConfig{..} ApiRequest{..} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
   case iPreferCount of
-    Just PlannedCount ->
-      explain
+    Just PlannedCount -> do
+      total <- explain
+      return rs{rsTableTotal=total}
     Just EstimatedCount ->
-      if tableTotal > (fromIntegral <$> configDbMaxRows) then
-        max tableTotal <$> explain
+      if tableTotal > (fromIntegral <$> configDbMaxRows) then do
+        total <- max tableTotal <$> explain
+        return rs{rsTableTotal=total}
       else
-        return tableTotal
-    _ ->
-      return tableTotal
+        return rs
+    Just ExactCount ->
+      return rs
+    Nothing ->
+      return rs
   where
     explain =
       lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
