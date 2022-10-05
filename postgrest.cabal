@@ -53,7 +53,6 @@ library
                       PostgREST.Error
                       PostgREST.GucHeader
                       PostgREST.Logger
-                      PostgREST.Middleware
                       PostgREST.MediaType
                       PostgREST.Query
                       PostgREST.Query.QueryBuilder

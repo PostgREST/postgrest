@@ -808,6 +808,16 @@ def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
         assert response.status_code == 401
 
 
+def test_no_pool_connection_required_on_bad_embedding(defaultenv):
+    "no pool connection should be consumed for failing to embed"
+
+    with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
+
+        # OPTIONS on a table shouldn't require opening a connection
+        response = postgrest.session.get("/projects?select=*,unexistent(*)")
+        assert response.status_code == 400
+
+
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
 # The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
 # A stack size of 200K seems to be enough for succeess

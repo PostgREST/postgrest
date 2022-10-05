@@ -84,7 +84,7 @@ getSelectsJoins rr@(Node ReadPlan{nodeName=name, nodeRel=Just rel, nodeAlias=ali
   (sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
-mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings) =
+mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
   "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
   "SELECT " <> SQL.sql cols <> " " <>

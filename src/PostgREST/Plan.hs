@@ -17,20 +17,25 @@ resource.
 
 module PostgREST.Plan
   ( readPlan
-  , mutatePlan
-  , callPlan
+  , mutateReadPlan
+  , callReadPlan
+  , MutateReadPlan(..)
+  , CallReadPlan(..)
   ) where
 
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Set            as S
+import qualified Data.HashMap.Strict        as HM
+import qualified Data.Set                   as S
+import qualified PostgREST.DbStructure.Proc as Proc
 
 import Data.Either.Combinators (mapLeft)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
 
+import PostgREST.Config                   (AppConfig (..))
+import PostgREST.DbStructure              (DbStructure (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
-                                           Schema, TableName)
+                                           Schema)
 import PostgREST.DbStructure.Proc         (ProcDescription (..),
                                            ProcParam (..),
                                            procReturnsScalar)
@@ -38,6 +43,7 @@ import PostgREST.DbStructure.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
+import PostgREST.DbStructure.Table        (tablePKCols)
 import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
@@ -50,7 +56,8 @@ import PostgREST.Request.ApiRequest       (Action (..),
 
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
-import PostgREST.Plan.ReadPlan       as ReadPlan
+import PostgREST.Plan.ReadPlan   as ReadPlan
+
 import PostgREST.Request.Preferences
 import PostgREST.Request.Types
 
@@ -58,14 +65,37 @@ import qualified PostgREST.Request.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
+data MutateReadPlan = MutateReadPlan {
+  mrReadPlan   :: ReadPlanTree
+, mrMutatePlan :: MutatePlan
+}
+
+data CallReadPlan = CallReadPlan {
+  crReadPlan :: ReadPlanTree
+, crCallPlan :: CallPlan
+}
+
+mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> DbStructure -> Either Error MutateReadPlan
+mutateReadPlan  mutation apiRequest identifier conf dbStructure = do
+  rPlan <- readPlan identifier conf dbStructure apiRequest
+  mPlan <- mutatePlan mutation identifier apiRequest dbStructure rPlan
+  return $ MutateReadPlan rPlan mPlan
+
+callReadPlan :: ProcDescription -> AppConfig -> DbStructure -> ApiRequest -> Either Error CallReadPlan
+callReadPlan proc conf dbStructure apiRequest = do
+  let identifier = QualifiedIdentifier (pdSchema proc) (fromMaybe (pdName proc) $ Proc.procTableName proc)
+  rPlan <- readPlan identifier conf dbStructure apiRequest
+  let cPlan = callPlan proc apiRequest rPlan
+  return $ CallReadPlan rPlan cPlan
+
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readPlan :: Schema -> TableName -> Maybe Integer -> RelationshipsMap -> ApiRequest -> Either Error ReadPlanTree
-readPlan schema rootTableName maxRows allRels apiRequest  =
+readPlan :: QualifiedIdentifier -> AppConfig -> DbStructure -> ApiRequest -> Either Error ReadPlanTree
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} DbStructure{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
-  treeRestrictRange maxRows (iAction apiRequest) =<<
-  augmentRequestWithJoin schema allRels =<<
+  treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+  augmentRequestWithJoin qiSchema dbRelationships =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
   addOrders apiRequest =<<
@@ -73,9 +103,9 @@ readPlan schema rootTableName maxRows allRels apiRequest  =
   where
     QueryParams.QueryParams{..} = iQueryParams apiRequest
     (rootName, rootAlias) = case iAction apiRequest of
-      ActionRead _ -> (QualifiedIdentifier schema rootTableName, Nothing)
+      ActionRead _ -> (qi, Nothing)
       -- the CTE we use for non-read cases has a sourceCTEName(see Statements.hs) as the WITH name so we use the table name as an alias so findRel can find the right relationship
-      _ -> (QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName, Just rootTableName)
+      _ -> (QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName, Just qiName)
 
 -- Build the initial tree with a Depth attribute so when a self join occurs we
 -- can differentiate the parent and child tables by having an alias like
@@ -305,11 +335,11 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode :: Maybe ReadPlanTree
     findNode = find (\(Node ReadPlan{nodeName, nodeAlias} _) -> nodeName == targetNodeName || nodeAlias == Just targetNodeName) forest
 
-mutatePlan :: Mutation -> Schema -> TableName -> ApiRequest -> [FieldName] -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequestError $
+mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> DbStructure -> ReadPlanTree -> Either Error MutatePlan
+mutatePlan mutation qi ApiRequest{..} dbStructure readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings
+      Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols
     MutationUpdate -> Right $ Update qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
     MutationSingleUpsert ->
         if null qsLogic &&
@@ -318,18 +348,18 @@ mutatePlan mutation schema tName ApiRequest{..} pkCols readReq = mapLeft ApiRequ
            all (\case
               Filter _ (OpExpr False (Op OpEqual _)) -> True
               _                                      -> False) qsFiltersRoot
-          then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings
+          then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty
         else
           Left InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
-    qi = QualifiedIdentifier schema tName
     returnings =
       if iPreferRepresentation == None
         then []
         else returningCols readReq pkCols
+    pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables dbStructure
     logic = map snd qsLogic
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
