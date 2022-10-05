@@ -97,7 +97,7 @@ library
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , interpolatedstring-perl6  >= 1 && < 1.1
-                    , jose                      >= 0.8.5.1 && < 0.10
+                    , jose                      >= 0.8.5.1 && < 0.11
                     , lens                      >= 4.14 && < 5.2
                     , lens-aeson                >= 1.0.1 && < 1.2
                     , mtl                       >= 2.2.2 && < 2.3
