@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Query
   ( createQuery
@@ -38,8 +39,7 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           pgVersion140)
 import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..),
@@ -47,8 +47,9 @@ import PostgREST.DbStructure.Proc        (ProcDescription (..),
 import PostgREST.DbStructure.Table       (TablesMap)
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan.CallPlan           (CallPlan)
-import PostgREST.Plan.MutatePlan         (MutatePlan)
+import PostgREST.Plan                    (CallReadPlan (..),
+                                          MutateReadPlan (..))
+import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Plan.ReadPlan           (ReadPlanTree)
 import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
                                           pgFmtIdentList,
@@ -61,6 +62,7 @@ import PostgREST.Request.ApiRequest      (Action (..),
                                           Target (..))
 import PostgREST.Request.Preferences     (PreferCount (..),
                                           PreferParameters (..),
+                                          PreferTransaction (..),
                                           shouldCount)
 
 import Protolude hiding (Handler)
@@ -85,6 +87,7 @@ readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
         iBinaryField
         configDbPreparedStatements
   failNotSingular iAcceptMediaType resultSet
+  optionalRollback conf apiReq
   resultSetWTotal conf apiReq resultSet countQuery
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
@@ -109,23 +112,26 @@ resultSetWTotal AppConfig{..} ApiRequest{..} rs@RSStandard{rsTableTotal=tableTot
       lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
         configDbPreparedStatements
 
-createQuery :: MutatePlan -> ReadPlanTree -> [FieldName] -> ApiRequest -> AppConfig -> DbHandler ResultSet
-createQuery mutateReq readReq pkCols apiReq@ApiRequest{..} conf = do
-  resultSet <- writeQuery mutateReq readReq True pkCols apiReq conf
+createQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
+createQuery mrPlan apiReq@ApiRequest{..} conf = do
+  resultSet <- writeQuery mrPlan apiReq conf
   failNotSingular iAcceptMediaType resultSet
+  optionalRollback conf apiReq
   pure resultSet
 
-updateQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
-updateQuery mutateReq readReq apiReq@ApiRequest{..} conf = do
-  resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
+updateQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
+updateQuery mrPlan apiReq@ApiRequest{..} conf = do
+  resultSet <- writeQuery mrPlan apiReq conf
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  optionalRollback conf apiReq
   pure resultSet
 
-singleUpsertQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
-singleUpsertQuery mutateReq readReq apiReq conf = do
-  resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
+singleUpsertQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
+singleUpsertQuery mrPlan apiReq conf = do
+  resultSet <- writeQuery mrPlan apiReq conf
   failPut resultSet
+  optionalRollback conf apiReq
   pure resultSet
 
 -- Makes sure the querystring pk matches the payload pk
@@ -140,29 +146,31 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
     lift SQL.condemn
     throwError Error.PutMatchingPkError
 
-deleteQuery :: MutatePlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
-deleteQuery mutateReq readReq apiReq@ApiRequest{..} conf = do
-  resultSet <- writeQuery mutateReq readReq False mempty apiReq conf
+deleteQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
+deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
+  resultSet <- writeQuery mrPlan apiReq conf
   failNotSingular iAcceptMediaType resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  optionalRollback conf apiReq
   pure resultSet
 
-invokeQuery :: ProcDescription -> CallPlan -> ReadPlanTree -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc callReq readReq ApiRequest{..} AppConfig{..} = do
+invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf@AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
-        (QueryBuilder.callPlanToQuery callReq)
-        (QueryBuilder.readPlanToQuery readReq)
-        (QueryBuilder.readPlanToCountQuery readReq)
+        (QueryBuilder.callPlanToQuery crCallPlan)
+        (QueryBuilder.readPlanToQuery crReadPlan)
+        (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount iPreferCount)
         iAcceptMediaType
         (iPreferParameters == Just MultipleObjects)
         iBinaryField
         configDbPreparedStatements
 
+  optionalRollback conf apiReq
   failNotSingular iAcceptMediaType resultSet
   pure resultSet
 
@@ -200,12 +208,15 @@ txMode ApiRequest{..} =
     _ ->
       SQL.Write
 
-writeQuery :: MutatePlan -> ReadPlanTree -> Bool -> [Text] -> ApiRequest -> AppConfig  -> DbHandler ResultSet
-writeQuery mutateReq readReq isInsert pkCols apiReq conf = do
+writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
+writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq conf =
+  let
+    (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
+  in
   lift . SQL.statement mempty $
     Statements.prepareWrite
-      (QueryBuilder.readPlanToQuery readReq)
-      (QueryBuilder.mutatePlanToQuery mutateReq)
+      (QueryBuilder.readPlanToQuery mrReadPlan)
+      (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
       (iAcceptMediaType apiReq)
       (iPreferRepresentation apiReq)
@@ -229,6 +240,18 @@ failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal > fromIntegral maxChanges) $ do
     lift SQL.condemn
     throwError $ Error.OffLimitsChangesError queryTotal maxChanges
+
+-- | Set a transaction to roll back if requested
+optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
+optionalRollback AppConfig{..} ApiRequest{..} = do
+  lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
+    SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
+    SQL.condemn
+  where
+    shouldCommit =
+      configDbTxAllowOverride && iPreferTransaction == Just Commit
+    shouldRollback =
+      configDbTxAllowOverride && iPreferTransaction == Just Rollback
 
 -- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
 setPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->

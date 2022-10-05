@@ -26,7 +26,6 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
@@ -37,46 +36,25 @@ import qualified PostgREST.Auth               as Auth
 import qualified PostgREST.Cors               as Cors
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Logger             as Logger
-import qualified PostgREST.Middleware         as Middleware
 import qualified PostgREST.Plan               as Plan
 import qualified PostgREST.Query              as Query
 import qualified PostgREST.Request.ApiRequest as ApiRequest
 import qualified PostgREST.Request.Types      as ApiRequestTypes
 import qualified PostgREST.Response           as Response
 
-import PostgREST.AppState                (AppState)
-import PostgREST.Auth                    (AuthResult (..))
-import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..))
-import PostgREST.Config.PgVersion        (PgVersion (..))
-import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.DbStructure.Proc        (ProcDescription (..))
-import PostgREST.DbStructure.Table       (Table (..))
-import PostgREST.Error                   (Error)
-import PostgREST.Plan.MutatePlan         (MutatePlan)
-import PostgREST.Plan.ReadPlan           (ReadPlanTree)
-import PostgREST.Query                   (DbHandler)
-import PostgREST.Request.ApiRequest      (Action (..),
-                                          ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Mutation (..), Target (..))
-import PostgREST.Request.Preferences     (PreferRepresentation (..))
-import PostgREST.Version                 (prettyVersion)
-import PostgREST.Workers                 (connectionWorker, listener)
-
-import qualified PostgREST.DbStructure.Proc as Proc
+import PostgREST.AppState           (AppState)
+import PostgREST.Auth               (AuthResult (..))
+import PostgREST.Config             (AppConfig (..), LogLevel (..))
+import PostgREST.Config.PgVersion   (PgVersion (..))
+import PostgREST.DbStructure        (DbStructure (..))
+import PostgREST.Error              (Error)
+import PostgREST.Query              (DbHandler)
+import PostgREST.Request.ApiRequest (Action (..), ApiRequest (..),
+                                     Mutation (..), Target (..))
+import PostgREST.Version            (prettyVersion)
+import PostgREST.Workers            (connectionWorker, listener)
 
 import Protolude hiding (Handler)
-
-data RequestContext = RequestContext
-  { ctxConfig      :: AppConfig
-  , ctxDbStructure :: DbStructure
-  , ctxApiRequest  :: ApiRequest
-  , ctxPgVersion   :: PgVersion
-  }
 
 type Handler = ExceptT Error
 
@@ -163,7 +141,7 @@ postgrestResponse
   -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer authResult@AuthResult{..} req = do
   dbStructure <-
     case maybeDbStructure of
       Just dbStructure ->
@@ -177,15 +155,8 @@ postgrestResponse appState conf@AppConfig{..} maybeDbStructure jsonDbS pgVer Aut
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf dbStructure req body
 
-  let ctx apiReq = RequestContext conf dbStructure apiReq pgVer
-
-  if iAction apiRequest == ActionInfo then
-    pure $ Response.infoResponse (iTarget apiRequest) dbStructure
-  else
-    runDbHandler appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements .
-      Middleware.optionalRollback conf apiRequest $ do
-        Query.setPgLocals conf authClaims authRole apiRequest jsonDbS pgVer
-        handleRequest (ctx apiRequest)
+  Response.optionalRollback conf apiRequest $
+    handleRequest authResult conf appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest dbStructure
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
@@ -199,97 +170,52 @@ runDbHandler appState mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: RequestContext -> DbHandler Wai.Response
-handleRequest context@(RequestContext _ _ ApiRequest{..} _) =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> SQL.Mode -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> DbStructure -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState mode authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} dbStructure =
   case (iAction, iTarget) of
-    (ActionRead headersOnly, TargetIdent identifier) ->
-      handleRead headersOnly identifier context
-    (ActionMutate MutationCreate, TargetIdent identifier) ->
-      handleCreate identifier context
-    (ActionMutate MutationUpdate, TargetIdent identifier) ->
-      handleUpdate identifier context
-    (ActionMutate MutationSingleUpsert, TargetIdent identifier) ->
-      handleSingleUpsert identifier context
-    (ActionMutate MutationDelete, TargetIdent identifier) ->
-      handleDelete identifier context
-    (ActionInvoke invMethod, TargetProc proc _) ->
-      handleInvoke invMethod proc context
-    (ActionInspect headersOnly, TargetDefaultSpec tSchema) ->
-      handleOpenApi headersOnly tSchema context
+    (ActionRead headersOnly, TargetIdent identifier) -> do
+      rPlan <- liftEither $ Plan.readPlan identifier conf dbStructure apiReq
+      resultSet <- runQuery $ Query.readQuery rPlan conf apiReq
+      return $ Response.readResponse headersOnly identifier apiReq resultSet
+
+    (ActionMutate MutationCreate, TargetIdent identifier) -> do
+      mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf dbStructure
+      resultSet <- runQuery $ Query.createQuery mrPlan apiReq conf
+      return $ Response.createResponse identifier mrPlan apiReq resultSet
+
+    (ActionMutate MutationUpdate, TargetIdent identifier) -> do
+      mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf dbStructure
+      resultSet <- runQuery $ Query.updateQuery mrPlan apiReq conf
+      return $ Response.updateResponse apiReq resultSet
+
+    (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
+      mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf dbStructure
+      resultSet <- runQuery $ Query.singleUpsertQuery mrPlan apiReq conf
+      return $ Response.singleUpsertResponse apiReq resultSet
+
+    (ActionMutate MutationDelete, TargetIdent identifier) -> do
+      mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf dbStructure
+      resultSet <- runQuery $ Query.deleteQuery mrPlan apiReq conf
+      return $ Response.deleteResponse apiReq resultSet
+
+    (ActionInvoke invMethod, TargetProc proc _) -> do
+      cPlan <- liftEither $ Plan.callReadPlan proc conf dbStructure apiReq
+      resultSet <- runQuery $ Query.invokeQuery proc cPlan apiReq conf
+      return $ Response.invokeResponse invMethod proc apiReq resultSet
+
+    (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
+      oaiResult <- runQuery $ Query.openApiQuery dbStructure pgVer conf tSchema
+      return $ Response.openApiResponse headersOnly oaiResult conf dbStructure iSchema iNegotiatedByProfile
+
+    (ActionInfo, _) ->
+      return $ Response.infoResponse iTarget dbStructure
+
     _ ->
       -- This is unreachable as the ApiRequest.hs rejects it before
       -- TODO Refactor the Action/Target types to remove this line
       throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
-
-handleRead :: Bool -> QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleRead headersOnly identifier context@RequestContext{..} = do
-  req <- liftEither $ readPlan identifier context
-
-  resultSet <- Query.readQuery req ctxConfig ctxApiRequest
-
-  pure $ Response.readResponse headersOnly identifier ctxApiRequest resultSet
-
-handleCreate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleCreate identifier context@RequestContext{..} = do
-  let
-    ApiRequest{..} = ctxApiRequest
-    pkCols = if iPreferRepresentation /= None || isJust iPreferResolution
-      then maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
-      else mempty
-
-  (mutateReq, readReq) <- liftEither $ mutatePlan MutationCreate identifier context pkCols
-
-  resultSet <- Query.createQuery mutateReq readReq pkCols ctxApiRequest ctxConfig
-
-  pure $ Response.createResponse identifier pkCols ctxApiRequest resultSet
-
-handleUpdate :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleUpdate identifier context@(RequestContext ctxConfig _ ctxApiRequest _) = do
-  (mutateReq, readReq) <- liftEither $ mutatePlan MutationUpdate identifier context mempty
-  resultSet <- Query.updateQuery mutateReq readReq ctxApiRequest ctxConfig
-  pure $ Response.updateResponse ctxApiRequest resultSet
-
-handleSingleUpsert :: QualifiedIdentifier -> RequestContext-> DbHandler Wai.Response
-handleSingleUpsert identifier context@(RequestContext ctxConfig ctxDbStructure ctxApiRequest _) = do
-  let pkCols = maybe mempty tablePKCols $ HM.lookup identifier $ dbTables ctxDbStructure
-  (mutateReq, readReq) <- liftEither $ mutatePlan MutationSingleUpsert identifier context pkCols
-  resultSet <- Query.singleUpsertQuery mutateReq readReq ctxApiRequest ctxConfig
-  pure $ Response.singleUpsertResponse ctxApiRequest resultSet
-
-handleDelete :: QualifiedIdentifier -> RequestContext -> DbHandler Wai.Response
-handleDelete identifier context@(RequestContext ctxConfig _ ctxApiRequest _) = do
-  (mutateReq, readReq) <- liftEither $ mutatePlan MutationDelete identifier context mempty
-  resultSet <- Query.deleteQuery mutateReq readReq ctxApiRequest ctxConfig
-  pure $ Response.deleteResponse ctxApiRequest resultSet
-
-handleInvoke :: InvokeMethod -> ProcDescription -> RequestContext -> DbHandler Wai.Response
-handleInvoke invMethod proc context@RequestContext{..} = do
-  let
-    identifier =
-      QualifiedIdentifier
-        (pdSchema proc)
-        (fromMaybe (pdName proc) $ Proc.procTableName proc)
-
-  readReq <- liftEither $ readPlan identifier context
-  let callReq = Plan.callPlan proc ctxApiRequest readReq
-
-  resultSet <- Query.invokeQuery proc callReq readReq ctxApiRequest ctxConfig
-
-  pure $ Response.invokeResponse invMethod proc ctxApiRequest resultSet
-
-handleOpenApi :: Bool -> Schema -> RequestContext -> DbHandler Wai.Response
-handleOpenApi headersOnly tSchema (RequestContext conf dbStructure apiRequest pgVer) = do
-  oaiResult <- Query.openApiQuery dbStructure pgVer conf tSchema
-  pure $ Response.openApiResponse headersOnly oaiResult conf dbStructure (iSchema apiRequest) (iNegotiatedByProfile apiRequest)
-
-mutatePlan :: Mutation -> QualifiedIdentifier -> RequestContext -> [FieldName] -> Either Error (MutatePlan, ReadPlanTree)
-mutatePlan mutation identifier@QualifiedIdentifier{..} context@RequestContext{..} pkCols = do
-  readReq <- readPlan identifier context
-  mutateReq <- Plan.mutatePlan mutation qiSchema qiName ctxApiRequest pkCols readReq
-  pure (mutateReq, readReq)
-
-readPlan :: QualifiedIdentifier -> RequestContext -> Either Error ReadPlanTree
-readPlan QualifiedIdentifier{..} (RequestContext AppConfig{..} dbStructure apiRequest _) =
-  Plan.readPlan qiSchema qiName configDbMaxRows
-    (dbRelationships dbStructure)
-    apiRequest
+  where
+    runQuery query =
+      runDbHandler appState mode authenticated prepared $ do
+        Query.setPgLocals conf authClaims authRole apiReq jsonDbS pgVer
+        query

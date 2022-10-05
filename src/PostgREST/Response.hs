@@ -1,3 +1,4 @@
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Response
   ( createResponse
@@ -10,6 +11,7 @@ module PostgREST.Response
   , updateResponse
   , addRetryHint
   , isServiceUnavailable
+  , optionalRollback
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -30,8 +32,7 @@ import qualified PostgREST.Response.OpenAPI as OpenAPI
 
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
                                           Schema)
 import PostgREST.DbStructure.Proc        (ProcDescription (..),
                                           ProcVolatility (..),
@@ -41,11 +42,14 @@ import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.Plan                    (MutateReadPlan (..))
+import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.Request.ApiRequest      (ApiRequest (..),
                                           InvokeMethod (..),
                                           Target (..))
 import PostgREST.Request.Preferences     (PreferRepresentation (..),
+                                          PreferTransaction (..),
                                           shouldCount,
                                           toAppliedHeader)
 import PostgREST.Request.QueryParams     (QueryParams (..))
@@ -81,10 +85,11 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = cas
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-createResponse :: QualifiedIdentifier -> [FieldName] -> ApiRequest -> ResultSet -> Wai.Response
-createResponse QualifiedIdentifier{..} pkCols ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+createResponse :: QualifiedIdentifier -> MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
+createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
+      pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
       response = gucResponse rsGucStatus rsGucHeaders
       headers =
         catMaybes
@@ -127,11 +132,12 @@ updateResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
       contentRangeHeader =
         RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+      headers = [contentRangeHeader]
 
     if fullRepr then
-        response status (contentTypeHeaders ctxApiRequest ++ [contentRangeHeader]) (LBS.fromStrict rsBody)
+        response status (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
       else
-        response status [contentRangeHeader] mempty
+        response status headers mempty
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
@@ -158,13 +164,14 @@ deleteResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
       contentRangeHeader =
         RangeQuery.contentRangeH 1 0 $
           if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+      headers = [contentRangeHeader]
 
     if iPreferRepresentation == Full then
         response HTTP.status200
-          (contentTypeHeaders ctxApiRequest ++ [contentRangeHeader])
+          (headers ++ contentTypeHeaders ctxApiRequest)
           (LBS.fromStrict rsBody)
       else
-        response HTTP.status204 [contentRangeHeader] mempty
+        response HTTP.status204 headers mempty
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
@@ -203,12 +210,13 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
           $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
+      headers = [contentRange]
 
     if Proc.procReturnsVoid proc then
-        response HTTP.status204 [contentRange] mempty
+        response HTTP.status204 headers mempty
       else
         response status
-          (contentTypeHeaders ctxApiRequest ++ [contentRange])
+          (headers ++ contentTypeHeaders ctxApiRequest)
           (if invMethod == InvHead then mempty else rsOrErrBody)
 
   RSPlan plan ->
@@ -260,3 +268,22 @@ addRetryHint delay response = do
 
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
+
+optionalRollback :: AppConfig -> ApiRequest -> ExceptT Error.Error IO Wai.Response -> ExceptT Error.Error IO Wai.Response
+optionalRollback AppConfig{..} ApiRequest{..} resp = do
+  newRes <- catchError resp $ return . Error.errorResponseFor
+  return $ Wai.mapResponseHeaders preferenceApplied newRes
+  where
+    shouldCommit =
+      configDbTxAllowOverride && iPreferTransaction == Just Commit
+    shouldRollback =
+      configDbTxAllowOverride && iPreferTransaction == Just Rollback
+    preferenceApplied
+      | shouldCommit =
+          addHeadersIfNotIncluded
+            [toAppliedHeader Commit]
+      | shouldRollback =
+          addHeadersIfNotIncluded
+            [toAppliedHeader Rollback]
+      | otherwise =
+          identity

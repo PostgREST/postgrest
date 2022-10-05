@@ -22,6 +22,7 @@ data MutatePlan
       , onConflict :: Maybe (PreferResolution, [FieldName])
       , where_     :: [LogicTree]
       , returning  :: [FieldName]
+      , insPkCols  :: [FieldName]
       }
   | Update
       { in_       :: QualifiedIdentifier
