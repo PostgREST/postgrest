@@ -25,12 +25,12 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
-import qualified PostgREST.DbStructure        as DbStructure
-import qualified PostgREST.DbStructure.Proc   as Proc
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.RangeQuery         as RangeQuery
+import qualified PostgREST.SchemaCache        as SchemaCache
+import qualified PostgREST.SchemaCache.Proc   as Proc
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
@@ -46,13 +46,6 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           pgVersion140)
-import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.DbStructure.Proc        (ProcDescription (..),
-                                          ProcVolatility (..),
-                                          ProcsMap)
-import PostgREST.DbStructure.Table       (TablesMap)
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (CallReadPlan (..),
@@ -64,6 +57,13 @@ import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
                                           setConfigLocal,
                                           setConfigLocalJson)
 import PostgREST.Query.Statements        (ResultSet (..))
+import PostgREST.SchemaCache             (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.SchemaCache.Proc        (ProcDescription (..),
+                                          ProcVolatility (..),
+                                          ProcsMap)
+import PostgREST.SchemaCache.Table       (TablesMap)
 
 import Protolude hiding (Handler)
 
@@ -174,19 +174,19 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf
   failNotSingular iAcceptMediaType resultSet
   pure resultSet
 
-openApiQuery :: DbStructure -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, ProcsMap, Maybe Text))
-openApiQuery dbStructure pgVer AppConfig{..} tSchema =
+openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, ProcsMap, Maybe Text))
+openApiQuery sCache pgVer AppConfig{..} tSchema =
   lift $ case configOpenApiMode of
     OAFollowPriv ->
       Just <$> ((,,)
-         <$> SQL.statement [tSchema] (DbStructure.accessibleTables pgVer configDbPreparedStatements)
-         <*> SQL.statement tSchema (DbStructure.accessibleProcs pgVer configDbPreparedStatements)
-         <*> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
+         <$> SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
+         <*> SQL.statement tSchema (SchemaCache.accessibleProcs pgVer configDbPreparedStatements)
+         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       Just <$> ((,,)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbTables dbStructure)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ DbStructure.dbProcs dbStructure)
-        <$> SQL.statement tSchema (DbStructure.schemaDescription configDbPreparedStatements))
+            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
+            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbProcs sCache)
+        <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OADisabled ->
       pure Nothing
 

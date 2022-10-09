@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructure.Table
+module PostgREST.SchemaCache.Table
   ( Column(..)
   , Table(..)
   , TablesMap
@@ -10,7 +10,7 @@ module PostgREST.DbStructure.Table
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as HM
 
-import PostgREST.DbStructure.Identifiers (FieldName,
+import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema, TableName)
 

@@ -22,7 +22,7 @@ import Protolude
 postgrestAdmin :: AppState.AppState -> AppConfig -> Wai.Application
 postgrestAdmin appState appConfig req respond  = do
   isMainAppReachable  <- any isRight <$> reachMainApp appConfig
-  isSchemaCacheLoaded <- isJust <$> AppState.getDbStructure appState
+  isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState

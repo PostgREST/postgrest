@@ -1,8 +1,8 @@
 {-|
-Module      : PostgREST.DbStructure
+Module      : PostgREST.SchemaCache
 Description : PostgREST schema cache
 
-This module contains queries that target PostgreSQL system catalogs, these are used to build the schema cache(DbStructure).
+This module(used to be named DbStructure) contains queries that target PostgreSQL system catalogs, these are used to build the schema cache(SchemaCache).
 
 The schema cache is necessary for resource embedding, foreign keys are used for inferring the relationships between tables.
 
@@ -18,9 +18,9 @@ These queries are executed once at startup or when PostgREST is reloaded.
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 
-module PostgREST.DbStructure
-  ( DbStructure(..)
-  , queryDbStructure
+module PostgREST.SchemaCache
+  ( SchemaCache(..)
+  , querySchemaCache
   , accessibleTables
   , accessibleProcs
   , schemaDescription
@@ -40,25 +40,25 @@ import Text.InterpolatedString.Perl6 (q)
 import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110)
-import PostgREST.DbStructure.Identifiers  (FieldName,
+import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
-import PostgREST.DbStructure.Proc         (PgType (..),
+import PostgREST.SchemaCache.Proc         (PgType (..),
                                            ProcDescription (..),
                                            ProcParam (..),
                                            ProcVolatility (..),
                                            ProcsMap, RetType (..))
-import PostgREST.DbStructure.Relationship (Cardinality (..),
+import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
-import PostgREST.DbStructure.Table        (Column (..), Table (..),
+import PostgREST.SchemaCache.Table        (Column (..), Table (..),
                                            TablesMap)
 
 import Protolude
 
 
-data DbStructure = DbStructure
+data SchemaCache = SchemaCache
   { dbTables        :: TablesMap
   , dbRelationships :: RelationshipsMap
   , dbProcs         :: ProcsMap
@@ -82,8 +82,8 @@ data KeyDep
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-queryDbStructure :: [Schema] -> [Schema] -> Bool -> SQL.Transaction DbStructure
-queryDbStructure schemas extraSearchPath prepared = do
+querySchemaCache :: [Schema] -> [Schema] -> Bool -> SQL.Transaction SchemaCache
+querySchemaCache schemas extraSearchPath prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   pgVer   <- SQL.statement mempty pgVersionStatement
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
@@ -95,7 +95,7 @@ queryDbStructure schemas extraSearchPath prepared = do
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
-  return $ removeInternal schemas $ DbStructure {
+  return $ removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbProcs = procs
@@ -121,10 +121,10 @@ getOverrideRelationshipsMap rels cRels =
     deformedRelMap = HM.fromListWith (++) . fmap addDeformedRelKey . HM.toList
     addDeformedRelKey ((relT, relFT), rls) = ((relT, qiSchema relFT), rls)
 
--- | Remove db objects that belong to an internal schema(not exposed through the API) from the DbStructure.
-removeInternal :: [Schema] -> DbStructure -> DbStructure
+-- | Remove db objects that belong to an internal schema(not exposed through the API) from the SchemaCache.
+removeInternal :: [Schema] -> SchemaCache -> SchemaCache
 removeInternal schemas dbStruct =
-  DbStructure {
+  SchemaCache {
       dbTables        = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
                         HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)

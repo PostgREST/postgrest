@@ -70,12 +70,12 @@ import PostgREST.ApiRequest.Types        (Alias, Field, Filter (..),
                                           OrderTerm (..), SelectItem,
                                           SimpleOperator (..),
                                           TrileanVal (..))
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..))
 import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
+import PostgREST.SchemaCache.Identifiers (FieldName,
+                                          QualifiedIdentifier (..))
 
 import Protolude hiding (cast)
 

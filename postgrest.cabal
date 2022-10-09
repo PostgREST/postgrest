@@ -45,11 +45,11 @@ library
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.Cors
-                      PostgREST.DbStructure
-                      PostgREST.DbStructure.Identifiers
-                      PostgREST.DbStructure.Proc
-                      PostgREST.DbStructure.Relationship
-                      PostgREST.DbStructure.Table
+                      PostgREST.SchemaCache
+                      PostgREST.SchemaCache.Identifiers
+                      PostgREST.SchemaCache.Proc
+                      PostgREST.SchemaCache.Relationship
+                      PostgREST.SchemaCache.Table
                       PostgREST.Error
                       PostgREST.GucHeader
                       PostgREST.Logger

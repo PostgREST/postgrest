@@ -17,8 +17,8 @@ import Protolude hiding (get, toS)
 import PostgREST.Plan.CallPlan
 import PostgREST.Query.QueryBuilder (callPlanToQuery)
 
-import PostgREST.DbStructure.Identifiers
-import PostgREST.DbStructure.Proc
+import PostgREST.SchemaCache.Identifiers
+import PostgREST.SchemaCache.Proc
 
 import Test.Hspec
 

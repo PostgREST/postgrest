@@ -54,13 +54,6 @@ import PostgREST.ApiRequest.Types        (ApiRequestError (..),
                                           RangeError (..), SelectItem)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.DbStructure.Proc        (ProcDescription (..),
-                                          ProcParam (..), ProcsMap,
-                                          procReturnsScalar)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..))
@@ -68,6 +61,13 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           hasLimitZero,
                                           limitZeroRange,
                                           rangeRequested)
+import PostgREST.SchemaCache             (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.SchemaCache.Proc        (ProcDescription (..),
+                                          ProcParam (..), ProcsMap,
+                                          procReturnsScalar)
 
 import qualified PostgREST.ApiRequest.Preferences as Preferences
 import qualified PostgREST.ApiRequest.QueryParams as QueryParams
@@ -179,14 +179,14 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf dbStructure req reqBody = do
+userApiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest conf sCache req reqBody = do
   qPrms <- first QueryParamError $ QueryParams.parse $ rawQueryString req
   pInfo <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo $ requestMethod req
   mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
   negotiatedSchema <- getSchema conf (requestHeaders req) (requestMethod req)
-  apiRequest conf dbStructure req reqBody qPrms pInfo act mediaTypes negotiatedSchema
+  apiRequest conf sCache req reqBody qPrms pInfo act mediaTypes negotiatedSchema
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -248,8 +248,8 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
     lookupHeader    = flip lookup hdrs
 
-apiRequest :: AppConfig -> DbStructure -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
-apiRequest conf dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
+apiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
+apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
@@ -325,7 +325,7 @@ apiRequest conf dbStructure req reqBody queryparams@QueryParams{..} PathInfo{pat
     | otherwise     = Right $ TargetIdent $ QualifiedIdentifier schema pathName
     where
       callFindProc procSch procNam = findProc
-        (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs dbStructure)
+        (QualifiedIdentifier procSch procNam) payloadColumns (preferParameters == Just SingleObject) (dbProcs sCache)
         contentMediaType (action == ActionInvoke InvPost)
 
   shouldParsePayload = case (action, contentMediaType) of

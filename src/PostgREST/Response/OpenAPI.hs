@@ -26,14 +26,14 @@ import Data.Swagger
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
-import PostgREST.DbStructure              (DbStructure (..))
-import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.DbStructure.Proc         (ProcDescription (..),
+import PostgREST.SchemaCache              (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Proc         (ProcDescription (..),
                                            ProcParam (..))
-import PostgREST.DbStructure.Relationship (Cardinality (..),
+import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap)
-import PostgREST.DbStructure.Table        (Column (..), Table (..),
+import PostgREST.SchemaCache.Table        (Column (..), Table (..),
                                            TablesMap)
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
@@ -41,11 +41,11 @@ import PostgREST.MediaType
 
 import Protolude hiding (Proxy, get)
 
-encode :: AppConfig -> DbStructure -> TablesMap -> HM.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
-encode conf dbStructure tables procs schemaDescription =
+encode :: AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode conf sCache tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
-      (dbRelationships dbStructure)
+      (dbRelationships sCache)
       (concat $ HM.elems procs)
       (snd <$> HM.toList tables)
       (proxyUri conf)

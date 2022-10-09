@@ -5,7 +5,7 @@ module PostgREST.AppState
   , destroy
   , flushPool
   , getConfig
-  , getDbStructure
+  , getSchemaCache
   , getIsListenerOn
   , getJsonDbS
   , getMainThreadId
@@ -17,7 +17,7 @@ module PostgREST.AppState
   , initWithPool
   , logWithZTime
   , putConfig
-  , putDbStructure
+  , putSchemaCache
   , putIsListenerOn
   , putJsonDbS
   , putPgVersion
@@ -40,7 +40,7 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config           (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
-import PostgREST.DbStructure      (DbStructure)
+import PostgREST.SchemaCache      (SchemaCache)
 
 import Protolude
 
@@ -51,8 +51,8 @@ data AppState = AppState
   -- | Database server version, will be updated by the connectionWorker
   , statePgVersion    :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
-  , stateDbStructure  :: IORef (Maybe DbStructure)
-  -- | Cached DbStructure in json
+  , stateSchemaCache  :: IORef (Maybe SchemaCache)
+  -- | Cached SchemaCache in json
   , stateJsonDbS      :: IORef ByteString
   -- | Binary semaphore to make sure just one connectionWorker can run at a time
   , stateWorkerSem    :: MVar ()
@@ -121,11 +121,11 @@ getPgVersion = readIORef . statePgVersion
 putPgVersion :: AppState -> PgVersion -> IO ()
 putPgVersion = atomicWriteIORef . statePgVersion
 
-getDbStructure :: AppState -> IO (Maybe DbStructure)
-getDbStructure = readIORef . stateDbStructure
+getSchemaCache :: AppState -> IO (Maybe SchemaCache)
+getSchemaCache = readIORef . stateSchemaCache
 
-putDbStructure :: AppState -> Maybe DbStructure -> IO ()
-putDbStructure appState = atomicWriteIORef (stateDbStructure appState)
+putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
+putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
 
 getJsonDbS :: AppState -> IO ByteString
 getJsonDbS = readIORef . stateJsonDbS

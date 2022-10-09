@@ -12,7 +12,7 @@ import Test.Hspec
 import PostgREST.App             (postgrest)
 import PostgREST.Config          (AppConfig (..), LogLevel (..))
 import PostgREST.Config.Database (queryPgVersion)
-import PostgREST.DbStructure     (queryDbStructure)
+import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import Protolude.Conv            (toS)
 import SpecHelper
@@ -68,32 +68,32 @@ main = do
 
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
-  baseDbStructure <-
-    loadDbStructure pool
+  baseSchemaCache <-
+    loadSchemaCache pool
       (configDbSchemas testCfg)
       (configDbExtraSearchPath testCfg)
 
   let
-    -- For tests that run with the same refDbStructure
+    -- For tests that run with the same refSchemaCache
     app config = do
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
-      AppState.putDbStructure appState (Just baseDbStructure)
+      AppState.putSchemaCache appState (Just baseSchemaCache)
       when (isJust $ configDbRootSpec config) $
-        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
       return ((), postgrest LogCrit appState $ pure ())
 
-    -- For tests that run with a different DbStructure(depends on configSchemas)
+    -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
-      customDbStructure <-
-        loadDbStructure pool
+      customSchemaCache <-
+        loadSchemaCache pool
           (configDbSchemas config)
           (configDbExtraSearchPath config)
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
-      AppState.putDbStructure appState (Just customDbStructure)
+      AppState.putSchemaCache appState (Just customSchemaCache)
       when (isJust $ configDbRootSpec config) $
-        AppState.putJsonDbS appState $ toS $ JSON.encode baseDbStructure
+        AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
       return ((), postgrest LogCrit appState $ pure ())
 
   let withApp              = app testCfg
@@ -259,5 +259,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadDbStructure pool schemas extraSearchPath =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ queryDbStructure (toList schemas) extraSearchPath True)
+    loadSchemaCache pool schemas extraSearchPath =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache (toList schemas) extraSearchPath True)

@@ -8,9 +8,9 @@ import qualified Data.Set             as S
 
 import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.ApiRequest.Types        (LogicTree, OrderTerm)
-import PostgREST.DbStructure.Identifiers (FieldName,
-                                          QualifiedIdentifier)
 import PostgREST.RangeQuery              (NonnegRange)
+import PostgREST.SchemaCache.Identifiers (FieldName,
+                                          QualifiedIdentifier)
 
 import Protolude
 

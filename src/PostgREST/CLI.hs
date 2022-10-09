@@ -19,7 +19,7 @@ import Text.Heredoc (str)
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
-import PostgREST.DbStructure (queryDbStructure)
+import PostgREST.SchemaCache (querySchemaCache)
 import PostgREST.Version     (prettyVersion)
 import PostgREST.Workers     (reReadConfig)
 
@@ -48,7 +48,7 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
       CmdRun -> App.run installSignalHandlers runAppWithSocket appState)
 
--- | Dump DbStructure schema to JSON
+-- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   AppConfig{..} <- AppState.getConfig appState
@@ -56,7 +56,7 @@ dumpSchema appState = do
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState $
       transaction SQL.ReadCommitted SQL.Read $
-        queryDbStructure
+        querySchemaCache
           (toList configDbSchemas)
           configDbExtraSearchPath
           configDbPreparedStatements
@@ -64,7 +64,7 @@ dumpSchema appState = do
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
       exitFailure
-    Right dbStructure -> return $ JSON.encode dbStructure
+    Right sCache -> return $ JSON.encode sCache
 
 -- | Command line interface options
 data CLI = CLI

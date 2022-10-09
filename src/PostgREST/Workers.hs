@@ -22,9 +22,9 @@ import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database  (queryDbSettings, queryPgVersion)
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
-import PostgREST.DbStructure      (queryDbStructure)
 import PostgREST.Error            (PgError (PgError), checkIsFatal,
                                    errorPayload)
+import PostgREST.SchemaCache      (querySchemaCache)
 
 import qualified PostgREST.AppState as AppState
 
@@ -45,7 +45,7 @@ data SCacheStatus
   | SCFatalFail
 
 -- | The purpose of this worker is to obtain a healthy connection to pg and an
--- up-to-date schema cache(DbStructure).  This method is meant to be called
+-- up-to-date schema cache(SchemaCache).  This method is meant to be called
 -- multiple times by the same thread, but does nothing if the previous
 -- invocation has not terminated. In all cases this method does not halt the
 -- calling thread, the work is performed in a separate thread.
@@ -54,7 +54,7 @@ data SCacheStatus
 --  1. Tries to connect to pg server and will keep trying until success.
 --  2. Checks if the pg version is supported and if it's not it kills the main
 --     program.
---  3. Obtains the dbStructure. If this fails, it goes back to 1.
+--  3. Obtains the sCache. If this fails, it goes back to 1.
 connectionWorker :: AppState -> IO ()
 connectionWorker appState = do
   runExclusively (AppState.getWorkerSem appState) work
@@ -148,14 +148,14 @@ establishConnection appState =
       when itShould $ AppState.putRetryNextIn appState delay
       return itShould
 
--- | Load the DbStructure by using a connection from the pool.
+-- | Load the SchemaCache by using a connection from the pool.
 loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
   AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState . transaction SQL.ReadCommitted SQL.Read $
-      queryDbStructure (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
+      querySchemaCache (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
       let
@@ -168,15 +168,15 @@ loadSchemaCache appState = do
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
-          AppState.putDbStructure appState Nothing
+          AppState.putSchemaCache appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
           putErr
           return SCOnRetry
 
-    Right dbStructure -> do
-      AppState.putDbStructure appState (Just dbStructure)
+    Right sCache -> do
+      AppState.putSchemaCache appState (Just sCache)
       when (isJust configDbRootSpec) .
-        AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode dbStructure
+        AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode sCache
       AppState.logWithZTime appState "Schema cache loaded"
       return SCLoaded
 

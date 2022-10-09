@@ -32,11 +32,11 @@ module PostgREST.ApiRequest.Types
   , SelectItem
   ) where
 
-import PostgREST.DbStructure.Identifiers  (FieldName,
-                                           QualifiedIdentifier)
-import PostgREST.DbStructure.Proc         (ProcDescription (..))
-import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.MediaType                (MediaType (..))
+import PostgREST.SchemaCache.Identifiers  (FieldName,
+                                           QualifiedIdentifier)
+import PostgREST.SchemaCache.Proc         (ProcDescription (..))
+import PostgREST.SchemaCache.Relationship (Relationship)
 
 import Protolude
 

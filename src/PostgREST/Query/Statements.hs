@@ -26,12 +26,12 @@ import Control.Lens ((^?))
 import Data.Maybe   (fromJust)
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
+import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import Protolude
 

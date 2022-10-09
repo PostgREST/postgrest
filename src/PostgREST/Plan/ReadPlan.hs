@@ -11,10 +11,10 @@ import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
                                            JoinCondition, JoinType,
                                            LogicTree, NodeName,
                                            OrderTerm, SelectItem)
-import PostgREST.DbStructure.Identifiers  (FieldName,
-                                           QualifiedIdentifier)
-import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.RangeQuery               (NonnegRange)
+import PostgREST.SchemaCache.Identifiers  (FieldName,
+                                           QualifiedIdentifier)
+import PostgREST.SchemaCache.Relationship (Relationship)
 
 
 import Protolude

@@ -39,13 +39,6 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           toAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.DbStructure             (DbStructure (..))
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.DbStructure.Proc        (ProcDescription (..),
-                                          ProcVolatility (..),
-                                          ProcsMap)
-import PostgREST.DbStructure.Table       (Table (..), TablesMap)
 import PostgREST.GucHeader               (GucHeader,
                                           addHeadersIfNotIncluded,
                                           unwrapGucHeader)
@@ -53,9 +46,16 @@ import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (MutateReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
+import PostgREST.SchemaCache             (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
+                                          Schema)
+import PostgREST.SchemaCache.Proc        (ProcDescription (..),
+                                          ProcVolatility (..),
+                                          ProcsMap)
+import PostgREST.SchemaCache.Table       (Table (..), TablesMap)
 
 import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
-import qualified PostgREST.DbStructure.Proc as Proc
+import qualified PostgREST.SchemaCache.Proc as Proc
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -176,11 +176,11 @@ deleteResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-infoResponse :: Target -> DbStructure -> Wai.Response
-infoResponse target dbStructure =
+infoResponse :: Target -> SchemaCache -> Wai.Response
+infoResponse target sCache =
   case target of
     TargetIdent identifier ->
-      case HM.lookup identifier (dbTables dbStructure) of
+      case HM.lookup identifier (dbTables sCache) of
         Just tbl -> respondInfo $ allowH tbl
         Nothing  -> Error.errorResponseFor $ Error.ApiRequestError ApiRequestTypes.NotFound
     TargetProc pd _
@@ -222,11 +222,11 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> DbStructure -> Schema -> Bool -> Wai.Response
-openApiResponse headersOnly body conf dbStructure schema negotiatedByProfile =
+openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
+openApiResponse headersOnly body conf sCache schema negotiatedByProfile =
   Wai.responseLBS HTTP.status200
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
-    (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode conf dbStructure x y z) body)
+    (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode conf sCache x y z) body)
 
 -- | Response with headers and status overridden from GUCs.
 gucResponse

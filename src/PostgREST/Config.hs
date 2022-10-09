@@ -54,9 +54,9 @@ import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
                                           dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier, dumpQi,
-                                          toQi)
 import PostgREST.MediaType               (MediaType (..), toMime)
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
+                                          toQi)
 
 import Protolude hiding (Proxy, toList)
 

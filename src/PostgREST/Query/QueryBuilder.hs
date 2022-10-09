@@ -23,9 +23,9 @@ import qualified Hasql.DynamicStatements.Snippet as SQL
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
-import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.DbStructure.Proc         (ProcParam (..))
-import PostgREST.DbStructure.Relationship (Cardinality (..),
+import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Proc         (ProcParam (..))
+import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
 

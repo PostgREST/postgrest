@@ -39,10 +39,10 @@ import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
                                       optionMaybe, sepBy1, string,
                                       try, (<?>))
 
-import PostgREST.DbStructure.Identifiers (FieldName)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
                                           rangeOffset, restrictRange)
+import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    Filter (..), FtsOperator (..),
