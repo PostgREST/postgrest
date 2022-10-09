@@ -31,6 +31,11 @@ import Data.Either.Combinators (mapLeft)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
 
+import PostgREST.ApiRequest               (Action (..),
+                                           ApiRequest (..),
+                                           InvokeMethod (..),
+                                           Mutation (..),
+                                           Payload (..))
 import PostgREST.Config                   (AppConfig (..))
 import PostgREST.DbStructure              (DbStructure (..))
 import PostgREST.DbStructure.Identifiers  (FieldName,
@@ -48,20 +53,15 @@ import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            restrictRange)
-import PostgREST.Request.ApiRequest       (Action (..),
-                                           ApiRequest (..),
-                                           InvokeMethod (..),
-                                           Mutation (..),
-                                           Payload (..))
 
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan   as ReadPlan
 
-import PostgREST.Request.Preferences
-import PostgREST.Request.Types
+import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types
 
-import qualified PostgREST.Request.QueryParams as QueryParams
+import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
 import Protolude hiding (from)
 

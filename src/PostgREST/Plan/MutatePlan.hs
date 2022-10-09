@@ -6,11 +6,11 @@ where
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Set             as S
 
+import PostgREST.ApiRequest.Preferences  (PreferResolution)
+import PostgREST.ApiRequest.Types        (LogicTree, OrderTerm)
 import PostgREST.DbStructure.Identifiers (FieldName,
                                           QualifiedIdentifier)
 import PostgREST.RangeQuery              (NonnegRange)
-import PostgREST.Request.Preferences     (PreferResolution)
-import PostgREST.Request.Types           (LogicTree, OrderTerm)
 
 import Protolude
 

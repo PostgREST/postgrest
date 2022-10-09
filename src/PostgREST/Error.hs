@@ -29,11 +29,11 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.MediaType     (MediaType (..))
-import qualified PostgREST.MediaType     as MediaType
-import           PostgREST.Request.Types (ApiRequestError (..),
-                                          QPError (..),
-                                          RangeError (..))
+import           PostgREST.ApiRequest.Types (ApiRequestError (..),
+                                             QPError (..),
+                                             RangeError (..))
+import           PostgREST.MediaType        (MediaType (..))
+import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.DbStructure.Proc         (ProcDescription (..),

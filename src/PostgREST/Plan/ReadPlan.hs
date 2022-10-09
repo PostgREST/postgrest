@@ -7,14 +7,14 @@ module PostgREST.Plan.ReadPlan
 
 import Data.Tree (Tree (..))
 
+import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
+                                           JoinCondition, JoinType,
+                                           LogicTree, NodeName,
+                                           OrderTerm, SelectItem)
 import PostgREST.DbStructure.Identifiers  (FieldName,
                                            QualifiedIdentifier)
 import PostgREST.DbStructure.Relationship (Relationship)
 import PostgREST.RangeQuery               (NonnegRange)
-import PostgREST.Request.Types            (Alias, Depth, Hint,
-                                           JoinCondition, JoinType,
-                                           LogicTree, NodeName,
-                                           OrderTerm, SelectItem)
 
 
 import Protolude

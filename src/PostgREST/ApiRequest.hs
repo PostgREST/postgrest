@@ -6,7 +6,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module PostgREST.Request.ApiRequest
+module PostgREST.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
   , Mutation(..)
@@ -44,6 +44,14 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
+import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferRepresentation (..),
+                                          PreferResolution (..),
+                                          PreferTransaction (..))
+import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
+import PostgREST.ApiRequest.Types        (ApiRequestError (..),
+                                          RangeError (..), SelectItem)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.DbStructure             (DbStructure (..))
@@ -60,18 +68,10 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           hasLimitZero,
                                           limitZeroRange,
                                           rangeRequested)
-import PostgREST.Request.Preferences     (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..),
-                                          PreferResolution (..),
-                                          PreferTransaction (..))
-import PostgREST.Request.QueryParams     (QueryParams (..))
-import PostgREST.Request.Types           (ApiRequestError (..),
-                                          RangeError (..), SelectItem)
 
-import qualified PostgREST.MediaType           as MediaType
-import qualified PostgREST.Request.Preferences as Preferences
-import qualified PostgREST.Request.QueryParams as QueryParams
+import qualified PostgREST.ApiRequest.Preferences as Preferences
+import qualified PostgREST.ApiRequest.QueryParams as QueryParams
+import qualified PostgREST.MediaType              as MediaType
 
 import Protolude
 

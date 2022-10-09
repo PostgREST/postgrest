@@ -34,6 +34,14 @@ import qualified PostgREST.RangeQuery         as RangeQuery
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
+import PostgREST.ApiRequest              (Action (..),
+                                          ApiRequest (..),
+                                          InvokeMethod (..),
+                                          Target (..))
+import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferParameters (..),
+                                          PreferTransaction (..),
+                                          shouldCount)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..),
@@ -56,14 +64,6 @@ import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
                                           setConfigLocal,
                                           setConfigLocalJson)
 import PostgREST.Query.Statements        (ResultSet (..))
-import PostgREST.Request.ApiRequest      (Action (..),
-                                          ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Target (..))
-import PostgREST.Request.Preferences     (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferTransaction (..),
-                                          shouldCount)
 
 import Protolude hiding (Handler)
 

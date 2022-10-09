@@ -30,29 +30,29 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
-import qualified PostgREST.Admin              as Admin
-import qualified PostgREST.AppState           as AppState
-import qualified PostgREST.Auth               as Auth
-import qualified PostgREST.Cors               as Cors
-import qualified PostgREST.Error              as Error
-import qualified PostgREST.Logger             as Logger
-import qualified PostgREST.Plan               as Plan
-import qualified PostgREST.Query              as Query
-import qualified PostgREST.Request.ApiRequest as ApiRequest
-import qualified PostgREST.Request.Types      as ApiRequestTypes
-import qualified PostgREST.Response           as Response
+import qualified PostgREST.Admin            as Admin
+import qualified PostgREST.ApiRequest       as ApiRequest
+import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
+import qualified PostgREST.AppState         as AppState
+import qualified PostgREST.Auth             as Auth
+import qualified PostgREST.Cors             as Cors
+import qualified PostgREST.Error            as Error
+import qualified PostgREST.Logger           as Logger
+import qualified PostgREST.Plan             as Plan
+import qualified PostgREST.Query            as Query
+import qualified PostgREST.Response         as Response
 
-import PostgREST.AppState           (AppState)
-import PostgREST.Auth               (AuthResult (..))
-import PostgREST.Config             (AppConfig (..), LogLevel (..))
-import PostgREST.Config.PgVersion   (PgVersion (..))
-import PostgREST.DbStructure        (DbStructure (..))
-import PostgREST.Error              (Error)
-import PostgREST.Query              (DbHandler)
-import PostgREST.Request.ApiRequest (Action (..), ApiRequest (..),
-                                     Mutation (..), Target (..))
-import PostgREST.Version            (prettyVersion)
-import PostgREST.Workers            (connectionWorker, listener)
+import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
+                                   Mutation (..), Target (..))
+import PostgREST.AppState         (AppState)
+import PostgREST.Auth             (AuthResult (..))
+import PostgREST.Config           (AppConfig (..), LogLevel (..))
+import PostgREST.Config.PgVersion (PgVersion (..))
+import PostgREST.DbStructure      (DbStructure (..))
+import PostgREST.Error            (Error)
+import PostgREST.Query            (DbHandler)
+import PostgREST.Version          (prettyVersion)
+import PostgREST.Workers          (connectionWorker, listener)
 
 import Protolude hiding (Handler)
 

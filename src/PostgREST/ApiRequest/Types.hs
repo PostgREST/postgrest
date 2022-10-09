@@ -1,5 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
-module PostgREST.Request.Types
+module PostgREST.ApiRequest.Types
   ( Alias
   , Cast
   , Depth

@@ -30,6 +30,14 @@ import qualified PostgREST.MediaType        as MediaType
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Response.OpenAPI as OpenAPI
 
+import PostgREST.ApiRequest              (ApiRequest (..),
+                                          InvokeMethod (..),
+                                          Target (..))
+import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
+                                          PreferTransaction (..),
+                                          shouldCount,
+                                          toAppliedHeader)
+import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.DbStructure             (DbStructure (..))
 import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
@@ -45,17 +53,9 @@ import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (MutateReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
-import PostgREST.Request.ApiRequest      (ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Target (..))
-import PostgREST.Request.Preferences     (PreferRepresentation (..),
-                                          PreferTransaction (..),
-                                          shouldCount,
-                                          toAppliedHeader)
-import PostgREST.Request.QueryParams     (QueryParams (..))
 
+import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
 import qualified PostgREST.DbStructure.Proc as Proc
-import qualified PostgREST.Request.Types    as ApiRequestTypes
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
