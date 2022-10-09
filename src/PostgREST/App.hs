@@ -30,7 +30,6 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
-import qualified PostgREST.Admin            as Admin
 import qualified PostgREST.ApiRequest       as ApiRequest
 import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
 import qualified PostgREST.AppState         as AppState
@@ -41,6 +40,7 @@ import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Plan             as Plan
 import qualified PostgREST.Query            as Query
 import qualified PostgREST.Response         as Response
+import qualified PostgREST.Workers          as Workers
 
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    Mutation (..), Target (..))
@@ -52,7 +52,6 @@ import PostgREST.Error            (Error)
 import PostgREST.Query            (DbHandler)
 import PostgREST.SchemaCache      (SchemaCache (..))
 import PostgREST.Version          (prettyVersion)
-import PostgREST.Workers          (connectionWorker, listener)
 
 import Protolude hiding (Handler)
 
@@ -65,17 +64,14 @@ type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> 
 run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
 run installHandlers maybeRunWithSocket appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
-  connectionWorker appState -- Loads the initial SchemaCache
+  Workers.connectionWorker appState -- Loads the initial SchemaCache
   installHandlers appState
   -- reload schema cache + config on NOTIFY
-  when configDbChannelEnabled $ listener appState
+  Workers.runListener conf appState
 
-  let app = postgrest configLogLevel appState (connectionWorker appState)
-      adminApp = Admin.postgrestAdmin appState conf
+  Workers.runAdmin conf appState $ serverSettings conf
 
-  whenJust configAdminServerPort $ \adminPort -> do
-    AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
-    void . forkIO $ Warp.runSettings (serverSettings conf & setPort adminPort) adminApp
+  let app = postgrest configLogLevel appState (Workers.connectionWorker appState)
 
   case configServerUnixSocket of
     Just socket ->
@@ -90,9 +86,6 @@ run installHandlers maybeRunWithSocket appState = do
       do
         AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
         Warp.runSettings (serverSettings conf) app
-  where
-    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-    whenJust mg f = maybe (pure ()) f mg
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =

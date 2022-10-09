@@ -1,22 +1,32 @@
 {-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Workers
   ( connectionWorker
   , reReadConfig
-  , listener
+  , runListener
+  , runAdmin
   ) where
 
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.Text as T
 import qualified Data.Text.Encoding         as T
+import qualified Network.HTTP.Types.Status as HTTP
+import qualified Network.Wai               as Wai
+import qualified Network.Wai.Handler.Warp   as Warp
 import qualified Hasql.Notifications        as SQL
+import qualified Hasql.Session as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 
 import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,
                          retrying, rsPreviousDelay)
 import Hasql.Connection (acquire)
+
+import Network.Socket
+import Network.Socket.ByteString
 
 import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
@@ -180,6 +190,10 @@ loadSchemaCache appState = do
       AppState.logWithZTime appState "Schema cache loaded"
       return SCLoaded
 
+runListener :: AppConfig -> AppState -> IO ()
+runListener AppConfig{configDbChannelEnabled} appState =
+  when configDbChannelEnabled $ listener appState
+
 -- | Starts a dedicated pg connection to LISTEN for notifications.  When a
 -- NOTIFY <db-channel> - with an empty payload - is done, it refills the schema
 -- cache.  It uses the connectionWorker in case the LISTEN connection dies.
@@ -264,3 +278,68 @@ reReadConfig startingUp appState = do
         pass
       else
         AppState.logWithZTime appState "Config reloaded"
+
+runAdmin :: AppConfig -> AppState -> Warp.Settings -> IO ()
+runAdmin conf@AppConfig{configAdminServerPort} appState settings =
+  whenJust configAdminServerPort $ \adminPort -> do
+    AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
+    void . forkIO $ Warp.runSettings (settings & Warp.setPort adminPort) adminApp
+  where
+    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
+    whenJust mg f = maybe (pure ()) f mg
+    adminApp = admin appState conf
+
+-- | PostgREST admin application
+admin :: AppState.AppState -> AppConfig -> Wai.Application
+admin appState appConfig req respond  = do
+  isMainAppReachable  <- any isRight <$> reachMainApp appConfig
+  isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
+  isConnectionUp      <-
+    if configDbChannelEnabled appConfig
+      then AppState.getIsListenerOn appState
+      else isRight <$> AppState.usePool appState (SQL.sql "SELECT 1")
+
+  case Wai.pathInfo req of
+    ["ready"] ->
+      respond $ Wai.responseLBS (if isMainAppReachable && isConnectionUp && isSchemaCacheLoaded then HTTP.status200 else HTTP.status503) [] mempty
+    ["live"] ->
+      respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+    _ ->
+      respond $ Wai.responseLBS HTTP.status404 [] mempty
+
+-- Try to connect to the main app socket
+-- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
+-- The code for resolving the "*4", "!4", "*6", "!6", "*" special values is taken from
+-- https://hackage.haskell.org/package/streaming-commons-0.2.2.4/docs/src/Data.Streaming.Network.html#bindPortGenEx
+reachMainApp :: AppConfig -> IO [Either IOException ()]
+reachMainApp AppConfig{..} =
+  case configServerUnixSocket of
+    Just path ->  do
+      sock <- socket AF_UNIX Stream 0
+      (:[]) <$> try (do
+        connect sock $ SockAddrUnix path
+        withSocketsDo $ bracket (pure sock) close sendEmpty)
+    Nothing -> do
+      let
+        host | configServerHost `elem` ["*4", "!4", "*6", "!6", "*"] = Nothing
+             | otherwise                                             = Just configServerHost
+        filterAddrs xs =
+          case configServerHost of
+              "*4" -> ipv4Addrs xs ++ ipv6Addrs xs
+              "!4" -> ipv4Addrs xs
+              "*6" -> ipv6Addrs xs ++ ipv4Addrs xs
+              "!6" -> ipv6Addrs xs
+              _    -> xs
+        ipv4Addrs = filter ((/=) AF_INET6 . addrFamily)
+        ipv6Addrs = filter ((==) AF_INET6 . addrFamily)
+
+      addrs <- getAddrInfo (Just $ defaultHints { addrSocketType = Stream }) (T.unpack <$> host) (Just . show $ configServerPort)
+      tryAddr `traverse` filterAddrs addrs
+  where
+    sendEmpty sock = void $ send sock mempty
+    tryAddr :: AddrInfo -> IO (Either IOException ())
+    tryAddr addr = do
+      sock <- socket (addrFamily addr) (addrSocketType addr) (addrProtocol addr)
+      try $ do
+        connect sock $ addrAddress addr
+        withSocketsDo $ bracket (pure sock) close sendEmpty
