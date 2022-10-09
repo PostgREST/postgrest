@@ -51,7 +51,6 @@ library
                       PostgREST.SchemaCache.Relationship
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
-                      PostgREST.GucHeader
                       PostgREST.Logger
                       PostgREST.MediaType
                       PostgREST.Query
@@ -69,6 +68,7 @@ library
                       PostgREST.ApiRequest.Types
                       PostgREST.Response
                       PostgREST.Response.OpenAPI
+                      PostgREST.Response.GucHeader
                       PostgREST.Version
                       PostgREST.Workers
   other-modules:      Paths_postgrest

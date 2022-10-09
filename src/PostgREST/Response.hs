@@ -39,8 +39,7 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           toAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.GucHeader               (GucHeader,
-                                          addHeadersIfNotIncluded,
+import PostgREST.Response.GucHeader      (GucHeader,
                                           unwrapGucHeader)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (MutateReadPlan (..))
@@ -287,3 +286,9 @@ optionalRollback AppConfig{..} ApiRequest{..} resp = do
             [toAppliedHeader Rollback]
       | otherwise =
           identity
+
+-- | Add headers not already included to allow the user to override them instead of duplicating them
+addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
+addHeadersIfNotIncluded newHeaders initialHeaders =
+  filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
+  initialHeaders
