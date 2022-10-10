@@ -12,14 +12,14 @@ module PostgREST.Workers
 import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
-import qualified Data.Text as T
+import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
-import qualified Network.HTTP.Types.Status as HTTP
-import qualified Network.Wai               as Wai
-import qualified Network.Wai.Handler.Warp   as Warp
 import qualified Hasql.Notifications        as SQL
-import qualified Hasql.Session as SQL
+import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.HTTP.Types.Status  as HTTP
+import qualified Network.Wai                as Wai
+import qualified Network.Wai.Handler.Warp   as Warp
 
 import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,
                          retrying, rsPreviousDelay)

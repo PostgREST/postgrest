@@ -13,6 +13,6 @@ main =
     , "-XStandaloneDeriving"
     , "-isrc"
     , "src/PostgREST/Query/SqlFragment.hs"
-    , "src/PostgREST/Request/Preferences.hs"
-    , "src/PostgREST/Request/QueryParams.hs"
+    , "src/PostgREST/ApiRequest/Preferences.hs"
+    , "src/PostgREST/ApiRequest/QueryParams.hs"
     ]

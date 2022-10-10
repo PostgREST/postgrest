@@ -39,12 +39,11 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           toAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Response.GucHeader      (GucHeader,
-                                          unwrapGucHeader)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (MutateReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
+import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema)

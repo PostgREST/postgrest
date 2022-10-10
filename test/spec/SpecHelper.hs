@@ -26,8 +26,8 @@ import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
                                           parseSecret)
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
 
