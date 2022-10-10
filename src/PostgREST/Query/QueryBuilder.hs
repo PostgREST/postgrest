@@ -22,19 +22,19 @@ import qualified Hasql.DynamicStatements.Snippet as SQL
 
 import Data.Tree (Tree (..))
 
-import PostgREST.DbStructure.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.DbStructure.Proc         (ProcParam (..))
-import PostgREST.DbStructure.Relationship (Cardinality (..),
+import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
+import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Proc         (ProcParam (..))
+import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.Request.Preferences      (PreferResolution (..))
 
+import PostgREST.ApiRequest.Types
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Query.SqlFragment
 import PostgREST.RangeQuery        (allRange)
-import PostgREST.Request.Types
 
 import Protolude
 

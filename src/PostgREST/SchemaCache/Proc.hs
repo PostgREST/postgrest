@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructure.Proc
+module PostgREST.SchemaCache.Proc
   ( PgType(..)
   , ProcDescription(..)
   , ProcParam(..)
@@ -17,7 +17,7 @@ module PostgREST.DbStructure.Proc
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as HM
 
-import PostgREST.DbStructure.Identifiers (QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
 
 import Protolude

@@ -5,9 +5,9 @@ module PostgREST.Plan.CallPlan
 where
 
 import qualified Data.ByteString.Lazy              as LBS
-import           PostgREST.DbStructure.Identifiers (FieldName,
+import           PostgREST.SchemaCache.Identifiers (FieldName,
                                                     QualifiedIdentifier)
-import           PostgREST.DbStructure.Proc        (ProcParam (..))
+import           PostgREST.SchemaCache.Proc        (ProcParam (..))
 
 import Protolude
 

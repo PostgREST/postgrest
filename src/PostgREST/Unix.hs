@@ -47,7 +47,7 @@ installSignalHandlers appState = do
   install Signals.sigINT interrupt
   install Signals.sigTERM interrupt
 
-  -- The SIGUSR1 signal updates the internal 'DbStructure' by running
+  -- The SIGUSR1 signal updates the internal 'SchemaCache' by running
   -- 'connectionWorker' exactly as before.
   install Signals.sigUSR1 $ Workers.connectionWorker appState
 

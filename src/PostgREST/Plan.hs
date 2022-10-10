@@ -25,43 +25,43 @@ module PostgREST.Plan
 
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.Set                   as S
-import qualified PostgREST.DbStructure.Proc as Proc
+import qualified PostgREST.SchemaCache.Proc as Proc
 
 import Data.Either.Combinators (mapLeft)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
 
-import PostgREST.Config                   (AppConfig (..))
-import PostgREST.DbStructure              (DbStructure (..))
-import PostgREST.DbStructure.Identifiers  (FieldName,
-                                           QualifiedIdentifier (..),
-                                           Schema)
-import PostgREST.DbStructure.Proc         (ProcDescription (..),
-                                           ProcParam (..),
-                                           procReturnsScalar)
-import PostgREST.DbStructure.Relationship (Cardinality (..),
-                                           Junction (..),
-                                           Relationship (..),
-                                           RelationshipsMap)
-import PostgREST.DbStructure.Table        (tablePKCols)
-import PostgREST.Error                    (Error (..))
-import PostgREST.Query.SqlFragment        (sourceCTEName)
-import PostgREST.RangeQuery               (NonnegRange, allRange,
-                                           restrictRange)
-import PostgREST.Request.ApiRequest       (Action (..),
+import PostgREST.ApiRequest               (Action (..),
                                            ApiRequest (..),
                                            InvokeMethod (..),
                                            Mutation (..),
                                            Payload (..))
+import PostgREST.Config                   (AppConfig (..))
+import PostgREST.Error                    (Error (..))
+import PostgREST.Query.SqlFragment        (sourceCTEName)
+import PostgREST.RangeQuery               (NonnegRange, allRange,
+                                           restrictRange)
+import PostgREST.SchemaCache              (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers  (FieldName,
+                                           QualifiedIdentifier (..),
+                                           Schema)
+import PostgREST.SchemaCache.Proc         (ProcDescription (..),
+                                           ProcParam (..),
+                                           procReturnsScalar)
+import PostgREST.SchemaCache.Relationship (Cardinality (..),
+                                           Junction (..),
+                                           Relationship (..),
+                                           RelationshipsMap)
+import PostgREST.SchemaCache.Table        (tablePKCols)
 
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan   as ReadPlan
 
-import PostgREST.Request.Preferences
-import PostgREST.Request.Types
+import PostgREST.ApiRequest.Preferences
+import PostgREST.ApiRequest.Types
 
-import qualified PostgREST.Request.QueryParams as QueryParams
+import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
@@ -75,24 +75,24 @@ data CallReadPlan = CallReadPlan {
 , crCallPlan :: CallPlan
 }
 
-mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> DbStructure -> Either Error MutateReadPlan
-mutateReadPlan  mutation apiRequest identifier conf dbStructure = do
-  rPlan <- readPlan identifier conf dbStructure apiRequest
-  mPlan <- mutatePlan mutation identifier apiRequest dbStructure rPlan
+mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
+mutateReadPlan  mutation apiRequest identifier conf sCache = do
+  rPlan <- readPlan identifier conf sCache apiRequest
+  mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   return $ MutateReadPlan rPlan mPlan
 
-callReadPlan :: ProcDescription -> AppConfig -> DbStructure -> ApiRequest -> Either Error CallReadPlan
-callReadPlan proc conf dbStructure apiRequest = do
+callReadPlan :: ProcDescription -> AppConfig -> SchemaCache -> ApiRequest -> Either Error CallReadPlan
+callReadPlan proc conf sCache apiRequest = do
   let identifier = QualifiedIdentifier (pdSchema proc) (fromMaybe (pdName proc) $ Proc.procTableName proc)
-  rPlan <- readPlan identifier conf dbStructure apiRequest
+  rPlan <- readPlan identifier conf sCache apiRequest
   let cPlan = callPlan proc apiRequest rPlan
   return $ CallReadPlan rPlan cPlan
 
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readPlan :: QualifiedIdentifier -> AppConfig -> DbStructure -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} DbStructure{dbRelationships} apiRequest  =
+readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
   augmentRequestWithJoin qiSchema dbRelationships =<<
@@ -335,8 +335,8 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode :: Maybe ReadPlanTree
     findNode = find (\(Node ReadPlan{nodeName, nodeAlias} _) -> nodeName == targetNodeName || nodeAlias == Just targetNodeName) forest
 
-mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> DbStructure -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{..} dbStructure readReq = mapLeft ApiRequestError $
+mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
+mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
       Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols
@@ -359,7 +359,7 @@ mutatePlan mutation qi ApiRequest{..} dbStructure readReq = mapLeft ApiRequestEr
       if iPreferRepresentation == None
         then []
         else returningCols readReq pkCols
-    pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables dbStructure
+    pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables sCache
     logic = map snd qsLogic
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot

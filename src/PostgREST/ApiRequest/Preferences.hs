@@ -1,12 +1,12 @@
 -- |
--- Module: PostgREST.Request.Preferences
+-- Module: PostgREST.ApiRequest.Preferences
 -- Description: Track client preferences to be employed when processing requests
 --
 -- Track client prefences set in HTTP 'Prefer' headers according to RFC7240[1].
 --
 -- [1] https://datatracker.ietf.org/doc/html/rfc7240
 --
-module PostgREST.Request.Preferences
+module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
   , PreferParameters(..)

@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric  #-}
 
-module PostgREST.DbStructure.Identifiers
+module PostgREST.SchemaCache.Identifiers
   ( QualifiedIdentifier(..)
   , Schema
   , TableName

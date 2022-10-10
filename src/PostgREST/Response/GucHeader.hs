@@ -1,7 +1,6 @@
-module PostgREST.GucHeader
+module PostgREST.Response.GucHeader
   ( GucHeader
   , unwrapGucHeader
-  , addHeadersIfNotIncluded
   ) where
 
 import qualified Data.Aeson           as JSON
@@ -29,9 +28,3 @@ instance JSON.FromJSON GucHeader where
 
 unwrapGucHeader :: GucHeader -> Header
 unwrapGucHeader (GucHeader (k, v)) = (k, v)
-
--- | Add headers not already included to allow the user to override them instead of duplicating them
-addHeadersIfNotIncluded :: [Header] -> [Header] -> [Header]
-addHeadersIfNotIncluded newHeaders initialHeaders =
-  filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
-  initialHeaders

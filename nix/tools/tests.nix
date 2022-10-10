@@ -105,7 +105,7 @@ let
     checkedShellScript
       {
         name = "postgrest-dump-schema";
-        docs = "Dump the loaded schema's DbStructure as a yaml file.";
+        docs = "Dump the loaded schema's SchemaCache as a yaml file.";
         inRootDir = true;
         withEnv = postgrest.env;
         withPath = [ jq ];

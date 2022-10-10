@@ -25,13 +25,13 @@ import qualified Hasql.Statement                   as SQL
 import Control.Lens ((^?))
 import Data.Maybe   (fromJust)
 
-import PostgREST.DbStructure.Identifiers (FieldName)
+import PostgREST.ApiRequest.Preferences
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
-import PostgREST.Request.Preferences
+import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import Protolude
 

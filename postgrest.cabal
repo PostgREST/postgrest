@@ -35,7 +35,6 @@ library
                       NoImplicitPrelude
   hs-source-dirs:     src
   exposed-modules:    PostgREST.App
-                      PostgREST.Admin
                       PostgREST.AppState
                       PostgREST.Auth
                       PostgREST.CLI
@@ -45,13 +44,12 @@ library
                       PostgREST.Config.PgVersion
                       PostgREST.Config.Proxy
                       PostgREST.Cors
-                      PostgREST.DbStructure
-                      PostgREST.DbStructure.Identifiers
-                      PostgREST.DbStructure.Proc
-                      PostgREST.DbStructure.Relationship
-                      PostgREST.DbStructure.Table
+                      PostgREST.SchemaCache
+                      PostgREST.SchemaCache.Identifiers
+                      PostgREST.SchemaCache.Proc
+                      PostgREST.SchemaCache.Relationship
+                      PostgREST.SchemaCache.Table
                       PostgREST.Error
-                      PostgREST.GucHeader
                       PostgREST.Logger
                       PostgREST.MediaType
                       PostgREST.Query
@@ -63,12 +61,13 @@ library
                       PostgREST.Plan.MutatePlan
                       PostgREST.Plan.ReadPlan
                       PostgREST.RangeQuery
-                      PostgREST.Request.ApiRequest
-                      PostgREST.Request.Preferences
-                      PostgREST.Request.QueryParams
-                      PostgREST.Request.Types
+                      PostgREST.ApiRequest
+                      PostgREST.ApiRequest.Preferences
+                      PostgREST.ApiRequest.QueryParams
+                      PostgREST.ApiRequest.Types
                       PostgREST.Response
                       PostgREST.Response.OpenAPI
+                      PostgREST.Response.GucHeader
                       PostgREST.Version
                       PostgREST.Workers
   other-modules:      Paths_postgrest
