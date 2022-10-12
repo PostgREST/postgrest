@@ -142,19 +142,19 @@ augmentRequestWithJoin schema allRels request =
  addJoinConditions Nothing <$> addRels schema allRels Nothing request
 
 addRels :: Schema -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,nodeName,nodeHint,nodeDepth} forest) =
+addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,relName,relHint,depth} forest) =
   case parentNode of
     Just (Node ReadPlan{from=parentNodeQi, fromAlias=aliasQi} _) ->
-      let newFrom r = if qiName tbl == nodeName then relForeignTable r else tbl
+      let newFrom r = if qiName tbl == relName then relForeignTable r else tbl
           newReadPlan = (\r ->
             if not $ relIsSelf r -- add alias if self rel TODO consolidate aliasing in another function
-              then query{from=newFrom r, nodeRel=Just r}
-              else query{from=newFrom r, nodeRel=Just r, fromAlias=Just (qiName (newFrom r) <> "_" <> show nodeDepth)}
+              then query{from=newFrom r, relToParent=Just r}
+              else query{from=newFrom r, relToParent=Just r, fromAlias=Just (qiName (newFrom r) <> "_" <> show depth)}
             ) <$> rel
-          origin = if nodeDepth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
+          origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
             then fromMaybe (qiName parentNodeQi) aliasQi
             else qiName parentNodeQi
-          rel = findRel schema allRels origin nodeName nodeHint
+          rel = findRel schema allRels origin relName relHint
       in
       Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
     _ ->
@@ -165,9 +165,9 @@ addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,nodeName,nodeHin
 
 -- applies aliasing to join conditions TODO refactor, this should go into the querybuilder module
 addJoinConditions :: Maybe Alias -> ReadPlanTree -> ReadPlanTree
-addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, nodeRel=Nothing} forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, nodeRel=Just ComputedRelationship{}} forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions previousAlias (Node query@ReadPlan{fromAlias=tblAlias, nodeRel=Just Relationship{relTable=qi,relForeignTable=fQi,relCardinality=card}} forest) =
+addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, relToParent=Nothing} forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, relToParent=Just ComputedRelationship{}} forest) = Node node (addJoinConditions tblAlias <$> forest)
+addJoinConditions previousAlias (Node query@ReadPlan{fromAlias=tblAlias, relToParent=Just Relationship{relTable=qi,relForeignTable=fQi,relCardinality=card}} forest) =
   Node query{joinConditions=joinConds} (addJoinConditions tblAlias <$> forest)
   where
     QualifiedIdentifier{qiSchema=tSchema, qiName=tN} = qi
@@ -333,7 +333,7 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
       updateNode f (remainingPath, a) (Right target)
   where
     findNode :: Maybe ReadPlanTree
-    findNode = find (\(Node ReadPlan{nodeName, nodeAlias} _) -> nodeName == targetNodeName || nodeAlias == Just targetNodeName) forest
+    findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
 mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
@@ -398,21 +398,21 @@ returningCols rr@(Node _ forest) pkCols
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
     fkCols = concat $ mapMaybe (\case
-        Node ReadPlan{nodeRel=Just Relationship{relCardinality=O2M _ cols}} _ ->
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=O2M _ cols}} _ ->
           Just $ fst <$> cols
-        Node ReadPlan{nodeRel=Just Relationship{relCardinality=M2O _ cols}} _ ->
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=M2O _ cols}} _ ->
           Just $ fst <$> cols
-        Node ReadPlan{nodeRel=Just Relationship{relCardinality=O2O _ cols}} _ ->
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=O2O _ cols}} _ ->
           Just $ fst <$> cols
-        Node ReadPlan{nodeRel=Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}} _ ->
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}} _ ->
           Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
-        Node ReadPlan{nodeRel=Just ComputedRelationship{}} _ ->
+        Node ReadPlan{relToParent=Just ComputedRelationship{}} _ ->
           Nothing
-        Node ReadPlan{nodeRel=Nothing} _ ->
+        Node ReadPlan{relToParent=Nothing} _ ->
           Nothing
       ) forest
     hasComputedRel = isJust $ find (\case
-      Node ReadPlan{nodeRel=Just ComputedRelationship{}} _ -> True
+      Node ReadPlan{relToParent=Just ComputedRelationship{}} _ -> True
       _                                                    -> False
       ) forest
     -- However if the "client_id" is present, e.g. mutatePlan to
