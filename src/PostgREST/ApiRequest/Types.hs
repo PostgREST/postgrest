@@ -9,7 +9,6 @@ module PostgREST.ApiRequest.Types
   , Field
   , Filter(..)
   , Hint
-  , JoinCondition(..)
   , JoinType(..)
   , JsonOperand(..)
   , JsonOperation(..)
@@ -33,8 +32,7 @@ module PostgREST.ApiRequest.Types
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
-import PostgREST.SchemaCache.Identifiers  (FieldName,
-                                           QualifiedIdentifier)
+import PostgREST.SchemaCache.Identifiers  (FieldName)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..))
 import PostgREST.SchemaCache.Relationship (Relationship)
 
@@ -71,12 +69,6 @@ data RangeError
 
 type NodeName = Text
 type Depth = Integer
-
-data JoinCondition =
-  JoinCondition
-    (QualifiedIdentifier, FieldName)
-    (QualifiedIdentifier, FieldName)
-  deriving (Eq)
 
 data OrderTerm = OrderTerm
   { otTerm      :: Field
