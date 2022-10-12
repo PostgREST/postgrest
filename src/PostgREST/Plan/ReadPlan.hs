@@ -3,14 +3,15 @@ module PostgREST.Plan.ReadPlan
   ( ReadPlanTree
   , ReadPlan(..)
   , fstFieldNames
+  , JoinCondition(..)
   ) where
 
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
-                                           JoinCondition, JoinType,
-                                           LogicTree, NodeName,
-                                           OrderTerm, SelectItem)
+                                           JoinType, LogicTree,
+                                           NodeName, OrderTerm,
+                                           SelectItem)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -21,21 +22,27 @@ import Protolude
 
 type ReadPlanTree = Tree ReadPlan
 
+data JoinCondition =
+  JoinCondition
+    (QualifiedIdentifier, FieldName)
+    (QualifiedIdentifier, FieldName)
+  deriving (Eq)
+
 data ReadPlan = ReadPlan
-  { select         :: [SelectItem]
-  , from           :: QualifiedIdentifier
-  , fromAlias      :: Maybe Alias
+  { select       :: [SelectItem]
+  , from         :: QualifiedIdentifier
+  , fromAlias    :: Maybe Alias
   -- ^ A table alias is used in case of self joins
-  , where_         :: [LogicTree]
-  , joinConditions :: [JoinCondition]
-  , order          :: [OrderTerm]
-  , range_         :: NonnegRange
-  , relName        :: NodeName
-  , relToParent    :: Maybe Relationship
-  , relAlias       :: Maybe Alias
-  , relHint        :: Maybe Hint
-  , relJoinType    :: Maybe JoinType
-  , depth          :: Depth
+  , where_       :: [LogicTree]
+  , order        :: [OrderTerm]
+  , range_       :: NonnegRange
+  , relName      :: NodeName
+  , relToParent  :: Maybe Relationship
+  , relJoinConds :: [JoinCondition]
+  , relAlias     :: Maybe Alias
+  , relHint      :: Maybe Hint
+  , relJoinType  :: Maybe JoinType
+  , depth        :: Depth
   }
   deriving (Eq)
 

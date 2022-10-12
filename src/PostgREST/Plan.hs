@@ -95,7 +95,7 @@ readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Eit
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-  augmentRequestWithJoin qiSchema dbRelationships =<<
+  addRels qiSchema dbRelationships Nothing =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
   addOrders apiRequest =<<
@@ -118,7 +118,7 @@ initReadRequest rootQi rootAlias =
     rootDepth = 0
     rootSchema = qiSchema rootQi
     rootName = qiName rootQi
-    initial = Node (ReadPlan [] rootQi rootAlias [] [] [] allRange rootName Nothing Nothing Nothing Nothing rootDepth) []
+    initial = Node (ReadPlan [] rootQi rootAlias [] [] allRange rootName Nothing [] Nothing Nothing Nothing rootDepth) []
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -126,7 +126,7 @@ initReadRequest rootQi rootAlias =
         [] -> Node q{select=fld:select q} rForest
         _  -> Node q $
               foldr (treeEntry nxtDepth)
-              (Node (ReadPlan [] (QualifiedIdentifier rootSchema fn) Nothing [] [] [] allRange fn Nothing alias hint joinType nxtDepth) [])
+              (Node (ReadPlan [] (QualifiedIdentifier rootSchema fn) Nothing [] [] allRange fn Nothing [] alias hint joinType nxtDepth) [])
               fldForest:rForest
 
 -- | Enforces the `max-rows` config on the result
@@ -137,19 +137,18 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
     nodeRestrictRange m q@ReadPlan{range_=r} = q{range_=restrictRange m r }
 
-augmentRequestWithJoin :: Schema -> RelationshipsMap -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-augmentRequestWithJoin schema allRels request =
- addJoinConditions Nothing <$> addRels schema allRels Nothing request
-
+-- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode
 addRels :: Schema -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,relName,relHint,depth} forest) =
   case parentNode of
     Just (Node ReadPlan{from=parentNodeQi, fromAlias=aliasQi} _) ->
       let newFrom r = if qiName tbl == relName then relForeignTable r else tbl
           newReadPlan = (\r ->
-            if not $ relIsSelf r -- add alias if self rel TODO consolidate aliasing in another function
-              then query{from=newFrom r, relToParent=Just r}
-              else query{from=newFrom r, relToParent=Just r, fromAlias=Just (qiName (newFrom r) <> "_" <> show depth)}
+            if not $ relIsSelf r -- add alias if self rel
+              then query{from=newFrom r, relToParent=Just r, relJoinConds=getJoinConditions Nothing aliasQi r}
+              else
+                let selfAlias = Just (qiName (newFrom r) <> "_" <> show depth) in
+                query{from=newFrom r, relToParent=Just r, fromAlias=selfAlias, relJoinConds=getJoinConditions selfAlias aliasQi r}
             ) <$> rel
           origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
             then fromMaybe (qiName parentNodeQi) aliasQi
@@ -163,25 +162,21 @@ addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,relName,relHint,
     updateForest :: Maybe ReadPlanTree -> Either ApiRequestError [ReadPlanTree]
     updateForest rq = addRels schema allRels rq `traverse` forest
 
--- applies aliasing to join conditions TODO refactor, this should go into the querybuilder module
-addJoinConditions :: Maybe Alias -> ReadPlanTree -> ReadPlanTree
-addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, relToParent=Nothing} forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions _ (Node node@ReadPlan{fromAlias=tblAlias, relToParent=Just ComputedRelationship{}} forest) = Node node (addJoinConditions tblAlias <$> forest)
-addJoinConditions previousAlias (Node query@ReadPlan{fromAlias=tblAlias, relToParent=Just Relationship{relTable=qi,relForeignTable=fQi,relCardinality=card}} forest) =
-  Node query{joinConditions=joinConds} (addJoinConditions tblAlias <$> forest)
+getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
+getJoinConditions _ _ ComputedRelationship{} = []
+getJoinConditions tblAlias parentAlias Relationship{relTable=qi,relForeignTable=fQi,relCardinality=card} =
+  case card of
+    M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
+      (toJoinCondition Nothing Nothing ftN jtn <$> jcols2) ++ (toJoinCondition parentAlias tblAlias tN jtn <$> jcols1)
+    O2M _ cols ->
+      toJoinCondition parentAlias tblAlias tN ftN <$> cols
+    M2O _ cols ->
+      toJoinCondition parentAlias tblAlias tN ftN <$> cols
+    O2O _ cols ->
+      toJoinCondition parentAlias tblAlias tN ftN <$> cols
   where
     QualifiedIdentifier{qiSchema=tSchema, qiName=tN} = qi
     QualifiedIdentifier{qiName=ftN} = fQi
-    joinConds =
-      case card of
-        M2M (Junction QualifiedIdentifier{qiName=jtn} _ _ jcols1 jcols2) ->
-           (toJoinCondition Nothing Nothing ftN jtn <$> jcols2) ++ (toJoinCondition previousAlias tblAlias tN jtn <$> jcols1)
-        O2M _ cols ->
-          toJoinCondition previousAlias tblAlias tN ftN <$> cols
-        M2O _ cols ->
-          toJoinCondition previousAlias tblAlias tN ftN <$> cols
-        O2O _ cols ->
-          toJoinCondition previousAlias tblAlias tN ftN <$> cols
     toJoinCondition :: Maybe Alias -> Maybe Alias -> Text -> Text -> (FieldName, FieldName) -> JoinCondition
     toJoinCondition prAl newAl tb ftb (c, fc) =
       let qi1 = QualifiedIdentifier tSchema ftb

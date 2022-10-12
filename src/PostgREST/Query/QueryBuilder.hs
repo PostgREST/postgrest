@@ -39,14 +39,14 @@ import PostgREST.RangeQuery        (allRange)
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,joinConditions, order, range_=readRange, relToParent} forest) =
+readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> select) ++ selects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
-  (if null logicForest && null joinConditions
+  (if null logicForest && null relJoinConds
     then mempty
-    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition joinConditions)) <> " " <>
+    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
   orderF qi order <> " " <>
   limitOffsetF readRange
   where
@@ -225,14 +225,14 @@ callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnin
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
 readPlanToCountQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_, relToParent=rel} forest) =
+readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, relToParent=rel, relJoinConds} forest) =
   "SELECT 1 " <> fromFrag <>
-  (if null logicForest && null joinConditions_ && null subQueries
+  (if null logicForest && null relJoinConds && null subQueries
     then mempty
     else " WHERE " ) <>
   intercalateSnippet " AND " (
     map (pgFmtLogicTree qi) logicForest ++
-    map pgFmtJoinCondition joinConditions_ ++
+    map pgFmtJoinCondition relJoinConds ++
     subQueries
   )
   where

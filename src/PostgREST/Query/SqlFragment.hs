@@ -58,7 +58,6 @@ import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.ApiRequest.Types        (Alias, Field, Filter (..),
                                           FtsOperator (..),
-                                          JoinCondition (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
                                           JsonPath,
@@ -72,6 +71,7 @@ import PostgREST.ApiRequest.Types        (Alias, Field, Filter (..),
                                           TrileanVal (..))
 import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
+import PostgREST.Plan.ReadPlan           (JoinCondition (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
