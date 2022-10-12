@@ -30,12 +30,12 @@ data ReadPlan = ReadPlan
   , joinConditions :: [JoinCondition]
   , order          :: [OrderTerm]
   , range_         :: NonnegRange
-  , nodeName       :: NodeName
-  , nodeRel        :: Maybe Relationship
-  , nodeAlias      :: Maybe Alias
-  , nodeHint       :: Maybe Hint
-  , nodeJoinType   :: Maybe JoinType
-  , nodeDepth      :: Depth
+  , relName        :: NodeName
+  , relToParent    :: Maybe Relationship
+  , relAlias       :: Maybe Alias
+  , relHint        :: Maybe Hint
+  , relJoinType    :: Maybe JoinType
+  , depth          :: Depth
   }
   deriving (Eq)
 

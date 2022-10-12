@@ -39,7 +39,7 @@ import PostgREST.RangeQuery        (allRange)
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,joinConditions, order, range_=readRange, nodeRel} forest) =
+readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,joinConditions, order, range_=readRange, relToParent} forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> select) ++ selects) <> " " <>
   fromFrag <> " " <>
@@ -50,13 +50,13 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,j
   orderF qi order <> " " <>
   limitOffsetF readRange
   where
-    fromFrag = fromF nodeRel mainQi fromAlias
-    qi = getQualifiedIdentifier nodeRel mainQi fromAlias
+    fromFrag = fromF relToParent mainQi fromAlias
+    qi = getQualifiedIdentifier relToParent mainQi fromAlias
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getSelectsJoins (Node ReadPlan{nodeRel=Nothing} _) _ = ([], [])
-getSelectsJoins rr@(Node ReadPlan{nodeName=name, nodeRel=Just rel, nodeAlias=alias, nodeJoinType=joinType} _) (selects,joins) =
+getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
+getSelectsJoins rr@(Node ReadPlan{relName=name, relToParent=Just rel, relAlias=alias, relJoinType=joinType} _) (selects,joins) =
   let
     subquery = readPlanToQuery rr
     aliasOrName = fromMaybe name alias
@@ -225,7 +225,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnin
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
 readPlanToCountQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_, nodeRel=rel} forest) =
+readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, joinConditions=joinConditions_, relToParent=rel} forest) =
   "SELECT 1 " <> fromFrag <>
   (if null logicForest && null joinConditions_ && null subQueries
     then mempty
@@ -240,7 +240,7 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
     fromFrag = fromF rel mainQi tblAlias
     subQueries = foldr existsSubquery [] forest
     existsSubquery :: ReadPlanTree -> [SQL.Snippet] -> [SQL.Snippet]
-    existsSubquery readReq@(Node ReadPlan{nodeJoinType=joinType} _) rest =
+    existsSubquery readReq@(Node ReadPlan{relJoinType=joinType} _) rest =
       if joinType == Just JTInner
         then ("EXISTS (" <> readPlanToCountQuery readReq <> " )"):rest
         else rest
