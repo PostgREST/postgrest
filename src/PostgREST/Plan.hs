@@ -95,38 +95,27 @@ readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Eit
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-  addRels qiSchema dbRelationships Nothing =<<
+  addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
   addOrders apiRequest =<<
-  addFilters apiRequest (initReadRequest rootName rootAlias qsSelect)
-  where
-    QueryParams.QueryParams{..} = iQueryParams apiRequest
-    (rootName, rootAlias) = case iAction apiRequest of
-      ActionRead _ -> (qi, Nothing)
-      -- the CTE we use for non-read cases has a sourceCTEName(see Statements.hs) as the WITH name so we use the table name as an alias so findRel can find the right relationship
-      _ -> (QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName, Just qiName)
+  addFilters apiRequest (initReadRequest qi $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
--- Build the initial tree with a Depth attribute so when a self join occurs we
--- can differentiate the parent and child tables by having an alias like
--- "table_depth", this is related to
--- http://github.com/PostgREST/postgrest/issues/987.
-initReadRequest :: QualifiedIdentifier -> Maybe Alias -> [Tree SelectItem] -> ReadPlanTree
-initReadRequest rootQi rootAlias =
-  foldr (treeEntry rootDepth) initial
+-- Build the initial read plan tree
+initReadRequest :: QualifiedIdentifier -> [Tree SelectItem] -> ReadPlanTree
+initReadRequest qi@QualifiedIdentifier{..} =
+  foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    rootSchema = qiSchema rootQi
-    rootName = qiName rootQi
-    initial = Node (ReadPlan [] rootQi rootAlias [] [] allRange rootName Nothing [] Nothing Nothing Nothing rootDepth) []
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing Nothing Nothing rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
-    treeEntry depth (Node fld@((fn, _),_,alias, hint, joinType) fldForest) (Node q rForest) =
+    treeEntry depth (Node fld@((fldName, _),_,alias, hint, joinType) fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
       case fldForest of
         [] -> Node q{select=fld:select q} rForest
         _  -> Node q $
               foldr (treeEntry nxtDepth)
-              (Node (ReadPlan [] (QualifiedIdentifier rootSchema fn) Nothing [] [] allRange fn Nothing [] alias hint joinType nxtDepth) [])
+              (Node defReadPlan{from=QualifiedIdentifier qiSchema fldName, relName=fldName, relAlias=alias, relHint=hint, relJoinType=joinType, depth=nxtDepth} [])
               fldForest:rForest
 
 -- | Enforces the `max-rows` config on the result
@@ -138,29 +127,39 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
     nodeRestrictRange m q@ReadPlan{range_=r} = q{range_=restrictRange m r }
 
 -- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode
-addRels :: Schema -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addRels schema allRels parentNode (Node query@ReadPlan{from=tbl,relName,relHint,depth} forest) =
+addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRels schema action allRels parentNode (Node rPlan@ReadPlan{from=tbl,relName,relHint,depth} forest) =
   case parentNode of
-    Just (Node ReadPlan{from=parentNodeQi, fromAlias=aliasQi} _) ->
+    Just (Node ReadPlan{from=parentNodeQi, fromAlias} _) ->
       let newFrom r = if qiName tbl == relName then relForeignTable r else tbl
           newReadPlan = (\r ->
             if not $ relIsSelf r -- add alias if self rel
-              then query{from=newFrom r, relToParent=Just r, relJoinConds=getJoinConditions Nothing aliasQi r}
+              then rPlan{from=newFrom r, relToParent=Just r, relJoinConds=getJoinConditions Nothing fromAlias r}
               else
                 let selfAlias = Just (qiName (newFrom r) <> "_" <> show depth) in
-                query{from=newFrom r, relToParent=Just r, fromAlias=selfAlias, relJoinConds=getJoinConditions selfAlias aliasQi r}
+                rPlan{from=newFrom r, relToParent=Just r, fromAlias=selfAlias, relJoinConds=getJoinConditions selfAlias fromAlias r}
             ) <$> rel
           origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
-            then fromMaybe (qiName parentNodeQi) aliasQi
+            then fromMaybe (qiName parentNodeQi) fromAlias
             else qiName parentNodeQi
           rel = findRel schema allRels origin relName relHint
       in
       Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
-    _ ->
-      Node query <$> updateForest (Just $ Node query forest)
+    Nothing -> -- root case
+      let
+        newFrom  = QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName
+        newAlias = Just (qiName $ from rPlan)
+        newReadPlan = case action of
+          -- the CTE for mutations/rpc is used as WITH sourceCTEName .. SELECT .. FROM sourceCTEName as alias,
+          -- we use the table name as an alias so findRel can find the right relationship.
+          ActionMutate _ -> rPlan{from=newFrom, fromAlias=newAlias}
+          ActionInvoke _ -> rPlan{from=newFrom, fromAlias=newAlias}
+          _              -> rPlan
+      in
+      Node newReadPlan <$> updateForest (Just $ Node newReadPlan forest)
   where
     updateForest :: Maybe ReadPlanTree -> Either ApiRequestError [ReadPlanTree]
-    updateForest rq = addRels schema allRels rq `traverse` forest
+    updateForest rq = addRels schema action allRels rq `traverse` forest
 
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
 getJoinConditions _ _ ComputedRelationship{} = []
