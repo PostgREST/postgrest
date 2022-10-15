@@ -107,3 +107,12 @@ spec = describe "computed relationships" $ do
     get "/second_1?select=*,first_1(*)"
       `shouldRespondWith`
       [json|[]|] { matchHeaders = [matchContentTypeJson] }
+
+  -- https://github.com/PostgREST/postgrest/issues/2455
+  it "creates queries with the right aliasing" $ do
+    get "/fee?select=*,jsbaz(*,janedoe(*))"
+      `shouldRespondWith`
+      [json|[]|] { matchHeaders = [matchContentTypeJson] }
+    get "/fee?select=*,jsbaz(*,johnsmith(*, fee(*)))"
+      `shouldRespondWith`
+      [json|[]|] { matchHeaders = [matchContentTypeJson] }

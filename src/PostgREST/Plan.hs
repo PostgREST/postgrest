@@ -126,23 +126,24 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
     nodeRestrictRange m q@ReadPlan{range_=r} = q{range_=restrictRange m r }
 
--- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode
+-- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode, also adds aliasing
 addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addRels schema action allRels parentNode (Node rPlan@ReadPlan{from=tbl,relName,relHint,depth} forest) =
+addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,depth} forest) =
   case parentNode of
     Just (Node ReadPlan{from=parentNodeQi, fromAlias} _) ->
-      let newFrom r = if qiName tbl == relName then relForeignTable r else tbl
-          newReadPlan = (\r ->
-            if not $ relIsSelf r -- add alias if self rel
-              then rPlan{from=newFrom r, relToParent=Just r, relJoinConds=getJoinConditions Nothing fromAlias r}
-              else
-                let selfAlias = Just (qiName (newFrom r) <> "_" <> show depth) in
-                rPlan{from=newFrom r, relToParent=Just r, fromAlias=selfAlias, relJoinConds=getJoinConditions selfAlias fromAlias r}
-            ) <$> rel
-          origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
-            then fromMaybe (qiName parentNodeQi) fromAlias
-            else qiName parentNodeQi
-          rel = findRel schema allRels origin relName relHint
+      let
+        newReadPlan = (\r ->
+          let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth) in
+          case r of
+            Relationship{relCardinality=M2M _} ->
+              rPlan{from=relForeignTable r, relToParent=Just r, relJoinConds=getJoinConditions Nothing fromAlias r}
+            _ ->
+              rPlan{from=relForeignTable r, relToParent=Just r, fromAlias=newAlias, relJoinConds=getJoinConditions newAlias fromAlias r}
+          ) <$> rel
+        origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
+          then fromMaybe (qiName parentNodeQi) fromAlias
+          else qiName parentNodeQi
+        rel = findRel schema allRels origin relName relHint
       in
       Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
     Nothing -> -- root case

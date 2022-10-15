@@ -32,7 +32,6 @@ data ReadPlan = ReadPlan
   { select       :: [SelectItem]
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
-  -- ^ A table alias is used in case of self joins
   , where_       :: [LogicTree]
   , order        :: [OrderTerm]
   , range_       :: NonnegRange
