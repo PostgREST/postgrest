@@ -210,6 +210,10 @@ GRANT ALL ON TABLE
     , second
     , first_1
     , second_1
+    , fee
+    , baz
+    , janedoe
+    , johnsmith
 TO postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;

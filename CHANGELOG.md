@@ -9,6 +9,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2401, #2444, Fix SIGUSR1 to fully flush connections pool, remove `db-pool-timeout`. - @robx
  - #2348, Add `db-pool-acquisition-timeout` configuration option, time in seconds to wait to acquire a connection. - @robx
+ - #2428, Fix opening an empty transaction on failed resource embedding - @steve-chavez
+ - #2455, Fix embedding the same table multiple times - @steve-chavez
 
 ### Deprecated
 

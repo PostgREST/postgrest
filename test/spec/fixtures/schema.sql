@@ -2836,3 +2836,29 @@ $$ LANGUAGE sql STABLE ROWS 1;
 CREATE FUNCTION test.first_1(test.second_1) RETURNS SETOF test.first_1 AS $$
   SELECT * FROM test.first_1 WHERE second_id_1 = $1.id;
 $$ LANGUAGE sql STABLE ROWS 1;
+
+
+create table fee (
+  fee_id int primary key
+);
+create table baz (
+  baz_id int primary key
+);
+
+create table janedoe (
+  janedoe_id int primary key,
+  baz_id int references baz(baz_id)
+);
+
+create table johnsmith (
+  johnsmith_id int primary key,
+  fee_id int references fee(fee_id),
+  baz_id int references baz(baz_id)
+);
+
+create or replace function jsbaz(fee) returns setof baz as $$
+    select b.*
+    from baz b
+    join johnsmith js on js.baz_id = b.baz_id
+    where js.fee_id = $1.fee_id
+$$ stable language sql;
