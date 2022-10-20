@@ -56,11 +56,11 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
-getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAlias, relJoinType=joinType, depth} _) (selects,joins) =
+getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType=joinType} _) (selects,joins) =
   let
     subquery = readPlanToQuery rr
-    aliasOrName = fromMaybe relName relAlias
-    localTableName = pgFmtIdent $ qiName (relTable rel) <> "_" <> aliasOrName <> "_" <> show depth
+    aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
+    aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
       (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
     isToOne = case rel of
@@ -70,14 +70,14 @@ getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAlias, relJo
       _                                    -> False
     (sel, joi) = if isToOne
       then
-        ( SQL.sql ("row_to_json(" <> localTableName <> ".*) AS " <> pgFmtIdent aliasOrName)
-        , correlatedSubquery subquery localTableName "TRUE")
+        ( SQL.sql ("row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName)
+        , correlatedSubquery subquery aggAlias "TRUE")
       else
-        ( SQL.sql $ "COALESCE( " <> localTableName <> "." <> localTableName <> ", '[]') AS " <> pgFmtIdent aliasOrName
+        ( SQL.sql $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName
         , correlatedSubquery (
-            "SELECT json_agg(" <> SQL.sql localTableName <> ") AS " <> SQL.sql localTableName <>
-            "FROM (" <> subquery <> " ) AS " <> SQL.sql localTableName
-          ) localTableName $ if joinType == Just JTInner then SQL.sql localTableName <> " IS NOT NULL" else "TRUE")
+            "SELECT json_agg(" <> SQL.sql aggAlias <> ") AS " <> SQL.sql aggAlias <>
+            "FROM (" <> subquery <> " ) AS " <> SQL.sql aggAlias
+          ) aggAlias $ if joinType == Just JTInner then SQL.sql aggAlias <> " IS NOT NULL" else "TRUE")
   in
   (sel:selects, joi:joins)
 
