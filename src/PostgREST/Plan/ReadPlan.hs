@@ -39,6 +39,7 @@ data ReadPlan = ReadPlan
   , relToParent  :: Maybe Relationship
   , relJoinConds :: [JoinCondition]
   , relAlias     :: Maybe Alias
+  , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
   , depth        :: Depth
