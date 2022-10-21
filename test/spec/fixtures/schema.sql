@@ -2859,3 +2859,21 @@ create or replace function jsbaz(fee) returns setof baz as $$
     join johnsmith js on js.baz_id = b.baz_id
     where js.fee_id = $1.fee_id
 $$ stable language sql;
+
+
+-- issue https://github.com/PostgREST/postgrest/issues/2518
+create table a (
+  primary key (c1, c2),
+  c1 int,
+  c2 bool
+);
+
+create table b (
+  c2 bool,
+  c1 int,
+  foreign key (c1, c2) references a
+);
+
+create view test.v1 as table test.a;
+
+create view test.v2 as table test.b;
