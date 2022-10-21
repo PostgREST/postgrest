@@ -1,220 +1,34 @@
 -- Privileges for anonymous
 GRANT USAGE ON SCHEMA
-      postgrest
-    , test
-    , jwt
-    , public
+      "EXTRA ""@/\#~_-"
+    , "SPECIAL ""@/\#~_-"
     , "تست"
     , extensions
+    , jwt
+    , postgrest
+    , public
+    , test
     , v1
     , v2
-    , "SPECIAL ""@/\#~_-"
-    , "EXTRA ""@/\#~_-"
 TO postgrest_test_anonymous;
 
 -- Schema test objects
 SET search_path = test, "تست", pg_catalog;
 
-GRANT ALL ON TABLE
-    items
-    , items2
-    , items3
-    , "articleStars"
-    , articles
-    , arrays
-    , auto_incrementing_pk
-    , clients
-    , comments
-    , complex_items
-    , compound_pk
-    , compound_pk_view
-    , deferrable_unique_constraint
-    , empty_table
-    , fav_numbers
-    , has_count_column
-    , has_fk
-    , insertable_view_with_join
-    , json_table
-    , materialized_view
-    , menagerie
-    , no_pk
-    , nullable_integer
-    , projects
-    , projects_view
-    , projects_view_alt
-    , test_null_pk_competitors_sponsors
-    , simple_pk
-    , simple_pk2
-    , tasks
-    , filtered_tasks
-    , tsearch
-    , users
-    , users_projects
-    , users_tasks
-    , files
-    , touched_files
-    , "Escap3e;"
-    , "ghostBusters"
-    , "withUnique"
-    , "clashing_column"
-    , "موارد"
-    , addresses
-    , orders
-    , public.public_consumers
-    , public.public_orders
-    , consumers_view
-    , consumers_view_view
-    , consumers_extra_view
-    , orders_view
-    , images
-    , images_base64
-    , w_or_wo_comma_names
-    , items_with_different_col_types
-    , entities
-    , child_entities
-    , grandchild_entities
-    , ranges
-    , being
-    , descendant
-    , being_part
-    , part
-    , leak
-    , perf_articles
-    , employees
-    , tiobe_pls
-    , single_unique
-    , compound_unique
-    , only_pk
-    , family_tree
-    , managers
-    , organizations
-    , authors
-    , publishers
-    , books
-    , forties_books
-    , fifties_books
-    , sixties_books
-    , person
-    , message
-    , person_detail
-    , space
-    , zone
-    , projects_dump
-    , "UnitTest"
-    , json_arr
-    , jsonb_test
-    , authors_books_number
-    , authors_have_book_in_decade
-    , authors_have_book_in_decade2
-    , forties_and_fifties_books
-    , odd_years_publications
-    , foos
-    , bars
-    , materialized_projects
-    , contract
-    , player_view
-    , contract_view
-    , ltree_sample
-    , isn_sample
-    , projects_count_grouped_by
-    , "Server Today"
-    , pgrst_reserved_chars
-    , authors_w_entities
-    , openapi_types
-    , openapi_defaults
-    , getallprojects_view
-    , get_projects_above_view
-    , web_content
-    , pages
-    , referrals
-    , big_projects
-    , sites
-    , jobs
-    , main_jobs
-    , whatev_projects
-    , whatev_sites
-    , whatev_jobs
-    , agents
-    , departments
-    , schedules
-    , activities
-    , unit_workdays
-    , unit_workdays_fst_shift
-    , stuff
-    , loc_test
-    , v1.parents
-    , v2.parents
-    , v2.another_table
-    , v1.children
-    , v2.children
-    , screens
-    , labels
-    , label_screen
-    , actors
-    , films
-    , personnages
-    , end_1
-    , end_2
-    , schauspieler
-    , filme
-    , rollen
-    , products
-    , suppliers
-    , products_suppliers
-    , trade_unions
-    , suppliers_trade_unions
-    , client
-    , clientinfo
-    , contact
-    , chores
-    , limited_update_items
-    , limited_update_items_cpk
-    , limited_update_items_no_pk
-    , limited_update_items_view
-    , limited_update_items_wnonuniq_view
-    , limited_delete_items
-    , limited_delete_items_cpk
-    , limited_delete_items_no_pk
-    , limited_delete_items_view
-    , plate
-    , well
-    , limited_delete_items_wnonuniq_view
-    , limited_delete_items_cpk_view
-    , limited_update_items_cpk_view
-    , xmltest
-    , oid_test
-    , job
-    , series
-    , adaptation_notifications
-    , series_popularity
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA
+      "SPECIAL ""@/\#~_-"
+    , "تست"
     , test
-    , view_test
-    , shops
-    , shop_bles
-    , "SPECIAL ""@/\#~_-".languages
-    , "SPECIAL ""@/\#~_-".names
-    , do$llar$s
-    , safe_update_items
-    , safe_delete_items
-    , unsafe_update_items
-    , unsafe_delete_items
-    , videogames
-    , designers
-    , students
-    , students_info
-    , students_view
-    , students_info_view
-    , country
-    , capital
-    , first
-    , second
-    , first_1
-    , second_1
-    , fee
-    , baz
-    , janedoe
-    , johnsmith
+    , v1
+    , v2
 TO postgrest_test_anonymous;
+
+REVOKE ALL PRIVILEGES ON TABLE
+      app_users
+    , authors_only
+    , insertonly
+    , limited_article_stars
+FROM postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
 
@@ -243,29 +57,3 @@ REVOKE EXECUTE ON FUNCTION privileged_hello(text) FROM PUBLIC; -- All functions 
 GRANT EXECUTE ON FUNCTION privileged_hello(text) TO postgrest_test_author;
 
 GRANT USAGE ON SCHEMA test TO postgrest_test_default_role;
-
-
-DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    GRANT ALL ON TABLE test.car_models TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_models_2021 TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_models_default TO postgrest_test_anonymous;
-  END IF;
-
-  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    GRANT ALL ON TABLE test.car_brands TO postgrest_test_anonymous;
-  END IF;
-
-  IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
-    GRANT ALL ON TABLE test.car_model_sales TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_model_sales_202101 TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_model_sales_default TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_racers TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_dealers TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_dealers_springfield TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_dealers_default TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_models_car_dealers TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_models_car_dealers_10to20 TO postgrest_test_anonymous;
-    GRANT ALL ON TABLE test.car_models_car_dealers_default TO postgrest_test_anonymous;
-  END IF;
-END$do$;
