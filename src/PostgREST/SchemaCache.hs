@@ -428,8 +428,8 @@ addViewPrimaryKeys tabs keyDeps =
     else tbl) <$> tabs
   where
     findViewPKCols sch vw =
-      maybe [] (\(ViewKeyDependency _ _ _ _ pkCols) -> snd <$> pkCols) $
-      find (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
+      concatMap (\(ViewKeyDependency _ _ _ _ pkCols) -> snd <$> pkCols) $
+      filter (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
 
 allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 allTables pgVer =

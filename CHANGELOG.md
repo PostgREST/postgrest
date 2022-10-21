@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2428, Fix opening an empty transaction on failed resource embedding - @steve-chavez
  - #2455, Fix embedding the same table multiple times - @steve-chavez
  - #2518, Fix a regression when embedding views where base tables have a different column order for FK columns - @wolfgangwalther
+ - #2458, Fix a regression with the location header when inserting into views with PKs from multiple tables - @wolfgangwalther
 
 ### Deprecated
 
