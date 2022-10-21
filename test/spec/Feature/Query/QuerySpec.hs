@@ -739,6 +739,9 @@ spec actualPgVersion = do
              {"tournament":"tournament_3","player_view":{"first_name":"first_name_3"}}] |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "works when embedding two views that refer to tables with different column ordering" $
+        get "/v1?select=v2(*)" `shouldRespondWith` 200
+
       it "can embed a view that has group by" $
         get "/projects_count_grouped_by?select=number_of_projects,client:clients(name)&order=number_of_projects" `shouldRespondWith`
           [json|

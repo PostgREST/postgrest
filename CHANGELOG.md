@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2348, Add `db-pool-acquisition-timeout` configuration option, time in seconds to wait to acquire a connection. - @robx
  - #2428, Fix opening an empty transaction on failed resource embedding - @steve-chavez
  - #2455, Fix embedding the same table multiple times - @steve-chavez
+ - #2518, Fix a regression when embedding views where base tables have a different column order for FK columns - @wolfgangwalther
 
 ### Deprecated
 

@@ -679,9 +679,9 @@ allM2OandO2ORels pgVer =
     FROM pg_constraint traint
     JOIN LATERAL (
       SELECT
-        array_agg(row(cols.attname, refs.attname) order by cols.attnum) AS cols_and_fcols,
-        jsonb_agg(cols.attname order by cols.attnum) AS cols
-      FROM ( SELECT unnest(traint.conkey) AS col, unnest(traint.confkey) AS ref) _
+        array_agg(row(cols.attname, refs.attname) order by ord) AS cols_and_fcols,
+        jsonb_agg(cols.attname order by ord) AS cols
+      FROM unnest(traint.conkey, traint.confkey) WITH ORDINALITY AS _(col, ref, ord)
       JOIN pg_attribute cols ON cols.attrelid = traint.conrelid AND cols.attnum = col
       JOIN pg_attribute refs ON refs.attrelid = traint.confrelid AND refs.attnum = ref
     ) AS column_info ON TRUE
@@ -757,8 +757,10 @@ allViewsKeyDependencies =
           contype::text as contype,
           conname,
           conrelid as resorigtbl,
-          unnest(conkey) as resorigcol
+          col as resorigcol,
+          ord
         from pg_constraint
+        left join lateral unnest(conkey) with ordinality as _(col, ord) on true
         where contype IN ('p', 'f')
         union
         -- fk referenced col
@@ -766,8 +768,10 @@ allViewsKeyDependencies =
           concat(contype, '_ref') as contype,
           conname,
           confrelid,
-          unnest(confkey)
+          col,
+          ord
         from pg_constraint
+        left join lateral unnest(confkey) with ordinality as _(col, ord) on true
         where contype='f'
       ),
       views as (
@@ -897,7 +901,7 @@ allViewsKeyDependencies =
         rec.view_name,
         pks_fks.conname as constraint_name,
         pks_fks.contype as constraint_type,
-        array_agg(row(col.attname, vcol.attname) order by col.attnum) as column_dependencies
+        array_agg(row(col.attname, vcol.attname) order by pks_fks.ord) as column_dependencies
       from recursion rec
       join pg_class tbl on tbl.oid = rec.resorigtbl
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rec.resorigcol
