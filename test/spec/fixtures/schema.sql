@@ -2877,3 +2877,22 @@ create table b (
 create view test.v1 as table test.a;
 
 create view test.v2 as table test.b;
+
+-- issue https://github.com/PostgREST/postgrest/issues/2458
+create table with_pk1 (pk1 int primary key);
+create table with_pk2 (pk2 int primary key);
+
+create view with_multiple_pks as
+  select * from with_pk1, with_pk2;
+
+create function with_multiple_pks_insert() returns trigger
+language plpgsql as $$
+begin
+  insert into with_pk1 values (new.pk1) on conflict do nothing;
+  insert into with_pk2 values (new.pk2) on conflict do nothing;
+  return new;
+end
+$$;
+
+create trigger ins instead of insert on with_multiple_pks
+  for each row execute procedure with_multiple_pks_insert();

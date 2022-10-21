@@ -591,7 +591,7 @@ spec actualPgVersion = do
           }
 
   describe "Inserting into VIEWs" $ do
-    context "requesting no representation" $
+    context "requesting no representation" $ do
       it "succeeds with 201" $
         post "/compound_pk_view"
             [json|{"k1":1,"k2":"test","extra":2}|]
@@ -600,6 +600,17 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , matchHeaderAbsent hLocation ]
+            }
+
+      it "returns a location header with pks from both tables" $
+        request methodPost "/with_multiple_pks" [("Prefer", "return=headers-only")]
+            [json|{"pk1":1,"pk2":2}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2"
+                             , "Content-Range" <:> "*/*" ]
             }
 
     context "requesting header only representation" $ do
@@ -614,13 +625,13 @@ spec actualPgVersion = do
                              , "Content-Range" <:> "*/*" ]
             }
 
-      it "returns location header with a single PK col" $
+      it "should not throw and return location header when a PK is null" $
         request methodPost "/test_null_pk_competitors_sponsors" [("Prefer", "return=headers-only")]
             [json|{"id":1}|]
           `shouldRespondWith`
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1"
+                             , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
                              , "Content-Range" <:> "*/*" ]
             }
