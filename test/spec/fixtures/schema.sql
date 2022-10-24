@@ -2478,9 +2478,6 @@ CREATE AGGREGATE test.unsupported_agg (*) (
   STYPE = int
 );
 
-create view no_pk_view as
-select * from no_pk;
-
 create table limited_update_items(
   id int primary key
 , name text
