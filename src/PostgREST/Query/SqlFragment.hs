@@ -120,8 +120,8 @@ ftsOperator = \case
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
 
 -- |
--- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
--- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
+-- These CTEs convert a json object into a json array, this way we can use json_to_recordset for all json payloads
+-- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
 -- We do this in SQL to avoid processing the JSON in application code
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 normalizedBody :: Maybe LBS.ByteString -> SQL.Snippet

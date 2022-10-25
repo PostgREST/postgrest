@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2548, Fix regression when embedding views with partial references to multi column FKs - @wolfgangwalther
  - #2558, Fix regression when requesting limit=0 and `db-max-row` is set - @laurenceisla
+ - #2542, Return a clear error without hitting the database when trying to update or insert an unknown column with `?columns` - @aljungberg
 
 ## [10.1.0] - 2022-10-28
 

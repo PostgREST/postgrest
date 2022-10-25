@@ -26,13 +26,14 @@ module PostgREST.SchemaCache
   , schemaDescription
   ) where
 
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as HM
-import qualified Data.Set            as S
-import qualified Hasql.Decoders      as HD
-import qualified Hasql.Encoders      as HE
-import qualified Hasql.Statement     as SQL
-import qualified Hasql.Transaction   as SQL
+import qualified Data.Aeson                 as JSON
+import qualified Data.HashMap.Strict        as HM
+import qualified Data.HashMap.Strict.InsOrd as HMI
+import qualified Data.Set                   as S
+import qualified Hasql.Decoders             as HD
+import qualified Hasql.Encoders             as HE
+import qualified Hasql.Statement            as SQL
+import qualified Hasql.Transaction          as SQL
 
 import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
@@ -52,8 +53,8 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
-import PostgREST.SchemaCache.Table        (Column (..), Table (..),
-                                           TablesMap)
+import PostgREST.SchemaCache.Table        (Column (..), ColumnMap,
+                                           Table (..), TablesMap)
 
 import Protolude
 
@@ -178,15 +179,20 @@ decodeTables =
     <*> column HD.bool
     <*> column HD.bool
     <*> arrayColumn HD.text
-    <*> compositeArrayColumn
-        (Column
+    <*> parseCols (compositeArrayColumn
+      (Column
         <$> compositeField HD.text
         <*> nullableCompositeField HD.text
         <*> compositeField HD.bool
         <*> compositeField HD.text
+        <*> compositeField HD.text
         <*> nullableCompositeField HD.int4
         <*> nullableCompositeField HD.text
-        <*> compositeFieldArray HD.text)
+        <*> compositeFieldArray HD.text))
+
+
+parseCols :: HD.Row [Column] -> HD.Row ColumnMap
+parseCols = fmap (HMI.fromList . map (\col@Column{colName} -> (colName, col)))
 
 decodeRels :: HD.Result [Relationship]
 decodeRels =
@@ -523,6 +529,7 @@ tablesSqlQuery pgVer =
                       ELSE format_type(a.atttypid, a.atttypmod)
                   END
               END::text AS data_type,
+          t.oid AS data_type_id,
           information_schema._pg_char_max_length(
               information_schema._pg_truetypid(a.*, t.*),
               information_schema._pg_truetypmod(a.*, t.*)
@@ -558,6 +565,7 @@ tablesSqlQuery pgVer =
           info.description,
           info.is_nullable::boolean,
           info.data_type,
+          info.data_type_id::regtype::text,
           info.character_maximum_length,
           info.column_default,
           coalesce(enum_info.vals, '{}')) order by info.position) as columns

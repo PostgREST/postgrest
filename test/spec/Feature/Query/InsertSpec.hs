@@ -420,6 +420,28 @@ spec actualPgVersion = do
           , matchHeaders = []
           }
 
+      it "disallows ?columns which don't exist" $
+        post "/articles?columns=helicopter"
+          [json|[
+            {"id": 204, "body": "yyy"},
+            {"id": 205, "body": "zzz"}]|]
+          `shouldRespondWith`
+          [json|{"code":"PGRST118","details":null,"hint":"If a new column was created in the database with this name, try reloading the schema cache.","message":"Could not find 'helicopter' in the target table"} |]
+          { matchStatus  = 400
+          , matchHeaders = []
+          }
+
+      it "returns missing table error even if also has invalid ?columns" $
+        post "/garlic?columns=helicopter"
+          [json|[
+            {"id": 204, "body": "yyy"},
+            {"id": 205, "body": "zzz"}]|]
+          `shouldRespondWith`
+          [json|{} |]
+          { matchStatus  = 404
+          , matchHeaders = []
+          }
+
       it "disallows array elements that are not json objects" $
         post "/articles?columns=id,body"
           [json|[
@@ -431,7 +453,7 @@ spec actualPgVersion = do
               "code": "22023",
               "details": null,
               "hint": null,
-              "message": "argument of json_populate_recordset must be an array of objects"}|]
+              "message": "argument of json_to_recordset must be an array of objects"}|]
           { matchStatus  = 400
           , matchHeaders = []
           }

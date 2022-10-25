@@ -76,6 +76,7 @@ instance PgrstError ApiRequestError where
   status UnacceptableSchema{}    = HTTP.status406
   status UnsupportedMethod{}     = HTTP.status405
   status LimitNoOrderError       = HTTP.status400
+  status ColumnNotFound{}        = HTTP.status400
 
   headers _ = [MediaType.toContentType MTApplicationJSON]
 
@@ -196,6 +197,11 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
+  toJSON (ColumnNotFound colName) = JSON.object [
+    "code"    .= ApiRequestErrorCode18,
+    "message" .= ("Could not find '" <> colName <> "' in the target table" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= ("If a new column was created in the database with this name, try reloading the schema cache." :: Text)]
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

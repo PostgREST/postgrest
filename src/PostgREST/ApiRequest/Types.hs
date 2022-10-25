@@ -81,6 +81,7 @@ data ApiRequestError
   | SpreadNotToOne Text Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
+  | ColumnNotFound Text
 
 data QPError = QPError Text Text
 data RangeError
@@ -144,7 +145,7 @@ type JsonPath = [JsonOperation]
 data JsonOperation
   = JArrow { jOp :: JsonOperand }
   | J2Arrow { jOp :: JsonOperand }
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 -- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text
 -- because we reuse our escaping functons and let pg do the casting with
@@ -152,7 +153,7 @@ data JsonOperation
 data JsonOperand
   = JKey { jVal :: Text }
   | JIdx { jVal :: Text }
-  deriving (Eq)
+  deriving (Eq, Ord)
 
 -- | Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
 --
