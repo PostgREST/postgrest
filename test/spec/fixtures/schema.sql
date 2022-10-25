@@ -2918,3 +2918,65 @@ $$ LANGUAGE sql STABLE;
 CREATE FUNCTION test.computed_projects(test.clients) RETURNS SETOF test.projects ROWS 1 AS $$
   SELECT * FROM test.projects WHERE client_id = $1.id;
 $$ LANGUAGE sql STABLE;
+
+-- issue https://github.com/PostgREST/postgrest/issues/2459
+create table public.i2459_simple_t1 (
+  id int primary key
+);
+
+create table public.i2459_simple_t2 (
+  t1_id int references public.i2459_simple_t1
+);
+
+create view i2459_simple_v1 as table public.i2459_simple_t1;
+
+create view i2459_simple_v2 as
+  select t1_id as t1_id1, t1_id as t1_id2 from public.i2459_simple_t2;
+
+
+create table public.i2459_composite_t1 (
+  primary key (a,b),
+  a int,
+  b int
+);
+
+create table public.i2459_composite_t2 (
+  t1_a int,
+  t1_b int,
+  constraint i2459_composite_t2_t1_a_t1_b_fkey foreign key (t1_a, t1_b) references public.i2459_composite_t1
+);
+
+create view i2459_composite_v1 as table public.i2459_composite_t1;
+
+create view i2459_composite_v2 as
+  select t1_a as t1_a1,
+         t1_b as t1_b1,
+         t1_a as t1_a2,
+         t1_b as t1_b2
+    from public.i2459_composite_t2;
+
+
+create table public.i2459_self_t (
+  id int primary key,
+  parent int references public.i2459_self_t,
+  type text
+);
+
+
+create view i2459_self_v1 as
+select parent.parent as grandparent,
+       child.parent,
+       child.id
+  from public.i2459_self_t as parent
+       join public.i2459_self_t as child
+         on child.parent = parent.id
+ where child.type = 'A';
+
+create view i2459_self_v2 as
+select parent.parent as grandparent,
+       child.parent,
+       child.id
+  from public.i2459_self_t as parent
+       join public.i2459_self_t as child
+         on child.parent = parent.id
+ where child.type = 'B';

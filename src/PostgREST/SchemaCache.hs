@@ -66,12 +66,33 @@ data SchemaCache = SchemaCache
   deriving (Generic, JSON.ToJSON)
 
 -- | A view foreign key or primary key dependency detected on its source table
+-- Each column of the key could be referenced multiple times in the view, e.g.
+--
+-- create view projects_view as
+-- select
+--   id as id_1,
+--   id as id_2,
+--   id as id_3,
+--   name
+-- from projects
+--
+-- In this case, the keyDepCols mapping maps projects.id to all three of the columns:
+--
+-- [('id', ['id_1', 'id_2', 'id_3'])]
+--
+-- Depending on key type, we can then choose how to handle this case. Primary keys
+-- can arbitrarily choose one of the columns, but for foreign keys we need to create
+-- relationships for each possible mutations.
+--
+-- Previously, we stored a (FieldName, FieldName) tuple only, but then we had no
+-- way to make a difference between a multi-column-key and a single-column-key with multiple
+-- references in the view. Or even worse in the multi-column-key-multi-reference case...
 data ViewKeyDependency = ViewKeyDependency {
   keyDepTable :: QualifiedIdentifier
 , keyDepView  :: QualifiedIdentifier
 , keyDepCons  :: Text
 , keyDepType  :: KeyDep
-, keyDepCols  :: [(FieldName, FieldName)] -- ^ First element is the table column, second is the view column
+, keyDepCols  :: [(FieldName, [FieldName])] -- ^ First element is the table column, second is a list of view columns
 } deriving (Eq)
 data KeyDep
   = PKDep    -- ^ PK dependency
@@ -192,9 +213,9 @@ decodeViewKeyDeps =
     <*> compositeArrayColumn
         ((,)
         <$> compositeField HD.text
-        <*> compositeField HD.text)
+        <*> compositeFieldArray HD.text)
 
-viewKeyDepFromRow :: (Text,Text,Text,Text,Text,Text,[(Text, Text)]) -> ViewKeyDependency
+viewKeyDepFromRow :: (Text,Text,Text,Text,Text,Text,[(Text, [Text])]) -> ViewKeyDependency
 viewKeyDepFromRow (s1,t1,s2,v2,cons,consType,sCols) = ViewKeyDependency (QualifiedIdentifier s1 t1) (QualifiedIdentifier s2 v2) cons keyDep sCols
   where
     keyDep | consType == "p" = PKDep
@@ -394,19 +415,21 @@ addViewM2OAndO2ORels keyDeps rels =
             (keyDepView vwTbl)
             relForeignTable
             False
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) (keyDepCols vwTbl) relCols)
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) keyDepColsVwTbl relCols)
             True
             False
-        | vwTbl <- viewTableRels ]
+        | vwTbl <- viewTableRels
+        , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl ]
         ++
         [ Relationship
             relTable
             (keyDepView tblVw)
             False
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols (keyDepCols tblVw))
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols keyDepColsTblVw)
             False
             True
-        | tblVw <- tableViewRels ]
+        | tblVw <- tableViewRels
+        , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw ]
         ++
         [
           let
@@ -417,13 +440,16 @@ addViewM2OAndO2ORels keyDeps rels =
             vw1
             vw2
             (vw1 == vw2)
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) (keyDepCols vwTbl) (keyDepCols tblVw))
+            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) keyDepColsVwTbl keyDepColsTblVw)
             True
             True
         | vwTbl <- viewTableRels
-        , tblVw <- tableViewRels ]
+        , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
+        , tblVw <- tableViewRels
+        , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw ]
       else []
     viewRels _ = []
+    expandKeyDepCols kdc = zip (fst <$> kdc) <$> sequenceA (snd <$> kdc)
 
 addInverseRels :: [Relationship] -> [Relationship]
 addInverseRels rels =
@@ -452,8 +478,14 @@ addViewPrimaryKeys tabs keyDeps =
     else tbl) <$> tabs
   where
     findViewPKCols sch vw =
-      concatMap (\(ViewKeyDependency _ _ _ _ pkCols) -> snd <$> pkCols) $
+      concatMap (\(ViewKeyDependency _ _ _ _ pkCols) -> takeFirstPK pkCols) $
       filter (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
+    -- In the case of multiple reference to the same PK (see comment for ViewKeyDependency) we take the first reference available.
+    -- We assume this to be safe to do, because:
+    -- * We don't have any logic that requires the client to name a PK column (compared to the column hints in embedding for FKs),
+    --   so we don't need to know about the other references.
+    -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
+    takeFirstPK pkCols = catMaybes $ head . snd <$> pkCols
 
 allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 allTables pgVer =
@@ -917,22 +949,38 @@ allViewsKeyDependencies =
         from recursion view
         join results tab on view.resorigtbl=tab.view_id and view.resorigcol=tab.view_column
         where not is_cycle
+      ),
+      repeated_references as(
+        select
+          view_id,
+          view_schema,
+          view_name,
+          resorigtbl,
+          resorigcol,
+          array_agg(attname) as view_columns
+        from recursion
+        join pg_attribute vcol on vcol.attrelid = view_id and vcol.attnum = view_column
+        group by
+          view_id,
+          view_schema,
+          view_name,
+          resorigtbl,
+          resorigcol
       )
       select
         sch.nspname as table_schema,
         tbl.relname as table_name,
-        rec.view_schema,
-        rec.view_name,
+        rep.view_schema,
+        rep.view_name,
         pks_fks.conname as constraint_name,
         pks_fks.contype as constraint_type,
-        array_agg(row(col.attname, vcol.attname) order by pks_fks.ord) as column_dependencies
-      from recursion rec
-      join pg_class tbl on tbl.oid = rec.resorigtbl
-      join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rec.resorigcol
-      join pg_attribute vcol on vcol.attrelid = rec.view_id and vcol.attnum = rec.view_column
-      join pg_namespace sch on sch.oid = tbl.relnamespace
+        array_agg(row(col.attname, view_columns) order by pks_fks.ord) as column_dependencies
+      from repeated_references rep
       join pks_fks using (resorigtbl, resorigcol)
-      group by sch.nspname, tbl.relname,  rec.view_schema, rec.view_name, pks_fks.conname, pks_fks.contype
+      join pg_class tbl on tbl.oid = rep.resorigtbl
+      join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rep.resorigcol
+      join pg_namespace sch on sch.oid = tbl.relnamespace
+      group by sch.nspname, tbl.relname,  rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype
       |]
 
 param :: HE.Value a -> HE.Params a
