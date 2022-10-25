@@ -74,6 +74,9 @@ import Protolude hiding (try)
 -- >>> deriving instance Show Filter
 -- >>> deriving instance Show JoinType
 -- >>> deriving instance Show SelectItem
+-- >>> deriving instance Show OrderDirection
+-- >>> deriving instance Show OrderNulls
+-- >>> deriving instance Show OrderTerm
 
 data QueryParams =
   QueryParams
@@ -583,23 +586,34 @@ pQuotedValue = toS <$> (char '"' *> many pCharsOrSlashed <* char '"')
 pDelimiter :: Parser Char
 pDelimiter = char '.' <?> "delimiter (.)"
 
+-- |
+-- Parses the elements in the order query parameter
+--
+-- >>> P.parse pOrder "" "name.desc.nullsfirst"
+-- Right [OrderTerm {otTerm = ("name",[]), otDirection = Just OrderDesc, otNullOrder = Just OrderNullsFirst}]
+--
+-- >>> P.parse pOrder "" "json_col->key.asc.nullslast"
+-- Right [OrderTerm {otTerm = ("json_col",[JArrow {jOp = JKey {jVal = "key"}}]), otDirection = Just OrderAsc, otNullOrder = Just OrderNullsLast}]
 pOrder :: Parser [OrderTerm]
 pOrder = lexeme pOrderTerm `sepBy1` char ','
-
-pOrderTerm :: Parser OrderTerm
-pOrderTerm = do
-  fld <- pField
-  dir <- optionMaybe $
-         try (pDelimiter *> string "asc" $> OrderAsc) <|>
-         try (pDelimiter *> string "desc" $> OrderDesc)
-  nls <- optionMaybe pNulls <* pEnd <|>
-         pEnd $> Nothing
-  return $ OrderTerm fld dir nls
   where
+    pOrderTerm :: Parser OrderTerm
+    pOrderTerm = do
+      fld <- pField
+      dir <- optionMaybe pOrdDir
+      nls <- optionMaybe pNulls <* pEnd <|>
+             pEnd $> Nothing
+      return $ OrderTerm fld dir nls
+
+    pNulls :: Parser OrderNulls
     pNulls = try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst) <|>
              try (pDelimiter *> string "nullslast"  $> OrderNullsLast)
-    pEnd = try (void $ lookAhead (char ',')) <|>
-           try eof
+
+    pOrdDir :: Parser OrderDirection
+    pOrdDir = try (pDelimiter *> string "asc" $> OrderAsc) <|>
+              try (pDelimiter *> string "desc" $> OrderDesc)
+
+    pEnd = try (void $ lookAhead (char ',')) <|> try eof
 
 pLogicTree :: Parser LogicTree
 pLogicTree = Stmnt <$> try pLogicFilter
