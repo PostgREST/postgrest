@@ -120,6 +120,41 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
+      it "errs with multiple references to the same composite key columns in a view" $
+        get "/i2459_composite_v2?select=*,i2459_composite_v1(*)" `shouldRespondWith`
+          [json|
+            {
+              "code": "PGRST201",
+              "details": [
+                {
+                  "cardinality": "many-to-one",
+                  "embedding": "i2459_composite_v2 with i2459_composite_v1",
+                  "relationship": "i2459_composite_t2_t1_a_t1_b_fkey using i2459_composite_v2(t1_a1, t1_b1) and i2459_composite_v1(a, b)"
+                },
+                {
+                  "cardinality": "many-to-one",
+                  "embedding": "i2459_composite_v2 with i2459_composite_v1",
+                  "relationship": "i2459_composite_t2_t1_a_t1_b_fkey using i2459_composite_v2(t1_a1, t1_b2) and i2459_composite_v1(a, b)"
+                },
+                {
+                  "cardinality": "many-to-one",
+                  "embedding": "i2459_composite_v2 with i2459_composite_v1",
+                  "relationship": "i2459_composite_t2_t1_a_t1_b_fkey using i2459_composite_v2(t1_a2, t1_b1) and i2459_composite_v1(a, b)"
+                },
+                {
+                  "cardinality": "many-to-one",
+                  "embedding": "i2459_composite_v2 with i2459_composite_v1",
+                  "relationship": "i2459_composite_t2_t1_a_t1_b_fkey using i2459_composite_v2(t1_a2, t1_b2) and i2459_composite_v1(a, b)"
+                }
+              ],
+              "hint": "Try changing 'i2459_composite_v1' to one of the following: 'i2459_composite_v1!i2459_composite_t2_t1_a_t1_b_fkey', 'i2459_composite_v1!i2459_composite_t2_t1_a_t1_b_fkey', 'i2459_composite_v1!i2459_composite_t2_t1_a_t1_b_fkey', 'i2459_composite_v1!i2459_composite_t2_t1_a_t1_b_fkey'. Find the desired relationship in the 'details' key.",
+              "message": "Could not embed because more than one relationship was found for 'i2459_composite_v2' and 'i2459_composite_v1'"
+            }
+          |]
+          { matchStatus  = 300
+          , matchHeaders = [matchContentTypeJson]
+          }
+
     context "disambiguating requests with embed hints" $ do
 
       context "using FK to specify the relationship" $ do
@@ -240,6 +275,20 @@ spec =
             [json| [ { "name": "site 1", "main_project_id": { "name": "big project 1" } } ] |]
             { matchHeaders = [matchContentTypeJson] }
 
+        it "can specify all view column names that reference the same base column" $ do
+          get "/i2459_simple_v1?select=*,i2459_simple_v2!t1_id1(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/i2459_simple_v1?select=*,i2459_simple_v2!t1_id2(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/i2459_simple_v2?select=*,i2459_simple_v1!t1_id1(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/i2459_simple_v2?select=*,i2459_simple_v1!t1_id2(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
+
       context "using the junction to disambiguate the request" $
         it "can specify the junction of an m2m relationship" $ do
           get "/sites?select=*,big_projects!jobs(name)&site_id=in.(1,2)" `shouldRespondWith`
@@ -340,6 +389,14 @@ spec =
                 "children": []
               }
             ]|] { matchHeaders = [matchContentTypeJson] }
+
+        it "can specify all view column names that reference the same base column" $ do
+          get "/i2459_self_v1?select=*,parent(*),grandparent(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/i2459_self_v2?select=*,parent(*),grandparent(*)" `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = [matchContentTypeJson] }
 
       context "two self reference foreign keys" $ do
         it "embeds parents" $
@@ -506,4 +563,3 @@ spec =
               }
             ]|]
           { matchHeaders = [matchContentTypeJson] }
-

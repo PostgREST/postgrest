@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2475, Disallow !inner on computed columns - @wolfgangwalther
  - #2285, Ignore leading and trailing spaces in column names when parsing the query string - @wolfgangwalther
  - #2545, Fix UPSERT with PostgreSQL 15 - @wolfgangwalther
+ - #2459, Fix embedding views with multiple references to the same base column - @wolfgangwalther
 
 ### Changed
 
