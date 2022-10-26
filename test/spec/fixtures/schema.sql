@@ -2902,3 +2902,7 @@ $$;
 
 create trigger ins instead of insert on with_multiple_pks
   for each row execute procedure with_multiple_pks_insert();
+
+-- issue https://github.com/PostgREST/postgrest/issues/2283
+create view self_recursive_view as table projects;
+create or replace view self_recursive_view as table self_recursive_view;

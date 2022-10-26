@@ -895,8 +895,13 @@ allViewsKeyDependencies =
           (entry->>'resorigcol')::int as resorigcol
         from target_entries
       ),
-      recursion as(
-        select r.*
+      -- CYCLE detection according to PG docs: https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-CYCLE
+      -- Can be replaced with CYCLE clause once PG v13 is EOL.
+      recursion(view_id, view_schema, view_name, view_column, resorigtbl, resorigcol, is_cycle, path) as(
+        select
+          r.*,
+          false,
+          ARRAY[resorigtbl]
         from results r
         where view_schema = ANY ($1)
         union all
@@ -906,9 +911,12 @@ allViewsKeyDependencies =
           view.view_name,
           view.view_column,
           tab.resorigtbl,
-          tab.resorigcol
+          tab.resorigcol,
+          tab.resorigtbl = ANY(path),
+          path || tab.resorigtbl
         from recursion view
         join results tab on view.resorigtbl=tab.view_id and view.resorigcol=tab.view_column
+        where not is_cycle
       )
       select
         sch.nspname as table_schema,
