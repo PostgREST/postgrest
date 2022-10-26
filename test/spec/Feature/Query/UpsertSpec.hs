@@ -105,6 +105,12 @@ spec actualPgVersion =
             `shouldRespondWith`
             [json|[ { "a": "1", "b": "0" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
 
+        it "succeeds without updating the conflicting columns" $
+          request methodPost "/mytable" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json|[ { "id": 1, "comment": "ciao" } ]|]
+            `shouldRespondWith`
+            [json|[ { "id": 1, "comment": "ciao" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
         it "INSERTs and ignores rows on pk conflict" $
           request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
