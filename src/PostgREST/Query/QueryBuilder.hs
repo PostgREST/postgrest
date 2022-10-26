@@ -19,6 +19,7 @@ module PostgREST.Query.QueryBuilder
 
 import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
+import qualified Data.List                       as L
 import qualified Data.HashMap.Strict             as HM
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
@@ -125,13 +126,14 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
       IgnoreDuplicates ->
         "DO NOTHING"
       MergeDuplicates  ->
-        if null iCols
+        if L.null (updateCols oncCols)
            then "DO NOTHING"
-           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else "WHERE " <> addConfigPgrstInserted False)
+           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> updateCols oncCols) <> (if null putConditions && not mergeDups then mempty else "WHERE " <> addConfigPgrstInserted False)
     ) onConflict <> " " <>
     returningF mainQi returnings
   where
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
+    updateCols oncCols = filter (\CoercibleField{cfName} -> notElem cfName oncCols) iCols
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
 -- An update without a limit is always filtered with a WHERE
