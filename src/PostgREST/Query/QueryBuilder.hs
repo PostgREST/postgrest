@@ -17,6 +17,7 @@ module PostgREST.Query.QueryBuilder
   ) where
 
 import qualified Data.ByteString.Char8           as BS
+import qualified Data.List                       as L
 import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 
@@ -82,7 +83,7 @@ getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAlias, relJo
   (sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
-mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
+mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _) =
   "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
   "SELECT " <> SQL.sql cols <> " " <>
@@ -98,14 +99,15 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
         IgnoreDuplicates ->
           "DO NOTHING"
         MergeDuplicates  ->
-          if S.null iCols
+          if L.null (updateCols oncCols)
              then "DO NOTHING"
-             else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
-      ) onConflct,
+             else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> updateCols oncCols)
+      ) onConflict,
     returningF mainQi returnings
     ])
   where
     cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
+    updateCols oncCols = S.toList iCols L.\\ oncCols
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)

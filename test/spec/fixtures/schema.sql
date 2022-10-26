@@ -2902,3 +2902,18 @@ $$;
 
 create trigger ins instead of insert on with_multiple_pks
   for each row execute procedure with_multiple_pks_insert();
+
+-- issue https://github.com/PostgREST/postgrest/issues/2446
+create table mytable (
+  id bigserial primary key,
+  comment text
+);
+
+create function prevent_update () returns trigger
+language plpgsql as $$
+begin
+  raise 'Updates of the conflicting column should be removed from the UPDATEs target list';
+end $$;
+
+create trigger prevent_update before update of id on mytable
+for each row execute procedure prevent_update();

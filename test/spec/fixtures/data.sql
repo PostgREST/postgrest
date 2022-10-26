@@ -826,3 +826,6 @@ INSERT INTO country(id, name) VALUES (1, 'Afghanistan'), (2, 'Algeria');
 
 TRUNCATE TABLE capital CASCADE;
 INSERT INTO capital(id, name, country_id) VALUES (1, 'Kabul', 1), (2, 'Algiers', 2);
+
+TRUNCATE TABLE mytable CASCADE;
+INSERT INTO mytable VALUES (1, 'hello');
