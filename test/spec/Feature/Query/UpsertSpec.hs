@@ -90,6 +90,21 @@ spec actualPgVersion =
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
             }
 
+        it "succeeds if the table has only PK cols and no other cols" $
+          request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
+            `shouldRespondWith`
+            [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
+            { matchStatus = 201 ,
+              matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates",
+              matchContentTypeJson] }
+
+        it "succeeds and ignores the Prefer: resolution header(no Preference-Applied present) if the table has no PK" $
+          request methodPost "/no_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json|[ { "a": "1", "b": "0" } ]|]
+            `shouldRespondWith`
+            [json|[ { "a": "1", "b": "0" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
         it "INSERTs and ignores rows on pk conflict" $
           request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
@@ -162,36 +177,22 @@ spec actualPgVersion =
               , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
               }
 
-      it "succeeds if the table has only PK cols and no other cols" $ do
-        request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-          [json|[ { "id": 1 }, { "id": 2 }, { "id": 3} ]|]
-          `shouldRespondWith`
-          [json|[ { "id": 3} ]|]
-          { matchStatus = 201 ,
-            matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates",
-            matchContentTypeJson] }
+        it "succeeds if the table has only PK cols and no other cols" $
+          request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json|[ { "id": 1 }, { "id": 2 }, { "id": 3} ]|]
+            `shouldRespondWith`
+            [json|[ { "id": 3} ]|]
+            { matchStatus = 201 ,
+              matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates",
+              matchContentTypeJson] }
 
-        request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
-          [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
-          `shouldRespondWith`
-          [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
-          { matchStatus = 201 ,
-            matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates",
-            matchContentTypeJson] }
-
-      it "succeeds and ignores the Prefer: resolution header(no Preference-Applied present) if the table has no PK" $
-        request methodPost "/no_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
-          [json|[ { "a": "1", "b": "0" } ]|]
-          `shouldRespondWith`
-          [json|[ { "a": "1", "b": "0" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
-
-      it "succeeds if not a single resource is created" $ do
-        request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-          [json|[ { "name": "Java", "rank": 1 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
-        request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-          [json|[ { "name": "Java", "rank": 1 }, { "name": "C", "rank": 2 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+        it "succeeds if not a single resource is created" $ do
+          request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json|[ { "name": "Java", "rank": 1 } ]|] `shouldRespondWith`
+            [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json|[ { "name": "Java", "rank": 1 }, { "name": "C", "rank": 2 } ]|] `shouldRespondWith`
+            [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
 
     context "with PUT" $ do
       context "Restrictions" $ do
