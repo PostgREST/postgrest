@@ -82,7 +82,7 @@ getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAlias, relJo
   (sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
-mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
+mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _) =
   "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
   "SELECT " <> SQL.sql cols <> " " <>
@@ -101,7 +101,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
           if S.null iCols
              then "DO NOTHING"
              else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
-      ) onConflct,
+      ) onConflict,
     returningF mainQi returnings
     ])
   where
