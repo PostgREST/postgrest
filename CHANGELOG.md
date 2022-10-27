@@ -5,10 +5,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #2348, Add `db-pool-acquisition-timeout` configuration option, time in seconds to wait to acquire a connection. - @robx
+
 ### Fixed
 
- - #2401, #2444, Fix SIGUSR1 to fully flush connections pool, remove `db-pool-timeout`. - @robx
- - #2348, Add `db-pool-acquisition-timeout` configuration option, time in seconds to wait to acquire a connection. - @robx
+ - #2261, #2349, #2467, Reduce allocations communication with PostgreSQL, particularly for request bodies. - @robx
+ - #2401, #2444, Fix SIGUSR1 to fully flush connections pool. - @robx
  - #2428, Fix opening an empty transaction on failed resource embedding - @steve-chavez
  - #2455, Fix embedding the same table multiple times - @steve-chavez
  - #2518, Fix a regression when embedding views where base tables have a different column order for FK columns - @wolfgangwalther
@@ -16,12 +20,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2356, Fix a regression in openapi output with mode follow-privileges - @wolfgangwalther
  - #2283, Fix infinite recursion when loading schema cache with self-referencing view - @wolfgangwalther
 
+### Changed
+
+ - #2444, Removed `db-pool-timeout` option, because this was removed upstream in hasql-pool. - @robx
+
 ### Deprecated
 
  - #1385, Deprecate bulk-calls when including the `Prefer: params=multiple-objects` in the request. A function with a JSON array or object parameter should be used instead for a better performance.
-
-### Changed
- - #2261, #2349, #2467, Reduce allocations communication with PostgreSQL, particularly for request bodies. - @robx
 
 ## [10.0.0] - 2022-08-18
 
