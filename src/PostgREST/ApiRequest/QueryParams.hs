@@ -359,7 +359,7 @@ pStar = string "*" $> "*"
 pFieldName :: Parser Text
 pFieldName =
   pQuotedValue <|>
-  T.intercalate "-" . map toS <$> (many1 pIdentifierChar `sepBy1` dash) <?>
+  T.intercalate "-" . map toS <$> (pIdentifier `sepBy1` dash) <?>
   "field name (* or [a..z0..9_ $])"
   where
     isDash :: GenParser Char st ()
@@ -505,7 +505,7 @@ pFieldSelect = lexeme $
     do
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
-      cast' <- optionMaybe (string "::" *> many1 pIdentifierChar)
+      cast' <- optionMaybe (string "::" *> pIdentifier)
       pEnd
       return $ SelectField fld (toS <$> cast') alias
   )
@@ -547,7 +547,7 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
     pFts = do
       opStr <- try (P.many (noneOf ".("))
       op <- parseMaybe ("unknown fts operator " <> opStr) . ftsOperator $ toS opStr
-      lang <- optionMaybe $ try (between (char '(') (char ')') $ many1 pIdentifierChar)
+      lang <- optionMaybe $ try (between (char '(') (char ')') pIdentifier)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
 
     parseMaybe :: [Char] -> Maybe a -> Parser a
@@ -630,8 +630,8 @@ pLogicPath = do
 pColumns :: Parser [FieldName]
 pColumns = pFieldName `sepBy1` lexeme (char ',')
 
-pIdentifierChar :: Parser Char
-pIdentifierChar = letter <|> digit <|> oneOf "_ $"
+pIdentifier :: Parser [Char]
+pIdentifier = many1 $ letter <|> digit <|> oneOf "_ $"
 
 mapError :: Either ParseError a -> Either QPError a
 mapError = mapLeft translateError
