@@ -46,7 +46,7 @@ data SelectItem
     , selAlias :: Maybe Alias
     }
   | SelectRelation
-    { selField    :: Field
+    { selRelation :: FieldName
     , selAlias    :: Maybe Alias
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
