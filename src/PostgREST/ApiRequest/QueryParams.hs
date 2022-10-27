@@ -352,15 +352,21 @@ pStar = string "*" $> "*"
 -- >>> P.parse pFieldName "" ":"
 -- Left (line 1, column 1):
 -- unexpected ":"
--- expecting field name (* or [a..z0..9_ $])
+-- expecting field name (* or [a..z0..9_$])
 --
 -- >>> P.parse pFieldName "" "\":\""
 -- Right ":"
+--
+-- >>> P.parse pFieldName "" " no leading or trailing spaces "
+-- Right "no leading or trailing spaces"
+--
+-- >>> P.parse pFieldName "" "\" leading and trailing spaces \""
+-- Right " leading and trailing spaces "
 pFieldName :: Parser Text
 pFieldName =
   pQuotedValue <|>
   T.intercalate "-" . map toS <$> (pIdentifier `sepBy1` dash) <?>
-  "field name (* or [a..z0..9_ $])"
+  "field name (* or [a..z0..9_$])"
   where
     isDash :: GenParser Char st ()
     isDash = try ( char '-' >> notFollowedBy (char '>') )
@@ -630,8 +636,11 @@ pLogicPath = do
 pColumns :: Parser [FieldName]
 pColumns = pFieldName `sepBy1` lexeme (char ',')
 
-pIdentifier :: Parser [Char]
-pIdentifier = many1 $ letter <|> digit <|> oneOf "_ $"
+pIdentifier :: Parser Text
+pIdentifier = T.strip . toS <$> many1 pIdentifierChar
+
+pIdentifierChar :: Parser Char
+pIdentifierChar = letter <|> digit <|> oneOf "_ $"
 
 mapError :: Either ParseError a -> Either QPError a
 mapError = mapLeft translateError

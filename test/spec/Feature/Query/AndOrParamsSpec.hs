@@ -200,7 +200,7 @@ spec actualPgVersion =
         it "cannot have zero conditions" $
           get "/entities?or=()" `shouldRespondWith`
             [json|{
-              "details": "unexpected \")\" expecting field name (* or [a..z0..9_ $]), negation operator (not) or logic operator (and, or)",
+              "details": "unexpected \")\" expecting field name (* or [a..z0..9_$]), negation operator (not) or logic operator (and, or)",
               "message": "\"failed to parse logic tree (())\" (line 1, column 4)",
               "code": "PGRST100",
               "hint": null
