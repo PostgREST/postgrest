@@ -302,6 +302,17 @@ pTreePath = do
   jp <- P.option [] pJsonPath
   return (init p, (last p, jp))
 
+-- |
+-- Parse select= into a Forest of SelectItems
+--
+-- >>> P.parse pFieldForest "" "id"
+-- Right [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
+--
+-- >>> P.parse pFieldForest "" "client(id)"
+-- Right [Node {rootLabel = SelectRelation {selField = ("client",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+--
+-- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selField = ("client",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selField = ("nested",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
