@@ -309,10 +309,10 @@ pTreePath = do
 -- Right [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- >>> P.parse pFieldForest "" "client(id)"
--- Right [Node {rootLabel = SelectRelation {selField = ("client",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+-- Right [Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
 -- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
--- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selField = ("client",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selField = ("nested",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
@@ -384,29 +384,38 @@ aliasSeparator = char ':' >> notFollowedBy (char ':')
 -- Parse regular fields in select
 --
 -- >>> P.parse pRelationSelect "" "rel(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing})
 --
 -- >>> P.parse pRelationSelect "" "alias:rel(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Just "alias", selHint = Nothing, selJoinType = Nothing})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Just "alias", selHint = Nothing, selJoinType = Nothing})
 --
 -- >>> P.parse pRelationSelect "" "rel!hint(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Just "hint", selJoinType = Nothing})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Nothing, selHint = Just "hint", selJoinType = Nothing})
 --
 -- >>> P.parse pRelationSelect "" "rel!inner(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Just JTInner})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Nothing, selHint = Nothing, selJoinType = Just JTInner})
 --
 -- >>> P.parse pRelationSelect "" "rel!hint!inner(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Just "hint", selJoinType = Just JTInner})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Nothing, selHint = Just "hint", selJoinType = Just JTInner})
 --
 -- >>> P.parse pRelationSelect "" "alias:rel!inner!hint(*)"
--- Right (SelectRelation {selField = ("rel",[]), selAlias = Just "alias", selHint = Just "hint", selJoinType = Just JTInner})
+-- Right (SelectRelation {selRelation = "rel", selAlias = Just "alias", selHint = Just "hint", selJoinType = Just JTInner})
+--
+-- >>> P.parse pRelationSelect "" "rel->jsonpath(*)"
+-- Left (line 1, column 6):
+-- unexpected '>'
+--
+-- >>> P.parse pRelationSelect "" "rel->jsonpath!hint(*)"
+-- Left (line 1, column 6):
+-- unexpected '>'
 pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-    fld <- pField
+    name <- pFieldName
     prm1 <- optionMaybe pEmbedParam
     prm2 <- optionMaybe pEmbedParam
-    return $ SelectRelation fld alias (embedParamHint prm1 <|> embedParamHint prm2) (embedParamJoin prm1 <|> embedParamJoin prm2)
+    try (void $ lookAhead (string "("))
+    return $ SelectRelation name alias (embedParamHint prm1 <|> embedParamHint prm2) (embedParamJoin prm1 <|> embedParamJoin prm2)
   )
   where
     pEmbedParam :: Parser EmbedParam

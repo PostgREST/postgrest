@@ -113,7 +113,7 @@ initReadRequest qi@QualifiedIdentifier{..} =
       let nxtDepth = succ depth in
         Node q $
           foldr (treeEntry nxtDepth)
-          (Node defReadPlan{from=QualifiedIdentifier qiSchema (fst selField), relName=fst selField, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
+          (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
           fldForest:rForest
     treeEntry _ (Node SelectField{..} _) (Node q rForest) = Node q{select=(selField, selCast, selAlias):select q} rForest
 
