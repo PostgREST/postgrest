@@ -126,23 +126,26 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
     nodeRestrictRange m q@ReadPlan{range_=r} = q{range_=restrictRange m r }
 
--- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode, also adds aliasing
+-- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode(https://stackoverflow.com/questions/22721064/get-the-parent-of-a-node-in-data-tree-haskell#comment34627048_22721064)
+-- also adds aliasing
 addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,relAlias,depth} forest) =
   case parentNode of
-    Just (Node ReadPlan{from=parentNodeQi, fromAlias} _) ->
+    Just (Node ReadPlan{from=parentNodeQi, fromAlias=parentAlias} _) ->
       let
         newReadPlan = (\r ->
           let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
               aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth in
           case r of
-            Relationship{relCardinality=M2M _} ->
-              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, relJoinConds=getJoinConditions Nothing fromAlias r}
+            Relationship{relCardinality=M2M _} -> -- m2m does internal implicit joins that don't need aliasing
+              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, relJoinConds=getJoinConditions Nothing parentAlias r}
+            ComputedRelationship{} ->
+              rPlan{from=relForeignTable r, relToParent=Just r{relTable=maybe (relTable r) (QualifiedIdentifier mempty) parentAlias}, relAggAlias=aggAlias, fromAlias=newAlias}
             _ ->
-              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, fromAlias=newAlias, relJoinConds=getJoinConditions newAlias fromAlias r}
+              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, fromAlias=newAlias, relJoinConds=getJoinConditions newAlias parentAlias r}
           ) <$> rel
         origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
-          then fromMaybe (qiName parentNodeQi) fromAlias
+          then fromMaybe (qiName parentNodeQi) parentAlias
           else qiName parentNodeQi
         rel = findRel schema allRels origin relName relHint
       in

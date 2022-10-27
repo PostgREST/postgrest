@@ -2910,3 +2910,11 @@ create trigger ins instead of insert on with_multiple_pks
 -- issue https://github.com/PostgREST/postgrest/issues/2283
 create view self_recursive_view as table projects;
 create or replace view self_recursive_view as table self_recursive_view;
+
+CREATE FUNCTION test.computed_clients(test.projects) RETURNS SETOF test.clients ROWS 1 AS $$
+  SELECT * FROM test.clients WHERE id = $1.client_id;
+$$ LANGUAGE sql STABLE;
+
+CREATE FUNCTION test.computed_projects(test.clients) RETURNS SETOF test.projects ROWS 1 AS $$
+  SELECT * FROM test.projects WHERE client_id = $1.id;
+$$ LANGUAGE sql STABLE;

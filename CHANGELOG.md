@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2283, Fix infinite recursion when loading schema cache with self-referencing view - @wolfgangwalther
  - #2343, Return status code 200 for PATCH requests which don't affect any rows - @wolfgangwalther
  - #2481, Treat computed relationships not marked SETOF as M2O/O2O relationship - @wolfgangwalther
+ - #2534, Fix embedding a computed relationship with a normal relationship - @steve-chavez
 
 ### Changed
 

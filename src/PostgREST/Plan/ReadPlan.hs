@@ -43,9 +43,7 @@ data ReadPlan = ReadPlan
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
   , depth        :: Depth
-  -- depth is used bc when a self join occurs we
-  -- need to differentiate the parent from the child tables by having an alias like
-  -- "table_depth". See http://github.com/PostgREST/postgrest/issues/987.
+  -- ^ used for aliasing
   }
   deriving (Eq)
 
