@@ -28,12 +28,12 @@ spec = do
             `shouldRespondWith` 404
 
     context "on an empty table" $
-      it "indicates no records found to update by returning 404" $
+      it "succeeds with status code 204" $
         request methodPatch "/empty_table" []
             [json| { "extra":20 } |]
           `shouldRespondWith`
             ""
-            { matchStatus  = 404,
+            { matchStatus  = 204,
               matchHeaders = [matchHeaderAbsent hContentType]
             }
 
@@ -71,14 +71,14 @@ spec = do
           [("Prefer", "return=representation")] [json| { "id":999999 } |]
           `shouldRespondWith` "[]"
           {
-            matchStatus  = 404,
+            matchStatus  = 200,
             matchHeaders = []
           }
 
-      it "gives a 404 when no rows updated" $
+      it "returns status code 200 when no rows updated" $
         request methodPatch "/items?id=eq.99999999" []
           [json| { "id": 42 } |]
-            `shouldRespondWith` 404
+            `shouldRespondWith` 204
 
       it "returns updated object as array when return=rep" $
         request methodPatch "/items?id=eq.2"
@@ -137,13 +137,13 @@ spec = do
               matchHeaders = [matchContentTypeJson, "Content-Range" <:> "0-0/*"]
             }
 
-        it "indicates no records updated by returning 404" $
+        it "returns empty array when no rows updated and return=rep" $
           request methodPatch
             "/items?always_true=eq.false"
             [("Prefer", "return=representation")]
             [json| { id: 100 } |]
             `shouldRespondWith` "[]"
-            { matchStatus  = 404,
+            { matchStatus  = 200,
               matchHeaders = []
             }
 
@@ -304,9 +304,9 @@ spec = do
           `shouldRespondWith`
             [json|[{"id": 1, "body": "Some real content", "owner": "postgrest_test_anonymous"}]|]
 
-      it "ignores json keys and gives 404 if no record updated" $
+      it "ignores json keys and gives 200 if no record updated" $
         request methodPatch "/articles?id=eq.2001&columns=body" [("Prefer", "return=representation")]
-          [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith` 404
+          [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith` 200
 
   context "tables with self reference foreign keys" $ do
     it "embeds children after update" $

@@ -19,10 +19,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2458, Fix a regression with the location header when inserting into views with PKs from multiple tables - @wolfgangwalther
  - #2356, Fix a regression in openapi output with mode follow-privileges - @wolfgangwalther
  - #2283, Fix infinite recursion when loading schema cache with self-referencing view - @wolfgangwalther
+ - #2343, Return status code 200 for PATCH requests which don't affect any rows - @wolfgangwalther
 
 ### Changed
 
  - #2444, Removed `db-pool-timeout` option, because this was removed upstream in hasql-pool. - @robx
+ - #2343, PATCH requests that don't affect any rows no longer return 404 - @wolfgangwalther
 
 ### Deprecated
 
