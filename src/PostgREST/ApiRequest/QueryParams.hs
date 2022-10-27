@@ -53,7 +53,7 @@ import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    Operation (..),
                                    OrderDirection (..),
                                    OrderNulls (..), OrderTerm (..),
-                                   QPError (..), SelectItem,
+                                   QPError (..), SelectItem (..),
                                    SimpleOperator (..), SingleVal,
                                    TrileanVal (..))
 
@@ -73,6 +73,7 @@ import Protolude hiding (try)
 -- >>> deriving instance Show JsonOperation
 -- >>> deriving instance Show Filter
 -- >>> deriving instance Show JoinType
+-- >>> deriving instance Show SelectItem
 
 data QueryParams =
   QueryParams
@@ -113,7 +114,7 @@ data QueryParams =
 -- 'select' is a reserved parameter that selects the fields to be returned:
 --
 -- >>> qsSelect <$> parse "select=name,location"
--- Right [Node {rootLabel = (("name",[]),Nothing,Nothing,Nothing,Nothing), subForest = []},Node {rootLabel = (("location",[]),Nothing,Nothing,Nothing,Nothing), subForest = []}]
+-- Right [Node {rootLabel = SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectField {selField = ("location",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- Filters are parameters whose value contains an operator, separated by a '.' from its value:
 --
@@ -368,13 +369,33 @@ pField = lexeme $ (,) <$> pFieldName <*> P.option [] pJsonPath
 aliasSeparator :: Parser ()
 aliasSeparator = char ':' >> notFollowedBy (char ':')
 
+-- |
+-- Parse regular fields in select
+--
+-- >>> P.parse pRelationSelect "" "rel(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Nothing})
+--
+-- >>> P.parse pRelationSelect "" "alias:rel(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Just "alias", selHint = Nothing, selJoinType = Nothing})
+--
+-- >>> P.parse pRelationSelect "" "rel!hint(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Just "hint", selJoinType = Nothing})
+--
+-- >>> P.parse pRelationSelect "" "rel!inner(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Nothing, selJoinType = Just JTInner})
+--
+-- >>> P.parse pRelationSelect "" "rel!hint!inner(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Nothing, selHint = Just "hint", selJoinType = Just JTInner})
+--
+-- >>> P.parse pRelationSelect "" "alias:rel!inner!hint(*)"
+-- Right (SelectRelation {selField = ("rel",[]), selAlias = Just "alias", selHint = Just "hint", selJoinType = Just JTInner})
 pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
     prm1 <- optionMaybe pEmbedParam
     prm2 <- optionMaybe pEmbedParam
-    return (fld, Nothing, alias, embedParamHint prm1 <|> embedParamHint prm2, embedParamJoin prm1 <|> embedParamJoin prm2)
+    return $ SelectRelation fld alias (embedParamHint prm1 <|> embedParamHint prm2) (embedParamJoin prm1 <|> embedParamJoin prm2)
   )
   where
     pEmbedParam :: Parser EmbedParam
@@ -390,6 +411,26 @@ pRelationSelect = lexeme $ try ( do
       Just (EPJoinType jt) -> Just jt
       _                    -> Nothing
 
+-- |
+-- Parse regular fields in select
+--
+-- >>> P.parse pFieldSelect "" "name"
+-- Right (SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing})
+--
+-- >>> P.parse pFieldSelect "" "name->jsonpath"
+-- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selCast = Nothing, selAlias = Nothing})
+--
+-- >>> P.parse pFieldSelect "" "name::cast"
+-- Right (SelectField {selField = ("name",[]), selCast = Just "cast", selAlias = Nothing})
+--
+-- >>> P.parse pFieldSelect "" "alias:name"
+-- Right (SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Just "alias"})
+--
+-- >>> P.parse pFieldSelect "" "alias:name->jsonpath::cast"
+-- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selCast = Just "cast", selAlias = Just "alias"})
+--
+-- >>> P.parse pFieldSelect "" "*"
+-- Right (SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing})
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
   try (
@@ -397,11 +438,11 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many pIdentifierChar)
-      return (fld, toS <$> cast', alias, Nothing, Nothing)
+      return $ SelectField fld (toS <$> cast') alias
   )
   <|> do
     s <- pStar
-    return ((s, []), Nothing, Nothing, Nothing, Nothing)
+    return $ SelectField (s, []) Nothing Nothing
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation

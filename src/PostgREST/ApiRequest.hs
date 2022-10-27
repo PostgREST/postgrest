@@ -51,7 +51,8 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..))
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.ApiRequest.Types        (ApiRequestError (..),
-                                          RangeError (..), SelectItem)
+                                          RangeError (..),
+                                          SelectItem (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.MediaType               (MTPlanAttrs (..),
@@ -528,6 +529,6 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType target QueryParams{qs
     returnsScalar _                   = False
 
     fstFieldName :: [Tree SelectItem] -> Maybe FieldName
-    fstFieldName [Node (("*", _), Nothing, Nothing, Nothing, Nothing) []] = Nothing
-    fstFieldName [Node ((fld, _), Nothing, Nothing, Nothing, Nothing) []] = Just fld
-    fstFieldName _                           = Nothing
+    fstFieldName [Node SelectField{selField=("*", _)} []] = Nothing
+    fstFieldName [Node SelectField{selField=(fld, _)} []] = Just fld
+    fstFieldName _                                        = Nothing

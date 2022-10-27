@@ -1,5 +1,6 @@
-{-# LANGUAGE LambdaCase  #-}
-{-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE QuasiQuotes    #-}
 {-|
 Module      : PostgREST.Query.SqlFragment
 Description : Helper functions for PostgREST.QueryBuilder.
@@ -56,7 +57,8 @@ import Control.Arrow ((***))
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.ApiRequest.Types        (Alias, Field, Filter (..),
+import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
+                                          Filter (..),
                                           FtsOperator (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
@@ -66,7 +68,7 @@ import PostgREST.ApiRequest.Types        (Alias, Field, Filter (..),
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
-                                          OrderTerm (..), SelectItem,
+                                          OrderTerm (..),
                                           SimpleOperator (..),
                                           TrileanVal (..))
 import PostgREST.MediaType               (MTPlanFormat (..),
@@ -233,12 +235,12 @@ pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
 -- "operator does not exist: json = unknown"
 pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> SelectItem -> SQL.Snippet
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias, _, _) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem :: QualifiedIdentifier -> (Field, Maybe Cast, Maybe Alias) -> SQL.Snippet
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias, _, _) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =

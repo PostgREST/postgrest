@@ -28,7 +28,7 @@ module PostgREST.ApiRequest.Types
   , TrileanVal(..)
   , SimpleOperator(..)
   , FtsOperator(..)
-  , SelectItem
+  , SelectItem(..)
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
@@ -39,7 +39,19 @@ import PostgREST.SchemaCache.Relationship (Relationship)
 import Protolude
 
 -- | The select value in `/tbl?select=alias:field::cast`
-type SelectItem = (Field, Maybe Cast, Maybe Alias, Maybe Hint, Maybe JoinType)
+data SelectItem
+  = SelectField
+    { selField :: Field
+    , selCast  :: Maybe Cast
+    , selAlias :: Maybe Alias
+    }
+  | SelectRelation
+    { selField    :: Field
+    , selAlias    :: Maybe Alias
+    , selHint     :: Maybe Hint
+    , selJoinType :: Maybe JoinType
+    }
+  deriving (Eq)
 
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]

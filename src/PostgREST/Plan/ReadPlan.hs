@@ -8,10 +8,9 @@ module PostgREST.Plan.ReadPlan
 
 import Data.Tree (Tree (..))
 
-import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
-                                           JoinType, LogicTree,
-                                           NodeName, OrderTerm,
-                                           SelectItem)
+import PostgREST.ApiRequest.Types         (Alias, Cast, Depth, Field,
+                                           Hint, JoinType, LogicTree,
+                                           NodeName, OrderTerm)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -29,7 +28,7 @@ data JoinCondition =
   deriving (Eq)
 
 data ReadPlan = ReadPlan
-  { select       :: [SelectItem]
+  { select       :: [(Field, Maybe Cast, Maybe Alias)]
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
   , where_       :: [LogicTree]
@@ -50,4 +49,4 @@ data ReadPlan = ReadPlan
 -- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
 fstFieldNames :: ReadPlanTree -> [FieldName]
 fstFieldNames (Node ReadPlan{select} _) =
-  fst . (\(f, _, _, _, _) -> f) <$> select
+  fst . (\(f, _, _) -> f) <$> select

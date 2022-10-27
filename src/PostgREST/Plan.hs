@@ -109,14 +109,13 @@ initReadRequest qi@QualifiedIdentifier{..} =
     rootDepth = 0
     defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
-    treeEntry depth (Node fld@((fldName, _),_,alias, hint, joinType) fldForest) (Node q rForest) =
+    treeEntry depth (Node SelectRelation{..} fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
-      case fldForest of
-        [] -> Node q{select=fld:select q} rForest
-        _  -> Node q $
-              foldr (treeEntry nxtDepth)
-              (Node defReadPlan{from=QualifiedIdentifier qiSchema fldName, relName=fldName, relAlias=alias, relHint=hint, relJoinType=joinType, depth=nxtDepth} [])
-              fldForest:rForest
+        Node q $
+          foldr (treeEntry nxtDepth)
+          (Node defReadPlan{from=QualifiedIdentifier qiSchema (fst selField), relName=fst selField, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
+          fldForest:rForest
+    treeEntry _ (Node SelectField{..} _) (Node q rForest) = Node q{select=(selField, selCast, selAlias):select q} rForest
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
