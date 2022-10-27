@@ -494,13 +494,18 @@ pRelationSelect = lexeme $ try ( do
 -- Left (line 1, column 2):
 -- unexpected '!'
 -- expecting ")", "," or end of input
+--
+-- >>> P.parse pFieldSelect "" "name::"
+-- Left (line 1, column 7):
+-- unexpected end of input
+-- expecting letter or digit
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
   try (
     do
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
-      cast' <- optionMaybe (string "::" *> many pIdentifierChar)
+      cast' <- optionMaybe (string "::" *> many1 pIdentifierChar)
       pEnd
       return $ SelectField fld (toS <$> cast') alias
   )

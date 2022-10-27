@@ -29,7 +29,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2444, Removed `db-pool-timeout` option, because this was removed upstream in hasql-pool. - @robx
  - #2343, PATCH requests that don't affect any rows no longer return 404 - @wolfgangwalther
- - #2537, Stricter parsing of query string. Instead of silently ignoring, the parser now throws on invalid syntax like json paths for embeddings, hints for regular columns, etc. - @wolfgangwalther
+ - #2537, Stricter parsing of query string. Instead of silently ignoring, the parser now throws on invalid syntax like json paths for embeddings, hints for regular columns, empty casts, etc. - @wolfgangwalther
 
 ### Deprecated
 
