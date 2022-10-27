@@ -136,3 +136,18 @@ spec = describe "computed relationships" $ do
     get "/fee?select=*,jsbaz(*,johnsmith(*, fee(*)))"
       `shouldRespondWith`
       [json|[]|] { matchHeaders = [matchContentTypeJson] }
+
+  it "creates queries with the right aliasing when following a normal embed" $ do
+    get "/projects?select=name,clients(name,computed_projects(name))&limit=1"
+      `shouldRespondWith`
+      [json|
+        [{"name":"Windows 7","clients":{"name":"Microsoft","computed_projects":{"name":"Windows 7"}}}]
+      |] { matchHeaders = [matchContentTypeJson] }
+    get "/clients?select=name,projects(name,computed_clients(name))&limit=1"
+      `shouldRespondWith`
+      [json|[
+        {"name":"Microsoft","projects":[
+          {"name":"Windows 7","computed_clients":{"name":"Microsoft"}},
+          {"name":"Windows 10","computed_clients":{"name":"Microsoft"}}
+        ]}
+      ]|] { matchHeaders = [matchContentTypeJson] }
