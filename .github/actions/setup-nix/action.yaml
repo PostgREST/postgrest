@@ -11,8 +11,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: cachix/install-nix-action@v16
-    - uses: cachix/cachix-action@v10
+    - uses: cachix/install-nix-action@v18
+    - uses: cachix/cachix-action@v12
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
