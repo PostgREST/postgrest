@@ -8,7 +8,7 @@ let
     dockerTools.buildImage {
       name = "postgrest";
       tag = "latest";
-      contents = postgrest;
+      copyToRoot = postgrest;
 
       # Set the current time as the image creation date. This makes the build
       # non-reproducible, but that should not be an issue for us.
