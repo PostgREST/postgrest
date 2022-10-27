@@ -12,14 +12,24 @@ import SpecHelper
 
 spec :: SpecWith ((), Application)
 spec = describe "computed relationships" $ do
-  it "can define a many-to-one relationship and embed" $
-    get "/videogames?select=name,designers:computed_designers(name)"
+  it "can define a many-to-one relationship with SETOF and ROWS 1 and embed" $
+    get "/videogames?select=name,designer:computed_designers(name)"
     `shouldRespondWith`
       [json|[
-        {"name":"Civilization I","designers":{"name":"Sid Meier"}},
-        {"name":"Civilization II","designers":{"name":"Sid Meier"}},
-        {"name":"Final Fantasy I","designers":{"name":"Hironobu Sakaguchi"}},
-        {"name":"Final Fantasy II","designers":{"name":"Hironobu Sakaguchi"}}
+        {"name":"Civilization I","designer":{"name":"Sid Meier"}},
+        {"name":"Civilization II","designer":{"name":"Sid Meier"}},
+        {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}},
+        {"name":"Final Fantasy II","designer":{"name":"Hironobu Sakaguchi"}}
+      ]|] { matchHeaders = [matchContentTypeJson] }
+
+  it "can define a many-to-one relationship without SETOF and embed" $
+    get "/videogames?select=name,designer:computed_designers_noset(name)"
+    `shouldRespondWith`
+      [json|[
+        {"name":"Civilization I","designer":{"name":"Sid Meier"}},
+        {"name":"Civilization II","designer":{"name":"Sid Meier"}},
+        {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}},
+        {"name":"Final Fantasy II","designer":{"name":"Hironobu Sakaguchi"}}
       ]|] { matchHeaders = [matchContentTypeJson] }
 
   it "can define a one-to-many relationship and embed" $
@@ -39,6 +49,16 @@ spec = describe "computed relationships" $ do
         , matchHeaders = ["Content-Range" <:> "0-0/1"]
         }
     request methodGet "/videogames?select=name,designer:computed_designers!inner(name)&designer.name=like.*Hironobu*"
+      [("Prefer", "count=exact")] ""
+      `shouldRespondWith`
+        [json|[
+          {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}},
+          {"name":"Final Fantasy II","designer":{"name":"Hironobu Sakaguchi"}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = ["Content-Range" <:> "0-1/2"]
+        }
+    request methodGet "/videogames?select=name,designer:computed_designers_noset!inner(name)&designer.name=like.*Hironobu*"
       [("Prefer", "count=exact")] ""
       `shouldRespondWith`
         [json|[

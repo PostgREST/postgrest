@@ -2737,6 +2737,10 @@ CREATE FUNCTION test.computed_designers(test.videogames) RETURNS SETOF test.desi
   SELECT * FROM test.designers WHERE id = $1.designer_id;
 $$ LANGUAGE sql STABLE ROWS 1;
 
+CREATE FUNCTION test.computed_designers_noset(test.videogames) RETURNS test.designers AS $$
+  SELECT * FROM test.designers WHERE id = $1.designer_id;
+$$ LANGUAGE sql STABLE;
+
 CREATE FUNCTION test.computed_videogames(test.designers) RETURNS SETOF test.videogames AS $$
   SELECT * FROM test.videogames WHERE designer_id = $1.id;
 $$ LANGUAGE sql STABLE;
