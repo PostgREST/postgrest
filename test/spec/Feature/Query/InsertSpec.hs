@@ -415,7 +415,7 @@ spec actualPgVersion = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)","code":"PGRST100","hint":null} |]
+          [json|  {"details":"unexpected end of input expecting field name (* or [a..z0..9_ $])","message":"\"failed to parse columns parameter ()\" (line 1, column 1)","code":"PGRST100","hint":null} |]
           { matchStatus  = 400
           , matchHeaders = []
           }
