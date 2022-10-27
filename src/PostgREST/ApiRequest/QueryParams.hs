@@ -518,6 +518,12 @@ pFieldSelect = lexeme $
            try (void $ lookAhead (string ",")) <|>
            try eof
 
+-- |
+-- Parse operator expression used in horizontal filtering
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "fts().value"
+-- Left (line 1, column 7):
+-- unknown single value operator fts()
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
@@ -541,7 +547,7 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
     pFts = do
       opStr <- try (P.many (noneOf ".("))
       op <- parseMaybe ("unknown fts operator " <> opStr) . ftsOperator $ toS opStr
-      lang <- optionMaybe $ try (between (char '(') (char ')') $ many pIdentifierChar)
+      lang <- optionMaybe $ try (between (char '(') (char ')') $ many1 pIdentifierChar)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
 
     parseMaybe :: [Char] -> Maybe a -> Parser a
