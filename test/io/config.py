@@ -41,6 +41,7 @@ def defaultenv(baseenv):
         "PGRST_DB_CONFIG": "true",
         "PGRST_LOG_LEVEL": "info",
         "PGRST_DB_POOL": "1",
+        "PGRST_NOT_EXISTING": "should not break any tests",
     }
 
 
