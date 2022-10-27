@@ -18,7 +18,6 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.HashMap.Strict       as HM
-import qualified Data.Set                  as S
 import           Data.Text.Read            (decimal)
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
@@ -121,21 +120,17 @@ updateResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
-      fullRepr = iPreferRepresentation == Full
-      updateIsNoOp = S.null iColumns
-      status
-        | rsQueryTotal == 0 && not updateIsNoOp = HTTP.status404
-        | fullRepr = HTTP.status200
-        | otherwise = HTTP.status204
       contentRangeHeader =
         RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount iPreferCount then Just rsQueryTotal else Nothing
       headers = [contentRangeHeader]
 
-    if fullRepr then
-        response status (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+    if iPreferRepresentation == Full then
+        response HTTP.status200
+          (headers ++ contentTypeHeaders ctxApiRequest)
+          (LBS.fromStrict rsBody)
       else
-        response status headers mempty
+        response HTTP.status204 headers mempty
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
