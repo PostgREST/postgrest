@@ -16,10 +16,12 @@ ALTER ROLE db_config_authenticator SET pgrst.db_prepared_statements = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.db_pre_request = 'test.custom_headers';
 ALTER ROLE db_config_authenticator SET pgrst.db_max_rows = '1000';
 ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, extensions';
+ALTER ROLE db_config_authenticator SET pgrst.not_existing = 'should be ignored';
 
 -- override with database specific setting
 ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.jwt_secret = 'OVERRIDE=REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
 ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.db_extra_search_path = 'public, extensions, private';
+ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.not_existing = 'should be ignored';
 
 -- other database settings that should be ignored
 CREATE DATABASE other;
