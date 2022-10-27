@@ -22,12 +22,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2343, Return status code 200 for PATCH requests which don't affect any rows - @wolfgangwalther
  - #2481, Treat computed relationships not marked SETOF as M2O/O2O relationship - @wolfgangwalther
  - #2534, Fix embedding a computed relationship with a normal relationship - @steve-chavez
+ - #2362, Fix error message when [] is used inside select - @wolfgangwalther
+ - #2475, Disallow !inner on computed columns - @wolfgangwalther
 
 ### Changed
 
  - #2444, Removed `db-pool-timeout` option, because this was removed upstream in hasql-pool. - @robx
  - #2343, PATCH requests that don't affect any rows no longer return 404 - @wolfgangwalther
- - #2537, Stricter parsing of query string. Instead of silently ignoring, the parser now throws on invalid syntax like json paths for embeddings etc. - @wolfgangwalther
+ - #2537, Stricter parsing of query string. Instead of silently ignoring, the parser now throws on invalid syntax like json paths for embeddings, hints for regular columns, etc. - @wolfgangwalther
 
 ### Deprecated
 

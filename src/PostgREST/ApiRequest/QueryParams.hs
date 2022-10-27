@@ -313,6 +313,11 @@ pTreePath = do
 --
 -- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
+--
+-- >>> P.parse pFieldForest "" "id,clients(name[])"
+-- Left (line 1, column 16):
+-- unexpected '['
+-- expecting letter, digit, "-", "!", "(", "->>", "->", "::", ")", "," or end of input
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
@@ -451,6 +456,16 @@ pRelationSelect = lexeme $ try ( do
 --
 -- >>> P.parse pFieldSelect "" "*"
 -- Right (SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing})
+--
+-- >>> P.parse pFieldSelect "" "name!hint"
+-- Left (line 1, column 5):
+-- unexpected '!'
+-- expecting letter, digit, "-", "->>", "->", "::", ")", "," or end of input
+--
+-- >>> P.parse pFieldSelect "" "*!hint"
+-- Left (line 1, column 2):
+-- unexpected '!'
+-- expecting ")", "," or end of input
 pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $
   try (
@@ -458,11 +473,17 @@ pFieldSelect = lexeme $
       alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
       fld <- pField
       cast' <- optionMaybe (string "::" *> many pIdentifierChar)
+      pEnd
       return $ SelectField fld (toS <$> cast') alias
   )
   <|> do
     s <- pStar
+    pEnd
     return $ SelectField (s, []) Nothing Nothing
+  where
+    pEnd = try (void $ lookAhead (string ")")) <|>
+           try (void $ lookAhead (string ",")) <|>
+           try eof
 
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
