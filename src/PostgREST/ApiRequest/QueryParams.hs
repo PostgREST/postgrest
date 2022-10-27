@@ -328,11 +328,39 @@ pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
 pStar :: Parser Text
 pStar = string "*" $> "*"
 
+-- |
+-- Parse field names
+--
+-- >>> P.parse pFieldName "" "identifier"
+-- Right "identifier"
+--
+-- >>> P.parse pFieldName "" "identifier with spaces"
+-- Right "identifier with spaces"
+--
+-- >>> P.parse pFieldName "" "identifier-with-dashes"
+-- Right "identifier-with-dashes"
+--
+-- >>> P.parse pFieldName "" "123"
+-- Right "123"
+--
+-- >>> P.parse pFieldName "" "_"
+-- Right "_"
+--
+-- >>> P.parse pFieldName "" "$"
+-- Right "$"
+--
+-- >>> P.parse pFieldName "" ":"
+-- Left (line 1, column 1):
+-- unexpected ":"
+-- expecting field name (* or [a..z0..9_ $])
+--
+-- >>> P.parse pFieldName "" "\":\""
+-- Right ":"
 pFieldName :: Parser Text
 pFieldName =
   pQuotedValue <|>
   T.intercalate "-" . map toS <$> (many1 pIdentifierChar `sepBy1` dash) <?>
-  "field name (* or [a..z0..9_])"
+  "field name (* or [a..z0..9_ $])"
   where
     isDash :: GenParser Char st ()
     isDash = try ( char '-' >> notFollowedBy (char '>') )
