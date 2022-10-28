@@ -40,7 +40,7 @@ let
         )"
 
         repo_url="https://hub.docker.com/v2/repositories/$DOCKER_REPO/postgrest/"
-        echo "Patching both descriptions at $repo_url ..." 
+        echo "Patching both descriptions at $repo_url ..."
         ${curl}/bin/curl --fail -X PATCH "$repo_url" \
           -H "Authorization: JWT $token" \
           --data-urlencode description@${description} \
@@ -51,7 +51,7 @@ let
     checkedShellScript
       {
         name = "postgrest-release";
-        docs = "Patch postgrest.cabal, tag and push all in one go.";
+        docs = "Patch postgrest.cabal, CHANGELOG.md, tag and push all in one go.";
         args = [ "ARG_POSITIONAL_SINGLE([version], [Version to release], [pre])" ];
         inRootDir = true;
       }
@@ -69,7 +69,9 @@ let
         IFS=. read -r major minor patch pre <<< "$current_version"
         echo "Current version is $current_version"
 
-        bump_pre="$major.$minor.$patch.$(date '+%Y%m%d')"
+        today_date="$(date '+%Y%m%d')"
+        today_date_for_changelog="$(date '+%Y-%m-%d')"
+        bump_pre="$major.$minor.$patch.$today_date"
         bump_patch="$major.$minor.$((patch+1))"
         bump_minor="$major.$((minor+1)).0"
         bump_major="$((major+1)).0.0"
@@ -92,6 +94,13 @@ let
 
         echo "Committing ..."
         git add postgrest.cabal > /dev/null
+
+        if [[ "$new_version" != "$bump_pre" ]]; then
+          echo "Updating CHANGELOG.md ..."
+          sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
+          git add CHANGELOG.md > /dev/null
+        fi
+
         git commit -m "bump version to $new_version" > /dev/null
 
         echo "Tagging ..."
@@ -107,9 +116,9 @@ let
         echo
         echo "$push"
         echo
-        
+
         read -r -p 'Proceed? (y/N) ' REPLY
-        case "$REPLY" in 
+        case "$REPLY" in
           y|Y)
             $push
             ;;
