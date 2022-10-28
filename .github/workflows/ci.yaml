@@ -43,7 +43,7 @@ jobs:
         with:
           tools: tests
 
-      - name: Run coverage (IO tests and Spec tests against PostgreSQL 14)
+      - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@v3.1.1
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgVersion: [9.6, 10, 11, 12, 13, 14]
+        pgVersion: [9.6, 10, 11, 12, 13, 14, 15]
     name: Test PG ${{ matrix.pgVersion }} (Nix)
     runs-on: ubuntu-latest
     defaults:

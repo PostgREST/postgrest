@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2362, Fix error message when [] is used inside select - @wolfgangwalther
  - #2475, Disallow !inner on computed columns - @wolfgangwalther
  - #2285, Ignore leading and trailing spaces in column names when parsing the query string - @wolfgangwalther
+ - #2545, Fix UPSERT with PostgreSQL 15 - @wolfgangwalther
 
 ### Changed
 

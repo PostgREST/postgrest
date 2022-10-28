@@ -94,7 +94,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
       if null oncCols then
         mempty
       else
-        "ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
+        " ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
         IgnoreDuplicates ->
           "DO NOTHING"
         MergeDuplicates  ->
