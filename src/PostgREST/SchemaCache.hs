@@ -804,6 +804,7 @@ allViewsKeyDependencies =
         select
           contype::text as contype,
           conname,
+          array_length(conkey, 1) as ncol,
           conrelid as resorigtbl,
           col as resorigcol,
           ord
@@ -815,6 +816,7 @@ allViewsKeyDependencies =
         select
           concat(contype, '_ref') as contype,
           conname,
+          array_length(confkey, 1) as ncol,
           confrelid,
           col,
           ord
@@ -980,7 +982,9 @@ allViewsKeyDependencies =
       join pg_class tbl on tbl.oid = rep.resorigtbl
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rep.resorigcol
       join pg_namespace sch on sch.oid = tbl.relnamespace
-      group by sch.nspname, tbl.relname,  rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype
+      group by sch.nspname, tbl.relname,  rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype, pks_fks.ncol
+      -- make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs
+      having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
 
 param :: HE.Value a -> HE.Params a
