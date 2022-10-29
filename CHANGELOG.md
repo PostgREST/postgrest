@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #2548, Fix regression when embedding views with partial references to multi column FKs - @wolfgangwalther
+
 ## [10.1.0] - 2022-10-28
 
 ### Added

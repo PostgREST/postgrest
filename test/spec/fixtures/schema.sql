@@ -2980,3 +2980,19 @@ select parent.parent as grandparent,
        join public.i2459_self_t as child
          on child.parent = parent.id
  where child.type = 'B';
+
+-- issue https://github.com/PostgREST/postgrest/issues/2548
+CREATE TABLE public.ta (
+  a1 INT PRIMARY KEY,
+  a2 INT,
+  UNIQUE (a1, a2)
+);
+
+CREATE TABLE public.tb (
+  b1 INT REFERENCES public.ta (a1),
+  b2 INT,
+  FOREIGN KEY (b1, b2) REFERENCES public.ta (a1, a2)
+);
+
+CREATE VIEW test.va AS SELECT a1 FROM public.ta;
+CREATE VIEW test.vb AS SELECT b1 FROM public.tb;

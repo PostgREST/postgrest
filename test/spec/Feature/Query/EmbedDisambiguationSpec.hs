@@ -563,3 +563,6 @@ spec =
               }
             ]|]
           { matchHeaders = [matchContentTypeJson] }
+
+    it "should not expose hidden FKs" $
+      get "/va?select=vb(*)" `shouldRespondWith` 200
