@@ -52,7 +52,8 @@ import PostgREST.SchemaCache.Proc         (ProcDescription (..),
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
-                                           RelationshipsMap)
+                                           RelationshipsMap,
+                                           relIsToOne)
 import PostgREST.SchemaCache.Table        (tablePKCols)
 
 import PostgREST.Plan.CallPlan
@@ -96,6 +97,7 @@ readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Eit
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+  addRelatedOrders =<<
   addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
   addLogicTrees apiRequest =<<
   addRanges apiRequest =<<
@@ -298,6 +300,28 @@ addOrders ApiRequest{..} rReq =
 
     addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
     addOrderToNode = updateNode (\o (Node q f) -> Node q{order=o} f)
+
+-- Validates that the related resource on the order is an embedded resource,
+-- e.g. if `clients` is inside the `select` in /projects?order=clients(id)&select=*,clients(*),
+-- and if it's a to-one relationship, it adds the right alias to the OrderRelationTerm so the generated query can succeed.
+-- TODO might be clearer if there's an additional intermediate type
+addRelatedOrders :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
+  newOrder <- getRelOrder `traverse` order
+  Node rp{order=newOrder} <$> addRelatedOrders `traverse` forest
+  where
+    getRelOrder ot@OrderTerm{}                   = Right ot
+    getRelOrder ot@OrderRelationTerm{otRelation} =
+      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> Just otRelation `elem` [Just relName, relAlias] ) forest in
+      case foundRP of
+        Just ReadPlan{relName,relAlias,relAggAlias,relToParent} ->
+          let isToOne = relIsToOne <$> relToParent
+              name    = fromMaybe relName relAlias in
+          if isToOne == Just True
+            then Right $ ot{otRelation=relAggAlias}
+            else Left $ NotToOne (qiName from) name
+        Nothing ->
+          Left $ NotEmbedded otRelation
 
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =

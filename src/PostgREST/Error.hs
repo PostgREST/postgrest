@@ -64,6 +64,8 @@ instance PgrstError ApiRequestError where
   status InvalidRpcMethod{}      = HTTP.status405
   status InvalidRange{}          = HTTP.status416
   status NotFound                = HTTP.status404
+  status NotToOne{}              = HTTP.status400
+
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
   status NotEmbedded{}           = HTTP.status400
@@ -123,7 +125,7 @@ instance JSON.ToJSON ApiRequestError where
   toJSON NotFound = JSON.object []
   toJSON (NotEmbedded resource) = JSON.object [
     "code"    .= ApiRequestErrorCode08,
-    "message" .= ("Cannot apply filter because '" <> resource <> "' is not an embedded resource in this request" :: Text),
+    "message" .= ("'" <> resource <> "' is not an embedded resource in this request" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
 
@@ -151,11 +153,18 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
+  toJSON (NotToOne origin target) = JSON.object [
+    "code"    .= ApiRequestErrorCode18,
+    "message" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON (NoRelBetween parent child schema) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
     "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
     "details" .= JSON.Null,
     "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text)]
+
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "code"    .= SchemaCacheErrorCode01,
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
@@ -461,6 +470,7 @@ data ErrorCode
   | ApiRequestErrorCode15
   | ApiRequestErrorCode16
   | ApiRequestErrorCode17
+  | ApiRequestErrorCode18
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -502,6 +512,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode15  -> "115"
   ApiRequestErrorCode16  -> "116"
   ApiRequestErrorCode17  -> "117"
+  ApiRequestErrorCode18  -> "118"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"

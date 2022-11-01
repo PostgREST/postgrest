@@ -826,3 +826,9 @@ INSERT INTO country(id, name) VALUES (1, 'Afghanistan'), (2, 'Algeria');
 
 TRUNCATE TABLE capital CASCADE;
 INSERT INTO capital(id, name, country_id) VALUES (1, 'Kabul', 1), (2, 'Algiers', 2);
+
+TRUNCATE TABLE trash CASCADE;
+INSERT INTO trash(id) VALUES (1), (2), (3);
+
+TRUNCATE TABLE trash_details CASCADE;
+INSERT INTO trash_details(id,jsonb_col) VALUES (1,'{"key": 10}'), (2,'{"key": 6}'), (3,'{"key": 8}');
