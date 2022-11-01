@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #1414, Add related orders - @steve-chavez
+  + On a many-to-one or one-to-one relationship, you can order a parent by a child column `/projects?select=*,clients(*)&order=clients(name).desc.nullsfirst`
+
+### Fixed
+
 ## [10.1.1] - 2022-11-08
 
 ### Fixed

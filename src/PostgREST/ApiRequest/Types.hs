@@ -64,6 +64,7 @@ data ApiRequestError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
+  | NotToOne Text Text
   | NoRelBetween Text Text Text
   | NoRpc Text Text [Text] Bool MediaType Bool
   | NotEmbedded Text
@@ -82,12 +83,19 @@ data RangeError
 type NodeName = Text
 type Depth = Integer
 
-data OrderTerm = OrderTerm
-  { otTerm      :: Field
-  , otDirection :: Maybe OrderDirection
-  , otNullOrder :: Maybe OrderNulls
-  }
-  deriving (Eq)
+data OrderTerm
+  = OrderTerm
+    { otTerm      :: Field
+    , otDirection :: Maybe OrderDirection
+    , otNullOrder :: Maybe OrderNulls
+    }
+  | OrderRelationTerm
+    { otRelation  :: FieldName
+    , otRelTerm   :: Field
+    , otDirection :: Maybe OrderDirection
+    , otNullOrder :: Maybe OrderNulls
+    }
+  deriving Eq
 
 data OrderDirection
   = OrderAsc

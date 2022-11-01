@@ -244,11 +244,15 @@ pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
-  pgFmtField qi (otTerm ot) <> " " <>
+  fmtOTerm ot <> " " <>
   SQL.sql (BS.unwords [
     maybe mempty direction $ otDirection ot,
     maybe mempty nullOrder $ otNullOrder ot])
   where
+    fmtOTerm = \case
+      OrderTerm{otTerm}                        -> pgFmtField qi otTerm
+      OrderRelationTerm{otRelation, otRelTerm} -> pgFmtField (QualifiedIdentifier mempty otRelation) otRelTerm
+
     direction OrderAsc  = "ASC"
     direction OrderDesc = "DESC"
 

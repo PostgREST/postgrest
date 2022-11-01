@@ -2996,3 +2996,12 @@ CREATE TABLE public.tb (
 
 CREATE VIEW test.va AS SELECT a1 FROM public.ta;
 CREATE VIEW test.vb AS SELECT b1 FROM public.tb;
+
+create table test.trash(
+  id int primary key
+);
+
+create table test.trash_details(
+  id int primary key references test.trash(id),
+  jsonb_col jsonb
+);

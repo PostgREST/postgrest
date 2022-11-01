@@ -291,7 +291,7 @@ spec actualPgVersion = do
           {"hint":"Verify that 'non_existent_projects' is included in the 'select' query parameter.",
            "details":null,
            "code":"PGRST108",
-           "message":"Cannot apply filter because 'non_existent_projects' is not an embedded resource in this request"}|]
+           "message":"'non_existent_projects' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -300,7 +300,7 @@ spec actualPgVersion = do
           {"hint":"Verify that 'amiga_projectsss' is included in the 'select' query parameter.",
            "details":null,
            "code":"PGRST108",
-           "message":"Cannot apply filter because 'amiga_projectsss' is not an embedded resource in this request"}|]
+           "message":"'amiga_projectsss' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -309,7 +309,7 @@ spec actualPgVersion = do
           {"hint":"Verify that 'tasks2' is included in the 'select' query parameter.",
            "details":null,
            "code":"PGRST108",
-           "message":"Cannot apply filter because 'tasks2' is not an embedded resource in this request"}|]
+           "message":"'tasks2' is not an embedded resource in this request"}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }

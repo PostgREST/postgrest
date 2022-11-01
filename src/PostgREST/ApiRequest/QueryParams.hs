@@ -594,16 +594,33 @@ pDelimiter = char '.' <?> "delimiter (.)"
 --
 -- >>> P.parse pOrder "" "json_col->key.asc.nullslast"
 -- Right [OrderTerm {otTerm = ("json_col",[JArrow {jOp = JKey {jVal = "key"}}]), otDirection = Just OrderAsc, otNullOrder = Just OrderNullsLast}]
+--
+-- >>> P.parse pOrder "" "clients(json_col->key).desc.nullsfirst"
+-- Right [OrderRelationTerm {otRelation = "clients", otRelTerm = ("json_col",[JArrow {jOp = JKey {jVal = "key"}}]), otDirection = Just OrderDesc, otNullOrder = Just OrderNullsFirst}]
+--
+-- >>> P.parse pOrder "" "clients(name,id)"
+-- Left (line 1, column 8):
+-- unexpected '('
+-- expecting letter, digit, "-", "->>", "->", delimiter (.), "," or end of input
+--
+-- >>> P.parse pOrder "" "name,clients(name),id"
+-- Right [OrderTerm {otTerm = ("name",[]), otDirection = Nothing, otNullOrder = Nothing},OrderRelationTerm {otRelation = "clients", otRelTerm = ("name",[]), otDirection = Nothing, otNullOrder = Nothing},OrderTerm {otTerm = ("id",[]), otDirection = Nothing, otNullOrder = Nothing}]
 pOrder :: Parser [OrderTerm]
-pOrder = lexeme pOrderTerm `sepBy1` char ','
+pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
   where
-    pOrderTerm :: Parser OrderTerm
     pOrderTerm = do
       fld <- pField
       dir <- optionMaybe pOrdDir
       nls <- optionMaybe pNulls <* pEnd <|>
              pEnd $> Nothing
       return $ OrderTerm fld dir nls
+
+    pOrderRelationTerm = do
+      nam <- pFieldName
+      fld <- between (char '(') (char ')') pField
+      dir <- optionMaybe pOrdDir
+      nls <- optionMaybe pNulls <* pEnd <|> pEnd $> Nothing
+      return $ OrderRelationTerm nam fld dir nls
 
     pNulls :: Parser OrderNulls
     pNulls = try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst) <|>

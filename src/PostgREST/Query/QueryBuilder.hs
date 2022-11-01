@@ -27,7 +27,8 @@ import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Proc         (ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
-                                           Relationship (..))
+                                           Relationship (..),
+                                           relIsToOne)
 
 import PostgREST.ApiRequest.Types
 import PostgREST.Plan.CallPlan
@@ -63,12 +64,7 @@ getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, re
     aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
       (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
-    isToOne = case rel of
-      Relationship{relCardinality=M2O _ _} -> True
-      Relationship{relCardinality=O2O _ _} -> True
-      ComputedRelationship{relToOne=True}  -> True
-      _                                    -> False
-    (sel, joi) = if isToOne
+    (sel, joi) = if relIsToOne rel
       then
         ( SQL.sql ("row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName)
         , correlatedSubquery subquery aggAlias "TRUE")

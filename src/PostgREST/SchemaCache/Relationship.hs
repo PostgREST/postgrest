@@ -6,6 +6,7 @@ module PostgREST.SchemaCache.Relationship
   , Relationship(..)
   , Junction(..)
   , RelationshipsMap
+  , relIsToOne
   ) where
 
 import qualified Data.Aeson          as JSON
@@ -62,3 +63,10 @@ data Junction = Junction
 
 -- | Key based on the source table and the foreign table schema
 type RelationshipsMap = HM.HashMap (QualifiedIdentifier, Schema)  [Relationship]
+
+relIsToOne :: Relationship -> Bool
+relIsToOne rel = case rel of
+  Relationship{relCardinality=M2O _ _} -> True
+  Relationship{relCardinality=O2O _ _} -> True
+  ComputedRelationship{relToOne=True}  -> True
+  _                                    -> False
