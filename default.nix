@@ -37,7 +37,7 @@ let
       allOverlays.checked-shell-script
       allOverlays.gitignore
       allOverlays.postgis
-      allOverlays.postgresql-default
+      (allOverlays.postgresql-default { inherit patches; })
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
       (allOverlays.haskell-packages { inherit compiler; })

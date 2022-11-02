@@ -35,7 +35,7 @@ let
   overlays =
     [
       allOverlays.postgresql-future
-      allOverlays.postgresql-default
+      (allOverlays.postgresql-default { inherit patches; })
       (allOverlays.haskell-packages { inherit compiler extraOverrides; })
       # Disable failing tests for postgresql on musl that should have no impact
       # on the libpq that we need (collate.icu.utf8 and foreign regression
