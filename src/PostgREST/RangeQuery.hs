@@ -12,6 +12,7 @@ module PostgREST.RangeQuery (
 , allRange
 , limitZeroRange
 , hasLimitZero
+, convertToLimitZeroRange
 , NonnegRange
 , rangeStatusHeader
 , contentRangeH
@@ -85,6 +86,12 @@ limitZeroRange = Range (BoundaryBelow 0) (BoundaryAbove (-1))
 
 hasLimitZero :: Range Integer -> Bool
 hasLimitZero r = rangeUpper r == rangeUpper limitZeroRange
+
+-- Used to convert a range into a special limitZeroRange if it has a
+-- limit=0 in order to bypass validations for empty ranges.
+convertToLimitZeroRange :: Range Integer -> Range Integer -> Range Integer
+convertToLimitZeroRange range fallbackRange =
+  if hasLimitZero range then limitZeroRange else fallbackRange
 
 rangeStatusHeader :: NonnegRange -> Int64 -> Maybe Int64 -> (Status, Header)
 rangeStatusHeader topLevelRange queryTotal tableTotal =

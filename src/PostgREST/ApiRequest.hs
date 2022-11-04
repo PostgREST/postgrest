@@ -59,8 +59,8 @@ import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
+                                          convertToLimitZeroRange,
                                           hasLimitZero,
-                                          limitZeroRange,
                                           rangeRequested)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (FieldName,
@@ -354,7 +354,7 @@ apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName
 
   -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
   -- limit=0 is present in the query params (not allowed for the Range header)
-  ranges = HM.insert "limit" (if hasLimitZero limitRange then limitZeroRange else headerAndLimitRange) qsRanges
+  ranges = HM.insert "limit" (convertToLimitZeroRange limitRange headerAndLimitRange) qsRanges
   -- The only emptyRange allowed is the limit zero range
   isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
 
