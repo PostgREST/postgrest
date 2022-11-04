@@ -40,8 +40,7 @@ import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Error                    (Error (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
-                                           hasLimitZero,
-                                           limitZeroRange,
+                                           convertToLimitZeroRange,
                                            restrictRange)
 import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName,
@@ -125,7 +124,7 @@ treeRestrictRange _ (ActionMutate _) request = Right request
 treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
-    nodeRestrictRange m q@ReadPlan{range_=r} = q{range_= if hasLimitZero r then limitZeroRange else restrictRange m r }
+    nodeRestrictRange m q@ReadPlan{range_=r} = q{range_= convertToLimitZeroRange r (restrictRange m r) }
 
 -- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode(https://stackoverflow.com/questions/22721064/get-the-parent-of-a-node-in-data-tree-haskell#comment34627048_22721064)
 -- also adds aliasing
