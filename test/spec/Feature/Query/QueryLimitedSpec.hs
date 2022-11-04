@@ -114,3 +114,10 @@ spec =
               { "first_name": "Daniel B.", "last_name": "Lyon" },
               { "first_name": "Edwin S.", "last_name": "Smith" } ]|]
             { matchStatus  = 200 }
+
+    context "max-rows is set and limits are requested" $ do
+      it "should work with limit 0" $
+        get "/items?limit=0"
+          `shouldRespondWith`
+            [json| [] |]
+            { matchHeaders = ["Content-Range" <:> "*/*"] }
