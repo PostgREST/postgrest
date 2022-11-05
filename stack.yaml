@@ -18,7 +18,7 @@ extra-deps:
   - hasql-dynamic-statements-0.3.1.2
   - hasql-implicits-0.1.0.5
   - hasql-notifications-0.2.0.3
-  - hasql-pool-0.8.0.2
+  - hasql-pool-0.8.0.6
   - hasql-transaction-1.0.1.2
   - isomorphism-class-0.1.0.6
   - lens-aeson-1.1.3

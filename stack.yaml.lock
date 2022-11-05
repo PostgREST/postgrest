@@ -61,12 +61,12 @@ packages:
   original:
     hackage: hasql-notifications-0.2.0.3
 - completed:
-    hackage: hasql-pool-0.8.0.2@sha256:15473f336c2bd1da161cd03635841f38b0c177d7b8662762c8708c239a428f04,1907
+    hackage: hasql-pool-0.8.0.6@sha256:b63bb83409bab5bc20ff24f5d62205e9b117701a0fc24531ddeac20ab8c2a42c,1818
     pantry-tree:
-      size: 505
-      sha256: 495dfdf8b7f7d910e2e8a7a7e8d71c8dbf9d439e048de5bc2a66a762011cbdc2
+      size: 346
+      sha256: c4100946b7eae44375511e35a393abe2e1db0e5637c68cea8f53176b796bfd5b
   original:
-    hackage: hasql-pool-0.8.0.2
+    hackage: hasql-pool-0.8.0.6
 - completed:
     hackage: hasql-transaction-1.0.1.2@sha256:297b158cd1f0727f9b0e175bd7d3741c1bcb725a8094956d0ee79b41aafdb30a,2890
     pantry-tree:
