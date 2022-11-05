@@ -89,7 +89,7 @@ library
                     , hasql                     >= 1.6.1.1 && < 1.7
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.1 && < 0.3
-                    , hasql-pool                >= 0.8.0.2 && < 0.9
+                    , hasql-pool                >= 0.8.0.6 && < 0.9
                     , hasql-transaction         >= 1.0.1 && < 1.1
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
