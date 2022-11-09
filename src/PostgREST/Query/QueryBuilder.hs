@@ -57,23 +57,25 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
-getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType=joinType} _) (selects,joins) =
+getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} _) (selects,joins) =
   let
     subquery = readPlanToQuery rr
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
     aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
-      (if joinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
+      (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
     (sel, joi) = if relIsToOne rel
       then
-        ( SQL.sql ("row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName)
+        ( if relIsSpread
+            then SQL.sql aggAlias <> ".*"
+            else SQL.sql ("row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName)
         , correlatedSubquery subquery aggAlias "TRUE")
       else
         ( SQL.sql $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName
         , correlatedSubquery (
             "SELECT json_agg(" <> SQL.sql aggAlias <> ") AS " <> SQL.sql aggAlias <>
             "FROM (" <> subquery <> " ) AS " <> SQL.sql aggAlias
-          ) aggAlias $ if joinType == Just JTInner then SQL.sql aggAlias <> " IS NOT NULL" else "TRUE")
+          ) aggAlias $ if relJoinType == Just JTInner then SQL.sql aggAlias <> " IS NOT NULL" else "TRUE")
   in
   (sel:selects, joi:joins)
 

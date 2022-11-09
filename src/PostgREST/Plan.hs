@@ -97,6 +97,7 @@ readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Eit
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+  validateSpreadEmbeds =<<
   addRelatedOrders =<<
   addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
   addLogicTrees apiRequest =<<
@@ -110,15 +111,23 @@ initReadRequest qi@QualifiedIdentifier{..} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
-    treeEntry depth (Node SelectRelation{..} fldForest) (Node q rForest) =
+    treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
-        Node q $
-          foldr (treeEntry nxtDepth)
-          (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
-          fldForest:rForest
-    treeEntry _ (Node SelectField{..} _) (Node q rForest) = Node q{select=(selField, selCast, selAlias):select q} rForest
+      case si of
+        SelectRelation{..} ->
+          Node q $
+            foldr (treeEntry nxtDepth)
+            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth} [])
+            fldForest:rForest
+        SpreadRelation{..} ->
+          Node q $
+            foldr (treeEntry nxtDepth)
+            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
+            fldForest:rForest
+        SelectField{..} ->
+          Node q{select=(selField, selCast, selAlias):select q} rForest
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -343,6 +352,15 @@ addLogicTrees ApiRequest{..} rReq =
 
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
     addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{where_=lf} f) -> Node q{ReadPlan.where_=t:lf} f)
+
+-- Validates that spread embeds are only done on to-one relationships
+validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+validateSpreadEmbeds (Node rp@ReadPlan{relToParent=Nothing} forest) = Node rp <$> validateSpreadEmbeds `traverse` forest
+validateSpreadEmbeds (Node rp@ReadPlan{relIsSpread,relToParent=Just rel,relName} forest) = do
+  validRP <- if relIsSpread && not (relIsToOne rel)
+    then Left $ SpreadNotToOne (qiName $ relTable rel) relName -- TODO using relTable is not entirely right because ReadPlan might have an alias, need to store the parent alias on ReadPlan
+    else Right rp
+  Node validRP <$> validateSpreadEmbeds `traverse` forest
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree

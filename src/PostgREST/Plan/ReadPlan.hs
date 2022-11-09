@@ -41,6 +41,7 @@ data ReadPlan = ReadPlan
   , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
+  , relIsSpread  :: Bool
   , depth        :: Depth
   -- ^ used for aliasing
   }
