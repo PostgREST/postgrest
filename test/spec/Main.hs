@@ -56,6 +56,7 @@ import qualified Feature.Query.RawOutputTypesSpec
 import qualified Feature.Query.RelatedQueriesSpec
 import qualified Feature.Query.RpcSpec
 import qualified Feature.Query.SingularSpec
+import qualified Feature.Query.SpreadQueriesSpec
 import qualified Feature.Query.UnicodeSpec
 import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
@@ -151,6 +152,7 @@ main = do
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
+        , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
         ]
 
   hspec $ do

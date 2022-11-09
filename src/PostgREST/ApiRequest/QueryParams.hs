@@ -46,7 +46,8 @@ import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    Filter (..), FtsOperator (..),
-                                   JoinType (..), JsonOperand (..),
+                                   Hint, JoinType (..),
+                                   JsonOperand (..),
                                    JsonOperation (..), JsonPath,
                                    ListVal, LogicOperator (..),
                                    LogicTree (..), OpExpr (..),
@@ -317,6 +318,9 @@ pTreePath = do
 -- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 --
+-- >>> P.parse pFieldForest "" "*,..client(*),other(*)"
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+--
 -- >>> P.parse pFieldForest "" "id,clients(name[])"
 -- Left (line 1, column 16):
 -- unexpected '['
@@ -325,7 +329,8 @@ pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
     pFieldTree :: Parser (Tree SelectItem)
-    pFieldTree =  try (Node <$> pRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
+    pFieldTree =  try (Node <$> pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
+                  try (Node <$> pRelationSelect       <*> between (char '(') (char ')') pFieldForest) <|>
                   Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
@@ -454,24 +459,10 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ try ( do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     name <- pFieldName
-    prm1 <- optionMaybe pEmbedParam
-    prm2 <- optionMaybe pEmbedParam
+    (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
-    return $ SelectRelation name alias (embedParamHint prm1 <|> embedParamHint prm2) (embedParamJoin prm1 <|> embedParamJoin prm2)
+    return $ SelectRelation name alias hint jType
   )
-  where
-    pEmbedParam :: Parser EmbedParam
-    pEmbedParam =
-      char '!' *> (
-        try (string "left"  $> EPJoinType JTLeft)  <|>
-        try (string "inner" $> EPJoinType JTInner) <|>
-        try (EPHint <$> pFieldName))
-    embedParamHint prm = case prm of
-      Just (EPHint hint) -> Just hint
-      _                  -> Nothing
-    embedParamJoin prm = case prm of
-      Just (EPJoinType jt) -> Just jt
-      _                    -> Nothing
 
 -- |
 -- Parse regular fields in select
@@ -526,6 +517,55 @@ pFieldSelect = lexeme $
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
            try eof
+
+-- |
+-- Parse spread relations in select
+--
+-- >>> P.parse pSpreadRelationSelect "" "..rel(*)"
+-- Right (SpreadRelation {selRelation = "rel", selHint = Nothing, selJoinType = Nothing})
+--
+-- >>> P.parse pSpreadRelationSelect "" "..rel!hint!inner(*)"
+-- Right (SpreadRelation {selRelation = "rel", selHint = Just "hint", selJoinType = Just JTInner})
+--
+-- >>> P.parse pSpreadRelationSelect "" "rel(*)"
+-- Left (line 1, column 1):
+-- unexpected "r"
+-- expecting "..."
+--
+-- >>> P.parse pSpreadRelationSelect "" "alias:..rel(*)"
+-- Left (line 1, column 1):
+-- unexpected "a"
+-- expecting ".."
+--
+-- >>> P.parse pSpreadRelationSelect "" "..rel->jsonpath(*)"
+-- Left (line 1, column 8):
+-- unexpected '>'
+pSpreadRelationSelect :: Parser SelectItem
+pSpreadRelationSelect = lexeme $ try ( do
+    name <- string ".." >> pFieldName
+    (hint, jType) <- pEmbedParams
+    try (void $ lookAhead (string "("))
+    return $ SpreadRelation name hint jType
+  )
+
+pEmbedParams :: Parser (Maybe Hint, Maybe JoinType)
+pEmbedParams = do
+  prm1 <- optionMaybe pEmbedParam
+  prm2 <- optionMaybe pEmbedParam
+  return (embedParamHint prm1 <|> embedParamHint prm2, embedParamJoin prm1 <|> embedParamJoin prm2)
+  where
+    pEmbedParam :: Parser EmbedParam
+    pEmbedParam =
+      char '!' *> (
+        try (string "left"  $> EPJoinType JTLeft)  <|>
+        try (string "inner" $> EPJoinType JTInner) <|>
+        try (EPHint <$> pFieldName))
+    embedParamHint prm = case prm of
+      Just (EPHint hint) -> Just hint
+      _                  -> Nothing
+    embedParamJoin prm = case prm of
+      Just (EPJoinType jt) -> Just jt
+      _                    -> Nothing
 
 -- |
 -- Parse operator expression used in horizontal filtering

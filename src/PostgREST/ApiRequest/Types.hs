@@ -38,16 +38,23 @@ import PostgREST.SchemaCache.Relationship (Relationship)
 
 import Protolude
 
--- | The select value in `/tbl?select=alias:field::cast`
+-- | The value in `/tbl?select=alias:field::cast`
 data SelectItem
   = SelectField
     { selField :: Field
     , selCast  :: Maybe Cast
     , selAlias :: Maybe Alias
     }
+-- | The value in `/tbl?select=alias:another_tbl(*)`
   | SelectRelation
     { selRelation :: FieldName
     , selAlias    :: Maybe Alias
+    , selHint     :: Maybe Hint
+    , selJoinType :: Maybe JoinType
+    }
+-- | The value in `/tbl?select=...another_tbl(*)`
+  | SpreadRelation
+    { selRelation :: FieldName
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }
@@ -71,6 +78,7 @@ data ApiRequestError
   | ParseRequestError Text Text
   | PutRangeNotAllowedError
   | QueryParamError QPError
+  | SpreadNotToOne Text Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
 
