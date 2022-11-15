@@ -12,7 +12,7 @@ There are three types of roles used by PostgREST, the **authenticator**, **anony
 
 .. image:: _static/security-roles.png
 
-The authenticator should be created :code:`NOINHERIT` and configured in the database to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests. The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role.
+The authenticator should be created :code:`NOINHERIT` and configured in the database to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests. The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role (if it's set in :ref:`db-anon-role`).
 
 .. image:: _static/security-anon-choice.png
 
@@ -399,6 +399,27 @@ Public User Interface
 
 In the previous section we created an internal table to store user information. Here we create a login function which takes an email address and password and returns JWT if the credentials match a user in the internal table.
 
+Permissions
+~~~~~~~~~~~
+
+Your database roles need access to the schema, tables, views and functions in order to service HTTP requests.
+Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and
+anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
+
+.. code-block:: postgres
+
+  -- the names "anon" and "authenticator" are configurable and not
+  -- sacred, we simply choose them for clarity
+  create role anon noinherit;
+  create role authenticator noinherit;
+  grant anon to authenticator;
+
+Then, add ``db-anon-role`` to the configuration file to allow anonymous requests.
+
+.. code:: ini
+
+  db-anon-role = "anon"
+
 Logins
 ~~~~~~
 
@@ -436,6 +457,12 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
   end;
   $$ language plpgsql security definer;
 
+  grant execute on function login(text,text) to anon;
+
+Since the above :code:`login` function is defined as `security definer <https://www.postgresql.org/docs/current/sql-createfunction.html#id-1.9.3.67.10.2>`_,
+the anonymous user :code:`anon` doesn't need permission to read the :code:`basic_auth.users` table. It doesn't even need permission to access the :code:`basic_auth` schema.
+:code:`grant execute on function` is included for clarity but it might not be needed, see :ref:`func_privs` for more details.
+
 An API request to call this function would look like:
 
 .. tabs::
@@ -459,24 +486,3 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
   {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicGFzcyI6ImZvb2JhciJ9.37066TTRlh-1hXhnA9oO9Pj6lgL6zFuJU0iCHhuCFno"
   }
-
-Permissions
-~~~~~~~~~~~
-
-Your database roles need access to the schema, tables, views and functions in order to service HTTP requests.
-Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and
-anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
-
-.. code-block:: postgres
-
-  -- the names "anon" and "authenticator" are configurable and not
-  -- sacred, we simply choose them for clarity
-  create role anon noinherit;
-  create role authenticator noinherit;
-  grant anon to authenticator;
-
-  grant execute on function login(text,text) to anon;
-
-Since the above :code:`login` function is defined as `security definer <https://www.postgresql.org/docs/current/sql-createfunction.html#id-1.9.3.67.10.2>`_,
-the anonymous user :code:`anon` doesn't need permission to read the :code:`basic_auth.users` table. It doesn't even need permission to access the :code:`basic_auth` schema.
-:code:`grant execute on function` is included for clarity but it might not be needed, see :ref:`func_privs` for more details.
