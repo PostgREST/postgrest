@@ -52,9 +52,9 @@ The result will be a file named simply :code:`postgrest` (or :code:`postgrest.ex
 
 .. code-block:: bash
 
-  ./postgrest
+  ./postgrest -h
 
-If everything is working correctly it will print out its version and information about configuration. You can continue to run this binary from where you downloaded it, or copy it to a system directory like :code:`/usr/local/bin` on Linux so that you will be able to run it from any directory.
+If everything is working correctly it will print out its version and the available options. You can continue to run this binary from where you downloaded it, or copy it to a system directory like :code:`/usr/local/bin` on Linux so that you will be able to run it from any directory.
 
 .. note::
 
