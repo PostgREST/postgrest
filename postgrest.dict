@@ -14,7 +14,6 @@ Beles
 booleans
 Bouscal
 buildpack
-bugfixes
 Bytea
 Cardano
 cd
@@ -204,5 +203,3 @@ Websockets
 webuser
 wfts
 ZeroMQ
-Customizable
-customizable

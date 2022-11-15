@@ -38,7 +38,7 @@ Example Apps
 * `ext-postgrest-crud <https://github.com/timwis/ext-postgrest-crud>`_ - browser-based spreadsheet
 * `general <https://github.com/PierreRochard/general>`_ - example auth back-end
 * `goodfilm <https://github.com/tyrchen/goodfilm>`_ - example film API
-* `guild-operators <https://github.com/cardano-community/guild-operators/tree/alpha/files/grest>`_ - example queries and functions that the Cardano Community uses for their Guild Operators' Repository
+* `guild-operators <https://github.com/cardano-community/koios-artifacts/tree/main/files/grest>`_ - example queries and functions that the Cardano Community uses for their Guild Operators' Repository
 * `handsontable-postgrest <https://github.com/timwis/handsontable-postgrest>`_ - an excel-like database table editor
 * `heritage-near-me <https://github.com/CodeforAustralia/heritage-near-me>`_ - Elm and PostgREST with PostGIS
 * `ng-admin-postgrest <https://github.com/marmelab/ng-admin-postgrest>`_ - automatic database admin panel
