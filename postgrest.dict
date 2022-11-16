@@ -104,6 +104,7 @@ ORM
 ov
 passphrase
 Pawel
+PBKDF
 Pelletier
 Petr
 PgBouncer
@@ -113,6 +114,7 @@ pgrst
 pgrstX
 PGRSTX
 pgSQL
+authid
 phfts
 phraseto
 plainto
@@ -123,6 +125,8 @@ PostGIS
 PostgreSQL
 PostgreSQL's
 PostgREST
+postgres
+postgres's
 postgrest
 PostgREST's
 pre

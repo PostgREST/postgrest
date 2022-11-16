@@ -305,6 +305,8 @@ Schema Isolation
 
 You can isolate your api schema from internal implementation details, as explained in :ref:`schema_isolation`. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
 
+.. _sql_user_management:
+
 SQL User Management
 ===================
 
@@ -486,3 +488,9 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
   {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImZvb0BiYXIuY29tIiwicGFzcyI6ImZvb2JhciJ9.37066TTRlh-1hXhnA9oO9Pj6lgL6zFuJU0iCHhuCFno"
   }
+
+
+Alternatives
+~~~~~~~~~~~~
+
+See the how-to :ref:`sql-user-management-using-postgres-users-and-passwords` for a similar way that completely avoids the table :code:`basic_auth.users`.
