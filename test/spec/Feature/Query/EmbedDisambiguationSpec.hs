@@ -68,10 +68,8 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
 
-      it "errs when there are more than two fks on a junction table(currently impossible to disambiguate, only choice is to split the table)" $
+      it "errs when there are more than two fks on a junction table but it can be disambiguated with spread embeds" $ do
         -- We have 4 possibilities for doing the junction JOIN here.
-        -- This could be solved by specifying two additional fks, like whatev_projects!fk1!fk2(*)
-        -- If the need arises this capability can be added later without causing a breaking change
         get "/whatev_sites?select=*,whatev_projects(*)" `shouldRespondWith`
           [json|
             {
@@ -105,6 +103,11 @@ spec =
           { matchStatus  = 300
           , matchHeaders = [matchContentTypeJson]
           }
+        -- Each of those 4 possibilities can be done with spread embeds, by following the details in the error above
+        get "/whatev_sites?select=*,whatev_jobs!site_id_1(..whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_1(..whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_2(..whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_2(..whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
 
       it "errs on an ambiguous embed that has two one-to-one relationships" $
         get "/first?select=second(*)" `shouldRespondWith`
