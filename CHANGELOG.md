@@ -9,8 +9,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1414, Add related orders - @steve-chavez
    + On a many-to-one or one-to-one relationship, you can order a parent by a child column `/projects?select=*,clients(*)&order=clients(name).desc.nullsfirst`
- - #1233, #1907, Allow spreading embedded resources - @steve-chavez
+ - #1233, #1907, #2566, Allow spreading embedded resources - @steve-chavez
    + On a many-to-one or one-to-one relationship, you can unnest a json object with `/projects?select=*,..clients(client_name:name)`
+   + Allows including the join table columns when resource embedding
    + Allows disambiguating a recursive m2m embed
    + Allows disambiguating an embed that has a many-to-many relationship using two foreign keys on a junction
 

@@ -84,3 +84,31 @@ spec =
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
+
+    it "can include or exclude attributes of the junction on a m2m" $ do
+      get "/users?select=*,tasks:users_tasks(*,..tasks(*))&limit=1" `shouldRespondWith`
+        [json|[{
+          "id":1,"name":"Angela Martin",
+          "tasks": [
+            {"user_id":1,"task_id":1,"id":1,"name":"Design w7","project_id":1},
+            {"user_id":1,"task_id":2,"id":2,"name":"Code w7","project_id":1},
+            {"user_id":1,"task_id":3,"id":3,"name":"Design w10","project_id":2},
+            {"user_id":1,"task_id":4,"id":4,"name":"Code w10","project_id":2}
+          ]
+        }]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/users?select=*,tasks:users_tasks(..tasks(*))&limit=1" `shouldRespondWith`
+        [json|[{
+          "id":1,"name":"Angela Martin",
+          "tasks":[
+            {"id":1,"name":"Design w7","project_id":1},
+            {"id":2,"name":"Code w7","project_id":1},
+            {"id":3,"name":"Design w10","project_id":2},
+            {"id":4,"name":"Code w10","project_id":2}
+          ]
+        }]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
