@@ -328,7 +328,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
               name    = fromMaybe relName relAlias in
           if isToOne == Just True
             then Right $ ot{otRelation=relAggAlias}
-            else Left $ NotToOne (qiName from) name
+            else Left $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
           Left $ NotEmbedded otRelation
 

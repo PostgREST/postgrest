@@ -71,13 +71,13 @@ data ApiRequestError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
-  | NotToOne Text Text
   | NoRelBetween Text Text Text
   | NoRpc Text Text [Text] Bool MediaType Bool
   | NotEmbedded Text
   | ParseRequestError Text Text
   | PutRangeNotAllowedError
   | QueryParamError QPError
+  | RelatedOrderNotToOne Text Text
   | SpreadNotToOne Text Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString

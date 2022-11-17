@@ -64,7 +64,6 @@ instance PgrstError ApiRequestError where
   status InvalidRpcMethod{}      = HTTP.status405
   status InvalidRange{}          = HTTP.status416
   status NotFound                = HTTP.status404
-  status NotToOne{}              = HTTP.status400
 
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
@@ -72,6 +71,7 @@ instance PgrstError ApiRequestError where
   status ParseRequestError{}     = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
   status QueryParamError{}       = HTTP.status400
+  status RelatedOrderNotToOne{}  = HTTP.status400
   status SpreadNotToOne{}        = HTTP.status400
   status UnacceptableSchema{}    = HTTP.status406
   status UnsupportedMethod{}     = HTTP.status405
@@ -154,10 +154,10 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON (NotToOne origin target) = JSON.object [
+  toJSON (RelatedOrderNotToOne origin target) = JSON.object [
     "code"    .= ApiRequestErrorCode18,
-    "message" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
-    "details" .= JSON.Null,
+    "message" .= ("A related order on '" <> target <> "' is not possible" :: Text),
+    "details" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
     "hint"    .= JSON.Null]
 
   toJSON (SpreadNotToOne origin target) = JSON.object [
