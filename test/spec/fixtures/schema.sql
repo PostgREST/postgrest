@@ -3026,3 +3026,14 @@ LANGUAGE sql
 AS $$
   select * from test.yards;
 $$;
+
+create table test.posters(
+  id int primary key,
+  name text
+);
+
+create table test.subscriptions(
+  subscriber int references test.posters(id),
+  subscribed int references test.posters(id),
+  primary key(subscriber, subscribed)
+);

@@ -832,3 +832,9 @@ INSERT INTO trash(id) VALUES (1), (2), (3);
 
 TRUNCATE TABLE trash_details CASCADE;
 INSERT INTO trash_details(id,jsonb_col) VALUES (1,'{"key": 10}'), (2,'{"key": 6}'), (3,'{"key": 8}');
+
+TRUNCATE TABLE posters CASCADE;
+INSERT INTO posters(id,name) VALUES (1,'Mark'), (2,'Elon'), (3,'Bill'), (4,'Jeff');
+
+TRUNCATE TABLE subscriptions CASCADE;
+INSERT INTO subscriptions(subscriber,subscribed) VALUES (3,1), (4,1), (1,2);
