@@ -107,17 +107,32 @@ spec =
 
     it "fails when is not a to-one relationship" $ do
       get "/clients?select=*,projects(*)&order=projects(id)" `shouldRespondWith`
-        [json|{"code":"PGRST118","details":null,"hint":null,"message":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship"}|]
+        [json|{
+          "code":"PGRST118",
+          "details":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship",
+          "hint":null,
+          "message":"A related order on 'projects' is not possible"
+        }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/clients?select=*,pros:projects(*)&order=pros(id)" `shouldRespondWith`
-        [json|{"code":"PGRST118","details":null,"hint":null,"message":"'clients' and 'pros' do not form a many-to-one or one-to-one relationship"}|]
+        [json|{
+          "code":"PGRST118",
+          "details":"'clients' and 'pros' do not form a many-to-one or one-to-one relationship",
+          "hint":null,
+          "message":"A related order on 'pros' is not possible"
+        }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/designers?select=id,computed_videogames(id)&order=computed_videogames(id).desc" `shouldRespondWith`
-        [json|{"code":"PGRST118","details":null,"hint":null,"message":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship"}|]
+        [json|{
+          "code":"PGRST118",
+          "details":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship",
+          "hint":null,
+          "message":"A related order on 'computed_videogames' is not possible"
+        }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
