@@ -406,7 +406,8 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
-    typedColumnsOrError = mapStopOnLeft (resolveOrError (HM.lookup qi $ dbTables sCache)) $ S.toList iColumns
+    tbl = HM.lookup qi $ dbTables sCache
+    typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound
@@ -414,13 +415,6 @@ resolveOrError (Just table) field =
   case resolveTableField table field of
     Nothing         -> Left $ ColumnNotFound field
     Just typedField -> Right typedField
-
-mapStopOnLeft :: (a -> Either b c) -> [a] -> Either b [c]
-mapStopOnLeft _ [] = Right []
-mapStopOnLeft f (x:xs) =
-  case f x of
-    Left e  -> Left e
-    Right y -> (y:) <$> mapStopOnLeft f xs
 
 callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
 callPlan proc apiReq readReq = FunctionCall {
