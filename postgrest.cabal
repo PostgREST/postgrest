@@ -197,6 +197,7 @@ test-suite spec
                       Feature.Query.DeleteSpec
                       Feature.Query.EmbedDisambiguationSpec
                       Feature.Query.EmbedInnerJoinSpec
+                      Feature.Query.ExtraOperatorsSpec
                       Feature.Query.PlanSpec
                       Feature.Query.HtmlRawOutputSpec
                       Feature.Query.InsertSpec
@@ -245,6 +246,7 @@ test-suite spec
                     , regex-tdfa        >= 1.2.2 && < 1.4
                     , text              >= 1.2.2 && < 1.3
                     , transformers-base >= 0.4.4 && < 0.5
+                    , unordered-containers >= 0.2.8 && < 0.3
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.2
   ghc-options:        -O0 -Werror -Wall -fwarn-identities
@@ -285,6 +287,7 @@ test-suite querycost
                     , process           >= 1.4.2 && < 1.7
                     , protolude         >= 0.3.1 && < 0.4
                     , regex-tdfa        >= 1.2.2 && < 1.4
+                    , unordered-containers >= 0.2.8 && < 0.3
                     , wai-extra         >= 3.0.19 && < 3.2
   ghc-options:        -O0 -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path

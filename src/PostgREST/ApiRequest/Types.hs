@@ -223,6 +223,7 @@ data SimpleOperator
   | OpAdjacent
   | OpMatch
   | OpIMatch
+  | OpCustom ByteString
   deriving Eq
 
 -- | Operators for full text search operators

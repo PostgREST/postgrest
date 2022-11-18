@@ -42,6 +42,7 @@ import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
+import qualified Feature.Query.ExtraOperatorsSpec
 import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
@@ -117,6 +118,7 @@ main = do
       testCfgLegacyGucsApp = app testCfgLegacyGucs
       planEnabledApp       = app testPlanEnabledCfg
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
+      extraOpsApp          = app testCfgExtraOperators
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -246,6 +248,9 @@ main = do
     -- this test runs with a pre request to enable the pg-safeupdate library per-session
     parallel $ before pgSafeUpdateApp $
       describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
+
+    parallel $ before extraOpsApp $
+      describe "Feature.Query.ExtraOperatorsSpec.spec" Feature.Query.ExtraOperatorsSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

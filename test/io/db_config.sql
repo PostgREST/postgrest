@@ -17,6 +17,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_pre_request = 'test.custom_heade
 ALTER ROLE db_config_authenticator SET pgrst.db_max_rows = '1000';
 ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, extensions';
 ALTER ROLE db_config_authenticator SET pgrst.not_existing = 'should be ignored';
+ALTER ROLE db_config_authenticator SET pgrst.db_extra_operators = 'fuzzy:%, ltreefts:@';
 
 -- override with database specific setting
 ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.jwt_secret = 'OVERRIDE=REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
@@ -60,6 +61,7 @@ ALTER ROLE other_authenticator SET pgrst.db_max_rows = '100';
 ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensions, other';
 ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';
 ALTER ROLE other_authenticator SET pgrst.openapi_security_active = 'false';
+ALTER ROLE other_authenticator SET pgrst.db_extra_operators = 'ltreefts:@, fuzzy:%';
 
 -- authenticator used for tests that manipulate statement timeout
 CREATE ROLE timeout_authenticator LOGIN NOINHERIT;

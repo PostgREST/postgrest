@@ -182,7 +182,7 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf sCache req reqBody = do
-  qPrms <- first QueryParamError $ QueryParams.parse $ rawQueryString req
+  qPrms <- first QueryParamError $ QueryParams.parse (configDbExtraOperators conf) $ rawQueryString req
   pInfo <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo $ requestMethod req
   mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo

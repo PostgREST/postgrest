@@ -24,6 +24,7 @@ module PostgREST.Config
   , readPGRSTEnvironment
   , toURI
   , parseSecret
+  , ExtraOperators
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -33,6 +34,7 @@ import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.Configurator      as C
+import qualified Data.HashMap.Strict    as HM
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
@@ -96,7 +98,10 @@ data AppConfig = AppConfig
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
+  , configDbExtraOperators         :: ExtraOperators
   }
+
+type ExtraOperators = HM.HashMap Text ByteString
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
 
@@ -126,6 +131,7 @@ toText conf =
       [("db-anon-role",              q . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
+      ,("db-extra-operators",        q . showExtraOperators . configDbExtraOperators)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
@@ -172,6 +178,7 @@ toText conf =
       where
         secret = fromMaybe mempty $ configJwtSecret c
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
+    showExtraOperators m = T.intercalate "," $ (\(k, v) -> k <> ":" <> decodeUtf8 v) <$> HM.toList m
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
 -- because C.required and C.optional have different signatures
@@ -250,6 +257,7 @@ parser optPath env dbSettings =
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> optInt "admin-server-port"
+    <*> parseExtraOperators "db-extra-operators"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
@@ -321,6 +329,12 @@ parser optPath env dbSettings =
       optWithAlias (optString k) (optString al) >>= \case
         Nothing  -> pure [JSPKey "role"]
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
+
+    parseExtraOperators :: C.Key -> C.Parser C.Config ExtraOperators
+    parseExtraOperators k =
+      optString k >>= \case
+        Nothing  -> pure HM.empty
+        Just val -> pure $ HM.fromList $ (\(x, y) -> (T.strip x, T.encodeUtf8 $ T.strip $ T.drop 1 y)) <$> (T.breakOn ":" . T.strip <$> T.splitOn "," val)
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =

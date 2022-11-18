@@ -3037,3 +3037,5 @@ create table test.subscriptions(
   subscribed int references test.posters(id),
   primary key(subscriber, subscribed)
 );
+
+create extension if not exists pg_trgm with schema public;

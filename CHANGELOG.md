@@ -14,6 +14,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Allows including the join table columns when resource embedding
    + Allows disambiguating a recursive m2m embed
    + Allows disambiguating an embed that has a many-to-many relationship using two foreign keys on a junction
+ - #2028, Allow adding custom operators with the `db-extra-operators` config - @steve-chavez
+   + The format is a comma separated list of `<alias>:<operator`, e.g. `db-extra-operators = "fuzzy:%, ltreefts:@"`
 
 ### Fixed
 

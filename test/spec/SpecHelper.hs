@@ -3,6 +3,7 @@ module SpecHelper where
 import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
+import qualified Data.HashMap.Strict    as HM
 import qualified Data.Map.Strict        as M
 import qualified Data.Set               as S
 
@@ -105,6 +106,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbTxAllowOverride     = True
   , configDbTxRollbackAll       = True
   , configAdminServerPort       = Nothing
+  , configDbExtraOperators      = HM.empty
   }
 
 testCfg :: AppConfig
@@ -199,6 +201,9 @@ testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
 testPgSafeUpdateEnabledCfg :: AppConfig
 testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }
+
+testCfgExtraOperators :: AppConfig
+testCfgExtraOperators = baseCfg { configDbExtraSearchPath = ["public"], configDbExtraOperators = HM.fromList [("fuzzy", "%"), ("ltreefts", "@")] }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

@@ -39,6 +39,7 @@ import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
                                       optionMaybe, sepBy1, string,
                                       try, (<?>))
 
+import PostgREST.Config                  (ExtraOperators)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
                                           rangeOffset, restrictRange)
@@ -112,36 +113,36 @@ data QueryParams =
 --
 -- The canonical representation of the query string has parameters sorted alphabetically:
 --
--- >>> qsCanonical <$> parse "a=1&c=3&b=2&d"
+-- >>> qsCanonical <$> parse HM.empty "a=1&c=3&b=2&d"
 -- Right "a=1&b=2&c=3&d="
 --
 -- 'select' is a reserved parameter that selects the fields to be returned:
 --
--- >>> qsSelect <$> parse "select=name,location"
+-- >>> qsSelect <$> parse HM.empty "select=name,location"
 -- Right [Node {rootLabel = SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectField {selField = ("location",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- Filters are parameters whose value contains an operator, separated by a '.' from its value:
 --
--- >>> qsFilters <$> parse "a.b=eq.0"
+-- >>> qsFilters <$> parse HM.empty "a.b=eq.0"
 -- Right [(["a"],Filter {field = ("b",[]), opExpr = OpExpr False (Op OpEqual "0")})]
 --
 -- If the operator specified in a filter does not exist, parsing the query string fails:
 --
--- >>> qsFilters <$> parse "a.b=noop.0"
+-- >>> qsFilters <$> parse HM.empty "a.b=noop.0"
 -- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 6)" "unknown single value operator noop")
-parse :: ByteString -> Either QPError QueryParams
-parse qs =
+parse :: ExtraOperators -> ByteString -> Either QPError QueryParams
+parse extraOperators qs =
   QueryParams
     canonical
     params
     ranges
     <$> pRequestOrder `traverse` order
-    <*> pRequestLogicTree `traverse` logic
+    <*> pRequestLogicTree extraOperators `traverse` logic
     <*> pRequestColumns columns
     <*> pRequestSelect select
-    <*> pRequestFilter `traverse` filters
-    <*> (fmap snd <$> (pRequestFilter `traverse` filtersRoot))
-    <*> pRequestFilter `traverse` filtersNotRoot
+    <*> pRequestFilter extraOperators `traverse` filters
+    <*> (fmap snd <$> (pRequestFilter extraOperators `traverse` filtersRoot))
+    <*> pRequestFilter extraOperators `traverse` filtersNotRoot
     <*> pure (S.fromList (fst <$> filters))
     <*> sequenceA (pRequestOnConflict <$> onConflict)
   where
@@ -188,7 +189,7 @@ parse qs =
         "not" : _ : _ -> True
         "is" : _      -> True
         "in" : _      -> True
-        x : _         -> isJust (operator x) || isJust (ftsOperator x)
+        x : _         -> isJust (operator extraOperators x) || isJust (ftsOperator x)
         _             -> False
 
     hasFtsOperator val =
@@ -213,8 +214,8 @@ parse qs =
         offsetParams =
           HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
 
-operator :: Text -> Maybe SimpleOperator
-operator = \case
+operator :: ExtraOperators -> Text -> Maybe SimpleOperator
+operator extraOperators = \case
   "eq"     -> Just OpEqual
   "gte"    -> Just OpGreaterThanEqual
   "gt"     -> Just OpGreaterThan
@@ -233,7 +234,7 @@ operator = \case
   "adj"    -> Just OpAdjacent
   "match"  -> Just OpMatch
   "imatch" -> Just OpIMatch
-  _        -> Nothing
+  other    -> OpCustom <$> HM.lookup other extraOperators
 
 ftsOperator :: Text -> Maybe FtsOperator
 ftsOperator = \case
@@ -244,9 +245,6 @@ ftsOperator = \case
   _       -> Nothing
 
 
--- PARSERS
-
-
 pRequestSelect :: Text -> Either QPError [Tree SelectItem]
 pRequestSelect selStr =
   mapError $ P.parse pFieldForest ("failed to parse select parameter (" <> toS selStr <> ")") (toS selStr)
@@ -255,11 +253,11 @@ pRequestOnConflict :: Text -> Either QPError [FieldName]
 pRequestOnConflict oncStr =
   mapError $ P.parse pColumns ("failed to parse on_conflict parameter (" <> toS oncStr <> ")") (toS oncStr)
 
-pRequestFilter :: (Text, Text) -> Either QPError (EmbedPath, Filter)
-pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
+pRequestFilter :: ExtraOperators -> (Text, Text) -> Either QPError (EmbedPath, Filter)
+pRequestFilter extraOperators (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
-    oper = P.parse (pOpExpr pSingleVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = P.parse (pOpExpr extraOperators pSingleVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -276,8 +274,8 @@ pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
 
-pRequestLogicTree :: (Text, Text) -> Either QPError (EmbedPath, LogicTree)
-pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
+pRequestLogicTree :: ExtraOperators -> (Text, Text) -> Either QPError (EmbedPath, LogicTree)
+pRequestLogicTree extraOperators (k, v) = mapError $ (,) <$> embedPath <*> logicTree
   where
     path = P.parse pLogicPath ("failed to parse logic path (" ++ toS k ++ ")") $ toS k
     embedPath = fst <$> path
@@ -285,7 +283,7 @@ pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
       op <- snd <$> path
       -- Concat op and v to make pLogicTree argument regular,
       -- in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
-      P.parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") $ toS (op <> v)
+      P.parse (pLogicTree extraOperators) ("failed to parse logic tree (" ++ toS v ++ ")") $ toS (op <> v)
 
 pRequestColumns :: Maybe Text -> Either QPError (Maybe (S.Set FieldName))
 pRequestColumns colStr =
@@ -570,11 +568,11 @@ pEmbedParams = do
 -- |
 -- Parse operator expression used in horizontal filtering
 --
--- >>> P.parse (pOpExpr pSingleVal) "" "fts().value"
+-- >>> P.parse (pOpExpr HM.empty pSingleVal) "" "fts().value"
 -- Left (line 1, column 7):
 -- unknown single value operator fts()
-pOpExpr :: Parser SingleVal -> Parser OpExpr
-pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
+pOpExpr :: ExtraOperators -> Parser SingleVal -> Parser OpExpr
+pOpExpr extraOperators pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
   where
     pOperation :: Parser Operation
     pOperation = pIn <|> pIs <|> try pFts <|> pOp <?> "operator (eq, gt, ...)"
@@ -584,7 +582,7 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
 
     pOp = do
       opStr <- try (P.manyTill anyChar (try pDelimiter))
-      op <- parseMaybe ("unknown single value operator " <> opStr) . operator $ toS opStr
+      op <- parseMaybe ("unknown single value operator " <> opStr) . operator extraOperators $ toS opStr
       Op op <$> pSVal
 
     pTriVal = try (ciString "null"    $> TriNull)
@@ -672,12 +670,13 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
 
     pEnd = try (void $ lookAhead (char ',')) <|> try eof
 
-pLogicTree :: Parser LogicTree
-pLogicTree = Stmnt <$> try pLogicFilter
-             <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
+pLogicTree :: ExtraOperators -> Parser LogicTree
+pLogicTree extraOperators =
+  Stmnt <$> try pLogicFilter <|>
+  Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree extraOperators `sepBy1` lexeme (char ',') <* lexeme (char ')'))
   where
     pLogicFilter :: Parser Filter
-    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr pLogicSingleVal
+    pLogicFilter = Filter <$> pField <* pDelimiter <*> pOpExpr extraOperators pLogicSingleVal
     pNot :: Parser Bool
     pNot = try (string "not" *> pDelimiter $> True)
            <|> pure False
