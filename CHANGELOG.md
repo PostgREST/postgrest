@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #2565, Fix bad M2M embedding on RPC - @steve-chavez
+
 ## [10.1.1] - 2022-11-08
 
 ### Fixed

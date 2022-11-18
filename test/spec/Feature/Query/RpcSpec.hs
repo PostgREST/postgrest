@@ -246,12 +246,16 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{"id": 2, "articleStars": [{"userId": 3}]}|]
 
-      it "can embed an M2M relationship table" $
+      it "can embed an M2M relationship table" $ do
         get "/rpc/getallusers?select=name,tasks(name)&id=gt.1"
           `shouldRespondWith` [json|[
             {"name":"Michael Scott", "tasks":[{"name":"Design IOS"}, {"name":"Code IOS"}, {"name":"Design OSX"}]},
             {"name":"Dwight Schrute","tasks":[{"name":"Design w7"}, {"name":"Design IOS"}]}
           ]|]
+          { matchHeaders = [matchContentTypeJson] }
+        -- https://github.com/PostgREST/postgrest/issues/2565
+        get "/rpc/get_yards?select=groups(*)"
+          `shouldRespondWith` [json|[]|]
           { matchHeaders = [matchContentTypeJson] }
 
       it "can embed an M2M relationship table that has a parent relationship table" $

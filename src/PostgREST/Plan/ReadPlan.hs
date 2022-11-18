@@ -1,8 +1,6 @@
-{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.Plan.ReadPlan
   ( ReadPlanTree
   , ReadPlan(..)
-  , fstFieldNames
   , JoinCondition(..)
   ) where
 
@@ -45,8 +43,3 @@ data ReadPlan = ReadPlan
   -- ^ used for aliasing
   }
   deriving (Eq)
-
--- First level FieldNames(e.g get a,b from /table?select=a,b,other(c,d))
-fstFieldNames :: ReadPlanTree -> [FieldName]
-fstFieldNames (Node ReadPlan{select} _) =
-  fst . (\(f, _, _) -> f) <$> select
