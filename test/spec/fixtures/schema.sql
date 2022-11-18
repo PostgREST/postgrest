@@ -3005,3 +3005,24 @@ create table test.trash_details(
   id int primary key references test.trash(id),
   jsonb_col jsonb
 );
+
+CREATE TABLE test.groups (
+    name text PRIMARY KEY
+);
+
+CREATE TABLE test.yards (
+    id bigint PRIMARY KEY
+);
+
+CREATE TABLE test.group_yard (
+    id bigint NOT NULL,
+    group_id text NOT NULL REFERENCES test.groups(name),
+    yard_id bigint NOT NULL REFERENCES test.yards(id),
+    PRIMARY KEY (id, group_id, yard_id)
+);
+
+CREATE FUNCTION test.get_yards() RETURNS SETOF test.yards
+LANGUAGE sql
+AS $$
+  select * from test.yards;
+$$;

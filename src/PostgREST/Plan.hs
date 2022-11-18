@@ -399,7 +399,7 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
     returnings =
       if iPreferRepresentation == None
         then []
-        else returningCols readReq pkCols
+        else inferColsEmbedNeeds readReq pkCols
     pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables sCache
     logic = map snd qsLogic
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
@@ -413,7 +413,7 @@ callPlan proc apiReq readReq = FunctionCall {
 , funCArgs = payRaw <$> iPayload apiReq
 , funCScalar = procReturnsScalar proc
 , funCMultipleCall = iPreferParameters apiReq == Just MultipleObjects
-, funCReturning = returningCols readReq []
+, funCReturning = inferColsEmbedNeeds readReq []
 }
   where
     paramsAsSingleObject = iPreferParameters apiReq == Just SingleObject
@@ -424,14 +424,15 @@ callPlan proc apiReq readReq = FunctionCall {
       prms  -> KeyParams $ specifiedParams prms
     specifiedParams = filter (\x -> ppName x `S.member` iColumns apiReq)
 
-returningCols :: ReadPlanTree -> [FieldName] -> [FieldName]
-returningCols rr@(Node _ forest) pkCols
+-- | Infers the columns needed for an embed to be successful after a mutation or a function call.
+inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> [FieldName]
+inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   -- if * is part of the select, we must not add pk or fk columns manually -
   -- otherwise those would be selected and output twice
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = fstFieldNames rr
+    fldNames = (\((fld, _), _, _) -> fld) <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
@@ -445,8 +446,8 @@ returningCols rr@(Node _ forest) pkCols
           Just $ fst <$> cols
         Node ReadPlan{relToParent=Just Relationship{relCardinality=O2O _ cols}} _ ->
           Just $ fst <$> cols
-        Node ReadPlan{relToParent=Just Relationship{relCardinality=M2M Junction{junColumns1, junColumns2}}} _ ->
-          Just $ (fst <$> junColumns1) ++ (fst <$> junColumns2)
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=M2M Junction{junColsSource=cols}}} _ ->
+          Just $ fst <$> cols
         Node ReadPlan{relToParent=Just ComputedRelationship{}} _ ->
           Nothing
         Node ReadPlan{relToParent=Nothing} _ ->
