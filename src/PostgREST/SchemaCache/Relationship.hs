@@ -55,8 +55,8 @@ data Junction = Junction
   { junTable       :: QualifiedIdentifier
   , junConstraint1 :: FKConstraint
   , junConstraint2 :: FKConstraint
-  , junColumns1    :: [(FieldName, FieldName)]
-  , junColumns2    :: [(FieldName, FieldName)]
+  , junColsSource  :: [(FieldName, FieldName)]
+  , junColsTarget  :: [(FieldName, FieldName)]
   }
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 

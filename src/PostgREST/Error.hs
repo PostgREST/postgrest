@@ -193,7 +193,7 @@ compressedRel Relationship{..} =
     : case relCardinality of
         M2M Junction{..} -> [
             "cardinality" .= ("many-to-many" :: Text)
-          , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColumns1) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColumns2))
+          , "relationship" .= (qiName junTable <> " using " <> junConstraint1 <> fmtEls (snd <$> junColsSource) <> " and " <> junConstraint2 <> fmtEls (snd <$> junColsTarget))
           ]
         M2O cons relColumns -> [
             "cardinality" .= ("many-to-one" :: Text)
