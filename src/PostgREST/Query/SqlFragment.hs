@@ -30,6 +30,7 @@ module PostgREST.Query.SqlFragment
   , pgFmtLogicTree
   , pgFmtOrderTerm
   , pgFmtSelectItem
+  , pgFmtSelectFromJson
   , responseHeadersF
   , responseStatusF
   , returningF
@@ -47,6 +48,7 @@ import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.ByteString.Lazy            as LBS
 import qualified Data.HashMap.Strict             as HM
+import qualified Data.Set                        as S
 import qualified Data.Text                       as T
 import qualified Data.Text.Encoding              as T
 import qualified Hasql.DynamicStatements.Snippet as SQL
@@ -74,6 +76,7 @@ import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
 import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
+import PostgREST.Plan.Types              (TypedField (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
@@ -326,6 +329,20 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
     where lastKey = jVal <$> find (\case JKey{} -> True; _ -> False) (jOp <$> reverse jp)
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
+
+pgFmtSelectFromJson :: S.Set TypedField -> SQL.Snippet
+pgFmtSelectFromJson fields =
+  SQL.sql "SELECT " <> parsedCols <> " " <>
+  (if S.null fields
+    -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
+    -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
+    -- part). But we still need to ensure as many rows are created as there are array elements.
+    then SQL.sql ("FROM json_array_elements (" <> selectBody <> ") _ ")
+    else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
+  )
+  where
+    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfFieldName <$> S.toList fields
+    typedCols = BS.intercalate ", " $ pgFmtIdent . tfFieldName <> const " " <> encodeUtf8 . tfIRType <$> S.toList fields
 
 countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SqlFragment)
 countF countQuery shouldCount =

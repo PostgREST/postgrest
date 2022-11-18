@@ -81,25 +81,11 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
   in
   (if null select && null forest then selects else sel:selects, joi:joins)
 
-pgSelectFromJson :: S.Set TypedField -> SQL.Snippet
-pgSelectFromJson fields =
-  SQL.sql "SELECT " <> parsedCols <> " " <>
-  (if S.null fields
-    -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
-    -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
-    -- part). But we still need to ensure as many rows are created as there are array elements.
-    then SQL.sql ("FROM json_array_elements (" <> selectBody <> ") _ ")
-    else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
-  )
-  where
-    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfFieldName <$> S.toList fields
-    typedCols = BS.intercalate ", " $ pgFmtIdent . tfFieldName <> const " " <> encodeUtf8 . tfIRType <$> S.toList fields
-
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
   "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
-  pgSelectFromJson iCols <>
+  pgFmtSelectFromJson iCols <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -131,13 +117,13 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
   | range == allRange =
     "WITH " <> normalizedBody body <> " " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    "FROM (" <> pgSelectFromJson uCols <> ") AS _ " <>
+    "FROM (" <> pgFmtSelectFromJson uCols <> ") AS _ " <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
     "WITH " <> normalizedBody body <> ", " <>
-    "pgrst_update_body AS (" <> pgSelectFromJson uCols <> " LIMIT 1), " <>
+    "pgrst_update_body AS (" <> pgFmtSelectFromJson uCols <> " LIMIT 1), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
