@@ -19,7 +19,7 @@ data TypedField = TypedField
    { tfFieldName :: FieldName
    , tfJsonPath  :: JsonPath
    , tfIRType    :: Text
-   } deriving (Eq, Ord)
+   } deriving (Eq)
 
 resolveField :: Field -> Text -> TypedField
 resolveField (fieldName, jsonPath) = TypedField fieldName jsonPath
