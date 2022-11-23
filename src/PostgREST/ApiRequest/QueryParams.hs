@@ -78,6 +78,8 @@ import Protolude hiding (try)
 -- >>> deriving instance Show OrderDirection
 -- >>> deriving instance Show OrderNulls
 -- >>> deriving instance Show OrderTerm
+-- >>> deriving instance Show LogicOperator
+-- >>> deriving instance Show LogicTree
 
 data QueryParams =
   QueryParams
@@ -694,6 +696,33 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
 
     pEnd = try (void $ lookAhead (char ',')) <|> try eof
 
+-- |
+-- Parses the elements inside or/and
+--
+-- >>> P.parse pLogicTree "" "or()"
+-- Left (line 1, column 4):
+-- unexpected ")"
+-- expecting field name (* or [a..z0..9_$]), negation operator (not) or logic operator (and, or)
+--
+-- >>> P.parse pLogicTree "" "or(id.in.1,2,id.eq.3)"
+-- Left (line 1, column 10):
+-- unexpected "1"
+-- expecting "("
+--
+-- >>> P.parse pLogicTree "" "or)("
+-- Left (line 1, column 3):
+-- unexpected ")"
+-- expecting "("
+--
+-- >>> P.parse pLogicTree "" "and(ord(id.eq.1,id.eq.1),id.eq.2)"
+-- Left (line 1, column 7):
+-- unexpected "d"
+-- expecting "("
+--
+-- >>> P.parse pLogicTree "" "or(id.eq.1,not.xor(id.eq.2,id.eq.3))"
+-- Left (line 1, column 16):
+-- unexpected "x"
+-- expecting logic operator (and, or)
 pLogicTree :: Parser LogicTree
 pLogicTree = Stmnt <$> try pLogicFilter
              <|> Expr <$> pNot <*> pLogicOp <*> (lexeme (char '(') *> pLogicTree `sepBy1` lexeme (char ',') <* lexeme (char ')'))
