@@ -325,6 +325,11 @@ pTreePath = do
 -- Left (line 1, column 16):
 -- unexpected '['
 -- expecting letter, digit, "-", "!", "(", "->>", "->", "::", ")", "," or end of input
+--
+-- >>> P.parse pFieldForest "" "data->>-78xy"
+-- Left (line 1, column 11):
+-- unexpected 'x'
+-- expecting digit, "->", "::", ".", "," or end of input
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
   where
@@ -401,6 +406,23 @@ pFieldName =
 --
 -- >>> P.parse pJsonPath "" "->0.desc"
 -- Right [JArrow {jOp = JIdx {jVal = "+0"}}]
+--
+-- Fails on badly formed negatives
+--
+-- >>> P.parse pJsonPath "" "->>-78xy"
+-- Left (line 1, column 7):
+-- unexpected 'x'
+-- expecting digit, "->", "::", ".", "," or end of input
+--
+-- >>> P.parse pJsonPath "" "->>--34"
+-- Left (line 1, column 5):
+-- unexpected "-"
+-- expecting digit
+--
+-- >>> P.parse pJsonPath "" "->>-xy-4"
+-- Left (line 1, column 5):
+-- unexpected "x"
+-- expecting digit
 pJsonPath :: Parser JsonPath
 pJsonPath = many pJsonOperation
   where
