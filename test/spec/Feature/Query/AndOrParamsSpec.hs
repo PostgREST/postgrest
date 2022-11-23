@@ -252,35 +252,3 @@ spec actualPgVersion =
 
     it "can query columns that begin with and/or reserved words" $
       get "/grandchild_entities?or=(and_starting_col.eq.smth, or_starting_col.eq.smth)" `shouldRespondWith` 200
-
-    it "fails when using IN without () and provides meaningful error message" $
-      get "/entities?or=(id.in.1,2,id.eq.3)" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \"1\" expecting \"(\"",
-          "message": "\"failed to parse logic tree ((id.in.1,2,id.eq.3))\" (line 1, column 10)",
-          "code": "PGRST100",
-          "hint": null
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
-
-    it "fails on malformed query params and provides meaningful error message" $ do
-      get "/entities?or=)(" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \")\" expecting \"(\"",
-          "message": "\"failed to parse logic tree ()()\" (line 1, column 3)",
-          "code": "PGRST100",
-          "hint": null
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
-      get "/entities?and=(ord(id.eq.1,id.eq.1),id.eq.2)" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \"d\" expecting \"(\"",
-          "message": "\"failed to parse logic tree ((ord(id.eq.1,id.eq.1),id.eq.2))\" (line 1, column 7)",
-          "code": "PGRST100",
-          "hint": null
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
-      get "/entities?or=(id.eq.1,not.xor(id.eq.2,id.eq.3))" `shouldRespondWith`
-        [json|{
-          "details": "unexpected \"x\" expecting logic operator (and, or)",
-          "message": "\"failed to parse logic tree ((id.eq.1,not.xor(id.eq.2,id.eq.3)))\" (line 1, column 16)",
-          "code": "PGRST100",
-          "hint": null
-        }|] { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
