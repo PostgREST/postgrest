@@ -669,6 +669,46 @@ pDelimiter = char '.' <?> "delimiter (.)"
 --
 -- >>> P.parse pOrder "" "name,clients(name),id"
 -- Right [OrderTerm {otTerm = ("name",[]), otDirection = Nothing, otNullOrder = Nothing},OrderRelationTerm {otRelation = "clients", otRelTerm = ("name",[]), otDirection = Nothing, otNullOrder = Nothing},OrderTerm {otTerm = ("id",[]), otDirection = Nothing, otNullOrder = Nothing}]
+--
+-- >>> P.parse pOrder "" "id.ac"
+-- Left (line 1, column 4):
+-- unexpected "c"
+-- expecting "asc", "desc", "nullsfirst" or "nullslast"
+--
+-- >>> P.parse pOrder "" "id.descc"
+-- Left (line 1, column 8):
+-- unexpected 'c'
+-- expecting delimiter (.), "," or end of input
+--
+-- >>> P.parse pOrder "" "id.nulsfist"
+-- Left (line 1, column 4):
+-- unexpected "n"
+-- expecting "asc", "desc", "nullsfirst" or "nullslast"
+--
+-- >>> P.parse pOrder "" "id.nullslasttt"
+-- Left (line 1, column 13):
+-- unexpected 't'
+-- expecting "," or end of input
+--
+-- >>> P.parse pOrder "" "id.smth34"
+-- Left (line 1, column 4):
+-- unexpected "s"
+-- expecting "asc", "desc", "nullsfirst" or "nullslast"
+--
+-- >>> P.parse pOrder "" "id.asc.nlsfst"
+-- Left (line 1, column 8):
+-- unexpected "l"
+-- expecting "nullsfirst" or "nullslast"
+--
+-- >>> P.parse pOrder "" "id.asc.nullslasttt"
+-- Left (line 1, column 17):
+-- unexpected 't'
+-- expecting "," or end of input
+--
+-- >>> P.parse pOrder "" "id.asc.smth34"
+-- Left (line 1, column 8):
+-- unexpected "s"
+-- expecting "nullsfirst" or "nullslast"
 pOrder :: Parser [OrderTerm]
 pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
   where

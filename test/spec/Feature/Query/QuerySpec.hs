@@ -921,50 +921,12 @@ spec actualPgVersion = do
       get "/projects?id=eq.1&select=id, name, clients(id, name)&clients.order=name.asc" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"}}]|]
 
-    context "order syntax errors" $ do
-      it "gives meaningful error messages when asc/desc/nulls{first,last} are misspelled" $ do
-        get "/items?order=id.ac" `shouldRespondWith`
-          [json|{"details":"unexpected \"c\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.ac)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.descc" `shouldRespondWith`
-          [json|{"details":"unexpected 'c' expecting delimiter (.), \",\" or end of input","message":"\"failed to parse order (id.descc)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.nulsfist" `shouldRespondWith`
-          [json|{"details":"unexpected \"n\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.nulsfist)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.nullslasttt)\" (line 1, column 13)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"asc\", \"desc\", \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.smth34)\" (line 1, column 4)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-
-      it "gives meaningful error messages when nulls{first,last} are misspelled after asc/desc" $ do
-        get "/items?order=id.asc.nlsfst" `shouldRespondWith`
-          [json|{"details":"unexpected \"l\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.nlsfst)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
-          [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
-        get "/items?order=id.asc.smth34" `shouldRespondWith`
-          [json|{"details":"unexpected \"s\" expecting \"nullsfirst\" or \"nullslast\"","message":"\"failed to parse order (id.asc.smth34)\" (line 1, column 8)","code":"PGRST100","hint":null}|]
-          { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
-          }
+    it "gives meaningful error message on bad syntax" $ do
+      get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
+        [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
 
   describe "Accept headers" $ do
     it "should respond an unknown accept type with 415" $
