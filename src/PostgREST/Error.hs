@@ -201,7 +201,7 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode18,
     "message" .= ("Could not find '" <> colName <> "' in the target table" :: Text),
     "details" .= JSON.Null,
-    "hint"    .= ("If a new column was created in the database with this name, try reloading the schema cache." :: Text)]
+    "hint"    .= JSON.Null]
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

@@ -313,7 +313,7 @@ spec = do
           [("Prefer", "return=representation")]
           [json|{"body": "yyy"}|]
           `shouldRespondWith`
-          [json|{"code":"PGRST118","details":null,"hint":"If a new column was created in the database with this name, try reloading the schema cache.","message":"Could not find 'helicopter' in the target table"} |]
+          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Could not find 'helicopter' in the target table"} |]
           { matchStatus  = 400
           , matchHeaders = []
           }
