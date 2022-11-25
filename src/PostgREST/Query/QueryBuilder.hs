@@ -57,7 +57,7 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
-getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} _) (selects,joins) =
+getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} forest) (selects,joins) =
   let
     subquery = readPlanToQuery rr
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
@@ -77,7 +77,7 @@ getSelectsJoins rr@(Node ReadPlan{relName, relToParent=Just rel, relAggAlias, re
             "FROM (" <> subquery <> " ) AS " <> SQL.sql aggAlias
           ) aggAlias $ if relJoinType == Just JTInner then SQL.sql aggAlias <> " IS NOT NULL" else "TRUE")
   in
-  (sel:selects, joi:joins)
+  (if null select && null forest then selects else sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =

@@ -36,8 +36,8 @@ import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
                                       eof, errorPos, letter,
                                       lookAhead, many1, noneOf,
                                       notFollowedBy, oneOf,
-                                      optionMaybe, sepBy1, string,
-                                      try, (<?>))
+                                      optionMaybe, sepBy, sepBy1,
+                                      string, try, (<?>))
 
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeGeq, rangeLimit,
@@ -333,7 +333,7 @@ pTreePath = do
 -- unexpected 'x'
 -- expecting digit, "->", "::", ".", "," or end of input
 pFieldForest :: Parser [Tree SelectItem]
-pFieldForest = pFieldTree `sepBy1` lexeme (char ',')
+pFieldForest = pFieldTree `sepBy` lexeme (char ',')
   where
     pFieldTree :: Parser (Tree SelectItem)
     pFieldTree =  try (Node <$> pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
