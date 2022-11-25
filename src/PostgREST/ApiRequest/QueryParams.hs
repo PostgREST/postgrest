@@ -326,7 +326,7 @@ pTreePath = do
 -- >>> P.parse pFieldForest "" "id,clients(name[])"
 -- Left (line 1, column 16):
 -- unexpected '['
--- expecting letter, digit, "-", "!", "(", "->>", "->", "::", ")", "," or end of input
+-- expecting letter, digit, "-", "->>", "->", "::", ")", "," or end of input
 --
 -- >>> P.parse pFieldForest "" "data->>-78xy"
 -- Left (line 1, column 11):
@@ -335,9 +335,8 @@ pTreePath = do
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy` lexeme (char ',')
   where
-    pFieldTree :: Parser (Tree SelectItem)
-    pFieldTree =  try (Node <$> pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest) <|>
-                  try (Node <$> pRelationSelect       <*> between (char '(') (char ')') pFieldForest) <|>
+    pFieldTree =  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
+                  Node <$> try pRelationSelect       <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> pFieldSelect <*> pure []
 
 pStar :: Parser Text
@@ -480,13 +479,12 @@ aliasSeparator = char ':' >> notFollowedBy (char ':')
 -- Left (line 1, column 6):
 -- unexpected '>'
 pRelationSelect :: Parser SelectItem
-pRelationSelect = lexeme $ try ( do
+pRelationSelect = lexeme $ do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     name <- pFieldName
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SelectRelation name alias hint jType
-  )
 
 -- |
 -- Parse regular fields in select
@@ -524,19 +522,16 @@ pRelationSelect = lexeme $ try ( do
 -- unexpected end of input
 -- expecting letter or digit
 pFieldSelect :: Parser SelectItem
-pFieldSelect = lexeme $
-  try (
-    do
-      alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-      fld <- pField
-      cast' <- optionMaybe (string "::" *> pIdentifier)
-      pEnd
-      return $ SelectField fld (toS <$> cast') alias
-  )
-  <|> do
+pFieldSelect = lexeme $ try (do
     s <- pStar
     pEnd
-    return $ SelectField (s, []) Nothing Nothing
+    return $ SelectField (s, []) Nothing Nothing)
+  <|> do
+    alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+    fld <- pField
+    cast' <- optionMaybe (string "::" *> pIdentifier)
+    pEnd
+    return $ SelectField fld (toS <$> cast') alias
   where
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
@@ -565,12 +560,11 @@ pFieldSelect = lexeme $
 -- Left (line 1, column 8):
 -- unexpected '>'
 pSpreadRelationSelect :: Parser SelectItem
-pSpreadRelationSelect = lexeme $ try ( do
+pSpreadRelationSelect = lexeme $ do
     name <- string ".." >> pFieldName
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SpreadRelation name hint jType
-  )
 
 pEmbedParams :: Parser (Maybe Hint, Maybe JoinType)
 pEmbedParams = do
