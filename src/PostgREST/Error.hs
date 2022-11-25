@@ -17,6 +17,8 @@ module PostgREST.Error
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
+import qualified Data.FuzzySet             as F
+import qualified Data.HashMap.Strict       as HM
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Encoding.Error  as T
@@ -170,7 +172,7 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels),
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
-  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
+  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs)  =
     let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the " <> schema <> "." <> procName <>
@@ -183,7 +185,9 @@ instance JSON.ToJSON ApiRequestError where
         _                            -> prms <> " function") <>
       " in the schema cache"),
     "details" .= JSON.Null,
-    "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text)]
+    "hint"    .= maybe ("No functions with a similar name found in the schema " <> schema)
+                       (("Perhaps you meant to call the function " <> schema <> ".") <>)
+                       (F.getOne (F.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]) procName)]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "code"    .= SchemaCacheErrorCode03,
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),

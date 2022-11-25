@@ -33,7 +33,8 @@ module PostgREST.ApiRequest.Types
 
 import PostgREST.MediaType                (MediaType (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName)
-import PostgREST.SchemaCache.Proc         (ProcDescription (..))
+import PostgREST.SchemaCache.Proc         (ProcDescription (..),
+                                           ProcsMap)
 import PostgREST.SchemaCache.Relationship (Relationship)
 
 import Protolude
@@ -66,7 +67,7 @@ data ApiRequestError
   | NotFound
   | NotToOne Text Text
   | NoRelBetween Text Text Text
-  | NoRpc Text Text [Text] Bool MediaType Bool
+  | NoRpc Text Text [Text] Bool MediaType Bool ProcsMap
   | NotEmbedded Text
   | ParseRequestError Text Text
   | PutRangeNotAllowedError
