@@ -1224,3 +1224,54 @@ spec actualPgVersion = do
     liftIO $ do
       let respHeaders = simpleHeaders r
       respHeaders `shouldSatisfy` noProfileHeader
+
+  context "empty embed" $ do
+    it "works on a many-to-one relationship" $ do
+      get "/projects?select=id,name,clients()" `shouldRespondWith`
+        [json| [
+          {"id":1,"name":"Windows 7"},
+          {"id":2,"name":"Windows 10"},
+          {"id":3,"name":"IOS"},
+          {"id":4,"name":"OSX"},
+          {"id":5,"name":"Orphan"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/projects?select=id,name,clients!inner()&clients.id=eq.2" `shouldRespondWith`
+        [json|[
+          {"id":3,"name":"IOS"},
+          {"id":4,"name":"OSX"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works on a one-to-many relationship" $ do
+      get "/clients?select=id,name,projects()" `shouldRespondWith`
+        [json| [{"id":1,"name":"Microsoft"}, {"id":2,"name":"Apple"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/clients?select=id,name,projects!inner()&projects.name=eq.IOS" `shouldRespondWith`
+        [json|[{"id":2,"name":"Apple"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works on a many-to-many relationship" $ do
+      get "/users?select=*,tasks!inner()" `shouldRespondWith`
+        [json| [{"id":1,"name":"Angela Martin"}, {"id":2,"name":"Michael Scott"}, {"id":3,"name":"Dwight Schrute"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/users?select=*,tasks!inner()&tasks.id=eq.3" `shouldRespondWith`
+        [json|[{"id":1,"name":"Angela Martin"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+  context "empty root select" $
+    it "gives all columns" $ do
+      get "/projects?select=" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Windows 7","client_id":1},
+          {"id":2,"name":"Windows 10","client_id":1},
+          {"id":3,"name":"IOS","client_id":2},
+          {"id":4,"name":"OSX","client_id":2},
+          {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/getallprojects?select=" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Windows 7","client_id":1},
+          {"id":2,"name":"Windows 10","client_id":1},
+          {"id":3,"name":"IOS","client_id":2},
+          {"id":4,"name":"OSX","client_id":2},
+          {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
