@@ -255,8 +255,8 @@ pgFmtSelectFromJson fields =
     else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
   )
   where
-    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfFieldName <$> fields
-    typedCols = BS.intercalate ", " $ pgFmtIdent . tfFieldName <> const " " <> encodeUtf8 . tfIRType <$> fields
+    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfName <$> fields
+    typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
