@@ -76,7 +76,7 @@ readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
-        (QueryBuilder.readPlanToQuery req)
+        (QueryBuilder.readPlanToQuery True req)
         (if iPreferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
@@ -163,7 +163,7 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
         (QueryBuilder.callPlanToQuery crCallPlan)
-        (QueryBuilder.readPlanToQuery crReadPlan)
+        (QueryBuilder.readPlanToQuery True crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount iPreferCount)
         iAcceptMediaType
@@ -217,7 +217,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq conf =
   in
   lift . SQL.statement mempty $
     Statements.prepareWrite
-      (QueryBuilder.readPlanToQuery mrReadPlan)
+      (QueryBuilder.readPlanToQuery True mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
       (iAcceptMediaType apiReq)

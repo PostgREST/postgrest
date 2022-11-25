@@ -323,6 +323,9 @@ pTreePath = do
 -- >>> P.parse pFieldForest "" "*,..client(*),other(*)"
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
+-- >>> P.parse pFieldForest "" ""
+-- Right []
+--
 -- >>> P.parse pFieldForest "" "id,clients(name[])"
 -- Left (line 1, column 16):
 -- unexpected '['
@@ -338,9 +341,6 @@ pFieldForest = pFieldTree `sepBy` lexeme (char ',')
     pFieldTree =  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> try pRelationSelect       <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> pFieldSelect <*> pure []
-
-pStar :: Parser Text
-pStar = string "*" $> "*"
 
 -- |
 -- Parse field names
@@ -536,6 +536,8 @@ pFieldSelect = lexeme $ try (do
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
            try eof
+    pStar = string "*" $> "*"
+
 
 -- |
 -- Parse spread relations in select

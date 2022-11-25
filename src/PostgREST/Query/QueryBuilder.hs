@@ -39,10 +39,10 @@ import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
-readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
+readPlanToQuery :: Bool -> ReadPlanTree -> SQL.Snippet
+readPlanToQuery isRoot (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> select) ++ selects) <> " " <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if isRoot && null select && null forest then defRootSelect else select)) ++ selects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null relJoinConds
@@ -53,13 +53,14 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
   where
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
+    defRootSelect = [(("*", []), Nothing, Nothing)] -- gets all columns in case an empty select, e.g. `/tbl?select=`, is done.
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
 getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} forest) (selects,joins) =
   let
-    subquery = readPlanToQuery rr
+    subquery = readPlanToQuery False rr
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
     aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =

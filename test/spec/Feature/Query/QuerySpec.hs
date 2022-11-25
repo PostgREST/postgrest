@@ -1256,3 +1256,22 @@ spec actualPgVersion = do
       get "/users?select=*,tasks!inner()&tasks.id=eq.3" `shouldRespondWith`
         [json|[{"id":1,"name":"Angela Martin"}]|]
         { matchHeaders = [matchContentTypeJson] }
+
+  context "empty root select" $
+    it "gives all columns" $ do
+      get "/projects?select=" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Windows 7","client_id":1},
+          {"id":2,"name":"Windows 10","client_id":1},
+          {"id":3,"name":"IOS","client_id":2},
+          {"id":4,"name":"OSX","client_id":2},
+          {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/getallprojects?select=" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Windows 7","client_id":1},
+          {"id":2,"name":"Windows 10","client_id":1},
+          {"id":3,"name":"IOS","client_id":2},
+          {"id":4,"name":"OSX","client_id":2},
+          {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
