@@ -127,7 +127,7 @@ spec actualPgVersion =
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
-          "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+          "hint":"Perhaps you meant to call the function test.add_them(a, b)",
           "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache",
           "code":"PGRST202",
           "details":null} |]

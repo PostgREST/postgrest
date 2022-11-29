@@ -67,7 +67,7 @@ data ApiRequestError
   | NotFound
   | NotToOne Text Text
   | NoRelBetween Text Text Text
-  | NoRpc Text Text [Text] Bool MediaType Bool ProcsMap
+  | NoRpc Text Text [Text] Bool MediaType Bool ProcsMap [ProcDescription]
   | NotEmbedded Text
   | ParseRequestError Text Text
   | PutRangeNotAllowedError

@@ -39,7 +39,7 @@ import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..))
+                                           ProcParam (..), ProcsMap)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
@@ -172,10 +172,11 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels),
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
-  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs)  =
-    let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
+  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs overloadedProcs)  =
+    let func = schema <> "." <> procName
+        prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
-    "message" .= ("Could not find the " <> schema <> "." <> procName <>
+    "message" .= ("Could not find the " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " function with a single json or jsonb parameter"
         (_, True, MTTextPlain)       -> " function with a single unnamed text parameter"
@@ -185,14 +186,23 @@ instance JSON.ToJSON ApiRequestError where
         _                            -> prms <> " function") <>
       " in the schema cache"),
     "details" .= JSON.Null,
-    "hint"    .= maybe ("No functions with a similar name found in the schema " <> schema)
-                       (("Perhaps you meant to call the function " <> schema <> ".") <>)
-                       (F.getOne (F.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]) procName)]
+    "hint"    .= noRpcHint schema procName prms allProcs overloadedProcs]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "code"    .= SchemaCacheErrorCode03,
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
+
+-- TODO: adapt for a Content-Type other than application/json or limit only to that header
+noRpcHint :: Text -> Text -> Text -> ProcsMap -> [ProcDescription] -> Text
+noRpcHint schema procName params allProcs overloadedProcs =
+  maybe ("No functions with a similar name found in the schema " <> schema) -- Should be null and adapt to function found but no similar parameters found
+        (("Perhaps you meant to call the function " <> schema <> ".") <>)
+        possibleProcs
+  where
+    possibleProcs
+      | null overloadedProcs = F.getOne (F.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]) procName
+      | otherwise            = (procName <>) <$> F.getOne (F.fromList ["(" <> T.intercalate ", " [ppName prm | prm <- pdParams ov] <> ")" | ov <- overloadedProcs]) params
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
