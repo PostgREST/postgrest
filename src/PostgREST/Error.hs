@@ -199,7 +199,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
   toJSON (ColumnNotFound colName) = JSON.object [
     "code"    .= ApiRequestErrorCode18,
-    "message" .= ("Could not find '" <> colName <> "' in the target table" :: Text),
+    "message" .= ("Column '" <> colName <> "' does not exist" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 

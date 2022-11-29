@@ -426,7 +426,7 @@ spec actualPgVersion = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Could not find 'helicopter' in the target table"} |]
+          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Column 'helicopter' does not exist"} |]
           { matchStatus  = 400
           , matchHeaders = []
           }
