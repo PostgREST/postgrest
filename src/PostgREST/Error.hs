@@ -17,7 +17,7 @@ module PostgREST.Error
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
-import qualified Data.FuzzySet             as F
+import qualified Data.FuzzySet             as Fuzzy
 import qualified Data.HashMap.Strict       as HM
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
@@ -200,9 +200,11 @@ noRpcHint schema procName params allProcs overloadedProcs =
         (("Perhaps you meant to call the function " <> schema <> ".") <>)
         possibleProcs
   where
+    fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]
+    fuzzySetOfParams = Fuzzy.fromList ["(" <> T.intercalate ", " [ppName prm | prm <- pdParams ov] <> ")" | ov <- overloadedProcs]
     possibleProcs
-      | null overloadedProcs = F.getOne (F.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]) procName
-      | otherwise            = (procName <>) <$> F.getOne (F.fromList ["(" <> T.intercalate ", " [ppName prm | prm <- pdParams ov] <> ")" | ov <- overloadedProcs]) params
+      | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
+      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams params
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
