@@ -313,7 +313,7 @@ spec = do
           [("Prefer", "return=representation")]
           [json|{"body": "yyy"}|]
           `shouldRespondWith`
-          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Column 'helicopter' does not exist"} |]
+          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Column 'helicopter' of relation 'articles' does not exist"} |]
           { matchStatus  = 400
           , matchHeaders = []
           }

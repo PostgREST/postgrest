@@ -54,7 +54,8 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap,
                                            relIsToOne)
-import PostgREST.SchemaCache.Table        (Table, tablePKCols)
+import PostgREST.SchemaCache.Table        (Table (tableName),
+                                           tablePKCols)
 
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
@@ -413,7 +414,7 @@ resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound
 resolveOrError (Just table) field =
   case resolveTableField table field of
-    Nothing         -> Left $ ColumnNotFound field
+    Nothing         -> Left $ ColumnNotFound (tableName table) field
     Just typedField -> Right typedField
 
 callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan

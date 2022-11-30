@@ -197,9 +197,9 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
-  toJSON (ColumnNotFound colName) = JSON.object [
+  toJSON (ColumnNotFound relName colName) = JSON.object [
     "code"    .= ApiRequestErrorCode18,
-    "message" .= ("Column '" <> colName <> "' does not exist" :: Text),
+    "message" .= ("Column '" <> colName <> "' of relation '" <> relName <> "' does not exist" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 

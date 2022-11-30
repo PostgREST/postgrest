@@ -81,7 +81,7 @@ data ApiRequestError
   | SpreadNotToOne Text Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
-  | ColumnNotFound Text
+  | ColumnNotFound Text Text
 
 data QPError = QPError Text Text
 data RangeError
