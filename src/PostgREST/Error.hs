@@ -45,8 +45,6 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..))
 import Protolude
 
--- >>>
--- >>>
 
 class (JSON.ToJSON a) => PgrstError a where
   status   :: a -> HTTP.Status
@@ -215,7 +213,7 @@ instance JSON.ToJSON ApiRequestError where
 -- >>> noRpcHint "api" "noclosealternative" "()" procsMap []
 -- Nothing
 --
--- If a function is found with the given name, but no params match, then it does a fuzzy searh
+-- If a function is found with the given name, but no params match, then it does a fuzzy search
 -- to all the overloaded functions' params using the form "(param1, param2, param3, ...)"
 -- and shows the best match as hint.
 --
