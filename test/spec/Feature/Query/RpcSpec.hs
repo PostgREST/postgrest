@@ -121,7 +121,15 @@ spec actualPgVersion =
         get "/rpc/fake" `shouldRespondWith` 404
 
       it "should fail with 404 on unknown proc args" $ do
-        get "/rpc/sayhello" `shouldRespondWith` 404
+        get "/rpc/sayhello" `shouldRespondWith`
+          [json| {
+            "hint":null,
+            "message":"Could not find the test.sayhello function without parameters in the schema cache",
+            "code":"PGRST202",
+            "details":null} |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          } 
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
 
       it "should not ignore unknown args and fail with 404" $
@@ -141,7 +149,7 @@ spec actualPgVersion =
           [json|{}|]
         `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+            "hint":null,
             "message":"Could not find the test.sayhello function with a single json or jsonb parameter in the schema cache",
             "code":"PGRST202",
             "details":null} |]
@@ -152,7 +160,7 @@ spec actualPgVersion =
       it "should fail with 404 for overloaded functions with unknown args" $ do
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+            "hint":null,
             "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache",
             "code":"PGRST202",
             "details":null} |]
@@ -161,7 +169,7 @@ spec actualPgVersion =
           }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
           [json| {
-            "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+            "hint":"Perhaps you meant to call the function test.overloaded(a, b, c)",
             "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache",
             "code":"PGRST202",
             "details":null} |]
@@ -1247,7 +1255,7 @@ spec actualPgVersion =
               [json|{"x": 1, "y": 2}|]
             `shouldRespondWith`
               [json|{
-                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "hint": "Perhaps you meant to call the function test.unnamed_text_param",
                 "message": "Could not find the test.unnamed_int_param(x, y) function or the test.unnamed_int_param function with a single unnamed json or jsonb parameter in the schema cache",
                 "code":"PGRST202",
                 "details":null
@@ -1262,7 +1270,7 @@ spec actualPgVersion =
               [str|a simple text|]
             `shouldRespondWith`
               [json|{
-                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "hint": null,
                 "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache",
                 "code":"PGRST202",
                 "details":null
@@ -1277,7 +1285,7 @@ spec actualPgVersion =
               [str|a simple text|]
             `shouldRespondWith`
               [json|{
-                "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "hint": null,
                 "message": "Could not find the test.unnamed_int_param function with a single unnamed xml parameter in the schema cache",
                 "code":"PGRST202",
                 "details":null
@@ -1293,7 +1301,7 @@ spec actualPgVersion =
               file
           `shouldRespondWith`
             [json|{
-              "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+              "hint": null,
               "message": "Could not find the test.unnamed_int_param function with a single unnamed bytea parameter in the schema cache",
               "code":"PGRST202",
               "details":null
@@ -1353,7 +1361,7 @@ spec actualPgVersion =
               "a,b\n1,2\n4,6\n100,200"
             `shouldRespondWith`
               [json| {
-                "hint":"If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+                "hint":"Perhaps you meant to call the function test.overloaded_unnamed_param(x, y)",
                 "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache",
                 "code":"PGRST202",
                 "details":null

@@ -45,6 +45,8 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..))
 import Protolude
 
+-- >>>
+-- >>>
 
 class (JSON.ToJSON a) => PgrstError a where
   status   :: a -> HTTP.Status
@@ -174,7 +176,9 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs overloadedProcs)  =
     let func = schema <> "." <> procName
-        prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
+        prms = "(" <> T.intercalate ", " argumentKeys <> ")"
+        fmtParams =  if null argumentKeys then " function without parameters" else prms <> " function"
+    in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
@@ -182,23 +186,44 @@ instance JSON.ToJSON ApiRequestError where
         (_, True, MTTextPlain)       -> " function with a single unnamed text parameter"
         (_, True, MTTextXML)         -> " function with a single unnamed xml parameter"
         (_, True, MTOctetStream)     -> " function with a single unnamed bytea parameter"
-        (_, True, MTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
-        _                            -> prms <> " function") <>
+        (_, True, MTApplicationJSON) -> fmtParams <> " or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
+        _                            -> fmtParams) <>
       " in the schema cache"),
     "details" .= JSON.Null,
-    "hint"    .= noRpcHint schema procName prms allProcs overloadedProcs]
+    "hint"    .= if hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
+                 then Nothing
+                 else noRpcHint schema procName prms allProcs overloadedProcs ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "code"    .= SchemaCacheErrorCode03,
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
 
--- TODO: adapt for a Content-Type other than application/json or limit only to that header
-noRpcHint :: Text -> Text -> Text -> ProcsMap -> [ProcDescription] -> Text
+-- |
+-- If no function is found with the given name, it does a fuzzy search to all the functions
+-- in the same schema and shows the best match as hint.
+--
+-- If a function is found with the given name, but no params match, then does a fuzzy searh
+-- to all the overloaded functions with params using the form "(param1, param2, param3, ...)"
+--
+-- >>> :set -Wno-missing-fields
+-- >>> let procsMap = HM.fromList [(QualifiedIdentifier "api" "test" , []), (QualifiedIdentifier "api" "another" , []), (QualifiedIdentifier "private" "other" , [])]
+--
+-- >>> noRpcHint "api" "testt" "(val, param, name)" procsMap []
+-- Just "Perhaps you meant to call the function api.test"
+--
+-- >>> noRpcHint "api" "other" "()" procsMap []
+-- Just "Perhaps you meant to call the function api.another"
+--
+-- >>> noRpcHint "api" "noclosealternative" "()" procsMap []
+-- Nothing
+--
+-- >>> noRpcHint "api" "test" "(val, param)" procsMap [ProcDescription {pdParams = [ProcParam {ppName="val"},ProcParam {ppName="param"},ProcParam {ppName="name"}]}]
+-- Just "Perhaps you meant to call the function api.test(val, param, name)"
+--
+noRpcHint :: Text -> Text -> Text -> ProcsMap -> [ProcDescription] -> Maybe Text
 noRpcHint schema procName params allProcs overloadedProcs =
-  maybe ("No functions with a similar name found in the schema " <> schema) -- Should be null and adapt to function found but no similar parameters found
-        (("Perhaps you meant to call the function " <> schema <> ".") <>)
-        possibleProcs
+  fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
   where
     fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]
     fuzzySetOfParams = Fuzzy.fromList ["(" <> T.intercalate ", " [ppName prm | prm <- pdParams ov] <> ")" | ov <- overloadedProcs]
