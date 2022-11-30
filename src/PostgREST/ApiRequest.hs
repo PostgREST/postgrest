@@ -461,8 +461,9 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
     ([proc], _)  -> Right proc
     (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
-    lookupProcName = HM.lookupDefault mempty qi allProcs -- first find the proc by name
     matchProc = overloadedProcPartition lookupProcName
+    -- First find the proc by name
+    lookupProcName = HM.lookupDefault mempty qi allProcs
     -- The partition obtained has the form (overloadedProcs,fallbackProcs)
     -- where fallbackProcs are functions with a single unnamed parameter
     overloadedProcPartition = foldr select ([],[])

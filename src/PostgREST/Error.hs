@@ -186,7 +186,7 @@ instance JSON.ToJSON ApiRequestError where
         (_, True, MTTextPlain)       -> " function with a single unnamed text parameter"
         (_, True, MTTextXML)         -> " function with a single unnamed xml parameter"
         (_, True, MTOctetStream)     -> " function with a single unnamed bytea parameter"
-        (_, True, MTApplicationJSON) -> fmtParams <> " or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
+        (_, True, MTApplicationJSON) -> fmtParams <> " or the " <> func <>" function with a single unnamed json or jsonb parameter"
         _                            -> fmtParams) <>
       " in the schema cache"),
     "details" .= JSON.Null,
@@ -203,9 +203,6 @@ instance JSON.ToJSON ApiRequestError where
 -- If no function is found with the given name, it does a fuzzy search to all the functions
 -- in the same schema and shows the best match as hint.
 --
--- If a function is found with the given name, but no params match, then does a fuzzy searh
--- to all the overloaded functions with params using the form "(param1, param2, param3, ...)"
---
 -- >>> :set -Wno-missing-fields
 -- >>> let procsMap = HM.fromList [(QualifiedIdentifier "api" "test" , []), (QualifiedIdentifier "api" "another" , []), (QualifiedIdentifier "private" "other" , [])]
 --
@@ -218,8 +215,26 @@ instance JSON.ToJSON ApiRequestError where
 -- >>> noRpcHint "api" "noclosealternative" "()" procsMap []
 -- Nothing
 --
--- >>> noRpcHint "api" "test" "(val, param)" procsMap [ProcDescription {pdParams = [ProcParam {ppName="val"},ProcParam {ppName="param"},ProcParam {ppName="name"}]}]
+-- If a function is found with the given name, but no params match, then it does a fuzzy searh
+-- to all the overloaded functions' params using the form "(param1, param2, param3, ...)"
+-- and shows the best match as hint.
+--
+-- >>> let procsDesc = [ProcDescription {pdParams = [ProcParam {ppName="val"}, ProcParam {ppName="param"}, ProcParam {ppName="name"}]}, ProcDescription {pdParams = [ProcParam {ppName="id"}, ProcParam {ppName="attr"}]}]
+--
+-- >>> noRpcHint "api" "test" "(vall, pqaram, nam)" procsMap procsDesc
 -- Just "Perhaps you meant to call the function api.test(val, param, name)"
+--
+-- >>> noRpcHint "api" "test" "(val, param)" procsMap procsDesc
+-- Just "Perhaps you meant to call the function api.test(val, param, name)"
+--
+-- >>> noRpcHint "api" "test" "(ids, attrs)" procsMap procsDesc
+-- Just "Perhaps you meant to call the function api.test(id, attr)"
+--
+-- >>> noRpcHint "api" "test" "(id)" procsMap procsDesc
+-- Just "Perhaps you meant to call the function api.test(id, attr)"
+--
+-- >>> noRpcHint "api" "test" "(noclosealternative)" procsMap procsDesc
+-- Nothing
 --
 noRpcHint :: Text -> Text -> Text -> ProcsMap -> [ProcDescription] -> Maybe Text
 noRpcHint schema procName params allProcs overloadedProcs =

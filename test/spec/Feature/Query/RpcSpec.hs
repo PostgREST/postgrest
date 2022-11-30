@@ -120,17 +120,31 @@ spec actualPgVersion =
       it "should fail with 404 on unknown proc name" $
         get "/rpc/fake" `shouldRespondWith` 404
 
-      it "should fail with 404 on unknown proc args" $ do
-        get "/rpc/sayhello" `shouldRespondWith`
+      it "should fail with 404 and hint the closest proc on unknown proc name" $
+        get "/rpc/sayhell" `shouldRespondWith`
           [json| {
-            "hint":null,
-            "message":"Could not find the test.sayhello function without parameters in the schema cache",
+            "hint":"Perhaps you meant to call the function test.sayhello",
+            "message":"Could not find the test.sayhell function without parameters in the schema cache",
             "code":"PGRST202",
             "details":null} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
-          } 
+          }
+
+      it "should fail with 404 on unknown proc args" $ do
+        get "/rpc/sayhello" `shouldRespondWith` 404
         get "/rpc/sayhello?any_arg=value" `shouldRespondWith` 404
+
+      it "should fail with 404 and hint the closest args on unknown proc args" $
+        get "/rpc/sayhello?nam=Peter" `shouldRespondWith`
+          [json| {
+            "hint":"Perhaps you meant to call the function test.sayhello(name)",
+            "message":"Could not find the test.sayhello(nam) function in the schema cache",
+            "code":"PGRST202",
+            "details":null} |]
+          { matchStatus  = 404
+          , matchHeaders = [matchContentTypeJson]
+          }
 
       it "should not ignore unknown args and fail with 404" $
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
