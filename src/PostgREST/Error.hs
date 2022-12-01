@@ -187,6 +187,7 @@ instance JSON.ToJSON ApiRequestError where
         _                            -> fmtParams) <>
       " in the schema cache"),
     "details" .= JSON.Null,
+    -- The hint will be null in the case of single unnamed parameter functions
     "hint"    .= if hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
                  then Nothing
                  else noRpcHint schema procName argumentKeys allProcs overloadedProcs ]

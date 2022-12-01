@@ -32,7 +32,8 @@ module PostgREST.ApiRequest.Types
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
-import PostgREST.SchemaCache.Identifiers  (FieldName, QualifiedIdentifier)
+import PostgREST.SchemaCache.Identifiers  (FieldName,
+                                           QualifiedIdentifier)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..))
 import PostgREST.SchemaCache.Relationship (Relationship)
 
