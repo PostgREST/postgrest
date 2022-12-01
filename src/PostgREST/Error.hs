@@ -18,7 +18,6 @@ module PostgREST.Error
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.FuzzySet             as Fuzzy
-import qualified Data.HashMap.Strict       as HM
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Encoding.Error  as T
@@ -39,7 +38,7 @@ import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..), ProcsMap)
+                                           ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
@@ -190,7 +189,7 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= if hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
                  then Nothing
-                 else noRpcHint schema procName prms allProcs overloadedProcs ]
+                 else noRpcHint schema procName argumentKeys allProcs overloadedProcs ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "code"    .= SchemaCacheErrorCode03,
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
@@ -202,47 +201,51 @@ instance JSON.ToJSON ApiRequestError where
 -- in the same schema and shows the best match as hint.
 --
 -- >>> :set -Wno-missing-fields
--- >>> let procsMap = HM.fromList [(QualifiedIdentifier "api" "test" , []), (QualifiedIdentifier "api" "another" , []), (QualifiedIdentifier "private" "other" , [])]
+-- >>> let procs = [(QualifiedIdentifier "api" "test"), (QualifiedIdentifier "api" "another"), (QualifiedIdentifier "private" "other")]
 --
--- >>> noRpcHint "api" "testt" "(val, param, name)" procsMap []
+-- >>> noRpcHint "api" "testt" ["val", "param", "name"] procs []
 -- Just "Perhaps you meant to call the function api.test"
 --
--- >>> noRpcHint "api" "other" "()" procsMap []
+-- >>> noRpcHint "api" "other" [] procs []
 -- Just "Perhaps you meant to call the function api.another"
 --
--- >>> noRpcHint "api" "noclosealternative" "()" procsMap []
+-- >>> noRpcHint "api" "noclosealternative" [] procs []
 -- Nothing
 --
 -- If a function is found with the given name, but no params match, then it does a fuzzy search
--- to all the overloaded functions' params using the form "(param1, param2, param3, ...)"
+-- to all the overloaded functions' params using the form "param1, param2, param3, ..."
 -- and shows the best match as hint.
 --
 -- >>> let procsDesc = [ProcDescription {pdParams = [ProcParam {ppName="val"}, ProcParam {ppName="param"}, ProcParam {ppName="name"}]}, ProcDescription {pdParams = [ProcParam {ppName="id"}, ProcParam {ppName="attr"}]}]
 --
--- >>> noRpcHint "api" "test" "(vall, pqaram, nam)" procsMap procsDesc
--- Just "Perhaps you meant to call the function api.test(val, param, name)"
+-- >>> noRpcHint "api" "test" ["vall", "pqaram", "nam"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(name, param, val)"
 --
--- >>> noRpcHint "api" "test" "(val, param)" procsMap procsDesc
--- Just "Perhaps you meant to call the function api.test(val, param, name)"
+-- >>> noRpcHint "api" "test" ["val", "param"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(name, param, val)"
 --
--- >>> noRpcHint "api" "test" "(ids, attrs)" procsMap procsDesc
--- Just "Perhaps you meant to call the function api.test(id, attr)"
+-- >>> noRpcHint "api" "test" ["id", "attrs"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(attr, id)"
 --
--- >>> noRpcHint "api" "test" "(id)" procsMap procsDesc
--- Just "Perhaps you meant to call the function api.test(id, attr)"
+-- >>> noRpcHint "api" "test" ["id"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(attr, id)"
 --
--- >>> noRpcHint "api" "test" "(noclosealternative)" procsMap procsDesc
+-- >>> noRpcHint "api" "test" ["noclosealternative"] procs procsDesc
 -- Nothing
 --
-noRpcHint :: Text -> Text -> Text -> ProcsMap -> [ProcDescription] -> Maybe Text
+noRpcHint :: Text -> Text -> [Text] -> [QualifiedIdentifier] -> [ProcDescription] -> Maybe Text
 noRpcHint schema procName params allProcs overloadedProcs =
   fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
   where
-    fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- HM.keys allProcs, qiSchema k == schema]
-    fuzzySetOfParams = Fuzzy.fromList ["(" <> T.intercalate ", " [ppName prm | prm <- pdParams ov] <> ")" | ov <- overloadedProcs]
+    fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- allProcs, qiSchema k == schema]
+    fuzzySetOfParams = Fuzzy.fromList $ listToText <$> [[ppName prm | prm <- pdParams ov] | ov <- overloadedProcs]
+    -- Cannot do a fuzzy search like: Fuzzy.getOne [[Text]] [Text], where [[Text]] is the list of params for each
+    -- overloaded function and [Text] the given params. This converts those lists to text to make fuzzy search possible.
+    -- E.g. ["val", "param", "name"] into "(name, param, val)"
+    listToText       = ("(" <>) . (<> ")") . T.intercalate ", " . sort
     possibleProcs
       | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
-      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams params
+      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

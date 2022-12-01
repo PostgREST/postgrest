@@ -453,7 +453,7 @@ requestMediaTypes conf action path =
 findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> MediaType -> Bool -> Either ApiRequestError ProcDescription
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
   case matchProc of
-    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost allProcs lookupProcName
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost (HM.keys allProcs) lookupProcName
     -- If there are no functions with named arguments, fallback to the single unnamed argument function
     ([], [proc]) -> Right proc
     ([], procs)  -> Left $ AmbiguousRpc (toList procs)
