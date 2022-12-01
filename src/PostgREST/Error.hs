@@ -17,6 +17,7 @@ module PostgREST.Error
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
+import qualified Data.FuzzySet             as Fuzzy
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Encoding.Error  as T
@@ -177,25 +178,82 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
     "details" .= (compressedRel <$> rels),
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
-  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost)  =
-    let prms = "(" <> T.intercalate ", " argumentKeys <> ")" in JSON.object [
+  toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs overloadedProcs)  =
+    let func = schema <> "." <> procName
+        prms = "(" <> T.intercalate ", " argumentKeys <> ")"
+        fmtParams =  if null argumentKeys then " function without parameters" else prms <> " function"
+    in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
-    "message" .= ("Could not find the " <> schema <> "." <> procName <>
+    "message" .= ("Could not find the " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " function with a single json or jsonb parameter"
         (_, True, MTTextPlain)       -> " function with a single unnamed text parameter"
         (_, True, MTTextXML)         -> " function with a single unnamed xml parameter"
         (_, True, MTOctetStream)     -> " function with a single unnamed bytea parameter"
-        (_, True, MTApplicationJSON) -> prms <> " function or the " <> schema <> "." <> procName <>" function with a single unnamed json or jsonb parameter"
-        _                            -> prms <> " function") <>
+        (_, True, MTApplicationJSON) -> fmtParams <> " or the " <> func <>" function with a single unnamed json or jsonb parameter"
+        _                            -> fmtParams) <>
       " in the schema cache"),
     "details" .= JSON.Null,
-    "hint"    .= ("If a new function was created in the database with this name and parameters, try reloading the schema cache." :: Text)]
+    -- The hint will be null in the case of single unnamed parameter functions
+    "hint"    .= if hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
+                 then Nothing
+                 else noRpcHint schema procName argumentKeys allProcs overloadedProcs ]
   toJSON (AmbiguousRpc procs)  = JSON.object [
     "code"    .= SchemaCacheErrorCode03,
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
+
+-- |
+-- If no function is found with the given name, it does a fuzzy search to all the functions
+-- in the same schema and shows the best match as hint.
+--
+-- >>> :set -Wno-missing-fields
+-- >>> let procs = [(QualifiedIdentifier "api" "test"), (QualifiedIdentifier "api" "another"), (QualifiedIdentifier "private" "other")]
+--
+-- >>> noRpcHint "api" "testt" ["val", "param", "name"] procs []
+-- Just "Perhaps you meant to call the function api.test"
+--
+-- >>> noRpcHint "api" "other" [] procs []
+-- Just "Perhaps you meant to call the function api.another"
+--
+-- >>> noRpcHint "api" "noclosealternative" [] procs []
+-- Nothing
+--
+-- If a function is found with the given name, but no params match, then it does a fuzzy search
+-- to all the overloaded functions' params using the form "param1, param2, param3, ..."
+-- and shows the best match as hint.
+--
+-- >>> let procsDesc = [ProcDescription {pdParams = [ProcParam {ppName="val"}, ProcParam {ppName="param"}, ProcParam {ppName="name"}]}, ProcDescription {pdParams = [ProcParam {ppName="id"}, ProcParam {ppName="attr"}]}]
+--
+-- >>> noRpcHint "api" "test" ["vall", "pqaram", "nam"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(name, param, val)"
+--
+-- >>> noRpcHint "api" "test" ["val", "param"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(name, param, val)"
+--
+-- >>> noRpcHint "api" "test" ["id", "attrs"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(attr, id)"
+--
+-- >>> noRpcHint "api" "test" ["id"] procs procsDesc
+-- Just "Perhaps you meant to call the function api.test(attr, id)"
+--
+-- >>> noRpcHint "api" "test" ["noclosealternative"] procs procsDesc
+-- Nothing
+--
+noRpcHint :: Text -> Text -> [Text] -> [QualifiedIdentifier] -> [ProcDescription] -> Maybe Text
+noRpcHint schema procName params allProcs overloadedProcs =
+  fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
+  where
+    fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- allProcs, qiSchema k == schema]
+    fuzzySetOfParams = Fuzzy.fromList $ listToText <$> [[ppName prm | prm <- pdParams ov] | ov <- overloadedProcs]
+    -- Cannot do a fuzzy search like: Fuzzy.getOne [[Text]] [Text], where [[Text]] is the list of params for each
+    -- overloaded function and [Text] the given params. This converts those lists to text to make fuzzy search possible.
+    -- E.g. ["val", "param", "name"] into "(name, param, val)"
+    listToText       = ("(" <>) . (<> ")") . T.intercalate ", " . sort
+    possibleProcs
+      | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
+      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

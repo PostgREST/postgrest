@@ -32,7 +32,8 @@ module PostgREST.ApiRequest.Types
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
-import PostgREST.SchemaCache.Identifiers  (FieldName)
+import PostgREST.SchemaCache.Identifiers  (FieldName,
+                                           QualifiedIdentifier)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..))
 import PostgREST.SchemaCache.Relationship (Relationship)
 
@@ -72,7 +73,7 @@ data ApiRequestError
   | LimitNoOrderError
   | NotFound
   | NoRelBetween Text Text Text
-  | NoRpc Text Text [Text] Bool MediaType Bool
+  | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
   | NotEmbedded Text
   | ParseRequestError Text Text
   | PutRangeNotAllowedError

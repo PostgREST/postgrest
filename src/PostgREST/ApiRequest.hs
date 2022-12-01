@@ -453,7 +453,7 @@ requestMediaTypes conf action path =
 findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> MediaType -> Bool -> Either ApiRequestError ProcDescription
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
   case matchProc of
-    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost (HM.keys allProcs) lookupProcName
     -- If there are no functions with named arguments, fallback to the single unnamed argument function
     ([], [proc]) -> Right proc
     ([], procs)  -> Left $ AmbiguousRpc (toList procs)
@@ -461,7 +461,9 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
     ([proc], _)  -> Right proc
     (procs, _)   -> Left $ AmbiguousRpc (toList procs)
   where
-    matchProc = overloadedProcPartition $ HM.lookupDefault mempty qi allProcs -- first find the proc by name
+    matchProc = overloadedProcPartition lookupProcName
+    -- First find the proc by name
+    lookupProcName = HM.lookupDefault mempty qi allProcs
     -- The partition obtained has the form (overloadedProcs,fallbackProcs)
     -- where fallbackProcs are functions with a single unnamed parameter
     overloadedProcPartition = foldr select ([],[])
