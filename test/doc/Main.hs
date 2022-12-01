@@ -15,4 +15,5 @@ main =
     , "src/PostgREST/Query/SqlFragment.hs"
     , "src/PostgREST/ApiRequest/Preferences.hs"
     , "src/PostgREST/ApiRequest/QueryParams.hs"
+    , "src/PostgREST/Error.hs"
     ]
