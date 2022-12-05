@@ -13,7 +13,7 @@ spec :: SpecWith ((), Application)
 spec =
   describe "spread embeds" $ do
     it "works on a many-to-one relationship" $ do
-      get "/projects?select=id,..clients(client_name:name)" `shouldRespondWith`
+      get "/projects?select=id,...clients(client_name:name)" `shouldRespondWith`
         [json|[
           {"id":1,"client_name":"Microsoft"},
           {"id":2,"client_name":"Microsoft"},
@@ -24,7 +24,7 @@ spec =
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/grandchild_entities?select=name,..child_entities(parent_name:name,..entities(grandparent_name:name))&limit=3" `shouldRespondWith`
+      get "/grandchild_entities?select=name,...child_entities(parent_name:name,...entities(grandparent_name:name))&limit=3" `shouldRespondWith`
         [json|[
           {"name":"grandchild entity 1","parent_name":"child entity 1","grandparent_name":"entity 1"},
           {"name":"grandchild entity 2","parent_name":"child entity 1","grandparent_name":"entity 1"},
@@ -33,7 +33,7 @@ spec =
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/videogames?select=name,..computed_designers(designer_name:name)" `shouldRespondWith`
+      get "/videogames?select=name,...computed_designers(designer_name:name)" `shouldRespondWith`
         [json|[
           {"name":"Civilization I","designer_name":"Sid Meier"},
           {"name":"Civilization II","designer_name":"Sid Meier"},
@@ -45,7 +45,7 @@ spec =
         }
 
     it "works inside a normal embed" $
-      get "/grandchild_entities?select=name,child_entity:child_entities(name,..entities(parent_name:name))&limit=1" `shouldRespondWith`
+      get "/grandchild_entities?select=name,child_entity:child_entities(name,...entities(parent_name:name))&limit=1" `shouldRespondWith`
         [json|[
           {"name":"grandchild entity 1","child_entity":{"name":"child entity 1","parent_name":"entity 1"}}
         ]|]
@@ -54,7 +54,7 @@ spec =
         }
 
     it "works on a one-to-one relationship" $
-      get "/country?select=name,..capital(capital:name)" `shouldRespondWith`
+      get "/country?select=name,...capital(capital:name)" `shouldRespondWith`
         [json|[
           {"name":"Afghanistan","capital":"Kabul"},
           {"name":"Algeria","capital":"Algiers"}
@@ -64,7 +64,7 @@ spec =
         }
 
     it "fails when is not a to-one relationship" $ do
-      get "/clients?select=*,..projects(*)" `shouldRespondWith`
+      get "/clients?select=*,...projects(*)" `shouldRespondWith`
         [json|{
           "code":"PGRST119",
           "details":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship",
@@ -74,7 +74,7 @@ spec =
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/designers?select=*,..computed_videogames(*)" `shouldRespondWith`
+      get "/designers?select=*,...computed_videogames(*)" `shouldRespondWith`
         [json|{
           "code":"PGRST119",
           "details":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship",
@@ -86,7 +86,7 @@ spec =
         }
 
     it "can include or exclude attributes of the junction on a m2m" $ do
-      get "/users?select=*,tasks:users_tasks(*,..tasks(*))&limit=1" `shouldRespondWith`
+      get "/users?select=*,tasks:users_tasks(*,...tasks(*))&limit=1" `shouldRespondWith`
         [json|[{
           "id":1,"name":"Angela Martin",
           "tasks": [
@@ -99,7 +99,7 @@ spec =
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
-      get "/users?select=*,tasks:users_tasks(..tasks(*))&limit=1" `shouldRespondWith`
+      get "/users?select=*,tasks:users_tasks(...tasks(*))&limit=1" `shouldRespondWith`
         [json|[{
           "id":1,"name":"Angela Martin",
           "tasks":[

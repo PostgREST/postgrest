@@ -104,18 +104,18 @@ spec =
           , matchHeaders = [matchContentTypeJson]
           }
         -- Each of those 4 possibilities can be done with spread embeds, by following the details in the error above
-        get "/whatev_sites?select=*,whatev_jobs!site_id_1(..whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
-        get "/whatev_sites?select=*,whatev_jobs!site_id_1(..whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
-        get "/whatev_sites?select=*,whatev_jobs!site_id_2(..whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
-        get "/whatev_sites?select=*,whatev_jobs!site_id_2(..whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_1(...whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_1(...whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_2(...whatev_projects!project_id_1(*))" `shouldRespondWith` [json|[]|]
+        get "/whatev_sites?select=*,whatev_jobs!site_id_2(...whatev_projects!project_id_2(*))" `shouldRespondWith` [json|[]|]
 
       it "can disambiguate a recursive m2m with spread embeds" $ do
-        get "/posters?select=*,subscribers:subscriptions!subscribed(..posters!subscriber(*))&limit=1" `shouldRespondWith`
+        get "/posters?select=*,subscribers:subscriptions!subscribed(...posters!subscriber(*))&limit=1" `shouldRespondWith`
           [json| [ {"id":1,"name":"Mark","subscribers":[{"id":3,"name":"Bill"}, {"id":4,"name":"Jeff"}]}]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
-        get "/posters?select=*,subscriptions!subscriber(..posters!subscribed(*))&limit=1" `shouldRespondWith`
+        get "/posters?select=*,subscriptions!subscriber(...posters!subscribed(*))&limit=1" `shouldRespondWith`
           [json| [{"id":1,"name":"Mark","subscriptions":[{"id":2,"name":"Elon"}]}]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]

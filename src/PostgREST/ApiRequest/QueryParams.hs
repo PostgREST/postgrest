@@ -320,7 +320,7 @@ pTreePath = do
 -- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 --
--- >>> P.parse pFieldForest "" "*,..client(*),other(*)"
+-- >>> P.parse pFieldForest "" "*,...client(*),other(*)"
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
 -- >>> P.parse pFieldForest "" ""
@@ -542,10 +542,10 @@ pFieldSelect = lexeme $ try (do
 -- |
 -- Parse spread relations in select
 --
--- >>> P.parse pSpreadRelationSelect "" "..rel(*)"
+-- >>> P.parse pSpreadRelationSelect "" "...rel(*)"
 -- Right (SpreadRelation {selRelation = "rel", selHint = Nothing, selJoinType = Nothing})
 --
--- >>> P.parse pSpreadRelationSelect "" "..rel!hint!inner(*)"
+-- >>> P.parse pSpreadRelationSelect "" "...rel!hint!inner(*)"
 -- Right (SpreadRelation {selRelation = "rel", selHint = Just "hint", selJoinType = Just JTInner})
 --
 -- >>> P.parse pSpreadRelationSelect "" "rel(*)"
@@ -553,17 +553,17 @@ pFieldSelect = lexeme $ try (do
 -- unexpected "r"
 -- expecting "..."
 --
--- >>> P.parse pSpreadRelationSelect "" "alias:..rel(*)"
+-- >>> P.parse pSpreadRelationSelect "" "alias:...rel(*)"
 -- Left (line 1, column 1):
 -- unexpected "a"
--- expecting ".."
+-- expecting "..."
 --
--- >>> P.parse pSpreadRelationSelect "" "..rel->jsonpath(*)"
--- Left (line 1, column 8):
+-- >>> P.parse pSpreadRelationSelect "" "...rel->jsonpath(*)"
+-- Left (line 1, column 9):
 -- unexpected '>'
 pSpreadRelationSelect :: Parser SelectItem
 pSpreadRelationSelect = lexeme $ do
-    name <- string ".." >> pFieldName
+    name <- string "..." >> pFieldName
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SpreadRelation name hint jType
