@@ -141,7 +141,7 @@ spec actualPgVersion =
             "hint":"Perhaps you meant to call the function test.sayhello(name)",
             "message":"Could not find the function test.sayhello(nam) in the schema cache",
             "code":"PGRST202",
-            "details":"Searched for the function test.sayhello with parameter(s) nam, but no matches were found in the schema cache."} |]
+            "details":"Searched for the function test.sayhello with parameter nam, but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -152,7 +152,7 @@ spec actualPgVersion =
           "hint":"Perhaps you meant to call the function test.add_them(a, b)",
           "message":"Could not find the function test.add_them(a, b, smthelse) in the schema cache",
           "code":"PGRST202",
-          "details":"Searched for the function test.add_them with parameter(s) a, b, smthelse, but no matches were found in the schema cache."} |]
+          "details":"Searched for the function test.add_them with parameters a, b, smthelse, but no matches were found in the schema cache."} |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -177,7 +177,7 @@ spec actualPgVersion =
             "hint":null,
             "message":"Could not find the function test.overloaded(wrong_arg) in the schema cache",
             "code":"PGRST202",
-            "details":"Searched for the function test.overloaded with parameter(s) wrong_arg, but no matches were found in the schema cache."} |]
+            "details":"Searched for the function test.overloaded with parameter wrong_arg, but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -186,7 +186,7 @@ spec actualPgVersion =
             "hint":"Perhaps you meant to call the function test.overloaded(a, b, c)",
             "message":"Could not find the function test.overloaded(a, b, wrong_arg) in the schema cache",
             "code":"PGRST202",
-            "details":"Searched for the function test.overloaded with parameter(s) a, b, wrong_arg, but no matches were found in the schema cache."} |]
+            "details":"Searched for the function test.overloaded with parameters a, b, wrong_arg, but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -1276,7 +1276,7 @@ spec actualPgVersion =
                 "hint": "Perhaps you meant to call the function test.unnamed_text_param",
                 "message": "Could not find the function test.unnamed_int_param(x, y) in the schema cache",
                 "code":"PGRST202",
-                "details":"Searched for the function test.unnamed_int_param with parameter(s) x, y or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache."
+                "details":"Searched for the function test.unnamed_int_param with parameters x, y or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1382,7 +1382,7 @@ spec actualPgVersion =
                 "hint":"Perhaps you meant to call the function test.overloaded_unnamed_param(x, y)",
                 "message":"Could not find the function test.overloaded_unnamed_param(a, b) in the schema cache",
                 "code":"PGRST202",
-                "details":"Searched for the function test.overloaded_unnamed_param with parameter(s) a, b, but no matches were found in the schema cache."
+                "details":"Searched for the function test.overloaded_unnamed_param with parameters a, b, but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [matchContentTypeJson]

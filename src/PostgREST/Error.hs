@@ -182,7 +182,7 @@ instance JSON.ToJSON ApiRequestError where
     let func = schema <> "." <> procName
         prms = T.intercalate ", " argumentKeys
         prmsMsg = "(" <> prms <> ")"
-        prmsDet = " with parameter(s) " <> prms
+        prmsDet = " with parameter" <> (if length argumentKeys > 1 then "s " else " ") <> prms
         fmtPrms p = if null argumentKeys then " without parameters" else p
         onlySingleParams = hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
     in JSON.object [
