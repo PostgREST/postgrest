@@ -74,6 +74,7 @@ instance PgrstError ApiRequestError where
   status QueryParamError{}       = HTTP.status400
   status RelatedOrderNotToOne{}  = HTTP.status400
   status SpreadNotToOne{}        = HTTP.status400
+  status UnacceptableFilter{}    = HTTP.status400
   status UnacceptableSchema{}    = HTTP.status406
   status UnsupportedMethod{}     = HTTP.status405
   status LimitNoOrderError       = HTTP.status400
@@ -165,6 +166,12 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode19,
     "message" .= ("A spread operation on '" <> target <> "' is not possible" :: Text),
     "details" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
+    "hint"    .= JSON.Null]
+
+  toJSON (UnacceptableFilter target) = JSON.object [
+    "code"    .= ApiRequestErrorCode20,
+    "message" .= ("Bad operator on the '" <> target <> "' embedded resource":: Text),
+    "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
     "hint"    .= JSON.Null]
 
   toJSON (NoRelBetween parent child schema) = JSON.object [
@@ -540,6 +547,7 @@ data ErrorCode
   | ApiRequestErrorCode17
   | ApiRequestErrorCode18
   | ApiRequestErrorCode19
+  | ApiRequestErrorCode20
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -583,6 +591,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode17  -> "117"
   ApiRequestErrorCode18  -> "118"
   ApiRequestErrorCode19  -> "119"
+  ApiRequestErrorCode20  -> "120"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
