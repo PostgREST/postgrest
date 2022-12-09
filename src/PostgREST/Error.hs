@@ -180,20 +180,22 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs overloadedProcs)  =
     let func = schema <> "." <> procName
-        prms = "(" <> T.intercalate ", " argumentKeys <> ")"
-        fmtParams =  if null argumentKeys then " without parameters" else prms
+        prms = T.intercalate ", " argumentKeys
+        prmsMsg = "(" <> prms <> ")"
+        prmsDet = " with parameter(s) " <> prms
+        fmtPrms p = if null argumentKeys then " without parameters" else p
         onlySingleParams = hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
     in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
-    "message" .= ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtParams) <> " in the schema cache"),
+    "message" .= ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"),
     "details" .= ("Searched for the function " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " with a single json/jsonb parameter"
         (_, True, MTTextPlain)       -> " with a single unnamed text parameter"
         (_, True, MTTextXML)         -> " with a single unnamed xml parameter"
         (_, True, MTOctetStream)     -> " with a single unnamed bytea parameter"
-        (_, True, MTApplicationJSON) -> fmtParams <> " or with a single unnamed json/jsonb parameter"
-        _                            -> fmtParams) <>
+        (_, True, MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
+        _                            -> fmtPrms prmsDet) <>
       ", but no matches were found in the schema cache."),
     -- The hint will be null in the case of single unnamed parameter functions
     "hint"    .= if onlySingleParams
