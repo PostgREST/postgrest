@@ -124,9 +124,9 @@ spec actualPgVersion =
         get "/rpc/sayhell" `shouldRespondWith`
           [json| {
             "hint":"Perhaps you meant to call the function test.sayhello",
-            "message":"Could not find the test.sayhell function without parameters in the schema cache",
+            "message":"Could not find the function test.sayhell without parameters in the schema cache",
             "code":"PGRST202",
-            "details":null} |]
+            "details":"Searched for the function test.sayhell without parameters, but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -139,9 +139,9 @@ spec actualPgVersion =
         get "/rpc/sayhello?nam=Peter" `shouldRespondWith`
           [json| {
             "hint":"Perhaps you meant to call the function test.sayhello(name)",
-            "message":"Could not find the test.sayhello(nam) function in the schema cache",
+            "message":"Could not find the function test.sayhello(nam) in the schema cache",
             "code":"PGRST202",
-            "details":null} |]
+            "details":"Searched for the function test.sayhello(nam), but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -150,9 +150,9 @@ spec actualPgVersion =
         get "/rpc/add_them?a=1&b=2&smthelse=blabla" `shouldRespondWith`
         [json| {
           "hint":"Perhaps you meant to call the function test.add_them(a, b)",
-          "message":"Could not find the test.add_them(a, b, smthelse) function in the schema cache",
+          "message":"Could not find the function test.add_them(a, b, smthelse) in the schema cache",
           "code":"PGRST202",
-          "details":null} |]
+          "details":"Searched for the function test.add_them(a, b, smthelse), but no matches were found in the schema cache."} |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -164,9 +164,9 @@ spec actualPgVersion =
         `shouldRespondWith`
           [json| {
             "hint":null,
-            "message":"Could not find the test.sayhello function with a single json or jsonb parameter in the schema cache",
+            "message":"Could not find the function test.sayhello in the schema cache",
             "code":"PGRST202",
-            "details":null} |]
+            "details":"Searched for the function test.sayhello with a single json/jsonb parameter, but no matches were found in the schema cache."} |]
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
@@ -175,18 +175,18 @@ spec actualPgVersion =
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":null,
-            "message":"Could not find the test.overloaded(wrong_arg) function in the schema cache",
+            "message":"Could not find the function test.overloaded(wrong_arg) in the schema cache",
             "code":"PGRST202",
-            "details":null} |]
+            "details":"Searched for the function test.overloaded(wrong_arg), but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
         get "/rpc/overloaded?a=1&b=2&wrong_arg=value" `shouldRespondWith`
           [json| {
             "hint":"Perhaps you meant to call the function test.overloaded(a, b, c)",
-            "message":"Could not find the test.overloaded(a, b, wrong_arg) function in the schema cache",
+            "message":"Could not find the function test.overloaded(a, b, wrong_arg) in the schema cache",
             "code":"PGRST202",
-            "details":null} |]
+            "details":"Searched for the function test.overloaded(a, b, wrong_arg), but no matches were found in the schema cache."} |]
           { matchStatus  = 404
           , matchHeaders = [matchContentTypeJson]
           }
@@ -1274,9 +1274,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json|{
                 "hint": "Perhaps you meant to call the function test.unnamed_text_param",
-                "message": "Could not find the test.unnamed_int_param(x, y) function or the test.unnamed_int_param function with a single unnamed json or jsonb parameter in the schema cache",
+                "message": "Could not find the function test.unnamed_int_param(x, y) in the schema cache",
                 "code":"PGRST202",
-                "details":null
+                "details":"Searched for the function test.unnamed_int_param(x, y) or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1289,9 +1289,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json|{
                 "hint": null,
-                "message": "Could not find the test.unnamed_int_param function with a single unnamed text parameter in the schema cache",
+                "message": "Could not find the function test.unnamed_int_param in the schema cache",
                 "code":"PGRST202",
-                "details":null
+                "details":"Searched for the function test.unnamed_int_param with a single unnamed text parameter, but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1304,9 +1304,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json|{
                 "hint": null,
-                "message": "Could not find the test.unnamed_int_param function with a single unnamed xml parameter in the schema cache",
+                "message": "Could not find the function test.unnamed_int_param in the schema cache",
                 "code":"PGRST202",
-                "details":null
+                "details":"Searched for the function test.unnamed_int_param with a single unnamed xml parameter, but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [ matchContentTypeJson ]
@@ -1320,9 +1320,9 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|{
               "hint": null,
-              "message": "Could not find the test.unnamed_int_param function with a single unnamed bytea parameter in the schema cache",
+              "message": "Could not find the function test.unnamed_int_param in the schema cache",
               "code":"PGRST202",
-              "details":null
+              "details":"Searched for the function test.unnamed_int_param with a single unnamed bytea parameter, but no matches were found in the schema cache."
             }|]
             { matchStatus  = 404
             , matchHeaders = [ matchContentTypeJson ]
@@ -1380,9 +1380,9 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json| {
                 "hint":"Perhaps you meant to call the function test.overloaded_unnamed_param(x, y)",
-                "message":"Could not find the test.overloaded_unnamed_param(a, b) function in the schema cache",
+                "message":"Could not find the function test.overloaded_unnamed_param(a, b) in the schema cache",
                 "code":"PGRST202",
-                "details":null
+                "details":"Searched for the function test.overloaded_unnamed_param(a, b), but no matches were found in the schema cache."
               }|]
               { matchStatus  = 404
               , matchHeaders = [matchContentTypeJson]
