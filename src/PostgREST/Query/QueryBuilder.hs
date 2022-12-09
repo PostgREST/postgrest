@@ -39,10 +39,10 @@ import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
-readPlanToQuery :: Bool -> ReadPlanTree -> SQL.Snippet
-readPlanToQuery isRoot (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
+readPlanToQuery :: ReadPlanTree -> SQL.Snippet
+readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if isRoot && null select && null forest then defRootSelect else select)) ++ selects) <> " " <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ selects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null relJoinConds
@@ -53,14 +53,14 @@ readPlanToQuery isRoot (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicF
   where
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
-    defRootSelect = [(("*", []), Nothing, Nothing)] -- gets all columns in case an empty select, e.g. `/tbl?select=`, is done.
+    defSelect = [(("*", []), Nothing, Nothing)] -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
 getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} forest) (selects,joins) =
   let
-    subquery = readPlanToQuery False rr
+    subquery = readPlanToQuery rr
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
     aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
