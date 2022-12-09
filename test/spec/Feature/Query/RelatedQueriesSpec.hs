@@ -10,8 +10,8 @@ import Protolude  hiding (get)
 import SpecHelper
 
 spec :: SpecWith ((), Application)
-spec =
-  describe "related orders" $ do
+spec = describe "related queries" $ do
+  context "related orders" $ do
     it "works on a many-to-one relationship" $ do
       get "/projects?select=id,clients(name)&order=clients(name).nullsfirst" `shouldRespondWith`
         [json|[
@@ -144,6 +144,102 @@ spec =
           "details":null,
           "hint":"Verify that 'clientsx' is included in the 'select' query parameter.",
           "message":"'clientsx' is not an embedded resource in this request"
+        }|]
+        { matchStatus  = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+  context "related conditions through null operator on embed" $ do
+    it "works on a many-to-one relationship" $ do
+      get "/projects?select=name,clients()&clients=not.is.null" `shouldRespondWith`
+        [json|[
+          {"name":"Windows 7"},
+          {"name":"Windows 10"},
+          {"name":"IOS"},
+          {"name":"OSX"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/projects?select=name,clients()&clients=is.null" `shouldRespondWith`
+        [json|[{"name":"Orphan"}]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/projects?select=name,computed_clients()&computed_clients=is.null" `shouldRespondWith`
+        [json|[{"name":"Orphan"}]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works on a one-to-many relationship" $ do
+      get "/entities?select=name,child_entities()&child_entities=not.is.null" `shouldRespondWith`
+        [json|[
+          {"name":"entity 1"},
+          {"name":"entity 2"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/entities?select=name,child_entities()&child_entities=is.null" `shouldRespondWith`
+        [json|[
+          {"name":"entity 3"},
+          {"name":null}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/entities?select=name,childs:child_entities()&childs=is.null" `shouldRespondWith`
+        [json|[
+          {"name":"entity 3"},
+          {"name":null}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works on a many-to-many relationship" $ do
+      get "/users?select=name,tasks()&tasks.id=eq.1&tasks=not.is.null" `shouldRespondWith`
+        [json|[
+          {"name":"Angela Martin"},
+          {"name":"Dwight Schrute"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+      get "/users?select=name,tasks()&tasks.id=eq.1&tasks=is.null" `shouldRespondWith`
+        [json|[
+          {"name":"Michael Scott"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "works on nested embeds" $ do
+      get "/entities?select=name,child_entities(name,grandchild_entities())&child_entities.grandchild_entities=not.is.null&child_entities=not.is.null" `shouldRespondWith`
+        [json|[
+          {"name":"entity 1","child_entities":[{"name":"child entity 1"}, {"name":"child entity 2"}]}]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "can do an or across embeds" $
+      get "/client?select=*,clientinfo(),contact()&clientinfo.other=ilike.*main*&contact.name=ilike.*tabby*&or=(clientinfo.not.is.null,contact.not.is.null)" `shouldRespondWith`
+        [json|[
+          {"id":1,"name":"Walmart"},
+          {"id":2,"name":"Target"}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "only works with is null or is not null operators" $
+      get "/projects?select=name,clients(*)&clients=eq.3" `shouldRespondWith`
+        [json|{
+          "code":"PGRST120",
+          "details":"Only is null or not is null filters are allowed on embedded resources",
+          "hint":null,
+          "message":"Bad operator on the 'clients' embedded resource"
         }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]

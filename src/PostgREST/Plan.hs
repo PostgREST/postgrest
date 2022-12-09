@@ -97,6 +97,7 @@ readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Eit
 readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
   mapLeft ApiRequestError $
   treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+  addNullEmbedFilters =<<
   validateSpreadEmbeds =<<
   addRelatedOrders =<<
   addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
@@ -331,6 +332,25 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
             else Left $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
           Left $ NotEmbedded otRelation
+
+-- Searches for null filters on embeds, e.g. `clients` on /projects?select=*,clients()&clients=not.is.null.
+-- If these are found, it changes the filter to use the internal aggregate name(`projects_clients_1`) so the filter can succeed.
+-- It fails if operators other than is.null or not.is.null are used.
+addNullEmbedFilters :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addNullEmbedFilters (Node rp@ReadPlan{where_=oldLogic} forest) = do
+  let readPlans = rootLabel <$> forest
+  newLogic <- getFilters readPlans `traverse` oldLogic
+  Node rp{ReadPlan.where_= newLogic} <$> (addNullEmbedFilters `traverse` forest)
+  where
+    getFilters :: [ReadPlan] -> LogicTree -> Either ApiRequestError LogicTree
+    getFilters rPlans (Expr b lOp trees) = Expr b lOp <$> (getFilters rPlans `traverse` trees)
+    getFilters rPlans flt@(Stmnt (Filter (fld, []) opExpr)) =
+      let foundRP = find (\ReadPlan{relName, relAlias} -> Just fld `elem` [Just relName, relAlias]) rPlans in
+      case (foundRP, opExpr) of
+        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ Stmnt $ FilterNullEmbed b relAggAlias
+        (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
+        _                                                   -> Right flt
+    getFilters _ flt@(Stmnt _)        = Right flt
 
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =

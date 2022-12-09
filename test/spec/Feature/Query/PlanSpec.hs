@@ -299,6 +299,39 @@ spec actualPgVersion = do
 
       liftIO $ planCost r `shouldSatisfy` (< 70.9)
 
+    context "!inner vs embed not null" $ do
+      it "on an o2m, an !inner has a similar cost to not.null" $ do
+        r1 <- request methodGet "/clients?select=*,projects!inner(*)&id=eq.1"
+               [planHdr] ""
+
+        liftIO $ planCost r1 `shouldSatisfy` (< 33.3)
+
+        r2 <- request methodGet "/clients?select=*,projects(*)&projects=not.is.null&id=eq.1"
+               [planHdr] ""
+
+        liftIO $ planCost r2 `shouldSatisfy` (< 33.3)
+
+      it "on an m2o, an !inner has a similar cost to not.null" $ do
+        r1 <- request methodGet "/projects?select=*,clients!inner(*)&id=eq.1"
+               [planHdr] ""
+
+        liftIO $ planCost r1 `shouldSatisfy` (< 16.42)
+
+        r2 <- request methodGet "/projects?select=*,clients(*)&clients=not.is.null&id=eq.1"
+               [planHdr] ""
+
+        liftIO $ planCost r2 `shouldSatisfy` (< 16.42)
+
+      it "on an m2m, an !inner has a similar cost to not.null" $ do
+        r1 <- request methodGet "/users?select=*,tasks!inner(*)&tasks.id=eq.1"
+               [planHdr] ""
+
+        liftIO $ planCost r1 `shouldSatisfy` (< 20876.14)
+
+        r2 <- request methodGet "/users?select=*,tasks(*)&tasks.id=eq.1&tasks=not.is.null"
+               [planHdr] ""
+
+        liftIO $ planCost r2 `shouldSatisfy` (< 20876.14)
 
   describe "function call costs" $ do
     it "should not exceed cost when calling setof composite proc" $ do

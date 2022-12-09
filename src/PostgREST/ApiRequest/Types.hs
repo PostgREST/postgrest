@@ -80,6 +80,7 @@ data ApiRequestError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
   | SpreadNotToOne Text Text
+  | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
 
@@ -172,10 +173,12 @@ data LogicOperator
   | Or
   deriving Eq
 
-data Filter = Filter
+data Filter
+  = Filter
   { field  :: Field
   , opExpr :: OpExpr
   }
+  | FilterNullEmbed Bool FieldName
   deriving (Eq)
 
 data OpExpr =

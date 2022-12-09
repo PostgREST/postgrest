@@ -261,6 +261,7 @@ pgFmtOrderTerm qi ot =
 
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
+pgFmtFilter _ (FilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      OpLike  -> unknownLiteral (T.map star val)

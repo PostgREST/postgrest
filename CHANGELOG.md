@@ -15,6 +15,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Allows disambiguating a recursive m2m embed
    + Allows disambiguating an embed that has a many-to-many relationship using two foreign keys on a junction
  - #2340, Allow embedding without selecting any column - @steve-chavez
+ - #2563, Allow `is.null` or `not.is.null` on an embedded resource - @steve-chavez
+   + Offers a more flexible replacement for `!inner`, e.g. `/projects?select=*,clients(*)&clients=not.is.null`
+   + Allows doing an anti join, e.g. `/projects?select=*,clients(*)&clients=is.null`
+   + Allows using or across related tables conditions
 
 ### Fixed
 
