@@ -590,8 +590,8 @@ spec actualPgVersion = do
           it "cannot request partitions as children from a partitioned table" $
             get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"Verify that 'car_models' and 'car_model_sales_202101' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-                 "details":null,
+                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
+                 "details":"Searched for a foreign key relationship between 'car_models' and 'car_model_sales_202101' in the schema 'test', but no matches were found.",
                  "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
               { matchStatus  = 400

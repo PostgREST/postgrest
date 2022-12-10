@@ -18,6 +18,7 @@ module PostgREST.Error
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.FuzzySet             as Fuzzy
+import qualified Data.HashMap.Strict       as HM
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Encoding.Error  as T
@@ -41,7 +42,8 @@ import PostgREST.SchemaCache.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
-                                           Relationship (..))
+                                           Relationship (..),
+                                           RelationshipsMap)
 import Protolude
 
 
@@ -174,11 +176,11 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
     "hint"    .= JSON.Null]
 
-  toJSON (NoRelBetween parent child schema) = JSON.object [
+  toJSON (NoRelBetween parent child hint schema allRels) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
     "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= ("Verify that '" <> parent <> "' and '" <> child <> "' exist in the schema '" <> schema <> "' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache." :: Text)]
+    "details" .= ("Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe "" ("' using the hint '" <>) hint <> "' in the schema '" <> schema <> "', but no matches were found."),
+    "hint"    .= noRelBetweenHint parent child schema allRels]
 
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
     "code"    .= SchemaCacheErrorCode01,
@@ -213,6 +215,32 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
+
+noRelBetweenHint :: Text -> Text -> Text -> RelationshipsMap -> Maybe Text
+noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
+  if isJust (findMatch parent)
+    then (<> "' instead of '" <> child <> "'.") <$> suggestChild
+    else (<> "' instead of '" <> parent <> "'.") <$> suggestParent
+  where
+    findMatch val = HM.lookup (QualifiedIdentifier schema val, schema) allRels
+    fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- HM.keys allRels, snd p == schema]
+    fuzzySetOfChildren = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] (findMatch parent)]
+    suggestParent = Fuzzy.getOne fuzzySetOfParents parent
+    -- Do not suggest if the child is found in the relations (weight = 1.0)
+    suggestChild  = headMay [snd k | k <- Fuzzy.get fuzzySetOfChildren child, fst k < 1.0]
+-- TODO: Maybe more complex suggestions are needed? E.g. both parent and child not found
+--noRelBetweenHint parent child schema allRels =
+--  ("Perhaps you meant to select a relationship between '" <>)
+--  (<> ("instead of '" <> parent <> "' and '" <> child <> "'")) <$>
+--  case findMatch parent of
+--        Just rels -> ((parent <> "' and '") <>) <$> suggestChild rels
+--        _         -> findMatch
+--  where
+--    findMatch val = HM.lookup (QualifiedIdentifier schema val, schema) allRels
+--    fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- rels, snd p == schema]
+--    fuzzySetOfChildren rels = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] (findMatch parent)]
+--    suggestParent = Fuzzy.getOne fuzzySetOfParents parent
+--    suggestChild rels  = Fuzzy.getOne (fuzzySetOfChildren rels) child
 
 -- |
 -- If no function is found with the given name, it does a fuzzy search to all the functions
