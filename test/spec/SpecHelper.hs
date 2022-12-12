@@ -1,9 +1,12 @@
 module SpecHelper where
 
+import           Control.Lens           ((^?))
+import           Data.Aeson.Lens
 import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
 import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
+import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
 
 import Data.Aeson           (Value (..), decode, encode)
@@ -213,6 +216,9 @@ rangeHdrsWithCount r = ("Prefer", "count=exact") : rangeHdrs r
 acceptHdrs :: BS.ByteString -> [Header]
 acceptHdrs mime = [(hAccept, mime)]
 
+planHdr :: Header
+planHdr = (hAccept, "application/vnd.pgrst.plan+json")
+
 rangeUnit :: Header
 rangeUnit = ("Range-Unit" :: CI BS.ByteString, "items")
 
@@ -276,3 +282,13 @@ requestMutation method path body =
 
 data BaseTable = BaseTable ByteString ByteString Value
 data MutationCheck = MutationCheck BaseTable (WaiExpectation ())
+
+planCost :: SResponse -> Float
+planCost resp =
+  let res = simpleBody resp ^? nth 0 . key "Plan" . key "Total Cost" in
+  -- big value in case parsing fails
+  fromMaybe 1000000000.0 $ unbox =<< res
+  where
+    unbox :: Value -> Maybe Float
+    unbox (Number n) = Just $ toRealFloat n
+    unbox _          = Nothing
