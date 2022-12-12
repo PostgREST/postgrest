@@ -176,10 +176,10 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
     "hint"    .= JSON.Null]
 
-  toJSON (NoRelBetween parent child hint schema allRels) = JSON.object [
+  toJSON (NoRelBetween parent child embedHint schema allRels) = JSON.object [
     "code"    .= SchemaCacheErrorCode00,
     "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
-    "details" .= ("Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe "" ("' using the hint '" <>) hint <> "' in the schema '" <> schema <> "', but no matches were found."),
+    "details" .= ("Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."),
     "hint"    .= noRelBetweenHint parent child schema allRels]
 
   toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
@@ -216,31 +216,50 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
 
+-- |
+-- If no relationship is found between a parent and a child, then it looks for the parent first.
+-- If the parent is not found then it does a fuzzy search to all the parents in the schema cache and
+-- gives the best match as suggestion. Otherwise, it does a fuzzy search to all the corresponding children
+-- of that parent and gives the best match as suggestion. If both are found, then no suggestion is given.
+--
+-- >>> :set -Wno-missing-fields
+-- >>> let qi t = QualifiedIdentifier "api" t
+-- >>> let rel ft = Relationship{relForeignTable = qi ft}
+-- >>> let rels = HM.fromList [((qi "films", "api"), [rel "directors", rel "roles", rel "actors"])]
+--
+-- >>> noRelBetweenHint "film" "directors" "api" rels
+-- Just "Perhaps you meant 'films' instead of 'film'."
+--
+-- >>> noRelBetweenHint "films" "role" "api" rels
+-- Just "Perhaps you meant 'roles' instead of 'role'."
+--
+-- >>> noRelBetweenHint "films" "role" "api" rels
+-- Just "Perhaps you meant 'roles' instead of 'role'."
+--
+-- >>> noRelBetweenHint "films" "actors" "api" rels
+-- Nothing
+--
+-- >>> noRelBetweenHint "noclosealternative" "roles" "api" rels
+-- Nothing
+--
+-- >>> noRelBetweenHint "films" "noclosealternative" "api" rels
+-- Nothing
+--
+-- >>> noRelBetweenHint "films" "noclosealternative" "noclosealternative" rels
+-- Nothing
+--
 noRelBetweenHint :: Text -> Text -> Text -> RelationshipsMap -> Maybe Text
 noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
-  if isJust (findMatch parent)
+  if isJust findParent
     then (<> "' instead of '" <> child <> "'.") <$> suggestChild
     else (<> "' instead of '" <> parent <> "'.") <$> suggestParent
   where
-    findMatch val = HM.lookup (QualifiedIdentifier schema val, schema) allRels
+    findParent = HM.lookup (QualifiedIdentifier schema parent, schema) allRels
     fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- HM.keys allRels, snd p == schema]
-    fuzzySetOfChildren = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] (findMatch parent)]
+    fuzzySetOfChildren = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] findParent]
     suggestParent = Fuzzy.getOne fuzzySetOfParents parent
-    -- Do not suggest if the child is found in the relations (weight = 1.0)
+    -- Do not give suggestion if the child is found in the relations (weight = 1.0)
     suggestChild  = headMay [snd k | k <- Fuzzy.get fuzzySetOfChildren child, fst k < 1.0]
--- TODO: Maybe more complex suggestions are needed? E.g. both parent and child not found
---noRelBetweenHint parent child schema allRels =
---  ("Perhaps you meant to select a relationship between '" <>)
---  (<> ("instead of '" <> parent <> "' and '" <> child <> "'")) <$>
---  case findMatch parent of
---        Just rels -> ((parent <> "' and '") <>) <$> suggestChild rels
---        _         -> findMatch
---  where
---    findMatch val = HM.lookup (QualifiedIdentifier schema val, schema) allRels
---    fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- rels, snd p == schema]
---    fuzzySetOfChildren rels = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] (findMatch parent)]
---    suggestParent = Fuzzy.getOne fuzzySetOfParents parent
---    suggestChild rels  = Fuzzy.getOne (fuzzySetOfChildren rels) child
 
 -- |
 -- If no function is found with the given name, it does a fuzzy search to all the functions
