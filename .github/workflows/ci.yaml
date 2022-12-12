@@ -86,10 +86,6 @@ jobs:
         if: always()
         run: postgrest-with-postgresql-${{ matrix.pgVersion }} -f test/io/fixtures.sql postgrest-test-io
 
-      - name: Run query cost tests
-        if: always()
-        run: postgrest-with-postgresql-${{ matrix.pgVersion }} postgrest-test-querycost
-
 
   Test-Memory-Nix:
     name: Test memory (Nix)

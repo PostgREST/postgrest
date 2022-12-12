@@ -13,6 +13,7 @@ import           Network.HTTP.Types
 import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
+import           Text.Heredoc
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
                                    pgVersion130)
@@ -297,6 +298,41 @@ spec actualPgVersion = do
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
       liftIO $ planCost r `shouldSatisfy` (< 70.9)
+
+
+  describe "function call costs" $ do
+    it "should not exceed cost when calling setof composite proc" $ do
+      r <- request methodGet "/rpc/get_projects_below?id=3"
+             [planHdr] ""
+
+      liftIO $ planCost r `shouldSatisfy` (< 36.4)
+
+    it "should not exceed cost when calling setof composite proc with empty params" $ do
+      r <- request methodGet "/rpc/getallprojects"
+             [planHdr] ""
+
+      liftIO $ planCost r `shouldSatisfy` (< 71.0)
+
+    it "should not exceed cost when calling scalar proc" $ do
+      r <- request methodGet "/rpc/add_them?a=3&b=4"
+             [planHdr] ""
+
+      liftIO $ planCost r `shouldSatisfy` (< 1.18)
+
+    context "params=multiple-objects" $ do
+      it "should not exceed cost when calling setof composite proc" $ do
+        r <- request methodPost "/rpc/get_projects_below"
+               [planHdr, ("Prefer", "params=multiple-objects")]
+               [str| [{"id": 1}, {"id": 4}] |]
+
+        liftIO $ planCost r `shouldSatisfy` (< 4503.4)
+
+      it "should not exceed cost when calling scalar proc" $ do
+        r <- request methodPost "/rpc/add_them"
+               [planHdr, ("Prefer", "params=multiple-objects")]
+               [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |]
+
+        liftIO $ planCost r `shouldSatisfy` (< 5.85)
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
