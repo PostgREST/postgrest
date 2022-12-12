@@ -220,7 +220,6 @@ test-suite spec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
                       SpecHelper
-                      TestTypes
   build-depends:      base              >= 4.9 && < 4.17
                     , aeson             >= 2.0.3 && < 2.2
                     , aeson-qq          >= 0.8.1 && < 0.9
