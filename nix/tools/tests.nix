@@ -32,18 +32,6 @@ let
           test:spec -- "''${_arg_leftovers[@]}"
       '';
 
-  testQuerycost =
-    checkedShellScript
-      {
-        name = "postgrest-test-querycost";
-        docs = "Run the Haskell test suite for query costs";
-        inRootDir = true;
-        withEnv = postgrest.env;
-      }
-      ''
-        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
-      '';
-
   testDoctests =
     checkedShellScript
       {
@@ -140,7 +128,7 @@ let
           rm -rf coverage/*
 
           # build once before running all the tests
-          ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec test:querycost
+          ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec
 
           (
             trap 'echo Found dead code: Check file list above.' ERR ;
@@ -155,14 +143,11 @@ let
           HPCTIXFILE="$tmpdir"/spec.tix \
             ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 
-          HPCTIXFILE="$tmpdir"/querycost.tix \
-            ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:querycost
-
           # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
           # collect all the tix files
           ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
-            "$tmpdir"/io*.tix "$tmpdir"/spec.tix "$tmpdir"/querycost.tix
+            "$tmpdir"/io*.tix "$tmpdir"/spec.tix
 
           # prepare the overlay
           ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
@@ -234,7 +219,6 @@ buildToolbox
   tools =
     [
       testSpec
-      testQuerycost
       testDoctests
       testSpecIdempotence
       testIO

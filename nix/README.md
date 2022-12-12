@@ -208,12 +208,6 @@ postgrest-loadtest-against master
 postgrest-loadtest-report
 ```
 
-Our query cost tests ensure that our generated queries don't surpass a threshold EXPLAIN cost.
-
-```bash
-postgrest-test-querycost
-```
-
 doctests for some of our modules are also available:
 
 ```bash
