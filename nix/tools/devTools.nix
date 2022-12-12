@@ -77,7 +77,6 @@ let
       }
       ''
         ${tests}/bin/postgrest-test-spec
-        ${tests}/bin/postgrest-test-querycost
         ${tests}/bin/postgrest-test-doctests
         ${tests}/bin/postgrest-test-io
         ${style}/bin/postgrest-lint
