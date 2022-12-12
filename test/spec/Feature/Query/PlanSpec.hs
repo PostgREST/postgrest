@@ -14,8 +14,8 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
-                                   pgVersion120, pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
+                                   pgVersion130)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -26,7 +26,7 @@ spec actualPgVersion = do
       r <- request methodGet "/projects?id=in.(1,2,3)"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
@@ -35,14 +35,14 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|15.63|]
-            else Just [aesonQQ|15.69|]
+            then 15.63
+            else 15.69
 
     it "outputs the total cost for a single filter on a view" $ do
       r <- request methodGet "/projects_view?id=gt.2"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
@@ -51,8 +51,8 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|24.28|]
-            else Just [aesonQQ|32.28|]
+            then 24.28
+            else 32.28
 
     it "outputs blocks info when using the buffers option" $
       if actualPgVersion >= pgVersion130
@@ -158,7 +158,7 @@ spec actualPgVersion = do
       r <- request methodPost "/projects"
              (acceptHdrs "application/vnd.pgrst.plan+json") [json|{"id":100, "name": "Project 100"}|]
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
@@ -167,14 +167,14 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|3.28|]
-            else Just [aesonQQ|3.33|]
+            then 3.28
+            else 3.33
 
     it "outputs the total cost for an update" $ do
       r <- request methodPatch "/projects?id=eq.3"
              (acceptHdrs "application/vnd.pgrst.plan+json") [json|{"name": "Patched Project"}|]
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
@@ -183,28 +183,28 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
-            then Just [aesonQQ|12.45|]
-            else Just [aesonQQ|12.5|]
+            then 12.45
+            else 12.5
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` Just [aesonQQ|15.68|]
+        totalCost `shouldBe` 15.68
 
     it "outputs the total cost for a single upsert" $ do
       r <- request methodPut "/tiobe_pls?name=eq.Go"
             (acceptHdrs "application/vnd.pgrst.plan+json")
             [json| [ { "name": "Go", "rank": 19 } ]|]
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
@@ -213,8 +213,8 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion >= pgVersion120
-            then Just [aesonQQ|1.3|]
-            else Just [aesonQQ|1.35|]
+            then 1.3
+            else 1.35
 
     it "outputs the plan for application/vnd.pgrst.object" $ do
       r <- request methodDelete "/projects?id=eq.6"
@@ -232,14 +232,14 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
+      let totalCost  = planCost r
           resHeaders = simpleHeaders r
           resStatus  = simpleStatus r
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` Just [aesonQQ|68.57|]
+        totalCost `shouldBe` 68.57
 
     it "outputs the plan for text/xml" $ do
       r <- request methodGet "/rpc/return_scalar_xml"
@@ -282,33 +282,21 @@ spec actualPgVersion = do
   describe "resource embedding costs" $ do
     it "a one to many doesn't surpass a threshold" $ do
       r <- request methodGet "/clients?select=*,projects(*)&id=eq.1"
-             (acceptHdrs "application/vnd.pgrst.plan+json") ""
+             [planHdr] ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
-      liftIO $ totalCost `shouldBe`
-          if actualPgVersion > pgVersion120
-            then Just [aesonQQ|33.25|]
-            else Just [aesonQQ|33.27|]
+      liftIO $ planCost r `shouldSatisfy` (< 33.3)
 
     it "a many to one doesn't surpass a threshold" $ do
       r <- request methodGet "/projects?select=*,clients(*)&id=eq.1"
-             (acceptHdrs "application/vnd.pgrst.plan+json") ""
+             [planHdr] ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
-      liftIO $ totalCost `shouldBe`
-          if actualPgVersion > pgVersion120
-            then Just [aesonQQ|16.39|]
-            else Just [aesonQQ|16.41|]
+      liftIO $ planCost r `shouldSatisfy` (< 16.5)
 
     it "a many to many doesn't surpass a threshold" $ do
       r <- request methodGet "/users?select=*,tasks(*)&id=eq.1"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""
 
-      let totalCost  = simpleBody r ^? nth 0 . key "Plan" . key "Total Cost"
-      liftIO $ totalCost `shouldBe`
-          if | actualPgVersion > pgVersion120 -> Just [aesonQQ|69.34|]
-             | actualPgVersion > pgVersion100 -> Just [aesonQQ|69.36|]
-             | otherwise                      -> Just [aesonQQ|70.81|]
+      liftIO $ planCost r `shouldSatisfy` (< 70.9)
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
