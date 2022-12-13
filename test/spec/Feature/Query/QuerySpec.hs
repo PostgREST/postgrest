@@ -601,8 +601,8 @@ spec actualPgVersion = do
           it "cannot request a partitioned table as parent from a partition" $
             get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"Verify that 'car_model_sales_202101' and 'car_models' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-                 "details":null,
+                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
+                 "details":"Searched for a foreign key relationship between 'car_model_sales_202101' and 'car_models' in the schema 'test', but no matches were found.",
                  "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
               { matchStatus  = 400
@@ -612,8 +612,8 @@ spec actualPgVersion = do
           it "cannot request a partition as parent from a partitioned table" $
             get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"Verify that 'car_model_sales' and 'car_models_default' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-                 "details":null,
+                {"hint":"Perhaps you meant 'car_models' instead of 'car_models_default'.",
+                 "details":"Searched for a foreign key relationship between 'car_model_sales' and 'car_models_default' in the schema 'test', but no matches were found.",
                  "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
               { matchStatus  = 400
@@ -623,8 +623,8 @@ spec actualPgVersion = do
           it "cannot request partitioned tables as children from a partition" $
             get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
               [json|
-                {"hint":"Verify that 'car_models_default' and 'car_model_sales' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
-                 "details":null,
+                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_models_default'.",
+                 "details":"Searched for a foreign key relationship between 'car_models_default' and 'car_model_sales' in the schema 'test', but no matches were found.",
                  "code":"PGRST200",
                  "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
               { matchStatus  = 400

@@ -35,7 +35,8 @@ import PostgREST.MediaType                (MediaType (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..))
-import PostgREST.SchemaCache.Relationship (Relationship, RelationshipsMap)
+import PostgREST.SchemaCache.Relationship (Relationship,
+                                           RelationshipsMap)
 
 import Protolude
 
