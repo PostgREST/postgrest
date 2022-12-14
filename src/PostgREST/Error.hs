@@ -37,7 +37,8 @@ import           PostgREST.ApiRequest.Types (ApiRequestError (..),
 import           PostgREST.MediaType        (MediaType (..))
 import qualified PostgREST.MediaType        as MediaType
 
-import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
+                                           Schema)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
                                            ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -248,7 +249,7 @@ instance JSON.ToJSON ApiRequestError where
 -- >>> noRelBetweenHint "films" "noclosealternative" "noclosealternative" rels
 -- Nothing
 --
-noRelBetweenHint :: Text -> Text -> Text -> RelationshipsMap -> Maybe Text
+noRelBetweenHint :: Text -> Text -> Schema -> RelationshipsMap -> Maybe Text
 noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
   if isJust findParent
     then (<> "' instead of '" <> child <> "'.") <$> suggestChild
