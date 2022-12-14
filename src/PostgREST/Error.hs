@@ -218,10 +218,11 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
 
 -- |
--- If no relationship is found between a parent and a child, then it looks for the parent first.
--- If the parent is not found then it does a fuzzy search to all the parents in the schema cache and
--- gives the best match as suggestion. Otherwise, it does a fuzzy search to all the corresponding children
--- of that parent and gives the best match as suggestion. If both are found, then no suggestion is given.
+-- If no relationship is found then:
+--
+-- Looks for parent suggestions if parent not found
+-- Looks for child suggestions if parent is found but child is not
+-- Gives no suggestions if both are found (it means that there is a problem with the embed hint)
 --
 -- >>> :set -Wno-missing-fields
 -- >>> let qi t = QualifiedIdentifier "api" t
