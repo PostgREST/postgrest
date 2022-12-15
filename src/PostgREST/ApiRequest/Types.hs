@@ -35,7 +35,8 @@ import PostgREST.MediaType                (MediaType (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..))
-import PostgREST.SchemaCache.Relationship (Relationship)
+import PostgREST.SchemaCache.Relationship (Relationship,
+                                           RelationshipsMap)
 
 import Protolude
 
@@ -65,7 +66,7 @@ data ApiRequestError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
   | NotFound
-  | NoRelBetween Text Text Text
+  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
   | NotEmbedded Text
   | ParseRequestError Text Text

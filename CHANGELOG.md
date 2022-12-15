@@ -8,7 +8,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2565, Fix bad M2M embedding on RPC - @steve-chavez
-
+ - #2575, Replace misleading error message when no function is found with a hint containing functions/parameters names suggestions - @laurenceisla
+ - #2569, Replace misleading error message when no relationship is found with a hint containing parent/child names suggestions - @laurenceisla
 ## [10.1.1] - 2022-11-08
 
 ### Fixed
