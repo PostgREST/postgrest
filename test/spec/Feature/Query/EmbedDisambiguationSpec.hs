@@ -202,10 +202,10 @@ spec =
         it "fails if the fk is not known" $
           get "/message?select=id,sender:person!space(name)&id=lt.4" `shouldRespondWith`
             [json|{
-              "hint":"Verify that 'message' and 'person' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+              "hint":null,
               "message":"Could not find a relationship between 'message' and 'person' in the schema cache",
               "code": "PGRST200",
-              "details": null}|]
+              "details":"Searched for a foreign key relationship between 'message' and 'person' using the hint 'space' in the schema 'test', but no matches were found."}|]
             { matchStatus = 400
             , matchHeaders = [matchContentTypeJson] }
 
@@ -492,10 +492,10 @@ spec =
       it "doesn't work if the junction is only internal" $
         get "/end_1?select=end_2(*)" `shouldRespondWith`
           [json|{
-            "hint":"Verify that 'end_1' and 'end_2' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+            "hint": null,
             "message":"Could not find a relationship between 'end_1' and 'end_2' in the schema cache",
             "code":"PGRST200",
-            "details": null}|]
+            "details": "Searched for a foreign key relationship between 'end_1' and 'end_2' in the schema 'test', but no matches were found."}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
       it "shouldn't try to embed if the private junction has an exposed homonym" $
@@ -503,10 +503,10 @@ spec =
         -- Ref: https://github.com/PostgREST/postgrest/issues/1587#issuecomment-734995669
         get "/schauspieler?select=filme(*)" `shouldRespondWith`
           [json|{
-            "hint":"Verify that 'schauspieler' and 'filme' exist in the schema 'test' and that there is a foreign key relationship between them. If a new relationship was created, try reloading the schema cache.",
+            "hint":null,
             "message":"Could not find a relationship between 'schauspieler' and 'filme' in the schema cache",
             "code":"PGRST200",
-            "details": null}|]
+            "details":"Searched for a foreign key relationship between 'schauspieler' and 'filme' in the schema 'test', but no matches were found."}|]
           { matchStatus  = 400
           , matchHeaders = [matchContentTypeJson] }
 
