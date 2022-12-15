@@ -208,7 +208,7 @@ getJoinConditions tblAlias parentAlias Relationship{relTable=qi,relForeignTable=
 findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
 findRel schema allRels origin target hint =
   case rels of
-    []  -> Left $ NoRelBetween origin target schema
+    []  -> Left $ NoRelBetween origin target hint schema allRels
     [r] -> Right r
     rs  -> Left $ AmbiguousRelBetween origin target rs
   where
