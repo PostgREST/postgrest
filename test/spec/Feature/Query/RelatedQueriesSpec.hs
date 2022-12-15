@@ -244,3 +244,13 @@ spec = describe "related queries" $ do
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
+
+    it "doesn't interfere filtering when embedding using the column name" $
+      get "/projects?select=name,client_id,client:client_id(name)&client_id=eq.2" `shouldRespondWith`
+        [json|[
+          {"name":"IOS","client_id":2,"client":{"name":"Apple"}},
+          {"name":"OSX","client_id":2,"client":{"name":"Apple"}}
+        ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }

@@ -322,7 +322,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
   where
     getRelOrder ot@OrderTerm{}                   = Right ot
     getRelOrder ot@OrderRelationTerm{otRelation} =
-      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> Just otRelation `elem` [Just relName, relAlias] ) forest in
+      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> otRelation == fromMaybe relName relAlias) forest in
       case foundRP of
         Just ReadPlan{relName,relAlias,relAggAlias,relToParent} ->
           let isToOne = relIsToOne <$> relToParent
@@ -345,7 +345,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=oldLogic} forest) = do
     getFilters :: [ReadPlan] -> LogicTree -> Either ApiRequestError LogicTree
     getFilters rPlans (Expr b lOp trees) = Expr b lOp <$> (getFilters rPlans `traverse` trees)
     getFilters rPlans flt@(Stmnt (Filter (fld, []) opExpr)) =
-      let foundRP = find (\ReadPlan{relName, relAlias} -> Just fld `elem` [Just relName, relAlias]) rPlans in
+      let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
       case (foundRP, opExpr) of
         (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ Stmnt $ FilterNullEmbed b relAggAlias
         (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
