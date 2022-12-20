@@ -272,6 +272,56 @@ $_$An RPC function
 
 Just a test for RPC function arguments$_$;
 
+CREATE FUNCTION varied_arguments_openapi(
+  double double precision,
+  "varchar" character varying,
+  "boolean" boolean,
+  date date,
+  money money,
+  enum enum_menagerie_type,
+  text_arr text[],
+  int_arr int[],
+  bool_arr boolean[],
+  char_arr char[],
+  varchar_arr varchar[],
+  bigint_arr bigint[],
+  numeric_arr numeric[],
+  json_arr json[],
+  jsonb_arr jsonb[],
+  "integer" integer default 42,
+  json json default '{}',
+  jsonb jsonb default '{}'
+) RETURNS json
+  LANGUAGE sql
+  IMMUTABLE
+AS $_$
+SELECT json_build_object(
+           'double', double,
+           'varchar', "varchar",
+           'boolean', "boolean",
+           'date', date,
+           'money', money,
+           'enum', enum,
+           'text_arr', text_arr,
+           'int_arr', int_arr,
+           'bool_arr', bool_arr,
+           'char_arr', char_arr,
+           'varchar_arr', varchar_arr,
+           'bigint_arr', bigint_arr,
+           'numeric_arr', numeric_arr,
+           'json_arr', json_arr,
+           'jsonb_arr', jsonb_arr,
+           'integer', "integer",
+           'json', json,
+           'jsonb', jsonb
+         );
+$_$;
+
+COMMENT ON FUNCTION varied_arguments_openapi(double precision, character varying, boolean, date, money, enum_menagerie_type, text[], int[], boolean[], char[], varchar[], bigint[], numeric[], json[], jsonb[], integer, json, jsonb) IS
+  $_$An RPC function
+
+Just a test for RPC function arguments$_$;
+
 
 CREATE FUNCTION json_argument(arg json) RETURNS text
 LANGUAGE sql
@@ -1814,7 +1864,16 @@ CREATE TABLE test.openapi_types(
   "a_real" real,
   "a_double_precision" double precision,
   "a_json" json,
-  "a_jsonb" jsonb
+  "a_jsonb" jsonb,
+  "a_text_arr" text[],
+  "a_int_arr" int[],
+  "a_bool_arr" boolean[],
+  "a_char_arr" char[],
+  "a_varchar_arr" varchar[],
+  "a_bigint_arr" bigint[],
+  "a_numeric_arr" numeric[],
+  "a_json_arr" json[],
+  "a_jsonb_arr" jsonb[]
 );
 
 CREATE TABLE test.openapi_defaults(

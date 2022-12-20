@@ -66,10 +66,16 @@ toSwaggerType "bigint"            = Just SwaggerInteger
 toSwaggerType "numeric"           = Just SwaggerNumber
 toSwaggerType "real"              = Just SwaggerNumber
 toSwaggerType "double precision"  = Just SwaggerNumber
-toSwaggerType "ARRAY"             = Just SwaggerArray
 toSwaggerType "json"              = Nothing
 toSwaggerType "jsonb"             = Nothing
-toSwaggerType _                   = Just SwaggerString
+toSwaggerType colType             = case T.takeEnd 2 colType of
+  "[]" -> Just SwaggerArray
+  _    -> Just SwaggerString
+
+makeSwaggerItemType :: Maybe (SwaggerType t) -> Text -> Maybe (Referenced Schema)
+makeSwaggerItemType itemType colType = case itemType of
+  Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerType (T.dropEnd 2 colType))
+  _                 -> Nothing
 
 parseDefault :: Text -> Text -> Text
 parseDefault colType colDefault =
@@ -119,6 +125,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         Just $ T.append (maybe "" (`T.append` "\n\n") $ colDescription col) (T.intercalate "\n" n)
       else
         colDescription col
+    pType = toSwaggerType (colType col)
     s =
       (mempty :: Schema)
         & default_ .~ (JSON.decode . toUtf8Lazy . parseDefault (colType col) =<< colDefault col)
@@ -126,7 +133,8 @@ makeProperty tbl rels col = (colName col, Inline s)
         & enum_ .~ e
         & format ?~ colType col
         & maxLength .~ (fromIntegral <$> colMaxLen col)
-        & type_ .~ toSwaggerType (colType col)
+        & type_ .~ pType
+        & items .~ (SwaggerItemsObject <$> makeSwaggerItemType pType (colType col))
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -141,6 +149,7 @@ makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
+          & items .~ (SwaggerItemsObject <$> makeSwaggerItemType (toSwaggerType t) t)
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
