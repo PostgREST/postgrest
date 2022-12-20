@@ -490,6 +490,117 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
+    it "array types to array" $ do
+      r <- simpleBody <$> get "/"
+
+      let text_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_text_arr"
+      let int_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_int_arr"
+      let bool_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_bool_arr"
+      let char_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_char_arr"
+      let varchar_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_varchar_arr"
+      let bigint_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_bigint_arr"
+      let numeric_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_numeric_arr"
+      let json_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_json_arr"
+      let jsonb_arr_types = r ^? key "definitions" . key "openapi_types" . key "properties" . key "a_jsonb_arr"
+
+      liftIO $ do
+
+        text_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "text[]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          |]
+
+        int_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "integer[]",
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          |]
+
+        bool_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "boolean[]",
+              "type": "array",
+              "items": {
+                "type": "boolean"
+              }
+            }
+          |]
+
+        char_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "character[]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          |]
+
+        varchar_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "character varying[]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          |]
+
+        bigint_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "bigint[]",
+              "type": "array",
+              "items": {
+                "type": "integer"
+              }
+            }
+          |]
+
+        numeric_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "numeric[]",
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            }
+          |]
+
+        json_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "json[]",
+              "type": "array",
+              "items": {}
+            }
+          |]
+
+        jsonb_arr_types `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "jsonb[]",
+              "type": "array",
+              "items": {}
+            }
+          |]
+
+
   describe "Detects default values" $ do
 
     it "text" $ do
@@ -569,7 +680,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
     it "includes function summary/description and body schema for arguments" $ do
       r <- simpleBody <$> get "/"
 
-      let method s = key "paths" . key "/rpc/varied_arguments" . key s
+      let method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
           args = r ^? method "post" . key "parameters" . nth 0 . key "schema"
           summary = r ^? method "post" . key "summary"
           description = r ^? method "post" . key "description"
@@ -590,7 +701,15 @@ spec actualPgVersion = describe "OpenAPI" $ do
                 "date",
                 "money",
                 "enum",
-                "arr"
+                "text_arr",
+                "int_arr",
+                "bool_arr",
+                "char_arr",
+                "varchar_arr",
+                "bigint_arr",
+                "numeric_arr",
+                "json_arr",
+                "jsonb_arr"
               ],
               "properties": {
                 "double": {
@@ -617,9 +736,64 @@ spec actualPgVersion = describe "OpenAPI" $ do
                   "format": "enum_menagerie_type",
                   "type": "string"
                 },
-                "arr": {
+                "text_arr": {
                   "format": "text[]",
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "int_arr": {
+                  "format": "integer[]",
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "bool_arr": {
+                  "format": "boolean[]",
+                  "type": "array",
+                  "items": {
+                    "type": "boolean"
+                  }
+                },
+                "char_arr": {
+                  "format": "character[]",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "varchar_arr": {
+                  "format": "character varying[]",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "bigint_arr": {
+                  "format": "bigint[]",
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "numeric_arr": {
+                  "format": "numeric[]",
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                "json_arr": {
+                  "format": "json[]",
+                  "type": "array",
+                  "items": {}
+                },
+                "jsonb_arr": {
+                  "format": "jsonb[]",
+                  "type": "array",
+                  "items": {}
                 },
                 "integer": {
                   "format": "integer",
