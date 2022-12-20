@@ -512,13 +512,11 @@ tablesSqlQuery pgVer =
               CASE
                   WHEN t.typtype = 'd' THEN
                   CASE
-                      WHEN bt.typelem <> 0::oid AND bt.typlen = (-1) THEN 'ARRAY'::text
                       WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
                       ELSE format_type(a.atttypid, a.atttypmod)
                   END
                   ELSE
                   CASE
-                      WHEN t.typelem <> 0::oid AND t.typlen = (-1) THEN 'ARRAY'::text
                       WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
                       ELSE format_type(a.atttypid, a.atttypmod)
                   END
