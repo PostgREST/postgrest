@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2575, Replace misleading error message when no function is found with a hint containing functions/parameters names suggestions - @laurenceisla
  - #2569, Replace misleading error message when no relationship is found with a hint containing parent/child names suggestions - @laurenceisla
  - #1405, Add the required OpenAPI items object when the parameter is an array - @laurenceisla
+ - #2592, Add upsert headers for POST requests to the OpenAPI output - @laurenceisla
 
 ## [10.1.1] - 2022-11-08
 
