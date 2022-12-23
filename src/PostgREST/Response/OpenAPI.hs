@@ -182,7 +182,7 @@ makeProcParam pd =
 
 makeParamDefs :: [Table] -> [(Text, Param)]
 makeParamDefs ti =
-  -- TODO: create Prefer for each method (GET, PATCH, etc.) 
+  -- TODO: create Prefer for each method (GET, PATCH, etc.)
   [ ("preferParams", makePreferParam ["params"])
   , ("preferReturn", makePreferParam ["return"])
   , ("preferCount", makePreferParam ["count"])
