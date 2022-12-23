@@ -91,7 +91,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
             [
               { "$ref": "#/parameters/body.child_entities" },
               { "$ref": "#/parameters/select" },
-              { "$ref": "#/parameters/preferReturn" }
+              { "$ref": "#/parameters/preferPost" }
             ]
           |]
 
