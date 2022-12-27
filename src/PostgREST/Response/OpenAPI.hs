@@ -161,7 +161,15 @@ makePreferParam ts =
   & schema .~ ParamOther ((mempty :: ParamOtherSchema)
     & in_ .~ ParamHeader
     & type_ ?~ SwaggerString
-    & enum_ .~ JSON.decode (JSON.encode ts))
+    & enum_ .~ JSON.decode (JSON.encode $ foldl (<>) [] (val <$> ts)))
+  where
+    val :: Text -> [Text]
+    val = \case
+      "count"      -> ["count=none"]
+      "params"     -> ["params=single-object"]
+      "return"     -> ["return=representation", "return=minimal", "return=none"]
+      "resolution" -> ["resolution=ignore-duplicates", "resolution=merge-duplicates"]
+      _            -> []
 
 makeProcParam :: ProcDescription -> [Referenced Param]
 makeProcParam pd =
@@ -174,9 +182,11 @@ makeProcParam pd =
 
 makeParamDefs :: [Table] -> [(Text, Param)]
 makeParamDefs ti =
-  [ ("preferParams", makePreferParam ["params=single-object"])
-  , ("preferReturn", makePreferParam ["return=representation", "return=minimal", "return=none"])
-  , ("preferCount", makePreferParam ["count=none"])
+  -- TODO: create Prefer for each method (GET, PATCH, etc.)
+  [ ("preferParams", makePreferParam ["params"])
+  , ("preferReturn", makePreferParam ["return"])
+  , ("preferCount", makePreferParam ["count"])
+  , ("preferPost", makePreferParam ["return", "resolution"])
   , ("select", (mempty :: Param)
       & name        .~ "select"
       & description ?~ "Filtering Columns"
@@ -276,7 +286,7 @@ makePathItem t = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t 
         )
       )
     postOp = tOp
-      & parameters .~ fmap ref ["body." <> tn, "select", "preferReturn"]
+      & parameters .~ fmap ref ["body." <> tn, "select", "preferPost"]
       & at 201 ?~ "Created"
     patchOp = tOp
       & parameters .~ fmap ref (rs <> ["body." <> tn, "preferReturn"])
