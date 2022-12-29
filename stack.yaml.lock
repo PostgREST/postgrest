@@ -135,12 +135,12 @@ packages:
     version: 0.9.4.3
     git: https://github.com/PostgREST/postgresql-libpq.git
     pantry-tree:
-      size: 1081
-      sha256: 0df271e48af32eb8292a45301af45e114110d54099ee73dbc609d39770e8175e
-    commit: 33ff97db570b5b432255f5f24a68db51453f6eb8
+      size: 1414
+      sha256: 074668b9669b9c49f3c522c8af5c608799a1965e203c463b188b2632995beac2
+    commit: e1eb91e8336ee8bd196faf7a41f87fc6f53f906a
   original:
     git: https://github.com/PostgREST/postgresql-libpq.git
-    commit: 33ff97db570b5b432255f5f24a68db51453f6eb8
+    commit: e1eb91e8336ee8bd196faf7a41f87fc6f53f906a
 snapshots:
 - completed:
     size: 618951
