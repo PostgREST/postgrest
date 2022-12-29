@@ -52,8 +52,8 @@ let
           (super.fetchFromGitHub {
             owner = "PostgREST";
             repo = "postgresql-libpq";
-            rev = "cef92cb4c07b56568dffdbf4b719258b82183119"; # merge-upstream
-            sha256 = "0r59klrz47qcnd22s47h612mlz3jbg40wwalfj3f6djwg0cdyr85";
+            rev = "e1eb91e8336ee8bd196faf7a41f87fc6f53f906a"; # merge-upstream
+            sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
           })
           { });
     } // extraOverrides final prev;
