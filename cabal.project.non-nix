@@ -17,4 +17,4 @@ packages: .
 source-repository-package
   type: git
   location: https://github.com/PostgREST/postgresql-libpq.git
-  tag: e1eb91e8336ee8bd196faf7a41f87fc6f53f906a
+  tag: 890a0a16cf57dd401420fdc6c7d576fb696003bc

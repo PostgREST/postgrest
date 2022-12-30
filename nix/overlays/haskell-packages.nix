@@ -52,7 +52,7 @@ let
           (super.fetchFromGitHub {
             owner = "PostgREST";
             repo = "postgresql-libpq";
-            rev = "e1eb91e8336ee8bd196faf7a41f87fc6f53f906a"; # merge-upstream
+            rev = "890a0a16cf57dd401420fdc6c7d576fb696003bc"; # master
             sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
           })
           { });

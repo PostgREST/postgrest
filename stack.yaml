@@ -29,4 +29,4 @@ extra-deps:
   - text-builder-0.6.7
   - text-builder-dev-0.3.3
   - git: https://github.com/PostgREST/postgresql-libpq.git
-    commit: e1eb91e8336ee8bd196faf7a41f87fc6f53f906a
+    commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
