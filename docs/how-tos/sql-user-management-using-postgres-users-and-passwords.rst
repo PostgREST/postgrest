@@ -6,14 +6,14 @@ SQL User Management using postgres' users and passwords
 :author: `fjf2002 <https://github.com/fjf2002>`_
 
 
-This is an alternative to :ref:`sql_user_management`, solely using the built-in table `pg_catalog.pg_authid <https://www.postgresql.org/docs/current/catalog-pg-authid.html>`_ for user management. This means
+This is an alternative to chapter :ref:`sql_user_management`, solely using the PostgreSQL built-in table `pg_catalog.pg_authid <https://www.postgresql.org/docs/current/catalog-pg-authid.html>`_ for user management. This means
 
 - no dedicated user table (aside from :code:`pg_authid`) is required
 
-- postgres' users and passwords (i. e. the stuff in :code:`pg_authid`) are also used at the postgrest level.
+- PostgreSQL's users and passwords (i. e. the stuff in :code:`pg_authid`) are also used at the PostgREST level.
 
 .. note::
-  Only postgres users with SCRAM-SHA-256 password hashes (the default since PostgreSQL v14) are supported.
+  Only PostgreSQL users with SCRAM-SHA-256 password hashes (the default since PostgreSQL v14) are supported.
 
 .. warning::
 
@@ -98,9 +98,7 @@ In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we als
       FOR j IN 2 .. count LOOP
         the_last := ext_pgcrypto.HMAC(the_last, pw::bytea, algorithm);
         
-        --
         -- xor the two
-        --
         FOR k IN 1 .. length(xorsum) LOOP
           xorsum := set_byte(xorsum, k - 1, get_byte(xorsum, k - 1) # get_byte(the_last, k - 1));
         END LOOP;
@@ -140,7 +138,7 @@ But contrary to :ref:`sql_user_management`, this function does not use a dedicat
     CROSS JOIN LATERAL (SELECT ext_pgcrypto.digest(ext_pgcrypto.hmac('Client Key', digest_key, 'sha256'), 'sha256') AS stored_key, ext_pgcrypto.hmac('Server Key', digest_key, 'sha256') AS server_key) AS check_password_part
     WHERE rolpassword IS NOT NULL
       AND pg_authid.rolname = check_user_pass.username
-    -- verify password:
+      -- verify password:
       AND check_password_part.stored_key = stored_password_part.stored_key
       AND check_password_part.server_key = stored_password_part.server_key;
   $$;
@@ -152,7 +150,7 @@ But contrary to :ref:`sql_user_management`, this function does not use a dedicat
 Public User Interface
 ---------------------
 
-Analogous to :ref:`sql_user_management`, we create a login function which takes a username and password and returns JWT if the credentials match a user in the internal table.
+Analogous to :ref:`sql_user_management`, we create a login function which takes a username and password and returns a JWT if the credentials match a user in the internal table.
 Here we use the username instead of the email address to identify a user.
 
 
@@ -168,7 +166,7 @@ As described in :ref:`client_auth`, we'll create a JWT token inside our login fu
     token text
   );
 
-  -- if you are not using psql, you need to replace :dbname with the current database's name.
+  -- if you are not using psql, you need to replace :DBNAME with the current database's name.
   ALTER DATABASE :DBNAME SET "app.jwt_secret" to 'reallyreallyreallyreallyverysafe';
 
 
@@ -289,7 +287,8 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
 
 A more sophisticated test at the REST level
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Let us configure the :code:`foo` user correctly and add a table for him/her:
+Let's add a table, intended for the :code:`foo` user:
+
 
 .. code-block:: postgres
 
