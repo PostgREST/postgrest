@@ -4,20 +4,21 @@ module PostgREST.Plan.MutatePlan
 where
 
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Set             as S
 
 import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.ApiRequest.Types        (LogicTree, OrderTerm)
+import PostgREST.Plan.Types              (TypedField)
 import PostgREST.RangeQuery              (NonnegRange)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier)
+
 
 import Protolude
 
 data MutatePlan
   = Insert
       { in_        :: QualifiedIdentifier
-      , insCols    :: S.Set FieldName
+      , insCols    :: [TypedField]
       , insBody    :: Maybe LBS.ByteString
       , onConflict :: Maybe (PreferResolution, [FieldName])
       , where_     :: [LogicTree]
@@ -26,7 +27,7 @@ data MutatePlan
       }
   | Update
       { in_       :: QualifiedIdentifier
-      , updCols   :: S.Set FieldName
+      , updCols   :: [TypedField]
       , updBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
       , mutRange  :: NonnegRange

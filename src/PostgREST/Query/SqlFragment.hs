@@ -30,6 +30,7 @@ module PostgREST.Query.SqlFragment
   , pgFmtLogicTree
   , pgFmtOrderTerm
   , pgFmtSelectItem
+  , pgFmtSelectFromJson
   , responseHeadersF
   , responseStatusF
   , returningF
@@ -74,6 +75,7 @@ import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
 import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
+import PostgREST.Plan.Types              (TypedField (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
@@ -120,8 +122,8 @@ ftsOperator = \case
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
 
 -- |
--- These CTEs convert a json object into a json array, this way we can use json_populate_recordset for all json payloads
--- Otherwise we'd have to use json_populate_record for json objects and json_populate_recordset for json arrays
+-- These CTEs convert a json object into a json array, this way we can use json_to_recordset for all json payloads
+-- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
 -- We do this in SQL to avoid processing the JSON in application code
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 normalizedBody :: Maybe LBS.ByteString -> SQL.Snippet
@@ -241,6 +243,20 @@ pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQ
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
 pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
+
+pgFmtSelectFromJson :: [TypedField] -> SQL.Snippet
+pgFmtSelectFromJson fields =
+  SQL.sql "SELECT " <> parsedCols <> " " <>
+  (if null fields
+    -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
+    -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
+    -- part). But we still need to ensure as many rows are created as there are array elements.
+    then SQL.sql ("FROM json_array_elements (" <> selectBody <> ") _ ")
+    else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
+  )
+  where
+    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfName <$> fields
+    typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =

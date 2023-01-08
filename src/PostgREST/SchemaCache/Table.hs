@@ -1,14 +1,18 @@
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE DeriveGeneric  #-}
+{-# LANGUAGE DeriveAnyClass    #-}
+{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module PostgREST.SchemaCache.Table
   ( Column(..)
   , Table(..)
+  , tableColumnsList
   , TablesMap
+  , ColumnMap
   ) where
 
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as HM
+import qualified Data.Aeson                 as JSON
+import qualified Data.HashMap.Strict        as HM
+import qualified Data.HashMap.Strict.InsOrd as HMI
 
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -28,9 +32,12 @@ data Table = Table
   , tableUpdatable   :: Bool
   , tableDeletable   :: Bool
   , tablePKCols      :: [FieldName]
-  , tableColumns     :: [Column]
+  , tableColumns     :: ColumnMap
   }
-  deriving (Show, Ord, Generic, JSON.ToJSON)
+  deriving (Show, Generic, JSON.ToJSON)
+
+tableColumnsList :: Table -> [Column]
+tableColumnsList = HMI.elems . tableColumns
 
 instance Eq Table where
   Table{tableSchema=s1,tableName=n1} == Table{tableSchema=s2,tableName=n2} = s1 == s2 && n1 == n2
@@ -40,6 +47,7 @@ data Column = Column
   , colDescription :: Maybe Text
   , colNullable    :: Bool
   , colType        :: Text
+  , colNominalType :: Text
   , colMaxLen      :: Maybe Int32
   , colDefault     :: Maybe Text
   , colEnum        :: [Text]
@@ -47,3 +55,4 @@ data Column = Column
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 type TablesMap = HM.HashMap QualifiedIdentifier Table
+type ColumnMap = HMI.InsOrdHashMap FieldName Column

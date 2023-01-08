@@ -308,6 +308,28 @@ spec = do
         request methodPatch "/articles?id=eq.2001&columns=body" [("Prefer", "return=representation")]
           [json| {"body": "Some real content", "smth": "here", "other": "stuff", "fake_id": 13} |] `shouldRespondWith` 200
 
+      it "disallows ?columns which don't exist" $ do
+        request methodPatch "/articles?id=eq.1&columns=helicopter"
+          [("Prefer", "return=representation")]
+          [json|{"body": "yyy"}|]
+          `shouldRespondWith`
+          [json|{"code":"PGRST118","details":null,"hint":null,"message":"Column 'helicopter' of relation 'articles' does not exist"} |]
+          { matchStatus  = 400
+          , matchHeaders = []
+          }
+
+      it "returns missing table error even if also has invalid ?columns" $ do
+        request methodPatch "/garlic?columns=helicopter"
+          [("Prefer", "return=representation")]
+          [json|[
+            {"id": 204, "body": "yyy"},
+            {"id": 205, "body": "zzz"}]|]
+          `shouldRespondWith`
+          [json|{} |]
+          { matchStatus  = 404
+          , matchHeaders = []
+          }
+
   context "tables with self reference foreign keys" $ do
     it "embeds children after update" $
       request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"

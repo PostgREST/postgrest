@@ -34,7 +34,8 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Table        (Column (..), Table (..),
-                                           TablesMap)
+                                           TablesMap,
+                                           tableColumnsList)
 import PostgREST.Version                  (docsVersion, prettyVersion)
 
 import PostgREST.MediaType
@@ -93,8 +94,8 @@ makeTableDef rels t =
       (tn, (mempty :: Schema)
         & description .~ tableDescription t
         & type_ ?~ SwaggerObject
-        & properties .~ fromList (makeProperty t rels <$> tableColumns t)
-        & required .~ fmap colName (filter (not . colNullable) $ tableColumns t))
+        & properties .~ fromList (makeProperty t rels <$> tableColumnsList t)
+        & required .~ fmap colName (filter (not . colNullable) $ tableColumnsList t))
 
 makeProperty :: Table -> RelationshipsMap -> Column -> (Text, Referenced Schema)
 makeProperty tbl rels col = (colName col, Inline s)
@@ -238,7 +239,7 @@ makeParamDefs ti =
         & in_ .~ ParamQuery
         & type_ ?~ SwaggerString))
   ]
-  <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) (tableColumns t)
+  <> concat [ makeObjectBody (tableName t) : makeRowFilters (tableName t) (tableColumnsList t)
             | t <- ti
             ]
 
@@ -299,7 +300,7 @@ makePathItem t = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t 
     p False = pr
     p True  = pw
     tn = tableName t
-    rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- tableColumns t ]
+    rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- tableColumnsList t ]
     ref = Ref . Reference
 
 makeProcPathItem :: ProcDescription -> (FilePath, PathItem)

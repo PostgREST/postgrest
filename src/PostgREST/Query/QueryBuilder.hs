@@ -17,7 +17,6 @@ module PostgREST.Query.QueryBuilder
   ) where
 
 import qualified Data.ByteString.Char8           as BS
-import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 
 import Data.Tree (Tree (..))
@@ -34,6 +33,7 @@ import PostgREST.ApiRequest.Types
 import PostgREST.Plan.CallPlan
 import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
+import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment
 import PostgREST.RangeQuery        (allRange)
 
@@ -83,9 +83,8 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
   "WITH " <> normalizedBody body <> " " <>
-  "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if S.null iCols then " " else "(" <> cols <> ") ") <>
-  "SELECT " <> SQL.sql cols <> " " <>
-  SQL.sql ("FROM json_populate_recordset (null::" <> fromQi mainQi <> ", " <> selectBody <> ") _ ") <>
+  "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
+  pgFmtSelectFromJson iCols <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -97,18 +96,18 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
         IgnoreDuplicates ->
           "DO NOTHING"
         MergeDuplicates  ->
-          if S.null iCols
+          if null iCols
              then "DO NOTHING"
-             else "DO UPDATE SET " <> BS.intercalate ", " (pgFmtIdent <> const " = EXCLUDED." <> pgFmtIdent <$> S.toList iCols)
+             else "DO UPDATE SET " <> BS.intercalate ", " ((pgFmtIdent . tfName) <> const " = EXCLUDED." <> (pgFmtIdent . tfName) <$> iCols)
       ) onConflct,
     returningF mainQi returnings
     ])
   where
-    cols = BS.intercalate ", " $ pgFmtIdent <$> S.toList iCols
+    cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
-  | S.null uCols =
+  | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
@@ -117,13 +116,13 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
   | range == allRange =
     "WITH " <> normalizedBody body <> " " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    "FROM (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " )) _ " <>
+    "FROM (" <> pgFmtSelectFromJson uCols <> ") AS _ " <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
     "WITH " <> normalizedBody body <> ", " <>
-    "pgrst_update_body AS (SELECT * FROM json_populate_recordset (null::" <> mainTbl <> " , " <> SQL.sql selectBody <> " ) LIMIT 1), " <>
+    "pgrst_update_body AS (" <> pgFmtSelectFromJson uCols <> " LIMIT 1), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
@@ -139,8 +138,8 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = SQL.sql (fromQi mainQi)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = BS.intercalate ", " (pgFmtIdent <> const " = _." <> pgFmtIdent <$> S.toList uCols)
-    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent col <> " = (SELECT " <> pgFmtIdent col <> " FROM pgrst_update_body) ") <$> S.toList uCols)
+    nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = _." <> pgFmtIdent . tfName <$> uCols)
+    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)

@@ -60,6 +60,7 @@ library
                       PostgREST.Plan.CallPlan
                       PostgREST.Plan.MutatePlan
                       PostgREST.Plan.ReadPlan
+                      PostgREST.Plan.Types
                       PostgREST.RangeQuery
                       PostgREST.ApiRequest
                       PostgREST.ApiRequest.Preferences

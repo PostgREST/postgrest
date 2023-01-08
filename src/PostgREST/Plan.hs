@@ -27,7 +27,7 @@ import qualified Data.HashMap.Strict        as HM
 import qualified Data.Set                   as S
 import qualified PostgREST.SchemaCache.Proc as Proc
 
-import Data.Either.Combinators (mapLeft)
+import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
 
@@ -54,14 +54,15 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap,
                                            relIsToOne)
-import PostgREST.SchemaCache.Table        (tablePKCols)
-
-import PostgREST.Plan.CallPlan
-import PostgREST.Plan.MutatePlan
-import PostgREST.Plan.ReadPlan   as ReadPlan
+import PostgREST.SchemaCache.Table        (Table (tableName),
+                                           tablePKCols)
 
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan
+import PostgREST.Plan.ReadPlan          as ReadPlan
+import PostgREST.Plan.Types
 
 import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
@@ -400,8 +401,9 @@ mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> Re
 mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      Right $ Insert qi iColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols
-    MutationUpdate -> Right $ Update qi iColumns body combinedLogic iTopLevelRange rootOrder returnings
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols) typedColumnsOrError
+    MutationUpdate ->
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -409,7 +411,7 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
            all (\case
               Filter _ (OpExpr False (Op OpEqual _)) -> True
               _                                      -> False) qsFiltersRoot
-          then Right $ Insert qi iColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty
+          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty) typedColumnsOrError
         else
           Left InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
@@ -425,6 +427,15 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
     combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
+    tbl = HM.lookup qi $ dbTables sCache
+    typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
+
+resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
+resolveOrError Nothing _ = Left NotFound
+resolveOrError (Just table) field =
+  case resolveTableField table field of
+    Nothing         -> Left $ ColumnNotFound (tableName table) field
+    Just typedField -> Right typedField
 
 callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
 callPlan proc apiReq readReq = FunctionCall {
