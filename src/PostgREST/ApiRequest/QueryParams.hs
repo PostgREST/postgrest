@@ -145,7 +145,7 @@ parse qs =
     <*> (fmap snd <$> (pRequestFilter `traverse` filtersRoot))
     <*> pRequestFilter `traverse` filtersNotRoot
     <*> pure (S.fromList (fst <$> filters))
-    <*> sequenceA (pRequestOnConflict <$> onConflict)
+    <*> pRequestOnConflict `traverse` onConflict
   where
     logic = filter (endingIn ["and", "or"] . fst) nonemptyParams
     select = fromMaybe "*" $ lookupParam "select"

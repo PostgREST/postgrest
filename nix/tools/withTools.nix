@@ -66,8 +66,11 @@ let
           >> "$setuplog"
 
         stop () {
+          # shellcheck disable=SC2317
           log "Stopping the database cluster..."
+          # shellcheck disable=SC2317
           pg_ctl stop -m i >> "$setuplog"
+          # shellcheck disable=SC2317
           rm -rf "$tmpdir/db"
         }
         trap stop EXIT
@@ -257,6 +260,7 @@ let
         ./result/bin/postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         cleanup() {
+          # shellcheck disable=SC2317
           kill "$pid" || true
         }
         trap cleanup EXIT
