@@ -23,7 +23,11 @@ wait_for_cirrusci() {
     echo "Checking for CirrusCI task status at $gh_check_runs_url ..."
     echo "first pre-call"
     curl -i "$gh_check_runs_url"
+    sleep 10
     echo "second pre-call"
+    curl -i "$gh_check_runs_url"
+    sleep 10
+    echo "third pre-call"
     curl -i "$gh_check_runs_url"
     status=$(curl --fail "$gh_check_runs_url" | jq -r '.check_runs[] | .status')
     if [ "$status" == "completed" ]; then
