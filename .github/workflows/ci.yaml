@@ -139,6 +139,27 @@ jobs:
           postgrest-push-cachix
 
 
+  Build-Macos-Nix:
+    name: Build MacOS (Nix)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build everything
+        run: |
+          nix-build
+          nix-env -f default.nix -iA devTools
+
+      - name: Push to Cachix (main branch only)
+        if: ${{ github.ref == 'refs/heads/main' }}
+        run: |
+          postgrest-push-cachix
+
+
   Build-Stack:
     strategy:
       fail-fast: false
