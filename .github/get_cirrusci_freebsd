@@ -12,7 +12,6 @@ gh_accept_header="Accept: application/vnd.github.v3+json"
 get_gh_check_runs_url() {
   gh_checks_list_url="https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_COMMIT/check-suites"
   >&2 echo "Getting list of check-suites from $gh_checks_list_url ..."
-  curl -i -H "$gh_accept_header"  "$gh_checks_list_url"
   curl --fail -H "$gh_accept_header"  "$gh_checks_list_url" \
     | jq -r '.check_suites[] | select(.app.slug == "cirrus-ci") | .check_runs_url'
 }
