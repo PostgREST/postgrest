@@ -106,7 +106,7 @@ let
         echo "Tagging ..."
         git tag "v$new_version" > /dev/null
 
-        trap "Couldn't find remote. Please push manually ..." ERR
+        trap "echo Couldn't find remote. Please push manually ..." ERR
         remote="$(git remote -v | grep PostgREST/postgrest | grep push | cut -f1)"
         trap "" ERR
 
