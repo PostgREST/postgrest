@@ -1,4 +1,4 @@
-resolver: lts-19.14 # 2022-07-01, GHC 9.0.2
+resolver: lts-20.6 # 2023-01-09, GHC 9.2.5
 
 nix:
   packages:
@@ -10,23 +10,5 @@ nix:
   pure: false
 
 extra-deps:
-  - HTTP-4000.3.16
-  - configurator-pg-0.2.6
-  - hashable-1.4.1.0
-  - hashtables-1.3
-  - hasql-1.6.1.1
-  - hasql-dynamic-statements-0.3.1.2
-  - hasql-implicits-0.1.0.5
-  - hasql-notifications-0.2.0.3
-  - hasql-pool-0.8.0.6
-  - hasql-transaction-1.0.1.2
-  - isomorphism-class-0.1.0.6
-  - lens-aeson-1.1.3
-  - optparse-applicative-0.16.1.0
-  - postgresql-binary-0.12.5
-  - protolude-0.3.2
-  - ptr-0.16.8.2
-  - text-builder-0.6.7
-  - text-builder-dev-0.3.3
   - git: https://github.com/PostgREST/postgresql-libpq.git
     commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
