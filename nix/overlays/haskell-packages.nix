@@ -29,24 +29,6 @@ let
       # To fill in the sha256:
       #   update-nix-fetchgit nix/overlays/haskell-packages.nix
 
-      hashtables = lib.dontCheck prev.hashtables_1_3_1;
-      hasql = lib.dontCheck prev.hasql_1_6_1_4;
-      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_2;
-      hasql-pool = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql-pool";
-            ver = "0.8.0.6";
-            sha256 = "sha256-2u/cwPk8XfXffaDRzGeyzhL+9k2+2T4b8bGOZwz8AX0=";
-          }
-          { });
-      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_0_1_2;
-      isomorphism-class = lib.unmarkBroken prev.isomorphism-class;
-      lens = lib.dontCheck prev.lens_5_2;
-      postgresql-binary = lib.dontCheck prev.postgresql-binary_0_13_1;
-      text-builder = lib.dontCheck prev.text-builder_0_6_7;
-      text-builder-dev = lib.dontCheck prev.text-builder-dev_0_3_3;
-
       postgresql-libpq = lib.dontCheck
         (prev.callCabal2nix "postgresql-libpq"
           (super.fetchFromGitHub {
