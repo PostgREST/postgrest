@@ -29,6 +29,9 @@ wait_for_cirrusci() {
     sleep 10
     echo "third pre-call"
     curl -i "$gh_check_runs_url"
+    sleep 10
+    echo "fourth pre-call"
+    curl -i "$gh_check_runs_url"
     status=$(curl --fail "$gh_check_runs_url" | jq -r '.check_runs[] | .status')
     if [ "$status" == "completed" ]; then
       break
