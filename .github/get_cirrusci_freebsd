@@ -21,6 +21,9 @@ wait_for_cirrusci() {
   >&2 echo "Waiting to CirrusCI run to complete (two hours maximum)..."
   for _ in $(seq 1 120); do
     echo "Checking for CirrusCI task status at $gh_check_runs_url ..."
+    echo "first pre-call"
+    curl -i "$gh_check_runs_url"
+    echo "second pre-call"
     curl -i "$gh_check_runs_url"
     status=$(curl --fail "$gh_check_runs_url" | jq -r '.check_runs[] | .status')
     if [ "$status" == "completed" ]; then
