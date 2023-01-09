@@ -24,6 +24,4 @@
     ./static-haskell-nix-ghc-bignum.patch;
   static-haskell-nix-openssl =
     ./static-haskell-nix-openssl.patch;
-  postgresql-atexit =
-    ./postgresql-atexit.patch;
 }
