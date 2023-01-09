@@ -73,7 +73,7 @@ library
                       PostgREST.Workers
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.17
-                    , HTTP                      >= 4000.3.7 && < 4000.4
+                    , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 2.0.3 && < 2.2
                     , auto-update               >= 0.1.4 && < 0.2
@@ -99,11 +99,11 @@ library
                     , interpolatedstring-perl6  >= 1 && < 1.1
                     , jose                      >= 0.8.5.1 && < 0.11
                     , lens                      >= 4.14 && < 5.3
-                    , lens-aeson                >= 1.0.1 && < 1.2
+                    , lens-aeson                >= 1.0.1 && < 1.3
                     , mtl                       >= 2.2.2 && < 2.3
                     , network                   >= 2.6 && < 3.2
                     , network-uri               >= 2.6.1 && < 2.8
-                    , optparse-applicative      >= 0.13 && < 0.17
+                    , optparse-applicative      >= 0.13 && < 0.18
                     , parsec                    >= 3.1.11 && < 3.2
                     , protolude                 >= 0.3.1 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
@@ -233,12 +233,12 @@ test-suite spec
                     , hasql-pool        >= 0.8.0.2 && < 0.9
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
-                    , hspec             >= 2.3 && < 2.9
+                    , hspec             >= 2.3 && < 2.10
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
                     , lens              >= 4.14 && < 5.3
-                    , lens-aeson        >= 1.0.1 && < 1.2
+                    , lens-aeson        >= 1.0.1 && < 1.3
                     , monad-control     >= 1.0.1 && < 1.1
                     , postgrest
                     , process           >= 1.4.2 && < 1.7
