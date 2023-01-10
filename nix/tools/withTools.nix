@@ -65,12 +65,10 @@ let
         pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -k $PGHOST -c log_statement=\"all\"" \
           >> "$setuplog"
 
+        # shellcheck disable=SC2317
         stop () {
-          # shellcheck disable=SC2317
           log "Stopping the database cluster..."
-          # shellcheck disable=SC2317
           pg_ctl stop -m i >> "$setuplog"
-          # shellcheck disable=SC2317
           rm -rf "$tmpdir/db"
         }
         trap stop EXIT
@@ -259,8 +257,8 @@ let
         echo -n "Starting postgrest... "
         ./result/bin/postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
+        # shellcheck disable=SC2317
         cleanup() {
-          # shellcheck disable=SC2317
           kill "$pid" || true
         }
         trap cleanup EXIT
