@@ -7,12 +7,13 @@ set -euo pipefail
 # https://docs.github.com/en/rest/reference/checks#list-check-suites-for-a-git-reference
 
 cirrus_artifact_name=bin
+gh_auth_header="Authorization: Bearer $GITHUB_TOKEN"
 gh_accept_header="Accept: application/vnd.github.v3+json"
 
 get_gh_check_runs_url() {
   gh_checks_list_url="https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_COMMIT/check-suites"
   >&2 echo "Getting list of check-suites from $gh_checks_list_url ..."
-  curl --fail -H "$gh_accept_header"  "$gh_checks_list_url" \
+  curl --fail -H "$gh_auth_header" -H "$gh_accept_header"  "$gh_checks_list_url" \
     | jq -r '.check_suites[] | select(.app.slug == "cirrus-ci") | .check_runs_url'
 }
 
@@ -21,7 +22,7 @@ wait_for_cirrusci() {
   >&2 echo "Waiting to CirrusCI run to complete (two hours maximum)..."
   for _ in $(seq 1 120); do
     echo "Checking for CirrusCI task status at $gh_check_runs_url ..."
-    status=$(curl --fail "$gh_check_runs_url" | jq -r '.check_runs[] | .status')
+    status=$(curl --fail -H "$gh_auth_header" "$gh_check_runs_url" | jq -r '.check_runs[] | .status')
     if [ "$status" == "completed" ]; then
       break
     else
@@ -37,7 +38,7 @@ wait_for_cirrusci() {
 get_cirrus_taskid() {
   gh_check_runs_url="$(get_gh_check_runs_url)"
   >&2 echo "Getting the CirrusCI task id from $gh_check_runs_url ..."
-  curl --fail -H "$gh_accept_header" "$gh_check_runs_url" \
+  curl --fail -H "$gh_auth_header" -H "$gh_accept_header" "$gh_check_runs_url" \
     | jq -r '.check_runs[] | .external_id'
 }
 
