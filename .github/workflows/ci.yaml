@@ -148,7 +148,6 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests
 
       - name: Build postgrest only, to seed the cachix cache (temp)
         run: |
