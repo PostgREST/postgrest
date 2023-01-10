@@ -150,6 +150,15 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests
 
+      - name: Build postgrest only, to seed the cachix cache (temp)
+        run: |
+          nix-build -A postgrestPackage
+          nix-instantiate -A postgrestPackage \
+            | while read -r drv; do
+                nix-store -qR --include-outputs "$drv"
+              done \
+            | cachix push postgrest
+
       - name: Build everything
         run: |
           nix-build
