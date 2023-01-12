@@ -135,7 +135,7 @@ jobs:
         if: ${{ github.ref == 'refs/heads/main' }}
         run: |
           nix-build
-          nix-env -f default.nix -iA devTools
+          nix-env -f default.nix -iA devTools.pushCachix.bin
           postgrest-push-cachix
 
 
@@ -152,7 +152,7 @@ jobs:
       - name: Build everything
         run: |
           nix-build
-          nix-env -f default.nix -iA devTools
+          nix-env -f default.nix -iA devTools.pushCachix.bin
 
       - name: Push to Cachix (main branch only)
         if: ${{ github.ref == 'refs/heads/main' }}

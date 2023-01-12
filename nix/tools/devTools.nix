@@ -303,4 +303,5 @@ buildToolbox
     hsieGraphModules
     hsieGraphSymbols
   ];
+  extra = { inherit pushCachix; };
 }
