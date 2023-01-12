@@ -94,10 +94,6 @@ rec {
   postgrestPackage =
     lib.dontCheck postgrest;
 
-  # Static executable.
-  postgrestStatic =
-    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
-
   # Profiled dynamic executable.
   postgrestProfiled =
     lib.enableExecutableProfiling (
@@ -122,10 +118,6 @@ rec {
   # Development tools.
   devTools =
     pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie withTools; };
-
-  # Docker images and loading script.
-  docker =
-    pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 
   # Load testing tools.
   loadtest =
@@ -158,4 +150,12 @@ rec {
 
   withTools =
     pkgs.callPackage nix/tools/withTools.nix { inherit devCabalOptions postgresqlVersions postgrest; };
+} // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux rec {
+  # Static executable.
+  postgrestStatic =
+    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
+
+  # Docker images and loading script.
+  docker =
+    pkgs.callPackage nix/tools/docker { postgrest = postgrestStatic; };
 }
