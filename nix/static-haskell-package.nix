@@ -59,4 +59,7 @@ let
   survey =
     import "${patched-static-haskell-nix}/survey" { inherit normalPkgs compiler defaultCabalPackageVersionComingWithGhc; };
 in
-survey.haskellPackages."${name}"
+{
+  inherit survey;
+  package = survey.haskellPackages."${name}";
+}

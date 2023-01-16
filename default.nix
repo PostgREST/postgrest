@@ -65,10 +65,16 @@ let
   postgrest =
     pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
-  # Function that derives a fully static Haskell package based on
+  # Functionality that derives a fully static Haskell package based on
   # nh2/static-haskell-nix
   staticHaskellPackage =
     import nix/static-haskell-package.nix { inherit nixpkgs system compiler patches allOverlays; };
+
+  # Static executable.
+  postgrestStatic =
+    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src).package);
+
+  packagesStatic = (staticHaskellPackage name src).survey;
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
@@ -152,8 +158,8 @@ rec {
     pkgs.callPackage nix/tools/withTools.nix { inherit devCabalOptions postgresqlVersions postgrest; };
 } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux rec {
   # Static executable.
-  postgrestStatic =
-    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src));
+  inherit postgrestStatic;
+  inherit packagesStatic;
 
   # Docker images and loading script.
   docker =
