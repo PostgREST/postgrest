@@ -14,10 +14,6 @@ on:
       - rel-*
     tags:
       - v*
-  pull_request:
-    branches:
-      - main
-      - rel-*
 
 jobs:
   Seed-Cachix:
