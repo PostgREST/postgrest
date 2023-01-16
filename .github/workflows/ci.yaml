@@ -249,7 +249,7 @@ jobs:
       - uses: actions/checkout@v3
       - id: Remote-Dir
         name: Unique directory name for the remote build
-        run: echo "::set-output name=remotepath::postgrest-build-$(uuidgen)"
+        run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
       - name: Copy script files to the remote server
         uses: appleboy/scp-action@master
         with:
@@ -322,14 +322,14 @@ jobs:
             exit 1
           else
             echo "Version to be released is $cabal_version"
-            echo "::set-output name=version::$cabal_version"
+            echo "version=$cabal_version" >> "$GITHUB_OUTPUT"
           fi
 
           if [[ "$cabal_version" != *.*.*.* ]]; then
             echo "Version is for a full release (version does not have four components)"
           else
             echo "Version is for a pre-release (version has four components, e.g., 1.1.1.1)"
-            echo "::set-output name=isprerelease::1"
+            echo "isprerelease=1" >> "$GITHUB_OUTPUT"
           fi
       - name: Identify changes from CHANGELOG.md
         run: |

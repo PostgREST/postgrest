@@ -399,7 +399,7 @@ test         | personnages_view     | test       | actors_view      | personnage
 -}
 addViewM2OAndO2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
 addViewM2OAndO2ORels keyDeps rels =
-  rels ++ concat (viewRels <$> rels)
+  rels ++ concatMap viewRels rels
   where
     isM2O card = case card of {M2O _ _ -> True; _ -> False;}
     isO2O card = case card of {O2O _ _ -> True; _ -> False;}
@@ -449,7 +449,7 @@ addViewM2OAndO2ORels keyDeps rels =
         , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw ]
       else []
     viewRels _ = []
-    expandKeyDepCols kdc = zip (fst <$> kdc) <$> sequenceA (snd <$> kdc)
+    expandKeyDepCols kdc = zip (fst <$> kdc) <$> traverse snd kdc
 
 addInverseRels :: [Relationship] -> [Relationship]
 addInverseRels rels =
@@ -485,7 +485,7 @@ addViewPrimaryKeys tabs keyDeps =
     -- * We don't have any logic that requires the client to name a PK column (compared to the column hints in embedding for FKs),
     --   so we don't need to know about the other references.
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
-    takeFirstPK pkCols = catMaybes $ head . snd <$> pkCols
+    takeFirstPK = mapMaybe (head . snd)
 
 allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
 allTables pgVer =
