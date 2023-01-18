@@ -114,39 +114,45 @@ data QueryParams =
 --
 -- The canonical representation of the query string has parameters sorted alphabetically:
 --
--- >>> qsCanonical <$> parse "a=1&c=3&b=2&d"
+-- >>> qsCanonical <$> parse True "a=1&c=3&b=2&d"
 -- Right "a=1&b=2&c=3&d="
 --
 -- 'select' is a reserved parameter that selects the fields to be returned:
 --
--- >>> qsSelect <$> parse "select=name,location"
+-- >>> qsSelect <$> parse False "select=name,location"
 -- Right [Node {rootLabel = SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectField {selField = ("location",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- Filters are parameters whose value contains an operator, separated by a '.' from its value:
 --
--- >>> qsFilters <$> parse "a.b=eq.0"
+-- >>> qsFilters <$> parse False "a.b=eq.0"
 -- Right [(["a"],Filter {field = ("b",[]), opExpr = OpExpr False (Op OpEqual "0")})]
 --
 -- If the operator specified in a filter does not exist, parsing the query string fails:
 --
--- >>> qsFilters <$> parse "a.b=noop.0"
--- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 6)" "unknown single value operator noop")
-parse :: ByteString -> Either QPError QueryParams
-parse qs =
-  QueryParams
-    canonical
-    params
-    ranges
-    <$> pRequestOrder `traverse` order
-    <*> pRequestLogicTree `traverse` logic
-    <*> pRequestColumns columns
-    <*> pRequestSelect select
-    <*> pRequestFilter `traverse` filters
-    <*> (fmap snd <$> (pRequestFilter `traverse` filtersRoot))
-    <*> pRequestFilter `traverse` filtersNotRoot
-    <*> pure (S.fromList (fst <$> filters))
-    <*> pRequestOnConflict `traverse` onConflict
+-- >>> qsFilters <$> parse False "a.b=noop.0"
+-- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 6)" "expecting operator (eq, gt, ...) unknown single value operator noop")
+parse :: Bool -> ByteString -> Either QPError QueryParams
+parse isRpcGet qs = do
+  rOrd                      <- pRequestOrder `traverse` order
+  rLogic                    <- pRequestLogicTree `traverse` logic
+  rCols                     <- pRequestColumns columns
+  rSel                      <- pRequestSelect select
+  (rFlts, params)           <- L.partition hasOp <$> pRequestFilter isRpcGet `traverse` filters
+  (rFltsRoot, rFltsNotRoot) <- pure $ L.partition hasRootFilter rFlts
+  rOnConflict               <- pRequestOnConflict `traverse` onConflict
+
+  let rFltsFields           = S.fromList (fst <$> filters)
+      params'               = mapMaybe (\case {(_, Filter (fld, _) (NoOpExpr v)) -> Just (fld,v); _ -> Nothing}) params
+      rFltsRoot'            = snd <$> rFltsRoot
+
+  return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
   where
+    hasRootFilter, hasOp :: (EmbedPath, Filter) -> Bool
+    hasRootFilter ([], _) = True
+    hasRootFilter _       = False
+    hasOp (_, Filter (_, _) (NoOpExpr _)) = False
+    hasOp _                               = True
+
     logic = filter (endingIn ["and", "or"] . fst) nonemptyParams
     select = fromMaybe "*" $ lookupParam "select"
     onConflict = lookupParam "on_conflict"
@@ -173,32 +179,11 @@ parse qs =
     endingIn xx key = lastWord `elem` xx
       where lastWord = L.last $ T.split (== '.') key
 
-    (filters, params) = L.partition isParam filtersAndParams
-    isParam (k, v) = isEmbedPath k || hasOperator v || hasFtsOperator v
-
-    filtersAndParams = filter (isFilterOrParam . fst)  nonemptyParams
-    isFilterOrParam k = not (endingIn reservedEmbeddable k) && notElem k reserved
+    filters = filter (isFilter . fst) nonemptyParams
+    isFilter k = not (endingIn reservedEmbeddable k) && notElem k reserved
     reserved = ["select", "columns", "on_conflict"]
     reservedEmbeddable = ["order", "limit", "offset", "and", "or"]
 
-    (filtersNotRoot, filtersRoot) = L.partition isNotRoot filters
-    isNotRoot = flip T.isInfixOf "." . fst
-
-    -- TODO: These checks are redundant to the parsers, should use parsers to differentiate params
-    hasOperator val =
-      case T.splitOn "." val of
-        "not" : _ : _ -> True
-        "is" : _      -> True
-        "in" : _      -> True
-        x : _         -> isJust (operator x) || isJust (ftsOperator x)
-        _             -> False
-
-    hasFtsOperator val =
-      case T.splitOn "(" val of
-        x : _ : _ -> isJust $ ftsOperator x
-        _         -> False
-
-    isEmbedPath = T.isInfixOf "."
     replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) <> [x]
 
     ranges :: HM.HashMap Text (Range Integer)
@@ -237,17 +222,7 @@ operator = \case
   "imatch" -> Just OpIMatch
   _        -> Nothing
 
-ftsOperator :: Text -> Maybe FtsOperator
-ftsOperator = \case
-  "fts"   -> Just FilterFts
-  "plfts" -> Just FilterFtsPlain
-  "phfts" -> Just FilterFtsPhrase
-  "wfts"  -> Just FilterFtsWebsearch
-  _       -> Nothing
-
-
 -- PARSERS
-
 
 pRequestSelect :: Text -> Either QPError [Tree SelectItem]
 pRequestSelect selStr =
@@ -257,11 +232,25 @@ pRequestOnConflict :: Text -> Either QPError [FieldName]
 pRequestOnConflict oncStr =
   mapError $ P.parse pColumns ("failed to parse on_conflict parameter (" <> toS oncStr <> ")") (toS oncStr)
 
-pRequestFilter :: (Text, Text) -> Either QPError (EmbedPath, Filter)
-pRequestFilter (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
+-- |
+-- Parse `id=eq.1`(id, eq.1) into (EmbedPath, Filter)
+--
+-- >>> pRequestFilter False ("id", "eq.1")
+-- Right ([],Filter {field = ("id",[]), opExpr = OpExpr False (Op OpEqual "1")})
+--
+-- >>> pRequestFilter False ("id", "val")
+-- Left (QPError "\"failed to parse filter (val)\" (line 1, column 4)" "unexpected end of input expecting operator (eq, gt, ...)")
+--
+-- >>> pRequestFilter True ("id", "val")
+-- Right ([],Filter {field = ("id",[]), opExpr = NoOpExpr "val"})
+pRequestFilter :: Bool -> (Text, Text) -> Either QPError (EmbedPath, Filter)
+pRequestFilter isRpcGet (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
-    oper = P.parse (pOpExpr pSingleVal) ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    oper = P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
+    parseFlt = if isRpcGet
+      then pOpExpr pSingleVal <|> pure (NoOpExpr v)
+      else pOpExpr pSingleVal
     path = fst <$> treePath
     fld = snd <$> treePath
 
@@ -592,12 +581,15 @@ pEmbedParams = do
 --
 -- >>> P.parse (pOpExpr pSingleVal) "" "fts().value"
 -- Left (line 1, column 7):
+-- expecting operator (eq, gt, ...)
 -- unknown single value operator fts()
 pOpExpr :: Parser SingleVal -> Parser OpExpr
-pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)) <|> OpExpr False <$> pOperation
+pOpExpr pSVal = do
+  boolExpr <- try (string "not" *> pDelimiter $> True) <|> pure False
+  OpExpr boolExpr <$> pOperation
   where
     pOperation :: Parser Operation
-    pOperation = pIn <|> pIs <|> try pFts <|> pOp <?> "operator (eq, gt, ...)"
+    pOperation = pIn <|> pIs <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
     pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
@@ -614,8 +606,11 @@ pOpExpr pSVal = try ( string "not" *> pDelimiter *> (OpExpr True <$> pOperation)
           <?> "null or trilean value (unknown, true, false)"
 
     pFts = do
-      opStr <- try (P.many (noneOf ".("))
-      op <- parseMaybe ("unknown fts operator " <> opStr) . ftsOperator $ toS opStr
+      op <-  try (string "fts"   $> FilterFts)
+         <|> try (string "plfts" $> FilterFtsPlain)
+         <|> try (string "phfts" $> FilterFtsPhrase)
+         <|> try (string "wfts"  $> FilterFtsWebsearch)
+
       lang <- optionMaybe $ try (between (char '(') (char ')') pIdentifier)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
 

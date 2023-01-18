@@ -76,7 +76,6 @@ data ApiRequestError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
   | NotEmbedded Text
-  | ParseRequestError Text Text
   | PutRangeNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
@@ -183,8 +182,9 @@ data Filter
   | FilterNullEmbed Bool FieldName
   deriving (Eq)
 
-data OpExpr =
-  OpExpr Bool Operation
+data OpExpr
+  = OpExpr Bool Operation
+  | NoOpExpr Text
   deriving (Eq)
 
 data Operation

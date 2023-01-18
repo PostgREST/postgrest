@@ -33,7 +33,6 @@ import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest               (Action (..),
                                            ApiRequest (..),
-                                           InvokeMethod (..),
                                            Mutation (..),
                                            Payload (..))
 import PostgREST.Config                   (AppConfig (..))
@@ -291,11 +290,9 @@ addFilters ApiRequest{..} rReq =
     QueryParams.QueryParams{..} = iQueryParams
     flts =
       case iAction of
-        ActionInvoke InvGet  -> qsFilters
-        ActionInvoke InvHead -> qsFilters
-        ActionInvoke _       -> qsFilters
-        ActionRead _         -> qsFilters
-        _                    -> qsFiltersNotRoot
+        ActionInvoke _ -> qsFilters
+        ActionRead _   -> qsFilters
+        _              -> qsFiltersNotRoot
 
     addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadPlanTree ->  Either ApiRequestError ReadPlanTree
     addFilterToNode =
