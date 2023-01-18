@@ -72,7 +72,6 @@ instance PgrstError ApiRequestError where
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
   status NotEmbedded{}           = HTTP.status400
-  status ParseRequestError{}     = HTTP.status400
   status PutRangeNotAllowedError = HTTP.status400
   status QueryParamError{}       = HTTP.status400
   status RelatedOrderNotToOne{}  = HTTP.status400
@@ -108,11 +107,6 @@ instance JSON.ToJSON ApiRequestError where
                    NegativeLimit           -> "Limit should be greater than or equal to zero."
                    LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
                    OutOfBounds lower total -> "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows."),
-    "hint"    .= JSON.Null]
-  toJSON (ParseRequestError message details) = JSON.object [
-    "code"    .= ApiRequestErrorCode04,
-    "message" .= message,
-    "details" .= details,
     "hint"    .= JSON.Null]
   toJSON InvalidFilters = JSON.object [
     "code"    .= ApiRequestErrorCode05,
@@ -586,7 +580,7 @@ data ErrorCode
   | ApiRequestErrorCode01
   | ApiRequestErrorCode02
   | ApiRequestErrorCode03
-  | ApiRequestErrorCode04
+  | ApiRequestErrorCode04 -- no longer used (used to be mapped to ParseRequestError)
   | ApiRequestErrorCode05
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07

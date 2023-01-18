@@ -1002,7 +1002,8 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
 
     it "fails if an operator is not given" $
-      get "/ghostBusters?id=0" `shouldRespondWith` [json| {"details":"Failed to parse [(\"id\",\"0\")]","message":"Unexpected param or filter missing operator","code":"PGRST104","hint":null} |]
+      get "/ghostBusters?id=0" `shouldRespondWith`
+        [json| {"code":"PGRST100","details":"unexpected end of input expecting operator (eq, gt, ...)","hint":null,"message":"\"failed to parse filter (0)\" (line 1, column 2)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }

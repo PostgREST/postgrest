@@ -182,9 +182,9 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf sCache req reqBody = do
-  qPrms <- first QueryParamError $ QueryParams.parse $ rawQueryString req
   pInfo <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo $ requestMethod req
+  qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc pInfo && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
   mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
   negotiatedSchema <- getSchema conf (requestHeaders req) (requestMethod req)
   apiRequest conf sCache req reqBody qPrms pInfo act mediaTypes negotiatedSchema
@@ -253,7 +253,6 @@ apiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> QueryParams.
 apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
-  | not expectParams && not (L.null qsParams) = Left $ ParseRequestError "Unexpected param or filter missing operator" ("Failed to parse " <> show qsParams)
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
   | otherwise = do
@@ -282,8 +281,6 @@ apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName
       , iBinaryField = bField
       }
  where
-  expectParams = pathIsProc && method /= "POST"
-
   columns = case action of
     ActionMutate MutationCreate -> qsColumns
     ActionMutate MutationUpdate -> qsColumns
