@@ -325,6 +325,23 @@ spec actualPgVersion = describe "OpenAPI" $ do
             }
           |]
 
+  describe "VIEW created for a TABLE with a O2M relationship" $ do
+
+    it "fk points to destination TABLE instead of the VIEW" $ do
+      r <- simpleBody <$> get "/"
+
+      let referralLink = r ^? key "definitions" . key "projects" . key "properties" . key "client_id"
+
+      liftIO $
+        referralLink `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "integer",
+              "type": "integer",
+              "description": "Note:\nThis is a Foreign Key to `clients.id`.<fk table='clients' column='id'/>"
+            }
+          |]
+
   describe "PostgreSQL to Swagger Type Mapping" $ do
 
     it "character varying to string" $ do
