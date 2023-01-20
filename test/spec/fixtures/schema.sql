@@ -2774,9 +2774,20 @@ BEGIN
   LOAD 'safeupdate';
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- This tests data representations over computed joins: even a lower case title should come back title cased.
+DROP DOMAIN IF EXISTS public.titlecasetext CASCADE;
+CREATE DOMAIN public.titlecasetext AS text;
+
+CREATE OR REPLACE FUNCTION json(public.titlecasetext) RETURNS json AS $$
+  SELECT to_json(INITCAP($1::text));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.titlecasetext AS json) WITH FUNCTION json(public.titlecasetext) AS IMPLICIT;
+-- End of data representations specific stuff except for where the domain is used in the table.
+
 CREATE TABLE designers (
   id int primary key
-, name text
+, name public.titlecasetext
 );
 
 CREATE TABLE videogames (
@@ -3089,6 +3100,136 @@ create table test.subscriptions(
   subscriber int references test.posters(id),
   subscribed int references test.posters(id),
   primary key(subscriber, subscribed)
+);
+
+-- Data representations feature
+DROP DOMAIN IF EXISTS public.color CASCADE;
+CREATE DOMAIN public.color AS INTEGER CHECK (VALUE >= 0 AND VALUE <= 16777215);
+
+CREATE OR REPLACE FUNCTION color(json) RETURNS public.color AS $$
+  SELECT color($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION color(text) RETURNS public.color AS $$
+  SELECT (('x' || lpad((CASE WHEN SUBSTRING($1::text, 1, 1) = '#' THEN SUBSTRING($1::text, 2) ELSE $1::text END), 8, '0'))::bit(32)::int)::public.color;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.color) RETURNS json AS $$
+  SELECT
+    CASE WHEN $1 IS NULL THEN to_json(''::text)
+    ELSE to_json('#' || lpad(upper(to_hex($1)), 6, '0'))
+  END;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.color AS json) WITH FUNCTION json(public.color) AS IMPLICIT;
+CREATE CAST (json AS public.color) WITH FUNCTION color(json) AS IMPLICIT;
+CREATE CAST (text AS public.color) WITH FUNCTION color(text) AS IMPLICIT;
+
+DROP DOMAIN IF EXISTS public.isodate CASCADE;
+CREATE DOMAIN public.isodate AS timestamp with time zone;
+
+CREATE OR REPLACE FUNCTION isodate(json) RETURNS public.isodate AS $$
+  SELECT isodate($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION isodate(text) RETURNS public.isodate AS $$
+  SELECT (replace($1, 'Z', '+00:00')::timestamp with time zone)::public.isodate;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.isodate) RETURNS json AS $$
+  SELECT to_json(replace(to_json($1)#>>'{}', '+00:00', 'Z'));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.isodate AS json) WITH FUNCTION json(public.isodate) AS IMPLICIT;
+CREATE CAST (json AS public.isodate) WITH FUNCTION isodate(json) AS IMPLICIT;
+-- We intentionally don't have this in order to test query string parsing doesn't try to fall back on JSON parsing.
+-- CREATE CAST (text AS public.isodate) WITH FUNCTION isodate(text) AS IMPLICIT;
+
+-- bytea_b64 is a base64-encoded binary string
+DROP DOMAIN IF EXISTS public.bytea_b64 CASCADE;
+CREATE DOMAIN public.bytea_b64 AS bytea;
+
+CREATE OR REPLACE FUNCTION bytea_b64(json) RETURNS public.bytea_b64 AS $$
+  SELECT bytea_b64($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION bytea_b64(text) RETURNS public.bytea_b64 AS $$
+  -- allow unpadded base64
+  SELECT decode($1 || repeat('=', 4 - (length($1) % 4)), 'base64')::public.bytea_b64;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.bytea_b64) RETURNS json AS $$
+  SELECT to_json(translate(encode($1, 'base64'), E'\n', ''));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.bytea_b64 AS json) WITH FUNCTION json(public.bytea_b64) AS IMPLICIT;
+CREATE CAST (json AS public.bytea_b64) WITH FUNCTION bytea_b64(json) AS IMPLICIT;
+CREATE CAST (text AS public.bytea_b64) WITH FUNCTION bytea_b64(text) AS IMPLICIT;
+
+-- unixtz is a timestamptz represented as an integer number of seconds since the Unix epoch
+DROP DOMAIN IF EXISTS public.unixtz CASCADE;
+CREATE DOMAIN public.unixtz AS timestamp with time zone;
+
+CREATE OR REPLACE FUNCTION unixtz(json) RETURNS public.unixtz AS $$
+  SELECT unixtz($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION unixtz(text) RETURNS public.unixtz AS $$
+  SELECT (to_timestamp($1::numeric)::public.unixtz);
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.unixtz) RETURNS json AS $$
+  SELECT to_json(extract(epoch from $1)::bigint);
+$$ LANGUAGE SQL IMMUTABLE;
+
+
+CREATE CAST (public.unixtz AS json) WITH FUNCTION json(public.unixtz) AS IMPLICIT;
+CREATE CAST (json AS public.unixtz) WITH FUNCTION unixtz(json) AS IMPLICIT;
+CREATE CAST (text AS public.unixtz) WITH FUNCTION unixtz(text) AS IMPLICIT;
+
+DROP DOMAIN IF EXISTS public.monetary CASCADE;
+CREATE DOMAIN public.monetary AS numeric(17,2);
+
+CREATE OR REPLACE FUNCTION monetary(json) RETURNS public.monetary AS $$
+  SELECT monetary($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION monetary(text) RETURNS public.monetary AS $$
+  SELECT ($1::numeric)::public.monetary;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.monetary) RETURNS json AS $$
+  SELECT to_json($1::text);
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.monetary AS json) WITH FUNCTION json(public.monetary) AS IMPLICIT;
+CREATE CAST (json AS public.monetary) WITH FUNCTION monetary(json) AS IMPLICIT;
+CREATE CAST (text AS public.monetary) WITH FUNCTION monetary(text) AS IMPLICIT;
+
+CREATE TABLE datarep_todos (
+  id bigint primary key,
+  name text,
+  label_color public.color default 0,
+  due_at public.isodate default '2018-01-01'::date,
+  icon_image public.bytea_b64,
+  created_at public.unixtz default '2017-12-14 01:02:30'::timestamptz,
+  budget public.monetary default 0
+);
+
+CREATE TABLE datarep_next_two_todos (
+  id bigint primary key,
+  first_item_id bigint references datarep_todos(id),
+  second_item_id bigint references datarep_todos(id),
+  name text
+);
+
+CREATE VIEW datarep_todos_computed as (
+  SELECT id,
+    name,
+    label_color,
+    due_at,
+    (label_color / 2)::public.color as dark_color
+  FROM datarep_todos
 );
 
 -- view's name is alphabetically before projects

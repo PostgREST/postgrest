@@ -55,7 +55,7 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
   where
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
-    defSelect = [(("*", []), Nothing, Nothing)] -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
+    defSelect = [(unknownField "*" [], Nothing, Nothing)] -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
@@ -98,11 +98,11 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
       MergeDuplicates  ->
         if null iCols
            then "DO NOTHING"
-           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . tfName) <> const " = EXCLUDED." <> (pgFmtIdent . tfName) <$> iCols)
+           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols)
     ) onConflct <> " " <>
   returningF mainQi returnings
   where
-    cols = intercalateSnippet ", " $ pgFmtIdent . tfName <$> iCols
+    cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
@@ -136,8 +136,8 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = fromQi mainQi
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = intercalateSnippet ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
-    rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
+    nonRangeCols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
+    rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
@@ -171,7 +171,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False True False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty (ppType p) Nothing Nothing) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

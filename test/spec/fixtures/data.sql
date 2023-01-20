@@ -839,3 +839,13 @@ INSERT INTO posters(id,name) VALUES (1,'Mark'), (2,'Elon'), (3,'Bill'), (4,'Jeff
 
 TRUNCATE TABLE subscriptions CASCADE;
 INSERT INTO subscriptions(subscriber,subscribed) VALUES (3,1), (4,1), (1,2);
+
+TRUNCATE TABLE datarep_todos CASCADE;
+INSERT INTO datarep_todos VALUES (1, 'Report', 0, '2018-01-02', '\x89504e470d0a1a0a0000000d4948445200000001000000010100000000376ef924000000001049444154789c62600100000000ffff03000000060005057bfabd400000000049454e44ae426082', '2017-12-14 01:02:30', 12.50); -- smallest possible PNG
+INSERT INTO datarep_todos VALUES (2, 'Essay', 256, '2018-01-03', NULL, '2017-12-14 01:02:30', 100000000000000.13); -- a number which can't be represented by a 64-bit float
+INSERT INTO datarep_todos VALUES (3, 'Algebra', 123456, '2018-01-01 14:12:34.123456');
+INSERT INTO datarep_todos VALUES (4, 'Opus Magnum', NULL, NULL);
+
+TRUNCATE TABLE datarep_next_two_todos CASCADE;
+INSERT INTO datarep_next_two_todos VALUES (1, 2, 3, 'school related');
+INSERT INTO datarep_next_two_todos VALUES (2, 1, 3, 'do these first');

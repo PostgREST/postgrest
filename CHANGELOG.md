@@ -5,6 +5,22 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #2523, Data representations - @aljungberg
+   + Allows for flexible API output formatting and input parsing on a per-column type basis using regular SQL functions configured in the database
+   + Enables greater flexibility in the form and shape of your APIs, both for output and input, making PostgREST a more versatile general-purpose API server
+   + Examples include base64 encode/decode your binary data (like a `bytea` column containing an image), choose whether to present a timestamp column as seconds since the Unix epoch or as an ISO 8601 string, or represent fixed precision decimals as strings, not doubles, to preserve precision
+   + ...and accept the same in `POST/PUT/PATCH` by configuring the reverse transformation(s)
+   + Other use-cases include custom representation of enums, arrays, nested objects, CSS hex colour strings, gzip compressed fields, metric to imperial conversions, and much more
+   + Works when using the `select` parameter to select only a subset of columns, embedding through complex joins, renaming fields, with views and computed columns
+   + Works when filtering on a formatted column without extra indexes by parsing to the canonical representation
+   + Works for data `RETURNING` operations, such as requesting the full body in a POST/PUT/PATCH with `Prefer: return=representation`
+   + Works for batch updates and inserts
+   + Completely optional, define the functions in the database and they will be used automatically everywhere
+   + Data representations preserve the ability to write to the original column and require no extra storage or complex triggers (compared to using `GENERATED ALWAYS` columns)
+   + Note: data representations require Postgres 10 (Postgres 11 if using `IN` predicates); data representations are not implemented for RPC
+
 ### Fixed
 
  - #2821, Fix OPTIONS not accepting all available media types - @steve-chavez
