@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+ - #2622, Consider any PostgreSQL authentication failure as fatal and exit immediately - @michivi
+
 ### Fixed
 
  - #2565, Fix bad M2M embedding on RPC - @steve-chavez

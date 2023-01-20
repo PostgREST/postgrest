@@ -50,6 +50,7 @@ def run(
     env=None,
     port=None,
     host=None,
+    wait_for_readiness=True,
     no_pool_connection_available=False,
 ):
     "Run PostgREST and yield an endpoint that is ready for connections."
@@ -88,7 +89,8 @@ def run(
             process.stdin.write(stdin or b"")
             process.stdin.close()
 
-            wait_until_ready(adminurl + "/ready")
+            if wait_for_readiness:
+                wait_until_ready(adminurl + "/ready")
 
             process.stdout.read()
 
@@ -135,6 +137,14 @@ def freeport():
         s.bind(("", 0))
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         return s.getsockname()[1]
+
+
+def wait_until_exit(postgrest):
+    "Wait for PostgREST to exit, or times out"
+    try:
+        return postgrest.process.wait(timeout=1)
+    except (subprocess.TimeoutExpired):
+        raise PostgrestTimedOut()
 
 
 def wait_until_ready(url):

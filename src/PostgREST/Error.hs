@@ -428,7 +428,7 @@ checkIsFatal :: PgError -> Maybe Text
 checkIsFatal (PgError _ (SQL.ConnectionUsageError e))
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
-  where isAuthFailureMessage = "FATAL:  password authentication failed" `isPrefixOf` failureMessage
+  where isAuthFailureMessage = "FATAL:  password authentication failed" `isInfixOf` failureMessage
         failureMessage = BS.unpack $ fromMaybe mempty e
 checkIsFatal (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError))))
   = case serverError of
