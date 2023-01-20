@@ -27,9 +27,9 @@ COMMENT ON SCHEMA v1 IS 'v1 schema';
 COMMENT ON SCHEMA v2 IS 'v2 schema';
 
 COMMENT ON SCHEMA test IS 
-$$title_test title
+$$My API title
 
-title_test description
+My API description
 that spans
 multiple lines$$;
 --
