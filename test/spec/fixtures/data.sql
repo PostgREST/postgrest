@@ -838,3 +838,13 @@ INSERT INTO posters(id,name) VALUES (1,'Mark'), (2,'Elon'), (3,'Bill'), (4,'Jeff
 
 TRUNCATE TABLE subscriptions CASCADE;
 INSERT INTO subscriptions(subscriber,subscribed) VALUES (3,1), (4,1), (1,2);
+
+TRUNCATE TABLE datarep_todos CASCADE;
+INSERT INTO datarep_todos VALUES (1, 'Report', 0, '2018-01-02');
+INSERT INTO datarep_todos VALUES (2, 'Essay', 256, '2018-01-03');
+INSERT INTO datarep_todos VALUES (3, 'Algebra', 123456, '2018-01-01 14:12:34.123456');
+INSERT INTO datarep_todos VALUES (4, 'Opus Magnum', NULL, NULL);
+
+TRUNCATE TABLE datarep_next_two_todos CASCADE;
+INSERT INTO datarep_next_two_todos VALUES (1, 2, 3, 'school related');
+INSERT INTO datarep_next_two_todos VALUES (2, 1, 3, 'do these first');

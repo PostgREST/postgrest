@@ -58,15 +58,13 @@ import Control.Arrow ((***))
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
-                                          Filter (..),
+import PostgREST.ApiRequest.Types        (Alias, Cast,
                                           FtsOperator (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
                                           JsonPath,
                                           LogicOperator (..),
-                                          LogicTree (..), OpExpr (..),
-                                          Operation (..),
+                                          OpExpr (..), Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
                                           OrderTerm (..),
@@ -75,7 +73,10 @@ import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
 import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
-import PostgREST.Plan.Types              (TypedField (..))
+import PostgREST.Plan.Types              (CoercibleField (..),
+                                          TypedFilter (..),
+                                          TypedLogicTree (..),
+                                          unknownField)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
@@ -227,24 +228,37 @@ fromQi t = (if T.null s then mempty else pgFmtIdent s <> ".") <> pgFmtIdent n
     n = qiName t
     s = qiSchema t
 
+pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
+pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
+
 pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
-pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
-pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
+pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
+pgFmtField table CoercibleField{tfName=fn, tfJsonPath=[]} = SQL.sql (pgFmtColumn table fn)
 -- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
 -- "operator does not exist: json = unknown"
-pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
+pgFmtField table CoercibleField{tfName=fn, tfJsonPath=jp} = SQL.sql ("to_jsonb(" <> pgFmtColumn table fn <> ")") <> pgFmtJsonPath jp
 
-pgFmtSelectItem :: QualifiedIdentifier -> (Field, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
+-- Select the value of a named element from a table, applying its optional coercion mapping if any.
+pgFmtTableCoerce :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
+pgFmtTableCoerce table fld@(CoercibleField{tfTransform=(Just formatterProc)}) = pgFmtCallUnary formatterProc (pgFmtField table fld)
+pgFmtTableCoerce table f = pgFmtField table f
+
+-- | Like the previous but now we just have a name so no namespace or JSON paths.
+pgFmtCoerceNamed :: CoercibleField -> SQL.Snippet
+pgFmtCoerceNamed CoercibleField{tfName=fn, tfTransform=(Just formatterProc)} = pgFmtCallUnary formatterProc (SQL.sql (pgFmtIdent fn)) <> " AS " <> SQL.sql (pgFmtIdent fn)
+pgFmtCoerceNamed CoercibleField{tfName=fn} = SQL.sql (pgFmtIdent fn)
+
+pgFmtSelectItem :: QualifiedIdentifier -> (CoercibleField, Maybe Cast, Maybe Alias) -> SQL.Snippet
+pgFmtSelectItem table (fld, Nothing, alias) = pgFmtTableCoerce table fld <> SQL.sql (pgFmtAs (tfName fld) (tfJsonPath fld) alias)
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (fld, Just cast, alias) = "CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs (tfName fld) (tfJsonPath fld) alias)
 
-pgFmtSelectFromJson :: [TypedField] -> SQL.Snippet
+pgFmtSelectFromJson :: [CoercibleField] -> SQL.Snippet
 pgFmtSelectFromJson fields =
   SQL.sql "SELECT " <> parsedCols <> " " <>
   (if null fields
@@ -255,7 +269,7 @@ pgFmtSelectFromJson fields =
     else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
   )
   where
-    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfName <$> fields
+    parsedCols = intercalateSnippet ", " $ pgFmtCoerceNamed <$> fields
     typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
@@ -266,8 +280,8 @@ pgFmtOrderTerm qi ot =
     maybe mempty nullOrder $ otNullOrder ot])
   where
     fmtOTerm = \case
-      OrderTerm{otTerm}                        -> pgFmtField qi otTerm
-      OrderRelationTerm{otRelation, otRelTerm} -> pgFmtField (QualifiedIdentifier mempty otRelation) otRelTerm
+      OrderTerm{otTerm=(fn, jp)}                        -> pgFmtField qi (unknownField fn jp)
+      OrderRelationTerm{otRelation, otRelTerm=(fn, jp)} -> pgFmtField (QualifiedIdentifier mempty otRelation) (unknownField fn jp)
 
     direction OrderAsc  = "ASC"
     direction OrderDesc = "DESC"
@@ -275,15 +289,26 @@ pgFmtOrderTerm qi ot =
     nullOrder OrderNullsFirst = "NULLS FIRST"
     nullOrder OrderNullsLast  = "NULLS LAST"
 
+-- | Interpret a literal in the way the planner indicated through the CoercibleField.
+pgFmtUnknownLiteralForField :: SQL.Snippet -> CoercibleField -> SQL.Snippet
+pgFmtUnknownLiteralForField value CoercibleField{tfTransform=(Just parserProc)} = pgFmtCallUnary parserProc value
+-- But when no transform is requested, we just use the literal as-is.
+pgFmtUnknownLiteralForField value _ = value
 
-pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
-pgFmtFilter _ (FilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
-pgFmtFilter _ (Filter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
-pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
+-- | Array version of the above, used by ANY().
+pgFmtArrayLiteralForField :: [Text] -> CoercibleField -> SQL.Snippet
+pgFmtArrayLiteralForField values CoercibleField{tfTransform=(Just parserProc)} = SQL.sql "ARRAY[" <> intercalateSnippet ", " (pgFmtCallUnary parserProc . unknownLiteral <$> values) <> "]"
+-- When no transformation is requested, use an array literal which should be simpler, maybe faster.
+pgFmtArrayLiteralForField values _ = unknownLiteral (pgBuildArrayLiteral values)
+
+pgFmtFilter :: QualifiedIdentifier -> TypedFilter -> SQL.Snippet
+pgFmtFilter _ (TypedFilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
+pgFmtFilter _ (TypedFilter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
+pgFmtFilter table (TypedFilter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      OpLike  -> unknownLiteral (T.map star val)
      OpILike -> unknownLiteral (T.map star val)
-     _       -> unknownLiteral val
+     _       -> pgFmtUnknownLiteralForField (unknownLiteral val) fld
 
    -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
    -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
@@ -300,7 +325,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
    In vals -> pgFmtField table fld <> " " <> case vals of
       [""] -> "= ANY('{}') "
-      _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
+      _    -> "= ANY (" <> pgFmtArrayLiteralForField vals fld <> ") "
 
    Fts op lang val ->
      pgFmtFieldFts op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
@@ -315,14 +340,14 @@ pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
   SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
-pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SQL.Snippet
-pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
+pgFmtLogicTree :: QualifiedIdentifier -> TypedLogicTree -> SQL.Snippet
+pgFmtLogicTree qi (TypedExpr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
   where
     notOp =  if hasNot then "NOT" else mempty
 
     opSql And = " AND "
     opSql Or  = " OR "
-pgFmtLogicTree qi (Stmnt flt) = pgFmtFilter qi flt
+pgFmtLogicTree qi (TypedStmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SQL.Snippet
 pgFmtJsonPath = \case

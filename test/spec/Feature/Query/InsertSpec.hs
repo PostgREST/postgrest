@@ -11,8 +11,9 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
-                                   pgVersion112, pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion110, pgVersion112,
+                                   pgVersion130)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -657,3 +658,114 @@ spec actualPgVersion = do
                              , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
                              , "Content-Range" <:> "*/*" ]
             }
+
+  -- Data representations for payload parsing requires Postgrest 10 or above.
+  when (actualPgVersion >= pgVersion100) $ do
+    describe "Data representations" $ do
+      context "on regular table" $ do
+        it "parses values in POST body" $
+          -- we don't check that the parsing is correct here, just that it's happening. If it doesn't happen we'll get a
+          -- an "invalid input syntax for type integer:" error.
+          request methodPost "/datarep_todos" [("Prefer", "return=headers-only")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            ""
+              { matchStatus  = 201
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Location" <:> "/datarep_todos?id=eq.5"
+                               , "Content-Range" <:> "*/*" ]
+              }
+
+        it "parses values in POST body and formats individually selected values in return=representation" $
+          request methodPost "/datarep_todos?select=id,label_color" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            [json| [{"id":5, "label_color": "#001100"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+        it "parses values in POST body and formats values in return=representation" $
+          request methodPost "/datarep_todos" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+      context "with ?columns parameter" $ do
+        it "ignores json keys not included in ?columns; parses only the ones specified" $
+          request methodPost "/datarep_todos?columns=id,label_color&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
+            `shouldRespondWith`
+            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00+00"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+        it "fails without parsing anything if at least one specified column doesn't exist" $
+          request methodPost "/datarep_todos?columns=id,label_color,helicopters&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
+            [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+            `shouldRespondWith`
+            [json| {"code":"PGRST118","message":"Column 'helicopters' of relation 'datarep_todos' does not exist","details":null,"hint":null} |]
+              { matchStatus  = 400
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+              }
+
+      context "on updatable view" $ do
+        it "parses values in POST body" $
+          -- we don't check that the parsing is correct here, just that it's happening. If it doesn't happen we'll get a
+          -- an "invalid input syntax for type integer:" error.
+          request methodPost "/datarep_todos_computed" [("Prefer", "return=headers-only")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            ""
+              { matchStatus  = 201
+              , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Location" <:> "/datarep_todos_computed?id=eq.5"
+                               , "Content-Range" <:> "*/*" ]
+              }
+
+        it "parses values in POST body and formats individually selected values in return=representation" $
+          request methodPost "/datarep_todos_computed?select=id,label_color" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            [json| [{"id":5, "label_color": "#001100"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+        it "parses values in POST body and formats values in return=representation" $
+          request methodPost "/datarep_todos_computed" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            `shouldRespondWith`
+            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00", "dark_color":"#000880"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+      context "on updatable views with ?columns parameter" $ do
+        it "ignores json keys not included in ?columns; parses only the ones specified" $
+          request methodPost "/datarep_todos_computed?columns=id,label_color&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
+            `shouldRespondWith`
+            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00+00"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
+                                "Content-Range" <:> "*/*"]
+              }
+
+        it "fails without parsing anything if at least one specified column doesn't exist" $
+          request methodPost "/datarep_todos_computed?columns=id,label_color,helicopters&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
+            [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+            `shouldRespondWith`
+            [json| {"code":"PGRST118","message":"Column 'helicopters' of relation 'datarep_todos_computed' does not exist","details":null,"hint":null} |]
+              { matchStatus  = 400
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+              }

@@ -48,6 +48,7 @@ library
                       PostgREST.SchemaCache.Identifiers
                       PostgREST.SchemaCache.Proc
                       PostgREST.SchemaCache.Relationship
+                      PostgREST.SchemaCache.Representations
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
                       PostgREST.Logger

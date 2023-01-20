@@ -104,6 +104,42 @@ spec = describe "computed relationships" $ do
         [json|[ {"name":"Final Fantasy I","designer":{"name":"Hironobu Sakaguchi"}} ]|]
         { matchStatus  = 200 }
 
+  it "applies data representations to response" $ do
+    -- A smoke test for data reps in the presence of computed relations.
+
+    -- The data rep here title cases the designer name before presentation. So here the lowercase version will be saved,
+    -- but the title case version returned. Pulling in a computed relation should not confuse this.
+    request methodPatch "/designers?select=name,videogames:computed_videogames(name)&id=eq.1"
+      [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
+      [json| {"name": "sidney k. meier"} |]
+      `shouldRespondWith`
+      [json|[{"name":"Sidney K. Meier","videogames":[{"name":"Civilization I"}, {"name":"Civilization II"}]}]|]
+      { matchStatus = 200 }
+
+    -- Verify it was saved the way we requested (there's no text data rep for this column, so if we select with the wrong casing, it should fail.)
+    get "/designers?select=id&name=eq.Sidney%20K.%20Meier"
+      `shouldRespondWith`
+      [json|[]|]
+      { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
+    -- But with the right casing it works.
+    get "/designers?select=id,name&name=eq.sidney%20k.%20meier"
+      `shouldRespondWith`
+      [json|[{"id": 1, "name":"Sidney K. Meier"}]|]
+      { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
+
+    -- Most importantly, if you read it back even via a computed relation, the data rep should be applied.
+    get "/videogames?select=name,designer:computed_designers(*)&id=eq.1"
+      `shouldRespondWith`
+      [json|[
+        {"name":"Civilization I","designer":{"id": 1, "name":"Sidney K. Meier"}}
+      ]|] { matchHeaders = [matchContentTypeJson] }
+
+    -- reset the test fixture
+    request methodPatch "/designers?id=eq.1"
+      [("Prefer", "tx=commit")]
+      [json| {"name": "Sid Meier"} |]
+      `shouldRespondWith` 204
+
   it "works with self joins" $
     get "/web_content?select=name,child_web_content(name),parent_web_content(name)&id=in.(0,1)"
     `shouldRespondWith`

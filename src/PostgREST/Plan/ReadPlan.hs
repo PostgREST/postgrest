@@ -6,9 +6,11 @@ module PostgREST.Plan.ReadPlan
 
 import Data.Tree (Tree (..))
 
-import PostgREST.ApiRequest.Types         (Alias, Cast, Depth, Field,
-                                           Hint, JoinType, LogicTree,
-                                           NodeName, OrderTerm)
+import PostgREST.ApiRequest.Types         (Alias, Cast, Depth, Hint,
+                                           JoinType, NodeName,
+                                           OrderTerm)
+import PostgREST.Plan.Types               (CoercibleField (..),
+                                           TypedLogicTree)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -26,10 +28,10 @@ data JoinCondition =
   deriving (Eq)
 
 data ReadPlan = ReadPlan
-  { select       :: [(Field, Maybe Cast, Maybe Alias)]
+  { select       :: [(CoercibleField, Maybe Cast, Maybe Alias)]
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
-  , where_       :: [LogicTree]
+  , where_       :: [TypedLogicTree]
   , order        :: [OrderTerm]
   , range_       :: NonnegRange
   , relName      :: NodeName

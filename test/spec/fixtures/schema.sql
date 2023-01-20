@@ -2786,9 +2786,20 @@ BEGIN
   LOAD 'safeupdate';
 END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- This tests data representations over computed joins: even a lower case title should come back title cased.
+DROP DOMAIN IF EXISTS public.titlecasetext CASCADE;
+CREATE DOMAIN public.titlecasetext AS text;
+
+CREATE OR REPLACE FUNCTION json(public.titlecasetext) RETURNS json AS $$
+  SELECT to_json(INITCAP($1::text));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.titlecasetext AS json) WITH FUNCTION json(public.titlecasetext) AS IMPLICIT;
+-- End of data representations specific stuff except for where the domain is used in the table.
+
 CREATE TABLE designers (
   id int primary key
-, name text
+, name public.titlecasetext
 );
 
 CREATE TABLE videogames (
@@ -3101,6 +3112,72 @@ create table test.subscriptions(
   subscriber int references test.posters(id),
   subscribed int references test.posters(id),
   primary key(subscriber, subscribed)
+);
+
+-- For formatting output and parsing input of types with custom API representations.
+DROP DOMAIN IF EXISTS public.color CASCADE;
+CREATE DOMAIN public.color AS INTEGER CHECK (VALUE >= 0 AND VALUE <= 16777215);
+
+CREATE OR REPLACE FUNCTION color(json) RETURNS public.color AS $$
+  SELECT color($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION color(text) RETURNS public.color AS $$
+  SELECT (('x' || lpad((CASE WHEN SUBSTRING($1::text, 1, 1) = '#' THEN SUBSTRING($1::text, 2) ELSE $1::text END), 8, '0'))::bit(32)::int)::public.color;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.color) RETURNS json AS $$
+  SELECT
+    CASE WHEN $1 IS NULL THEN to_json(''::text)
+    ELSE to_json('#' || lpad(upper(to_hex($1)), 6, '0'))
+  END;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.color AS json) WITH FUNCTION json(public.color) AS IMPLICIT;
+CREATE CAST (json AS public.color) WITH FUNCTION color(json) AS IMPLICIT;
+CREATE CAST (text AS public.color) WITH FUNCTION color(text) AS IMPLICIT;
+
+DROP DOMAIN IF EXISTS public.isodate CASCADE;
+CREATE DOMAIN public.isodate AS timestamp with time zone;
+
+CREATE OR REPLACE FUNCTION isodate(json) RETURNS public.isodate AS $$
+  SELECT isodate($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION isodate(text) RETURNS public.isodate AS $$
+  SELECT (replace($1, 'T', ' ')::timestamp with time zone)::public.isodate;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.isodate) RETURNS json AS $$
+  SELECT to_json(replace($1::text, ' ', 'T'));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.isodate AS json) WITH FUNCTION json(public.isodate) AS IMPLICIT;
+CREATE CAST (json AS public.isodate) WITH FUNCTION isodate(json) AS IMPLICIT;
+-- We intentionally don't have this in order to test query string parsing doesn't try to fall back on JSON parsing.
+-- CREATE CAST (text AS public.isodate) WITH FUNCTION isodate(text) AS IMPLICIT;
+
+CREATE TABLE datarep_todos (
+  id bigint primary key,
+  name text,
+  label_color public.color default 0,
+  due_at public.isodate default '2018-01-01'::date
+);
+
+CREATE TABLE datarep_next_two_todos (
+  id bigint primary key,
+  first_item_id bigint references datarep_todos(id),
+  second_item_id bigint references datarep_todos(id),
+  name text
+);
+
+CREATE VIEW datarep_todos_computed as (
+  SELECT id,
+    name,
+    label_color,
+    due_at,
+    (label_color / 2)::public.color as dark_color
+  FROM datarep_todos
 );
 
 -- view's name is alphabetically before projects

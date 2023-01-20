@@ -26,6 +26,7 @@ module PostgREST.Plan
   ) where
 
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
 import qualified PostgREST.SchemaCache.Proc as Proc
 
@@ -33,31 +34,35 @@ import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
 
-import PostgREST.ApiRequest               (Action (..),
-                                           ApiRequest (..),
+import PostgREST.ApiRequest                  (Action (..),
+                                              ApiRequest (..),
                                            InvokeMethod (..),
-                                           Mutation (..),
-                                           Payload (..))
-import PostgREST.Config                   (AppConfig (..))
-import PostgREST.Error                    (Error (..))
-import PostgREST.Query.SqlFragment        (sourceCTEName)
-import PostgREST.RangeQuery               (NonnegRange, allRange,
-                                           convertToLimitZeroRange,
-                                           restrictRange)
-import PostgREST.SchemaCache              (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers  (FieldName,
-                                           QualifiedIdentifier (..),
-                                           Schema)
-import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..),
-                                           procReturnsScalar)
-import PostgREST.SchemaCache.Relationship (Cardinality (..),
-                                           Junction (..),
-                                           Relationship (..),
-                                           RelationshipsMap,
-                                           relIsToOne)
-import PostgREST.SchemaCache.Table        (Table (tableName),
-                                           tablePKCols)
+                                              Mutation (..),
+                                              Payload (..))
+import PostgREST.Config                      (AppConfig (..))
+import PostgREST.Error                       (Error (..))
+import PostgREST.Query.SqlFragment           (sourceCTEName)
+import PostgREST.RangeQuery                  (NonnegRange, allRange,
+                                              convertToLimitZeroRange,
+                                              restrictRange)
+import PostgREST.SchemaCache                 (SchemaCache (..))
+import PostgREST.SchemaCache.Identifiers     (FieldName,
+                                              QualifiedIdentifier (..),
+                                              Schema)
+import PostgREST.SchemaCache.Proc            (ProcDescription (..),
+                                              ProcParam (..),
+                                              procReturnsScalar)
+import PostgREST.SchemaCache.Relationship    (Cardinality (..),
+                                              Junction (..),
+                                              Relationship (..),
+                                              RelationshipsMap,
+                                              relIsToOne)
+import PostgREST.SchemaCache.Representations (DataRepresentation (..),
+                                              RepresentationsMap)
+import PostgREST.SchemaCache.Table           (Column (..), Table (..),
+                                              TablesMap,
+                                              tableColumnsList,
+                                              tablePKCols)
 
 import PostgREST.ApiRequest.Preferences
 import PostgREST.ApiRequest.Types
@@ -108,26 +113,93 @@ readPlanTxMode = SQL.Read
 inspectPlanTxMode :: SQL.Mode
 inspectPlanTxMode = SQL.Read
 
+-- | During planning we need to resolve Field -> CoercibleField (finding the context specific target type and map function).
+-- | ResolverContext facilitates this without the need to pass around a laundry list of parameters.
+data ResolverContext = ResolverContext
+  { tables          :: TablesMap
+  , representations :: RepresentationsMap
+  , qi              :: QualifiedIdentifier  -- ^ The table we're currently attending; changes as we recurse into joins etc.
+  , outputType      :: Text                 -- ^ The output type for the response payload; e.g. "csv", "json", "binary".
+  }
+
+resolveColumnField :: Column -> CoercibleField
+resolveColumnField col = CoercibleField (colName col) [] (colNominalType col) Nothing
+
+resolveTableFieldName :: Table -> FieldName -> CoercibleField
+resolveTableFieldName table fieldName =
+  fromMaybe (unknownField fieldName []) $ HMI.lookup fieldName (tableColumns table) >>=
+    Just . resolveColumnField
+
+resolveTableField :: Table -> Field -> CoercibleField
+resolveTableField table (fieldName, []) = resolveTableFieldName table fieldName
+-- If the field is known and a JSON path is given, always assume the JSON type. But don't assume a type for entirely unknown fields.
+resolveTableField table (fieldName, jp) =
+  case resolveTableFieldName table fieldName of
+    tf@CoercibleField{tfIRType=""} -> tf{tfJsonPath=jp}
+    tf -> tf{tfJsonPath=jp, tfIRType="json"}
+
+-- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `tfIRType` isn't empty.
+resolveTypeOrUnknown :: ResolverContext -> Field -> CoercibleField
+resolveTypeOrUnknown ResolverContext{..} field@(fn, jp) =
+  fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
+    Just . flip resolveTableField field
+
+-- | Install any pre-defined data representation from source to target to coerce this reference.
+--
+-- Note that we change the IR type here. This might seem unintuitive. The short of it is that for a CoercibleField without a transformer, input type == output type. A transformer maps from a -> b, so by definition the input type will be a and the output type b after. And tfIRType is the *input* type.
+--
+-- It might feel odd that once a transformer is added we 'forget' the target type (because now a /= b). You might also note there's no obvious way to stack transforms (even if there was a stack, you erased what type you're working with so it's awkward). Alas as satisfying as it would be to engineer a layered mapping system with full type information, we just don't need it.
+withTransformer :: ResolverContext -> Text -> Text -> CoercibleField -> CoercibleField
+withTransformer ResolverContext{representations} sourceType targetType field =
+  fromMaybe field $ HM.lookup (sourceType, targetType) representations >>=
+    (\fieldRepresentation -> Just field{tfIRType=sourceType, tfTransform=Just (drFunction fieldRepresentation)})
+
+-- | Map the intermediate representation type to the output type, if available.
+withOutputFormat :: ResolverContext -> CoercibleField -> CoercibleField
+withOutputFormat ctx@ResolverContext{outputType} field@CoercibleField{tfIRType} = withTransformer ctx tfIRType outputType field
+
+-- | Map text into the intermediate representation type, if available.
+withTextParse :: ResolverContext -> CoercibleField -> CoercibleField
+withTextParse ctx field@CoercibleField{tfIRType} = withTransformer ctx "text" tfIRType field
+
+-- | Map json into the intermediate representation type, if available.
+withJsonParse :: ResolverContext -> CoercibleField -> CoercibleField
+withJsonParse ctx field@CoercibleField{tfIRType} = withTransformer ctx "json" tfIRType field
+
+-- | Map the intermediate representation type to the output type defined by the resolver context (normally json), if available.
+resolveOutputField :: ResolverContext -> Field -> CoercibleField
+resolveOutputField ctx field = withOutputFormat ctx $ resolveTypeOrUnknown ctx field
+
+-- | Map the query string format of a value (text) into the intermediate representation type, if available.
+resolveQueryInputField :: ResolverContext -> Field -> CoercibleField
+resolveQueryInputField ctx field = withTextParse ctx $ resolveTypeOrUnknown ctx field
+
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
 readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbRelationships} apiRequest  =
-  mapLeft ApiRequestError $
-  treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-  addNullEmbedFilters =<<
-  validateSpreadEmbeds =<<
-  addRelatedOrders =<<
-  addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
-  addLogicTrees apiRequest =<<
-  addRanges apiRequest =<<
-  addOrders apiRequest =<<
-  addFilters apiRequest (initReadRequest qi $ QueryParams.qsSelect $ iQueryParams apiRequest)
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
+  let
+    -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
+    ctx = ResolverContext dbTables dbRepresentations qi "json"
+  in
+    mapLeft ApiRequestError $
+    treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+    addNullEmbedFilters =<<
+    validateSpreadEmbeds =<<
+    addRelatedOrders =<<
+    addDataRepresentationAliases =<<
+    expandStarsForDataRepresentations ctx =<<
+    addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
+    addLogicTrees ctx apiRequest =<<
+    addRanges apiRequest =<<
+    addOrders apiRequest =<<
+    addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
 -- Build the initial read plan tree
-initReadRequest :: QualifiedIdentifier -> [Tree SelectItem] -> ReadPlanTree
-initReadRequest qi@QualifiedIdentifier{..} =
-  foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi, relName=qiName, depth=rootDepth} []
+initReadRequest :: ResolverContext -> [Tree SelectItem] -> ReadPlanTree
+initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
+  foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
     defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False rootDepth
@@ -146,7 +218,49 @@ initReadRequest qi@QualifiedIdentifier{..} =
             (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
             fldForest:rForest
         SelectField{..} ->
-          Node q{select=(selField, selCast, selAlias):select q} rForest
+          Node q{select=(resolveOutputField ctx{qi=from q} selField, selCast, selAlias):select q} rForest
+
+-- | Preserve the original field name if data representation is used to coerce the value.
+addDataRepresentationAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=sel} -> rPlan{select=map aliasSelectItem sel}) rPlanTree
+  where
+    aliasSelectItem :: (CoercibleField, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe Cast, Maybe Alias)
+    -- If there already is an alias, don't overwrite it.
+    aliasSelectItem (fld@(CoercibleField{tfName=fieldName, tfTransform=(Just _)}), Nothing, Nothing) = (fld, Nothing, Just fieldName)
+    aliasSelectItem fld = fld
+
+knownColumnsInContext :: ResolverContext -> [Column]
+knownColumnsInContext ResolverContext{..} =
+  fromMaybe [] $ HM.lookup qi tables >>=
+  Just . tableColumnsList
+
+-- | Expand "select *" into explicit field names of the table, if necessary to apply data representations.
+expandStarsForDataRepresentations :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+expandStarsForDataRepresentations ctx@ResolverContext{qi} rPlanTree = Right $ fmap expandStars rPlanTree
+  where
+    expandStars :: ReadPlan -> ReadPlan
+    -- When the schema is "" and the table is the source CTE, we assume the true source table is given in the from
+    -- alias and belongs to the request schema. See the bit in `addRels` with `newFrom = ...`.
+    expandStars rPlan@ReadPlan{from=(QualifiedIdentifier "" "pgrst_source"), fromAlias=(Just tblAlias)} =
+      expandStarsForTable ctx{qi=qi{qiName=tblAlias}} rPlan
+    expandStars rPlan@ReadPlan{from=fromTable} =
+      expandStarsForTable ctx{qi=fromTable} rPlan
+
+expandStarsForTable :: ResolverContext -> ReadPlan -> ReadPlan
+expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadPlan{select=selectItems} =
+  -- If we have a '*' select AND the target table has at least one data representation, expand.
+  if ("*" `elem` map (\(field, _, _) -> tfName field) selectItems) && any hasOutputRep knownColumns
+    then rplan{select=concatMap (expandStarSelectItem knownColumns) selectItems}
+    else rplan
+  where
+    knownColumns = knownColumnsInContext ctx
+
+    hasOutputRep :: Column -> Bool
+    hasOutputRep col = HM.member (colNominalType col, outputType) representations
+
+    expandStarSelectItem :: [Column] -> (CoercibleField, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe Cast, Maybe Alias)]
+    expandStarSelectItem columns (CoercibleField{tfName="*", tfJsonPath=[]}, b, c) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c)) columns
+    expandStarSelectItem _ selectItem = [selectItem]
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -301,8 +415,8 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
-addFilters :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addFilters ApiRequest{..} rReq =
+addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addFilters ctx ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
   where
     QueryParams.QueryParams{..} = iQueryParams
@@ -314,7 +428,7 @@ addFilters ApiRequest{..} rReq =
 
     addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadPlanTree ->  Either ApiRequestError ReadPlanTree
     addFilterToNode =
-      updateNode (\flt (Node q@ReadPlan{where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest flt lf}  f)
+      updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
 
 addOrders :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addOrders ApiRequest{..} rReq =
@@ -358,15 +472,15 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=oldLogic} forest) = do
   newLogic <- getFilters readPlans `traverse` oldLogic
   Node rp{ReadPlan.where_= newLogic} <$> (addNullEmbedFilters `traverse` forest)
   where
-    getFilters :: [ReadPlan] -> LogicTree -> Either ApiRequestError LogicTree
-    getFilters rPlans (Expr b lOp trees) = Expr b lOp <$> (getFilters rPlans `traverse` trees)
-    getFilters rPlans flt@(Stmnt (Filter (fld, []) opExpr)) =
+    getFilters :: [ReadPlan] -> TypedLogicTree -> Either ApiRequestError TypedLogicTree
+    getFilters rPlans (TypedExpr b lOp trees) = TypedExpr b lOp <$> (getFilters rPlans `traverse` trees)
+    getFilters rPlans flt@(TypedStmnt (TypedFilter (CoercibleField fld [] _ _) opExpr)) =
       let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
       case (foundRP, opExpr) of
-        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ Stmnt $ FilterNullEmbed b relAggAlias
+        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ TypedStmnt $ TypedFilterNullEmbed b relAggAlias
         (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
         _                                                   -> Right flt
-    getFilters _ flt@(Stmnt _)        = Right flt
+    getFilters _ flt@(TypedStmnt _)        = Right flt
 
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =
@@ -380,14 +494,22 @@ addRanges ApiRequest{..} rReq =
     addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
     addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
 
-addLogicTrees :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addLogicTrees ApiRequest{..} rReq =
+addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addLogicTrees ctx ApiRequest{..} rReq =
   foldr addLogicTreeToNode (Right rReq) qsLogic
   where
     QueryParams.QueryParams{..} = iQueryParams
 
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
-    addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{where_=lf} f) -> Node q{ReadPlan.where_=t:lf} f)
+    addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
+
+resolveLogicTree :: ResolverContext -> LogicTree -> TypedLogicTree
+resolveLogicTree ctx (Stmnt flt) = TypedStmnt $ resolveFilter ctx flt
+resolveLogicTree ctx (Expr b op lts) = TypedExpr b op (map (resolveLogicTree ctx) lts)
+
+resolveFilter :: ResolverContext -> Filter -> TypedFilter
+resolveFilter ctx (Filter fld opExpr) = TypedFilter{typedField=resolveQueryInputField ctx fld, typedOpExpr=opExpr}
+resolveFilter _ (FilterNullEmbed isNot fieldName) = TypedFilterNullEmbed isNot fieldName
 
 -- Validates that spread embeds are only done on to-one relationships
 validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -413,7 +535,7 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
+mutatePlan mutation qi ApiRequest{..} SchemaCache{dbTables, dbRepresentations} readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols) typedColumnsOrError
@@ -431,26 +553,27 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
           Left InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
   where
+    ctx = ResolverContext dbTables dbRepresentations qi "json"
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
     returnings =
       if iPreferRepresentation == None
         then []
         else inferColsEmbedNeeds readReq pkCols
-    pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables sCache
-    logic = map snd qsLogic
+    tbl = HM.lookup qi dbTables
+    pkCols = maybe mempty tablePKCols tbl
+    logic = map (resolveLogicTree ctx . snd) qsLogic
     rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
-    combinedLogic = foldr addFilterToLogicForest logic qsFiltersRoot
+    combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
-    tbl = HM.lookup qi $ dbTables sCache
-    typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
+    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
-resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
-resolveOrError Nothing _ = Left NotFound
-resolveOrError (Just table) field =
-  case resolveTableField table field of
-    Nothing         -> Left $ ColumnNotFound (tableName table) field
-    Just typedField -> Right typedField
+resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
+resolveOrError _ Nothing _ = Left NotFound
+resolveOrError ctx (Just table) field =
+  case resolveTableFieldName table field of
+    CoercibleField{tfIRType=""} -> Left $ ColumnNotFound (tableName table) field
+    cf                          -> Right $ withJsonParse ctx cf
 
 callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
 callPlan proc apiReq readReq = FunctionCall {
@@ -478,7 +601,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = (\((fld, _), _, _) -> fld) <$> select
+    fldNames = tfName . (\(f, _, _) -> f) <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
@@ -517,5 +640,5 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder
-addFilterToLogicForest :: Filter -> [LogicTree] -> [LogicTree]
-addFilterToLogicForest flt lf = Stmnt flt : lf
+addFilterToLogicForest :: TypedFilter -> [TypedLogicTree] -> [TypedLogicTree]
+addFilterToLogicForest flt lf = TypedStmnt flt : lf
