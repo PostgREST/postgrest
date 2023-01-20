@@ -40,32 +40,38 @@ import qualified Hasql.Transaction          as SQL
 import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
 
-import PostgREST.Config                   (AppConfig (..))
-import PostgREST.Config.Database          (pgVersionStatement,
-                                           toIsolationLevel)
-import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
-                                           pgVersion110, pgVersion120)
-import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
-                                           QualifiedIdentifier (..),
-                                           Schema)
-import PostgREST.SchemaCache.Relationship (Cardinality (..),
-                                           Junction (..),
-                                           Relationship (..),
-                                           RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
-                                           PgType (..), RetType (..),
-                                           Routine (..), RoutineMap,
-                                           RoutineParam (..))
-import PostgREST.SchemaCache.Table        (Column (..), ColumnMap,
-                                           Table (..), TablesMap)
+import PostgREST.Config                      (AppConfig (..))
+import PostgREST.Config.Database             (pgVersionStatement,
+                                              toIsolationLevel)
+import PostgREST.Config.PgVersion            (PgVersion, pgVersion100,
+                                              pgVersion110,
+                                              pgVersion120)
+import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
+                                              QualifiedIdentifier (..),
+                                              Schema)
+import PostgREST.SchemaCache.Relationship    (Cardinality (..),
+                                              Junction (..),
+                                              Relationship (..),
+                                              RelationshipsMap)
+import PostgREST.SchemaCache.Representations (DataRepresentation (..),
+                                              RepresentationsMap)
+import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
+                                              PgType (..),
+                                              RetType (..),
+                                              Routine (..),
+                                              RoutineMap,
+                                              RoutineParam (..))
+import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
+                                              Table (..), TablesMap)
 
 import Protolude
 
 
 data SchemaCache = SchemaCache
-  { dbTables        :: TablesMap
-  , dbRelationships :: RelationshipsMap
-  , dbRoutines      :: RoutineMap
+  { dbTables          :: TablesMap
+  , dbRelationships   :: RelationshipsMap
+  , dbRoutines        :: RoutineMap
+  , dbRepresentations :: RepresentationsMap
   }
   deriving (Generic, JSON.ToJSON)
 
@@ -116,6 +122,7 @@ querySchemaCache AppConfig{..} = do
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
   funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
+  reps    <- SQL.statement schemas $ dataRepresentations prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
     whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
@@ -127,6 +134,7 @@ querySchemaCache AppConfig{..} = do
       dbTables = tabsWViewsPks
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
+    , dbRepresentations = reps
     }
   where
     schemas = toList configDbSchemas
@@ -156,10 +164,11 @@ getOverrideRelationshipsMap rels cRels =
 removeInternal :: [Schema] -> SchemaCache -> SchemaCache
 removeInternal schemas dbStruct =
   SchemaCache {
-      dbTables        = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
-    , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
-                        HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
-    , dbRoutines      = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+      dbTables          = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
+    , dbRelationships   = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
+                          HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
+    , dbRoutines        = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+    , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -279,6 +288,42 @@ decodeFuncs =
     parseVolatility v | v == 'i' = Immutable
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
+
+decodeRepresentations :: HD.Result RepresentationsMap
+decodeRepresentations =
+  HM.fromList . map (\rep@DataRepresentation{drSourceType, drTargetType} -> ((drSourceType, drTargetType), rep)) <$> HD.rowList row
+  where
+    row = DataRepresentation
+      <$> column HD.text
+      <*> column HD.text
+      <*> column HD.text
+
+-- Selects all potential data representation transformations. To qualify the cast must be
+-- 1. to or from a domain
+-- 2. implicit
+-- For the time being it must also be to/from JSON or text, although one can imagine a future where we support special
+-- cases like CSV specific representations.
+dataRepresentations :: Bool -> SQL.Statement [Schema] RepresentationsMap
+dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentations
+  where
+    sql = [q|
+    SELECT
+      c.castsource::regtype::text,
+      c.casttarget::regtype::text,
+      c.castfunc::regproc::text
+    FROM
+      pg_catalog.pg_cast c
+    JOIN pg_catalog.pg_type src_t
+      ON c.castsource::oid = src_t.oid
+    JOIN pg_catalog.pg_type dst_t
+      ON c.casttarget::oid = dst_t.oid
+    WHERE
+      c.castcontext = 'i'
+      AND c.castmethod = 'f'
+      AND has_function_privilege(c.castfunc, 'execute')
+      AND ((src_t.typtype = 'd' AND c.casttarget IN ('json'::regtype::oid , 'text'::regtype::oid))
+       OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
+    |]
 
 allFunctions :: PgVersion -> Bool -> SQL.Statement [Schema] RoutineMap
 allFunctions pgVer = SQL.Statement sql (arrayParam HE.text) decodeFuncs
