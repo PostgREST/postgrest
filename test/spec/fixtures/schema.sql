@@ -3076,3 +3076,13 @@ LANGUAGE sql
 AS $$
   select * from test.yards;
 $$;
+
+-- view's name is alphabetically before projects
+create view test.alpha_projects as
+  select c.id, p.name as pro_name, c.name as cli_name
+  from projects p join clients c on p.client_id = c.id;
+
+-- view's name is alphabetically after projects
+create view test.zeta_projects as
+  select c.id, p.name as pro_name, c.name as cli_name
+  from projects p join clients c on p.client_id = c.id;

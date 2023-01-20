@@ -103,11 +103,14 @@ makeProperty tbl rels col = (colName col, Inline s)
     fk :: Maybe Text
     fk =
       let
+        searchedRels = fromMaybe mempty $ HM.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl), tableSchema tbl) rels
+        -- Sorts the relationship list to get tables first
+        relsSortedByIsView = sortOn relFTableIsView [ r | r@Relationship{} <- searchedRels]
         -- Finds the relationship that has a single column foreign key
         rel = find (\case
           Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
           _                                               -> False
-          ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier (tableSchema tbl) (tableName tbl), tableSchema tbl) rels
+          ) relsSortedByIsView
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
         fTbl = qiName . relForeignTable <$> rel
         fTblCol = (,) <$> fTbl <*> fCol
