@@ -41,8 +41,8 @@ spec actualPgVersion = describe "OpenAPI" $ do
     let docsUrl = r ^? key "externalDocs" . key "url"
 
     liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
-  
-  
+
+
   describe "schema" $ do
 
     it "includes title and comments to schema" $ do
@@ -886,4 +886,4 @@ spec actualPgVersion = describe "OpenAPI" $ do
         sec `shouldBe` Nothing
 
         secDef `shouldBe` Nothing
- 
+
