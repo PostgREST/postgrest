@@ -26,6 +26,12 @@ CREATE SCHEMA "EXTRA ""@/\#~_-";
 COMMENT ON SCHEMA v1 IS 'v1 schema';
 COMMENT ON SCHEMA v2 IS 'v2 schema';
 
+COMMENT ON SCHEMA test IS 
+$$title_test title
+
+title_test description
+that spans
+multiple lines$$;
 --
 -- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: -
 --

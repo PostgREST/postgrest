@@ -41,6 +41,21 @@ spec actualPgVersion = describe "OpenAPI" $ do
     let docsUrl = r ^? key "externalDocs" . key "url"
 
     liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
+  
+  
+  describe "schema" $ do
+
+    it "includes title and comments to schema" $ do
+      r <- simpleBody <$> get "/"
+
+      let childGetTitle = r ^? key "info" . key "title"
+      let childGetDescription = r ^? key "info" . key "description"
+
+      liftIO $ do
+
+        childGetTitle `shouldBe` Just "title_test title"
+
+        childGetDescription `shouldBe` Just "title_test description\nthat spans\nmultiple lines"
 
   describe "table" $ do
 
@@ -854,3 +869,4 @@ spec actualPgVersion = describe "OpenAPI" $ do
         sec `shouldBe` Nothing
 
         secDef `shouldBe` Nothing
+ 
