@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Offers a more flexible replacement for `!inner`, e.g. `/projects?select=*,clients(*)&clients=not.is.null`
    + Allows doing an anti join, e.g. `/projects?select=*,clients(*)&clients=is.null`
    + Allows using or across related tables conditions
+ - #1100, Customizable OpenAPI title - @AnthonyFisi
 
 ### Fixed
 
