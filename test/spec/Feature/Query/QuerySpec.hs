@@ -1317,25 +1317,25 @@ spec actualPgVersion = do
     it "formats star select" $
       get "/datarep_todos?select=*&id=lt.4" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00"},
-          {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00"},
-          {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}
+          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+           {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+           {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats implicit star select" $
       get "/datarep_todos?id=lt.4" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00"},
-          {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00"},
-          {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}
+          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+ {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+ {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats star and explicit mix" $
       get "/datarep_todos?select=due_at,*&id=lt.4" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00"},
-          {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00"},
-          {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}
+          {"due_at":"2018-01-02T00:00:00+00","id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+           {"due_at":"2018-01-03T00:00:00+00","id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+           {"due_at":"2018-01-01T14:12:34.123456+00","id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats through join" $
@@ -1345,10 +1345,8 @@ spec actualPgVersion = do
     it "formats through join with star select" $
       get "/datarep_next_two_todos?select=id,name,second_item:datarep_todos!datarep_next_two_todos_second_item_id_fkey(*)" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"school related","second_item":
-            {"id": 3, "name": "Algebra", "label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}},
-          {"id":2,"name":"do these first","second_item":
-            {"id": 3, "name": "Algebra", "label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}}
+          {"id":1,"name":"school related","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}},
+          {"id":2,"name":"do these first","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "uses text parser on value for filter given through query parameters" $

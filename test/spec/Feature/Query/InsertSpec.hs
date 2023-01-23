@@ -659,7 +659,7 @@ spec actualPgVersion = do
                              , "Content-Range" <:> "*/*" ]
             }
 
-  -- Data representations for payload parsing requires Postgrest 10 or above.
+  -- Data representations for payload parsing requires Postgres 10 or above.
   when (actualPgVersion >= pgVersion100) $ do
     describe "Data representations" $ do
       context "on regular table" $ do
@@ -688,9 +688,9 @@ spec actualPgVersion = do
 
         it "parses values in POST body and formats values in return=representation" $
           request methodPost "/datarep_todos" [("Prefer", "return=representation")]
-            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
+            [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00", "icon_image": "3q2+7w", "created_at":-15, "budget": "-100000000000000.13"} |]
             `shouldRespondWith`
-            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00"}] |]
+            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00", "icon_image": "3q2+7w==", "created_at":-15, "budget": "-100000000000000.13"}] |]
               { matchStatus  = 201
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "*/*"]

@@ -3114,7 +3114,7 @@ create table test.subscriptions(
   primary key(subscriber, subscribed)
 );
 
--- For formatting output and parsing input of types with custom API representations.
+-- Data representations feature
 DROP DOMAIN IF EXISTS public.color CASCADE;
 CREATE DOMAIN public.color AS INTEGER CHECK (VALUE >= 0 AND VALUE <= 16777215);
 
@@ -3157,11 +3157,75 @@ CREATE CAST (json AS public.isodate) WITH FUNCTION isodate(json) AS IMPLICIT;
 -- We intentionally don't have this in order to test query string parsing doesn't try to fall back on JSON parsing.
 -- CREATE CAST (text AS public.isodate) WITH FUNCTION isodate(text) AS IMPLICIT;
 
+-- bytea_b64 is a base64-encoded binary string
+DROP DOMAIN IF EXISTS public.bytea_b64 CASCADE;
+CREATE DOMAIN public.bytea_b64 AS bytea;
+
+CREATE OR REPLACE FUNCTION bytea_b64(json) RETURNS public.bytea_b64 AS $$
+  SELECT bytea_b64($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION bytea_b64(text) RETURNS public.bytea_b64 AS $$
+  -- allow unpadded base64
+  SELECT decode($1 || repeat('=', 4 - (length($1) % 4)), 'base64')::public.bytea_b64;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.bytea_b64) RETURNS json AS $$
+  SELECT to_json(translate(encode($1, 'base64'), E'\n', ''));
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.bytea_b64 AS json) WITH FUNCTION json(public.bytea_b64) AS IMPLICIT;
+CREATE CAST (json AS public.bytea_b64) WITH FUNCTION bytea_b64(json) AS IMPLICIT;
+CREATE CAST (text AS public.bytea_b64) WITH FUNCTION bytea_b64(text) AS IMPLICIT;
+
+-- unixtz is a timestamptz represented as an integer number of seconds since the Unix epoch
+DROP DOMAIN IF EXISTS public.unixtz CASCADE;
+CREATE DOMAIN public.unixtz AS timestamp with time zone;
+
+CREATE OR REPLACE FUNCTION unixtz(json) RETURNS public.unixtz AS $$
+  SELECT unixtz($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION unixtz(text) RETURNS public.unixtz AS $$
+  SELECT (to_timestamp($1::numeric)::public.unixtz);
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.unixtz) RETURNS json AS $$
+  SELECT to_json(extract(epoch from $1)::bigint);
+$$ LANGUAGE SQL IMMUTABLE;
+
+
+CREATE CAST (public.unixtz AS json) WITH FUNCTION json(public.unixtz) AS IMPLICIT;
+CREATE CAST (json AS public.unixtz) WITH FUNCTION unixtz(json) AS IMPLICIT;
+CREATE CAST (text AS public.unixtz) WITH FUNCTION unixtz(text) AS IMPLICIT;
+
+DROP DOMAIN IF EXISTS public.monetary CASCADE;
+CREATE DOMAIN public.monetary AS numeric(17,2);
+
+CREATE OR REPLACE FUNCTION monetary(json) RETURNS public.monetary AS $$
+  SELECT monetary($1 #>> '{}');
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION monetary(text) RETURNS public.monetary AS $$
+  SELECT ($1::numeric)::public.monetary;
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE OR REPLACE FUNCTION json(public.monetary) RETURNS json AS $$
+  SELECT to_json($1::text);
+$$ LANGUAGE SQL IMMUTABLE;
+
+CREATE CAST (public.monetary AS json) WITH FUNCTION json(public.monetary) AS IMPLICIT;
+CREATE CAST (json AS public.monetary) WITH FUNCTION monetary(json) AS IMPLICIT;
+CREATE CAST (text AS public.monetary) WITH FUNCTION monetary(text) AS IMPLICIT;
+
 CREATE TABLE datarep_todos (
   id bigint primary key,
   name text,
   label_color public.color default 0,
-  due_at public.isodate default '2018-01-01'::date
+  due_at public.isodate default '2018-01-01'::date,
+  icon_image public.bytea_b64,
+  created_at public.unixtz default '2017-12-14 01:02:30'::timestamptz,
+  budget public.monetary default 0
 );
 
 CREATE TABLE datarep_next_two_todos (

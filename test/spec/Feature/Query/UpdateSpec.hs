@@ -547,7 +547,7 @@ spec actualPgVersion = do
       , { "id": 3, "name": "item-3" }
       ]|]
 
-  -- Data representations for payload parsing requires Postgrest 10 or above.
+  -- Data representations for payload parsing requires Postgres 10 or above.
   when (actualPgVersion >= pgVersion100) $ do
     describe "Data representations" $ do
       context "for a single row" $ do
@@ -573,9 +573,9 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats values in return=representation" $
           request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20+00", "icon_image": "3q2+7w"} |]
             `shouldRespondWith`
-            [json| [{"id":2, "name": "Essay", "label_color": "#221100", "due_at":"2019-01-03T11:00:20+00"}] |]
+            [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "0-0/*"]
@@ -583,10 +583,10 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats star mixed selected values in return=representation" $
           request methodPatch "/datarep_todos?id=eq.2&select=due_at,*" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00", "created_at": 0} |]
             `shouldRespondWith`
             -- end up with due_at twice here but that's unrelated to data reps
-            [json| [{"due_at":"2019-01-03T11:00:00+00", "id":2, "name":"Essay", "label_color":"#221100", "due_at":"2019-01-03T11:00:00+00"}] |]
+            [json| [{"due_at":"2019-01-03T11:00:00+00","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "0-0/*"]
@@ -608,12 +608,12 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats values in return=representation" $
           request methodPatch "/datarep_todos?id=lt.4" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00", "icon_image": "3q2+7w="} |]
             `shouldRespondWith`
             [json| [
-              {"id":1, "name": "Report", "label_color": "#221100", "due_at":"2019-01-03T11:00:00+00"},
-              {"id":2, "name": "Essay", "label_color": "#221100", "due_at":"2019-01-03T11:00:00+00"},
-              {"id":3, "name": "Algebra", "label_color": "#221100", "due_at":"2019-01-03T11:00:00+00"}
+              {"id":1,"name":"Report","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"12.50"},
+              {"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"},
+              {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
@@ -625,7 +625,7 @@ spec actualPgVersion = do
             [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
             [json| [
-              {"id":2, "name": "Essay", "label_color": "#000100", "due_at":"2019-01-03T11:00:00+00"}
+               {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
