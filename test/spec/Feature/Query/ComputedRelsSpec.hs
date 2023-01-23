@@ -139,6 +139,11 @@ spec = describe "computed relationships" $ do
       [("Prefer", "tx=commit")]
       [json| {"name": "Sid Meier"} |]
       `shouldRespondWith` 204
+    -- need to poke the second one too to prevent inherent ordering from changing
+    request methodPatch "/designers?id=eq.2"
+      [("Prefer", "tx=commit")]
+      [json| {"name": "Hironobu Sakaguchi"} |]
+      `shouldRespondWith` 204
 
   it "works with self joins" $
     get "/web_content?select=name,child_web_content(name),parent_web_content(name)&id=in.(0,1)"
