@@ -1,8 +1,8 @@
 module PostgREST.Plan.Types
   ( CoercibleField(..)
   , unknownField
-  , TypedLogicTree(..)
-  , TypedFilter(..)
+  , CoercibleLogicTree(..)
+  , CoercibleFilter(..)
   , TransformerProc
   ) where
 
@@ -35,15 +35,15 @@ data CoercibleField = CoercibleField
 unknownField :: FieldName -> JsonPath -> CoercibleField
 unknownField name path = CoercibleField name path "" Nothing
 
--- | Like a regular LogicTree but with field type information.
-data TypedLogicTree
-  = TypedExpr Bool LogicOperator [TypedLogicTree]
-  | TypedStmnt TypedFilter
+-- | Like an API request LogicTree, but with coercible field information.
+data CoercibleLogicTree
+  = CoercibleExpr Bool LogicOperator [CoercibleLogicTree]
+  | CoercibleStmnt CoercibleFilter
   deriving (Eq)
 
-data TypedFilter = TypedFilter
-  { typedField  :: CoercibleField
-  , typedOpExpr :: OpExpr
+data CoercibleFilter = CoercibleFilter
+  { field  :: CoercibleField
+  , opExpr :: OpExpr
   }
-  | TypedFilterNullEmbed Bool FieldName
+  | CoercibleFilterNullEmbed Bool FieldName
   deriving (Eq)

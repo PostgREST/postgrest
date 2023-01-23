@@ -472,15 +472,15 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=oldLogic} forest) = do
   newLogic <- getFilters readPlans `traverse` oldLogic
   Node rp{ReadPlan.where_= newLogic} <$> (addNullEmbedFilters `traverse` forest)
   where
-    getFilters :: [ReadPlan] -> TypedLogicTree -> Either ApiRequestError TypedLogicTree
-    getFilters rPlans (TypedExpr b lOp trees) = TypedExpr b lOp <$> (getFilters rPlans `traverse` trees)
-    getFilters rPlans flt@(TypedStmnt (TypedFilter (CoercibleField fld [] _ _) opExpr)) =
+    getFilters :: [ReadPlan] -> CoercibleLogicTree -> Either ApiRequestError CoercibleLogicTree
+    getFilters rPlans (CoercibleExpr b lOp trees) = CoercibleExpr b lOp <$> (getFilters rPlans `traverse` trees)
+    getFilters rPlans flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _) opExpr)) =
       let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
       case (foundRP, opExpr) of
-        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ TypedStmnt $ TypedFilterNullEmbed b relAggAlias
+        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
         (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
         _                                                   -> Right flt
-    getFilters _ flt@(TypedStmnt _)        = Right flt
+    getFilters _ flt@(CoercibleStmnt _)        = Right flt
 
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =
@@ -503,13 +503,13 @@ addLogicTrees ctx ApiRequest{..} rReq =
     addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
     addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
 
-resolveLogicTree :: ResolverContext -> LogicTree -> TypedLogicTree
-resolveLogicTree ctx (Stmnt flt) = TypedStmnt $ resolveFilter ctx flt
-resolveLogicTree ctx (Expr b op lts) = TypedExpr b op (map (resolveLogicTree ctx) lts)
+resolveLogicTree :: ResolverContext -> LogicTree -> CoercibleLogicTree
+resolveLogicTree ctx (Stmnt flt) = CoercibleStmnt $ resolveFilter ctx flt
+resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree ctx) lts)
 
-resolveFilter :: ResolverContext -> Filter -> TypedFilter
-resolveFilter ctx (Filter fld opExpr) = TypedFilter{typedField=resolveQueryInputField ctx fld, typedOpExpr=opExpr}
-resolveFilter _ (FilterNullEmbed isNot fieldName) = TypedFilterNullEmbed isNot fieldName
+resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
+resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
+resolveFilter _ (FilterNullEmbed isNot fieldName) = CoercibleFilterNullEmbed isNot fieldName
 
 -- Validates that spread embeds are only done on to-one relationships
 validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -640,5 +640,5 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder
-addFilterToLogicForest :: TypedFilter -> [TypedLogicTree] -> [TypedLogicTree]
-addFilterToLogicForest flt lf = TypedStmnt flt : lf
+addFilterToLogicForest :: CoercibleFilter -> [CoercibleLogicTree] -> [CoercibleLogicTree]
+addFilterToLogicForest flt lf = CoercibleStmnt flt : lf

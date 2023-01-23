@@ -10,7 +10,7 @@ import PostgREST.ApiRequest.Types         (Alias, Cast, Depth, Hint,
                                            JoinType, NodeName,
                                            OrderTerm)
 import PostgREST.Plan.Types               (CoercibleField (..),
-                                           TypedLogicTree)
+                                           CoercibleLogicTree)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -31,7 +31,7 @@ data ReadPlan = ReadPlan
   { select       :: [(CoercibleField, Maybe Cast, Maybe Alias)]
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
-  , where_       :: [TypedLogicTree]
+  , where_       :: [CoercibleLogicTree]
   , order        :: [OrderTerm]
   , range_       :: NonnegRange
   , relName      :: NodeName

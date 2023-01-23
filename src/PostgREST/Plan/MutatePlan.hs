@@ -8,7 +8,7 @@ import qualified Data.ByteString.Lazy as LBS
 import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.ApiRequest.Types        (OrderTerm)
 import PostgREST.Plan.Types              (CoercibleField,
-                                          TypedLogicTree)
+                                          CoercibleLogicTree)
 import PostgREST.RangeQuery              (NonnegRange)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier)
@@ -22,7 +22,7 @@ data MutatePlan
       , insCols    :: [CoercibleField]
       , insBody    :: Maybe LBS.ByteString
       , onConflict :: Maybe (PreferResolution, [FieldName])
-      , where_     :: [TypedLogicTree]
+      , where_     :: [CoercibleLogicTree]
       , returning  :: [FieldName]
       , insPkCols  :: [FieldName]
       }
@@ -30,14 +30,14 @@ data MutatePlan
       { in_       :: QualifiedIdentifier
       , updCols   :: [CoercibleField]
       , updBody   :: Maybe LBS.ByteString
-      , where_    :: [TypedLogicTree]
+      , where_    :: [CoercibleLogicTree]
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
       }
   | Delete
       { in_       :: QualifiedIdentifier
-      , where_    :: [TypedLogicTree]
+      , where_    :: [CoercibleLogicTree]
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]

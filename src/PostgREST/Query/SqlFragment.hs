@@ -74,8 +74,8 @@ import PostgREST.MediaType               (MTPlanFormat (..),
                                           MTPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
 import PostgREST.Plan.Types              (CoercibleField (..),
-                                          TypedFilter (..),
-                                          TypedLogicTree (..),
+                                          CoercibleFilter (..),
+                                          CoercibleLogicTree (..),
                                           unknownField)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
@@ -301,10 +301,10 @@ pgFmtArrayLiteralForField values CoercibleField{tfTransform=(Just parserProc)} =
 -- When no transformation is requested, use an array literal which should be simpler, maybe faster.
 pgFmtArrayLiteralForField values _ = unknownLiteral (pgBuildArrayLiteral values)
 
-pgFmtFilter :: QualifiedIdentifier -> TypedFilter -> SQL.Snippet
-pgFmtFilter _ (TypedFilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
-pgFmtFilter _ (TypedFilter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
-pgFmtFilter table (TypedFilter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
+pgFmtFilter :: QualifiedIdentifier -> CoercibleFilter -> SQL.Snippet
+pgFmtFilter _ (CoercibleFilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
+pgFmtFilter _ (CoercibleFilter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
+pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
    Op op val  -> pgFmtFieldOp op <> " " <> case op of
      OpLike  -> unknownLiteral (T.map star val)
      OpILike -> unknownLiteral (T.map star val)
@@ -340,14 +340,14 @@ pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
   SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
-pgFmtLogicTree :: QualifiedIdentifier -> TypedLogicTree -> SQL.Snippet
-pgFmtLogicTree qi (TypedExpr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
+pgFmtLogicTree :: QualifiedIdentifier -> CoercibleLogicTree -> SQL.Snippet
+pgFmtLogicTree qi (CoercibleExpr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
   where
     notOp =  if hasNot then "NOT" else mempty
 
     opSql And = " AND "
     opSql Or  = " OR "
-pgFmtLogicTree qi (TypedStmnt flt) = pgFmtFilter qi flt
+pgFmtLogicTree qi (CoercibleStmnt flt) = pgFmtFilter qi flt
 
 pgFmtJsonPath :: JsonPath -> SQL.Snippet
 pgFmtJsonPath = \case
