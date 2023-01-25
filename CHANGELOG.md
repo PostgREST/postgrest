@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+ - #2622, Consider any PostgreSQL authentication failure as fatal and exit immediately - @michivi
+
 ### Added
 
  - #1414, Add related orders - @steve-chavez

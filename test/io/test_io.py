@@ -66,6 +66,15 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         assert response.status_code == 200
 
 
+def test_fail_with_invalid_password(defaultenv):
+    "Connecting with an invalid password should fail without retries."
+    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
+    env = {**defaultenv, "PGRST_DB_URI": uri}
+    with run(env=env, wait_for_readiness=False) as postgrest:
+        exitCode = wait_until_exit(postgrest)
+        assert exitCode == 1
+
+
 def test_connect_with_dburi(dburi, defaultenv):
     "Connecting with db-uri instead of LIPQ* environment variables should work."
     defaultenv_without_libpq = {

@@ -56,11 +56,12 @@ let
         export PGRST_LOG_LEVEL="crit"
 
         mkdir -p "$(dirname "$_arg_output")"
+        abs_output="$(realpath "$_arg_output")"
 
         # shellcheck disable=SC2145
         ${withTools.withPg} --fixtures "$_arg_testdir"/fixtures.sql \
         ${withTools.withPgrst} \
-        sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$_arg_output\" \"''${_arg_leftovers[@]}\""
+        sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
         ${vegeta}/bin/vegeta report -type=text "$_arg_output"
       '';
 
