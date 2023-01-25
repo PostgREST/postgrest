@@ -88,7 +88,7 @@ decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
     "application/json":_                   -> MTApplicationJSON
-    "application/json":_                   -> MTApplicationJSON
+    "application/vnd.pgrst.array":_        -> MTApplicationJSON
     "application/geo+json":_               -> MTGeoJSON
     "text/csv":_                           -> MTTextCSV
     "text/plain":_                         -> MTTextPlain
