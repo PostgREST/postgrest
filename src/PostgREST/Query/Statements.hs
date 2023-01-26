@@ -121,6 +121,7 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     | getMediaType mt == MTTextCSV                       = asCsvF
     | getMediaType mt == MTSingularJSON                  = asJsonSingleF False
     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
+    | getMediaType mt == MTApplicationNullJSON           = asJsonNullF False
     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
     | otherwise                                          = asJsonF False

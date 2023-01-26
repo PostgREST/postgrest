@@ -14,6 +14,7 @@ module PostgREST.Query.SqlFragment
   , asCsvF
   , asGeoJsonF
   , asJsonF
+  , asJsonNullF
   , asJsonSingleF
   , asXmlF
   , countF
@@ -196,6 +197,11 @@ asJsonF :: Bool -> SqlFragment
 asJsonF returnsScalar
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')::character varying"
   | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
+
+asJsonNullF :: Bool -> SqlFragment
+asJsonNullF returnsScalar
+  | returnsScalar = "coalesce(json_strip_nulls (json_agg(_postgrest_t.pgrst_scalar)), '[]')::character varying"
+  | otherwise     = "coalesce(json_strip_nulls (json_agg(_postgrest_t)), '[]')::character varying"
 
 asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
