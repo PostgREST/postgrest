@@ -86,3 +86,15 @@ $$ language sql;
 create or replace function hello() returns text as $$
   select 'hello';
 $$ language sql;
+
+create table cats(id uuid primary key, name text);
+grant all on cats to postgrest_test_anonymous;
+
+create function drop_change_cats() returns void
+language sql security definer
+as $$
+  drop table cats;
+  create table cats(id bigint primary key, name text);
+  grant all on table cats to postgrest_test_anonymous;
+  notify pgrst, 'reload schema';
+$$;

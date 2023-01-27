@@ -334,7 +334,7 @@ def test_db_schema_notify_reload(defaultenv):
             "/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"}
         )
 
-        time.sleep(0.1)
+        time.sleep(0.2)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"\\"v1\\", \\"public\\""'
@@ -825,6 +825,27 @@ def test_no_pool_connection_required_on_bad_embedding(defaultenv):
         # OPTIONS on a table shouldn't require opening a connection
         response = postgrest.session.get("/projects?select=*,unexistent(*)")
         assert response.status_code == 400
+
+
+def test_notify_reloading_catalog_cache(defaultenv):
+    "notify should reload the connection catalog cache"
+
+    with run(env=defaultenv) as postgrest:
+
+        # first the id col is an uuid
+        response = postgrest.session.get(
+            "/cats?id=eq.dea27321-f988-4a57-93e4-8eeb38f3cf1e"
+        )
+        assert response.status_code == 200
+
+        # change it to a bigint
+        response = postgrest.session.post("/rpc/drop_change_cats")
+        assert response.status_code == 204
+        time.sleep(0.1)
+
+        # next request should succeed with a bigint value
+        response = postgrest.session.get("/cats?id=eq.1")
+        assert response.status_code == 200
 
 
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
