@@ -230,16 +230,15 @@ listener appState = do
       listener appState
 
     handleNotification _ msg
-      | BS.null msg            = scLoader -- reload the schema cache
-      | msg == "reload schema" = scLoader -- reload the schema cache
-      | msg == "reload config" = reReadConfig False appState -- reload the config
+      | BS.null msg            = cacheReloader
+      | msg == "reload schema" = cacheReloader
+      | msg == "reload config" = reReadConfig False appState
       | otherwise              = pure () -- Do nothing if anything else than an empty message is sent
 
-    scLoader =
-      -- It's not necessary to check the loadSchemaCache success
-      -- here. If the connection drops, the thread will die and
-      -- proceed to recover.
-      void $ loadSchemaCache appState
+    cacheReloader =
+      -- reloads the schema cache + restarts pool connections
+      -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
+      connectionWorker appState
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()
