@@ -89,7 +89,6 @@ Extensions
 * `aiodata <https://github.com/Exahilosys/aiodata>`_ - Python, event-based proxy and caching client.
 * `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ - prevent full-table updates or deletes
 * `postgrest-auth (criles25) <https://github.com/criles25/postgrest-auth>`_ - email based auth/signup
-* `postgrest-auth (svmotn) <https://github.com/svmnotn/postgrest-auth>`_ - OAuth2-inspired external auth server
 * `postgrest-node <https://github.com/seveibar/postgrest-node>`_ - Run a PostgREST server in Node.js via npm module
 * `postgrest-oauth <https://github.com/nblumoe/postgrest-oauth>`_ - OAuth2 WAI middleware
 * `postgrest-oauth/api <https://github.com/postgrest-oauth/api>`_ - OAuth2 server
