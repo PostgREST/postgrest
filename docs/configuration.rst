@@ -160,7 +160,7 @@ db-pool-timeout          Int     3600
 db-pre-request           String                    Y
 db-prepared-statements   Boolean True              Y
 db-schemas               String  public            Y
-db-tx-end                String  commit            
+db-tx-end                String  commit
 db-uri                   String  postgresql://
 db-use-legacy-gucs       Boolean True              Y
 jwt-aud                  String                    Y
@@ -295,6 +295,30 @@ db-plan-enabled
   =============== =====================
 
   When this is set to :code:`true`, the execution plan of a request can be retrieved by using the :code:`Accept: application/vnd.pgrst.plan` header. See :ref:`explain_plan`.
+
+  It's recommended to use this in testing environments only since it reveals internal database details.
+  However, if you choose to use it in production you can add a :ref:`db-pre-request` to filter the requests that can use this feature.
+
+  For example, to only allow requests from an IP address to get the execution plans:
+
+  .. code-block:: postgresql
+
+   -- Assuming a proxy(Nginx, Cloudflare, etc) passes an "X-Forwarded-For" header(https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
+   create or replace function filter_plan_requests()
+   returns void as $$
+   declare
+     headers   json := current_setting('request.headers', true)::json;
+     client_ip text := coalesce(headers->>'x-forwarded-for', '');
+     accept    text := coalesce(headers->>'accept', '');
+   begin
+     if accept like 'application/vnd.pgrst.plan%' and client_ip != '144.96.121.73' then
+       raise insufficient_privilege using
+         message = 'Not allowed to use application/vnd.pgrst.plan';
+     end if;
+   end; $$ language plpgsql;
+
+   -- set this function on your postgrest.conf
+   -- db-pre-request = filter_plan_requests
 
 .. _db-pool:
 
