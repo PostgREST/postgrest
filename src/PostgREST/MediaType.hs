@@ -5,6 +5,8 @@ module PostgREST.MediaType
   , MTPlanOption (..)
   , MTPlanFormat (..)
   , MTPlanAttrs(..)
+  , MTNullFormat (..)
+  , MTNullAttrs (..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -22,7 +24,7 @@ import Protolude
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
-  | MTApplicationNullJSON
+--  | MTApplicationNullJSON
   | MTSingularJSON
   | MTGeoJSON
   | MTTextCSV
@@ -34,17 +36,25 @@ data MediaType
   | MTAny
   | MTOther ByteString
   | MTPlan MTPlanAttrs
-  deriving Eq
+  | MTNull MTNullAttrs
+  deriving (Show,Eq)
 
-data MTPlanAttrs = MTPlanAttrs (Maybe MediaType) MTPlanFormat [MTPlanOption]
+data MTPlanAttrs = MTPlanAttrs (Maybe MediaType) MTPlanFormat [MTPlanOption] deriving Show
 instance Eq MTPlanAttrs where
   MTPlanAttrs {} == MTPlanAttrs {} = True -- we don't care about the attributes when comparing two MTPlan media types
 
 data MTPlanOption
-  = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
+  = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL deriving Show
 
 data MTPlanFormat
-  = PlanJSON | PlanText
+  = PlanJSON | PlanText deriving Show
+
+data MTNullAttrs = MTNullAttrs MTNullFormat deriving Show
+instance Eq MTNullAttrs where
+  MTNullAttrs {} == MTNullAttrs{} = True
+
+data MTNullFormat 
+  = PlanNotNull | PlanNull deriving Show
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -58,7 +68,6 @@ toContentType ct = (hContentType, toMime ct <> charset)
 -- | Convert from MediaType to a ByteString representing the mime type
 toMime :: MediaType -> ByteString
 toMime MTApplicationJSON = "application/json"
-toMime MTApplicationNullJSON = "application/vnd.pgrst.array+json"
 toMime MTGeoJSON         = "application/geo+json"
 toMime MTTextCSV         = "text/csv"
 toMime MTTextPlain       = "text/plain"
@@ -73,6 +82,7 @@ toMime (MTPlan (MTPlanAttrs mt fmt opts)) =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   (if isNothing mt then mempty else "; for=\"" <> toMime (fromJust mt) <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
+toMime (MTNull (MTNullAttrs mt))   = "application/vnd.pgrst.array+json" <> toMimeNullFormat mt
 
 toMimePlanOption :: MTPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
@@ -85,12 +95,16 @@ toMimePlanFormat :: MTPlanFormat -> ByteString
 toMimePlanFormat PlanJSON = "json"
 toMimePlanFormat PlanText = "text"
 
+toMimeNullFormat :: MTNullFormat -> ByteString
+toMimeNullFormat PlanNull = "null"
+toMimeNullFormat PlanNotNull = "notNull"
+
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
-    "application/json":_                   -> MTApplicationJSON
-    "application/vnd.pgrst.array+json":_   -> MTApplicationNullJSON
+    "application/json":_                      -> MTApplicationJSON
+    "application/vnd.pgrst.array+json":rest   -> getNull rest
     "application/geo+json":_               -> MTGeoJSON
     "text/csv":_                           -> MTTextCSV
     "text/plain":_                         -> MTTextPlain
@@ -119,9 +133,17 @@ decodeMediaType mt =
       [PlanSettings | inOpts "settings"] ++
       [PlanBuffers  | inOpts "buffers" ] ++
       [PlanWAL      | inOpts "wal"     ]
+    
+    getNull rest = 
+      let
+        option = BS.isPrefixOf "nulls=stripped" (fromMaybe "" (head rest))
+        format = if option then  PlanNotNull else  PlanNull in
+      MTNull $ MTNullAttrs format
 
 getMediaType :: MediaType -> MediaType
 getMediaType mt = case mt of
   MTPlan (MTPlanAttrs (Just mType) _ _) -> mType
   MTPlan (MTPlanAttrs Nothing _ _)      -> MTApplicationJSON
+  MTNull (MTNullAttrs PlanNotNull)         -> MTNull (MTNullAttrs PlanNotNull)
+  MTNull (MTNullAttrs PlanNull)         -> MTApplicationJSON
   other                                 -> other
