@@ -149,7 +149,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer aut
       ApiRequest.userApiRequest conf sCache req body
 
   Response.optionalRollback conf apiRequest $
-    handleRequest authResult conf appState (Query.txMode apiRequest) (Just authRole /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest sCache
+    handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest sCache
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
@@ -163,41 +163,41 @@ runDbHandler appState mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> SQL.Mode -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState mode authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       rPlan <- liftEither $ Plan.readPlan identifier conf sCache apiReq
-      resultSet <- runQuery $ Query.readQuery rPlan conf apiReq
+      resultSet <- runQuery Plan.readPlanTxMode $ Query.readQuery rPlan conf apiReq
       return $ Response.readResponse headersOnly identifier apiReq resultSet
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
-      resultSet <- runQuery $ Query.createQuery mrPlan apiReq conf
+      resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
       return $ Response.createResponse identifier mrPlan apiReq resultSet
 
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
-      resultSet <- runQuery $ Query.updateQuery mrPlan apiReq conf
+      resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
       return $ Response.updateResponse apiReq resultSet
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
-      resultSet <- runQuery $ Query.singleUpsertQuery mrPlan apiReq conf
+      resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
       return $ Response.singleUpsertResponse apiReq resultSet
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
-      resultSet <- runQuery $ Query.deleteQuery mrPlan apiReq conf
+      resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
       return $ Response.deleteResponse apiReq resultSet
 
     (ActionInvoke invMethod, TargetProc proc _) -> do
-      cPlan <- liftEither $ Plan.callReadPlan proc conf sCache apiReq
-      resultSet <- runQuery $ Query.invokeQuery proc cPlan apiReq conf
+      cPlan <- liftEither $ Plan.callReadPlan proc conf sCache apiReq invMethod
+      resultSet <- runQuery (Plan.crTxMode cPlan) $ Query.invokeQuery proc cPlan apiReq conf
       return $ Response.invokeResponse invMethod proc apiReq resultSet
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
-      oaiResult <- runQuery $ Query.openApiQuery sCache pgVer conf tSchema
+      oaiResult <- runQuery Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema
       return $ Response.openApiResponse headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
 
     (ActionInfo, _) ->
@@ -208,7 +208,7 @@ handleRequest AuthResult{..} conf appState mode authenticated prepared jsonDbS p
       -- TODO Refactor the Action/Target types to remove this line
       throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
-    runQuery query =
+    runQuery mode query =
       runDbHandler appState mode authenticated prepared $ do
         Query.setPgLocals conf authClaims authRole apiReq jsonDbS pgVer
         query

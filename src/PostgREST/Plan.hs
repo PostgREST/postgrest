@@ -21,6 +21,8 @@ module PostgREST.Plan
   , callReadPlan
   , MutateReadPlan(..)
   , CallReadPlan(..)
+  , readPlanTxMode
+  , inspectPlanTxMode
   ) where
 
 import qualified Data.HashMap.Strict        as HM
@@ -33,6 +35,7 @@ import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest               (Action (..),
                                            ApiRequest (..),
+                                           InvokeMethod (..),
                                            Mutation (..),
                                            Payload (..))
 import PostgREST.Config                   (AppConfig (..))
@@ -63,6 +66,7 @@ import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan          as ReadPlan
 import PostgREST.Plan.Types
 
+import qualified Hasql.Transaction.Sessions       as SQL
 import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
 import Protolude hiding (from)
@@ -70,25 +74,39 @@ import Protolude hiding (from)
 data MutateReadPlan = MutateReadPlan {
   mrReadPlan   :: ReadPlanTree
 , mrMutatePlan :: MutatePlan
+, mrTxMode     :: SQL.Mode
 }
 
 data CallReadPlan = CallReadPlan {
   crReadPlan :: ReadPlanTree
 , crCallPlan :: CallPlan
+, crTxMode   :: SQL.Mode
 }
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  return $ MutateReadPlan rPlan mPlan
+  return $ MutateReadPlan rPlan mPlan SQL.Write
 
-callReadPlan :: ProcDescription -> AppConfig -> SchemaCache -> ApiRequest -> Either Error CallReadPlan
-callReadPlan proc conf sCache apiRequest = do
+callReadPlan :: ProcDescription -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
+callReadPlan proc conf sCache apiRequest invMethod = do
   let identifier = QualifiedIdentifier (pdSchema proc) (fromMaybe (pdName proc) $ Proc.procTableName proc)
   rPlan <- readPlan identifier conf sCache apiRequest
   let cPlan = callPlan proc apiRequest rPlan
-  return $ CallReadPlan rPlan cPlan
+      txMode = case (invMethod, Proc.pdVolatility proc) of
+          (InvGet,  _)              -> SQL.Read
+          (InvHead, _)              -> SQL.Read
+          (InvPost, Proc.Stable)    -> SQL.Read
+          (InvPost, Proc.Immutable) -> SQL.Read
+          (InvPost, Proc.Volatile)  -> SQL.Write
+  return $ CallReadPlan rPlan cPlan txMode
+
+readPlanTxMode :: SQL.Mode
+readPlanTxMode = SQL.Read
+
+inspectPlanTxMode :: SQL.Mode
+inspectPlanTxMode = SQL.Read
 
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.

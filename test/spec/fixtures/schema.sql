@@ -26,7 +26,7 @@ CREATE SCHEMA "EXTRA ""@/\#~_-";
 COMMENT ON SCHEMA v1 IS 'v1 schema';
 COMMENT ON SCHEMA v2 IS 'v2 schema';
 
-COMMENT ON SCHEMA test IS 
+COMMENT ON SCHEMA test IS
 $$My API title
 
 My API description

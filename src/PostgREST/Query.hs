@@ -7,7 +7,6 @@ module PostgREST.Query
   , openApiQuery
   , readQuery
   , singleUpsertQuery
-  , txMode
   , updateQuery
   , setPgLocals
   , DbHandler
@@ -24,7 +23,6 @@ import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
-import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
@@ -35,9 +33,7 @@ import qualified PostgREST.SchemaCache.Proc   as Proc
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
-import PostgREST.ApiRequest              (Action (..),
-                                          ApiRequest (..),
-                                          InvokeMethod (..),
+import PostgREST.ApiRequest              (ApiRequest (..),
                                           Target (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferParameters (..),
@@ -62,7 +58,6 @@ import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema)
 import PostgREST.SchemaCache.Proc        (ProcDescription (..),
-                                          ProcVolatility (..),
                                           ProcsMap)
 import PostgREST.SchemaCache.Table       (TablesMap)
 
@@ -191,24 +186,6 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
         <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OADisabled ->
       pure Nothing
-
-txMode :: ApiRequest -> SQL.Mode
-txMode ApiRequest{..} =
-  case (iAction, iTarget) of
-    (ActionRead _, _) ->
-      SQL.Read
-    (ActionInspect _, _) ->
-      SQL.Read
-    (ActionInvoke InvGet, _) ->
-      SQL.Read
-    (ActionInvoke InvHead, _) ->
-      SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Stable} _) ->
-      SQL.Read
-    (ActionInvoke InvPost, TargetProc ProcDescription{pdVolatility=Immutable} _) ->
-      SQL.Read
-    _ ->
-      SQL.Write
 
 writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
 writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq conf =
