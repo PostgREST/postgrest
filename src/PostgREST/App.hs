@@ -200,8 +200,14 @@ handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer 
       oaiResult <- runQuery Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema
       return $ Response.openApiResponse headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
 
-    (ActionInfo, _) ->
-      return $ Response.infoResponse iTarget sCache
+    (ActionInfo, TargetIdent identifier) ->
+      return $ Response.infoIdentResponse identifier sCache
+
+    (ActionInfo, TargetProc proc _) ->
+      return $ Response.infoProcResponse proc
+
+    (ActionInfo, TargetDefaultSpec _) ->
+      return Response.infoRootResponse
 
     _ ->
       -- This is unreachable as the ApiRequest.hs rejects it before

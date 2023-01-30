@@ -3,7 +3,9 @@
 module PostgREST.Response
   ( createResponse
   , deleteResponse
-  , infoResponse
+  , infoIdentResponse
+  , infoProcResponse
+  , infoRootResponse
   , invokeResponse
   , openApiResponse
   , readResponse
@@ -30,8 +32,7 @@ import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Response.OpenAPI as OpenAPI
 
 import PostgREST.ApiRequest              (ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Target (..))
+                                          InvokeMethod (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           PreferTransaction (..),
                                           shouldCount,
@@ -169,20 +170,12 @@ deleteResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-infoResponse :: Target -> SchemaCache -> Wai.Response
-infoResponse target sCache =
-  case target of
-    TargetIdent identifier ->
-      case HM.lookup identifier (dbTables sCache) of
-        Just tbl -> respondInfo $ allowH tbl
-        Nothing  -> Error.errorResponseFor $ Error.ApiRequestError ApiRequestTypes.NotFound
-    TargetProc pd _
-      | pdVolatility pd == Volatile -> respondInfo "OPTIONS,POST"
-      | otherwise                   -> respondInfo "OPTIONS,GET,HEAD,POST"
-    TargetDefaultSpec _             -> respondInfo "OPTIONS,GET,HEAD"
+infoIdentResponse :: QualifiedIdentifier -> SchemaCache -> Wai.Response
+infoIdentResponse identifier sCache =
+  case HM.lookup identifier (dbTables sCache) of
+    Just tbl -> respondInfo $ allowH tbl
+    Nothing  -> Error.errorResponseFor $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
-    respondInfo allowHeader = Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
-    allOrigins = ("Access-Control-Allow-Origin", "*")
     allowH table =
       let hasPK = not . null $ tablePKCols table in
       BS.intercalate "," $
@@ -191,6 +184,18 @@ infoResponse target sCache =
           ["PUT" | tableInsertable table && tableUpdatable table && hasPK] ++
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
+
+infoProcResponse :: ProcDescription -> Wai.Response
+infoProcResponse proc | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
+                      | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
+
+infoRootResponse :: Wai.Response
+infoRootResponse = respondInfo "OPTIONS,GET,HEAD"
+
+respondInfo :: ByteString -> Wai.Response
+respondInfo allowHeader =
+  let allOrigins = ("Access-Control-Allow-Origin", "*") in
+  Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
 
 invokeResponse :: InvokeMethod -> ProcDescription -> ApiRequest -> ResultSet -> Wai.Response
 invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
