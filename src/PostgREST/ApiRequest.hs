@@ -55,10 +55,10 @@ import PostgREST.ApiRequest.Types        (ApiRequestError (..),
                                           SelectItem (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.MediaType               (MTPlanAttrs (..),
-                                          MTPlanFormat (..),
+import PostgREST.MediaType               (MTNullAttrs (..),
                                           MTNullFormat (..),
-                                          MTNullAttrs (..),
+                                          MTPlanAttrs (..),
+                                          MTPlanFormat (..),
                                           MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,

@@ -53,7 +53,7 @@ data MTNullAttrs = MTNullAttrs MTNullFormat deriving Show
 instance Eq MTNullAttrs where
   MTNullAttrs {} == MTNullAttrs{} = True
 
-data MTNullFormat 
+data MTNullFormat
   = PlanNotNull | PlanNull deriving Show
 
 -- | Convert MediaType to a Content-Type HTTP Header
@@ -96,30 +96,30 @@ toMimePlanFormat PlanJSON = "json"
 toMimePlanFormat PlanText = "text"
 
 toMimeNullFormat :: MTNullFormat -> ByteString
-toMimeNullFormat PlanNull = "null"
+toMimeNullFormat PlanNull    = "null"
 toMimeNullFormat PlanNotNull = "notNull"
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
-    "application/json":_                      -> MTApplicationJSON
-    "application/vnd.pgrst.array+json":rest   -> getNull rest
-    "application/geo+json":_               -> MTGeoJSON
-    "text/csv":_                           -> MTTextCSV
-    "text/plain":_                         -> MTTextPlain
-    "text/xml":_                           -> MTTextXML
-    "application/openapi+json":_           -> MTOpenAPI
-    "application/vnd.pgrst.object+json":_  -> MTSingularJSON
-    "application/vnd.pgrst.object":_       -> MTSingularJSON
-    "application/x-www-form-urlencoded":_  -> MTUrlEncoded
-    "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
-    "*/*":_                                -> MTAny
-    other:_                                -> MTOther other
-    _                                      -> MTAny
+    "application/json":_                    -> MTApplicationJSON
+    "application/vnd.pgrst.array+json":rest -> getNull rest
+    "application/geo+json":_                -> MTGeoJSON
+    "text/csv":_                            -> MTTextCSV
+    "text/plain":_                          -> MTTextPlain
+    "text/xml":_                            -> MTTextXML
+    "application/openapi+json":_            -> MTOpenAPI
+    "application/vnd.pgrst.object+json":_   -> MTSingularJSON
+    "application/vnd.pgrst.object":_        -> MTSingularJSON
+    "application/x-www-form-urlencoded":_   -> MTUrlEncoded
+    "application/octet-stream":_            -> MTOctetStream
+    "application/vnd.pgrst.plan":rest       -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+text":rest  -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+json":rest  -> getPlan PlanJSON rest
+    "*/*":_                                 -> MTAny
+    other:_                                 -> MTOther other
+    _                                       -> MTAny
   where
     getPlan fmt rest =
      let
@@ -133,11 +133,11 @@ decodeMediaType mt =
       [PlanSettings | inOpts "settings"] ++
       [PlanBuffers  | inOpts "buffers" ] ++
       [PlanWAL      | inOpts "wal"     ]
-    
-    getNull rest = 
+
+    getNull rest =
       let
-        option = BS.isPrefixOf "nulls=stripped" (fromMaybe "" (head rest))
-        format = if option then  PlanNotNull else  PlanNull in
+        existNull = BS.isPrefixOf "nulls=stripped" (fromMaybe "" (head rest))
+        format = if existNull then  PlanNotNull else  PlanNull in
       MTNull $ MTNullAttrs format
 
 getMediaType :: MediaType -> MediaType

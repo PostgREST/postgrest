@@ -26,10 +26,10 @@ import Control.Lens ((^?))
 import Data.Maybe   (fromJust)
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType               (MTPlanAttrs (..),
-                                          MTPlanFormat (..),
+import PostgREST.MediaType               (MTNullAttrs (..),
                                           MTNullFormat (..),
-                                          MTNullAttrs (..),
+                                          MTPlanAttrs (..),
+                                          MTPlanFormat (..),
                                           MediaType (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
