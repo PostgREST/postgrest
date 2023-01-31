@@ -72,14 +72,15 @@ let
         today_date="$(date '+%Y%m%d')"
         today_date_for_changelog="$(date '+%Y-%m-%d')"
         bump_pre="$major.$minor.$patch.$today_date"
+        bump_pre_minor="$major.$((minor+1)).$patch.$today_date"
         bump_patch="$major.$minor.$((patch+1))"
         bump_minor="$major.$((minor+1)).0"
         bump_major="$((major+1)).0.0"
 
         PS3="Please select the new version: "
-        select new_version in "$bump_pre" "$bump_patch" "$bump_minor" "$bump_major"; do
+        select new_version in "$bump_pre" "$bump_pre_minor" "$bump_patch" "$bump_minor" "$bump_major"; do
           case "$REPLY" in
-            1|2|3|4)
+            1|2|3|4|5)
               echo "Selected $new_version"
               break
               ;;
@@ -95,7 +96,7 @@ let
         echo "Committing ..."
         git add postgrest.cabal > /dev/null
 
-        if [[ "$new_version" != "$bump_pre" ]]; then
+        if [[ "$new_version" != "$bump_pre" && "$new_version" != "$bump_pre_minor" ]]; then
           echo "Updating CHANGELOG.md ..."
           sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
           git add CHANGELOG.md > /dev/null
