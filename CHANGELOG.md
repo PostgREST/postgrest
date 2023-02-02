@@ -21,7 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Allows using or across related tables conditions
  - #1100, Customizable OpenAPI title - @AnthonyFisi
 
-## [10.1.2] - 2023-02-02
+## [10.1.2] - 2023-02-01
 
 ### Fixed
 
