@@ -690,7 +690,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos" [("Prefer", "return=representation")]
             [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00", "icon_image": "3q2+7w", "created_at":-15, "budget": "-100000000000000.13"} |]
             `shouldRespondWith`
-            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00", "icon_image": "3q2+7w==", "created_at":-15, "budget": "-100000000000000.13"}] |]
+            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "icon_image": "3q2+7w==", "created_at":-15, "budget": "-100000000000000.13"}] |]
               { matchStatus  = 201
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "*/*"]
@@ -701,7 +701,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos?columns=id,label_color&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
             [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
             `shouldRespondWith`
-            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00+00"}] |]
+            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
               { matchStatus  = 201
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "*/*"]
@@ -744,7 +744,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos_computed" [("Prefer", "return=representation")]
             [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "2018-01-03T11:00:00+00"} |]
             `shouldRespondWith`
-            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00+00", "dark_color":"#000880"}] |]
+            [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "dark_color":"#000880"}] |]
               { matchStatus  = 201
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "*/*"]
@@ -755,7 +755,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos_computed?columns=id,label_color&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
             [json| {"id":5, "name": "party", "label_color": "#001100", "due_at": "invalid but should be ignored"} |]
             `shouldRespondWith`
-            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00+00"}] |]
+            [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
               { matchStatus  = 201
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "*/*"]

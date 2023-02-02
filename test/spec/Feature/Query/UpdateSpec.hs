@@ -553,7 +553,7 @@ spec actualPgVersion = do
       context "for a single row" $ do
         it "parses values in payload" $
           request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=headers-only")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             ""
               { matchStatus  = 204
@@ -563,7 +563,7 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats individually selected values in return=representation" $
           request methodPatch "/datarep_todos?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             [json| [{"id":2, "label_color": "#221100"}] |]
               { matchStatus  = 200
@@ -573,9 +573,9 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats values in return=representation" $
           request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20+00", "icon_image": "3q2+7w"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z", "icon_image": "3q2+7w"} |]
             `shouldRespondWith`
-            [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
+            [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "0-0/*"]
@@ -583,10 +583,10 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats star mixed selected values in return=representation" $
           request methodPatch "/datarep_todos?id=eq.2&select=due_at,*" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00", "created_at": 0} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "created_at": 0} |]
             `shouldRespondWith`
             -- end up with due_at twice here but that's unrelated to data reps
-            [json| [{"due_at":"2019-01-03T11:00:00+00","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
+            [json| [{"due_at":"2019-01-03T11:00:00Z","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                 "Content-Range" <:> "0-0/*"]
@@ -594,7 +594,7 @@ spec actualPgVersion = do
       context "for multiple rows" $ do
         it "parses values in payload and formats individually selected values in return=representation" $
           request methodPatch "/datarep_todos?id=lt.4&select=id,name,label_color" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             [json| [
               {"id":1, "name": "Report", "label_color": "#221100"},
@@ -608,12 +608,12 @@ spec actualPgVersion = do
 
         it "parses values in payload and formats values in return=representation" $
           request methodPatch "/datarep_todos?id=lt.4" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00", "icon_image": "3q2+7w="} |]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "icon_image": "3q2+7w="} |]
             `shouldRespondWith`
             [json| [
-              {"id":1,"name":"Report","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"12.50"},
-              {"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"},
-              {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00+00","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
+              {"id":1,"name":"Report","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"12.50"},
+              {"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"},
+              {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
@@ -622,10 +622,10 @@ spec actualPgVersion = do
       context "with ?columns parameter" $ do
         it "ignores json keys not included in ?columns; parses only the ones specified" $
           request methodPatch "/datarep_todos?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
-            [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+            [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
             [json| [
-               {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
+               {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
@@ -634,7 +634,7 @@ spec actualPgVersion = do
 
         it "fails if at least one specified column doesn't exist" $
           request methodPatch "/datarep_todos?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
-            [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+            [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
             [json| {"code":"PGRST118","message":"Column 'helicopters' of relation 'datarep_todos' does not exist","details":null,"hint":null} |]
               { matchStatus  = 400
@@ -643,13 +643,13 @@ spec actualPgVersion = do
 
         it "ignores json keys and gives 200 if no record updated" $
           request methodPatch "/datarep_todos?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
-           [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+           [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
            `shouldRespondWith` 200
       context "on a view" $ do
         context "for a single row" $ do
           it "parses values in payload" $
             request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=headers-only")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
               `shouldRespondWith`
               ""
                 { matchStatus  = 204
@@ -659,7 +659,7 @@ spec actualPgVersion = do
 
           it "parses values in payload and formats individually selected values in return=representation" $
             request methodPatch "/datarep_todos_computed?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
               `shouldRespondWith`
               [json| [{"id":2, "label_color": "#221100"}] |]
                 { matchStatus  = 200
@@ -669,9 +669,9 @@ spec actualPgVersion = do
 
           it "parses values in payload and formats values in return=representation" $
             request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20+00"} |]
+              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z"} |]
               `shouldRespondWith`
-              [json| [{"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:20+00"}] |]
+              [json| [{"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:20Z"}] |]
                 { matchStatus  = 200
                 , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
                                   "Content-Range" <:> "0-0/*"]
@@ -679,7 +679,7 @@ spec actualPgVersion = do
         context "for multiple rows" $ do
           it "parses values in payload and formats individually selected values in return=representation" $
             request methodPatch "/datarep_todos_computed?id=lt.4&select=id,name,label_color,dark_color" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
               `shouldRespondWith`
               [json| [
                 {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880"},
@@ -693,12 +693,12 @@ spec actualPgVersion = do
 
           it "parses values in payload and formats values in return=representation" $
             request methodPatch "/datarep_todos_computed?id=lt.4" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00+00"} |]
+              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
               `shouldRespondWith`
               [json| [
-                {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00+00"},
-                {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00+00"},
-                {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00+00"}
+                {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
+                {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
+                {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"}
               ] |]
                 { matchStatus  = 200
                 , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
@@ -707,10 +707,10 @@ spec actualPgVersion = do
         context "with ?columns parameter" $ do
           it "ignores json keys not included in ?columns; parses only the ones specified" $
             request methodPatch "/datarep_todos_computed?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
-              [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+              [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
               `shouldRespondWith`
               [json| [
-                {"id":2, "name": "Essay", "label_color": "#000100", "dark_color": "#000080", "due_at":"2019-01-03T11:00:00+00"}
+                {"id":2, "name": "Essay", "label_color": "#000100", "dark_color": "#000080", "due_at":"2019-01-03T11:00:00Z"}
               ] |]
                 { matchStatus  = 200
                 , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
@@ -719,7 +719,7 @@ spec actualPgVersion = do
 
           it "fails if at least one specified column doesn't exist" $
             request methodPatch "/datarep_todos_computed?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
-              [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+              [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
               `shouldRespondWith`
               [json| {"code":"PGRST118","message":"Column 'helicopters' of relation 'datarep_todos_computed' does not exist","details":null,"hint":null} |]
                 { matchStatus  = 400
@@ -728,5 +728,5 @@ spec actualPgVersion = do
 
           it "ignores json keys and gives 200 if no record updated" $
             request methodPatch "/datarep_todos_computed?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
-             [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+             [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
              `shouldRespondWith` 200

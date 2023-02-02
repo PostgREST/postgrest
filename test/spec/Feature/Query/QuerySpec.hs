@@ -1284,7 +1284,7 @@ spec actualPgVersion = do
         { matchHeaders = [matchContentTypeJson] }
     it "formats two columns with different formatters" $
       get "/datarep_todos?select=id,label_color,due_at&id=lt.4" `shouldRespondWith`
-        [json| [{"id":1,"label_color":"#000000","due_at":"2018-01-02T00:00:00+00"},{"id":2,"label_color":"#000100","due_at":"2018-01-03T00:00:00+00"},{"id":3,"label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"}] |]
+        [json| [{"id":1,"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"},{"id":2,"label_color":"#000100","due_at":"2018-01-03T00:00:00Z"},{"id":3,"label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z"}] |]
         { matchHeaders = [matchContentTypeJson] }
     it "fails in some reasonable way when selecting fields that don't exist" $
       get "/datarep_todos?select=id,label_color,banana" `shouldRespondWith`
@@ -1312,52 +1312,51 @@ spec actualPgVersion = do
     it "formats nulls" $
       -- due_at is formatted as NULL but label_color NULLs become empty strings-- it's up to the formatting function.
       get "/datarep_todos?select=id,label_color,due_at&id=gt.2&id=lt.5" `shouldRespondWith`
-        [json| [{"id":3,"label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00"},{"id":4,"label_color":"","due_at":null}] |]
+        [json| [{"id":3,"label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z"},{"id":4,"label_color":"","due_at":null}] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats star select" $
       get "/datarep_todos?select=*&id=lt.4" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
-           {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
-           {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
+          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00Z","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+           {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+           {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats implicit star select" $
       get "/datarep_todos?id=lt.4" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
- {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
- {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
+          {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00Z","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+ {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+ {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats star and explicit mix" $
       get "/datarep_todos?select=due_at,*&id=lt.4" `shouldRespondWith`
         [json| [
-          {"due_at":"2018-01-02T00:00:00+00","id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00+00","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
-           {"due_at":"2018-01-03T00:00:00+00","id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00+00","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
-           {"due_at":"2018-01-01T14:12:34.123456+00","id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}
+          {"due_at":"2018-01-02T00:00:00Z","id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00Z","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
+           {"due_at":"2018-01-03T00:00:00Z","id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+           {"due_at":"2018-01-01T14:12:34.123456Z","id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats through join" $
       get "/datarep_next_two_todos?select=id,name,first_item:datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)" `shouldRespondWith`
-        [json| [{"id":1,"name":"school related","first_item":{"label_color":"#000100","due_at":"2018-01-03T00:00:00+00"}},{"id":2,"name":"do these first","first_item":{"label_color":"#000000","due_at":"2018-01-02T00:00:00+00"}}] |]
+        [json| [{"id":1,"name":"school related","first_item":{"label_color":"#000100","due_at":"2018-01-03T00:00:00Z"}},{"id":2,"name":"do these first","first_item":{"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"}}] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats through join with star select" $
       get "/datarep_next_two_todos?select=id,name,second_item:datarep_todos!datarep_next_two_todos_second_item_id_fkey(*)" `shouldRespondWith`
         [json| [
-          {"id":1,"name":"school related","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}},
-          {"id":2,"name":"do these first","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456+00","icon_image":null,"created_at":1513213350,"budget":"0.00"}}
+          {"id":1,"name":"school related","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}},
+          {"id":2,"name":"do these first","second_item":{"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "uses text parser on value for filter given through query parameters" $
       get "/datarep_todos?select=id,due_at&label_color=eq.000100" `shouldRespondWith`
-        [json| [{"id":2,"due_at":"2018-01-03T00:00:00+00"}] |]
+        [json| [{"id":2,"due_at":"2018-01-03T00:00:00Z"}] |]
         { matchHeaders = [matchContentTypeJson] }
     it "in the absense of text parser, does not try to use the JSON parser for query parameters" $
-      get "/datarep_todos?select=id,due_at&due_at=eq.T" `shouldRespondWith`
-        -- okay this test is a bit of a hack but we prove the parser is not used because it'd replace the T and fail a
-        -- different way.
-        [json| {"code":"22007","details":null,"hint":null,"message":"invalid input syntax for type timestamp with time zone: \"T\""} |]
+      get "/datarep_todos?select=id,due_at&due_at=eq.Z" `shouldRespondWith`
+        -- we prove the parser is not used because it'd replace the Z with `+00:00` and a different error message.
+        [json| {"code":"22007","details":null,"hint":null,"message":"invalid input syntax for type timestamp with time zone: \"Z\""} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -1367,19 +1366,19 @@ spec actualPgVersion = do
       it "uses text parser for filter with 'IN' predicates" $
         get "/datarep_todos?select=id,due_at&label_color=in.(000100,01E240)" `shouldRespondWith`
           [json| [
-            {"id":2, "due_at": "2018-01-03T00:00:00+00"},
-            {"id":3, "due_at": "2018-01-01T14:12:34.123456+00"}
+            {"id":2, "due_at": "2018-01-03T00:00:00Z"},
+            {"id":3, "due_at": "2018-01-01T14:12:34.123456Z"}
           ] |]
           { matchHeaders = [matchContentTypeJson] }
       it "uses text parser for filter with 'NOT IN' predicates" $
         get "/datarep_todos?select=id,due_at&label_color=not.in.(000000,01E240)" `shouldRespondWith`
           [json| [
-            {"id":2, "due_at": "2018-01-03T00:00:00+00"}
+            {"id":2, "due_at": "2018-01-03T00:00:00Z"}
           ] |]
           { matchHeaders = [matchContentTypeJson] }
     it "uses text parser on value for filter across relations" $
       get "/datarep_next_two_todos?select=id,name,datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)&datarep_todos.label_color=neq.000100" `shouldRespondWith`
-        [json| [{"id":1,"name":"school related","datarep_todos":null},{"id":2,"name":"do these first","datarep_todos":{"label_color":"#000000","due_at":"2018-01-02T00:00:00+00"}}] |]
+        [json| [{"id":1,"name":"school related","datarep_todos":null},{"id":2,"name":"do these first","datarep_todos":{"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"}}] |]
         { matchHeaders = [matchContentTypeJson] }
     -- This is not supported by data reps (would be hard to make it work with high performance). So the test just
     -- verifies we don't panic or add inappropriate SQL to the filters.

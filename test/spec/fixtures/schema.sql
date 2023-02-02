@@ -3145,11 +3145,11 @@ CREATE OR REPLACE FUNCTION isodate(json) RETURNS public.isodate AS $$
 $$ LANGUAGE SQL IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION isodate(text) RETURNS public.isodate AS $$
-  SELECT (replace($1, 'T', ' ')::timestamp with time zone)::public.isodate;
+  SELECT (replace($1, 'Z', '+00:00')::timestamp with time zone)::public.isodate;
 $$ LANGUAGE SQL IMMUTABLE;
 
 CREATE OR REPLACE FUNCTION json(public.isodate) RETURNS json AS $$
-  SELECT to_json(replace($1::text, ' ', 'T'));
+  SELECT to_json(replace(to_json($1)#>>'{}', '+00:00', 'Z'));
 $$ LANGUAGE SQL IMMUTABLE;
 
 CREATE CAST (public.isodate AS json) WITH FUNCTION json(public.isodate) AS IMPLICIT;
