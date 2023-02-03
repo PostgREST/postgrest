@@ -212,7 +212,7 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
   toJSON (ColumnNotFound relName colName) = JSON.object [
-    "code"    .= ApiRequestErrorCode18,
+    "code"    .= SchemaCacheErrorCode04,
     "message" .= ("Column '" <> colName <> "' of relation '" <> relName <> "' does not exist" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
@@ -376,7 +376,7 @@ instance JSON.ToJSON SQL.UsageError where
     "hint"    .= JSON.Null]
   toJSON (SQL.SessionUsageError e) = JSON.toJSON e -- SQL.Error
   toJSON SQL.AcquisitionTimeoutUsageError = JSON.object [
-    "code"    .= ConnectionErrorCode00,
+    "code"    .= ConnectionErrorCode03,
     "message" .= ("Timed out acquiring connection from connection pool." :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
@@ -575,6 +575,7 @@ data ErrorCode
   = ConnectionErrorCode00
   | ConnectionErrorCode01
   | ConnectionErrorCode02
+  | ConnectionErrorCode03
   -- API Request errors
   | ApiRequestErrorCode00
   | ApiRequestErrorCode01
@@ -602,6 +603,7 @@ data ErrorCode
   | SchemaCacheErrorCode01
   | SchemaCacheErrorCode02
   | SchemaCacheErrorCode03
+  | SchemaCacheErrorCode04
   -- JWT authentication errors
   | JWTErrorCode00
   | JWTErrorCode01
@@ -619,6 +621,7 @@ buildErrorCode code = "PGRST" <> case code of
   ConnectionErrorCode00  -> "000"
   ConnectionErrorCode01  -> "001"
   ConnectionErrorCode02  -> "002"
+  ConnectionErrorCode03  -> "003"
 
   ApiRequestErrorCode00  -> "100"
   ApiRequestErrorCode01  -> "101"
@@ -646,6 +649,7 @@ buildErrorCode code = "PGRST" <> case code of
   SchemaCacheErrorCode01 -> "201"
   SchemaCacheErrorCode02 -> "202"
   SchemaCacheErrorCode03 -> "203"
+  SchemaCacheErrorCode04 -> "204"
 
   JWTErrorCode00         -> "300"
   JWTErrorCode01         -> "301"
