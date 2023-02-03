@@ -18,7 +18,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Completely optional, define the functions in the database and they will be used automatically everywhere
    + Data representations preserve the ability to write to the original column and require no extra storage or complex triggers (compared to using `GENERATED ALWAYS` columns)
    + Note: data representations require Postgres 10 (Postgres 11 if using `IN` predicates); data representations are not implemented for RPC 
- - #2622, Consider any PostgreSQL authentication failure as fatal and exit immediately - @michivi
 
 ### Added
 
@@ -344,7 +343,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Deprecated
 
-+- #1348, Deprecate `.` symbol for disambiguating resource embedding(added in #918). The url-safe '!' should be used instead. We refrained from using `+` as part of our syntax because it conflicts with some http clients and proxies.
+- #1348, Deprecate `.` symbol for disambiguating resource embedding(added in #918). The url-safe '!' should be used instead. We refrained from using `+` as part of our syntax because it conflicts with some http clients and proxies.
 
 ## [6.0.1] - 2019-07-30
 
