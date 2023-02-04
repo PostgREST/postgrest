@@ -72,7 +72,7 @@ let
         today_date="$(date '+%Y%m%d')"
         today_date_for_changelog="$(date '+%Y-%m-%d')"
         bump_pre="$major.$minor.$patch.$today_date"
-        bump_pre_minor="$major.$((minor+1)).$patch.$today_date"
+        bump_pre_minor="$major.$((minor+1)).0.$today_date"
         bump_patch="$major.$minor.$((patch+1))"
         bump_minor="$major.$((minor+1)).0"
         bump_major="$((major+1)).0.0"
