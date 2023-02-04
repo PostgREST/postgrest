@@ -24,6 +24,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2651, Add the missing `get` path item for RPCs to the OpenAPI output - @laurenceisla
+ - #2648, Fix inaccurate error codes with new ones - @laurenceisla
+   + `PGRST204`: Column is not found
+   + `PGRST003`: Timed out when acquiring connection to db
 
 ## [10.1.2] - 2023-02-01
 
