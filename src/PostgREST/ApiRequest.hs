@@ -183,11 +183,15 @@ data ApiRequest = ApiRequest {
 userApiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> Either ApiRequestError ApiRequest
 userApiRequest conf sCache req reqBody = do
   pInfo <- getPathInfo conf $ pathInfo req
-  act <- getAction pInfo $ requestMethod req
+  act <- getAction pInfo method
   qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc pInfo && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
-  mediaTypes <- getMediaTypes conf (requestHeaders req) act pInfo
-  negotiatedSchema <- getSchema conf (requestHeaders req) (requestMethod req)
-  apiRequest conf sCache req reqBody qPrms pInfo act mediaTypes negotiatedSchema
+  mediaTypes <- getMediaTypes conf hdrs act pInfo
+  negotiatedSchema <- getSchema conf hdrs method
+  ranges <- getRanges method qPrms hdrs
+  apiRequest conf sCache req reqBody qPrms pInfo act mediaTypes negotiatedSchema ranges method hdrs
+  where
+    method = requestMethod req
+    hdrs = requestHeaders req
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -249,12 +253,28 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
     lookupHeader    = flip lookup hdrs
 
-apiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action -> (MediaType, MediaType) -> (Schema, Bool) -> Either ApiRequestError ApiRequest
-apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile)
+getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
+getRanges method QueryParams{qsOrder,qsRanges} hdrs
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
-  | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
+  | otherwise = Right (topLevelRange, ranges)
+  where
+    headerRange = rangeRequested hdrs
+    limitRange = fromMaybe allRange (HM.lookup "limit" qsRanges)
+    headerAndLimitRange = rangeIntersection headerRange limitRange
+    -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
+    -- limit=0 is present in the query params (not allowed for the Range header)
+    ranges = HM.insert "limit" (convertToLimitZeroRange limitRange headerAndLimitRange) qsRanges
+    -- The only emptyRange allowed is the limit zero range
+    isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
+    topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
+
+apiRequest :: AppConfig -> SchemaCache -> Request -> RequestBody -> QueryParams.QueryParams -> PathInfo -> Action ->
+  (MediaType, MediaType) -> (Schema, Bool) -> (NonnegRange, HM.HashMap Text NonnegRange) -> ByteString -> RequestHeaders ->
+  Either ApiRequestError ApiRequest
+apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName, pathIsProc, pathIsRootSpec, pathIsDefSpec} action (acceptMediaType, contentMediaType) (schema, negotiatedByProfile) (topLevelRange, ranges) method hdrs
+  | shouldParsePayload && isLeft payload = either (Left . InvalidBody) witness payload
   | otherwise = do
      checkedTarget <- target
      bField <- binaryField conf acceptMediaType checkedTarget queryparams
@@ -315,7 +335,6 @@ apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName
     (MTTextXML, True) -> Right $ RawPay reqBody
     (MTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
-  topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
 
   target
     | pathIsProc    = (`TargetProc` pathIsRootSpec) <$> callFindProc schema pathName
@@ -341,19 +360,8 @@ apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName
     (MTUrlEncoded, ActionInvoke InvPost) -> targetToJsonRpcParams (rightToMaybe target) $ (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
     _ | shouldParsePayload               -> rightToMaybe payload
       | otherwise                        -> Nothing
-  method          = requestMethod req
-  hdrs            = requestHeaders req
   lookupHeader    = flip lookup hdrs
   Preferences.Preferences{..} = Preferences.fromHeaders hdrs
-  headerRange = rangeRequested hdrs
-  limitRange = fromMaybe allRange (HM.lookup "limit" qsRanges)
-  headerAndLimitRange = rangeIntersection headerRange limitRange
-
-  -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
-  -- limit=0 is present in the query params (not allowed for the Range header)
-  ranges = HM.insert "limit" (convertToLimitZeroRange limitRange headerAndLimitRange) qsRanges
-  -- The only emptyRange allowed is the limit zero range
-  isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
 
 {-|
   Find the best match from a list of media types accepted by the
