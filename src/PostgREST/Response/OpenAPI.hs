@@ -175,8 +175,25 @@ makePreferParam ts =
       "resolution" -> ["resolution=ignore-duplicates", "resolution=merge-duplicates"]
       _            -> []
 
-makeProcParam :: ProcDescription -> [Referenced Param]
-makeProcParam pd =
+makeProcGetParam :: ProcParam -> Referenced Param
+makeProcGetParam (ProcParam n t r v) =
+  Inline $ (mempty :: Param)
+    & name .~ n
+    & required ?~ r
+    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+      & in_ .~ ParamQuery
+      & type_ .~ toSwaggerType t
+      & items .~ if not v then Nothing else Just $ SwaggerItemsPrimitive
+          (Just CollectionMulti)
+          ((mempty :: ParamSchema x)
+            & type_ .~ toSwaggerType (T.dropEnd 2 t)
+            & format ?~ t))
+
+makeProcGetParams :: [ProcParam] -> [Referenced Param]
+makeProcGetParams = fmap makeProcGetParam
+
+makeProcPostParams :: ProcDescription -> [Referenced Param]
+makeProcPostParams pd =
   [ Inline $ (mempty :: Param)
     & name     .~ "args"
     & required ?~ True
@@ -313,14 +330,19 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
     (pSum, pDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
                     T.breakOn "\n" <$> pdDescription pd
-    postOp = (mempty :: Operation)
+    procOp = (mempty :: Operation)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
-      & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [MTApplicationJSON, MTSingularJSON]
       & at 200 ?~ "OK"
-    pe = (mempty :: PathItem) & post ?~ postOp
+    getOp = procOp
+      & parameters .~ makeProcGetParams (pdParams pd)
+    postOp = procOp
+      & parameters .~ makeProcPostParams pd
+    pe = (mempty :: PathItem)
+      & get ?~ getOp
+      & post ?~ postOp
 
 makeRootPathItem :: (FilePath, PathItem)
 makeRootPathItem = ("/", p)
