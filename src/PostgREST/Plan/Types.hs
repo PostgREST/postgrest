@@ -28,7 +28,7 @@ type TransformerProc = Text
 data CoercibleField = CoercibleField
   { cfName      :: FieldName
   , cfJsonPath  :: JsonPath
-  , cfIRType    :: Text -- ^ The native Postgres type of the field, the type before mapping.
+  , cfIRType    :: Text -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
   , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   } deriving (Eq)
 
