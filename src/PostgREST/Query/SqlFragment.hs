@@ -297,8 +297,10 @@ pgFmtUnknownLiteralForField value _ = value
 
 -- | Array version of the above, used by ANY().
 pgFmtArrayLiteralForField :: [Text] -> CoercibleField -> SQL.Snippet
-pgFmtArrayLiteralForField values CoercibleField{cfTransform=(Just parserProc)} = SQL.sql "ARRAY[" <> intercalateSnippet ", " (pgFmtCallUnary parserProc . unknownLiteral <$> values) <> "]"
--- When no transformation is requested, use an array literal which should be simpler, maybe faster.
+-- When a transformation is requested, we need to apply the transformation to each element of the array. This could be done by just making a query with `parser(value)` for each value, but may lead to huge query lengths. Imagine `data_representations.color_from_text('...'::text)` for repeated for a hundred values. Instead we use `unnest()` to unpack a standard array literal and then apply the transformation to each element, like a map.
+-- Note the literals will be treated as text since in every case when we use ANY() the parameters are textual (coming from a query string). We want to rely on the `text->domain` parser to do the right thing.
+pgFmtArrayLiteralForField values CoercibleField{cfTransform=(Just parserProc)} = SQL.sql "(SELECT " <> pgFmtCallUnary parserProc (SQL.sql "unnest(" <> unknownLiteral (pgBuildArrayLiteral values) <> "::text[])") <> ")"
+-- When no transformation is requested, we don't need a subquery.
 pgFmtArrayLiteralForField values _ = unknownLiteral (pgBuildArrayLiteral values)
 
 pgFmtFilter :: QualifiedIdentifier -> CoercibleFilter -> SQL.Snippet
