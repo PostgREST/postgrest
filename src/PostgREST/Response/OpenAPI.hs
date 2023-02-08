@@ -73,9 +73,15 @@ toSwaggerType colType             = case T.takeEnd 2 colType of
   "[]" -> Just SwaggerArray
   _    -> Just SwaggerString
 
-makeSwaggerItemType :: Maybe (SwaggerType t) -> Text -> Maybe (Referenced Schema)
-makeSwaggerItemType itemType colType = case itemType of
-  Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerType (T.dropEnd 2 colType))
+typeFromArray :: Text -> Text
+typeFromArray = T.dropEnd 2
+
+toSwaggerTypeFromArray :: Text -> Maybe (SwaggerType t)
+toSwaggerTypeFromArray arrType = toSwaggerType $ typeFromArray arrType
+
+makeSwaggerItemTypeSchema :: Text -> Maybe (Referenced Schema)
+makeSwaggerItemTypeSchema arrType = case toSwaggerType arrType of
+  Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerTypeFromArray arrType)
   _                 -> Nothing
 
 parseDefault :: Text -> Text -> Text
@@ -129,7 +135,6 @@ makeProperty tbl rels col = (colName col, Inline s)
         Just $ T.append (maybe "" (`T.append` "\n\n") $ colDescription col) (T.intercalate "\n" n)
       else
         colDescription col
-    pType = toSwaggerType (colType col)
     s =
       (mempty :: Schema)
         & default_ .~ (JSON.decode . toUtf8Lazy . parseDefault (colType col) =<< colDefault col)
@@ -137,8 +142,8 @@ makeProperty tbl rels col = (colName col, Inline s)
         & enum_ .~ e
         & format ?~ colType col
         & maxLength .~ (fromIntegral <$> colMaxLen col)
-        & type_ .~ pType
-        & items .~ (SwaggerItemsObject <$> makeSwaggerItemType pType (colType col))
+        & type_ .~ toSwaggerType (colType col)
+        & items .~ (SwaggerItemsObject <$> makeSwaggerItemTypeSchema (colType col))
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -153,7 +158,7 @@ makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
-          & items .~ (SwaggerItemsObject <$> makeSwaggerItemType (toSwaggerType t) t)
+          & items .~ (SwaggerItemsObject <$> makeSwaggerItemTypeSchema t)
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
@@ -180,14 +185,25 @@ makeProcGetParam (ProcParam n t r v) =
   Inline $ (mempty :: Param)
     & name .~ n
     & required ?~ r
-    & schema .~ ParamOther ((mempty :: ParamOtherSchema)
+    & schema .~ ParamOther fullSchema
+  where
+    fullSchema = if v then schemaMulti else schemaNotMulti
+    baseSchema = (mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
-      & type_ .~ toSwaggerType t
-      & items .~ if not v then Nothing else Just $ SwaggerItemsPrimitive
-          (Just CollectionMulti)
-          ((mempty :: ParamSchema x)
-            & type_ .~ toSwaggerType (T.dropEnd 2 t)
-            & format ?~ t))
+      & type_ ?~ toParamTypes (toSwaggerType t)
+    schemaNotMulti = baseSchema
+      & format ?~ t
+    schemaMulti = baseSchema
+      & items ?~ SwaggerItemsPrimitive (Just CollectionMulti) paramItems
+    paramItems = (mempty :: ParamSchema x)
+      & type_ ?~ toParamTypes (toSwaggerTypeFromArray t)
+      & format ?~ typeFromArray t
+    toParamTypes paramType = case paramType of
+      -- Array uses {} in query params
+      Just SwaggerArray -> SwaggerString
+      -- Type must be specified in query params
+      Nothing           -> SwaggerString
+      _                 -> fromJust paramType
 
 makeProcGetParams :: [ProcParam] -> [Referenced Param]
 makeProcGetParams = fmap makeProcGetParam
