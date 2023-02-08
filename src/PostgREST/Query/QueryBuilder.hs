@@ -98,12 +98,12 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
         MergeDuplicates  ->
           if null iCols
              then "DO NOTHING"
-             else "DO UPDATE SET " <> BS.intercalate ", " ((pgFmtIdent . tfName) <> const " = EXCLUDED." <> (pgFmtIdent . tfName) <$> iCols)
+             else "DO UPDATE SET " <> BS.intercalate ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols)
       ) onConflct,
     returningF mainQi returnings
     ])
   where
-    cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
+    cols = BS.intercalate ", " $ pgFmtIdent . cfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
@@ -138,8 +138,8 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = SQL.sql (fromQi mainQi)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = _." <> pgFmtIdent . tfName <$> uCols)
-    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
+    nonRangeCols = BS.intercalate ", " (pgFmtIdent . cfName <> const " = _." <> pgFmtIdent . cfName <$> uCols)
+    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)

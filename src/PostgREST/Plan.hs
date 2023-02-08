@@ -135,10 +135,10 @@ resolveTableField table (fieldName, []) = resolveTableFieldName table fieldName
 -- If the field is known and a JSON path is given, always assume the JSON type. But don't assume a type for entirely unknown fields.
 resolveTableField table (fieldName, jp) =
   case resolveTableFieldName table fieldName of
-    tf@CoercibleField{tfIRType=""} -> tf{tfJsonPath=jp}
-    tf -> tf{tfJsonPath=jp, tfIRType="json"}
+    cf@CoercibleField{cfIRType=""} -> cf{cfJsonPath=jp}
+    cf -> cf{cfJsonPath=jp, cfIRType="json"}
 
--- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `tfIRType` isn't empty.
+-- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `cfIRType` isn't empty.
 resolveTypeOrUnknown :: ResolverContext -> Field -> CoercibleField
 resolveTypeOrUnknown ResolverContext{..} field@(fn, jp) =
   fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
@@ -146,25 +146,25 @@ resolveTypeOrUnknown ResolverContext{..} field@(fn, jp) =
 
 -- | Install any pre-defined data representation from source to target to coerce this reference.
 --
--- Note that we change the IR type here. This might seem unintuitive. The short of it is that for a CoercibleField without a transformer, input type == output type. A transformer maps from a -> b, so by definition the input type will be a and the output type b after. And tfIRType is the *input* type.
+-- Note that we change the IR type here. This might seem unintuitive. The short of it is that for a CoercibleField without a transformer, input type == output type. A transformer maps from a -> b, so by definition the input type will be a and the output type b after. And cfIRType is the *input* type.
 --
 -- It might feel odd that once a transformer is added we 'forget' the target type (because now a /= b). You might also note there's no obvious way to stack transforms (even if there was a stack, you erased what type you're working with so it's awkward). Alas as satisfying as it would be to engineer a layered mapping system with full type information, we just don't need it.
 withTransformer :: ResolverContext -> Text -> Text -> CoercibleField -> CoercibleField
 withTransformer ResolverContext{representations} sourceType targetType field =
   fromMaybe field $ HM.lookup (sourceType, targetType) representations >>=
-    (\fieldRepresentation -> Just field{tfIRType=sourceType, tfTransform=Just (drFunction fieldRepresentation)})
+    (\fieldRepresentation -> Just field{cfIRType=sourceType, cfTransform=Just (drFunction fieldRepresentation)})
 
 -- | Map the intermediate representation type to the output type, if available.
 withOutputFormat :: ResolverContext -> CoercibleField -> CoercibleField
-withOutputFormat ctx@ResolverContext{outputType} field@CoercibleField{tfIRType} = withTransformer ctx tfIRType outputType field
+withOutputFormat ctx@ResolverContext{outputType} field@CoercibleField{cfIRType} = withTransformer ctx cfIRType outputType field
 
 -- | Map text into the intermediate representation type, if available.
 withTextParse :: ResolverContext -> CoercibleField -> CoercibleField
-withTextParse ctx field@CoercibleField{tfIRType} = withTransformer ctx "text" tfIRType field
+withTextParse ctx field@CoercibleField{cfIRType} = withTransformer ctx "text" cfIRType field
 
 -- | Map json into the intermediate representation type, if available.
 withJsonParse :: ResolverContext -> CoercibleField -> CoercibleField
-withJsonParse ctx field@CoercibleField{tfIRType} = withTransformer ctx "json" tfIRType field
+withJsonParse ctx field@CoercibleField{cfIRType} = withTransformer ctx "json" cfIRType field
 
 -- | Map the intermediate representation type to the output type defined by the resolver context (normally json), if available.
 resolveOutputField :: ResolverContext -> Field -> CoercibleField
@@ -226,7 +226,7 @@ addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=se
   where
     aliasSelectItem :: (CoercibleField, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe Cast, Maybe Alias)
     -- If there already is an alias, don't overwrite it.
-    aliasSelectItem (fld@(CoercibleField{tfName=fieldName, tfTransform=(Just _)}), Nothing, Nothing) = (fld, Nothing, Just fieldName)
+    aliasSelectItem (fld@(CoercibleField{cfName=fieldName, cfTransform=(Just _)}), Nothing, Nothing) = (fld, Nothing, Just fieldName)
     aliasSelectItem fld = fld
 
 knownColumnsInContext :: ResolverContext -> [Column]
@@ -249,7 +249,7 @@ expandStarsForDataRepresentations ctx@ResolverContext{qi} rPlanTree = Right $ fm
 expandStarsForTable :: ResolverContext -> ReadPlan -> ReadPlan
 expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadPlan{select=selectItems} =
   -- If we have a '*' select AND the target table has at least one data representation, expand.
-  if ("*" `elem` map (\(field, _, _) -> tfName field) selectItems) && any hasOutputRep knownColumns
+  if ("*" `elem` map (\(field, _, _) -> cfName field) selectItems) && any hasOutputRep knownColumns
     then rplan{select=concatMap (expandStarSelectItem knownColumns) selectItems}
     else rplan
   where
@@ -259,7 +259,7 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadP
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
 
     expandStarSelectItem :: [Column] -> (CoercibleField, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe Cast, Maybe Alias)]
-    expandStarSelectItem columns (CoercibleField{tfName="*", tfJsonPath=[]}, b, c) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c)) columns
+    expandStarSelectItem columns (CoercibleField{cfName="*", cfJsonPath=[]}, b, c) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c)) columns
     expandStarSelectItem _ selectItem = [selectItem]
 
 -- | Enforces the `max-rows` config on the result
@@ -572,7 +572,7 @@ resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiReque
 resolveOrError _ Nothing _ = Left NotFound
 resolveOrError ctx (Just table) field =
   case resolveTableFieldName table field of
-    CoercibleField{tfIRType=""} -> Left $ ColumnNotFound (tableName table) field
+    CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
     cf                          -> Right $ withJsonParse ctx cf
 
 callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
@@ -601,7 +601,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = tfName . (\(f, _, _) -> f) <$> select
+    fldNames = cfName . (\(f, _, _) -> f) <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding

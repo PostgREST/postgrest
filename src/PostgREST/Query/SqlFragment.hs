@@ -236,27 +236,27 @@ pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{tfName=fn, tfJsonPath=[]} = SQL.sql (pgFmtColumn table fn)
+pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]} = SQL.sql (pgFmtColumn table fn)
 -- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
 -- "operator does not exist: json = unknown"
-pgFmtField table CoercibleField{tfName=fn, tfJsonPath=jp} = SQL.sql ("to_jsonb(" <> pgFmtColumn table fn <> ")") <> pgFmtJsonPath jp
+pgFmtField table CoercibleField{cfName=fn, cfJsonPath=jp} = SQL.sql ("to_jsonb(" <> pgFmtColumn table fn <> ")") <> pgFmtJsonPath jp
 
 -- Select the value of a named element from a table, applying its optional coercion mapping if any.
 pgFmtTableCoerce :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtTableCoerce table fld@(CoercibleField{tfTransform=(Just formatterProc)}) = pgFmtCallUnary formatterProc (pgFmtField table fld)
+pgFmtTableCoerce table fld@(CoercibleField{cfTransform=(Just formatterProc)}) = pgFmtCallUnary formatterProc (pgFmtField table fld)
 pgFmtTableCoerce table f = pgFmtField table f
 
 -- | Like the previous but now we just have a name so no namespace or JSON paths.
 pgFmtCoerceNamed :: CoercibleField -> SQL.Snippet
-pgFmtCoerceNamed CoercibleField{tfName=fn, tfTransform=(Just formatterProc)} = pgFmtCallUnary formatterProc (SQL.sql (pgFmtIdent fn)) <> " AS " <> SQL.sql (pgFmtIdent fn)
-pgFmtCoerceNamed CoercibleField{tfName=fn} = SQL.sql (pgFmtIdent fn)
+pgFmtCoerceNamed CoercibleField{cfName=fn, cfTransform=(Just formatterProc)} = pgFmtCallUnary formatterProc (SQL.sql (pgFmtIdent fn)) <> " AS " <> SQL.sql (pgFmtIdent fn)
+pgFmtCoerceNamed CoercibleField{cfName=fn} = SQL.sql (pgFmtIdent fn)
 
 pgFmtSelectItem :: QualifiedIdentifier -> (CoercibleField, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtSelectItem table (fld, Nothing, alias) = pgFmtTableCoerce table fld <> SQL.sql (pgFmtAs (tfName fld) (tfJsonPath fld) alias)
+pgFmtSelectItem table (fld, Nothing, alias) = pgFmtTableCoerce table fld <> SQL.sql (pgFmtAs (cfName fld) (cfJsonPath fld) alias)
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (fld, Just cast, alias) = "CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs (tfName fld) (tfJsonPath fld) alias)
+pgFmtSelectItem table (fld, Just cast, alias) = "CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs (cfName fld) (cfJsonPath fld) alias)
 
 pgFmtSelectFromJson :: [CoercibleField] -> SQL.Snippet
 pgFmtSelectFromJson fields =
@@ -270,7 +270,7 @@ pgFmtSelectFromJson fields =
   )
   where
     parsedCols = intercalateSnippet ", " $ pgFmtCoerceNamed <$> fields
-    typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
+    typedCols = BS.intercalate ", " $ pgFmtIdent . cfName <> const " " <> encodeUtf8 . cfIRType <$> fields
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
@@ -291,13 +291,13 @@ pgFmtOrderTerm qi ot =
 
 -- | Interpret a literal in the way the planner indicated through the CoercibleField.
 pgFmtUnknownLiteralForField :: SQL.Snippet -> CoercibleField -> SQL.Snippet
-pgFmtUnknownLiteralForField value CoercibleField{tfTransform=(Just parserProc)} = pgFmtCallUnary parserProc value
+pgFmtUnknownLiteralForField value CoercibleField{cfTransform=(Just parserProc)} = pgFmtCallUnary parserProc value
 -- But when no transform is requested, we just use the literal as-is.
 pgFmtUnknownLiteralForField value _ = value
 
 -- | Array version of the above, used by ANY().
 pgFmtArrayLiteralForField :: [Text] -> CoercibleField -> SQL.Snippet
-pgFmtArrayLiteralForField values CoercibleField{tfTransform=(Just parserProc)} = SQL.sql "ARRAY[" <> intercalateSnippet ", " (pgFmtCallUnary parserProc . unknownLiteral <$> values) <> "]"
+pgFmtArrayLiteralForField values CoercibleField{cfTransform=(Just parserProc)} = SQL.sql "ARRAY[" <> intercalateSnippet ", " (pgFmtCallUnary parserProc . unknownLiteral <$> values) <> "]"
 -- When no transformation is requested, use an array literal which should be simpler, maybe faster.
 pgFmtArrayLiteralForField values _ = unknownLiteral (pgBuildArrayLiteral values)
 

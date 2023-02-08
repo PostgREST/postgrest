@@ -26,10 +26,10 @@ type TransformerProc = Text
 -- |
 -- | The type value is allowed to be the empty string. The analog here is soft type checking in programming languages: sometimes we don't need a variable to have a specified type and things will work anyhow. So the empty type variant is valid when we don't know and *don't need to know* about the specific type in some context. Note that this variation should not be used if it guarantees failure: in that case you should instead raise an error at the planning stage and bail out. For example, we can't parse JSON with `json_to_recordset` without knowing the types of each recipient field, and so error out. Using the empty string for the type would be incorrect and futile. On the other hand we use the empty type for RPC calls since type resolution isn't implemented for RPC, but it's fine because the query still works with Postgres' implicit coercion. In the future, hopefully we will support data representations across the board and then the empty type may be permanently retired.
 data CoercibleField = CoercibleField
-  { tfName      :: FieldName
-  , tfJsonPath  :: JsonPath
-  , tfIRType    :: Text -- ^ The native Postgres type of the field, the type before mapping.
-  , tfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
+  { cfName      :: FieldName
+  , cfJsonPath  :: JsonPath
+  , cfIRType    :: Text -- ^ The native Postgres type of the field, the type before mapping.
+  , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   } deriving (Eq)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
