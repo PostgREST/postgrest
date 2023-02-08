@@ -36,7 +36,7 @@ import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (Action (..),
                                               ApiRequest (..),
-                                           InvokeMethod (..),
+                                              InvokeMethod (..),
                                               Mutation (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
