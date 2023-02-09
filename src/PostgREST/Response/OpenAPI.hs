@@ -79,8 +79,8 @@ typeFromArray = T.dropEnd 2
 toSwaggerTypeFromArray :: Text -> Maybe (SwaggerType t)
 toSwaggerTypeFromArray arrType = toSwaggerType $ typeFromArray arrType
 
-makeSwaggerItemTypeSchema :: Text -> Maybe (Referenced Schema)
-makeSwaggerItemTypeSchema arrType = case toSwaggerType arrType of
+makePropertyItems :: Text -> Maybe (Referenced Schema)
+makePropertyItems arrType = case toSwaggerType arrType of
   Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerTypeFromArray arrType)
   _                 -> Nothing
 
@@ -143,7 +143,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         & format ?~ colType col
         & maxLength .~ (fromIntegral <$> colMaxLen col)
         & type_ .~ toSwaggerType (colType col)
-        & items .~ (SwaggerItemsObject <$> makeSwaggerItemTypeSchema (colType col))
+        & items .~ (SwaggerItemsObject <$> makePropertyItems (colType col))
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -158,7 +158,7 @@ makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
-          & items .~ (SwaggerItemsObject <$> makeSwaggerItemTypeSchema t)
+          & items .~ (SwaggerItemsObject <$> makePropertyItems t)
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
@@ -192,14 +192,14 @@ makeProcGetParam (ProcParam n t r v) =
       & in_ .~ ParamQuery
     schemaNotMulti = baseSchema
       & format ?~ t
-      & type_ ?~ toParamTypes (toSwaggerType t)
+      & type_ ?~ toParamType (toSwaggerType t)
     schemaMulti = baseSchema
       & type_ ?~ fromMaybe SwaggerString (toSwaggerType t)
       & items ?~ SwaggerItemsPrimitive (Just CollectionMulti)
         ((mempty :: ParamSchema x)
           & type_ .~ toSwaggerTypeFromArray t
           & format ?~ typeFromArray t)
-    toParamTypes paramType = case paramType of
+    toParamType paramType = case paramType of
       -- Array uses {} in query params
       Just SwaggerArray -> SwaggerString
       -- Type must be specified in query params
