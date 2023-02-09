@@ -63,6 +63,7 @@ DevOps
 * `cloudstark/helm-charts <https://github.com/cloudstark/helm-charts/tree/master/postgrest>`_ - helm chart to deploy PostgREST to a Kubernetes cluster via a Deployment and Service
 * `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
 * `Limezest/postgrest-cloud-run <https://github.com/Limezest/postgrest-cloud-run>`_ - expose a PostgreSQL database on Cloud SQL using Cloud Run
+* `eyberg/postgrest <https://repo.ops.city/v2/packages/eyberg/postgrest/10.1.1/x86_64/show>`_ - run PostgREST as a Nanos unikernel
 
 .. _eco_external_notification:
 

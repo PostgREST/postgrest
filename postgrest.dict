@@ -89,6 +89,7 @@ multi
 MVCC
 namespace
 namespaced
+Nanos
 neq
 nginx
 ngrep
@@ -185,6 +186,7 @@ TypeScript
 UI
 ui
 unicode
+unikernel
 unix
 updatable
 UPSERT
