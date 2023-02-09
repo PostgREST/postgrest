@@ -21,6 +21,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Allows using or across related tables conditions
  - #1100, Customizable OpenAPI title - @AnthonyFisi
 
+### Fixed
+
+ - #2651, Add the missing `get` path item for RPCs to the OpenAPI output - @laurenceisla
+
 ## [10.1.2] - 2023-02-01
 
 ### Fixed

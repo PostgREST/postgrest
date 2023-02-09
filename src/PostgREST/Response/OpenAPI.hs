@@ -73,9 +73,15 @@ toSwaggerType colType             = case T.takeEnd 2 colType of
   "[]" -> Just SwaggerArray
   _    -> Just SwaggerString
 
-makeSwaggerItemType :: Maybe (SwaggerType t) -> Text -> Maybe (Referenced Schema)
-makeSwaggerItemType itemType colType = case itemType of
-  Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerType (T.dropEnd 2 colType))
+typeFromArray :: Text -> Text
+typeFromArray = T.dropEnd 2
+
+toSwaggerTypeFromArray :: Text -> Maybe (SwaggerType t)
+toSwaggerTypeFromArray arrType = toSwaggerType $ typeFromArray arrType
+
+makePropertyItems :: Text -> Maybe (Referenced Schema)
+makePropertyItems arrType = case toSwaggerType arrType of
+  Just SwaggerArray -> Just $ Inline (mempty & type_ .~ toSwaggerTypeFromArray arrType)
   _                 -> Nothing
 
 parseDefault :: Text -> Text -> Text
@@ -129,7 +135,6 @@ makeProperty tbl rels col = (colName col, Inline s)
         Just $ T.append (maybe "" (`T.append` "\n\n") $ colDescription col) (T.intercalate "\n" n)
       else
         colDescription col
-    pType = toSwaggerType (colType col)
     s =
       (mempty :: Schema)
         & default_ .~ (JSON.decode . toUtf8Lazy . parseDefault (colType col) =<< colDefault col)
@@ -137,8 +142,8 @@ makeProperty tbl rels col = (colName col, Inline s)
         & enum_ .~ e
         & format ?~ colType col
         & maxLength .~ (fromIntegral <$> colMaxLen col)
-        & type_ .~ pType
-        & items .~ (SwaggerItemsObject <$> makeSwaggerItemType pType (colType col))
+        & type_ .~ toSwaggerType (colType col)
+        & items .~ (SwaggerItemsObject <$> makePropertyItems (colType col))
 
 makeProcSchema :: ProcDescription -> Schema
 makeProcSchema pd =
@@ -153,7 +158,7 @@ makeProcProperty (ProcParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
-          & items .~ (SwaggerItemsObject <$> makeSwaggerItemType (toSwaggerType t) t)
+          & items .~ (SwaggerItemsObject <$> makePropertyItems t)
           & format ?~ t
 
 makePreferParam :: [Text] -> Param
@@ -175,8 +180,37 @@ makePreferParam ts =
       "resolution" -> ["resolution=ignore-duplicates", "resolution=merge-duplicates"]
       _            -> []
 
-makeProcParam :: ProcDescription -> [Referenced Param]
-makeProcParam pd =
+makeProcGetParam :: ProcParam -> Referenced Param
+makeProcGetParam (ProcParam n t r v) =
+  Inline $ (mempty :: Param)
+    & name .~ n
+    & required ?~ r
+    & schema .~ ParamOther fullSchema
+  where
+    fullSchema = if v then schemaMulti else schemaNotMulti
+    baseSchema = (mempty :: ParamOtherSchema)
+      & in_ .~ ParamQuery
+    schemaNotMulti = baseSchema
+      & format ?~ t
+      & type_ ?~ toParamType (toSwaggerType t)
+    schemaMulti = baseSchema
+      & type_ ?~ fromMaybe SwaggerString (toSwaggerType t)
+      & items ?~ SwaggerItemsPrimitive (Just CollectionMulti)
+        ((mempty :: ParamSchema x)
+          & type_ .~ toSwaggerTypeFromArray t
+          & format ?~ typeFromArray t)
+    toParamType paramType = case paramType of
+      -- Array uses {} in query params
+      Just SwaggerArray -> SwaggerString
+      -- Type must be specified in query params
+      Nothing           -> SwaggerString
+      _                 -> fromJust paramType
+
+makeProcGetParams :: [ProcParam] -> [Referenced Param]
+makeProcGetParams = fmap makeProcGetParam
+
+makeProcPostParams :: ProcDescription -> [Referenced Param]
+makeProcPostParams pd =
   [ Inline $ (mempty :: Param)
     & name     .~ "args"
     & required ?~ True
@@ -313,14 +347,19 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
     (pSum, pDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
                     T.breakOn "\n" <$> pdDescription pd
-    postOp = (mempty :: Operation)
+    procOp = (mempty :: Operation)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
-      & parameters .~ makeProcParam pd
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
       & produces ?~ makeMimeList [MTApplicationJSON, MTSingularJSON]
       & at 200 ?~ "OK"
-    pe = (mempty :: PathItem) & post ?~ postOp
+    getOp = procOp
+      & parameters .~ makeProcGetParams (pdParams pd)
+    postOp = procOp
+      & parameters .~ makeProcPostParams pd
+    pe = (mempty :: PathItem)
+      & get ?~ getOp
+      & post ?~ postOp
 
 makeRootPathItem :: (FilePath, PathItem)
 makeRootPathItem = ("/", p)

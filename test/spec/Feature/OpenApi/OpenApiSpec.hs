@@ -708,7 +708,153 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
   describe "RPC" $ do
 
-    it "includes function summary/description and body schema for arguments" $ do
+    it "includes function summary/description and query parameters for arguments in the get path item" $ do
+      r <- simpleBody <$> get "/"
+
+      let method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
+          args = r ^? method "get" . key "parameters"
+          summary = r ^? method "get" . key "summary"
+          description = r ^? method "get" . key "description"
+
+      liftIO $ do
+
+        summary `shouldBe` Just "An RPC function"
+
+        description `shouldBe` Just "Just a test for RPC function arguments"
+
+        args `shouldBe` Just
+          [aesonQQ|
+            [
+              {
+                "format": "double precision",
+                "in": "query",
+                "name": "double",
+                "required": true,
+                "type": "number"
+              },
+              {
+                "format": "character varying",
+                "in": "query",
+                "name": "varchar",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "boolean",
+                "in": "query",
+                "name": "boolean",
+                "required": true,
+                "type": "boolean"
+              },
+              {
+                "format": "date",
+                "in": "query",
+                "name": "date",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "money",
+                "in": "query",
+                "name": "money",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "enum_menagerie_type",
+                "in": "query",
+                "name": "enum",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "text[]",
+                "in": "query",
+                "name": "text_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "integer[]",
+                "in": "query",
+                "name": "int_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "boolean[]",
+                "in": "query",
+                "name": "bool_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "character[]",
+                "in": "query",
+                "name": "char_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "character varying[]",
+                "in": "query",
+                "name": "varchar_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "bigint[]",
+                "in": "query",
+                "name": "bigint_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "numeric[]",
+                "in": "query",
+                "name": "numeric_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "json[]",
+                "in": "query",
+                "name": "json_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "jsonb[]",
+                "in": "query",
+                "name": "jsonb_arr",
+                "required": true,
+                "type": "string"
+              },
+              {
+                "format": "integer",
+                "in": "query",
+                "name": "integer",
+                "required": false,
+                "type": "integer"
+              },
+              {
+                "format": "json",
+                "in": "query",
+                "name": "json",
+                "required": false,
+                "type": "string"
+              },
+              {
+                "format": "jsonb",
+                "in": "query",
+                "name": "jsonb",
+                "required": false,
+                "type": "string"
+              }
+            ]
+          |]
+
+    it "includes function summary/description and body schema for arguments in the post path item" $ do
       r <- simpleBody <$> get "/"
 
       let method s = key "paths" . key "/rpc/varied_arguments_openapi" . key s
@@ -872,6 +1018,26 @@ spec actualPgVersion = describe "OpenAPI" $ do
                       . key "schema". key "required"
 
       liftIO $ params `shouldBe` Just [aesonQQ|["num", "str"]|]
+
+    it "uses a multi collection format when the function has a VARIADIC parameter" $ do
+      r <- simpleBody <$> get "/"
+      let param = r ^? key "paths" . key "/rpc/variadic_param"
+                     . key "get" . key "parameters" .  nth 0
+
+      liftIO $ param `shouldBe` Just
+        [aesonQQ|
+          {
+            "collectionFormat": "multi",
+            "in": "query",
+            "items": {
+              "format": "text",
+              "type": "string"
+            },
+            "name": "v",
+            "required": false,
+            "type": "array"
+          }
+        |]
 
   describe "Security" $
     it "does not include security or security definitions by default" $ do
