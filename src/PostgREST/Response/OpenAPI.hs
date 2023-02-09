@@ -190,14 +190,15 @@ makeProcGetParam (ProcParam n t r v) =
     fullSchema = if v then schemaMulti else schemaNotMulti
     baseSchema = (mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
-      & type_ ?~ toParamTypes (toSwaggerType t)
     schemaNotMulti = baseSchema
       & format ?~ t
+      & type_ ?~ toParamTypes (toSwaggerType t)
     schemaMulti = baseSchema
-      & items ?~ SwaggerItemsPrimitive (Just CollectionMulti) paramItems
-    paramItems = (mempty :: ParamSchema x)
-      & type_ ?~ toParamTypes (toSwaggerTypeFromArray t)
-      & format ?~ typeFromArray t
+      & type_ ?~ fromMaybe SwaggerString (toSwaggerType t)
+      & items ?~ SwaggerItemsPrimitive (Just CollectionMulti)
+        ((mempty :: ParamSchema x)
+          & type_ .~ toSwaggerTypeFromArray t
+          & format ?~ typeFromArray t)
     toParamTypes paramType = case paramType of
       -- Array uses {} in query params
       Just SwaggerArray -> SwaggerString
