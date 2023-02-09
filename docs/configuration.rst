@@ -108,7 +108,7 @@ It's not possible to change :ref:`env_variables_config` for a running process an
     * :ref:`admin-server-port`
     * :ref:`db-uri`
     * :ref:`db-pool`
-    * :ref:`db-pool-timeout`
+    * :ref:`db-pool-acquisition-timeout`
     * :ref:`server-host`
     * :ref:`server-port`
     * :ref:`server-unix-socket`
@@ -143,40 +143,40 @@ The ``"pgrst"`` notification channel is enabled by default. For configuring the 
 List of parameters
 ==================
 
-======================== ======= ================= ==========
-Name                     Type    Default           Reloadable
-======================== ======= ================= ==========
-admin-server-port        Int
-app.settings.*           String                    Y
-db-anon-role             String                    Y
-db-channel               String  pgrst             Y
-db-channel-enabled       Boolean True              Y
-db-config                Boolean True              Y
-db-extra-search-path     String  public            Y
-db-max-rows              Int     ∞                 Y
-db-plan-enabled          Boolean False             Y
-db-pool                  Int     10
-db-pool-timeout          Int     3600
-db-pre-request           String                    Y
-db-prepared-statements   Boolean True              Y
-db-schemas               String  public            Y
-db-tx-end                String  commit
-db-uri                   String  postgresql://
-db-use-legacy-gucs       Boolean True              Y
-jwt-aud                  String                    Y
-jwt-role-claim-key       String  .role             Y
-jwt-secret               String                    Y
-jwt-secret-is-base64     Boolean False             Y
-log-level                String  error             Y
-openapi-mode             String  follow-privileges Y
-openapi-security-active  Boolean False             Y
-openapi-server-proxy-uri String                    Y
-raw-media-types          String                    Y
-server-host              String  !4
-server-port              Int     3000
-server-unix-socket       String
-server-unix-socket-mode  String  660
-======================== ======= ================= ==========
+=========================== ======= ================= ==========
+Name                        Type    Default           Reloadable
+=========================== ======= ================= ==========
+admin-server-port           Int
+app.settings.*              String                    Y
+db-anon-role                String                    Y
+db-channel                  String  pgrst             Y
+db-channel-enabled          Boolean True              Y
+db-config                   Boolean True              Y
+db-extra-search-path        String  public            Y
+db-max-rows                 Int     ∞                 Y
+db-plan-enabled             Boolean False             Y
+db-pool                     Int     10
+db-pool-acquisition-timeout Int     ∞
+db-pre-request              String                    Y
+db-prepared-statements      Boolean True              Y
+db-schemas                  String  public            Y
+db-tx-end                   String  commit
+db-uri                      String  postgresql://
+db-use-legacy-gucs          Boolean True              Y
+jwt-aud                     String                    Y
+jwt-role-claim-key          String  .role             Y
+jwt-secret                  String                    Y
+jwt-secret-is-base64        Boolean False             Y
+log-level                   String  error             Y
+openapi-mode                String  follow-privileges Y
+openapi-security-active     Boolean False             Y
+openapi-server-proxy-uri    String                    Y
+raw-media-types             String                    Y
+server-host                 String  !4
+server-port                 Int     3000
+server-unix-socket          String
+server-unix-socket-mode     String  660
+=========================== ======= ================= ==========
 
 .. _admin-server-port:
 
@@ -332,18 +332,17 @@ db-pool
 
   Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
 
-.. _db-pool-timeout:
+.. _db-pool-acquisition-timeout:
 
-db-pool-timeout
----------------
+db-pool-acquisition-timeout
+---------------------------
 
   =============== =================
-  **Environment** PGRST_DB_POOL_TIMEOUT
+  **Environment** PGRST_DB_POOL_ACQUISITION_TIMEOUT
   **In-Database** `n/a`
   =============== =================
 
-   Time to live, in seconds, for an idle database pool connection. If the timeout is reached the connection will be closed.
-   Once a new request arrives a new connection will be started.
+  Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database. If it times out without acquiring a connection, then the request is aborted and a ``504`` error is returned.
 
 .. _db-pre-request:
 

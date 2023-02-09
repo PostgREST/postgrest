@@ -26,7 +26,7 @@ Added
 * It's now possible to request a ``text/plain`` output. See :ref:`scalar_return_formats`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Config option for specifying PostgREST database pool timeout. See :ref:`db-pool-timeout`.
+* Config option for specifying PostgREST database pool timeout ``db-pool-timeout``.
   |br| -- `@Qu4tro <https://github.com/Qu4tro>`_
 
 * Config option for binding the PostgREST web server to an unix socket. See :ref:`server-unix-socket`.
