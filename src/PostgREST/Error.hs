@@ -10,6 +10,7 @@ module PostgREST.Error
   , ApiRequestError(..)
   , PgError(..)
   , Error(..)
+  , ErrorCode(..)
   , errorPayload
   , checkIsFatal
   , singularityError

@@ -1,5 +1,5 @@
 module PostgREST.Response.GucHeader
-  ( GucHeader
+  ( GucHeader (..)
   , unwrapGucHeader
   ) where
 

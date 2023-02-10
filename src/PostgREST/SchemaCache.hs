@@ -20,6 +20,8 @@ These queries are executed once at startup or when PostgREST is reloaded.
 
 module PostgREST.SchemaCache
   ( SchemaCache(..)
+  , ViewKeyDependency (..)
+  , KeyDep (..)
   , querySchemaCache
   , accessibleTables
   , accessibleProcs

@@ -7,6 +7,8 @@ module PostgREST.Workers
   , reReadConfig
   , runListener
   , runAdmin
+  , ConnectionStatus (..)
+  , SCacheStatus (..)
   ) where
 
 import qualified Data.Aeson                 as JSON

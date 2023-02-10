@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.AppState
-  ( AppState
+  ( AppState (..)
   , destroy
   , flushPool
   , getConfig

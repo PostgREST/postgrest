@@ -13,7 +13,9 @@ module PostgREST.ApiRequest
   , MediaType(..)
   , Action(..)
   , Target(..)
+  , PathInfo(..)
   , Payload(..)
+  , RpcParamValue(..)
   , userApiRequest
   ) where
 

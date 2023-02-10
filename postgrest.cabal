@@ -71,6 +71,7 @@ library
                       PostgREST.Response.GucHeader
                       PostgREST.Version
                       PostgREST.Workers
+                      PostgREST.TypeHelper
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.17
                     , HTTP                      >= 4000.3.7 && < 4000.5
