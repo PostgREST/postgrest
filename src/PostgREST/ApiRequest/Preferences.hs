@@ -9,6 +9,7 @@
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
+  , PreferDefaults(..)
   , PreferParameters(..)
   , PreferRepresentation(..)
   , PreferResolution(..)
@@ -43,6 +44,7 @@ data Preferences
     , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
+    , preferDefaults       :: Maybe PreferDefaults
     }
 
 -- |
@@ -109,6 +111,7 @@ fromHeaders headers =
     , preferParameters = parsePrefs [SingleObject, MultipleObjects]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]
+    , preferDefaults = parsePrefs [ApplyDefaults, IgnoreDefaults]
     }
   where
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
@@ -204,3 +207,14 @@ instance ToHeaderValue PreferTransaction where
   toHeaderValue Rollback = "tx=rollback"
 
 instance ToAppliedHeader PreferTransaction
+
+data PreferDefaults
+  = ApplyDefaults
+  | IgnoreDefaults
+  deriving Eq
+
+instance ToHeaderValue PreferDefaults where
+  toHeaderValue ApplyDefaults  = "defaults=apply"
+  toHeaderValue IgnoreDefaults = "defaults=ignore"
+
+instance ToAppliedHeader PreferDefaults

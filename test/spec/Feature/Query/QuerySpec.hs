@@ -327,11 +327,11 @@ spec actualPgVersion = do
   describe "Shaping response with select parameter" $ do
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
-        [json|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}]|]
+        [json|[{"id":3,"name":"Three","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":3}]|]
 
     it "dash `-` in column names is accepted" $
       get "/complex_items?id=eq.3&select=id,field-with_sep" `shouldRespondWith`
-        [json|[{"id":3,"field-with_sep":1}]|]
+        [json|[{"id":3,"field-with_sep":3}]|]
 
     it "one simple column" $
       get "/complex_items?select=id" `shouldRespondWith`

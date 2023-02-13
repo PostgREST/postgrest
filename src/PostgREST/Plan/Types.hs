@@ -13,12 +13,13 @@ import Protolude
 
 -- | A TypedField is a field with sufficient information to be read from JSON with `json_to_recordset`.
 data TypedField = TypedField
-   { tfName   :: FieldName
-   , tfIRType :: Text -- ^ The initial type of the field, before any casting.
+   { tfName    :: FieldName
+   , tfIRType  :: Text -- ^ The initial type of the field, before any casting.
+   , tfDefault :: Maybe Text
    } deriving (Eq)
 
 resolveTableField :: Table -> FieldName -> Maybe TypedField
 resolveTableField table fieldName =
   case HMI.lookup fieldName (tableColumns table) of
-    Just column -> Just $ TypedField (colName column) (colNominalType column)
+    Just column -> Just $ TypedField (colName column) (colNominalType column) (colDefault column)
     Nothing     -> Nothing

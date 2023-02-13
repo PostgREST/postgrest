@@ -3100,3 +3100,8 @@ create view test.alpha_projects as
 create view test.zeta_projects as
   select c.id, p.name as pro_name, c.name as cli_name
   from projects p join clients c on p.client_id = c.id;
+
+CREATE VIEW test.complex_items_view AS
+SELECT * FROM test.complex_items;
+
+ALTER VIEW test.complex_items_view ALTER COLUMN name SET DEFAULT 'Default';

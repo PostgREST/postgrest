@@ -81,9 +81,9 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
   (if null select && null forest then selects else sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
-mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
+mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _ applyDefaults) =
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
-  fromJsonBodyF body iCols True False <>
+  fromJsonBodyF body iCols True False applyDefaults <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -105,7 +105,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
     cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
+mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -114,13 +114,13 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
 
   | range == allRange =
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    fromJsonBodyF body uCols False False <>
+    fromJsonBodyF body uCols False False applyDefaults <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
     "WITH " <>
-    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True <> "), " <>
+    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
@@ -171,7 +171,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnin
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p)) <$> prms) False (not multipleCall) <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False (not multipleCall) False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

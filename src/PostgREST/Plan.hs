@@ -504,9 +504,9 @@ mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> Re
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols $ preferDefaults == Just ApplyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings $ preferDefaults == Just ApplyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -514,7 +514,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readR
            all (\case
               Filter _ (OpExpr False (Op OpEqual _)) -> True
               _                                      -> False) qsFiltersRoot
-          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty) typedColumnsOrError
+          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
           Left InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings

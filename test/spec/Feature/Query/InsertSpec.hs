@@ -11,8 +11,9 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
-                                   pgVersion112, pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
+                                   pgVersion110, pgVersion112,
+                                   pgVersion130)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -448,15 +449,42 @@ spec actualPgVersion = do
             {"id": 204, "body": "yyy"},
             333,
             "asdf",
-            {"id": 205, "body": "zzz"}]|] `shouldRespondWith`
-          [json|{
-              "code": "22023",
-              "details": null,
-              "hint": null,
-              "message": "argument of json_to_recordset must be an array of objects"}|]
-          { matchStatus  = 400
-          , matchHeaders = []
-          }
+            {"id": 205, "body": "zzz"}]|] `shouldRespondWith` 400
+
+      context "apply defaults on undefined keys" $ do
+        -- inserting the array fails on pg 9.6, but the feature should work normally
+        when (actualPgVersion >= pgVersion100) $
+          it "inserts table default values(field-with_sep) when json keys are undefined" $
+            request methodPost "/complex_items?columns=id,name,field-with_sep,arr_data" [("Prefer", "return=representation"), ("Prefer", "defaults=apply")]
+                [json|[
+                  {"id": 4, "name": "Vier"},
+                  {"id": 5, "name": "Funf", "arr_data": null},
+                  {"id": 6, "name": "Sechs", "field-with_sep": 6, "arr_data": "{1,2,3}"}
+                ]|]
+              `shouldRespondWith`
+                [json|[
+                  {"id": 4, "name": "Vier", "field-with_sep": 1, "settings":null,"arr_data":null},
+                  {"id": 5, "name": "Funf", "field-with_sep": 1, "settings":null,"arr_data":null},
+                  {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
+                ]|]
+                { matchStatus  = 201
+                , matchHeaders = []
+                }
+
+        it "inserts view default values(field-with_sep) when json keys are undefined" $
+          request methodPost "/complex_items_view?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "defaults=apply")]
+              [json|[
+                {"id": 7, "name": "Sieben"},
+                {"id": 8}
+              ]|]
+            `shouldRespondWith`
+              [json|[
+                {"id": 7, "name": "Sieben", "field-with_sep": 1, "settings":null,"arr_data":null},
+                {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
+              ]|]
+              { matchStatus  = 201
+              , matchHeaders = []
+              }
 
     context "with unicode values" $ do
       it "succeeds and returns full representation" $
