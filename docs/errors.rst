@@ -140,8 +140,8 @@ Related to the connection with the database.
 |               |             | :ref:`schema_cache` due to the PostgreSQL service not       |
 | PGRST002      |             | running.                                                    |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst003: | 503         | The request time exceeded the timeout specified in          |
-|               |             | :ref:`db-pool-acquisition-timeout`.                         |
+| .. _pgrst003: | 504         | The request timed out waiting for a pool connection         |
+|               |             | to be available. See :ref:`db-pool-acquisition-timeout`.    |
 | PGRST003      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
