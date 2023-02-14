@@ -116,10 +116,11 @@ destroy = destroyPool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  SQL.acquire configDbPoolSize timeoutMilliseconds $ toUtf8 configDbUri
-  where
-    timeoutMilliseconds = (* oneSecond) <$> configDbPoolAcquisitionTimeout
-    oneSecond = 1000000
+  SQL.acquire
+    configDbPoolSize
+    (fromIntegral configDbPoolAcquisitionTimeout)
+    (fromIntegral configDbPoolMaxLifetime)
+    (toUtf8 configDbUri)
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
