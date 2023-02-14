@@ -5,6 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #2663, Limit maximal postgresql connection lifetime - @robx
+   + New option `db-pool-max-lifetime` (default 30m)
+   + `db-pool-acquisition-timeout` is no longer optional and defaults to 10s
+   + Fixes postgresql resource leak with long-lived connections (#2638)
+
 ### Fixed
 
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
