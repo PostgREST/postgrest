@@ -97,9 +97,9 @@ destroy = destroyPool
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
-  SQL.acquire configDbPoolSize timeoutMilliseconds $ toUtf8 configDbUri
+  SQL.acquire configDbPoolSize timeoutMicroseconds $ toUtf8 configDbUri
   where
-    timeoutMilliseconds = (* oneSecond) <$> configDbPoolAcquisitionTimeout
+    timeoutMicroseconds = (* oneSecond) <$> configDbPoolAcquisitionTimeout
     oneSecond = 1000000
 
 -- | Run an action with a database connection.
