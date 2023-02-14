@@ -26,6 +26,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This can be used to override the OpenAPI spec with a custom database function
  - #1567, On bulk inserts, missing values can get the column DEFAULT by using the `Prefer: missing=default` header - @steve-chavez
  - #2501, Allow filtering by`IS DISTINCT FROM` using the `isdistinct` operator, e.g. `/people?alias=isdistinct.foo`
+ - #2663, Limit maximal postgresql connection lifetime - @robx
+   + New option `db-pool-max-lifetime` (default 30m)
+   + `db-pool-acquisition-timeout` is no longer optional and defaults to 10s
+   + Fixes postgresql resource leak with long-lived connections (#2638)
 
 ### Fixed
 
