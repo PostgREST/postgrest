@@ -38,6 +38,14 @@ let
             sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
           })
           { });
+
+      hasql-pool = lib.dontCheck
+        (prev.callHackageDirect {
+          pkg = "hasql-pool";
+          ver = "0.8.0.7";
+          sha256 = "0nqsdnmjw2496bcrl4rcgjp2zysbnc7k8k2nl7wgdqypy8vi5l9s";
+        } { });
+
     } // extraOverrides final prev;
 in
 {
