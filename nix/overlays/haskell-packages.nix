@@ -38,6 +38,24 @@ let
             sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
           })
           { });
+
+      hasql-notifications = lib.dontCheck
+        (prev.callHackageDirect
+          {
+            pkg = "hasql-notifications";
+            ver = "0.2.0.4";
+            sha256 = "sha256-fm1xiDyvDkb5WLOJ73/s8wrWEW23XFS7luAv2brfr8I=";
+          }
+          { });
+
+      hasql-pool = lib.dontCheck
+        (prev.callHackageDirect
+          {
+            pkg = "hasql-pool";
+            ver = "0.9";
+            sha256 = "sha256-5UshbbaBVY8eJ/9VagNVVxonRwMcd7UmGqDc35pJNFY=";
+          }
+          { });
     } // extraOverrides final prev;
 in
 {

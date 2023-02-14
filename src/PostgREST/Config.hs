@@ -71,7 +71,8 @@ data AppConfig = AppConfig
   , configDbMaxRows                :: Maybe Integer
   , configDbPlanEnabled            :: Bool
   , configDbPoolSize               :: Int
-  , configDbPoolAcquisitionTimeout :: Maybe Int
+  , configDbPoolAcquisitionTimeout :: Int
+  , configDbPoolMaxLifetime        :: Int
   , configDbPreRequest             :: Maybe QualifiedIdentifier
   , configDbPreparedStatements     :: Bool
   , configDbRootSpec               :: Maybe QualifiedIdentifier
@@ -132,7 +133,8 @@ toText conf =
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
       ,("db-pool",                       show . configDbPoolSize)
-      ,("db-pool-acquisition-timeout",   maybe "\"\"" show . configDbPoolAcquisitionTimeout)
+      ,("db-pool-acquisition-timeout",   show . configDbPoolAcquisitionTimeout)
+      ,("db-pool-max-lifetime",          show . configDbPoolMaxLifetime)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
@@ -222,7 +224,8 @@ parser optPath env dbSettings =
                      (optInt "max-rows")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
     <*> (fromMaybe 10 <$> optInt "db-pool")
-    <*> optInt "db-pool-acquisition-timeout"
+    <*> (fromMaybe 10 <$> optInt "db-pool-acquisition-timeout")
+    <*> (fromMaybe 1800 <$> optInt "db-pool-max-lifetime")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
@@ -359,7 +362,8 @@ parser optPath env dbSettings =
           let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
-            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_acquisition_timeout", "db_config"]
+            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_acquisition_timeout",
+            "db_pool_max_lifetime", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 
