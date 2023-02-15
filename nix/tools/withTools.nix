@@ -25,6 +25,7 @@ let
             "ARG_USE_ENV([PGUSER], [postgrest_test_authenticator], [Authenticator PG role])"
             "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
             "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
+            "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"
           ];
         positionalCompletion = "_command";
         inRootDir = true;
@@ -66,7 +67,7 @@ let
 
         log "Starting the database cluster..."
         # Instead of listening on a local port, we will listen on a unix domain socket.
-        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\"" \
+        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" -c timezone=utc" \
           >> "$setuplog"
 
         # shellcheck disable=SC2317
