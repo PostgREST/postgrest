@@ -16,6 +16,7 @@ import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Session              as SQL
+import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Wai                as Wai
@@ -131,9 +132,8 @@ establishConnection appState =
       pgVersion <- AppState.usePool appState queryPgVersion
       case pgVersion of
         Left e -> do
-          let err = PgError False e
-          AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
-          case checkIsFatal err of
+          logPgrstError appState e
+          case checkIsFatal e of
             Just reason ->
               return $ FatalConnectionError reason
             Nothing ->
@@ -168,19 +168,16 @@ loadSchemaCache appState = do
       querySchemaCache (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
-      let
-        err = PgError False e
-        putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
-      case checkIsFatal err of
+      case checkIsFatal e of
         Just hint -> do
           AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
-          putErr
+          logPgrstError appState e
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
           AppState.putSchemaCache appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
-          putErr
+          logPgrstError appState e
           return SCOnRetry
 
     Right sCache -> do
@@ -249,18 +246,15 @@ reReadConfig startingUp appState = do
       qDbSettings <- AppState.usePool appState $ queryDbSettings configDbPreparedStatements
       case qDbSettings of
         Left e -> do
-          let
-            err = PgError False e
-            putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
           AppState.logWithZTime appState
             "An error ocurred when trying to query database settings for the config parameters"
-          case checkIsFatal err of
+          case checkIsFatal e of
             Just hint -> do
-              putErr
+              logPgrstError appState e
               AppState.logWithZTime appState hint
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
-              putErr
+              logPgrstError appState e
           pure []
         Right x -> pure x
     else
@@ -342,3 +336,6 @@ reachMainApp AppConfig{..} =
       try $ do
         connect sock $ addrAddress addr
         withSocketsDo $ bracket (pure sock) close sendEmpty
+
+logPgrstError :: AppState -> SQL.UsageError -> IO ()
+logPgrstError appState e = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload $ PgError False e
