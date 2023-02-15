@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2648, Fix inaccurate error codes with new ones - @laurenceisla
    + `PGRST204`: Column is not found
    + `PGRST003`: Timed out when acquiring connection to db
+ - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
 
 ## [10.1.2] - 2023-02-01
 
@@ -34,7 +35,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2565, Fix bad M2M embedding on RPC - @steve-chavez
  - #2575, Replace misleading error message when no function is found with a hint containing functions/parameters names suggestions - @laurenceisla
- - #2582, Move explanation about "single parameters" from the `message` to the `details` in the error output - @laurenceisla 
+ - #2582, Move explanation about "single parameters" from the `message` to the `details` in the error output - @laurenceisla
  - #2569, Replace misleading error message when no relationship is found with a hint containing parent/child names suggestions - @laurenceisla
  - #1405, Add the required OpenAPI items object when the parameter is an array - @laurenceisla
  - #2592, Add upsert headers for POST requests to the OpenAPI output - @laurenceisla

@@ -27,6 +27,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import System.Posix.Types       (FileMode)
 
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified Hasql.Pool                 as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
@@ -153,9 +154,15 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer aut
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
-  dbResp <-
-    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-    lift . AppState.usePool appState . transaction SQL.ReadCommitted mode $ runExceptT handler
+  dbResp <- lift $ do
+    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
+    res <- AppState.usePool appState . transaction SQL.ReadCommitted mode $ runExceptT handler
+    case res of
+      Left SQL.AcquisitionTimeoutUsageError -> do
+        AppState.logWithZTime appState "Timed out when trying to acquire a connection from the connection pool(AcquisitionTimeoutUsageError)"
+        pure ()
+      _ -> pure ()
+    return res
 
   resp <-
     liftEither . mapLeft Error.PgErr $
