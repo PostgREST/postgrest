@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Added
+
+ - #1414, Add related orders - @steve-chavez
+   + On a many-to-one or one-to-one relationship, you can order a parent by a child column `/projects?select=*,clients(*)&order=clients(name).desc.nullsfirst`
+ - #1233, #1907, #2566, Allow spreading embedded resources - @steve-chavez
+   + On a many-to-one or one-to-one relationship, you can unnest a json object with `/projects?select=*,...clients(client_name:name)`
+   + Allows including the join table columns when resource embedding
+   + Allows disambiguating a recursive m2m embed
+   + Allows disambiguating an embed that has a many-to-many relationship using two foreign keys on a junction
+ - #2340, Allow embedding without selecting any column - @steve-chavez
+ - #2563, Allow `is.null` or `not.is.null` on an embedded resource - @steve-chavez
+   + Offers a more flexible replacement for `!inner`, e.g. `/projects?select=*,clients(*)&clients=not.is.null`
+   + Allows doing an anti join, e.g. `/projects?select=*,clients(*)&clients=is.null`
+   + Allows using or across related tables conditions
+ - #1100, Customizable OpenAPI title - @AnthonyFisi
+
+### Fixed
+
+ - #2651, Add the missing `get` path item for RPCs to the OpenAPI output - @laurenceisla
+ - #2648, Fix inaccurate error codes with new ones - @laurenceisla
+   + `PGRST204`: Column is not found
+   + `PGRST003`: Timed out when acquiring connection to db
+ - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
+
 ## [10.1.2] - 2023-02-01
 
 ### Fixed

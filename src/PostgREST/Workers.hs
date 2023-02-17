@@ -13,7 +13,6 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
-import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
@@ -32,8 +31,7 @@ import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database  (queryDbSettings, queryPgVersion)
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
-import PostgREST.Error            (PgError (PgError), checkIsFatal,
-                                   errorPayload)
+import PostgREST.Error            (checkIsFatal)
 import PostgREST.SchemaCache      (querySchemaCache)
 
 import qualified PostgREST.AppState as AppState
@@ -131,9 +129,8 @@ establishConnection appState =
       pgVersion <- AppState.usePool appState queryPgVersion
       case pgVersion of
         Left e -> do
-          let err = PgError False e
-          AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
-          case checkIsFatal err of
+          AppState.logPgrstError appState e
+          case checkIsFatal e of
             Just reason ->
               return $ FatalConnectionError reason
             Nothing ->
@@ -168,19 +165,16 @@ loadSchemaCache appState = do
       querySchemaCache (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
   case result of
     Left e -> do
-      let
-        err = PgError False e
-        putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
-      case checkIsFatal err of
+      case checkIsFatal e of
         Just hint -> do
           AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
-          putErr
+          AppState.logPgrstError appState e
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
           AppState.putSchemaCache appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
-          putErr
+          AppState.logPgrstError appState e
           return SCOnRetry
 
     Right sCache -> do
@@ -249,18 +243,15 @@ reReadConfig startingUp appState = do
       qDbSettings <- AppState.usePool appState $ queryDbSettings configDbPreparedStatements
       case qDbSettings of
         Left e -> do
-          let
-            err = PgError False e
-            putErr = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload err
           AppState.logWithZTime appState
             "An error ocurred when trying to query database settings for the config parameters"
-          case checkIsFatal err of
+          case checkIsFatal e of
             Just hint -> do
-              putErr
+              AppState.logPgrstError appState e
               AppState.logWithZTime appState hint
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
-              putErr
+              AppState.logPgrstError appState e
           pure []
         Right x -> pure x
     else
