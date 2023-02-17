@@ -159,7 +159,7 @@ runDbHandler appState mode authenticated prepared handler = do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     res <- AppState.usePool appState . transaction SQL.ReadCommitted mode $ runExceptT handler
     whenLeft res (\case
-      e@SQL.AcquisitionTimeoutUsageError -> AppState.logPgrstError appState e
+      SQL.AcquisitionTimeoutUsageError -> AppState.debounceLogAcquisitionTimeout appState -- this can happen rapidly for many requests, so we debounce
       _ -> pure ())
     return res
 
@@ -168,6 +168,7 @@ runDbHandler appState mode authenticated prepared handler = do
       mapLeft (Error.PgError authenticated) dbResp
 
   liftEither resp
+
 
 handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
 handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
