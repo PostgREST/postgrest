@@ -16,6 +16,7 @@ module PostgREST.AppState
   , init
   , initWithPool
   , logWithZTime
+  , logPgrstError
   , putConfig
   , putSchemaCache
   , putIsListenerOn
@@ -25,13 +26,18 @@ module PostgREST.AppState
   , signalListener
   , usePool
   , waitListener
+  , debounceLogAcquisitionTimeout
   ) where
 
-import qualified Hasql.Pool    as SQL
-import qualified Hasql.Session as SQL
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text.Encoding   as T
+import qualified Hasql.Pool           as SQL
+import qualified Hasql.Session        as SQL
+import qualified PostgREST.Error      as Error
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
+import Control.Debounce
 import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
@@ -47,29 +53,31 @@ import Protolude
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool         :: SQL.Pool
+  { statePool                     :: SQL.Pool
   -- | Database server version, will be updated by the connectionWorker
-  , statePgVersion    :: IORef PgVersion
+  , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
-  , stateSchemaCache  :: IORef (Maybe SchemaCache)
+  , stateSchemaCache              :: IORef (Maybe SchemaCache)
   -- | Cached SchemaCache in json
-  , stateJsonDbS      :: IORef ByteString
+  , stateJsonDbS                  :: IORef ByteString
   -- | Binary semaphore to make sure just one connectionWorker can run at a time
-  , stateWorkerSem    :: MVar ()
+  , stateWorkerSem                :: MVar ()
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
-  , stateListener     :: MVar ()
+  , stateListener                 :: MVar ()
   -- | State of the LISTEN channel, used for the admin server checks
-  , stateIsListenerOn :: IORef Bool
+  , stateIsListenerOn             :: IORef Bool
   -- | Config that can change at runtime
-  , stateConf         :: IORef AppConfig
+  , stateConf                     :: IORef AppConfig
   -- | Time used for verifying JWT expiration
-  , stateGetTime      :: IO UTCTime
+  , stateGetTime                  :: IO UTCTime
   -- | Time with time zone used for worker logs
-  , stateGetZTime     :: IO ZonedTime
+  , stateGetZTime                 :: IO ZonedTime
   -- | Used for killing the main thread in case a subthread fails
-  , stateMainThreadId :: ThreadId
+  , stateMainThreadId             :: ThreadId
   -- | Keeps track of when the next retry for connecting to database is scheduled
-  , stateRetryNextIn  :: IORef Int
+  , stateRetryNextIn              :: IORef Int
+  -- | Logs a pool error with a debounce
+  , debounceLogAcquisitionTimeout :: IO ()
   }
 
 init :: AppConfig -> IO AppState
@@ -78,8 +86,8 @@ init conf = do
   initWithPool pool conf
 
 initWithPool :: SQL.Pool -> AppConfig -> IO AppState
-initWithPool pool conf =
-  AppState pool
+initWithPool pool conf = do
+  appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef mempty
@@ -91,6 +99,17 @@ initWithPool pool conf =
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
     <*> myThreadId
     <*> newIORef 0
+    <*> pure (pure ())
+
+  deb <-
+    let oneSecond = 1000000 in
+    mkDebounce defaultDebounceSettings
+       { debounceAction = logPgrstError appState SQL.AcquisitionTimeoutUsageError
+       , debounceFreq = 5*oneSecond
+       , debounceEdge = leadingEdge -- logs at the start and the end
+       }
+
+  return appState { debounceLogAcquisitionTimeout = deb }
 
 destroy :: AppState -> IO ()
 destroy = destroyPool
@@ -156,6 +175,9 @@ logWithZTime :: AppState -> Text -> IO ()
 logWithZTime appState txt = do
   zTime <- stateGetZTime appState
   hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
+
+logPgrstError :: AppState -> SQL.UsageError -> IO ()
+logPgrstError appState e = logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ Error.errorPayload $ Error.PgError False e
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
