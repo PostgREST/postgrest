@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+ - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
+
 ## [10.1.2] - 2023-02-01
 
 ### Fixed

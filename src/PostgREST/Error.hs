@@ -424,13 +424,13 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
 
     _                       -> HTTP.status500
 
-checkIsFatal :: PgError -> Maybe Text
-checkIsFatal (PgError _ (SQL.ConnectionUsageError e))
+checkIsFatal :: SQL.UsageError -> Maybe Text
+checkIsFatal (SQL.ConnectionUsageError e)
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
   where isAuthFailureMessage = "FATAL:  password authentication failed" `isInfixOf` failureMessage
         failureMessage = BS.unpack $ fromMaybe mempty e
-checkIsFatal (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError))))
+checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError)))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
       SQL.ServerError "42601" _ _ _ _
