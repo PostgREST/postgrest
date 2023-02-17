@@ -16,6 +16,7 @@ module PostgREST.AppState
   , init
   , initWithPool
   , logWithZTime
+  , logPgrstError
   , putConfig
   , putSchemaCache
   , putIsListenerOn
@@ -27,8 +28,11 @@ module PostgREST.AppState
   , waitListener
   ) where
 
-import qualified Hasql.Pool    as SQL
-import qualified Hasql.Session as SQL
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text.Encoding   as T
+import qualified Hasql.Pool           as SQL
+import qualified Hasql.Session        as SQL
+import qualified PostgREST.Error      as Error
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -156,6 +160,9 @@ logWithZTime :: AppState -> Text -> IO ()
 logWithZTime appState txt = do
   zTime <- stateGetZTime appState
   hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
+
+logPgrstError :: AppState -> SQL.UsageError -> IO ()
+logPgrstError appState e = logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ Error.errorPayload $ Error.PgError False e
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId

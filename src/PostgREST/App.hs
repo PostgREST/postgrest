@@ -9,6 +9,7 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( SignalHandlerInstaller
@@ -19,15 +20,15 @@ module PostgREST.App
 
 
 import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft)
+import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 import System.Posix.Types       (FileMode)
 
-import qualified Hasql.Transaction.Sessions as SQL
 import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
@@ -157,11 +158,9 @@ runDbHandler appState mode authenticated prepared handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     res <- AppState.usePool appState . transaction SQL.ReadCommitted mode $ runExceptT handler
-    case res of
-      Left SQL.AcquisitionTimeoutUsageError -> do
-        AppState.logWithZTime appState "Timed out when trying to acquire a connection from the connection pool(AcquisitionTimeoutUsageError)"
-        pure ()
-      _ -> pure ()
+    whenLeft res (\case
+      e@SQL.AcquisitionTimeoutUsageError -> AppState.logPgrstError appState e
+      _ -> pure ())
     return res
 
   resp <-

@@ -13,10 +13,8 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
-import qualified Data.Text.Encoding         as T
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Session              as SQL
-import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Wai                as Wai
@@ -33,8 +31,7 @@ import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
 import PostgREST.Config.Database  (queryDbSettings, queryPgVersion)
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
-import PostgREST.Error            (PgError (PgError), checkIsFatal,
-                                   errorPayload)
+import PostgREST.Error            (checkIsFatal)
 import PostgREST.SchemaCache      (querySchemaCache)
 
 import qualified PostgREST.AppState as AppState
@@ -132,7 +129,7 @@ establishConnection appState =
       pgVersion <- AppState.usePool appState queryPgVersion
       case pgVersion of
         Left e -> do
-          logPgrstError appState e
+          AppState.logPgrstError appState e
           case checkIsFatal e of
             Just reason ->
               return $ FatalConnectionError reason
@@ -171,13 +168,13 @@ loadSchemaCache appState = do
       case checkIsFatal e of
         Just hint -> do
           AppState.logWithZTime appState "A fatal error ocurred when loading the schema cache"
-          logPgrstError appState e
+          AppState.logPgrstError appState e
           AppState.logWithZTime appState hint
           return SCFatalFail
         Nothing -> do
           AppState.putSchemaCache appState Nothing
           AppState.logWithZTime appState "An error ocurred when loading the schema cache"
-          logPgrstError appState e
+          AppState.logPgrstError appState e
           return SCOnRetry
 
     Right sCache -> do
@@ -250,11 +247,11 @@ reReadConfig startingUp appState = do
             "An error ocurred when trying to query database settings for the config parameters"
           case checkIsFatal e of
             Just hint -> do
-              logPgrstError appState e
+              AppState.logPgrstError appState e
               AppState.logWithZTime appState hint
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
-              logPgrstError appState e
+              AppState.logPgrstError appState e
           pure []
         Right x -> pure x
     else
@@ -336,6 +333,3 @@ reachMainApp AppConfig{..} =
       try $ do
         connect sock $ addrAddress addr
         withSocketsDo $ bracket (pure sock) close sendEmpty
-
-logPgrstError :: AppState -> SQL.UsageError -> IO ()
-logPgrstError appState e = AppState.logWithZTime appState . T.decodeUtf8 . LBS.toStrict $ errorPayload $ PgError False e
