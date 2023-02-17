@@ -76,6 +76,7 @@ data AppState = AppState
   , stateMainThreadId             :: ThreadId
   -- | Keeps track of when the next retry for connecting to database is scheduled
   , stateRetryNextIn              :: IORef Int
+  -- | Logs a pool error with a debounce
   , debounceLogAcquisitionTimeout :: IO ()
   }
 
@@ -105,7 +106,7 @@ initWithPool pool conf = do
     mkDebounce defaultDebounceSettings
        { debounceAction =  logPgrstError appState SQL.AcquisitionTimeoutUsageError
        , debounceFreq = 5*oneSecond
-       , debounceEdge = trailingEdge
+       , debounceEdge = leadingEdge -- logs at the start and the end
        }
 
   return appState { debounceLogAcquisitionTimeout = deb }

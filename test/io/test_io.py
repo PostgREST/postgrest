@@ -572,6 +572,16 @@ def test_pool_acquisition_timeout(defaultenv, metapostgrest):
         data = response.json()
         assert data["message"] == "Timed out acquiring connection from connection pool."
 
+        # ensure the message appears on the logs as well
+        output = None
+        for _ in range(10):
+            output = postgrest.process.stdout.readline()
+            if output:
+                break
+            time.sleep(0.1)
+
+        assert "Timed out acquiring connection from connection pool." in output.decode()
+
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"

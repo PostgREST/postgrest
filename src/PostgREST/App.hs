@@ -169,7 +169,6 @@ runDbHandler appState mode authenticated prepared handler = do
 
   liftEither resp
 
-
 handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
 handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
