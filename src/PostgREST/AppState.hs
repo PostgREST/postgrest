@@ -104,7 +104,7 @@ initWithPool pool conf = do
   deb <-
     let oneSecond = 1000000 in
     mkDebounce defaultDebounceSettings
-       { debounceAction =  logPgrstError appState SQL.AcquisitionTimeoutUsageError
+       { debounceAction = logPgrstError appState SQL.AcquisitionTimeoutUsageError
        , debounceFreq = 5*oneSecond
        , debounceEdge = leadingEdge -- logs at the start and the end
        }
