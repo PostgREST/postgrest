@@ -46,8 +46,8 @@ import Protolude
 
 
 data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: Text
+  { claims :: KM.KeyMap JSON.Value
+  , rol    :: Text
   }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
@@ -79,8 +79,8 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON role)
-           , authRole = role
+           { claims = mclaims & KM.insert "role" (JSON.toJSON role)
+           , rol = role
            }
   where
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
@@ -93,7 +93,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     unquoted (JSON.String t) = t
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
+parseClaims _ _ = return AuthResult { claims = KM.empty, rol = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
@@ -118,4 +118,4 @@ getResult :: Wai.Request -> Maybe (Either Error AuthResult)
 getResult = Vault.lookup authResultKey . Wai.vault
 
 getRole :: Wai.Request -> Maybe Text
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+getRole req = rol <$> (rightToMaybe =<< getResult req)

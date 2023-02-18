@@ -9,8 +9,9 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards     #-}
 module PostgREST.App
   ( SignalHandlerInstaller
   , SocketRunner
@@ -47,7 +48,7 @@ import qualified PostgREST.Workers          as Workers
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    Mutation (..), Target (..))
 import PostgREST.AppState         (AppState)
-import PostgREST.Auth             (AuthResult (..))
+import PostgREST.Auth             (AuthResult)
 import PostgREST.Config           (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion (PgVersion (..))
 import PostgREST.Error            (Error)
@@ -136,7 +137,7 @@ postgrestResponse
   -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer authResult req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -151,7 +152,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer aut
       ApiRequest.userApiRequest conf sCache req body
 
   Response.optionalRollback conf apiRequest $
-    handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest sCache
+    handleRequest authResult conf appState (Just authResult.rol /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest sCache
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
@@ -170,7 +171,7 @@ runDbHandler appState mode authenticated prepared handler = do
   liftEither resp
 
 handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
+handleRequest authResult conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       rPlan <- liftEither $ Plan.readPlan identifier conf sCache apiReq
@@ -222,5 +223,5 @@ handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer 
   where
     runQuery mode query =
       runDbHandler appState mode authenticated prepared $ do
-        Query.setPgLocals conf authClaims authRole apiReq jsonDbS pgVer
+        Query.setPgLocals conf authResult.claims authResult.rol apiReq jsonDbS pgVer
         query
