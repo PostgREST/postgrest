@@ -48,7 +48,6 @@ import qualified PostgREST.Workers          as Workers
 import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    Mutation (..), Target (..))
 import PostgREST.AppState         (AppState)
-import PostgREST.Auth             (AuthResult)
 import PostgREST.Config           (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion (PgVersion (..))
 import PostgREST.Error            (Error)
@@ -104,7 +103,7 @@ postgrest logLevel appState connWorker =
   Auth.middleware appState .
   Logger.middleware logLevel $
     -- fromJust can be used, because the auth middleware will **always** add
-    -- some AuthResult to the vault.
+    -- some Auth.Result to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
       Left err -> respond $ Error.errorResponseFor err
       Right authResult -> do
@@ -134,7 +133,7 @@ postgrestResponse
   -> Maybe SchemaCache
   -> ByteString
   -> PgVersion
-  -> AuthResult
+  -> Auth.Result
   -> Wai.Request
   -> Handler IO Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer authResult req = do
@@ -170,7 +169,7 @@ runDbHandler appState mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
+handleRequest :: Auth.Result -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
 handleRequest authResult conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
