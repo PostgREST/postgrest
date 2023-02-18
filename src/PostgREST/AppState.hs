@@ -1,20 +1,17 @@
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE MultiWayIf          #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE NoFieldSelectors    #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards     #-}
 
 module PostgREST.AppState
-  ( AppState
+  ( AppState (..)
   , destroy
   , getConfig
   , getSchemaCache
-  , getMainThreadId
   , getPgVersion
   , getRetryNextIn
-  , getTime
-  , getJwtCache
-  , getSocketREST
-  , getSocketAdmin
   , init
   , initSockets
   , initWithPool
@@ -22,9 +19,7 @@ module PostgREST.AppState
   , putPgVersion
   , usePool
   , reReadConfig
-  , connectionWorker
   , runListener
-  , getObserver
   , isLoaded
   , isPending
   ) where
@@ -82,37 +77,37 @@ import Protolude
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool                 :: SQL.Pool
+  { pool                      :: SQL.Pool
   -- | Database server version, will be updated by the connectionWorker
-  , statePgVersion            :: IORef PgVersion
+  , pgVersion                 :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
-  , stateSchemaCache          :: IORef (Maybe SchemaCache)
+  , schemaCache               :: IORef (Maybe SchemaCache)
   -- | The schema cache status
-  , stateSCacheStatus         :: IORef SchemaCacheStatus
+  , sCacheStatus              :: IORef SchemaCacheStatus
   -- | The connection status
-  , stateConnStatus           :: IORef ConnectionStatus
+  , connStatus                :: IORef ConnectionStatus
   -- | State of the LISTEN channel
-  , stateIsListenerOn         :: IORef Bool
+  , isListenerOn              :: IORef Bool
   -- | starts the connection worker with a debounce
   , debouncedConnectionWorker :: IO ()
   -- | Config that can change at runtime
-  , stateConf                 :: IORef AppConfig
+  , conf                      :: IORef AppConfig
   -- | Time used for verifying JWT expiration
-  , stateGetTime              :: IO UTCTime
+  , getTime                   :: IO UTCTime
   -- | Used for killing the main thread in case a subthread fails
-  , stateMainThreadId         :: ThreadId
+  , mainThreadId              :: ThreadId
   -- | Keeps track of when the next retry for connecting to database is scheduled
-  , stateRetryNextIn          :: IORef Int
+  , retryNextIn               :: IORef Int
   -- | JWT Cache
   , jwtCache                  :: C.Cache ByteString Auth.Result
   -- | Network socket for REST API
-  , stateSocketREST           :: NS.Socket
+  , socketREST                :: NS.Socket
   -- | Network socket for the admin UI
-  , stateSocketAdmin          :: Maybe NS.Socket
+  , socketAdmin               :: Maybe NS.Socket
   -- | Observation handler
-  , stateObserver             :: ObservationHandler
-  , stateLogger               :: Logger.LoggerState
-  , stateMetrics              :: Metrics.MetricsState
+  , observer                  :: ObservationHandler
+  , logger                    :: Logger.LoggerState
+  , metrics                   :: Metrics.MetricsState
   }
 
 -- | Schema cache status
@@ -139,7 +134,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
-  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
+  pure state' { socketREST = sock, socketAdmin = adminSock}
 
 initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
@@ -221,10 +216,10 @@ initPool AppConfig{..} observer =
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} sess = do
+usePool appState@AppState{observer=observer, mainThreadId=mainThreadId} sess = do
   observer PoolRequest
 
-  res <- SQL.use statePool sess
+  res <- SQL.use appState.pool sess
 
   observer PoolRequestFullfilled
 
@@ -278,101 +273,80 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool appState = SQL.release appState.pool
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = SQL.release statePool
+destroyPool appState = SQL.release appState.pool
 
 getPgVersion :: AppState -> IO PgVersion
-getPgVersion = readIORef . statePgVersion
+getPgVersion appState = readIORef appState.pgVersion
 
 putPgVersion :: AppState -> PgVersion -> IO ()
-putPgVersion = atomicWriteIORef . statePgVersion
+putPgVersion appState = atomicWriteIORef appState.pgVersion
 
 getSchemaCache :: AppState -> IO (Maybe SchemaCache)
-getSchemaCache = readIORef . stateSchemaCache
+getSchemaCache appState = readIORef appState.schemaCache
 
 putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
-putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
-
-connectionWorker :: AppState -> IO ()
-connectionWorker = debouncedConnectionWorker
+putSchemaCache appState = atomicWriteIORef appState.schemaCache
 
 getRetryNextIn :: AppState -> IO Int
-getRetryNextIn = readIORef . stateRetryNextIn
+getRetryNextIn appState = readIORef appState.retryNextIn
 
 putRetryNextIn :: AppState -> Int -> IO ()
-putRetryNextIn = atomicWriteIORef . stateRetryNextIn
+putRetryNextIn appState = atomicWriteIORef appState.retryNextIn
 
 getConfig :: AppState -> IO AppConfig
-getConfig = readIORef . stateConf
+getConfig appState = readIORef appState.conf
 
 putConfig :: AppState -> AppConfig -> IO ()
-putConfig = atomicWriteIORef . stateConf
-
-getTime :: AppState -> IO UTCTime
-getTime = stateGetTime
-
-getJwtCache :: AppState -> C.Cache ByteString Auth.Result
-getJwtCache = jwtCache
-
-getSocketREST :: AppState -> NS.Socket
-getSocketREST = stateSocketREST
-
-getSocketAdmin :: AppState -> Maybe NS.Socket
-getSocketAdmin = stateSocketAdmin
-
-getMainThreadId :: AppState -> ThreadId
-getMainThreadId = stateMainThreadId
+putConfig appState = atomicWriteIORef appState.conf
 
 getIsListenerOn :: AppState -> IO Bool
 getIsListenerOn appState = do
   AppConfig{..} <- getConfig appState
   if configDbChannelEnabled then
-    readIORef $ stateIsListenerOn appState
+    readIORef appState.isListenerOn
   else
     pure True
 
 putIsListenerOn :: AppState -> Bool -> IO ()
-putIsListenerOn = atomicWriteIORef . stateIsListenerOn
+putIsListenerOn appState = atomicWriteIORef appState.isListenerOn
 
 isConnEstablished :: AppState -> IO Bool
-isConnEstablished x = do
-  conf <- getConfig x
+isConnEstablished appState = do
+  conf <- getConfig appState
   if configDbChannelEnabled conf
     then do -- if the listener is enabled, we can be sure the connection status is always up to date
-      st <- readIORef $ stateConnStatus x
+      st <- readIORef appState.connStatus
       return $ st == ConnEstablished
     else    -- otherwise the only way to check the connection is to make a query
-      isRight <$> usePool x (SQL.sql "SELECT 1")
+      isRight <$> usePool appState (SQL.sql "SELECT 1")
 
 isLoaded :: AppState -> IO Bool
-isLoaded x = do
-  scacheStatus <- readIORef $ stateSCacheStatus x
-  connEstablished <- isConnEstablished x
-  listenerOn <- getIsListenerOn x
+isLoaded appState = do
+  scacheStatus <- readIORef appState.sCacheStatus
+  connEstablished <- isConnEstablished appState
+  listenerOn <- getIsListenerOn appState
   return $ scacheStatus == SCLoaded && connEstablished && listenerOn
 
 isPending :: AppState -> IO Bool
-isPending x = do
-  scacheStatus <- readIORef $ stateSCacheStatus x
-  connStatus <- readIORef $ stateConnStatus x
-  listenerOn <- getIsListenerOn x
+isPending appState = do
+  scacheStatus <- readIORef appState.sCacheStatus
+  connStatus <- readIORef appState.connStatus
+  listenerOn <- getIsListenerOn appState
   return $ scacheStatus == SCPending || connStatus == ConnPending || not listenerOn
 
 putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
-putSCacheStatus = atomicWriteIORef . stateSCacheStatus
+putSCacheStatus appState = atomicWriteIORef appState.sCacheStatus
 
 putConnStatus :: AppState -> ConnectionStatus -> IO ()
-putConnStatus = atomicWriteIORef . stateConnStatus
-
-getObserver :: AppState -> ObservationHandler
-getObserver = stateObserver
+putConnStatus appState = atomicWriteIORef appState.connStatus
 
 -- | Load the SchemaCache by using a connection from the pool.
 loadSchemaCache :: AppState -> IO SchemaCacheStatus
-loadSchemaCache appState@AppState{stateObserver=observer} = do
+loadSchemaCache appState@AppState{observer=observer} = do
   conf@AppConfig{..} <- getConfig appState
   (resultTime, result) <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
@@ -407,7 +381,7 @@ loadSchemaCache appState@AppState{stateObserver=observer} = do
 --     program.
 --  3. Obtains the sCache. If this fails, it goes back to 1.
 internalConnectionWorker :: AppState -> IO ()
-internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = work
+internalConnectionWorker appState@AppState{observer=observer, mainThreadId=mainThreadId} = work
   where
     work = do
       AppConfig{..} <- getConfig appState
@@ -456,7 +430,7 @@ retryPolicy = capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
 establishConnection :: AppState -> IO ConnectionStatus
-establishConnection appState@AppState{stateObserver=observer} =
+establishConnection appState@AppState{observer=observer} =
   retrying retryPolicy shouldRetry $
     const $ flushPool appState >> getConnectionStatus
   where
@@ -485,7 +459,7 @@ establishConnection appState@AppState{stateObserver=observer} =
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()
-reReadConfig startingUp appState@AppState{stateObserver=observer} = do
+reReadConfig startingUp appState@AppState{observer=observer} = do
   AppConfig{..} <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -532,7 +506,7 @@ runListener appState = do
 -- TODO Once the listen channel is recovered, the retry status is not reset. So if the last backoff was 4 seconds, the next time recovery kicks in the backoff will be 8 seconds.
 -- This is because `Hasql.Notifications.waitForNotifications` uses a forever loop that only finishes when it throws an exception.
 retryingListen :: AppState -> IO ()
-retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = do
+retryingListen appState@AppState{observer=observer, mainThreadId=mainThreadId} = do
   AppConfig{..} <- getConfig appState
   let
     dbChannel = toS configDbChannel
@@ -566,7 +540,7 @@ retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainT
 
         when (rsIterNumber > 0) $ do
           -- once we can LISTEN again, we might have lost schema cache notificacions, so reload
-          connectionWorker appState
+          appState.debouncedConnectionWorker
 
         tryRethrow $ SQL.waitForNotifications handleNotification conn
 
@@ -586,4 +560,4 @@ retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainT
     cacheReloader =
       -- reloads the schema cache + restarts pool connections
       -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
-      connectionWorker appState
+      appState.debouncedConnectionWorker

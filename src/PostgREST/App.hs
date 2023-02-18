@@ -41,7 +41,7 @@ import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
+import PostgREST.AppState             (AppState (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
@@ -62,28 +62,28 @@ type Handler = ExceptT Error
 
 run :: AppState -> IO ()
 run appState = do
-  let observer = AppState.getObserver appState
+  let observer = appState.observer
   conf@AppConfig{..} <- AppState.getConfig appState
 
   observer $ AppStartObs prettyVersion
 
-  AppState.connectionWorker appState -- Loads the initial SchemaCache
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
+  appState.debouncedConnectionWorker -- Loads the initial SchemaCache
+  Unix.installSignalHandlers appState.mainThreadId appState.debouncedConnectionWorker (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
   AppState.runListener appState
 
   Admin.runAdmin appState (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.connectionWorker appState)
+  let app = postgrest configLogLevel appState appState.debouncedConnectionWorker
 
   case configServerUnixSocket of
     Just path -> do
       observer $ AppServerUnixObs path
     Nothing   -> do
-      port <- NS.socketPort $ AppState.getSocketREST appState
+      port <- NS.socketPort appState.socketREST
       observer $ AppServerPortObs port
 
-  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
+  Warp.runSettingsSocket (serverSettings conf) appState.socketREST app
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =

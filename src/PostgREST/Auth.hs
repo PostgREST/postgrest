@@ -45,7 +45,7 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, getConfig, getJwtCache, getTime)
+import PostgREST.AppState (AppState (..), getConfig)
 import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
 import PostgREST.Error    (Error (..))
 
@@ -107,7 +107,7 @@ parseClaims _ _ = return Result { claims = KM.empty, role = mempty }
 middleware :: AppState -> Wai.Middleware
 middleware appState app req respond = do
   conf <- getConfig appState
-  time <- getTime appState
+  time <- appState.getTime
 
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
@@ -136,11 +136,11 @@ middleware appState app req respond = do
 -- | Used to retrieve and insert JWT to JWT Cache
 getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error Result) -> UTCTime -> IO (Either Error Result)
 getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
+  checkCache <- C.lookup appState.jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
   case (authResult,checkCache) of
-    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    (Right res, Nothing) -> C.insert' appState.jwtCache (getTimeSpec res maxLifetime utc) token res
     _                    -> pure ()
 
   return authResult
