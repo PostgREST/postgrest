@@ -10,7 +10,8 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards     #-}
 module PostgREST.Auth
   ( AuthResult (..)
   , getResult
@@ -81,8 +82,8 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
-           , authRole = role
+           { claims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
+           , role = role
            }
   where
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
@@ -95,7 +96,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     unquoted (JSON.String t) = encodeUtf8 t
     unquoted v               = LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
+parseClaims _ _ = return AuthResult { claims = KM.empty, role = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
@@ -142,8 +143,8 @@ getJWTFromCache appState token maxLifetime parseJwt utc = do
 
 -- Used to extract JWT exp claim and add to JWT Cache
 getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
+getTimeSpec authResult maxLifetime utc = do
+  let expireJSON = KM.lookup "exp" authResult.claims
       utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
   case expireJSON of
@@ -165,4 +166,4 @@ getJwtDur :: Wai.Request -> Maybe Double
 getJwtDur =  Vault.lookup jwtDurKey . Wai.vault
 
 getRole :: Wai.Request -> Maybe BS.ByteString
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+getRole req = role <$> (rightToMaybe =<< getResult req)

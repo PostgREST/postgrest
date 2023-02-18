@@ -82,8 +82,8 @@ import Data.String            (IsString (..))
 import Protolude
 
 data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: BS.ByteString
+  { claims :: KM.KeyMap JSON.Value
+  , role   :: BS.ByteString
   }
 
 data AppState = AppState
