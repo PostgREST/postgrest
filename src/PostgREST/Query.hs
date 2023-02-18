@@ -23,6 +23,7 @@ import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.ApiRequest.Types   as ApiRequestTypes
 import qualified PostgREST.AppState           as AppState
+import qualified PostgREST.Auth               as Auth
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
@@ -38,7 +39,6 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
-import PostgREST.Auth                    (AuthResult)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
@@ -75,7 +75,7 @@ data QueryResult
   | NoDbResult    InfoPlan
 
 -- TODO This function needs to be free from IO, only App.hs should do IO
-runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
+runQuery :: AppState.AppState -> AppConfig -> Auth.Result -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
 runQuery _ _ _ _ (NoDb x) _ _ _ = pure $ NoDbResult x
 runQuery appState config authResult apiReq (Db plan) sCache pgVer authenticated = do
   dbResp <- lift $ do

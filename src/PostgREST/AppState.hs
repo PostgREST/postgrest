@@ -5,7 +5,6 @@
 
 module PostgREST.AppState
   ( AppState
-  , AuthResult(..)
   , destroy
   , getConfig
   , getSchemaCache
@@ -30,8 +29,6 @@ module PostgREST.AppState
   , isPending
   ) where
 
-import qualified Data.Aeson                 as JSON
-import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
@@ -50,6 +47,8 @@ import qualified PostgREST.Metrics          as Metrics
 import           PostgREST.Observation
 import           PostgREST.Version          (prettyVersion)
 import           System.TimeIt              (timeItT)
+
+import {-# SOURCE #-} qualified PostgREST.Auth as Auth (Result)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -81,11 +80,6 @@ import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
 import Protolude
 
-data AuthResult = AuthResult
-  { claims :: KM.KeyMap JSON.Value
-  , role   :: BS.ByteString
-  }
-
 data AppState = AppState
   -- | Database connection pool
   { statePool                 :: SQL.Pool
@@ -110,7 +104,7 @@ data AppState = AppState
   -- | Keeps track of when the next retry for connecting to database is scheduled
   , stateRetryNextIn          :: IORef Int
   -- | JWT Cache
-  , jwtCache                  :: C.Cache ByteString AuthResult
+  , jwtCache                  :: C.Cache ByteString Auth.Result
   -- | Network socket for REST API
   , stateSocketREST           :: NS.Socket
   -- | Network socket for the admin UI
@@ -320,7 +314,7 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCache :: AppState -> C.Cache ByteString AuthResult
+getJwtCache :: AppState -> C.Cache ByteString Auth.Result
 getJwtCache = jwtCache
 
 getSocketREST :: AppState -> NS.Socket

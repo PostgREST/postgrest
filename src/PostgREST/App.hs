@@ -42,7 +42,6 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
-import PostgREST.Auth                 (AuthResult)
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
@@ -101,7 +100,7 @@ postgrest logLevel appState connWorker =
   Auth.middleware appState .
   Logger.middleware logLevel Auth.getRole $
     -- fromJust can be used, because the auth middleware will **always** add
-    -- some AuthResult to the vault.
+    -- some Auth.Result to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
       Left err -> respond $ Error.errorResponseFor err
       Right authResult -> do
@@ -129,7 +128,7 @@ postgrestResponse
   -> AppConfig
   -> Maybe SchemaCache
   -> PgVersion
-  -> AuthResult
+  -> Auth.Result
   -> Wai.Request
   -> Handler IO Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult req = do
