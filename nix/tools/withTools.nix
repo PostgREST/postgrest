@@ -54,6 +54,7 @@ let
         export PGUSER
         export PGDATABASE
         export PGRST_DB_SCHEMAS
+        export PGTZ
 
         HBA_FILE="$tmpdir/pg_hba.conf"
         echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
@@ -67,7 +68,7 @@ let
 
         log "Starting the database cluster..."
         # Instead of listening on a local port, we will listen on a unix domain socket.
-        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" -c timezone=utc" \
+        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
           >> "$setuplog"
 
         # shellcheck disable=SC2317
