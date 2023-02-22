@@ -82,13 +82,12 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _) =
-  "WITH " <> normalizedBody body <> " " <>
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
-  pgFmtSelectFromJson iCols <>
+  fromJsonBodyF body iCols True False <>
   -- Only used for PUT
-  (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "_") <$> putConditions)) <>
+  (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
   SQL.sql (BS.unwords [
-    maybe "" (\(oncDo, oncCols) ->
+    maybe mempty (\(oncDo, oncCols) ->
       if null oncCols then
         mempty
       else
@@ -114,15 +113,14 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
     SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
   | range == allRange =
-    "WITH " <> normalizedBody body <> " " <>
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    "FROM (" <> pgFmtSelectFromJson uCols <> ") AS _ " <>
+    fromJsonBodyF body uCols False False <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
-    "WITH " <> normalizedBody body <> ", " <>
-    "pgrst_update_body AS (" <> pgFmtSelectFromJson uCols <> " LIMIT 1), " <>
+    "WITH " <>
+    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True <> "), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
@@ -138,7 +136,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = SQL.sql (fromQi mainQi)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = _." <> pgFmtIdent . tfName <$> uCols)
+    nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
@@ -167,50 +165,26 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
-  prmsCTE <> argsBody
+  "SELECT " <> (if returnsScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
+  fromCall
   where
-    (prmsCTE, argFrag) = case params of
-      OnePosParam prm -> ("WITH pgrst_args AS (SELECT NULL)", singleParameter args (encodeUtf8 $ ppType prm))
-      KeyParams []    -> (mempty, mempty)
-      KeyParams prms  -> (
-          "WITH " <> normalizedBody args <> ", " <>
-          SQL.sql (
-            BS.unwords [
-            "pgrst_args AS (",
-              "SELECT * FROM json_to_recordset(" <> selectBody <> ") AS _(" <> fmtParams prms (const mempty) (\a -> " " <> encodeUtf8 (ppType a)) <> ")",
-            ")"])
-         , SQL.sql $ if multipleCall
-             then fmtParams prms varadicPrefix (\a -> " := pgrst_args." <> pgFmtIdent (ppName a))
-             else fmtParams prms varadicPrefix (\a -> " := (SELECT " <> pgFmtIdent (ppName a) <> " FROM pgrst_args LIMIT 1)")
-        )
+    fromCall = case params of
+      OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
+      KeyParams []    -> "FROM " <> callIt mempty
+      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p)) <$> prms) False (not multipleCall) <> ", " <>
+                         "LATERAL " <> callIt (fmtParams prms)
 
-    fmtParams :: [ProcParam] -> (ProcParam -> SqlFragment) -> (ProcParam -> SqlFragment) -> SqlFragment
-    fmtParams prms prmFragPre prmFragSuf = BS.intercalate ", "
-      ((\a -> prmFragPre a <> pgFmtIdent (ppName a) <> prmFragSuf a) <$> prms)
+    callIt :: SQL.Snippet -> SQL.Snippet
+    callIt argument = SQL.sql (fromQi qi) <> "(" <> argument <> ") pgrst_call"
 
-    varadicPrefix :: ProcParam -> SqlFragment
-    varadicPrefix a = if ppVar a then "VARIADIC " else mempty
-
-    argsBody :: SQL.Snippet
-    argsBody
-      | multipleCall =
-          if returnsScalar
-            then "SELECT " <> callIt <> " AS pgrst_scalar FROM pgrst_args"
-            else "SELECT pgrst_lat_args.* FROM pgrst_args, " <>
-                 "LATERAL ( SELECT " <> returnedColumns <> " FROM " <> callIt <> " ) pgrst_lat_args"
-      | otherwise =
-          if returnsScalar
-            then "SELECT " <> callIt <> " AS pgrst_scalar"
-            else "SELECT " <> returnedColumns <> " FROM " <> callIt
-
-    callIt :: SQL.Snippet
-    callIt = SQL.sql (fromQi qi) <> "(" <> argFrag <> ")"
+    fmtParams :: [ProcParam] -> SQL.Snippet
+    fmtParams prms = SQL.sql $ BS.intercalate ", "
+      ((\a -> (if ppVar a then "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
 
     returnedColumns :: SQL.Snippet
     returnedColumns
       | null returnings = "*"
-      | otherwise       = SQL.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName qi) <$> returnings)
-
+      | otherwise       = SQL.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnings)
 
 -- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
