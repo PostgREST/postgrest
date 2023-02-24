@@ -60,7 +60,9 @@ let
 
         # shellcheck disable=SC2145
         ${withTools.withPg} --fixtures "$_arg_testdir"/fixtures.sql \
+        ${withTools.withSlowPg} \
         ${withTools.withPgrst} \
+        ${withTools.withSlowPgrst} \
         sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
         ${vegeta}/bin/vegeta report -type=text "$_arg_output"
       '';

@@ -8,6 +8,7 @@
 , lib
 , postgresqlVersions
 , postgrest
+, slocat
 , writeText
 }:
 let
@@ -136,6 +137,81 @@ let
   withPgVersions = builtins.map withTmpDb postgresqlVersions;
 
   withPg = builtins.head withPgVersions;
+
+  withSlowPg =
+    checkedShellScript
+      {
+        name = "postgrest-with-slow-pg";
+        docs = "Run the given command with simulated high latency postgresql";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_USE_ENV([PGHOST], [], [PG host (socket name)])"
+            "ARG_USE_ENV([PGDELAY], [0ms], [extra PG latency (duration)])"
+          ];
+        positionalCompletion = "_command";
+        inRootDir = true;
+        redirectTixFiles = false;
+        withTmpDir = true;
+      }
+      ''
+        delay="''${PGDELAY:-0ms}"
+        echo "delaying data to/from postgres by $delay"
+
+        REALPGHOST="$PGHOST"
+        export PGHOST="$tmpdir/socket"
+        mkdir -p "$PGHOST"
+
+        ${slocat}/bin/slocat -delay "$delay" -src "$PGHOST/.s.PGSQL.5432" -dst "$REALPGHOST/.s.PGSQL.5432" &
+        SLOCAT_PID=$!
+        # shellcheck disable=SC2317
+        stop_slocat() {
+          kill "$SLOCAT_PID" || true
+          wait "$SLOCAT_PID" || true
+        }
+        trap stop_slocat EXIT
+        sleep 1 # should wait for socket file to appear instead
+
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
+
+  withSlowPgrst =
+    checkedShellScript
+      {
+        name = "postgrest-with-slow-postgrest";
+        docs = "Run the given command with simulated high latency postgrest";
+        args =
+          [
+            "ARG_POSITIONAL_SINGLE([command], [Command to run])"
+            "ARG_LEFTOVERS([command arguments])"
+            "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [PostgREST host (socket name)])"
+            "ARG_USE_ENV([PGRST_DELAY], [0ms], [extra PostgREST latency (duration)])"
+          ];
+        positionalCompletion = "_command";
+        inRootDir = true;
+        redirectTixFiles = false;
+        withTmpDir = true;
+      }
+      ''
+        delay="''${PGRST_DELAY:-0ms}"
+        echo "delaying data to/from PostgREST by $delay"
+
+        REAL_PGRST_SERVER_UNIX_SOCKET="$PGRST_SERVER_UNIX_SOCKET"
+        export PGRST_SERVER_UNIX_SOCKET="$tmpdir/postgrest.socket"
+
+        ${slocat}/bin/slocat -delay "$delay" -src "$PGRST_SERVER_UNIX_SOCKET" -dst "$REAL_PGRST_SERVER_UNIX_SOCKET" &
+        SLOCAT_PID=$!
+        # shellcheck disable=SC2317
+        stop_slocat() {
+          kill "$SLOCAT_PID" || true
+          wait "$SLOCAT_PID" || true
+        }
+        trap stop_slocat EXIT
+        sleep 1 # should wait for socket file to appear instead
+
+        ("$_arg_command" "''${_arg_leftovers[@]}")
+      '';
 
   withGit =
     let
@@ -288,7 +364,7 @@ in
 buildToolbox
 {
   name = "postgrest-with";
-  tools = [ withPgAll withGit withPgrst ] ++ withPgVersions;
+  tools = [ withPgAll withGit withPgrst withSlowPg withSlowPgrst ] ++ withPgVersions;
   # make withTools available for other nix files
-  extra = { inherit withGit withPg withPgAll withPgrst; };
+  extra = { inherit withGit withPg withPgAll withPgrst withSlowPg withSlowPgrst; };
 }
