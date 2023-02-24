@@ -7,4 +7,5 @@
   postgresql-default = import ./postgresql-default.nix;
   postgresql-legacy = import ./postgresql-legacy.nix;
   postgresql-future = import ./postgresql-future.nix;
+  slocat = import ./slocat.nix;
 }
