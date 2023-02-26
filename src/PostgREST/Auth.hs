@@ -12,7 +12,7 @@ very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
-  ( AuthResult (..)
+  ( Result (..)
   , getResult
   , getRole
   , middleware
@@ -45,9 +45,9 @@ import PostgREST.Error    (Error (..))
 import Protolude
 
 
-data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: Text
+data Result = Result
+  { claims :: KM.KeyMap JSON.Value
+  , rol    :: Text
   }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
@@ -73,14 +73,14 @@ parseToken AppConfig{..} token time = do
     jwtClaimsError e              = JwtTokenInvalid $ show e
 
 parseClaims :: Monad m =>
-  AppConfig -> JSON.Value -> ExceptT Error m AuthResult
+  AppConfig -> JSON.Value -> ExceptT Error m Result
 parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   -- role defaults to anon if not specified in jwt
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
-  return AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON role)
-           , authRole = role
+  return Result
+           { claims = mclaims & KM.insert "role" (JSON.toJSON role)
+           , rol = role
            }
   where
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
@@ -93,7 +93,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     unquoted (JSON.String t) = t
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
+parseClaims _ _ = return Result { claims = KM.empty, rol = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
@@ -110,12 +110,12 @@ middleware appState app req respond = do
   let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
   app req' respond
 
-authResultKey :: Vault.Key (Either Error AuthResult)
+authResultKey :: Vault.Key (Either Error Result)
 authResultKey = unsafePerformIO Vault.newKey
 {-# NOINLINE authResultKey #-}
 
-getResult :: Wai.Request -> Maybe (Either Error AuthResult)
+getResult :: Wai.Request -> Maybe (Either Error Result)
 getResult = Vault.lookup authResultKey . Wai.vault
 
 getRole :: Wai.Request -> Maybe Text
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+getRole req = rol <$> (rightToMaybe =<< getResult req)
