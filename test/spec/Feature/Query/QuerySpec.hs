@@ -933,7 +933,7 @@ spec actualPgVersion = do
       request methodGet "/simple_pk"
               (acceptHdrs "text/unknowntype") ""
         `shouldRespondWith`
-        [json|{"message":"None of these media types are available: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
+        [json|{"message":"None of these media types are available BB: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
         { matchStatus  = 415
         , matchHeaders = [matchContentTypeJson]
         }

@@ -27,6 +27,9 @@ data MediaType
   | MTTextCSV
   | MTTextPlain
   | MTTextXML
+  | MTTextHTML
+  | MTTextCSS
+  | MTTApplicationJS
   | MTOpenAPI
   | MTUrlEncoded
   | MTOctetStream
@@ -43,7 +46,7 @@ data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
 
 data MTPlanFormat
-  = PlanJSON | PlanText
+  = PlanJSON | PlanText | PlanHTML
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -59,13 +62,16 @@ toMime :: MediaType -> ByteString
 toMime MTApplicationJSON = "application/json"
 toMime MTGeoJSON         = "application/geo+json"
 toMime MTTextCSV         = "text/csv"
-toMime MTTextPlain       = "text/plain"
+toMime MTTextPlain       = "*/*"
 toMime MTTextXML         = "text/xml"
+toMime MTTextHTML        = "text/html"
+toMime MTTextCSS         = "text/css"
+toMime MTTApplicationJS  = "application/javascript"
 toMime MTOpenAPI         = "application/openapi+json"
 toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
-toMime MTAny             = "*/*"
+toMime MTAny             = "text/plan"
 toMime (MTOther ct)      = ct
 toMime (MTPlan (MTPlanAttrs mt fmt opts)) =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
@@ -82,6 +88,7 @@ toMimePlanOption PlanWAL      = "wal"
 toMimePlanFormat :: MTPlanFormat -> ByteString
 toMimePlanFormat PlanJSON = "json"
 toMimePlanFormat PlanText = "text"
+toMimePlanFormat PlanHTML = "text"
 
 -- | Convert from ByteString to MediaType. Warning: discards MIME parameters
 decodeMediaType :: BS.ByteString -> MediaType
@@ -90,8 +97,11 @@ decodeMediaType mt =
     "application/json":_                   -> MTApplicationJSON
     "application/geo+json":_               -> MTGeoJSON
     "text/csv":_                           -> MTTextCSV
-    "text/plain":_                         -> MTTextPlain
+    "*/*":_                                -> MTTextPlain
     "text/xml":_                           -> MTTextXML
+    "text/html":_                          -> MTTextHTML
+    "text/css":_                           -> MTTextCSS
+    "application/javascript":_             -> MTTApplicationJS
     "application/openapi+json":_           -> MTOpenAPI
     "application/vnd.pgrst.object+json":_  -> MTSingularJSON
     "application/vnd.pgrst.object":_       -> MTSingularJSON
@@ -100,7 +110,7 @@ decodeMediaType mt =
     "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
     "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
     "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
-    "*/*":_                                -> MTAny
+    "text/plan":_                          -> MTAny
     other:_                                -> MTOther other
     _                                      -> MTAny
   where

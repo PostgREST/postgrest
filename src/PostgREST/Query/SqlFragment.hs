@@ -21,6 +21,7 @@ module PostgREST.Query.SqlFragment
   , limitOffsetF
   , locationF
   , mutRangeF
+  , normalizedBody
   , orderF
   , pgFmtColumn
   , pgFmtIdent
@@ -29,10 +30,11 @@ module PostgREST.Query.SqlFragment
   , pgFmtLogicTree
   , pgFmtOrderTerm
   , pgFmtSelectItem
-  , fromJsonBodyF
+  , pgFmtSelectFromJson
   , responseHeadersF
   , responseStatusF
   , returningF
+  , selectBody
   , singleParameter
   , sourceCTEName
   , unknownEncoder
@@ -119,12 +121,34 @@ ftsOperator = \case
   FilterFtsPhrase    -> "@@ phraseto_tsquery"
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
 
+-- |
+-- These CTEs convert a json object into a json array, this way we can use json_to_recordset for all json payloads
+-- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
+-- We do this in SQL to avoid processing the JSON in application code
+-- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
+normalizedBody :: Maybe LBS.ByteString -> SQL.Snippet
+normalizedBody body =
+  "pgrst_payload AS (SELECT " <> jsonPlaceHolder <> " AS json_data), " <>
+  SQL.sql (BS.unwords [
+    "pgrst_body AS (",
+      "SELECT",
+        "CASE WHEN json_typeof(json_data) = 'array'",
+          "THEN json_data",
+          "ELSE json_build_array(json_data)",
+        "END AS val",
+      "FROM pgrst_payload)"])
+  where
+    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.jsonLazyBytes) body
+
 singleParameter :: Maybe LBS.ByteString -> ByteString -> SQL.Snippet
 singleParameter body typ =
   if typ == "bytea"
     -- TODO: Hasql fails when using HE.unknown with bytea(pg tries to utf8 encode).
     then SQL.encoderAndParam (HE.nullable HE.bytea) (LBS.toStrict <$> body)
     else SQL.encoderAndParam (HE.nullable HE.unknown) (LBS.toStrict <$> body) <> "::" <> SQL.sql typ
+
+selectBody :: SqlFragment
+selectBody = "(SELECT val FROM pgrst_body)"
 
 -- Here we build the pg array literal, e.g '{"Hebdon, John","Other","Another"}', manually.
 -- This is necessary to pass an "unknown" array and let pg infer the type.
@@ -220,29 +244,19 @@ pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQ
 -- Not quoting should be fine, we validate the input on Parsers.
 pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
 
--- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> SQL.Snippet
-fromJsonBodyF body fields includeSelect includeLimitOne =
-  SQL.sql
-  (if includeSelect then "SELECT " <> parsedCols <> " " else mempty) <>
-  "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
-  -- convert a json object into a json array, this way we can use json_to_recordset for all json payloads
-  -- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
-  -- We do this in SQL to avoid processing the JSON in application code
-  "LATERAL (SELECT CASE WHEN json_typeof(pgrst_payload.json_data) = 'array' THEN pgrst_payload.json_data ELSE json_build_array(pgrst_payload.json_data) END AS val) pgrst_uniform_json, " <>
-  "LATERAL (SELECT * FROM " <>
-    (if null fields
-      -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
-      -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
-      -- part). But we still need to ensure as many rows are created as there are array elements.
-      then SQL.sql "json_array_elements(pgrst_uniform_json.val) _ "
-      else SQL.sql ("json_to_recordset(pgrst_uniform_json.val) AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty)
-    ) <>
-  ") pgrst_body "
+pgFmtSelectFromJson :: [TypedField] -> SQL.Snippet
+pgFmtSelectFromJson fields =
+  SQL.sql "SELECT " <> parsedCols <> " " <>
+  (if null fields
+    -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
+    -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
+    -- part). But we still need to ensure as many rows are created as there are array elements.
+    then SQL.sql ("FROM json_array_elements (" <> selectBody <> ") _ ")
+    else SQL.sql ("FROM json_to_recordset (" <> selectBody <> ") AS _ " <> "(" <> typedCols <> ") ")
+  )
   where
-    parsedCols = BS.intercalate ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . tfName <$> fields
+    parsedCols = SQL.sql $ BS.intercalate ", " $ pgFmtIdent . tfName <$> fields
     typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
-    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.jsonLazyBytes) body
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
@@ -402,6 +416,7 @@ explainF fmt opts snip =
 
     fmtPlanFmt PlanJSON = "FORMAT JSON"
     fmtPlanFmt PlanText = "FORMAT TEXT"
+    fmtPlanFmt PlanHTML = "FORMAT TEXT"
 
 -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
 setConfigLocal :: ByteString -> (ByteString, ByteString) -> SQL.Snippet

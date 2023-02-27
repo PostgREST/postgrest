@@ -28,7 +28,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + `PGRST204`: Column is not found
    + `PGRST003`: Timed out when acquiring connection to db
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
- - #1652, Fix function call with arguments not inlining - @steve-chavez
 
 ## [10.1.2] - 2023-02-01
 

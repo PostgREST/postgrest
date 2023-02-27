@@ -120,7 +120,7 @@ instance JSON.ToJSON ApiRequestError where
     "hint"    .= JSON.Null]
   toJSON (MediaTypeError cts)    = JSON.object [
     "code"    .= ApiRequestErrorCode07,
-    "message" .= ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
+    "message" .= ("None of these media types are available AA: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
   toJSON NotFound = JSON.object []

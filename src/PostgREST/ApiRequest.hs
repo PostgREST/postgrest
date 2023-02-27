@@ -332,6 +332,9 @@ apiRequest conf sCache req reqBody queryparams@QueryParams{..} PathInfo{pathName
       let paramsMap = HM.fromList $ (T.decodeUtf8 *** JSON.String . T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody) in
       Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
     (MTTextPlain, True) -> Right $ RawPay reqBody
+    (MTTextHTML, True) -> Right $ RawPay reqBody
+    (MTTextCSS, True) -> Right $ RawPay reqBody
+    (MTTApplicationJS, True) -> Right $ RawPay reqBody
     (MTTextXML, True) -> Right $ RawPay reqBody
     (MTOctetStream, True) -> Right $ RawPay reqBody
     (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
@@ -449,7 +452,7 @@ requestMediaTypes conf action path =
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
       [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf]
-    rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
+    rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextHTML, MTTextCSS, MTTApplicationJS, MTTextXML]
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
@@ -482,8 +485,11 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
       (MTApplicationJSON, "json")  -> True
       (MTApplicationJSON, "jsonb") -> True
       (MTTextPlain, "text")        -> True
-      (MTTextXML, "xml")           -> True
-      (MTOctetStream, "bytea")     -> True
+      (MTTextHTML, "text")         -> True
+      (MTTextXML, "xml")           -> True      
+      (MTTextCSS, "text")         -> True
+      (MTTApplicationJS, "text")         -> True
+      (MTOctetStream, "bytea")     -> True      
       _                            -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
@@ -496,7 +502,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
         then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
+        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextHTML, MTTextCSS, MTTApplicationJS, MTTextXML])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of
@@ -525,10 +531,13 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType target QueryParams{qs
   | otherwise =
       Right Nothing
   where
-    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
+    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `union` [MTOctetStream, MTTextPlain, MTTextHTML, MTTextCSS, MTTApplicationJS, MTTextXML] || isRawPlan acceptMediaType
     isRawPlan mt = case mt of
       MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
       MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
+      MTPlan (MTPlanAttrs (Just MTTextHTML) _ _)    -> True
+      MTPlan (MTPlanAttrs (Just MTTextCSS) _ _)     -> True
+      MTPlan (MTPlanAttrs (Just MTTApplicationJS) _ _)    -> True
       MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
       _                                             -> False
     returnsScalar :: Target -> Bool

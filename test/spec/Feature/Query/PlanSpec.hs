@@ -8,9 +8,7 @@ import Network.Wai.Test (SResponse (..))
 
 import           Data.Aeson.Lens
 import           Data.Aeson.QQ
-import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text            as T
 import           Network.HTTP.Types
 import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
@@ -168,7 +166,10 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then 3.28
+            else 3.33
 
     it "outputs the total cost for an update" $ do
       r <- request methodPatch "/projects?id=eq.3"
@@ -181,7 +182,10 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 12.45
+        totalCost `shouldBe`
+          if actualPgVersion > pgVersion120
+            then 12.45
+            else 12.5
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
@@ -208,7 +212,10 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 1.29
+        totalCost `shouldBe`
+          if actualPgVersion >= pgVersion120
+            then 1.3
+            else 1.35
 
     it "outputs the plan for application/vnd.pgrst.object" $ do
       r <- request methodDelete "/projects?id=eq.6"
@@ -331,7 +338,7 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/get_projects_below?id=3"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 45.4)
+      liftIO $ planCost r `shouldSatisfy` (< 36.4)
 
     it "should not exceed cost when calling setof composite proc with empty params" $ do
       r <- request methodGet "/rpc/getallprojects"
@@ -359,29 +366,6 @@ spec actualPgVersion = do
                [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |]
 
         liftIO $ planCost r `shouldSatisfy` (< 5.85)
-
-    context "function inlining" $ do
-      it "should inline a zero argument function" $ do
-        r <- request methodGet "/rpc/getallusers?id=eq.1"
-               [(hAccept, "application/vnd.pgrst.plan")] ""
-
-        let resBody = simpleBody r
-
-        liftIO $ do
-          resBody `shouldSatisfy` (
-            if actualPgVersion >= pgVersion120
-              then (\t -> T.isInfixOf "Index Scan using users_pkey on users" (decodeUtf8 $ BS.toStrict t))
-              else (\t -> T.isInfixOf "Seq Scan on users" (decodeUtf8 $ BS.toStrict t)))
-
-      it "should inline a function with arguments" $ do
-        r <- request methodGet "/rpc/getitemrange?min=10&max=15"
-               [(hAccept, "application/vnd.pgrst.plan")] ""
-
-        let resBody = simpleBody r
-
-        liftIO $ do
-          -- a Seq Scan ensures the function is inlined as the plan uses the underlying table
-          resBody `shouldSatisfy` (\t -> T.isInfixOf "Seq Scan on items" (decodeUtf8 $ BS.toStrict t))
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
