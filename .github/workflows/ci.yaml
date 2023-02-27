@@ -499,7 +499,7 @@ jobs:
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Remove uploaded files from server
         uses: appleboy/ssh-action@master
         with:
