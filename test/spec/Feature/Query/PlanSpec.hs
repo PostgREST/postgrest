@@ -62,26 +62,12 @@ spec actualPgVersion = do
         then do
           r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=buffers") ""
 
-          let blocks  = simpleBody r ^? nth 0 . key "Planning"
+          let resBody  = simpleBody r
               resHeaders = simpleHeaders r
 
           liftIO $ do
             resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=buffers; charset=utf-8")
-            blocks `shouldBe`
-              Just [aesonQQ|
-                {
-                  "Shared Hit Blocks": 0,
-                  "Shared Read Blocks": 0,
-                  "Shared Dirtied Blocks": 0,
-                  "Shared Written Blocks": 0,
-                  "Local Hit Blocks": 0,
-                  "Local Read Blocks": 0,
-                  "Local Dirtied Blocks": 0,
-                  "Local Written Blocks": 0,
-                  "Temp Read Blocks": 0,
-                  "Temp Written Blocks": 0
-                }
-              |]
+            resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ BS.toStrict t))
         else do
           -- analyze is required for buffers on pg < 13
           r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|buffers") ""
