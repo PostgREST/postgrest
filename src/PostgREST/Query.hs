@@ -9,6 +9,7 @@ module PostgREST.Query
   , singleUpsertQuery
   , updateQuery
   , setPgLocals
+  , runPreReq
   , DbHandler
   ) where
 
@@ -232,14 +233,13 @@ optionalRollback AppConfig{..} ApiRequest{..} = do
     shouldRollback =
       configDbTxAllowOverride && iPreferTransaction == Just Rollback
 
--- | Runs local(transaction scoped) GUCs for every request, plus the pre-request function
-setPgLocals :: AppConfig   -> KM.KeyMap JSON.Value -> Text ->
-               ApiRequest  -> ByteString -> PgVersion -> DbHandler ()
-setPgLocals conf claims role req jsonDbS actualPgVersion = do
-  lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
+-- | Runs local (transaction scoped) GUCs for every request.
+setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> Text ->
+               ApiRequest -> ByteString -> PgVersion -> DbHandler ()
+setPgLocals conf claims role req jsonDbS actualPgVersion = lift $
+  SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
     HD.noResult (configDbPreparedStatements conf)
-  lift $ traverse_ SQL.sql preReqSql
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
     pathSql = setConfigLocal mempty ("request.path", iPath req)
@@ -257,7 +257,6 @@ setPgLocals conf claims role req jsonDbS actualPgVersion = do
     searchPathSql =
       let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath conf) in
       setConfigLocal mempty ("search_path", schemas)
-    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
     specSql = case iTarget req of
       TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
       _                             -> mempty
@@ -269,3 +268,9 @@ setPgLocals conf claims role req jsonDbS actualPgVersion = do
       toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
     unquoted (JSON.Bool b) = show b
     unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
+
+-- | Runs the pre-request function.
+runPreReq :: AppConfig -> DbHandler ()
+runPreReq conf = lift $ traverse_ SQL.sql preReqSql
+  where
+    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf

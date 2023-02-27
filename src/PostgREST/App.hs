@@ -223,4 +223,5 @@ handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer 
     runQuery mode query =
       runDbHandler appState mode authenticated prepared $ do
         Query.setPgLocals conf authClaims authRole apiReq jsonDbS pgVer
+        Query.runPreReq conf
         query
