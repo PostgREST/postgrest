@@ -20,6 +20,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Allows doing an anti join, e.g. `/projects?select=*,clients(*)&clients=is.null`
    + Allows using or across related tables conditions
  - #1100, Customizable OpenAPI title - @AnthonyFisi
+ - #2506, Add `server-trace-header` for tracing HTTP requests.  - @steve-chavez
+   + When the client sends the request header specified in the config it will be included in the response headers.
 
 ### Fixed
 

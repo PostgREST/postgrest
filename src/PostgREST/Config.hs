@@ -32,6 +32,7 @@ import qualified Data.Aeson             as JSON
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base64 as B64
 import qualified Data.ByteString.Lazy   as LBS
+import qualified Data.CaseInsensitive   as CI
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
@@ -93,6 +94,7 @@ data AppConfig = AppConfig
   , configRawMediaTypes            :: [MediaType]
   , configServerHost               :: Text
   , configServerPort               :: Int
+  , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
@@ -150,6 +152,7 @@ toText conf =
       ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . fmap toMime . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
+      ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
@@ -247,6 +250,7 @@ parser optPath env dbSettings =
     <*> (maybe [] (fmap (MTOther . encodeUtf8) . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
+    <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> optInt "admin-server-port"

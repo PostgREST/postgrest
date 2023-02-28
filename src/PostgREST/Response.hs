@@ -14,12 +14,14 @@ module PostgREST.Response
   , addRetryHint
   , isServiceUnavailable
   , optionalRollback
+  , traceHeaderMiddleware
   ) where
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.HashMap.Strict       as HM
+import qualified Data.List                 as L
 import           Data.Text.Read            (decimal)
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
@@ -291,3 +293,11 @@ addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
   filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
   initialHeaders
+
+traceHeaderMiddleware :: AppConfig -> Wai.Middleware
+traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =
+  case configServerTraceHeader of
+    Nothing -> app req respond
+    Just hdr ->
+      let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
+      app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
