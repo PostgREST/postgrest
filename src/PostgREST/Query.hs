@@ -23,6 +23,8 @@ import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.Encoders                    as HE
+import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
 import qualified PostgREST.Error              as Error
@@ -268,6 +270,10 @@ setPgLocals conf claims role req actualPgVersion = lift $
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()
-runPreReq conf = lift $ traverse_ SQL.sql preReqSql
+runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
   where
-    preReqSql = (\f -> "select " <> fromQi f <> "();") <$> configDbPreRequest conf
+    stmt req = SQL.Statement
+      ("select " <> fromQi req <> "()")
+      HE.noParams
+      HD.noResult
+      (configDbPreparedStatements conf)
