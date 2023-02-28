@@ -48,7 +48,7 @@ import PostgREST.ApiRequest       (Action (..), ApiRequest (..),
                                    Mutation (..), Target (..))
 import PostgREST.AppState         (AppState)
 import PostgREST.Auth             (AuthResult (..))
-import PostgREST.Config           (AppConfig (..), LogLevel (..))
+import PostgREST.Config           (AppConfig (..))
 import PostgREST.Config.PgVersion (PgVersion (..))
 import PostgREST.Error            (Error)
 import PostgREST.Query            (DbHandler)
@@ -73,7 +73,7 @@ run installHandlers maybeRunWithSocket appState = do
 
   Workers.runAdmin conf appState $ serverSettings conf
 
-  let app = postgrest configLogLevel appState (Workers.connectionWorker appState)
+  let app = postgrest conf appState (Workers.connectionWorker appState)
 
   case configServerUnixSocket of
     Just socket ->
@@ -97,17 +97,18 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLevel appState connWorker =
+postgrest :: AppConfig -> AppState.AppState -> IO () -> Wai.Application
+postgrest conf appState connWorker =
+  Response.traceHeaderMiddleware conf .
   Cors.middleware .
   Auth.middleware appState .
-  Logger.middleware logLevel $
+  Logger.middleware (configLogLevel conf) $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
       Left err -> respond $ Error.errorResponseFor err
       Right authResult -> do
-        conf <- AppState.getConfig appState
+        appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
         pgVer <- AppState.getPgVersion appState
         jsonDbS <- AppState.getJsonDbS appState
@@ -115,7 +116,7 @@ postgrest logLevel appState connWorker =
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState conf maybeSchemaCache jsonDbS pgVer authResult req
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache jsonDbS pgVer authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest

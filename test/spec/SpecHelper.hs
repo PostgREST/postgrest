@@ -10,7 +10,7 @@ import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
 
 import Data.Aeson           (Value (..), decode, encode)
-import Data.CaseInsensitive (CI (..), original)
+import Data.CaseInsensitive (CI (..), mk, original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
@@ -103,6 +103,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configRawMediaTypes         = []
   , configServerHost            = "localhost"
   , configServerPort            = 3000
+  , configServerTraceHeader     = Nothing
   , configServerUnixSocket      = Nothing
   , configServerUnixSocketMode  = 432
   , configDbTxAllowOverride     = True
@@ -202,6 +203,9 @@ testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
 testPgSafeUpdateEnabledCfg :: AppConfig
 testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }
+
+testObservabilityCfg :: AppConfig
+testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-Id" }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

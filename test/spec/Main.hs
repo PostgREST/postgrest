@@ -10,7 +10,7 @@ import Data.List.NonEmpty (toList)
 import Test.Hspec
 
 import PostgREST.App             (postgrest)
-import PostgREST.Config          (AppConfig (..), LogLevel (..))
+import PostgREST.Config          (AppConfig (..))
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
@@ -29,6 +29,7 @@ import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.LegacyGucsSpec
+import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
 import qualified Feature.OpenApi.IgnorePrivOpenApiSpec
 import qualified Feature.OpenApi.OpenApiSpec
@@ -83,7 +84,7 @@ main = do
       AppState.putSchemaCache appState (Just baseSchemaCache)
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
-      return ((), postgrest LogCrit appState $ pure ())
+      return ((), postgrest config appState $ pure ())
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
@@ -96,7 +97,7 @@ main = do
       AppState.putSchemaCache appState (Just customSchemaCache)
       when (isJust $ configDbRootSpec config) $
         AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
-      return ((), postgrest LogCrit appState $ pure ())
+      return ((), postgrest config appState $ pure ())
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
@@ -117,6 +118,7 @@ main = do
       testCfgLegacyGucsApp = app testCfgLegacyGucs
       planEnabledApp       = app testPlanEnabledCfg
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
+      obsApp               = app testObservabilityCfg
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -246,6 +248,10 @@ main = do
     -- this test runs with a pre request to enable the pg-safeupdate library per-session
     parallel $ before pgSafeUpdateApp $
       describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
+
+    -- this test runs with server-trace-header set
+    parallel $ before obsApp $
+      describe "Feature.ObservabilitySpec.spec" Feature.ObservabilitySpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions
