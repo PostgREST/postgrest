@@ -1,6 +1,5 @@
 module Main where
 
-import qualified Data.Aeson                 as JSON
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
@@ -14,7 +13,6 @@ import PostgREST.Config          (AppConfig (..))
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
-import Protolude.Conv            (toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
@@ -82,8 +80,6 @@ main = do
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
-      when (isJust $ configDbRootSpec config) $
-        AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
       return ((), postgrest config appState $ pure ())
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
@@ -95,8 +91,6 @@ main = do
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
-      when (isJust $ configDbRootSpec config) $
-        AppState.putJsonDbS appState $ toS $ JSON.encode baseSchemaCache
       return ((), postgrest config appState $ pure ())
 
   let withApp              = app testCfg

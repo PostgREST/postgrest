@@ -1907,20 +1907,8 @@ openapi json = $$
     }
   }
 $$;
-accept text;
 begin
-accept = case when current_setting('server_version_num')::int >= 140000
-         then current_setting('request.headers', true)::json->>'accept'
-         else current_setting('request.header.accept', true)
-         end;
-case accept
-  when 'application/openapi+json' then
-    return openapi;
-  when 'application/json' then
-    return (current_setting('request.spec', true)::json)->'dbRelationships'->0->0;
-  else
-    return openapi;
-  end case;
+  return openapi;
 end
 $_$ language plpgsql;
 

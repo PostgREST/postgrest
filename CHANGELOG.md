@@ -22,6 +22,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1100, Customizable OpenAPI title - @AnthonyFisi
  - #2506, Add `server-trace-header` for tracing HTTP requests.  - @steve-chavez
    + When the client sends the request header specified in the config it will be included in the response headers.
+ - #2694, Make `db-root-spec` stable. - @steve-chavez
+   + This can be used to override the OpenAPI spec with a custom database function
 
 ### Fixed
 
