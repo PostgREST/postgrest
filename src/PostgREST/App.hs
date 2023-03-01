@@ -111,12 +111,11 @@ postgrest conf appState connWorker =
         appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
         pgVer <- AppState.getPgVersion appState
-        jsonDbS <- AppState.getJsonDbS appState
 
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache jsonDbS pgVer authResult req
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -132,12 +131,11 @@ postgrestResponse
   :: AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
-  -> ByteString
   -> PgVersion
   -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -152,7 +150,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jsonDbS pgVer aut
       ApiRequest.userApiRequest conf sCache req body
 
   Response.optionalRollback conf apiRequest $
-    handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements jsonDbS pgVer apiRequest sCache
+    handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
 
 runDbHandler :: AppState.AppState -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState mode authenticated prepared handler = do
@@ -170,8 +168,8 @@ runDbHandler appState mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> ByteString -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer apiReq@ApiRequest{..} sCache =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       rPlan <- liftEither $ Plan.readPlan identifier conf sCache apiReq
@@ -223,6 +221,6 @@ handleRequest AuthResult{..} conf appState authenticated prepared jsonDbS pgVer 
   where
     runQuery mode query =
       runDbHandler appState mode authenticated prepared $ do
-        Query.setPgLocals conf authClaims authRole apiReq jsonDbS pgVer
+        Query.setPgLocals conf authClaims authRole apiReq pgVer
         Query.runPreReq conf
         query

@@ -34,8 +34,7 @@ import qualified PostgREST.SchemaCache.Proc   as Proc
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
-import PostgREST.ApiRequest              (ApiRequest (..),
-                                          Target (..))
+import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferParameters (..),
                                           PreferTransaction (..),
@@ -235,10 +234,10 @@ optionalRollback AppConfig{..} ApiRequest{..} = do
 
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> Text ->
-               ApiRequest -> ByteString -> PgVersion -> DbHandler ()
-setPgLocals conf claims role req jsonDbS actualPgVersion = lift $
+               ApiRequest -> PgVersion -> DbHandler ()
+setPgLocals conf claims role req actualPgVersion = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql ++ specSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
     HD.noResult (configDbPreparedStatements conf)
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
@@ -257,9 +256,6 @@ setPgLocals conf claims role req jsonDbS actualPgVersion = lift $
     searchPathSql =
       let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath conf) in
       setConfigLocal mempty ("search_path", schemas)
-    specSql = case iTarget req of
-      TargetProc{tpIsRootSpec=True} -> [setConfigLocal mempty ("request.spec", jsonDbS)]
-      _                             -> mempty
     usesLegacyGucs = configDbUseLegacyGucs conf && actualPgVersion < pgVersion140
 
     unquoted :: JSON.Value -> Text

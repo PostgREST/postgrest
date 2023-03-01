@@ -9,9 +9,7 @@ module PostgREST.Workers
   , runAdmin
   ) where
 
-import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Session              as SQL
@@ -179,8 +177,6 @@ loadSchemaCache appState = do
 
     Right sCache -> do
       AppState.putSchemaCache appState (Just sCache)
-      when (isJust configDbRootSpec) .
-        AppState.putJsonDbS appState . LBS.toStrict $ JSON.encode sCache
       AppState.logWithZTime appState "Schema cache loaded"
       return SCLoaded
 

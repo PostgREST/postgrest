@@ -7,7 +7,6 @@ module PostgREST.AppState
   , getConfig
   , getSchemaCache
   , getIsListenerOn
-  , getJsonDbS
   , getMainThreadId
   , getPgVersion
   , getRetryNextIn
@@ -20,7 +19,6 @@ module PostgREST.AppState
   , putConfig
   , putSchemaCache
   , putIsListenerOn
-  , putJsonDbS
   , putPgVersion
   , putRetryNextIn
   , signalListener
@@ -58,8 +56,6 @@ data AppState = AppState
   , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateSchemaCache              :: IORef (Maybe SchemaCache)
-  -- | Cached SchemaCache in json
-  , stateJsonDbS                  :: IORef ByteString
   -- | Binary semaphore to make sure just one connectionWorker can run at a time
   , stateWorkerSem                :: MVar ()
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
@@ -90,7 +86,6 @@ initWithPool pool conf = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
-    <*> newIORef mempty
     <*> newEmptyMVar
     <*> newEmptyMVar
     <*> newIORef False
@@ -145,12 +140,6 @@ getSchemaCache = readIORef . stateSchemaCache
 
 putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
 putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
-
-getJsonDbS :: AppState -> IO ByteString
-getJsonDbS = readIORef . stateJsonDbS
-
-putJsonDbS :: AppState -> ByteString -> IO ()
-putJsonDbS appState = atomicWriteIORef (stateJsonDbS appState)
 
 getWorkerSem :: AppState -> MVar ()
 getWorkerSem = stateWorkerSem
