@@ -189,7 +189,7 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
     OADisabled ->
       pure Nothing
 
-writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
+writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
 writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferences=Preferences{..}} conf =
   let
     (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
