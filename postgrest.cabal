@@ -105,6 +105,7 @@ library
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.18
                     , parsec                    >= 3.1.11 && < 3.2
+                    , postgresql-libpq
                     , protolude                 >= 0.3.1 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
                     , retry                     >= 0.7.4 && < 0.10
