@@ -29,6 +29,7 @@ data CallParams
   = KeyParams [ProcParam] -- ^ Call with key params: func(a := val1, b:= val2)
   | OnePosParam ProcParam -- ^ Call with positional params(only one supported): func(val)
 
+-- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 jsonRpcParams :: ProcDescription -> [(Text, Text)] -> LBS.ByteString
 jsonRpcParams proc prms =
   if not $ pdHasVariadic proc then -- if proc has no variadic param, save steps and directly convert to json

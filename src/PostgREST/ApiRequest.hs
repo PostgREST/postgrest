@@ -115,7 +115,6 @@ data Target = TargetIdent QualifiedIdentifier
             | TargetProc{tProc :: QualifiedIdentifier, tpIsRootSpec :: Bool}
             | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
 
--- | Convert rpc params `/rpc/func?a=val1&b=val2` to json `{"a": "val1", "b": "val2"}
 {-|
   Describes what the user wants to do. This data type is a
   translation of the raw elements of an HTTP request into domain
