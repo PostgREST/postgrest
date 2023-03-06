@@ -16,16 +16,19 @@ resource.
 {-# LANGUAGE RecordWildCards       #-}
 
 module PostgREST.Plan
-  ( readPlan
+  ( wrappedReadPlan
   , mutateReadPlan
   , callReadPlan
+  , WrappedReadPlan(..)
   , MutateReadPlan(..)
   , CallReadPlan(..)
-  , readPlanTxMode
   , inspectPlanTxMode
   ) where
 
+
+import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.List                  as L
 import qualified Data.Set                   as S
 import qualified PostgREST.SchemaCache.Proc as Proc
 
@@ -40,6 +43,8 @@ import PostgREST.ApiRequest               (Action (..),
                                            Payload (..))
 import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Error                    (Error (..))
+import PostgREST.MediaType                (MTPlanAttrs (..),
+                                           MediaType (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            convertToLimitZeroRange,
@@ -49,7 +54,7 @@ import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..),
+                                           ProcParam (..), ProcsMap,
                                            procReturnsScalar)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
@@ -71,6 +76,12 @@ import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
+data WrappedReadPlan = WrappedReadPlan {
+  wrReadPlan :: ReadPlanTree
+, wrTxMode   :: SQL.Mode
+, wrBinField :: Maybe FieldName
+}
+
 data MutateReadPlan = MutateReadPlan {
   mrReadPlan   :: ReadPlanTree
 , mrMutatePlan :: MutatePlan
@@ -81,7 +92,15 @@ data CallReadPlan = CallReadPlan {
   crReadPlan :: ReadPlanTree
 , crCallPlan :: CallPlan
 , crTxMode   :: SQL.Mode
+, crProc     :: ProcDescription
+, crBinField :: Maybe FieldName
 }
+
+wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
+wrappedReadPlan  identifier conf sCache apiRequest = do
+  rPlan <- readPlan identifier conf sCache apiRequest
+  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
+  return $ WrappedReadPlan rPlan SQL.Read binField
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest identifier conf sCache = do
@@ -89,21 +108,89 @@ mutateReadPlan  mutation apiRequest identifier conf sCache = do
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   return $ MutateReadPlan rPlan mPlan SQL.Write
 
-callReadPlan :: ProcDescription -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
-callReadPlan proc conf sCache apiRequest invMethod = do
-  let identifier = QualifiedIdentifier (pdSchema proc) (fromMaybe (pdName proc) $ Proc.procTableName proc)
-  rPlan <- readPlan identifier conf sCache apiRequest
-  let cPlan = callPlan proc apiRequest rPlan
-      txMode = case (invMethod, Proc.pdVolatility proc) of
+callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
+callReadPlan identifier conf sCache apiRequest invMethod = do
+  let paramKeys = case invMethod of
+        InvGet  -> S.fromList $ fst <$> qsParams'
+        InvHead -> S.fromList $ fst <$> qsParams'
+        InvPost -> iColumns apiRequest
+  proc@ProcDescription{..} <- mapLeft ApiRequestError $
+    findProc identifier paramKeys (iPreferParameters apiRequest == Just SingleObject) (dbProcs sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
+  let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Proc.procTableName proc) -- done so a set returning function can embed other relations
+  rPlan <- readPlan relIdentifier conf sCache apiRequest
+  let args = case (invMethod, iContentMediaType apiRequest) of
+        (InvGet, _)             -> jsonRpcParams proc qsParams'
+        (InvHead, _)            -> jsonRpcParams proc qsParams'
+        (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) $ iPayload apiRequest
+        (InvPost, _)            -> maybe mempty payRaw $ iPayload apiRequest
+      txMode = case (invMethod, pdVolatility) of
           (InvGet,  _)              -> SQL.Read
           (InvHead, _)              -> SQL.Read
           (InvPost, Proc.Stable)    -> SQL.Read
           (InvPost, Proc.Immutable) -> SQL.Read
           (InvPost, Proc.Volatile)  -> SQL.Write
-  return $ CallReadPlan rPlan cPlan txMode
+      cPlan = callPlan proc apiRequest paramKeys args rPlan
+  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
+  return $ CallReadPlan rPlan cPlan txMode proc binField
+  where
+    qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
 
-readPlanTxMode :: SQL.Mode
-readPlanTxMode = SQL.Read
+{-|
+  Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
+  the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
+-}
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> MediaType -> Bool -> Either ApiRequestError ProcDescription
+findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
+  case matchProc of
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost (HM.keys allProcs) lookupProcName
+    -- If there are no functions with named arguments, fallback to the single unnamed argument function
+    ([], [proc]) -> Right proc
+    ([], procs)  -> Left $ AmbiguousRpc (toList procs)
+    -- Matches the functions with named arguments
+    ([proc], _)  -> Right proc
+    (procs, _)   -> Left $ AmbiguousRpc (toList procs)
+  where
+    matchProc = overloadedProcPartition lookupProcName
+    -- First find the proc by name
+    lookupProcName = HM.lookupDefault mempty qi allProcs
+    -- The partition obtained has the form (overloadedProcs,fallbackProcs)
+    -- where fallbackProcs are functions with a single unnamed parameter
+    overloadedProcPartition = foldr select ([],[])
+    select proc ~(ts,fs)
+      | matchesParams proc         = (proc:ts,fs)
+      | hasSingleUnnamedParam proc = (ts,proc:fs)
+      | otherwise                  = (ts,fs)
+    -- If the function is called with post and has a single unnamed parameter
+    -- it can be called depending on content type and the parameter type
+    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
+      (MTApplicationJSON, "json")  -> True
+      (MTApplicationJSON, "jsonb") -> True
+      (MTTextPlain, "text")        -> True
+      (MTTextXML, "xml")           -> True
+      (MTOctetStream, "bytea")     -> True
+      _                            -> False
+    hasSingleUnnamedParam _ = False
+    matchesParams proc =
+      let
+        params = pdParams proc
+        firstType = (ppType <$> headMay params)
+      in
+      -- exceptional case for Prefer: params=single-object
+      if paramsAsSingleObject
+        then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
+      -- If the function has no parameters, the arguments keys must be empty as well
+      else if null params
+        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
+      -- A function has optional and required parameters. Optional parameters have a default value and
+      -- don't require arguments for the function to be executed, required parameters must have an argument present.
+      else case L.partition ppReq params of
+      -- If the function only has required parameters, the arguments keys must match those parameters
+        (reqParams, [])        -> argumentsKeys == S.fromList (ppName <$> reqParams)
+      -- If the function only has optional parameters, the arguments keys can match none or any of them(a subset)
+        ([], optParams)        -> argumentsKeys `S.isSubsetOf` S.fromList (ppName <$> optParams)
+      -- If the function has required and optional parameters, the arguments keys have to match the required parameters
+      -- and can match any or none of the default parameters.
+        (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)
 
 inspectPlanTxMode :: SQL.Mode
 inspectPlanTxMode = SQL.Read
@@ -452,23 +539,23 @@ resolveOrError (Just table) field =
     Nothing         -> Left $ ColumnNotFound (tableName table) field
     Just typedField -> Right typedField
 
-callPlan :: ProcDescription -> ApiRequest -> ReadPlanTree -> CallPlan
-callPlan proc apiReq readReq = FunctionCall {
+callPlan :: ProcDescription -> ApiRequest -> S.Set FieldName -> LBS.ByteString -> ReadPlanTree -> CallPlan
+callPlan proc apiReq paramKeys args readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
-, funCArgs = payRaw <$> iPayload apiReq
+, funCArgs = Just args
 , funCScalar = procReturnsScalar proc
 , funCMultipleCall = iPreferParameters apiReq == Just MultipleObjects
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
     paramsAsSingleObject = iPreferParameters apiReq == Just SingleObject
+    specifiedParams = filter (\x -> ppName x `S.member` paramKeys)
     callParams = case pdParams proc of
       [prm] | paramsAsSingleObject -> OnePosParam prm
             | ppName prm == mempty -> OnePosParam prm
             | otherwise            -> KeyParams $ specifiedParams [prm]
       prms  -> KeyParams $ specifiedParams prms
-    specifiedParams = filter (\x -> ppName x `S.member` iColumns apiReq)
 
 -- | Infers the columns needed for an embed to be successful after a mutation or a function call.
 inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> [FieldName]
@@ -519,3 +606,33 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
 -- they are later concatenated with AND in the QueryBuilder
 addFilterToLogicForest :: Filter -> [LogicTree] -> [LogicTree]
 addFilterToLogicForest flt lf = Stmnt flt : lf
+
+-- | If raw(binary) output is requested, check that MediaType is one of the
+-- admitted rawMediaTypes and that`?select=...` contains only one field other
+-- than `*`
+binaryField :: AppConfig -> MediaType -> Maybe ProcDescription -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
+binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
+  | isRawMediaType =
+    if (procReturnsScalar <$> proc) == Just True
+      then Right $ Just "pgrst_scalar"
+      else
+        let
+          fieldName = fstFieldName rpTree
+        in
+        case fieldName of
+          Just fld -> Right $ Just fld
+          Nothing  -> Left $ BinaryFieldError acceptMediaType
+  | otherwise =
+      Right Nothing
+  where
+    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
+    isRawPlan mt = case mt of
+      MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
+      MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
+      MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
+      _                                             -> False
+
+    fstFieldName :: ReadPlanTree -> Maybe FieldName
+    fstFieldName (Node ReadPlan{select=(("*", []), _, _):_} [])  = Nothing
+    fstFieldName (Node ReadPlan{select=[((fld, []), _, _)]} []) = Just fld
+    fstFieldName _                                               = Nothing

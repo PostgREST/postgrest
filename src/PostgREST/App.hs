@@ -147,7 +147,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
-      ApiRequest.userApiRequest conf sCache req body
+      ApiRequest.userApiRequest conf req body
 
   Response.optionalRollback conf apiRequest $
     handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
@@ -172,8 +172,8 @@ handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool ->
 handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
-      rPlan <- liftEither $ Plan.readPlan identifier conf sCache apiReq
-      resultSet <- runQuery Plan.readPlanTxMode $ Query.readQuery rPlan conf apiReq
+      wrPlan <- liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
+      resultSet <- runQuery (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
       return $ Response.readResponse headersOnly identifier apiReq resultSet
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
@@ -196,10 +196,10 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
       resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
       return $ Response.deleteResponse apiReq resultSet
 
-    (ActionInvoke invMethod, TargetProc proc _) -> do
-      cPlan <- liftEither $ Plan.callReadPlan proc conf sCache apiReq invMethod
-      resultSet <- runQuery (Plan.crTxMode cPlan) $ Query.invokeQuery proc cPlan apiReq conf
-      return $ Response.invokeResponse invMethod proc apiReq resultSet
+    (ActionInvoke invMethod, TargetProc identifier _) -> do
+      cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
+      resultSet <- runQuery (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf
+      return $ Response.invokeResponse invMethod (Plan.crProc cPlan) apiReq resultSet
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       oaiResult <- runQuery Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema
@@ -208,8 +208,9 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionInfo, TargetIdent identifier) ->
       return $ Response.infoIdentResponse identifier sCache
 
-    (ActionInfo, TargetProc proc _) ->
-      return $ Response.infoProcResponse proc
+    (ActionInfo, TargetProc identifier _) -> do
+      cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
+      return $ Response.infoProcResponse (Plan.crProc cPlan)
 
     (ActionInfo, TargetDefaultSpec _) ->
       return Response.infoRootResponse

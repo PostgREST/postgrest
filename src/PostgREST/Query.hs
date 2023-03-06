@@ -46,9 +46,9 @@ import PostgREST.Config.PgVersion        (PgVersion (..),
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (CallReadPlan (..),
-                                          MutateReadPlan (..))
+                                          MutateReadPlan (..),
+                                          WrappedReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Plan.ReadPlan           (ReadPlanTree)
 import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
                                           pgFmtIdentList,
                                           setConfigLocal,
@@ -65,13 +65,13 @@ import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-readQuery :: ReadPlanTree -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
-  let countQuery = QueryBuilder.readPlanToCountQuery req
+readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
+readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiRequest{..} = do
+  let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
-        (QueryBuilder.readPlanToQuery req)
+        (QueryBuilder.readPlanToQuery wrReadPlan)
         (if iPreferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
@@ -80,7 +80,7 @@ readQuery req conf@AppConfig{..} apiReq@ApiRequest{..} = do
         )
         (shouldCount iPreferCount)
         iAcceptMediaType
-        iBinaryField
+        wrBinField
         configDbPreparedStatements
   failNotSingular iAcceptMediaType resultSet
   optionalRollback conf apiReq
@@ -151,7 +151,7 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   pure resultSet
 
 invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf@AppConfig{..} = do
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{..} conf@AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -163,7 +163,7 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan} apiReq@ApiRequest{..} conf
         (shouldCount iPreferCount)
         iAcceptMediaType
         (iPreferParameters == Just MultipleObjects)
-        iBinaryField
+        crBinField
         configDbPreparedStatements
 
   optionalRollback conf apiReq
