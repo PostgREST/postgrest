@@ -13,9 +13,10 @@
 let
   withTmpDb =
     { name, postgresql }:
+    let commandName = "postgrest-with-${name}"; in
     checkedShellScript
       {
-        name = "postgrest-with-${name}";
+        name = commandName;
         docs = "Run the given command in a temporary database with ${name}";
         args =
           [
@@ -83,6 +84,10 @@ let
         psql -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
 
         log "Done. Running command..."
+
+        echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U $PGUSER"
+        echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
+
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
