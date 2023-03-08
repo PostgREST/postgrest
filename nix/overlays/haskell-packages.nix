@@ -32,10 +32,28 @@ let
       postgresql-libpq = lib.dontCheck
         (prev.callCabal2nix "postgresql-libpq"
           (super.fetchFromGitHub {
-            owner = "PostgREST";
+            owner = "robx";
             repo = "postgresql-libpq";
-            rev = "890a0a16cf57dd401420fdc6c7d576fb696003bc"; # master
-            sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
+            rev = "6196681b97ae3b9f38c00a2909f643724d9068dc"; # pipeline
+            sha256 = "094c8jkk9prx831h8rjhv5x1gxwllw27y4al2zhhmc2warsxk2n2";
+          })
+          { });
+      hasql = lib.dontCheck
+        (prev.callCabal2nix "hasql"
+          (super.fetchFromGitHub {
+            owner = "robx";
+            repo = "hasql";
+            rev = "43e380a712f09666667b2beca642412bb339d141"; # pipeline2
+            sha256 = "1s5hrr9fl109nv4h91c7zl4cqhin2aa4d0xby2mgw0qarxavk8pd";
+          })
+          { });
+      hasql-transaction = lib.dontCheck
+        (prev.callCabal2nix "hasql-transaction"
+          (super.fetchFromGitHub {
+            owner = "robx";
+            repo = "hasql-transaction";
+            rev = "ae5f73438edd4fe424add51fcfd8c855747bee7d"; # pipeline
+            sha256 = "0vkmjr3m4xpial1lj7c420lsnjh5f5m4r7s6bimm9prvlyf522a5";
           })
           { });
 
