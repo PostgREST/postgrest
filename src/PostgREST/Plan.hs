@@ -115,7 +115,7 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
         InvHead -> S.fromList $ fst <$> qsParams'
         InvPost -> iColumns apiRequest
   proc@ProcDescription{..} <- mapLeft ApiRequestError $
-    findProc identifier paramKeys (iPreferParameters apiRequest == Just SingleObject) (dbProcs sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
+    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbProcs sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Proc.procTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType apiRequest) of
@@ -133,6 +133,7 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
   return $ CallReadPlan rPlan cPlan txMode proc binField
   where
+    Preferences{..} = iPreferences apiRequest
     qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
 
 {-|
@@ -500,10 +501,10 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
+mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> iPreferResolution <*> Just confCols) [] returnings pkCols) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols) typedColumnsOrError
     MutationUpdate ->
       mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings) typedColumnsOrError
     MutationSingleUpsert ->
@@ -521,7 +522,7 @@ mutatePlan mutation qi ApiRequest{..} sCache readReq = mapLeft ApiRequestError $
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
     returnings =
-      if iPreferRepresentation == None
+      if preferRepresentation == None
         then []
         else inferColsEmbedNeeds readReq pkCols
     pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables sCache
@@ -540,16 +541,16 @@ resolveOrError (Just table) field =
     Just typedField -> Right typedField
 
 callPlan :: ProcDescription -> ApiRequest -> S.Set FieldName -> LBS.ByteString -> ReadPlanTree -> CallPlan
-callPlan proc apiReq paramKeys args readReq = FunctionCall {
+callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
 , funCArgs = Just args
 , funCScalar = procReturnsScalar proc
-, funCMultipleCall = iPreferParameters apiReq == Just MultipleObjects
+, funCMultipleCall = preferParameters == Just MultipleObjects
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
-    paramsAsSingleObject = iPreferParameters apiReq == Just SingleObject
+    paramsAsSingleObject = preferParameters == Just SingleObject
     specifiedParams = filter (\x -> ppName x `S.member` paramKeys)
     callParams = case pdParams proc of
       [prm] | paramsAsSingleObject -> OnePosParam prm

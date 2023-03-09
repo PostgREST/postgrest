@@ -39,7 +39,7 @@ import Protolude
 data Preferences
   = Preferences
     { preferResolution     :: Maybe PreferResolution
-    , preferRepresentation :: Maybe PreferRepresentation
+    , preferRepresentation :: PreferRepresentation
     , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
@@ -53,7 +53,7 @@ data Preferences
 -- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates, count=exact")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
---     , preferRepresentation = Nothing
+--     , preferRepresentation = None
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
@@ -64,7 +64,7 @@ data Preferences
 -- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
---     , preferRepresentation = Nothing
+--     , preferRepresentation = None
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
@@ -92,10 +92,10 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=minimal")]
+-- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation")]
 -- Preferences
 --     { preferResolution = Nothing
---     , preferRepresentation = Just None
+--     , preferRepresentation = Full
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
@@ -105,7 +105,7 @@ fromHeaders :: [HTTP.Header] -> Preferences
 fromHeaders headers =
   Preferences
     { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates]
-    , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
+    , preferRepresentation = fromMaybe None $ parsePrefs [Full, None, HeadersOnly]
     , preferParameters = parsePrefs [SingleObject, MultipleObjects]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]

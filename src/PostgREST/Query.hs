@@ -38,6 +38,7 @@ import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferParameters (..),
                                           PreferTransaction (..),
+                                          Preferences (..),
                                           shouldCount)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
@@ -66,19 +67,19 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiRequest{..} = do
+readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
         (QueryBuilder.readPlanToQuery wrReadPlan)
-        (if iPreferCount == Just EstimatedCount then
+        (if preferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
            QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
          else
            countQuery
         )
-        (shouldCount iPreferCount)
+        (shouldCount preferCount)
         iAcceptMediaType
         wrBinField
         configDbPreparedStatements
@@ -88,8 +89,8 @@ readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiR
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
 resultSetWTotal _ _ rs@RSPlan{} _ = return rs
-resultSetWTotal AppConfig{..} ApiRequest{..} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
-  case iPreferCount of
+resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
+  case preferCount of
     Just PlannedCount -> do
       total <- explain
       return rs{rsTableTotal=total}
@@ -151,7 +152,7 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   pure resultSet
 
 invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{..} conf@AppConfig{..} = do
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -160,9 +161,9 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequ
         (QueryBuilder.callPlanToQuery crCallPlan)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
-        (shouldCount iPreferCount)
+        (shouldCount preferCount)
         iAcceptMediaType
-        (iPreferParameters == Just MultipleObjects)
+        (preferParameters == Just MultipleObjects)
         crBinField
         configDbPreparedStatements
 
@@ -188,7 +189,7 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
       pure Nothing
 
 writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
-writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq conf =
+writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferences=Preferences{..}} conf =
   let
     (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
   in
@@ -198,7 +199,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq conf =
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
       (iAcceptMediaType apiReq)
-      (iPreferRepresentation apiReq)
+      preferRepresentation
       pkCols
       (configDbPreparedStatements conf)
 
@@ -222,15 +223,15 @@ failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
-optionalRollback AppConfig{..} ApiRequest{..} = do
+optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
   lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
     SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
     SQL.condemn
   where
     shouldCommit =
-      configDbTxAllowOverride && iPreferTransaction == Just Commit
+      configDbTxAllowOverride && preferTransaction == Just Commit
     shouldRollback =
-      configDbTxAllowOverride && iPreferTransaction == Just Rollback
+      configDbTxAllowOverride && preferTransaction == Just Rollback
 
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> Text ->

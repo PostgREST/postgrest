@@ -46,11 +46,6 @@ import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
-import PostgREST.ApiRequest.Preferences  (PreferCount (..),
-                                          PreferParameters (..),
-                                          PreferRepresentation (..),
-                                          PreferResolution (..),
-                                          PreferTransaction (..))
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.ApiRequest.Types        (ApiRequestError (..),
                                           RangeError (..))
@@ -123,26 +118,22 @@ data Target = TargetIdent QualifiedIdentifier
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-    iAction               :: Action                           -- ^ Similar but not identical to HTTP method, e.g. Create/Invoke both POST
-  , iRange                :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
-  , iTopLevelRange        :: NonnegRange                      -- ^ Requested range of rows from the top level
-  , iTarget               :: Target                           -- ^ The target, be it calling a proc or accessing a table
-  , iPayload              :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
-  , iPreferRepresentation :: PreferRepresentation             -- ^ If client wants created items echoed back
-  , iPreferParameters     :: Maybe PreferParameters           -- ^ How to pass parameters to a stored procedure
-  , iPreferCount          :: Maybe PreferCount                -- ^ Whether the client wants a result count
-  , iPreferResolution     :: Maybe PreferResolution           -- ^ Whether the client wants to UPSERT or ignore records on PK conflict
-  , iPreferTransaction    :: Maybe PreferTransaction          -- ^ Whether the clients wants to commit or rollback the transaction
-  , iQueryParams          :: QueryParams.QueryParams
-  , iColumns              :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
-  , iHeaders              :: [(ByteString, ByteString)]       -- ^ HTTP request headers
-  , iCookies              :: [(ByteString, ByteString)]       -- ^ Request Cookies
-  , iPath                 :: ByteString                       -- ^ Raw request path
-  , iMethod               :: ByteString                       -- ^ Raw request method
-  , iSchema               :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
-  , iNegotiatedByProfile  :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
-  , iAcceptMediaType      :: MediaType                        -- ^ The media type in the Accept header
-  , iContentMediaType     :: MediaType                        -- ^ The media type in the Content-Type header
+    iAction              :: Action                           -- ^ Similar but not identical to HTTP method, e.g. Create/Invoke both POST
+  , iRange               :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
+  , iTopLevelRange       :: NonnegRange                      -- ^ Requested range of rows from the top level
+  , iTarget              :: Target                           -- ^ The target, be it calling a proc or accessing a table
+  , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
+  , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
+  , iQueryParams         :: QueryParams.QueryParams
+  , iColumns             :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
+  , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
+  , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
+  , iPath                :: ByteString                       -- ^ Raw request path
+  , iMethod              :: ByteString                       -- ^ Raw request method
+  , iSchema              :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
+  , iNegotiatedByProfile :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
+  , iAcceptMediaType     :: MediaType                        -- ^ The media type in the Accept header
+  , iContentMediaType    :: MediaType                        -- ^ The media type in the Content-Type header
   }
 
 -- | Examines HTTP request and translates it into user intent.
@@ -163,11 +154,7 @@ userApiRequest conf req reqBody = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferRepresentation = fromMaybe None preferRepresentation
-  , iPreferParameters = preferParameters
-  , iPreferCount = preferCount
-  , iPreferResolution = preferResolution
-  , iPreferTransaction = preferTransaction
+  , iPreferences = Preferences.fromHeaders hdrs
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
@@ -183,7 +170,6 @@ userApiRequest conf req reqBody = do
     method = requestMethod req
     hdrs = requestHeaders req
     lookupHeader    = flip lookup hdrs
-    Preferences.Preferences{..} = Preferences.fromHeaders hdrs
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
 
