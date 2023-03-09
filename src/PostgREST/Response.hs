@@ -37,6 +37,7 @@ import PostgREST.ApiRequest              (ApiRequest (..),
                                           InvokeMethod (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           PreferTransaction (..),
+                                          Preferences (..),
                                           shouldCount,
                                           toAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
@@ -86,7 +87,7 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = cas
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 createResponse :: QualifiedIdentifier -> MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
@@ -103,14 +104,14 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
                     <> HTTP.renderSimpleQuery True rsLocation
                 )
           , Just . RangeQuery.contentRangeH 1 0 $
-              if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+              if shouldCount preferCount then Just rsQueryTotal else Nothing
           , if null pkCols && isNothing (qsOnConflict iQueryParams) then
               Nothing
             else
-              toAppliedHeader <$> iPreferResolution
+              toAppliedHeader <$> preferResolution
           ]
 
-    if iPreferRepresentation == Full then
+    if preferRepresentation == Full then
       response HTTP.status201 (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
     else
       response HTTP.status201 headers mempty
@@ -119,16 +120,16 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 updateResponse :: ApiRequest -> ResultSet -> Wai.Response
-updateResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
       contentRangeHeader =
         RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
-          if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+          if shouldCount preferCount then Just rsQueryTotal else Nothing
       headers = [contentRangeHeader]
 
-    if iPreferRepresentation == Full then
+    if preferRepresentation == Full then
         response HTTP.status200
           (headers ++ contentTypeHeaders ctxApiRequest)
           (LBS.fromStrict rsBody)
@@ -139,12 +140,12 @@ updateResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 singleUpsertResponse :: ApiRequest -> ResultSet -> Wai.Response
-singleUpsertResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+singleUpsertResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
 
-    if iPreferRepresentation == Full then
+    if preferRepresentation == Full then
       response HTTP.status200 (contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
     else
       response HTTP.status204 [] mempty
@@ -153,16 +154,16 @@ singleUpsertResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 deleteResponse :: ApiRequest -> ResultSet -> Wai.Response
-deleteResponse ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+deleteResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
       contentRangeHeader =
         RangeQuery.contentRangeH 1 0 $
-          if shouldCount iPreferCount then Just rsQueryTotal else Nothing
+          if shouldCount preferCount then Just rsQueryTotal else Nothing
       headers = [contentRangeHeader]
 
-    if iPreferRepresentation == Full then
+    if preferRepresentation == Full then
         response HTTP.status200
           (headers ++ contentTypeHeaders ctxApiRequest)
           (LBS.fromStrict rsBody)
@@ -270,14 +271,14 @@ isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
 
 optionalRollback :: AppConfig -> ApiRequest -> ExceptT Error.Error IO Wai.Response -> ExceptT Error.Error IO Wai.Response
-optionalRollback AppConfig{..} ApiRequest{..} resp = do
+optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} resp = do
   newRes <- catchError resp $ return . Error.errorResponseFor
   return $ Wai.mapResponseHeaders preferenceApplied newRes
   where
     shouldCommit =
-      configDbTxAllowOverride && iPreferTransaction == Just Commit
+      configDbTxAllowOverride && preferTransaction == Just Commit
     shouldRollback =
-      configDbTxAllowOverride && iPreferTransaction == Just Rollback
+      configDbTxAllowOverride && preferTransaction == Just Rollback
     preferenceApplied
       | shouldCommit =
           addHeadersIfNotIncluded
