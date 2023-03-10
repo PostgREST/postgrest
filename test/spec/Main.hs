@@ -41,7 +41,6 @@ import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
-import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
@@ -51,7 +50,6 @@ import qualified Feature.Query.PostGISSpec
 import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
-import qualified Feature.Query.RawOutputTypesSpec
 import qualified Feature.Query.RelatedQueriesSpec
 import qualified Feature.Query.RpcSpec
 import qualified Feature.Query.SingularSpec
@@ -105,7 +103,7 @@ main = do
       asymJwkApp           = app testCfgAsymJWK
       asymJwkSetApp        = app testCfgAsymJWKSet
       rootSpecApp          = app testCfgRootSpec
-      htmlRawOutputApp     = app testCfgHtmlRawOutput
+      --htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
@@ -141,7 +139,6 @@ main = do
         , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
         , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec actualPgVersion)
-        , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
@@ -157,10 +154,6 @@ main = do
     -- we analyze to get accurate results from EXPLAIN
     parallel $ beforeAll_ analyze . before withApp $
       describe "Feature.Query.RangeSpec" Feature.Query.RangeSpec.spec
-
-    -- this test runs with a raw-output-media-types set to text/html
-    parallel $ before htmlRawOutputApp $
-      describe "Feature.Query.HtmlRawOutputSpec" Feature.Query.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
     parallel $ before maxRowsApp $

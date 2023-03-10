@@ -24,6 +24,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + When the client sends the request header specified in the config it will be included in the response headers.
  - #2694, Make `db-root-spec` stable. - @steve-chavez
    + This can be used to override the OpenAPI spec with a custom database function
+ - #1582, Binary and plain text output with `request.accepts` GUC
+  - It can be added to a scalar function that returns text/bytea
+  - It allows overriding existing media types, e.g. `request.accepts="*/*, application/json"`
 
 ### Fixed
 
@@ -33,6 +36,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + `PGRST003`: Timed out when acquiring connection to db
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
  - #1652, Fix function call with arguments not inlining - @steve-chavez
+
+### Changed
+
+ - #1582, `raw-media-types` was removed in favour of the `request.accepts` GUC
+ - #1582, `Accept: text/xml` no longer works by default. To migrate, you can add a `request.accepts="text/xml"` to a scalar function and change its return type to `text`
+   + Inserting a `Content-Type: text/xml` body to a function with a single `xml` parameter keeps working as usual.
+
 
 ## [10.1.2] - 2023-02-01
 

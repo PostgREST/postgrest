@@ -1021,36 +1021,70 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
             }
 
-        it "can get raw xml output with Accept: text/xml" $
-          request methodGet "/rpc/return_scalar_xml" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            "<my-xml-tag/>"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
-            }
-
-        it "can get raw xml output with Accept: text/xml" $
-          request methodGet "/rpc/welcome.xml" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            "<html>\n  <head>\n    <title>PostgREST</title>\n  </head>\n  <body>\n    <h1>Welcome to PostgREST</h1>\n  </body>\n</html>"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
-            }
-
-        it "should fail with function returning text and Accept: text/xml" $
-          request methodGet "/rpc/welcome" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            [json|
-              {
-                "hint":"No function matches the given name and argument types. You might need to add explicit type casts.",
-                "details":null,
-                "code":"42883",
-                "message":"function xmlagg(text) does not exist"
+        context "procs with content negotiation guc(request.accepts)" $ do
+          it "can get raw xml output with Accept: text/xml" $
+            request methodGet "/rpc/return_scalar_xml" (acceptHdrs "text/xml") ""
+              `shouldRespondWith`
+              "<my-xml-tag/>"
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
               }
-            |]
-            { matchStatus = 406
-            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
-            }
+
+          it "can get raw xml output with Accept: text/xml" $
+            request methodGet "/rpc/welcome.xml" (acceptHdrs "text/xml") ""
+              `shouldRespondWith`
+              "<html>\n  <head>\n    <title>PostgREST</title>\n  </head>\n  <body>\n    <h1>Welcome to PostgREST</h1>\n  </body>\n</html>"
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
+              }
+
+          it "can get raw html output with Accept: text/html" $
+            request methodGet "/rpc/welcome.html" (acceptHdrs "text/html") ""
+              `shouldRespondWith`
+              [str|<html>
+                  |  <head>
+                  |    <title>PostgREST</title>
+                  |  </head>
+                  |  <body>
+                  |    <h1>Welcome to PostgREST</h1>
+                  |  </body>
+                  |</html>
+                  |]
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "text/html"]
+              }
+
+          it "can get override default Accept: */* response and obtain raw output" $
+            request methodGet "/rpc/welcome.html" (acceptHdrs "*/*") ""
+              `shouldRespondWith`
+              [str|<html>
+                  |  <head>
+                  |    <title>PostgREST</title>
+                  |  </head>
+                  |  <body>
+                  |    <h1>Welcome to PostgREST</h1>
+                  |  </body>
+                  |</html>
+                  |]
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "text/html"]
+              }
+
+          it "can get raw xml output with Accept: text/xml" $
+            request methodGet "/rpc/my_soap_endpoint" (acceptHdrs "text/xml") ""
+              `shouldRespondWith`
+              [str|<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Header/><soapenv:Body><therequestbodywas/></soapenv:Body></soapenv:Envelope>|]
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "application/soap+xml"]
+              }
+
+          it "can get raw xml output with Accept: application/xml" $
+            request methodGet "/rpc/my_soap_endpoint" (acceptHdrs "application/xml") ""
+              `shouldRespondWith`
+              [str|<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"><soapenv:Header/><soapenv:Body><therequestbodywas/></soapenv:Body></soapenv:Envelope>|]
+              { matchStatus = 200
+              , matchHeaders = ["Content-Type" <:> "application/soap+xml"]
+              }
 
       context "Proc that returns set of scalars" $
         it "can query without selecting column" $

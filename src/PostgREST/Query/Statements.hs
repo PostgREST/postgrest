@@ -121,7 +121,6 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     | getMediaType mt == MTTextCSV                       = asCsvF
     | getMediaType mt == MTSingularJSON                  = asJsonSingleF False
     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-    | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
     | otherwise                                          = asJsonF False
 
@@ -154,7 +153,6 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
      | getMediaType mt == MTSingularJSON                  = asJsonSingleF returnsScalar
      | getMediaType mt == MTTextCSV                       = asCsvF
      | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
      | isJust binaryField                                 = asBinaryF $ fromJust binaryField
      | returnsSingle && not multObjects                   = asJsonSingleF returnsScalar
      | otherwise                                          = asJsonF returnsScalar

@@ -1923,8 +1923,12 @@ select 'Welcome to PostgREST';
 $$ language sql;
 
 create or replace function "welcome.html"() returns text as $_$
-select $$
-<html>
+begin
+
+perform set_config('response.headers', '[{"Content-Type": "text/html"}]', true);
+
+return
+$$<html>
   <head>
     <title>PostgREST</title>
   </head>
@@ -1933,7 +1937,33 @@ select $$
   </body>
 </html>
 $$::text;
-$_$ language sql;
+
+end $_$ language plpgsql
+set request.accepts = 'text/html, */*';
+
+CREATE OR REPLACE FUNCTION my_soap_endpoint() RETURNS text AS $$
+DECLARE
+  nsarray CONSTANT text[][] := ARRAY[
+    ARRAY['soapenv', 'http://schemas.xmlsoap.org/soap/envelope/']
+  ];
+BEGIN
+  perform set_config('response.headers', '[{"Content-Type": "application/soap+xml"}]', true);
+
+  RETURN xmlelement(
+    NAME "soapenv:Envelope",
+    XMLATTRIBUTES('http://schemas.xmlsoap.org/soap/envelope/' AS "xmlns:soapenv"),
+    xmlelement(NAME "soapenv:Header"),
+    xmlelement(
+      NAME "soapenv:Body",
+      xmlelement(
+        NAME theRequestBodyWas,
+        (xpath('/soapenv:Envelope/soapenv:Body', '<mySOAPContent>My SOAP Content</mySOAPContent>', nsarray))[1]
+      )
+    )
+ )::text;
+END;
+$$ LANGUAGE plpgsql
+set request.accepts = 'application/soap+xml, text/xml, application/xml, */*';
 
 create view getallprojects_view as
 select * from getallprojects();
@@ -2374,9 +2404,10 @@ create or replace function test.unnamed_text_param(text) returns text as $$
   select $1;
 $$ language sql;
 
-create or replace function test.unnamed_xml_param(pg_catalog.xml) returns pg_catalog.xml as $$
-  select $1;
-$$ language sql;
+create or replace function test.unnamed_xml_param(pg_catalog.xml) returns text as $$
+  select $1::text;
+$$ language sql
+set request.accepts = 'text/xml';
 
 create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
   select $1::bytea;
@@ -2631,23 +2662,25 @@ create table plate_plan_step (
 	  REFERENCES well(well_id)
 );
 
-CREATE FUNCTION test.return_scalar_xml() RETURNS pg_catalog.xml
+CREATE FUNCTION test.return_scalar_xml() RETURNS text
 LANGUAGE sql AS $$
-  SELECT '<my-xml-tag/>'::pg_catalog.xml
-$$;
+  SELECT '<my-xml-tag/>'::text
+$$
+set request.accepts = 'text/xml';
 
-CREATE OR REPLACE FUNCTION "welcome.xml"() RETURNS pg_catalog.xml
+CREATE OR REPLACE FUNCTION "welcome.xml"() RETURNS text
 LANGUAGE sql AS $_$
-select $$
-<html>
+select
+$$<html>
   <head>
     <title>PostgREST</title>
   </head>
   <body>
     <h1>Welcome to PostgREST</h1>
   </body>
-</html>$$::pg_catalog.xml;
-$_$;
+</html>$$::text;
+$_$
+set request.accepts = 'text/xml';
 
 CREATE TABLE test.xmltest (
     id integer primary key,

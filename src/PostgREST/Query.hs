@@ -67,7 +67,7 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} = do
+readQuery WrappedReadPlan{wrReadPlan, wrBinField, wrAcceptMT} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -80,10 +80,10 @@ readQuery WrappedReadPlan{wrReadPlan, wrBinField} conf@AppConfig{..} apiReq@ApiR
            countQuery
         )
         (shouldCount preferCount)
-        iAcceptMediaType
+        wrAcceptMT
         wrBinField
         configDbPreparedStatements
-  failNotSingular iAcceptMediaType resultSet
+  failNotSingular wrAcceptMT resultSet
   optionalRollback conf apiReq
   resultSetWTotal conf apiReq resultSet countQuery
 
@@ -110,16 +110,16 @@ resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStan
         configDbPreparedStatements
 
 createQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-createQuery mrPlan apiReq@ApiRequest{..} conf = do
+createQuery mrPlan apiReq conf = do
   resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular iAcceptMediaType resultSet
+  failNotSingular (mrAcceptMT mrPlan) resultSet
   optionalRollback conf apiReq
   pure resultSet
 
 updateQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
 updateQuery mrPlan apiReq@ApiRequest{..} conf = do
   resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular iAcceptMediaType resultSet
+  failNotSingular (mrAcceptMT mrPlan) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure resultSet
@@ -146,13 +146,13 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
 deleteQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
 deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular iAcceptMediaType resultSet
+  failNotSingular (mrAcceptMT mrPlan) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure resultSet
 
 invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} = do
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField, crAcceptMT} apiReq@ApiRequest{iPreferences=Preferences{..}} conf@AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -162,13 +162,13 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequ
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount preferCount)
-        iAcceptMediaType
+        crAcceptMT
         (preferParameters == Just MultipleObjects)
         crBinField
         configDbPreparedStatements
 
   optionalRollback conf apiReq
-  failNotSingular iAcceptMediaType resultSet
+  failNotSingular crAcceptMT resultSet
   pure resultSet
 
 openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, ProcsMap, Maybe Text))
@@ -189,7 +189,7 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
       pure Nothing
 
 writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
-writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferences=Preferences{..}} conf =
+writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan, mrAcceptMT} ApiRequest{iPreferences=Preferences{..}} conf =
   let
     (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
   in
@@ -198,7 +198,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferenc
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
-      (iAcceptMediaType apiReq)
+      mrAcceptMT
       preferRepresentation
       pkCols
       (configDbPreparedStatements conf)

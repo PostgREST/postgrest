@@ -30,6 +30,7 @@ import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.List                  as L
 import qualified Data.Set                   as S
+import qualified PostgREST.MediaType        as MediaType
 import qualified PostgREST.SchemaCache.Proc as Proc
 
 import Data.Either.Combinators (mapLeft, mapRight)
@@ -40,10 +41,11 @@ import PostgREST.ApiRequest               (Action (..),
                                            ApiRequest (..),
                                            InvokeMethod (..),
                                            Mutation (..),
-                                           Payload (..))
+                                           Payload (..), Target (..))
 import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Error                    (Error (..))
 import PostgREST.MediaType                (MTPlanAttrs (..),
+                                           MTPlanFormat (..),
                                            MediaType (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
@@ -80,12 +82,14 @@ data WrappedReadPlan = WrappedReadPlan {
   wrReadPlan :: ReadPlanTree
 , wrTxMode   :: SQL.Mode
 , wrBinField :: Maybe FieldName
+, wrAcceptMT :: MediaType
 }
 
 data MutateReadPlan = MutateReadPlan {
   mrReadPlan   :: ReadPlanTree
 , mrMutatePlan :: MutatePlan
 , mrTxMode     :: SQL.Mode
+, mrAcceptMT   :: MediaType
 }
 
 data CallReadPlan = CallReadPlan {
@@ -94,19 +98,22 @@ data CallReadPlan = CallReadPlan {
 , crTxMode   :: SQL.Mode
 , crProc     :: ProcDescription
 , crBinField :: Maybe FieldName
+, crAcceptMT :: MediaType
 }
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
-  return $ WrappedReadPlan rPlan SQL.Read binField
+  acceptMediaType <- mapLeft ApiRequestError $ findAcceptMediaType conf (iAcceptMediaType apiRequest) (iAction apiRequest) (iTarget apiRequest) mempty
+  binField <- mapLeft ApiRequestError $ binaryField acceptMediaType mempty Nothing rPlan
+  return $ WrappedReadPlan rPlan SQL.Read binField acceptMediaType
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
+  acceptMediaType <- mapLeft ApiRequestError $ findAcceptMediaType conf (iAcceptMediaType apiRequest) (iAction apiRequest) (iTarget apiRequest) mempty
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  return $ MutateReadPlan rPlan mPlan SQL.Write
+  return $ MutateReadPlan rPlan mPlan SQL.Write acceptMediaType
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest invMethod = do
@@ -130,8 +137,9 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
           (InvPost, Proc.Immutable) -> SQL.Read
           (InvPost, Proc.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
-  return $ CallReadPlan rPlan cPlan txMode proc binField
+  acceptMediaType <- mapLeft ApiRequestError $ findAcceptMediaType conf (iAcceptMediaType apiRequest) (iAction apiRequest) (iTarget apiRequest) pdRequestAccepts
+  binField <- mapLeft ApiRequestError $ binaryField acceptMediaType pdRequestAccepts (Just proc) rPlan
+  return $ CallReadPlan rPlan cPlan txMode proc binField acceptMediaType
   where
     Preferences{..} = iPreferences apiRequest
     qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
@@ -611,8 +619,8 @@ addFilterToLogicForest flt lf = Stmnt flt : lf
 -- | If raw(binary) output is requested, check that MediaType is one of the
 -- admitted rawMediaTypes and that`?select=...` contains only one field other
 -- than `*`
-binaryField :: AppConfig -> MediaType -> Maybe ProcDescription -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
-binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
+binaryField :: MediaType -> [MediaType] -> Maybe ProcDescription -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
+binaryField acceptMediaType procAcceptMediaTypes proc rpTree
   | isRawMediaType =
     if (procReturnsScalar <$> proc) == Just True
       then Right $ Just "pgrst_scalar"
@@ -626,7 +634,7 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   | otherwise =
       Right Nothing
   where
-    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
+    isRawMediaType = acceptMediaType `elem` procAcceptMediaTypes `L.union` [MTOctetStream, MTTextPlain] || isRawPlan acceptMediaType
     isRawPlan mt = case mt of
       MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
       MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
@@ -637,3 +645,41 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
     fstFieldName (Node ReadPlan{select=(("*", []), _, _):_} [])  = Nothing
     fstFieldName (Node ReadPlan{select=[((fld, []), _, _)]} []) = Just fld
     fstFieldName _                                               = Nothing
+
+findAcceptMediaType :: AppConfig -> [MediaType] -> Action -> Target -> [MediaType] -> Either ApiRequestError MediaType
+findAcceptMediaType conf accepts action target procAcceptMediaTypes =
+  case mutuallyAgreeable (requestMediaTypes conf action target procAcceptMediaTypes) accepts of
+    Just ct ->
+      Right ct
+    Nothing ->
+      Left . MediaTypeError $ map MediaType.toMime accepts
+
+requestMediaTypes :: AppConfig -> Action -> Target -> [MediaType] -> [MediaType]
+requestMediaTypes conf action target procAcceptMediaTypes =
+  case action of
+    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
+    ActionInvoke _  -> invokeMediaTypes
+    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
+    ActionInfo      -> [MTTextCSV]
+    _               -> defaultMediaTypes
+  where
+    invokeMediaTypes = defaultMediaTypes ++ rawMediaTypes ++ case target of
+      TargetProc{tpIsRootSpec=True} -> [MTOpenAPI]
+      _                             -> mempty
+    defaultMediaTypes =
+      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
+      [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf]
+    rawMediaTypes = [MTOctetStream, MTTextPlain] `L.union` procAcceptMediaTypes
+
+{-|
+  Find the best match from a list of media types accepted by the
+  client in order of decreasing preference and a list of types
+  producible by the server.  If there is no match but the client
+  accepts */* then return the top server pick.
+-}
+mutuallyAgreeable :: [MediaType] -> [MediaType] -> Maybe MediaType
+mutuallyAgreeable sProduces cAccepts =
+  let exact = listToMaybe $ L.intersect cAccepts sProduces in
+  if isNothing exact && MTAny `elem` cAccepts
+     then listToMaybe sProduces
+     else exact

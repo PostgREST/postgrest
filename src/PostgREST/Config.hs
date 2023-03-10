@@ -55,7 +55,6 @@ import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
                                           dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.MediaType               (MediaType (..), toMime)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 
@@ -91,7 +90,6 @@ data AppConfig = AppConfig
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
   , configOpenApiServerProxyUri    :: Maybe Text
-  , configRawMediaTypes            :: [MediaType]
   , configServerHost               :: Text
   , configServerPort               :: Int
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
@@ -149,7 +147,6 @@ toText conf =
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("raw-media-types",           q . T.decodeUtf8 . BS.intercalate "," . fmap toMime . configRawMediaTypes)
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
@@ -247,7 +244,6 @@ parser optPath env dbSettings =
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
-    <*> (maybe [] (fmap (MTOther . encodeUtf8) . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")

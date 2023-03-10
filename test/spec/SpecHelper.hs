@@ -29,7 +29,6 @@ import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
                                           parseSecret)
-import PostgREST.MediaType               (MediaType (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
@@ -100,7 +99,6 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configOpenApiMode           = OAFollowPriv
   , configOpenApiSecurityActive = False
   , configOpenApiServerProxyUri = Nothing
-  , configRawMediaTypes         = []
   , configServerHost            = "localhost"
   , configServerPort            = 3000
   , configServerTraceHeader     = Nothing
@@ -188,9 +186,6 @@ testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensi
 
 testCfgRootSpec :: AppConfig
 testCfgRootSpec = baseCfg { configDbRootSpec = Just $ QualifiedIdentifier mempty "root"}
-
-testCfgHtmlRawOutput :: AppConfig
-testCfgHtmlRawOutput = baseCfg { configRawMediaTypes = [MTOther "text/html"] }
 
 testCfgResponseHeaders :: AppConfig
 testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier mempty "custom_headers" }

@@ -15,7 +15,6 @@ module PostgREST.Query.SqlFragment
   , asGeoJsonF
   , asJsonF
   , asJsonSingleF
-  , asXmlF
   , countF
   , fromQi
   , limitOffsetF
@@ -177,9 +176,6 @@ asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
   | returnsScalar = "coalesce((json_agg(_postgrest_t.pgrst_scalar)->0)::text, 'null')"
   | otherwise     = "coalesce((json_agg(_postgrest_t)->0)::text, 'null')"
-
-asXmlF :: FieldName -> SqlFragment
-asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
 
 asGeoJsonF ::  SqlFragment
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"

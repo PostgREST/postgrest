@@ -16,6 +16,7 @@ module PostgREST.SchemaCache.Proc
 
 import qualified Data.Aeson          as JSON
 import qualified Data.HashMap.Strict as HM
+import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
@@ -39,13 +40,14 @@ data ProcVolatility
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data ProcDescription = ProcDescription
-  { pdSchema      :: Schema
-  , pdName        :: Text
-  , pdDescription :: Maybe Text
-  , pdParams      :: [ProcParam]
-  , pdReturnType  :: Maybe RetType
-  , pdVolatility  :: ProcVolatility
-  , pdHasVariadic :: Bool
+  { pdSchema         :: Schema
+  , pdName           :: Text
+  , pdDescription    :: Maybe Text
+  , pdParams         :: [ProcParam]
+  , pdReturnType     :: Maybe RetType
+  , pdVolatility     :: ProcVolatility
+  , pdHasVariadic    :: Bool
+  , pdRequestAccepts :: [MediaType.MediaType]
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
@@ -59,10 +61,10 @@ data ProcParam = ProcParam
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord ProcDescription where
-  ProcDescription schema1 name1 des1 prms1 rt1 vol1 hasVar1 `compare` ProcDescription schema2 name2 des2 prms2 rt2 vol2 hasVar2
+  ProcDescription schema1 name1 des1 prms1 rt1 vol1 hasVar1 reqAccpts1 `compare` ProcDescription schema2 name2 des2 prms2 rt2 vol2 hasVar2 reqAccpts2
     | schema1 == schema2 && name1 == name2 && length prms1 < length prms2  = LT
     | schema2 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
-    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2)
+    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1, reqAccpts1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2, reqAccpts2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one ProcDescription).
 -- | It uses a HashMap for a faster lookup.

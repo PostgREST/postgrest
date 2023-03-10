@@ -201,9 +201,6 @@ exampleConfigFile =
       |## Base url for the OpenAPI output
       |openapi-server-proxy-uri = ""
       |
-      |## Content types to produce raw output
-      |# raw-media-types="image/png, image/jpg"
-      |
       |server-host = "!4"
       |server-port = 3000
       |

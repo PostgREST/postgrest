@@ -221,17 +221,6 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 68.57
 
-    it "outputs the plan for text/xml" $ do
-      r <- request methodGet "/rpc/return_scalar_xml"
-        (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose") ""
-
-      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
-
-      liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
-        aggCol `shouldBe` Just [aesonQQ| "COALESCE(xmlagg(return_scalar_xml.pgrst_scalar), ''::xml)" |]
-
   describe "text format" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"

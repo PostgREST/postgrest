@@ -43,7 +43,9 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (MutateReadPlan (..))
+import PostgREST.Plan                    (CallReadPlan (..),
+                                          MutateReadPlan (..),
+                                          WrappedReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
@@ -61,8 +63,8 @@ import qualified PostgREST.SchemaCache.Proc as Proc
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
 
-readResponse :: Bool -> QualifiedIdentifier -> ApiRequest -> ResultSet -> Wai.Response
-readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+readResponse :: Bool -> QualifiedIdentifier -> WrappedReadPlan -> ApiRequest -> ResultSet -> Wai.Response
+readResponse headersOnly identifier WrappedReadPlan{wrAcceptMT} ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
@@ -75,7 +77,7 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = cas
               <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
           )
         ]
-        ++ contentTypeHeaders ctxApiRequest
+        ++ ctHdrs
       rsOrErrBody = if status == HTTP.status416
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
           $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
@@ -84,10 +86,12 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = cas
     response status headers $ if headersOnly then mempty else rsOrErrBody
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders wrAcceptMT ctxApiRequest
 
 createResponse :: QualifiedIdentifier -> MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet = case resultSet of
+createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrAcceptMT} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
@@ -112,15 +116,17 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
           ]
 
     if preferRepresentation == Full then
-      response HTTP.status201 (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+      response HTTP.status201 (headers ++ ctHdrs) (LBS.fromStrict rsBody)
     else
       response HTTP.status201 headers mempty
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders mrAcceptMT ctxApiRequest
 
-updateResponse :: ApiRequest -> ResultSet -> Wai.Response
-updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+updateResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
+updateResponse MutateReadPlan{mrAcceptMT} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -131,30 +137,34 @@ updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
 
     if preferRepresentation == Full then
         response HTTP.status200
-          (headers ++ contentTypeHeaders ctxApiRequest)
+          (headers ++ ctHdrs)
           (LBS.fromStrict rsBody)
       else
         response HTTP.status204 headers mempty
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders mrAcceptMT ctxApiRequest
 
-singleUpsertResponse :: ApiRequest -> ResultSet -> Wai.Response
-singleUpsertResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+singleUpsertResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
+singleUpsertResponse MutateReadPlan{mrAcceptMT} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
 
     if preferRepresentation == Full then
-      response HTTP.status200 (contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+      response HTTP.status200 ctHdrs (LBS.fromStrict rsBody)
     else
       response HTTP.status204 [] mempty
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders mrAcceptMT ctxApiRequest
 
-deleteResponse :: ApiRequest -> ResultSet -> Wai.Response
-deleteResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+deleteResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
+deleteResponse MutateReadPlan{mrAcceptMT} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -165,13 +175,15 @@ deleteResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
 
     if preferRepresentation == Full then
         response HTTP.status200
-          (headers ++ contentTypeHeaders ctxApiRequest)
+          (headers ++ ctHdrs)
           (LBS.fromStrict rsBody)
       else
         response HTTP.status204 headers mempty
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders mrAcceptMT ctxApiRequest
 
 infoIdentResponse :: QualifiedIdentifier -> SchemaCache -> Wai.Response
 infoIdentResponse identifier sCache =
@@ -200,8 +212,8 @@ respondInfo allowHeader =
   let allOrigins = ("Access-Control-Allow-Origin", "*") in
   Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
 
-invokeResponse :: InvokeMethod -> ProcDescription -> ApiRequest -> ResultSet -> Wai.Response
-invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+invokeResponse :: CallReadPlan -> InvokeMethod -> ProcDescription -> ApiRequest -> ResultSet -> Wai.Response
+invokeResponse CallReadPlan{crAcceptMT} invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -217,11 +229,13 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
         response HTTP.status204 headers mempty
       else
         response status
-          (headers ++ contentTypeHeaders ctxApiRequest)
+          (headers ++ ctHdrs)
           (if invMethod == InvHead then mempty else rsOrErrBody)
 
   RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
+    Wai.responseLBS HTTP.status200 ctHdrs $ LBS.fromStrict plan
+  where
+    ctHdrs = contentTypeHeaders crAcceptMT ctxApiRequest
 
 openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
 openApiResponse headersOnly body conf sCache schema negotiatedByProfile =
@@ -251,9 +265,9 @@ decodeGucStatus :: Maybe Text -> Either Error.Error (Maybe HTTP.Status)
 decodeGucStatus =
   maybe (Right Nothing) $ first (const Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
 
-contentTypeHeaders :: ApiRequest -> [HTTP.Header]
-contentTypeHeaders ApiRequest{..} =
-  MediaType.toContentType iAcceptMediaType : maybeToList (profileHeader iSchema iNegotiatedByProfile)
+contentTypeHeaders :: MediaType -> ApiRequest -> [HTTP.Header]
+contentTypeHeaders acceptMT ApiRequest{..} =
+  MediaType.toContentType acceptMT : maybeToList (profileHeader iSchema iNegotiatedByProfile)
 
 profileHeader :: Schema -> Bool -> Maybe HTTP.Header
 profileHeader schema negotiatedByProfile =

@@ -174,7 +174,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionRead headersOnly, TargetIdent identifier) -> do
       wrPlan <- liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       resultSet <- runQuery (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      return $ Response.readResponse headersOnly identifier apiReq resultSet
+      return $ Response.readResponse headersOnly identifier wrPlan apiReq resultSet
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
@@ -184,22 +184,22 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      return $ Response.updateResponse apiReq resultSet
+      return $ Response.updateResponse mrPlan apiReq resultSet
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      return $ Response.singleUpsertResponse apiReq resultSet
+      return $ Response.singleUpsertResponse mrPlan apiReq resultSet
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       resultSet <- runQuery (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      return $ Response.deleteResponse apiReq resultSet
+      return $ Response.deleteResponse mrPlan apiReq resultSet
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       resultSet <- runQuery (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf
-      return $ Response.invokeResponse invMethod (Plan.crProc cPlan) apiReq resultSet
+      return $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       oaiResult <- runQuery Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveAnyClass        #-}
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.MediaType
@@ -11,6 +13,7 @@ module PostgREST.MediaType
   , getMediaType
   ) where
 
+import qualified Data.Aeson               as JSON
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
 import           Data.Maybe               (fromJust)
@@ -31,19 +34,22 @@ data MediaType
   | MTUrlEncoded
   | MTOctetStream
   | MTAny
-  | MTOther ByteString
+  | MTOther Text
   | MTPlan MTPlanAttrs
-  deriving Eq
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data MTPlanAttrs = MTPlanAttrs (Maybe MediaType) MTPlanFormat [MTPlanOption]
+  deriving (Ord, Generic, JSON.ToJSON)
 instance Eq MTPlanAttrs where
   MTPlanAttrs {} == MTPlanAttrs {} = True -- we don't care about the attributes when comparing two MTPlan media types
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data MTPlanFormat
   = PlanJSON | PlanText
+  deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -66,7 +72,7 @@ toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
 toMime MTAny             = "*/*"
-toMime (MTOther ct)      = ct
+toMime (MTOther ct)      = encodeUtf8 ct
 toMime (MTPlan (MTPlanAttrs mt fmt opts)) =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   (if isNothing mt then mempty else "; for=\"" <> toMime (fromJust mt) <> "\"") <>
@@ -101,8 +107,8 @@ decodeMediaType mt =
     "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
     "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
     "*/*":_                                -> MTAny
-    other:_                                -> MTOther other
-    _                                      -> MTAny
+    other:_                                -> MTOther $ decodeUtf8 other
+    []                                     -> MTAny
   where
     getPlan fmt rest =
      let

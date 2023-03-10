@@ -34,6 +34,7 @@ import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
+import qualified PostgREST.MediaType        as MediaType
 
 import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
@@ -251,6 +252,7 @@ decodeProcs =
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
+              <*> (fmap (MediaType.decodeMediaType . encodeUtf8) <$> arrayColumn HD.text)
 
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -341,7 +343,8 @@ procsSqlQuery pgVer = [q|
     ) AS rettype_is_composite,
     ('void'::regtype = t.oid) AS rettype_is_void,
     p.provolatile,
-    p.provariadic > 0 as hasvariadic
+    p.provariadic > 0 as hasvariadic,
+    coalesce(regexp_split_to_array(replace((regexp_split_to_array(config, '='))[2], ' ', ''), ','), '{}') AS request_accepts
   FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
@@ -350,6 +353,7 @@ procsSqlQuery pgVer = [q|
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid
+  LEFT JOIN LATERAL unnest(proconfig) config ON config like 'request.accepts%'
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
