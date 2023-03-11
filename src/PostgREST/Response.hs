@@ -109,6 +109,10 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
               Nothing
             else
               toAppliedHeader <$> preferResolution
+          , if null iColumns || isNothing preferDefaults then
+              Nothing
+            else
+              toAppliedHeader <$> preferDefaults
           ]
 
     if preferRepresentation == Full then
@@ -120,14 +124,19 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 updateResponse :: ApiRequest -> ResultSet -> Wai.Response
-updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, iColumns} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
       contentRangeHeader =
-        RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
+        Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      headers = [contentRangeHeader]
+      preferDefaultsHeader =
+        if null iColumns || isNothing preferDefaults then
+           Nothing
+        else
+           toAppliedHeader <$> preferDefaults
+      headers = catMaybes [contentRangeHeader, preferDefaultsHeader]
 
     if preferRepresentation == Full then
         response HTTP.status200

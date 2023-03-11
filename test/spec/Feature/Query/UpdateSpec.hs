@@ -340,7 +340,7 @@ spec = do
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = []
+            , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
             }
 
         it "updates with limit/offset using table default values(field-with_sep) when json keys are undefined" $ do
@@ -352,7 +352,7 @@ spec = do
               {"id":3,"name":"Tres"}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = []
+            , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
             }
 
         it "updates table default values(field-with_sep) when json keys are undefined" $ do
@@ -364,7 +364,7 @@ spec = do
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = []
+            , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
             }
 
         it "updates view default values(field-with_sep) when json keys are undefined" $
@@ -378,7 +378,7 @@ spec = do
               {"id":3,"name":"Default","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":null,"field-with_sep":3}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = []
+            , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
             }
 
   context "tables with self reference foreign keys" $ do

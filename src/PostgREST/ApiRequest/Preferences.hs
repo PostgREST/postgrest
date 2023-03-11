@@ -94,13 +94,14 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation")]
+-- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation , defaults=apply")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Full
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
+--     , preferDefaults = Just ApplyDefaults
 --     }
 --
 fromHeaders :: [HTTP.Header] -> Preferences
@@ -208,9 +209,12 @@ instance ToHeaderValue PreferTransaction where
 
 instance ToAppliedHeader PreferTransaction
 
+-- |
+-- How to handle the insertion/update when the keys specified in ?columns are not present
+-- in the json body. 
 data PreferDefaults
-  = ApplyDefaults
-  | IgnoreDefaults
+  = ApplyDefaults  -- ^ Use the default column value for the unspecified keys.
+  | IgnoreDefaults -- ^ Inserts: null values / Updates: the keys are not SET to any value 
   deriving Eq
 
 instance ToHeaderValue PreferDefaults where

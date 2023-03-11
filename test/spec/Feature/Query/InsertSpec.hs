@@ -468,7 +468,7 @@ spec actualPgVersion = do
                   {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
                 ]|]
                 { matchStatus  = 201
-                , matchHeaders = []
+                , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
                 }
 
         it "inserts view default values(field-with_sep) when json keys are undefined" $
@@ -483,7 +483,7 @@ spec actualPgVersion = do
                 {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
               ]|]
               { matchStatus  = 201
-              , matchHeaders = []
+              , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
               }
 
     context "with unicode values" $ do
