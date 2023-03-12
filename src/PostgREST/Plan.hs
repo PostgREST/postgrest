@@ -79,9 +79,10 @@ import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 import Protolude hiding (from)
 
 data WrappedReadPlan = WrappedReadPlan {
-  wrReadPlan :: ReadPlanTree
-, wrTxMode   :: SQL.Mode
-, wrAcceptMT :: MediaType
+  wrReadPlan  :: ReadPlanTree
+, wrTxMode    :: SQL.Mode
+, wrAcceptMT  :: MediaType
+, wrCustomAgg :: Maybe Proc.CustomAggregate
 }
 
 data MutateReadPlan = MutateReadPlan {
@@ -103,8 +104,12 @@ data CallReadPlan = CallReadPlan {
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  acceptMediaType <- mapLeft ApiRequestError $ findAcceptMediaType conf (iAcceptMediaType apiRequest) (iAction apiRequest) (iTarget apiRequest) mempty
-  return $ WrappedReadPlan rPlan SQL.Read acceptMediaType
+  let relCustomAggs = fromMaybe mempty $ HM.lookup identifier $ dbCustomAggs sCache
+  acceptMediaType <- mapLeft ApiRequestError $ findAcceptMediaType conf (iAcceptMediaType apiRequest) (iAction apiRequest) (iTarget apiRequest)
+                     (concatMap Proc.cAggRequestAccepts relCustomAggs)
+  return $ WrappedReadPlan rPlan SQL.Read acceptMediaType $ customAgg acceptMediaType relCustomAggs
+  where
+    customAgg acceptMT = L.find (\Proc.CustomAggregate{cAggRequestAccepts=reqAccepts} -> acceptMT `elem` reqAccepts)
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest identifier conf sCache = do
@@ -625,7 +630,7 @@ findAcceptMediaType conf accepts action target procAcceptMediaTypes =
 requestMediaTypes :: AppConfig -> Action -> Target -> [MediaType] -> [MediaType]
 requestMediaTypes conf action target procAcceptMediaTypes =
   case action of
-    ActionRead _    -> defaultMediaTypes
+    ActionRead _    -> defaultMediaTypes ++ procAcceptMediaTypes
     ActionInvoke _  -> invokeMediaTypes
     ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
     ActionInfo      -> [MTTextCSV]

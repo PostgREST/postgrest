@@ -3133,3 +3133,26 @@ create view test.alpha_projects as
 create view test.zeta_projects as
   select c.id, p.name as pro_name, c.name as cli_name
   from projects p join clients c on p.client_id = c.id;
+
+create table test.lines (
+  id   int primary key
+, name text
+, geom extensions.geometry(LINESTRING, 4326)
+);
+
+create or replace function test.twkb_handler_transition (state bytea, next test.lines)
+returns bytea as $$
+  select state || extensions.st_astwkb(next.geom);
+$$ language sql;
+
+create or replace function test.twkb_handler_final (data bytea)
+returns bytea as $$
+  select data;
+$$ language sql set request.accepts='application/octet-stream';
+
+create or replace aggregate test.twkb_agg (test.lines) (
+  initcond = ''
+, stype = bytea
+, sfunc = test.twkb_handler_transition
+, finalfunc = test.twkb_handler_final
+);

@@ -67,7 +67,7 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery WrappedReadPlan{wrReadPlan, wrAcceptMT} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
+readQuery WrappedReadPlan{wrReadPlan, wrAcceptMT, wrCustomAgg} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -81,6 +81,7 @@ readQuery WrappedReadPlan{wrReadPlan, wrAcceptMT} conf@AppConfig{..} apiReq@ApiR
         )
         (shouldCount preferCount)
         wrAcceptMT
+        wrCustomAgg
         configDbPreparedStatements
   failNotSingular wrAcceptMT resultSet
   optionalRollback conf apiReq

@@ -15,6 +15,7 @@ module PostgREST.Query.SqlFragment
   , asJsonF
   , asJsonSingleF
   , scalarCustomF
+  , customAggF
   , scalarTextF
   , scalarBinaryF
   , countF
@@ -181,6 +182,9 @@ asJsonSingleF returnsScalar
 
 asGeoJsonF ::  SqlFragment
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
+
+customAggF :: QualifiedIdentifier -> SqlFragment
+customAggF qi = "coalesce(" <> fromQi qi <> "(_postgrest_t), '')"
 
 scalarCustomF :: SqlFragment
 scalarCustomF = "coalesce(string_agg(_postgrest_t.pgrst_scalar, ''), '')"

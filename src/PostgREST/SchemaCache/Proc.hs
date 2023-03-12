@@ -12,6 +12,8 @@ module PostgREST.SchemaCache.Proc
   , procReturnsSingle
   , procReturnsVoid
   , procTableName
+  , CustomAggregate(..)
+  , CustomAggregateMap
   ) where
 
 import qualified Data.Aeson          as JSON
@@ -91,3 +93,12 @@ procTableName proc = case pdReturnType proc of
   Just (SetOf  (Composite qi)) -> Just $ qiName qi
   Just (Single (Composite qi)) -> Just $ qiName qi
   _                            -> Nothing
+
+data CustomAggregate = CustomAggregate
+  { cAggIdent          :: QualifiedIdentifier
+  , cAggRelation       :: QualifiedIdentifier
+  , cAggRequestAccepts :: [MediaType.MediaType]
+  }
+  deriving (Eq, Generic, JSON.ToJSON)
+
+type CustomAggregateMap = HM.HashMap QualifiedIdentifier [CustomAggregate]

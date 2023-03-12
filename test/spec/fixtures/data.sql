@@ -838,3 +838,6 @@ INSERT INTO posters(id,name) VALUES (1,'Mark'), (2,'Elon'), (3,'Bill'), (4,'Jeff
 
 TRUNCATE TABLE subscriptions CASCADE;
 INSERT INTO subscriptions(subscriber,subscribed) VALUES (3,1), (4,1), (1,2);
+
+TRUNCATE TABLE lines CASCADE;
+insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::extensions.geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::extensions.geometry);

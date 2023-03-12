@@ -45,7 +45,9 @@ import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
 import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
-import PostgREST.SchemaCache.Proc         (PgType (..),
+import PostgREST.SchemaCache.Proc         (CustomAggregate (..),
+                                           CustomAggregateMap,
+                                           PgType (..),
                                            ProcDescription (..),
                                            ProcParam (..),
                                            ProcVolatility (..),
@@ -64,6 +66,7 @@ data SchemaCache = SchemaCache
   { dbTables        :: TablesMap
   , dbRelationships :: RelationshipsMap
   , dbProcs         :: ProcsMap
+  , dbCustomAggs    :: CustomAggregateMap
   }
   deriving (Generic, JSON.ToJSON)
 
@@ -114,6 +117,7 @@ querySchemaCache schemas extraSearchPath prepared = do
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
   procs   <- SQL.statement schemas $ allProcs pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
+  cAggs   <- SQL.statement schemas $ customAggregates prepared
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
@@ -122,6 +126,7 @@ querySchemaCache schemas extraSearchPath prepared = do
       dbTables = tabsWViewsPks
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbProcs = procs
+    , dbCustomAggs = cAggs
     }
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
@@ -147,11 +152,12 @@ getOverrideRelationshipsMap rels cRels =
 -- | Remove db objects that belong to an internal schema(not exposed through the API) from the SchemaCache.
 removeInternal :: [Schema] -> SchemaCache -> SchemaCache
 removeInternal schemas dbStruct =
-  SchemaCache {
+  dbStruct {
       dbTables        = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
                         HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
     , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+    , dbCustomAggs    = dbCustomAggs dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -996,6 +1002,53 @@ allViewsKeyDependencies =
       -- make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs
       having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
+
+customAggregates :: Bool -> SQL.Statement [Schema] CustomAggregateMap
+customAggregates =
+  SQL.Statement sql (arrayParam HE.text) decodeCustomAggregates
+  where
+    -- pg_aggregate doesn't contain the parameters of the aggreate and other things, we need to use pg_proc for getting these
+    -- only obtain aggregates which have a single parameter that is a relation
+    sql = [q|
+      with
+      accept_procs as (
+        select
+          *,
+          (parse_ident(pronamespace::regnamespace::text))[1] as schema,
+          regexp_split_to_array(replace((regexp_split_to_array(config, '='))[2], ' ', ''), ',') as request_accepts
+        from pg_proc
+        JOIN LATERAL unnest(proconfig) config ON config like 'request.accepts%'
+      ),
+      all_relations as (
+        select reltype
+        from pg_class
+        where relkind in ('v','r','m','f','p')
+      )
+      select
+        aprocs.schema as schema,
+        proc.proname                                            as name,
+        arg_schema.nspname::text                                as rel_schema,
+        arg_name.typname::text                                  as rel_name,
+        aprocs.request_accepts
+      from pg_aggregate agg
+        join accept_procs aprocs on agg.aggfinalfn = aprocs.oid
+        join pg_proc proc              on agg.aggfnoid = proc.oid
+        join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
+        join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
+      where
+        aprocs.schema = ANY($1) and
+        proc.pronargs = 1 and
+        proc.proargtypes[0] in (select reltype from all_relations);
+      |]
+
+decodeCustomAggregates :: HD.Result CustomAggregateMap
+decodeCustomAggregates =
+  HM.fromListWith (++) . fmap ((\(x,y) -> (x, [y])) . (\cagg@CustomAggregate{cAggRelation} -> (cAggRelation, cagg))) <$> HD.rowList caggRow
+  where
+    caggRow = CustomAggregate
+              <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+              <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+              <*> (fmap (MediaType.decodeMediaType . encodeUtf8) <$> arrayColumn HD.text)
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
