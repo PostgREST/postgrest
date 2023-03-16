@@ -122,6 +122,9 @@ rec {
   cabalTools =
     pkgs.callPackage nix/tools/cabalTools.nix { inherit devCabalOptions postgrest; };
 
+  withTools =
+    pkgs.callPackage nix/tools/withTools.nix { inherit cabalTools devCabalOptions postgresqlVersions postgrest; };
+
   # Development tools.
   devTools =
     pkgs.callPackage nix/tools/devTools.nix { inherit tests style devCabalOptions hsie withTools; };
@@ -154,9 +157,6 @@ rec {
       inherit (pkgs.haskell.packages."${compiler}") hpc-codecov;
       inherit (pkgs.haskell.packages."${compiler}") weeder;
     };
-
-  withTools =
-    pkgs.callPackage nix/tools/withTools.nix { inherit devCabalOptions postgresqlVersions postgrest; };
 } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux rec {
   # Static executable.
   inherit postgrestStatic;

@@ -207,6 +207,9 @@ postgrest-loadtest-against master
 # You can simulate latency client/postgrest and postgrest/database
 PGRST_DELAY=5ms PGDELAY=5ms postgrest-loadtest
 
+# You can build postgrest directly with cabal for faster iteration
+PGRST_BUILD_CABAL=1 postgrest-loadtest
+
 # Produce a markdown report to be used on CI
 postgrest-loadtest-report
 ```
