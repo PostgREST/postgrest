@@ -67,7 +67,7 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery WrappedReadPlan{wrReadPlan, wrBinField, wrAcceptMT} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
+readQuery WrappedReadPlan{wrReadPlan, wrAcceptMT} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -81,7 +81,6 @@ readQuery WrappedReadPlan{wrReadPlan, wrBinField, wrAcceptMT} conf@AppConfig{..}
         )
         (shouldCount preferCount)
         wrAcceptMT
-        wrBinField
         configDbPreparedStatements
   failNotSingular wrAcceptMT resultSet
   optionalRollback conf apiReq
@@ -152,10 +151,11 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   pure resultSet
 
 invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField, crAcceptMT} apiReq@ApiRequest{iPreferences=Preferences{..}} conf@AppConfig{..} = do
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crAcceptMT, crIsCustomMT} apiReq@ApiRequest{iPreferences=Preferences{..}} conf@AppConfig{..} = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
+        crIsCustomMT
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingle proc)
         (QueryBuilder.callPlanToQuery crCallPlan)
@@ -164,7 +164,6 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField, crAcceptMT} ap
         (shouldCount preferCount)
         crAcceptMT
         (preferParameters == Just MultipleObjects)
-        crBinField
         configDbPreparedStatements
 
   optionalRollback conf apiReq

@@ -1947,7 +1947,7 @@ DECLARE
     ARRAY['soapenv', 'http://schemas.xmlsoap.org/soap/envelope/']
   ];
 BEGIN
-  perform set_config('response.headers', '[{"Content-Type": "application/soap+xml"}]', true);
+  perform set_config('response.headers', '[{"Content-Type": "text/xml"}]', true);
 
   RETURN xmlelement(
     NAME "soapenv:Envelope",

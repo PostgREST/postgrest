@@ -23,15 +23,12 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Statement                   as SQL
 
 import Control.Lens ((^?))
-import Data.Maybe   (fromJust)
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType               (MTPlanAttrs (..),
-                                          MTPlanFormat (..),
-                                          MediaType (..),
-                                          getMediaType)
+import PostgREST.MediaType              (MTPlanAttrs (..),
+                                         MTPlanFormat (..),
+                                         MediaType (..), getMediaType)
 import PostgREST.Query.SqlFragment
-import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import Protolude
 
@@ -99,8 +96,8 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
     MTPlan{} -> planRow
     _        -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool -> SQL.Statement () ResultSet
-prepareRead selectQuery countQuery countTotal mt binaryField =
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Bool -> SQL.Statement () ResultSet
+prepareRead selectQuery countQuery countTotal mt =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
@@ -121,7 +118,6 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     | getMediaType mt == MTTextCSV                       = asCsvF
     | getMediaType mt == MTSingularJSON                  = asJsonSingleF False
     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-    | isJust binaryField                                 = asBinaryF $ fromJust binaryField
     | otherwise                                          = asJsonF False
 
   decodeIt :: HD.Result ResultSet
@@ -129,10 +125,10 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     MTPlan{} -> planRow
     _        -> HD.singleRow $ standardRow True
 
-prepareCall :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-               MediaType -> Bool -> Maybe FieldName -> Bool ->
+prepareCall :: Bool -> Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
+               MediaType -> Bool -> Bool ->
                SQL.Statement () ResultSet
-prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt multObjects binaryField =
+prepareCall returnsCustom returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt multObjects =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -150,10 +146,12 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
     (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
+     | returnsCustom                                      = scalarCustomF
+     | getMediaType mt == MTOctetStream                   = scalarBinaryF
+     | getMediaType mt == MTTextPlain                     = scalarTextF
      | getMediaType mt == MTSingularJSON                  = asJsonSingleF returnsScalar
      | getMediaType mt == MTTextCSV                       = asCsvF
      | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
      | returnsSingle && not multObjects                   = asJsonSingleF returnsScalar
      | otherwise                                          = asJsonF returnsScalar
 
@@ -161,6 +159,7 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
     decodeIt = case mt of
       MTPlan{} -> planRow
       _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow True)
+
 
 preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 preparePlanRows countQuery =

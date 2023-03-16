@@ -10,11 +10,13 @@ Any function that outputs a SqlFragment should be in this module.
 module PostgREST.Query.SqlFragment
   ( noLocationF
   , SqlFragment
-  , asBinaryF
   , asCsvF
   , asGeoJsonF
   , asJsonF
   , asJsonSingleF
+  , scalarCustomF
+  , scalarTextF
+  , scalarBinaryF
   , countF
   , fromQi
   , limitOffsetF
@@ -180,8 +182,14 @@ asJsonSingleF returnsScalar
 asGeoJsonF ::  SqlFragment
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
 
-asBinaryF :: FieldName -> SqlFragment
-asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
+scalarCustomF :: SqlFragment
+scalarCustomF = "coalesce(string_agg(_postgrest_t.pgrst_scalar, ''), '')"
+
+scalarTextF :: SqlFragment
+scalarTextF = "coalesce(string_agg(_postgrest_t.pgrst_scalar::text, ''), '')"
+
+scalarBinaryF :: SqlFragment
+scalarBinaryF = "coalesce(string_agg(_postgrest_t.pgrst_scalar::bytea, ''), '')"
 
 locationF :: [Text] -> SqlFragment
 locationF pKeys = [qc|(
