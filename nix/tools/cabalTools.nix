@@ -37,7 +37,7 @@ let
     checkedShellScript
       {
         name = "postgrest-run";
-        docs = "Run PostgREST after buidling it interactively with cabal-install";
+        docs = "Run PostgREST after building it interactively with cabal-install";
         args = [ "ARG_LEFTOVERS([PostgREST arguments])" ];
         inRootDir = true;
         withEnv = postgrest.env;

@@ -1,6 +1,7 @@
 { bash-completion
 , buildToolbox
 , cabal-install
+, cabalTools
 , checkedShellScript
 , curl
 , devCabalOptions
@@ -333,16 +334,23 @@ let
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
         rm -f result
-        echo -n "Building postgrest... "
-        nix-build -A postgrestPackage > "$tmpdir"/build.log 2>&1 || {
-          echo "failed, output:"
-          cat "$tmpdir"/build.log
-          exit 1
-        }
+        if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
+          echo -n "Building postgrest (nix)... "
+          nix-build -A postgrestPackage > "$tmpdir"/build.log 2>&1 || {
+            echo "failed, output:"
+            cat "$tmpdir"/build.log
+            exit 1
+          }
+          PGRST_CMD=./result/bin/postgrest
+        else
+          echo -n "Building postgrest (cabal)... "
+          postgrest-build
+          PGRST_CMD=postgrest-run
+        fi
         echo "done."
 
         echo -n "Starting postgrest... "
-        ./result/bin/postgrest ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
+        $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2317
         cleanup() {
