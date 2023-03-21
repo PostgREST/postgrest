@@ -109,7 +109,7 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
               Nothing
             else
               toAppliedHeader <$> preferResolution
-          , undefinedKeysHeader ctxApiRequest
+          , toAppliedHeader <$> preferUndefinedKeys
           ]
 
     if preferRepresentation == Full then
@@ -128,7 +128,7 @@ updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
       contentRangeHeader =
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      headers = catMaybes [contentRangeHeader, undefinedKeysHeader ctxApiRequest]
+      headers = catMaybes [contentRangeHeader, toAppliedHeader <$> preferUndefinedKeys]
 
     if preferRepresentation == Full then
         response HTTP.status200
@@ -262,13 +262,6 @@ profileHeader schema negotiatedByProfile =
     then Just $ (,) "Content-Profile" (toS schema)
   else
     Nothing
-
-undefinedKeysHeader :: ApiRequest -> Maybe HTTP.Header
-undefinedKeysHeader ApiRequest{iPreferences=Preferences{preferUndefinedKeys}, iColumns} =
-  if null iColumns || isNothing preferUndefinedKeys then
-     Nothing
-  else
-     toAppliedHeader <$> preferUndefinedKeys
 
 addRetryHint :: Int -> Wai.Response -> Wai.Response
 addRetryHint delay response = do

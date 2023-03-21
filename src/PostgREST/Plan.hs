@@ -504,9 +504,9 @@ mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> Re
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols $ preferUndefinedKeys == Just ApplyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings $ preferUndefinedKeys == Just ApplyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -532,6 +532,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readR
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
+    applyDefaults = preferUndefinedKeys == Just ApplyDefaults
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound
