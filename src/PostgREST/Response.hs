@@ -109,10 +109,7 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
               Nothing
             else
               toAppliedHeader <$> preferResolution
-          , if null iColumns || isNothing preferDefaults then
-              Nothing
-            else
-              toAppliedHeader <$> preferDefaults
+          , undefinedKeysHeader ctxApiRequest
           ]
 
     if preferRepresentation == Full then
@@ -124,19 +121,14 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
 updateResponse :: ApiRequest -> ResultSet -> Wai.Response
-updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, iColumns} resultSet = case resultSet of
+updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
       contentRangeHeader =
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      preferDefaultsHeader =
-        if null iColumns || isNothing preferDefaults then
-           Nothing
-        else
-           toAppliedHeader <$> preferDefaults
-      headers = catMaybes [contentRangeHeader, preferDefaultsHeader]
+      headers = catMaybes [contentRangeHeader, undefinedKeysHeader ctxApiRequest]
 
     if preferRepresentation == Full then
         response HTTP.status200
@@ -270,6 +262,13 @@ profileHeader schema negotiatedByProfile =
     then Just $ (,) "Content-Profile" (toS schema)
   else
     Nothing
+
+undefinedKeysHeader :: ApiRequest -> Maybe HTTP.Header
+undefinedKeysHeader ApiRequest{iPreferences=Preferences{preferUndefinedKeys}, iColumns} =
+  if null iColumns || isNothing preferUndefinedKeys then
+     Nothing
+  else
+     toAppliedHeader <$> preferUndefinedKeys
 
 addRetryHint :: Int -> Wai.Response -> Wai.Response
 addRetryHint delay response = do

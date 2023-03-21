@@ -455,7 +455,7 @@ spec actualPgVersion = do
         -- inserting the array fails on pg 9.6, but the feature should work normally
         when (actualPgVersion >= pgVersion100) $
           it "inserts table default values(field-with_sep) when json keys are undefined" $
-            request methodPost "/complex_items?columns=id,name,field-with_sep,arr_data" [("Prefer", "return=representation"), ("Prefer", "defaults=apply")]
+            request methodPost "/complex_items?columns=id,name,field-with_sep,arr_data" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
                 [json|[
                   {"id": 4, "name": "Vier"},
                   {"id": 5, "name": "Funf", "arr_data": null},
@@ -468,11 +468,11 @@ spec actualPgVersion = do
                   {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
                 ]|]
                 { matchStatus  = 201
-                , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
+                , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
                 }
 
         it "inserts view default values(field-with_sep) when json keys are undefined" $
-          request methodPost "/complex_items_view?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "defaults=apply")]
+          request methodPost "/complex_items_view?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
               [json|[
                 {"id": 7, "name": "Sieben"},
                 {"id": 8}
@@ -483,7 +483,7 @@ spec actualPgVersion = do
                 {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
               ]|]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "defaults=apply"]
+              , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
               }
 
     context "with unicode values" $ do
