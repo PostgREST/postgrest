@@ -3105,3 +3105,8 @@ CREATE VIEW test.complex_items_view AS
 SELECT * FROM test.complex_items;
 
 ALTER VIEW test.complex_items_view ALTER COLUMN name SET DEFAULT 'Default';
+
+create table test.tbl_w_json(
+  id int,
+  data json
+);

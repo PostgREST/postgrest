@@ -486,6 +486,29 @@ spec actualPgVersion = do
               , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
               }
 
+        it "doesn't insert json duplicate keys(since it uses jsonb)" $
+          request methodPost "/tbl_w_json?columns=id,data" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+              [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]
+            `shouldRespondWith`
+              [json| [ { "data": { "a": 2 }, "id": 3 } ] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+              }
+
+    it "inserts json that has duplicate keys" $ do
+      request methodPost "/tbl_w_json" [("Prefer", "return=representation")]
+          [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]
+        `shouldRespondWith`
+          [json| [ { "data": { "a": 1, "a": 2 }, "id": 3 } ] |]
+          { matchStatus  = 201
+          }
+      request methodPost "/tbl_w_json?columns=id,data" [("Prefer", "return=representation")]
+          [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]
+        `shouldRespondWith`
+          [json| [ { "data": { "a": 1, "a": 2 }, "id": 3 } ] |]
+          { matchStatus  = 201
+          }
+
     context "with unicode values" $ do
       it "succeeds and returns full representation" $
         request methodPost "/simple_pk2?select=extra,k"
