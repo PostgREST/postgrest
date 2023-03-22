@@ -24,6 +24,7 @@ data MutatePlan
       , where_     :: [LogicTree]
       , returning  :: [FieldName]
       , insPkCols  :: [FieldName]
+      , applyDefs  :: Bool
       }
   | Update
       { in_       :: QualifiedIdentifier
@@ -33,6 +34,7 @@ data MutatePlan
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
+      , applyDefs :: Bool
       }
   | Delete
       { in_       :: QualifiedIdentifier

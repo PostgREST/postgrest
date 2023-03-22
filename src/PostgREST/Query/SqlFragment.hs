@@ -143,6 +143,16 @@ pgBuildArrayLiteral vals =
 pgFmtIdent :: Text -> SqlFragment
 pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 
+-- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
+pgFmtLit :: Text -> Text
+pgFmtLit x =
+  let trimmed = trimNullChars x
+      escaped = "'" <> T.replace "'" "''" trimmed <> "'"
+      slashed = T.replace "\\" "\\\\" escaped in
+  if "\\" `T.isInfixOf` escaped
+    then "E" <> slashed
+    else slashed
+
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
@@ -221,28 +231,40 @@ pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQ
 pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> SQL.Snippet
-fromJsonBodyF body fields includeSelect includeLimitOne =
+fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> Bool -> SQL.Snippet
+fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
   SQL.sql
   (if includeSelect then "SELECT " <> parsedCols <> " " else mempty) <>
   "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
   -- convert a json object into a json array, this way we can use json_to_recordset for all json payloads
   -- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
   -- We do this in SQL to avoid processing the JSON in application code
-  "LATERAL (SELECT CASE WHEN json_typeof(pgrst_payload.json_data) = 'array' THEN pgrst_payload.json_data ELSE json_build_array(pgrst_payload.json_data) END AS val) pgrst_uniform_json, " <>
+  "LATERAL (SELECT CASE WHEN " <> jsonTypeofF <> "(pgrst_payload.json_data) = 'array' THEN pgrst_payload.json_data ELSE " <> jsonBuildArrayF <> "(pgrst_payload.json_data) END AS val) pgrst_uniform_json, " <>
+  (if includeDefaults
+    then "LATERAL (SELECT jsonb_agg(jsonb_build_object(" <> defsJsonb <> ") || elem) AS val from jsonb_array_elements(pgrst_uniform_json.val) elem) pgrst_json_defs, "
+    else mempty) <>
   "LATERAL (SELECT * FROM " <>
     (if null fields
       -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
       -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
       -- part). But we still need to ensure as many rows are created as there are array elements.
-      then SQL.sql "json_array_elements(pgrst_uniform_json.val) _ "
-      else SQL.sql ("json_to_recordset(pgrst_uniform_json.val) AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty)
+      then SQL.sql $ jsonArrayElementsF <> "(" <> finalBodyF <> ") _ "
+      else SQL.sql $ jsonToRecordsetF <> "(" <> finalBodyF <> ") AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty
     ) <>
   ") pgrst_body "
   where
     parsedCols = BS.intercalate ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . tfName <$> fields
     typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
-    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable HE.jsonLazyBytes) body
+    defsJsonb = SQL.sql $ BS.intercalate "," fieldsWDefaults
+    fieldsWDefaults = mapMaybe (\case
+        TypedField{tfName=nam, tfDefault=Just def} -> Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
+        TypedField{tfDefault=Nothing} -> Nothing
+      ) fields
+    (finalBodyF, jsonTypeofF, jsonBuildArrayF, jsonArrayElementsF, jsonToRecordsetF) =
+      if includeDefaults
+        then ("pgrst_json_defs.val", "jsonb_typeof", "jsonb_build_array", "jsonb_array_elements", "jsonb_to_recordset")
+        else ("pgrst_uniform_json.val", "json_typeof", "json_build_array", "json_array_elements", "json_to_recordset")
+    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
 
 pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
