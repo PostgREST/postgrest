@@ -24,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + When the client sends the request header specified in the config it will be included in the response headers.
  - #2694, Make `db-root-spec` stable. - @steve-chavez
    + This can be used to override the OpenAPI spec with a custom database function
+ - #1567, On bulk inserts with `?columns`, undefined json keys can get columns' DEFAULT values by using the `Prefer: undefined-keys=apply-defaults` header - @steve-chavez
 
 ### Fixed
 
