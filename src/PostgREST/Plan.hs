@@ -13,6 +13,7 @@ resource.
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE OverloadedRecordDot   #-}
 {-# LANGUAGE RecordWildCards       #-}
 
 module PostgREST.Plan
@@ -501,10 +502,10 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readReq = mapLeft ApiRequestError $
+mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferences.preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
       mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
@@ -522,7 +523,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readR
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
     returnings =
-      if preferRepresentation == None
+      if preferences.preferRepresentation == None
         then []
         else inferColsEmbedNeeds readReq pkCols
     pkCols = maybe mempty tablePKCols $ HM.lookup qi $ dbTables sCache
@@ -532,7 +533,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} sCache readR
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
-    applyDefaults = preferUndefinedKeys == Just ApplyDefaults
+    applyDefaults = preferences.preferUndefinedKeys == Just ApplyDefaults
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound
