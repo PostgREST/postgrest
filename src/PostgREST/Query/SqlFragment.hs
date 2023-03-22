@@ -143,6 +143,16 @@ pgBuildArrayLiteral vals =
 pgFmtIdent :: Text -> SqlFragment
 pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 
+-- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
+pgFmtLit :: Text -> Text
+pgFmtLit x =
+  let trimmed = trimNullChars x
+      escaped = "'" <> T.replace "'" "''" trimmed <> "'"
+      slashed = T.replace "\\" "\\\\" escaped in
+  if "\\" `T.isInfixOf` escaped
+    then "E" <> slashed
+    else slashed
+
 trimNullChars :: Text -> Text
 trimNullChars = T.takeWhile (/= '\x0')
 
@@ -247,7 +257,7 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
     typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
     defsJsonb = SQL.sql $ BS.intercalate "," fieldsWDefaults
     fieldsWDefaults = mapMaybe (\case
-        TypedField{tfName=nam, tfDefault=Just def} -> Just $ encodeUtf8 ("'" <> nam <> "', " <> def)
+        TypedField{tfName=nam, tfDefault=Just def} -> Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
         TypedField{tfDefault=Nothing} -> Nothing
       ) fields
     (finalBodyF, jsonTypeofF, jsonBuildArrayF, jsonArrayElementsF, jsonToRecordsetF) =
