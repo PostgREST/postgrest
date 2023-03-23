@@ -9,6 +9,8 @@ PGRST_GITHUB_COMMIT="$1"
 SCRIPT_DIR="$2"
 
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
+CABAL_VERSION="3.6.0.0"
+GHC_VERSION="9.2.4"
 
 install_packages() {
   sudo apt-get update -y
@@ -26,13 +28,14 @@ install_ghcup() {
 
 install_cabal() {
   ghcup upgrade
-  ghcup install cabal 3.6.0.0
-  ghcup set cabal 3.6.0.0
+  ghcup install cabal $CABAL_VERSION
+  ghcup set cabal $CABAL_VERSION
 }
 
 install_ghc() {
-  ghcup install ghc 8.10.7
-  ghcup set ghc 8.10.7
+  ghcup upgrade
+  ghcup install ghc $GHC_VERSION
+  ghcup set ghc $GHC_VERSION
 }
 
 install_packages
@@ -41,8 +44,8 @@ install_packages
 [ -f ~/.ghcup/env ] && source ~/.ghcup/env
 
 ghcup --version || install_ghcup
-cabal --version || install_cabal
-ghc --version || install_ghc
+ghcup set cabal $CABAL_VERSION || install_cabal
+ghcup set ghc $GHC_VERSION || install_ghc
 
 cd ~/$SCRIPT_DIR
 
