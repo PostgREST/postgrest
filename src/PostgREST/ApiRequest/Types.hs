@@ -66,12 +66,14 @@ data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [ProcDescription]
   | BinaryFieldError MediaType
-  | MediaTypeError [ByteString]
+  | BulkUpdRangeNotAllowedError
+  | ColumnNotFound Text Text
   | InvalidBody ByteString
   | InvalidFilters
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError
+  | MediaTypeError [ByteString]
   | NotFound
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
@@ -83,7 +85,6 @@ data ApiRequestError
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
-  | ColumnNotFound Text Text
 
 data QPError = QPError Text Text
 data RangeError

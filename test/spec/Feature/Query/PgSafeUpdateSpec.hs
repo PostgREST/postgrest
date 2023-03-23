@@ -38,7 +38,7 @@ spec =
       it "allows full table update if a filter is present" $
         baseTable "safe_update_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodPatch "/safe_update_items?id=gt.0" [json| {"name": "updated-item"} |]
+        requestMutation methodPatch "/safe_update_items?id=gt.0" mempty [json| {"name": "updated-item"} |]
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "updated-item", "observation": null }
@@ -61,7 +61,7 @@ spec =
       it "allows full table delete if a filter is present" $
         baseTable "safe_delete_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/safe_delete_items?id=gt.0" mempty
+        requestMutation methodDelete "/safe_delete_items?id=gt.0" mempty mempty
         `shouldMutateInto`
         [json|[]|]
 
@@ -72,7 +72,7 @@ disabledSpec =
       it "works if no condition is present" $
         baseTable "unsafe_update_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodPatch "/unsafe_update_items" [json| {"name": "updated-item"} |]
+        requestMutation methodPatch "/unsafe_update_items" mempty [json| {"name": "updated-item"} |]
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "updated-item", "observation": null }
@@ -84,6 +84,6 @@ disabledSpec =
       it "works if no condition is present" $
         baseTable "unsafe_delete_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/unsafe_delete_items" mempty
+        requestMutation methodDelete "/unsafe_delete_items" mempty mempty
         `shouldMutateInto`
         [json|[]|]

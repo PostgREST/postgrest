@@ -145,6 +145,7 @@ userApiRequest conf req reqBody = do
   (acceptMediaType, contentMediaType) <- getMediaTypes conf hdrs act pInfo
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
+  preferences <- getPreferences method topLevelRange hdrs
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act pInfo
   return $ ApiRequest {
     iAction = act
@@ -154,7 +155,7 @@ userApiRequest conf req reqBody = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders hdrs
+  , iPreferences = preferences
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
@@ -249,6 +250,13 @@ getRanges method QueryParams{qsOrder,qsRanges} hdrs
     -- The only emptyRange allowed is the limit zero range
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
+
+getPreferences :: ByteString -> NonnegRange -> RequestHeaders  -> Either ApiRequestError Preferences.Preferences
+getPreferences method topLevelRange hdrs
+ | method == "PATCH" && topLevelRange /= allRange && Preferences.preferParameters preferences == Just Preferences.MultipleObjects = Left BulkUpdRangeNotAllowedError
+ | otherwise = Right preferences
+ where
+   preferences = Preferences.fromHeaders hdrs
 
 getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
 getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathIsProc}= do

@@ -280,9 +280,9 @@ baseTable :: ByteString -> ByteString -> Value -> BaseTable
 baseTable = BaseTable
 
 -- | The mutation (update/delete) that will be applied to the base table
-requestMutation :: Method -> ByteString -> BL.ByteString -> WaiExpectation ()
-requestMutation method path body =
-  request method path [("Prefer", "tx=commit")] body `shouldRespondWith` 204
+requestMutation :: Method -> ByteString -> [Header] -> BL.ByteString -> WaiExpectation ()
+requestMutation method path headers body =
+  request method path ([("Prefer", "tx=commit")] <> headers) body `shouldRespondWith` 204
 
 data BaseTable = BaseTable ByteString ByteString Value
 data MutationCheck = MutationCheck BaseTable (WaiExpectation ())

@@ -3110,3 +3110,18 @@ create table test.tbl_w_json(
   id int,
   data json
 );
+
+-- Tables to test bulk updates
+
+CREATE TABLE test.bulk_update_items (
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT DEFAULT 'New!'
+);
+
+CREATE TABLE test.bulk_update_items_cpk (
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
+);

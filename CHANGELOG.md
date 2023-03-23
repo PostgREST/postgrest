@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2694, Make `db-root-spec` stable. - @steve-chavez
    + This can be used to override the OpenAPI spec with a custom database function
  - #1567, On bulk inserts with `?columns`, undefined json keys can get columns' DEFAULT values by using the `Prefer: undefined-keys=apply-defaults` header - @steve-chavez
+ - #1959, Add support for bulk updates with PATCH and `Prefer: params=multiple-objects`. - @laurenceisla, @steve-chavez
 
 ### Fixed
 

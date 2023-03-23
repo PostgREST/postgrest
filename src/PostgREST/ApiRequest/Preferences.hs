@@ -173,10 +173,10 @@ instance ToHeaderValue PreferRepresentation where
   toHeaderValue None        = "return=minimal"
   toHeaderValue HeadersOnly = "return=headers-only"
 
--- | How to pass parameters to stored procedures.
+-- | How to pass parameters to stored procedures or handle bulk UPDATEs.
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure.
-  | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure.
+  | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure or as items in a bulk UPDATE.
   deriving Eq
 
 -- TODO: Deprecate params=multiple-objects in next major version

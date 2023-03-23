@@ -105,12 +105,18 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
     cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
+mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults pkFlts isBulk)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
     SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
+
+  | isBulk =
+    "UPDATE " <> mainTbl <> " SET " <> SQL.sql bulkCols <> " " <>
+    fromJsonBodyF body uCols False False applyDefaults <>
+    whereLogicBulk <> " " <>
+    SQL.sql (returningF mainQi returnings)
 
   | range == allRange =
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
@@ -133,9 +139,15 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     SQL.sql (returningF mainQi returnings)
 
   where
-    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    whereLogic = pgFmtWhereF (null logicForest) logicForestF
+    whereLogicBulk = pgFmtWhereF (null logicForest && null pkFlts) (logicForestF <> pgrstUpdateBodyF)
+    pgFmtWhereF hasEmptyLogic flts = if hasEmptyLogic then mempty else " WHERE " <> intercalateSnippet " AND " flts
+    logicForestF = pgFmtLogicTree mainQi <$> logicForest
+    pgrstUpdateBodyF = pgFmtBodyFilter mainQi (QualifiedIdentifier mempty "pgrst_body") <$> pkFlts
+    pgFmtBodyFilter table cte f = SQL.sql (pgFmtColumn table f <> " = " <> pgFmtColumn cte f)
     mainTbl = SQL.sql (fromQi mainQi)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
+    bulkCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = COALESCE(" <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <> const ", " <> pgFmtColumn mainQi . tfName <> const ")" <$> uCols)
     nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)

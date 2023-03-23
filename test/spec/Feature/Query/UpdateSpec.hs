@@ -18,6 +18,12 @@ tblDataBefore = [aesonQQ|[
                 , { "id": 3, "name": "item-3" }
                 ]|]
 
+tblDataBeforeBulk = [aesonQQ|[
+                      { "id": 1, "name": "item-1", "observation": null }
+                    , { "id": 2, "name": "item-2", "observation": null }
+                    , { "id": 3, "name": "item-3", "observation": null }
+                    ]|]
+
 spec :: SpecWith ((), Application)
 spec = do
   describe "Patching record" $ do
@@ -500,7 +506,7 @@ spec = do
     it "works with the limit query param" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=2"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=2" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -512,7 +518,7 @@ spec = do
     it "works with the limit query param plus a filter" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&id=gt.2" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -524,7 +530,7 @@ spec = do
     it "works with the limit and offset query params" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -562,7 +568,7 @@ spec = do
     it "works with views with an explicit order by unique col" $
       baseTable "limited_update_items_view" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items_view?order=id&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -574,7 +580,7 @@ spec = do
     it "works with views with an explicit order by composite pk" $
       baseTable "limited_update_items_cpk_view" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -586,11 +592,182 @@ spec = do
     it "works on a table without a pk by ordering by 'ctid'" $
       baseTable "limited_update_items_no_pk" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
+      requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
         { "id": 1, "name": "updated-item" }
       , { "id": 2, "name": "item-2" }
       , { "id": 3, "name": "item-3" }
+      ]|]
+
+  context "bulk updates" $ do
+    it "can update tables with simple pk" $ do
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items" [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+      , { "id": 2, "name": "item-2", "observation": null }
+      , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+      ]|]
+
+    it "can update tables with composite pk" $ do
+      baseTable "bulk_update_items_cpk" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items_cpk" [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1", "observation": "Lost item" }
+        , { "id": 2, "name": "item-2", "observation": null }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1", "observation": "Lost item" }
+      , { "id": 2, "name": "item-2", "observation": null  }
+      , { "id": 3, "name": "item-3", "observation": null  }
+      ]|]
+
+    it "updates using both the filters from the query string and the body" $ do
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items?id=gte.2" [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 2, "name": "item-2 - 2nd", "observation": "Damaged item" }
+        , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1", "observation": null }
+      , { "id": 2, "name": "item-2 - 2nd", "observation": "Damaged item" }
+      , { "id": 3, "name": "item-3 - 3rd", "observation": null }
+      ]|]
+
+    it "does a full table update without the header for bulk updates, taking only the first item in the json array body" $ do
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items" mempty
+        [json|[
+          { "name": "item", "observation": "Damaged item" }
+        , { "name": "item-3 - 3rd", "observation": null }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item", "observation": "Damaged item" }
+      , { "id": 2, "name": "item", "observation": "Damaged item" }
+      , { "id": 3, "name": "item", "observation": "Damaged item" }
+      ]|]
+
+    it "rejects a json array that isn't exclusively composed of objects" $
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit"), ("Prefer", "params=multiple-objects")]
+          [json|[
+            { "id": 1, "name": "Item 1", "observation": null }
+          , 2
+          , "Item 2"
+          , { "id": 3, "name": "Item 3" }
+          ]|]
+        `shouldRespondWith`
+          [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    it "rejects a json array that has objects with different keys" $
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit"), ("Prefer", "params=multiple-objects")]
+          [json|[
+            { "id": 1, "name": "Item 1" }
+          , { "id": 2, "name": "Item 2" }
+          , { "id": 3, "name": "Item 3", "observation": "New item" }
+          ]|]
+        `shouldRespondWith`
+          [json| {"message":"All object keys must match","code":"PGRST102","hint":null,"details":null} |]
+          { matchStatus  = 400
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    it "does not update when no pk is specified in the body" $ do
+      request methodPatch "/bulk_update_items"
+          [("Prefer", "tx=commit"), ("Prefer", "params=multiple-objects")]
+          [json|[
+            { "name": "Item 1" }
+          , { "name": "Item 2" }
+          ]|]
+        `shouldRespondWith` 400
+
+    it "does not update when no pk is specified in the body for tables with composite pk" $ do
+      request methodPatch "/bulk_update_items_cpk"
+          [("Prefer", "tx=commit"), ("Prefer", "params=multiple-objects")]
+          [json|[
+            { "id": 1, "observation": "New item" }
+          , { "id": 2, "observation": "Damaged item" }
+          ]|]
+        `shouldRespondWith` 400
+
+    it "does not update when ranges are specified" $ do
+      request methodPatch "/bulk_update_items?limit=2&offset=1&order=id"
+          [("Prefer", "tx=commit"), ("Prefer", "params=multiple-objects")]
+          [json|[
+            { "id": 1, "observation": "New item" }
+          , { "id": 2, "observation": "Damaged item" }
+          ]|]
+        `shouldRespondWith`
+          [json| {
+            "code":"PGRST121",
+            "hint": null,
+            "details":null,
+            "message":"Range header and limit/offset querystring parameters are not allowed for PATCH with Prefer: params=multiple-objects"
+            }|]
+          { matchStatus  = 400 }
+      request methodPatch "/bulk_update_items"
+          ( ("Prefer", "tx=commit")
+          : ("Prefer", "params=multiple-objects")
+          : rangeHdrs (ByteRangeFromTo 0 1) )
+          [json|[
+            { "id": 1, "observation": "New item" }
+          , { "id": 2, "observation": "Damaged item" }
+          ]|]
+        `shouldRespondWith`
+          [json| {
+            "code":"PGRST121",
+            "hint": null,
+            "details":null,
+            "message":"Range header and limit/offset querystring parameters are not allowed for PATCH with Prefer: params=multiple-objects"
+            }|]
+          { matchStatus  = 400 }
+
+    it "updates ignoring the json keys not included in ?columns" $
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items?columns=id,name" [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 2, "name": "item-2 - 2nd", "observation": "Damaged item" }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1 - 1st", "observation": null }
+      , { "id": 2, "name": "item-2 - 2nd", "observation": null }
+      , { "id": 3, "name": "item-3", "observation": null }
+      ]|]
+
+    it "updates with ?columns when the json array body has objects with different keys, ignoring the value when the key is not specified" $
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items?columns=id,name,observation" [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 2, "name": "item-2 - 2nd" }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+      , { "id": 2, "name": "item-2 - 2nd", "observation": null }
+      , { "id": 3, "name": "item-3", "observation": null }
       ]|]

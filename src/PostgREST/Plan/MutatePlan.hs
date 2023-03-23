@@ -35,6 +35,8 @@ data MutatePlan
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
       , applyDefs :: Bool
+      , updPkFlts :: [FieldName]
+      , isBulk    :: Bool
       }
   | Delete
       { in_       :: QualifiedIdentifier
