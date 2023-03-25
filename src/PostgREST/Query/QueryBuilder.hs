@@ -83,7 +83,7 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _ applyDefaults) =
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
-  fromJsonBodyF body iCols True False applyDefaults <>
+  fromJsonBodyF body iCols True False applyDefaults False <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -105,7 +105,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
     cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults pkFlts isBulk)
+mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults applyIgnoreValues pkFlts isBulk)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -113,20 +113,20 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
   | isBulk =
-    "UPDATE " <> mainTbl <> " SET " <> SQL.sql bulkCols <> " " <>
-    fromJsonBodyF body uCols False False applyDefaults <>
+    "UPDATE " <> mainTbl <> " SET " <> SQL.sql (if applyIgnoreValues then bulkCols else nonRangeCols) <> " " <>
+    fromJsonBodyF body uCols False False applyDefaults applyIgnoreValues <>
     whereLogicBulk <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | range == allRange =
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    fromJsonBodyF body uCols False False applyDefaults <>
+    fromJsonBodyF body uCols False False applyDefaults applyIgnoreValues <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
     "WITH " <>
-    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
+    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults applyIgnoreValues <> "), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
@@ -147,7 +147,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     pgFmtBodyFilter table cte f = SQL.sql (pgFmtColumn table f <> " = " <> pgFmtColumn cte f)
     mainTbl = SQL.sql (fromQi mainQi)
     emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    bulkCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = COALESCE(" <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <> const ", " <> pgFmtColumn mainQi . tfName <> const ")" <$> uCols)
+    bulkCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = CASE WHEN pgrst_json_old_vals ? " <> encodeUtf8 . pgFmtLit . tfName <> const " THEN " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <> const " ELSE " <> pgFmtColumn mainQi . tfName <> const " END" <$> uCols)
     nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
@@ -183,7 +183,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnin
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False (not multipleCall) False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False (not multipleCall) False False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

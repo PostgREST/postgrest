@@ -27,16 +27,17 @@ data MutatePlan
       , applyDefs  :: Bool
       }
   | Update
-      { in_       :: QualifiedIdentifier
-      , updCols   :: [TypedField]
-      , updBody   :: Maybe LBS.ByteString
-      , where_    :: [LogicTree]
-      , mutRange  :: NonnegRange
-      , mutOrder  :: [OrderTerm]
-      , returning :: [FieldName]
-      , applyDefs :: Bool
-      , updPkFlts :: [FieldName]
-      , isBulk    :: Bool
+      { in_           :: QualifiedIdentifier
+      , updCols       :: [TypedField]
+      , updBody       :: Maybe LBS.ByteString
+      , where_        :: [LogicTree]
+      , mutRange      :: NonnegRange
+      , mutOrder      :: [OrderTerm]
+      , returning     :: [FieldName]
+      , applyDefs     :: Bool
+      , applyIgnrVals :: Bool
+      , updPkFlts     :: [FieldName]
+      , isBulk        :: Bool
       }
   | Delete
       { in_       :: QualifiedIdentifier

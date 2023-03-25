@@ -115,7 +115,7 @@ fromHeaders headers =
     , preferParameters = parsePrefs [SingleObject, MultipleObjects]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]
-    , preferUndefinedKeys = parsePrefs [ApplyDefaults, IgnoreDefaults]
+    , preferUndefinedKeys = parsePrefs [ApplyDefaults, IgnoreValues, ApplyNulls]
     }
   where
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
@@ -216,12 +216,14 @@ instance ToAppliedHeader PreferTransaction
 -- How to handle the insertion/update when the keys specified in ?columns are not present
 -- in the json body.
 data PreferUndefinedKeys
-  = ApplyDefaults  -- ^ Use the default column value for the unspecified keys.
-  | IgnoreDefaults -- ^ Inserts: null values / Updates: the keys are not SET to any value
+  = ApplyDefaults  -- ^ Inserts and Updates: Use the default column value for the unspecified keys.
+  | IgnoreValues   -- ^ Inserts: null values | Updates: the keys are not SET to any value
+  | ApplyNulls     -- ^ Inserts: null values | Updates: SET the values to null
   deriving Eq
 
 instance ToHeaderValue PreferUndefinedKeys where
-  toHeaderValue ApplyDefaults  = "undefined-keys=apply-defaults"
-  toHeaderValue IgnoreDefaults = "undefined-keys=ignore-defaults"
+  toHeaderValue ApplyDefaults = "undefined-keys=apply-defaults"
+  toHeaderValue IgnoreValues  = "undefined-keys=ignore-values"
+  toHeaderValue ApplyNulls    = "undefined-keys=apply-nulls"
 
 instance ToAppliedHeader PreferUndefinedKeys

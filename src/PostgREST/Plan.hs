@@ -507,7 +507,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferences.preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults pkCols isBulkUpdate) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults applyIgnoreValues pkCols isBulkUpdate) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -534,6 +534,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
     applyDefaults = preferences.preferUndefinedKeys == Just ApplyDefaults
+    applyIgnoreValues = preferences.preferUndefinedKeys == Just IgnoreValues
     isBulkUpdate = preferences.preferParameters == Just MultipleObjects
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField

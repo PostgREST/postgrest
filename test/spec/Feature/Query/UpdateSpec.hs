@@ -757,10 +757,43 @@ spec = do
       , { "id": 3, "name": "item-3", "observation": null }
       ]|]
 
+    it "updates with ?columns when the json array body has objects with different keys, updating to a null value when the key is not specified" $
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items?columns=id,name,observation"
+        [("Prefer", "params=multiple-objects")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 2, "observation": "new item" }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+      , { "id": 2, "name": null, "observation": "new item" }
+      , { "id": 3, "name": "item-3", "observation": null }
+      ]|]
+
     it "updates with ?columns when the json array body has objects with different keys, ignoring the value when the key is not specified" $
       baseTable "bulk_update_items" "id" tblDataBeforeBulk
       `mutatesWith`
-      requestMutation methodPatch "/bulk_update_items?columns=id,name,observation" [("Prefer", "params=multiple-objects")]
+      requestMutation methodPatch "/bulk_update_items?columns=id,name,observation"
+        [("Prefer", "params=multiple-objects"), ("Prefer", "undefined-keys=ignore-values")]
+        [json|[
+          { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+        , { "id": 2, "observation": "new item" }
+        ]|]
+      `shouldMutateInto`
+      [json|[
+        { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
+      , { "id": 2, "name": "item-2", "observation": "new item" }
+      , { "id": 3, "name": "item-3", "observation": null }
+      ]|]
+
+    it "updates with ?columns when the json array body has objects with different keys, updating to the default column value when the key is not specified" $
+      baseTable "bulk_update_items" "id" tblDataBeforeBulk
+      `mutatesWith`
+      requestMutation methodPatch "/bulk_update_items?columns=id,name,observation"
+        [("Prefer", "params=multiple-objects"), ("Prefer", "undefined-keys=apply-defaults")]
         [json|[
           { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
         , { "id": 2, "name": "item-2 - 2nd" }
@@ -768,6 +801,6 @@ spec = do
       `shouldMutateInto`
       [json|[
         { "id": 1, "name": "item-1 - 1st", "observation": "Lost item" }
-      , { "id": 2, "name": "item-2 - 2nd", "observation": null }
+      , { "id": 2, "name": "item-2 - 2nd", "observation": "New!" }
       , { "id": 3, "name": "item-3", "observation": null }
       ]|]
