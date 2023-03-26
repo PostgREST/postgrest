@@ -143,7 +143,7 @@ def wait_until_exit(postgrest):
     "Wait for PostgREST to exit, or times out"
     try:
         return postgrest.process.wait(timeout=1)
-    except (subprocess.TimeoutExpired):
+    except subprocess.TimeoutExpired:
         raise PostgrestTimedOut()
 
 

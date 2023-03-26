@@ -535,7 +535,6 @@ def test_pool_size(defaultenv, metapostgrest):
     }
 
     with run(env=env) as postgrest:
-
         start = time.time()
         threads = []
         for i in range(4):
@@ -672,7 +671,6 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     }
 
     with run(env=env) as postgrest:
-
         # make it impossible to load the schema cache, by setting statement timeout to 1ms
         set_statement_timeout(metapostgrest, role, 1)
 
@@ -728,7 +726,6 @@ def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
     "Should get a success from the admin live and ready endpoints when using special host values for the main app"
 
     with run(env=defaultenv, port=freeport(), host=specialhostvalue) as postgrest:
-
         response = postgrest.admin.get("/live")
         assert response.status_code == 200
 
@@ -784,7 +781,6 @@ def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
     with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
-
         # not found nested route shouldn't require opening a connection
         response = postgrest.session.head("/path/notfound")
         assert response.status_code == 404
@@ -800,7 +796,6 @@ def test_no_pool_connection_required_on_options(defaultenv):
     "no pool connection should be consumed for OPTIONS requests"
 
     with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
-
         # OPTIONS on a table shouldn't require opening a connection
         response = postgrest.session.options("/projects")
         assert response.status_code == 200
@@ -820,7 +815,6 @@ def test_no_pool_connection_required_on_bad_jwt_claim(defaultenv):
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
 
     with run(env=env, no_pool_connection_available=True) as postgrest:
-
         # A JWT with an invalid signature shouldn't open a connection
         headers = jwtauthheader({"role": "postgrest_test_author"}, "Wrong Secret")
         response = postgrest.session.get("/projects", headers=headers)
@@ -831,7 +825,6 @@ def test_no_pool_connection_required_on_bad_embedding(defaultenv):
     "no pool connection should be consumed for failing to embed"
 
     with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
-
         # OPTIONS on a table shouldn't require opening a connection
         response = postgrest.session.get("/projects?select=*,unexistent(*)")
         assert response.status_code == 400
@@ -841,7 +834,6 @@ def test_notify_reloading_catalog_cache(defaultenv):
     "notify should reload the connection catalog cache"
 
     with run(env=defaultenv) as postgrest:
-
         # first the id col is an uuid
         response = postgrest.session.get(
             "/cats?id=eq.dea27321-f988-4a57-93e4-8eeb38f3cf1e"
