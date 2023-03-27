@@ -451,11 +451,11 @@ spec actualPgVersion = do
             "asdf",
             {"id": 205, "body": "zzz"}]|] `shouldRespondWith` 400
 
-      context "apply defaults on undefined keys" $ do
+      context "apply defaults on missing values" $ do
         -- inserting the array fails on pg 9.6, but the feature should work normally
         when (actualPgVersion >= pgVersion100) $
           it "inserts table default values(field-with_sep) when json keys are undefined" $
-            request methodPost "/complex_items?columns=id,name,field-with_sep,arr_data" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+            request methodPost "/complex_items?columns=id,name,field-with_sep,arr_data" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
                 [json|[
                   {"id": 4, "name": "Vier"},
                   {"id": 5, "name": "Funf", "arr_data": null},
@@ -468,11 +468,11 @@ spec actualPgVersion = do
                   {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
                 ]|]
                 { matchStatus  = 201
-                , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+                , matchHeaders = ["Preference-Applied" <:> "missing=default"]
                 }
 
         it "inserts view default values(field-with_sep) when json keys are undefined" $
-          request methodPost "/complex_items_view?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+          request methodPost "/complex_items_view?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
               [json|[
                 {"id": 7, "name": "Sieben"},
                 {"id": 8}
@@ -483,16 +483,16 @@ spec actualPgVersion = do
                 {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
               ]|]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+              , matchHeaders = ["Preference-Applied" <:> "missing=default"]
               }
 
         it "doesn't insert json duplicate keys(since it uses jsonb)" $
-          request methodPost "/tbl_w_json?columns=id,data" [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+          request methodPost "/tbl_w_json?columns=id,data" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
               [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]
             `shouldRespondWith`
               [json| [ { "data": { "a": 2 }, "id": 3 } ] |]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+              , matchHeaders = ["Preference-Applied" <:> "missing=default"]
               }
 
     it "inserts json that has duplicate keys" $ do

@@ -533,7 +533,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
-    applyDefaults = preferences.preferUndefinedKeys == Just ApplyDefaults
+    applyDefaults = preferences.preferMissing == Just ApplyDefaults
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound

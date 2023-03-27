@@ -109,7 +109,7 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
               Nothing
             else
               toAppliedHeader <$> preferResolution
-          , toAppliedHeader <$> preferUndefinedKeys
+          , toAppliedHeader <$> preferMissing
           ]
 
     if preferRepresentation == Full then
@@ -128,7 +128,7 @@ updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
       contentRangeHeader =
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      headers = catMaybes [contentRangeHeader, toAppliedHeader <$> preferUndefinedKeys]
+      headers = catMaybes [contentRangeHeader, toAppliedHeader <$> preferMissing]
 
     if preferRepresentation == Full then
         response HTTP.status200
