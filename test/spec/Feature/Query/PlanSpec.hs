@@ -347,27 +347,23 @@ spec actualPgVersion = do
         liftIO $ planCost r `shouldSatisfy` (< 5.85)
 
     context "function inlining" $ do
-      it "should inline a zero argument function" $ do
+      it "should inline a zero argument function(the function won't appear in the plan tree)" $ do
         r <- request methodGet "/rpc/getallusers?id=eq.1"
                [(hAccept, "application/vnd.pgrst.plan")] ""
 
         let resBody = simpleBody r
 
         liftIO $ do
-          resBody `shouldSatisfy` (
-            if actualPgVersion >= pgVersion120
-              then (\t -> T.isInfixOf "Index Scan using users_pkey on users" (decodeUtf8 $ BS.toStrict t))
-              else (\t -> T.isInfixOf "Seq Scan on users" (decodeUtf8 $ BS.toStrict t)))
+          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getallusers" (decodeUtf8 $ BS.toStrict t))
 
-      it "should inline a function with arguments" $ do
+      it "should inline a function with arguments(the function won't appear in the plan tree)" $ do
         r <- request methodGet "/rpc/getitemrange?min=10&max=15"
                [(hAccept, "application/vnd.pgrst.plan")] ""
 
         let resBody = simpleBody r
 
         liftIO $ do
-          -- a Seq Scan ensures the function is inlined as the plan uses the underlying table
-          resBody `shouldSatisfy` (\t -> T.isInfixOf "Seq Scan on items" (decodeUtf8 $ BS.toStrict t))
+          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getitemrange" (decodeUtf8 $ BS.toStrict t))
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
