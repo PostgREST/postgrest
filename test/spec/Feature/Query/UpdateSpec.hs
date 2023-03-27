@@ -330,46 +330,46 @@ spec = do
           , matchHeaders = []
           }
 
-      context "apply defaults on undefined keys" $ do
+      context "apply defaults on missing values" $ do
         it "updates table using default values(field-with_sep) when json keys are undefined" $ do
           request methodPatch "/complex_items?id=eq.3&columns=name,field-with_sep"
-            [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json|{"name": "Tres"}|]
             `shouldRespondWith`
             [json|[
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
             }
 
         it "updates with limit/offset using table default values(field-with_sep) when json keys are undefined" $ do
           request methodPatch "/complex_items?select=id,name&columns=name,field-with_sep&limit=1&offset=2&order=id"
-            [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json|{"name": "Tres"}|]
             `shouldRespondWith`
             [json|[
               {"id":3,"name":"Tres"}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
             }
 
         it "updates table default values(field-with_sep) when json keys are undefined" $ do
           request methodPatch "/complex_items?id=eq.3&columns=name,field-with_sep"
-            [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json|{"name": "Tres"}|]
             `shouldRespondWith`
             [json|[
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
             }
 
         it "updates view default values(field-with_sep) when json keys are undefined" $
           request methodPatch "/complex_items_view?id=eq.3&columns=arr_data,name"
-            [("Prefer", "return=representation"), ("Prefer", "undefined-keys=apply-defaults")]
+            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
             [json|
               {"arr_data":null}
             |]
@@ -378,7 +378,7 @@ spec = do
               {"id":3,"name":"Default","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":null,"field-with_sep":3}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "undefined-keys=apply-defaults"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
             }
 
   context "tables with self reference foreign keys" $ do

@@ -9,7 +9,7 @@
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
-  , PreferUndefinedKeys(..)
+  , PreferMissing(..)
   , PreferParameters(..)
   , PreferRepresentation(..)
   , PreferResolution(..)
@@ -34,7 +34,7 @@ import Protolude
 -- >>> deriving instance Show PreferParameters
 -- >>> deriving instance Show PreferCount
 -- >>> deriving instance Show PreferTransaction
--- >>> deriving instance Show PreferUndefinedKeys
+-- >>> deriving instance Show PreferMissing
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -45,7 +45,7 @@ data Preferences
     , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
-    , preferUndefinedKeys  :: Maybe PreferUndefinedKeys
+    , preferMissing        :: Maybe PreferMissing
     }
 
 -- |
@@ -60,19 +60,19 @@ data Preferences
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
---     , preferUndefinedKeys = Nothing
+--     , preferMissing = Nothing
 --     }
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact")]
+-- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = None
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
---     , preferUndefinedKeys = Nothing
+--     , preferMissing = Just ApplyNulls
 --     }
 --
 -- If a preference is set more than once, only the first is used:
@@ -97,14 +97,14 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation , undefined-keys=apply-defaults")]
+-- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Full
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
---     , preferUndefinedKeys = Just ApplyDefaults
+--     , preferMissing = Just ApplyDefaults
 --     }
 --
 fromHeaders :: [HTTP.Header] -> Preferences
@@ -115,7 +115,7 @@ fromHeaders headers =
     , preferParameters = parsePrefs [SingleObject, MultipleObjects]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]
-    , preferUndefinedKeys = parsePrefs [ApplyDefaults, IgnoreDefaults]
+    , preferMissing = parsePrefs [ApplyDefaults, ApplyNulls]
     }
   where
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
@@ -215,13 +215,13 @@ instance ToAppliedHeader PreferTransaction
 -- |
 -- How to handle the insertion/update when the keys specified in ?columns are not present
 -- in the json body.
-data PreferUndefinedKeys
-  = ApplyDefaults  -- ^ Use the default column value for the unspecified keys.
-  | IgnoreDefaults -- ^ Inserts: null values / Updates: the keys are not SET to any value
+data PreferMissing
+  = ApplyDefaults  -- ^ Use the default column value for missing values.
+  | ApplyNulls     -- ^ Use the null value for missing values.
   deriving Eq
 
-instance ToHeaderValue PreferUndefinedKeys where
-  toHeaderValue ApplyDefaults  = "undefined-keys=apply-defaults"
-  toHeaderValue IgnoreDefaults = "undefined-keys=ignore-defaults"
+instance ToHeaderValue PreferMissing where
+  toHeaderValue ApplyDefaults = "missing=default"
+  toHeaderValue ApplyNulls    = "missing=null"
 
-instance ToAppliedHeader PreferUndefinedKeys
+instance ToAppliedHeader PreferMissing
