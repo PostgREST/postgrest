@@ -55,7 +55,7 @@ spec actualPgVersion = do
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
             then 24.28
-            else 32.28
+            else 32.27
 
     it "outputs blocks info when using the buffers option" $
       if actualPgVersion >= pgVersion130
@@ -126,8 +126,8 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
         aggCol `shouldBe`
           if actualPgVersion >= pgVersion120
-            then Just [aesonQQ| "(COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json))::character varying" |]
-            else Just [aesonQQ| "(COALESCE(json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)), '[]'::json))::character varying" |]
+            then Just [aesonQQ| "COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json)" |]
+            else Just [aesonQQ| "COALESCE(json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)), '[]'::json)" |]
 
     it "outputs the plan for application/vnd.pgrst.object " $ do
       r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose") ""
@@ -139,8 +139,8 @@ spec actualPgVersion = do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
         aggCol `shouldBe`
           if actualPgVersion >= pgVersion120
-            then Just [aesonQQ| "COALESCE(((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0))::text, 'null'::text)" |]
-            else Just [aesonQQ| "COALESCE(((json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)) -> 0))::text, 'null'::text)" |]
+            then Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
+            else Just [aesonQQ| "COALESCE((json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)) -> 0), 'null'::json)" |]
 
   describe "writes plans" $ do
     it "outputs the total cost for an insert" $ do
@@ -205,7 +205,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
-        aggCol `shouldBe` Just [aesonQQ| "COALESCE(((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0))::text, 'null'::text)" |]
+        aggCol `shouldBe` Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
 
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
@@ -219,7 +219,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 68.57
+        totalCost `shouldBe` 68.56
 
     it "outputs the plan for text/xml" $ do
       r <- request methodGet "/rpc/return_scalar_xml"

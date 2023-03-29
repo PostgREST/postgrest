@@ -180,13 +180,13 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
 
 asJsonF :: Bool -> SqlFragment
 asJsonF returnsScalar
-  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')::character varying"
-  | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')::character varying"
+  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')"
+  | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')"
 
 asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
-  | returnsScalar = "coalesce((json_agg(_postgrest_t.pgrst_scalar)->0)::text, 'null')"
-  | otherwise     = "coalesce((json_agg(_postgrest_t)->0)::text, 'null')"
+  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
+  | otherwise     = "coalesce(json_agg(_postgrest_t)->0, 'null')"
 
 asXmlF :: FieldName -> SqlFragment
 asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
