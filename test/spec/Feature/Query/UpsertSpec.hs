@@ -195,25 +195,18 @@ spec actualPgVersion =
 
     context "with PUT" $ do
       context "Restrictions" $ do
-        it "fails if Range is specified" $
-          request methodPut "/tiobe_pls?name=eq.Javascript" [("Range", "0-5")]
-            [json| [ { "name": "Javascript", "rank": 1 } ]|]
-            `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
-            { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
-
         it "fails if limit is specified" $
           put "/tiobe_pls?name=eq.Javascript&limit=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
+            [json|{"message":"limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "fails if offset is specified" $
           put "/tiobe_pls?name=eq.Javascript&offset=1"
             [json| [ { "name": "Javascript", "rank": 1 } ]|]
             `shouldRespondWith`
-            [json|{"message":"Range header and limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
+            [json|{"message":"limit/offset querystring parameters are not allowed for PUT","code":"PGRST114","details":null,"hint":null}|]
             { matchStatus = 400 , matchHeaders = [matchContentTypeJson] }
 
         it "rejects every other filter than pk cols eq's" $ do
@@ -381,6 +374,18 @@ spec actualPgVersion =
               [json|[ { "id": 1 } ]|]
             `shouldRespondWith`
               [json|[ { "id": 1 } ]|]
+
+        it "ignores the Range header" $ do
+          -- assert that the next request will indeed be an update
+          get "/tiobe_pls?name=eq.Java"
+            `shouldRespondWith`
+              [json|[ { "name": "Java", "rank": 1 } ]|]
+
+          request methodPut "/tiobe_pls?name=eq.Java"
+              [("Prefer", "return=representation"), ("Range", "1-1")]
+              [json| [ { "name": "Java", "rank": 5 } ]|]
+            `shouldRespondWith`
+              [json| [ { "name": "Java", "rank": 5 } ]|]
 
       -- TODO: move this to SingularSpec?
       it "works with return=representation and vnd.pgrst.object+json" $

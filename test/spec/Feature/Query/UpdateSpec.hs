@@ -449,7 +449,7 @@ spec = do
     it "works with the limit query param" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=2"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=2" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -461,7 +461,7 @@ spec = do
     it "works with the limit query param plus a filter" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=1&id=gt.2"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&id=gt.2" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -473,7 +473,7 @@ spec = do
     it "works with the limit and offset query params" $
       baseTable "limited_update_items" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -511,7 +511,7 @@ spec = do
     it "works with views with an explicit order by unique col" $
       baseTable "limited_update_items_view" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_view?order=id&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items_view?order=id&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -523,7 +523,7 @@ spec = do
     it "works with views with an explicit order by composite pk" $
       baseTable "limited_update_items_cpk_view" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1"
+      requestMutation methodPatch "/limited_update_items_cpk_view?order=id,name&limit=1&offset=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -535,7 +535,7 @@ spec = do
     it "works on a table without a pk by ordering by 'ctid'" $
       baseTable "limited_update_items_no_pk" "id" tblDataBefore
       `mutatesWith`
-      requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1"
+      requestMutation methodPatch "/limited_update_items_no_pk?order=ctid&limit=1" mempty
         [json| {"name": "updated-item"} |]
       `shouldMutateInto`
       [json|[
@@ -543,3 +543,66 @@ spec = do
       , { "id": 2, "name": "item-2" }
       , { "id": 3, "name": "item-3" }
       ]|]
+
+    it "ignores the Range header" $ do
+      baseTable "limited_update_items" "id" tblDataBefore
+       `mutatesWith`
+       requestMutation methodPatch "/limited_update_items"
+        (rangeHdrs (ByteRangeFromTo 0 0))
+        [json| {"name": "updated-item"} |]
+       `shouldMutateInto`
+       [json|[
+         { "id": 1, "name": "updated-item" }
+       , { "id": 2, "name": "updated-item" }
+       , { "id": 3, "name": "updated-item" }
+       ]|]
+
+      baseTable "limited_update_items" "id" tblDataBefore
+       `mutatesWith`
+       requestMutation methodPatch "/limited_update_items?order=id"
+        (rangeHdrs (ByteRangeFromTo 0 0))
+        [json| {"name": "updated-item"} |]
+       `shouldMutateInto`
+       [json|[
+         { "id": 1, "name": "updated-item" }
+       , { "id": 2, "name": "updated-item" }
+       , { "id": 3, "name": "updated-item" }
+       ]|]
+
+      baseTable "limited_update_items" "id" tblDataBefore
+       `mutatesWith`
+       requestMutation methodPatch "/limited_update_items?id=eq.2"
+        (rangeHdrs (ByteRangeFromTo 0 0))
+        [json| {"name": "updated-item"} |]
+       `shouldMutateInto`
+       [json|[
+         { "id": 1, "name": "item-1" }
+       , { "id": 2, "name": "updated-item" }
+       , { "id": 3, "name": "item-3" }
+       ]|]
+
+    it "ignores the Range header and does not throw an invalid range error" $
+      baseTable "limited_update_items" "id" tblDataBefore
+      `mutatesWith`
+      requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+        (rangeHdrs (ByteRangeFromTo 0 0))
+        [json| {"name": "updated-item"} |]
+      `shouldMutateInto`
+      [json|[
+       { "id": 1, "name": "item-1" }
+      , { "id": 2, "name": "updated-item" }
+      , { "id": 3, "name": "item-3" }
+      ]|]
+
+    it "ignores the Range header but not the limit and offset params" $
+      baseTable "limited_update_items" "id" tblDataBefore
+       `mutatesWith`
+       requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
+         (rangeHdrs (ByteRangeFromTo 0 1))
+         [json| {"name": "updated-item"} |]
+       `shouldMutateInto`
+       [json|[
+         { "id": 1, "name": "item-1" }
+       , { "id": 2, "name": "updated-item" }
+       , { "id": 3, "name": "item-3" }
+       ]|]

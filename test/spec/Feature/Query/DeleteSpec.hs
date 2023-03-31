@@ -154,7 +154,7 @@ spec =
       it "works with the limit and offset query params" $
         baseTable "limited_delete_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1" mempty
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "item-1" }
@@ -164,7 +164,7 @@ spec =
       it "works with the limit query param plus a filter" $
         baseTable "limited_delete_items" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1" mempty
+        requestMutation methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1" mempty mempty
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "item-1" }
@@ -200,7 +200,7 @@ spec =
       it "works with views with an explicit order by unique col" $
         baseTable "limited_delete_items_view" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1" mempty
+        requestMutation methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "item-1" }
@@ -210,7 +210,7 @@ spec =
       it "works with views with an explicit order by composite pk" $
         baseTable "limited_delete_items_cpk_view" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1" mempty
+        requestMutation methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "item-1" }
@@ -220,9 +220,55 @@ spec =
       it "works on a table without a pk by ordering by 'ctid'" $
         baseTable "limited_delete_items_no_pk" "id" tblDataBefore
         `mutatesWith`
-        requestMutation methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1" mempty
+        requestMutation methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
         [json|[
           { "id": 1, "name": "item-1" }
         , { "id": 3, "name": "item-3" }
         ]|]
+
+      it "ignores the Range header" $ do
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items"
+          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
+         `shouldMutateInto`
+         [json|[]|]
+
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items?order=id"
+          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
+         `shouldMutateInto`
+         [json|[]|]
+
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items?id=eq.2"
+          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1" }
+         , { "id": 3, "name": "item-3" }
+         ]|]
+
+      it "ignores the Range header but not the limit and offset params" $ do
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
+          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1" }
+         , { "id": 3, "name": "item-3" }
+         ]|]
+
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
+          (rangeHdrs (ByteRangeFromTo 0 1)) mempty
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1" }
+         , { "id": 3, "name": "item-3" }
+         ]|]
