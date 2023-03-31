@@ -33,6 +33,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + `PGRST003`: Timed out when acquiring connection to db
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
  - #1652, Fix function call with arguments not inlining - @steve-chavez
+ - #2705, Fix `Range` header not being ignored on request methods different from `GET` - @laurenceisla
+
+### Changed
+
+ - #2705, The `Range` header is now ignored when doing an RPC request with a method different from `GET` - @laurenceisla
 
 ## [10.1.2] - 2023-02-01
 
