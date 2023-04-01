@@ -33,11 +33,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + `PGRST003`: Timed out when acquiring connection to db
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
  - #1652, Fix function call with arguments not inlining - @steve-chavez
- - #2705, Fix `Range` header not being ignored on request methods different from `GET` - @laurenceisla
-
+ - #2705, Fix bug when using the `Range` header on `PATCH/DELETE` - @laurenceisla
+   + Fix the`"message": "syntax error at or near \"RETURNING\""` error
+   + Fix doing a limited update/delete when an `order` query parameter was present
+    
 ### Changed
 
- - #2705, The `Range` header is now ignored when doing an RPC request with a method different from `GET` - @laurenceisla
+ - #2705, The `Range` header is now only considered on `GET` requests and is ignored for any other method - @laurenceisla
+   + Other methods should use the `limit/offset` query parameters for sub-ranges
+   + `PUT` requests no longer return an error when this header is present (using `limit/offset` still triggers the error)
 
 ## [10.1.2] - 2023-02-01
 

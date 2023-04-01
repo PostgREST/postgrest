@@ -237,22 +237,20 @@ spec =
 
         baseTable "limited_delete_items" "id" tblDataBefore
          `mutatesWith`
+         requestMutation methodDelete "/limited_delete_items?id=gte.2"
+          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
+         `shouldMutateInto`
+         [json|[ { "id": 1, "name": "item-1" } ]|]
+
+      it "ignores the Range header and does not do a limited delete" $
+        baseTable "limited_delete_items" "id" tblDataBefore
+         `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?order=id"
           (rangeHdrs (ByteRangeFromTo 0 0)) mempty
          `shouldMutateInto`
          [json|[]|]
 
-        baseTable "limited_delete_items" "id" tblDataBefore
-         `mutatesWith`
-         requestMutation methodDelete "/limited_delete_items?id=eq.2"
-          (rangeHdrs (ByteRangeFromTo 0 0)) mempty
-         `shouldMutateInto`
-         [json|[
-           { "id": 1, "name": "item-1" }
-         , { "id": 3, "name": "item-3" }
-         ]|]
-
-      it "ignores the Range header but not the limit and offset params" $ do
+      it "ignores the Range header and does not throw an invalid range error" $
         baseTable "limited_delete_items" "id" tblDataBefore
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
@@ -263,12 +261,12 @@ spec =
          , { "id": 3, "name": "item-3" }
          ]|]
 
+      it "ignores the Range header but not the limit and offset params" $
         baseTable "limited_delete_items" "id" tblDataBefore
          `mutatesWith`
-         requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
-          (rangeHdrs (ByteRangeFromTo 0 1)) mempty
+         requestMutation methodDelete "/limited_delete_items?order=id&limit=2&offset=1"
+          (rangeHdrs (ByteRangeFromTo 1 1)) mempty
          `shouldMutateInto`
          [json|[
            { "id": 1, "name": "item-1" }
-         , { "id": 3, "name": "item-3" }
          ]|]

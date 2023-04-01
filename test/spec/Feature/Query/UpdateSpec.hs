@@ -559,6 +559,19 @@ spec = do
 
       baseTable "limited_update_items" "id" tblDataBefore
        `mutatesWith`
+       requestMutation methodPatch "/limited_update_items?id=gte.2"
+        (rangeHdrs (ByteRangeFromTo 0 0))
+        [json| {"name": "updated-item"} |]
+       `shouldMutateInto`
+       [json|[
+         { "id": 1, "name": "item-1" }
+       , { "id": 2, "name": "updated-item" }
+       , { "id": 3, "name": "updated-item" }
+       ]|]
+
+    it "ignores the Range header and does not do a limited update" $
+      baseTable "limited_update_items" "id" tblDataBefore
+       `mutatesWith`
        requestMutation methodPatch "/limited_update_items?order=id"
         (rangeHdrs (ByteRangeFromTo 0 0))
         [json| {"name": "updated-item"} |]
@@ -567,18 +580,6 @@ spec = do
          { "id": 1, "name": "updated-item" }
        , { "id": 2, "name": "updated-item" }
        , { "id": 3, "name": "updated-item" }
-       ]|]
-
-      baseTable "limited_update_items" "id" tblDataBefore
-       `mutatesWith`
-       requestMutation methodPatch "/limited_update_items?id=eq.2"
-        (rangeHdrs (ByteRangeFromTo 0 0))
-        [json| {"name": "updated-item"} |]
-       `shouldMutateInto`
-       [json|[
-         { "id": 1, "name": "item-1" }
-       , { "id": 2, "name": "updated-item" }
-       , { "id": 3, "name": "item-3" }
        ]|]
 
     it "ignores the Range header and does not throw an invalid range error" $
@@ -597,12 +598,12 @@ spec = do
     it "ignores the Range header but not the limit and offset params" $
       baseTable "limited_update_items" "id" tblDataBefore
        `mutatesWith`
-       requestMutation methodPatch "/limited_update_items?order=id&limit=1&offset=1"
-         (rangeHdrs (ByteRangeFromTo 0 1))
+       requestMutation methodPatch "/limited_update_items?order=id&limit=2&offset=1"
+         (rangeHdrs (ByteRangeFromTo 1 1))
          [json| {"name": "updated-item"} |]
        `shouldMutateInto`
        [json|[
          { "id": 1, "name": "item-1" }
        , { "id": 2, "name": "updated-item" }
-       , { "id": 3, "name": "item-3" }
+       , { "id": 3, "name": "updated-item" }
        ]|]
