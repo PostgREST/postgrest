@@ -164,8 +164,8 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params args returnsScalar returnings) =
-  "SELECT " <> (if returnsScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
+callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnings) =
+  "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
   fromCall
   where
     fromCall = case params of

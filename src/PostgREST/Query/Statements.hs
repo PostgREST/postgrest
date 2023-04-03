@@ -87,7 +87,7 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
     | getMediaType mt == MTTextCSV      = asCsvF
     | getMediaType mt == MTGeoJSON      = asGeoJsonF
     | getMediaType mt == MTSingularJSON = asJsonSingleF False
-    | otherwise                         = asJsonF False
+    | otherwise                         = asJsonF False False False
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
@@ -123,17 +123,17 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-    | otherwise                                          = asJsonF False
+    | otherwise                                          = asJsonF False False False
 
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
     MTPlan{} -> planRow
     _        -> HD.singleRow $ standardRow True
 
-prepareCall :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
+prepareCall :: Bool -> Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                MediaType -> Maybe FieldName -> Bool ->
                SQL.Statement () ResultSet
-prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt binaryField =
+prepareCall returnsScalar returnsSingleComposite returnsSetOfScalar callProcQuery selectQuery countQuery countTotal mt binaryField =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -156,8 +156,7 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
      | getMediaType mt == MTGeoJSON                       = asGeoJsonF
      | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
      | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-     | returnsSingle                                      = asJsonSingleF returnsScalar
-     | otherwise                                          = asJsonF returnsScalar
+     | otherwise                                          = asJsonF returnsScalar returnsSetOfScalar returnsSingleComposite
 
     decodeIt :: HD.Result ResultSet
     decodeIt = case mt of
