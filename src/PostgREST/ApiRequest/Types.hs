@@ -76,7 +76,7 @@ data ApiRequestError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
   | NotEmbedded Text
-  | PutRangeNotAllowedError
+  | PutLimitNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
   | SpreadNotToOne Text Text

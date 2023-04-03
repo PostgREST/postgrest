@@ -72,7 +72,7 @@ instance PgrstError ApiRequestError where
   status NoRelBetween{}          = HTTP.status400
   status NoRpc{}                 = HTTP.status404
   status NotEmbedded{}           = HTTP.status400
-  status PutRangeNotAllowedError = HTTP.status400
+  status PutLimitNotAllowedError = HTTP.status400
   status QueryParamError{}       = HTTP.status400
   status RelatedOrderNotToOne{}  = HTTP.status400
   status SpreadNotToOne{}        = HTTP.status400
@@ -142,9 +142,9 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
-  toJSON PutRangeNotAllowedError = JSON.object [
+  toJSON PutLimitNotAllowedError = JSON.object [
     "code"    .= ApiRequestErrorCode14,
-    "message" .= ("Range header and limit/offset querystring parameters are not allowed for PUT" :: Text),
+    "message" .= ("limit/offset querystring parameters are not allowed for PUT" :: Text),
     "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 

@@ -237,10 +237,12 @@ getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestErr
 getRanges method QueryParams{qsOrder,qsRanges} hdrs
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
-  | method == "PUT" && topLevelRange /= allRange = Left PutRangeNotAllowedError
+  | method == "PUT" && topLevelRange /= allRange = Left PutLimitNotAllowedError
   | otherwise = Right (topLevelRange, ranges)
   where
-    headerRange = rangeRequested hdrs
+    -- According to the RFC (https://www.rfc-editor.org/rfc/rfc9110.html#name-range),
+    -- the Range header must be ignored for all methods other than GET
+    headerRange = if method == "GET" then rangeRequested hdrs else allRange
     limitRange = fromMaybe allRange (HM.lookup "limit" qsRanges)
     headerAndLimitRange = rangeIntersection headerRange limitRange
     -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
