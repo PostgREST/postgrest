@@ -35,6 +35,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
  - #1652, Fix function call with arguments not inlining - @steve-chavez
 
+### Changed
+
+ - #2733, Remove bulk RPC call with the `Prefer: params=multiple-objects` header. A function with a JSON array or object parameter should be used instead.
+
 ## [10.1.2] - 2023-02-01
 
 ### Fixed

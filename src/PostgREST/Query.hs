@@ -38,7 +38,6 @@ import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
-                                          PreferParameters (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
@@ -165,7 +164,6 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequ
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount preferCount)
         iAcceptMediaType
-        (preferParameters == Just MultipleObjects)
         crBinField
         configDbPreparedStatements
 

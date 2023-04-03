@@ -15,7 +15,6 @@ import           Network.HTTP.Types
 import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
-import           Text.Heredoc
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
                                    pgVersion130)
@@ -330,21 +329,6 @@ spec actualPgVersion = do
              [planHdr] ""
 
       liftIO $ planCost r `shouldSatisfy` (< 1.18)
-
-    context "params=multiple-objects" $ do
-      it "should not exceed cost when calling setof composite proc" $ do
-        r <- request methodPost "/rpc/get_projects_below"
-               [planHdr, ("Prefer", "params=multiple-objects")]
-               [str| [{"id": 1}, {"id": 4}] |]
-
-        liftIO $ planCost r `shouldSatisfy` (< 4503.4)
-
-      it "should not exceed cost when calling scalar proc" $ do
-        r <- request methodPost "/rpc/add_them"
-               [planHdr, ("Prefer", "params=multiple-objects")]
-               [str| [{"a": 3, "b": 4}, {"a": 1, "b": 2}, {"a": 8, "b": 7}] |]
-
-        liftIO $ planCost r `shouldSatisfy` (< 5.85)
 
     context "function inlining" $ do
       it "should inline a zero argument function(the function won't appear in the plan tree)" $ do

@@ -112,7 +112,7 @@ fromHeaders headers =
   Preferences
     { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = fromMaybe None $ parsePrefs [Full, None, HeadersOnly]
-    , preferParameters = parsePrefs [SingleObject, MultipleObjects]
+    , preferParameters = parsePrefs [SingleObject]
     , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction = parsePrefs [Commit, Rollback]
     , preferMissing = parsePrefs [ApplyDefaults, ApplyNulls]
@@ -176,13 +176,10 @@ instance ToHeaderValue PreferRepresentation where
 -- | How to pass parameters to stored procedures.
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure.
-  | MultipleObjects -- ^ Pass an array of json objects as params to a stored procedure.
   deriving Eq
 
--- TODO: Deprecate params=multiple-objects in next major version
 instance ToHeaderValue PreferParameters where
   toHeaderValue SingleObject    = "params=single-object"
-  toHeaderValue MultipleObjects = "params=multiple-objects"
 
 -- | How to determine the count of (expected) results
 data PreferCount

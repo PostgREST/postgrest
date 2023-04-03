@@ -131,9 +131,9 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     _        -> HD.singleRow $ standardRow True
 
 prepareCall :: Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-               MediaType -> Bool -> Maybe FieldName -> Bool ->
+               MediaType -> Maybe FieldName -> Bool ->
                SQL.Statement () ResultSet
-prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt multObjects binaryField =
+prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery countTotal mt binaryField =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -156,7 +156,7 @@ prepareCall returnsScalar returnsSingle callProcQuery selectQuery countQuery cou
      | getMediaType mt == MTGeoJSON                       = asGeoJsonF
      | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
      | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-     | returnsSingle && not multObjects                   = asJsonSingleF returnsScalar
+     | returnsSingle                                      = asJsonSingleF returnsScalar
      | otherwise                                          = asJsonF returnsScalar
 
     decodeIt :: HD.Result ResultSet
