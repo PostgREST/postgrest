@@ -46,12 +46,14 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
 
 ## Lead Backers
 
+- [Roboflow](https://github.com/roboflow)
 - Evans Fernandes
 - [Jan Sommer](https://github.com/nerfpops)
 - [Franz Gusenbauer](https://www.igutech.at/)
 
 ## Backers
 
+- Zac Miller
 - Tsingson Qin
 - Michel Pelletier
 - Jay Hannah
