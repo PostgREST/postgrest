@@ -56,7 +56,8 @@ import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            Schema)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
                                            ProcParam (..), ProcsMap,
-                                           procReturnsScalar)
+                                           procReturnsScalar,
+                                           procReturnsSetOfScalar)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
@@ -548,6 +549,7 @@ callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = 
 , funCParams = callParams
 , funCArgs = Just args
 , funCScalar = procReturnsScalar proc
+, funCSetOfScalar = procReturnsSetOfScalar proc
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
@@ -615,7 +617,8 @@ addFilterToLogicForest flt lf = Stmnt flt : lf
 binaryField :: AppConfig -> MediaType -> Maybe ProcDescription -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
 binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   | isRawMediaType =
-    if (procReturnsScalar <$> proc) == Just True
+    if (procReturnsScalar <$> proc) == Just True ||
+       (procReturnsSetOfScalar <$> proc) == Just True
       then Right $ Just "pgrst_scalar"
       else
         let

@@ -158,7 +158,8 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequ
     lift . SQL.statement mempty $
       Statements.prepareCall
         (Proc.procReturnsScalar proc)
-        (Proc.procReturnsSingle proc)
+        (Proc.procReturnsSingleComposite proc)
+        (Proc.procReturnsSetOfScalar proc)
         (QueryBuilder.callPlanToQuery crCallPlan)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)

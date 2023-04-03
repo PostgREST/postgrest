@@ -17,11 +17,12 @@ import           PostgREST.SchemaCache.Proc        (ProcDescription (..),
 import Protolude
 
 data CallPlan = FunctionCall
-  { funCQi           :: QualifiedIdentifier
-  , funCParams       :: CallParams
-  , funCArgs         :: Maybe LBS.ByteString
-  , funCScalar       :: Bool
-  , funCReturning    :: [FieldName]
+  { funCQi          :: QualifiedIdentifier
+  , funCParams      :: CallParams
+  , funCArgs        :: Maybe LBS.ByteString
+  , funCScalar      :: Bool
+  , funCSetOfScalar :: Bool
+  , funCReturning   :: [FieldName]
   }
 
 data CallParams

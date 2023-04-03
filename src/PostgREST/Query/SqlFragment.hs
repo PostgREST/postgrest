@@ -178,15 +178,17 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       ")"
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
-asJsonF :: Bool -> SqlFragment
-asJsonF returnsScalar
-  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')"
-  | otherwise     = "coalesce(json_agg(_postgrest_t), '[]')"
-
 asJsonSingleF :: Bool -> SqlFragment
 asJsonSingleF returnsScalar
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
   | otherwise     = "coalesce(json_agg(_postgrest_t)->0, 'null')"
+
+asJsonF :: Bool -> Bool -> Bool -> SqlFragment
+asJsonF returnsScalar returnsSetOfScalar returnsSingleComposite
+  | returnsSingleComposite              = "coalesce(json_agg(_postgrest_t)->0, 'null')"
+  | returnsScalar                       = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
+  | returnsSetOfScalar                  = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')"
+  | otherwise                           = "coalesce(json_agg(_postgrest_t), '[]')"
 
 asXmlF :: FieldName -> SqlFragment
 asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"

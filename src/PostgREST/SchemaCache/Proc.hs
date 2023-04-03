@@ -9,7 +9,8 @@ module PostgREST.SchemaCache.Proc
   , ProcsMap
   , RetType(..)
   , procReturnsScalar
-  , procReturnsSingle
+  , procReturnsSetOfScalar
+  , procReturnsSingleComposite
   , procReturnsVoid
   , procTableName
   ) where
@@ -71,21 +72,25 @@ type ProcsMap = HM.HashMap QualifiedIdentifier [ProcDescription]
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
   ProcDescription{pdReturnType = Single (Scalar _)} -> True
-  ProcDescription{pdReturnType = SetOf (Scalar _)}  -> True
-  _                                                    -> False
+  _                                                 -> False
 
-procReturnsSingle :: ProcDescription -> Bool
-procReturnsSingle proc = case proc of
-  ProcDescription{pdReturnType = Single _} -> True
-  _                                        -> False
+procReturnsSetOfScalar :: ProcDescription -> Bool
+procReturnsSetOfScalar proc = case proc of
+  ProcDescription{pdReturnType = SetOf (Scalar _)} -> True
+  _                                                -> False
+
+procReturnsSingleComposite :: ProcDescription -> Bool
+procReturnsSingleComposite proc = case proc of
+  ProcDescription{pdReturnType = Single (Composite _)} -> True
+  _                                                    -> False
 
 procReturnsVoid :: ProcDescription -> Bool
 procReturnsVoid proc = case proc of
   ProcDescription{pdReturnType = Single (Scalar True)} -> True
-  _                                        -> False
+  _                                                    -> False
 
 procTableName :: ProcDescription -> Maybe TableName
 procTableName proc = case pdReturnType proc of
   SetOf  (Composite qi) -> Just $ qiName qi
   Single (Composite qi) -> Just $ qiName qi
-  _                            -> Nothing
+  _                     -> Nothing
