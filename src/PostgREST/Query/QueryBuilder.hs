@@ -164,14 +164,14 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnings) =
+callPlanToQuery (FunctionCall qi params args returnsScalar returnings) =
   "SELECT " <> (if returnsScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
   fromCall
   where
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False (not multipleCall) False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

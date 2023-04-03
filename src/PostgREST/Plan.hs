@@ -548,7 +548,6 @@ callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = 
 , funCParams = callParams
 , funCArgs = Just args
 , funCScalar = procReturnsScalar proc
-, funCMultipleCall = preferParameters == Just MultipleObjects
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where

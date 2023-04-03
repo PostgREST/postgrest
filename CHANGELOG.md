@@ -44,6 +44,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Other methods should use the `limit/offset` query parameters for sub-ranges
    + `PUT` requests no longer return an error when this header is present (using `limit/offset` still triggers the error)
 
+### Changed
+
+ - #2733, Remove bulk RPC call with the `Prefer: params=multiple-objects` header. A function with a JSON array or object parameter should be used instead.
+
 ## [10.1.2] - 2023-02-01
 
 ### Fixed

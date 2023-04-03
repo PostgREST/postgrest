@@ -930,42 +930,6 @@ spec actualPgVersion =
           `shouldRespondWith` "3"
           { matchHeaders = [matchContentTypeJson] }
 
-    context "bulk RPC with params=multiple-objects" $ do
-      it "works with a scalar function an returns a json array" $
-        request methodPost "/rpc/add_them" [("Prefer", "params=multiple-objects")]
-          [json|[
-            {"a": 1, "b": 2},
-            {"a": 4, "b": 6},
-            {"a": 100, "b": 200} ]|]
-          `shouldRespondWith`
-          [json|
-            [3, 10, 300]
-          |] { matchHeaders = [matchContentTypeJson] }
-
-      it "works with a scalar function an returns a json array when posting CSV" $
-        request methodPost "/rpc/add_them" [("Content-Type", "text/csv"), ("Prefer", "params=multiple-objects")]
-          "a,b\n1,2\n4,6\n100,200"
-          `shouldRespondWith`
-          [json|
-            [3, 10, 300]
-          |]
-          { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
-          }
-
-      it "works with a non-scalar result" $
-        request methodPost "/rpc/get_projects_below?select=id,name" [("Prefer", "params=multiple-objects")]
-          [json|[
-            {"id": 1},
-            {"id": 5} ]|]
-          `shouldRespondWith`
-          [json|
-            [{"id":1,"name":"Windows 7"},
-             {"id":2,"name":"Windows 10"},
-             {"id":3,"name":"IOS"},
-             {"id":4,"name":"OSX"}]
-          |] { matchHeaders = [matchContentTypeJson] }
-
     context "HTTP request env vars" $ do
       it "custom header is set" $
         request methodPost "/rpc/get_guc_value"

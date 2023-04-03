@@ -21,7 +21,6 @@ data CallPlan = FunctionCall
   , funCParams       :: CallParams
   , funCArgs         :: Maybe LBS.ByteString
   , funCScalar       :: Bool
-  , funCMultipleCall :: Bool
   , funCReturning    :: [FieldName]
   }
 
