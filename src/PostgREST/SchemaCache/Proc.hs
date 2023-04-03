@@ -23,7 +23,7 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
 import Protolude
 
 data PgType
-  = Scalar
+  = Scalar Bool -- True if the type is void
   | Composite QualifiedIdentifier
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
@@ -43,7 +43,7 @@ data ProcDescription = ProcDescription
   , pdName        :: Text
   , pdDescription :: Maybe Text
   , pdParams      :: [ProcParam]
-  , pdReturnType  :: Maybe RetType
+  , pdReturnType  :: RetType
   , pdVolatility  :: ProcVolatility
   , pdHasVariadic :: Bool
   }
@@ -70,22 +70,22 @@ type ProcsMap = HM.HashMap QualifiedIdentifier [ProcDescription]
 
 procReturnsScalar :: ProcDescription -> Bool
 procReturnsScalar proc = case proc of
-  ProcDescription{pdReturnType = Just (Single Scalar)} -> True
-  ProcDescription{pdReturnType = Just (SetOf Scalar)}  -> True
+  ProcDescription{pdReturnType = Single (Scalar _)} -> True
+  ProcDescription{pdReturnType = SetOf (Scalar _)}  -> True
   _                                                    -> False
 
 procReturnsSingle :: ProcDescription -> Bool
 procReturnsSingle proc = case proc of
-  ProcDescription{pdReturnType = Just (Single _)} -> True
-  _                                               -> False
+  ProcDescription{pdReturnType = Single _} -> True
+  _                                        -> False
 
 procReturnsVoid :: ProcDescription -> Bool
 procReturnsVoid proc = case proc of
-  ProcDescription{pdReturnType = Nothing} -> True
-  _                                       -> False
+  ProcDescription{pdReturnType = Single (Scalar True)} -> True
+  _                                        -> False
 
 procTableName :: ProcDescription -> Maybe TableName
 procTableName proc = case pdReturnType proc of
-  Just (SetOf  (Composite qi)) -> Just $ qiName qi
-  Just (Single (Composite qi)) -> Just $ qiName qi
+  SetOf  (Composite qi) -> Just $ qiName qi
+  Single (Composite qi) -> Just $ qiName qi
   _                            -> Nothing

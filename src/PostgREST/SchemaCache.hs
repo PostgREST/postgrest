@@ -255,16 +255,16 @@ decodeProcs =
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
-    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> Maybe RetType
+    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> RetType
     parseRetType schema name isSetOf isComposite isVoid
-      | isVoid    = Nothing
-      | isSetOf   = Just (SetOf pgType)
-      | otherwise = Just (Single pgType)
+      | isVoid    = Single $ Scalar True
+      | isSetOf   = SetOf pgType
+      | otherwise = Single pgType
       where
         qi = QualifiedIdentifier schema name
         pgType
           | isComposite = Composite qi
-          | otherwise   = Scalar
+          | otherwise   = Scalar False
 
     parseVolatility :: Char -> ProcVolatility
     parseVolatility v | v == 'i' = Immutable
