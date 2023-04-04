@@ -38,8 +38,12 @@ data MutatePlan
       }
   | Delete
       { in_       :: QualifiedIdentifier
+      , delCols   :: [TypedField]
+      , delBody   :: Maybe LBS.ByteString
       , where_    :: [LogicTree]
       , mutRange  :: NonnegRange
       , mutOrder  :: [OrderTerm]
       , returning :: [FieldName]
+      , delPkFlts :: [FieldName]
+      , isBulk    :: Bool
       }

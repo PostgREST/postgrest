@@ -231,11 +231,12 @@ pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQ
 pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> Bool -> SQL.Snippet
-fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
+fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> Bool -> Bool -> SQL.Snippet
+fromJsonBodyF body fields includeSelect includeUsing includeLimitOne includeDefaults =
   SQL.sql
   (if includeSelect then "SELECT " <> parsedCols <> " " else mempty) <>
-  "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
+  (if includeUsing then "USING " else "FROM ") <>
+  "(SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
   -- convert a json object into a json array, this way we can use json_to_recordset for all json payloads
   -- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
   -- We do this in SQL to avoid processing the JSON in application code

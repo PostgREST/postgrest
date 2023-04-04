@@ -838,3 +838,8 @@ INSERT INTO posters(id,name) VALUES (1,'Mark'), (2,'Elon'), (3,'Bill'), (4,'Jeff
 
 TRUNCATE TABLE subscriptions CASCADE;
 INSERT INTO subscriptions(subscriber,subscribed) VALUES (3,1), (4,1), (1,2);
+
+TRUNCATE TABLE test.body_delete_items CASCADE;
+INSERT INTO test.body_delete_items (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+TRUNCATE TABLE test.bulk_delete_items CASCADE;
+INSERT INTO test.bulk_delete_items (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);

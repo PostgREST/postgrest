@@ -518,7 +518,11 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
+    MutationDelete ->
+        if isBulk && not (S.fromList pkCols `S.isSubsetOf` iColumns)
+          then Left BulkDelColsPkMatchingError
+        else
+          mapRight (\typedColumns -> Delete qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings pkCols isBulk) typedColumnsOrError
   where
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
@@ -534,6 +538,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
     applyDefaults = preferences.preferMissing == Just ApplyDefaults
+    isBulk = preferences.preferParameters == Just MultipleObjects
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound
