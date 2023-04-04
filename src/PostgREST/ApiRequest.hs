@@ -144,8 +144,8 @@ userApiRequest conf req reqBody = do
   qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
   (acceptMediaType, contentMediaType) <- getMediaTypes conf hdrs act pInfo
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
-  (topLevelRange, ranges) <- getRanges method qPrms hdrs
-  (payload, columns) <- getPayload reqBody contentMediaType qPrms act pInfo
+  (topLevelRange, ranges) <- getRanges method qPrms hdrs isBulk
+  (payload, columns) <- getPayload reqBody contentMediaType qPrms act pInfo isBulk
   return $ ApiRequest {
     iAction = act
   , iTarget = if | pathIsProc    -> TargetProc (QualifiedIdentifier schema pathName) pathIsRootSpec
@@ -154,7 +154,7 @@ userApiRequest conf req reqBody = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders hdrs
+  , iPreferences = preferences
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
@@ -172,6 +172,8 @@ userApiRequest conf req reqBody = do
     lookupHeader    = flip lookup hdrs
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
+    preferences = Preferences.fromHeaders hdrs
+    isBulk = Preferences.preferParameters preferences == Just Preferences.MultipleObjects
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -233,9 +235,10 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
     lookupHeader    = flip lookup hdrs
 
-getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
-getRanges method QueryParams{qsOrder,qsRanges} hdrs
+getRanges :: ByteString -> QueryParams -> RequestHeaders -> Bool -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
+getRanges method QueryParams{qsOrder,qsRanges} hdrs isBulk
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
+  | method == "DELETE" && not (null qsRanges) && isBulk = Left BulkLimitNotAllowedError
   | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutLimitNotAllowedError
   | otherwise = Right (topLevelRange, ranges)
@@ -252,8 +255,8 @@ getRanges method QueryParams{qsOrder,qsRanges} hdrs
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
 
-getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
-getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathIsProc}= do
+getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Bool -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
+getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathIsProc} isBulk = do
   checkedPayload <- if shouldParsePayload then payload else Right Nothing
   let cols = case (checkedPayload, columns) of
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
@@ -291,11 +294,13 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
       (ActionInvoke InvPost, _)              -> True
       (ActionMutate MutationSingleUpsert, _) -> True
       (ActionMutate MutationUpdate, _)       -> True
+      (ActionMutate MutationDelete, _)       -> isBulk
       _                                      -> False
 
     columns = case action of
       ActionMutate MutationCreate -> qsColumns
       ActionMutate MutationUpdate -> qsColumns
+      ActionMutate MutationDelete -> if isBulk then qsColumns else Nothing
       ActionInvoke InvPost        -> qsColumns
       _                           -> Nothing
 

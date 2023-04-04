@@ -59,28 +59,30 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status AmbiguousRelBetween{}   = HTTP.status300
-  status AmbiguousRpc{}          = HTTP.status300
-  status BinaryFieldError{}      = HTTP.status406
-  status MediaTypeError{}        = HTTP.status415
-  status InvalidBody{}           = HTTP.status400
-  status InvalidFilters          = HTTP.status405
-  status InvalidRpcMethod{}      = HTTP.status405
-  status InvalidRange{}          = HTTP.status416
-  status NotFound                = HTTP.status404
+  status AmbiguousRelBetween{}      = HTTP.status300
+  status AmbiguousRpc{}             = HTTP.status300
+  status BinaryFieldError{}         = HTTP.status406
+  status BulkDelColsPkMatchingError = HTTP.status400
+  status BulkLimitNotAllowedError   = HTTP.status400
+  status MediaTypeError{}           = HTTP.status415
+  status InvalidBody{}              = HTTP.status400
+  status InvalidFilters             = HTTP.status405
+  status InvalidRpcMethod{}         = HTTP.status405
+  status InvalidRange{}             = HTTP.status416
+  status NotFound                   = HTTP.status404
 
-  status NoRelBetween{}          = HTTP.status400
-  status NoRpc{}                 = HTTP.status404
-  status NotEmbedded{}           = HTTP.status400
-  status PutLimitNotAllowedError = HTTP.status400
-  status QueryParamError{}       = HTTP.status400
-  status RelatedOrderNotToOne{}  = HTTP.status400
-  status SpreadNotToOne{}        = HTTP.status400
-  status UnacceptableFilter{}    = HTTP.status400
-  status UnacceptableSchema{}    = HTTP.status406
-  status UnsupportedMethod{}     = HTTP.status405
-  status LimitNoOrderError       = HTTP.status400
-  status ColumnNotFound{}        = HTTP.status400
+  status NoRelBetween{}             = HTTP.status400
+  status NoRpc{}                    = HTTP.status404
+  status NotEmbedded{}              = HTTP.status400
+  status PutLimitNotAllowedError    = HTTP.status400
+  status QueryParamError{}          = HTTP.status400
+  status RelatedOrderNotToOne{}     = HTTP.status400
+  status SpreadNotToOne{}           = HTTP.status400
+  status UnacceptableFilter{}       = HTTP.status400
+  status UnacceptableSchema{}       = HTTP.status406
+  status UnsupportedMethod{}        = HTTP.status405
+  status LimitNoOrderError          = HTTP.status400
+  status ColumnNotFound{}           = HTTP.status400
 
   headers _ = [MediaType.toContentType MTApplicationJSON]
 
@@ -170,6 +172,18 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode20,
     "message" .= ("Bad operator on the '" <> target <> "' embedded resource":: Text),
     "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
+    "hint"    .= JSON.Null]
+
+  toJSON BulkDelColsPkMatchingError = JSON.object [
+    "code"    .= ApiRequestErrorCode21,
+    "message" .= ("The payload or 'columns' query string parameter must include all primary key columns for bulk deletes" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON BulkLimitNotAllowedError = JSON.object [
+    "code"    .= ApiRequestErrorCode22,
+    "message" .= ("limit/offset query string parameters are not allowed for bulk deletes" :: Text),
+    "details" .= JSON.Null,
     "hint"    .= JSON.Null]
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = JSON.object [
@@ -598,6 +612,8 @@ data ErrorCode
   | ApiRequestErrorCode18
   | ApiRequestErrorCode19
   | ApiRequestErrorCode20
+  | ApiRequestErrorCode21
+  | ApiRequestErrorCode22
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -644,6 +660,8 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode18  -> "118"
   ApiRequestErrorCode19  -> "119"
   ApiRequestErrorCode20  -> "120"
+  ApiRequestErrorCode21  -> "121"
+  ApiRequestErrorCode22  -> "122"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"

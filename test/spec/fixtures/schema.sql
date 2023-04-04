@@ -3110,3 +3110,25 @@ create table test.tbl_w_json(
   id int,
   data json
 );
+
+-- Table to test deletes with body in the payload
+
+CREATE TABLE test.body_delete_items (
+  id INT PRIMARY KEY ,
+  name TEXT
+);
+
+-- Tables to test bulk deletes
+
+CREATE TABLE test.bulk_delete_items (
+  id INT PRIMARY KEY,
+  name TEXT,
+  observation TEXT
+);
+
+CREATE TABLE test.bulk_delete_items_cpk (
+  id INT,
+  name TEXT,
+  observation TEXT,
+  PRIMARY KEY (id, name)
+);

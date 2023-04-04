@@ -83,7 +83,7 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _ applyDefaults) =
   "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
-  fromJsonBodyF body iCols True False applyDefaults <>
+  fromJsonBodyF body iCols True False False applyDefaults <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
   SQL.sql (BS.unwords [
@@ -114,13 +114,13 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
 
   | range == allRange =
     "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
-    fromJsonBodyF body uCols False False applyDefaults <>
+    fromJsonBodyF body uCols False False False applyDefaults <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
     "WITH " <>
-    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
+    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True False True applyDefaults <> "), " <>
     "pgrst_affected_rows AS (" <>
       "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
@@ -140,9 +140,12 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
+mutatePlanToQuery (Delete mainQi dCols body logicForest range ordts returnings pkFlts isBulk)
   | range == allRange =
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    (if isBulk
+      then fromJsonBodyF body dCols False True False False
+      else mempty) <>
     whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
@@ -160,7 +163,11 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     SQL.sql (returningF mainQi returnings)
 
   where
-    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    whereLogic = pgFmtWhereF $ if isBulk then logicForestF <> pgrstDeleteBodyF else logicForestF
+    pgFmtWhereF flts = if null flts then mempty else " WHERE " <> intercalateSnippet " AND " flts
+    logicForestF = pgFmtLogicTree mainQi <$> logicForest
+    pgrstDeleteBodyF = pgFmtBodyFilter mainQi (QualifiedIdentifier mempty "pgrst_body") <$> pkFlts
+    pgFmtBodyFilter table cte f = SQL.sql (pgFmtColumn table f <> " = " <> pgFmtColumn cte f)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
@@ -171,7 +178,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar multipleCall returnin
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False (not multipleCall) False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> TypedField (ppName p) (ppType p) Nothing) <$> prms) False False (not multipleCall) False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
