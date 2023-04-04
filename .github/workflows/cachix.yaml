@@ -18,6 +18,7 @@ on:
 jobs:
   Seed-Cachix:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: Linux
