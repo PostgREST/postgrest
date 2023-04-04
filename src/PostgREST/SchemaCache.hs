@@ -248,6 +248,7 @@ decodeProcs =
                   <*> column HD.text
                   <*> column HD.bool
                   <*> column HD.bool
+                  <*> column HD.bool
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
@@ -255,15 +256,15 @@ decodeProcs =
     addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
-    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> RetType
-    parseRetType schema name isSetOf isComposite isVoid
+    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> Bool -> RetType
+    parseRetType schema name isSetOf isComposite isVoid isCompositeAlias
       | isVoid    = Single $ Scalar True
       | isSetOf   = SetOf pgType
       | otherwise = Single pgType
       where
         qi = QualifiedIdentifier schema name
         pgType
-          | isComposite = Composite qi
+          | isComposite = Composite qi isCompositeAlias
           | otherwise   = Scalar False
 
     parseVolatility :: Char -> ProcVolatility
@@ -340,6 +341,7 @@ procsSqlQuery pgVer = [q|
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
     ('void'::regtype = t.oid) AS rettype_is_void,
+    bt.oid <> bt.base as rettype_is_composite_alias,
     p.provolatile,
     p.provariadic > 0 as hasvariadic
   FROM pg_proc p

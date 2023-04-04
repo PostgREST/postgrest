@@ -13,6 +13,7 @@ module PostgREST.SchemaCache.Proc
   , procReturnsSingleComposite
   , procReturnsVoid
   , procTableName
+  , procReturnsCompositeAlias
   ) where
 
 import qualified Data.Aeson          as JSON
@@ -25,7 +26,7 @@ import Protolude
 
 data PgType
   = Scalar Bool -- True if the type is void
-  | Composite QualifiedIdentifier
+  | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to workaround a bug in pg 11 and 12, see QueryBuilder.hs)
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data RetType
@@ -79,10 +80,16 @@ procReturnsSetOfScalar proc = case proc of
   ProcDescription{pdReturnType = SetOf (Scalar _)} -> True
   _                                                -> False
 
+procReturnsCompositeAlias :: ProcDescription -> Bool
+procReturnsCompositeAlias proc = case proc of
+  ProcDescription{pdReturnType = Single (Composite _ True)} -> True
+  ProcDescription{pdReturnType = SetOf (Composite _ True)}  -> True
+  _                                                         -> False
+
 procReturnsSingleComposite :: ProcDescription -> Bool
 procReturnsSingleComposite proc = case proc of
-  ProcDescription{pdReturnType = Single (Composite _)} -> True
-  _                                                    -> False
+  ProcDescription{pdReturnType = Single (Composite _ _)} -> True
+  _                                                      -> False
 
 procReturnsVoid :: ProcDescription -> Bool
 procReturnsVoid proc = case proc of
@@ -91,6 +98,6 @@ procReturnsVoid proc = case proc of
 
 procTableName :: ProcDescription -> Maybe TableName
 procTableName proc = case pdReturnType proc of
-  SetOf  (Composite qi) -> Just $ qiName qi
-  Single (Composite qi) -> Just $ qiName qi
-  _                     -> Nothing
+  SetOf  (Composite qi _) -> Just $ qiName qi
+  Single (Composite qi _) -> Just $ qiName qi
+  _                       -> Nothing

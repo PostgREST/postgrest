@@ -56,6 +56,7 @@ import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            Schema)
 import PostgREST.SchemaCache.Proc         (ProcDescription (..),
                                            ProcParam (..), ProcsMap,
+                                           procReturnsCompositeAlias,
                                            procReturnsScalar,
                                            procReturnsSetOfScalar)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -550,6 +551,7 @@ callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = 
 , funCArgs = Just args
 , funCScalar = procReturnsScalar proc
 , funCSetOfScalar = procReturnsSetOfScalar proc
+, funCRetCompositeAlias = procReturnsCompositeAlias proc
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where

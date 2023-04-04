@@ -15,7 +15,7 @@ import Text.Heredoc
 import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
                                    pgVersion109, pgVersion110,
                                    pgVersion112, pgVersion114,
-                                   pgVersion130, pgVersion140)
+                                   pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -376,8 +376,7 @@ spec actualPgVersion =
           ]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      -- https://github.com/PostgREST/postgrest/pull/2677#issuecomment-1444976849
-      when (actualPgVersion >= pgVersion130) $
+      when (actualPgVersion >= pgVersion110) $
         it "can embed if rpc returns domain of table type" $ do
           post "/rpc/getproject_domain?select=id,name,client:clients(id),tasks(id)"
               [json| { "id": 1} |]
