@@ -3115,8 +3115,7 @@ create table test.tbl_w_json(
 
 CREATE TABLE test.body_delete_items (
   id INT PRIMARY KEY ,
-  name TEXT,
-  observation TEXT
+  name TEXT
 );
 
 -- Tables to test bulk deletes

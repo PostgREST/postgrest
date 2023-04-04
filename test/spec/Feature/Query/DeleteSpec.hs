@@ -12,11 +12,17 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-tblDataBefore = [aesonQQ|[
-                  { "id": 1, "name": "item-1" }
-                , { "id": 2, "name": "item-2" }
-                , { "id": 3, "name": "item-3" }
-                ]|]
+tblDataBeforeItem = [aesonQQ|[
+                       { "id": 1, "name": "item-1" }
+                     , { "id": 2, "name": "item-2" }
+                     , { "id": 3, "name": "item-3" }
+                     ]|]
+
+tblDataBeforeBulk = [aesonQQ|[
+                      { "id": 1, "name": "item-1", "observation": null }
+                    , { "id": 2, "name": "item-2", "observation": null }
+                    , { "id": 3, "name": "item-3", "observation": null }
+                    ]|]
 
 spec :: SpecWith ((), Application)
 spec =
@@ -104,6 +110,36 @@ spec =
             matchHeaders = [matchContentTypeJson]
           }
 
+      it "ignores the json body" $
+        baseTable "body_delete_items" "id" tblDataBeforeItem
+        `mutatesWith`
+        requestMutation methodDelete "/body_delete_items?name=eq.item-2" mempty
+        [json|[
+          { "id": 1, "other": "value"},
+          { "id": 2 },
+          "value"
+        ]|]
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+
+      it "ignores the values in ?column" $
+        baseTable "body_delete_items" "id" tblDataBeforeItem
+        `mutatesWith`
+        requestMutation methodDelete "/body_delete_items?name=eq.item-2&columns=id" mempty
+        [json|[
+          { "id": 1, "other": "value"}
+        , { "id": 2 }
+        , "value"
+        ]|]
+        `shouldMutateInto`
+        [json|[
+          { "id": 1, "name": "item-1" }
+        , { "id": 3, "name": "item-3" }
+        ]|]
+
     context "known route, no records matched" $
       it "includes [] body if return=rep" $
         request methodDelete "/items?id=eq.101"
@@ -152,7 +188,7 @@ spec =
 
     context "limited delete" $ do
       it "works with the limit and offset query params" $
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
         `mutatesWith`
         requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
@@ -162,7 +198,7 @@ spec =
         ]|]
 
       it "works with the limit query param plus a filter" $
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
         `mutatesWith`
         requestMutation methodDelete "/limited_delete_items?order=id&limit=1&id=gt.1" mempty mempty
         `shouldMutateInto`
@@ -198,7 +234,7 @@ spec =
             { matchStatus  = 400 }
 
       it "works with views with an explicit order by unique col" $
-        baseTable "limited_delete_items_view" "id" tblDataBefore
+        baseTable "limited_delete_items_view" "id" tblDataBeforeItem
         `mutatesWith`
         requestMutation methodDelete "/limited_delete_items_view?order=id&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
@@ -208,7 +244,7 @@ spec =
         ]|]
 
       it "works with views with an explicit order by composite pk" $
-        baseTable "limited_delete_items_cpk_view" "id" tblDataBefore
+        baseTable "limited_delete_items_cpk_view" "id" tblDataBeforeItem
         `mutatesWith`
         requestMutation methodDelete "/limited_delete_items_cpk_view?order=id,name&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
@@ -218,7 +254,7 @@ spec =
         ]|]
 
       it "works on a table without a pk by ordering by 'ctid'" $
-        baseTable "limited_delete_items_no_pk" "id" tblDataBefore
+        baseTable "limited_delete_items_no_pk" "id" tblDataBeforeItem
         `mutatesWith`
         requestMutation methodDelete "/limited_delete_items_no_pk?order=ctid&limit=1&offset=1" mempty mempty
         `shouldMutateInto`
@@ -228,14 +264,14 @@ spec =
         ]|]
 
       it "ignores the Range header" $ do
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items"
           (rangeHdrs (ByteRangeFromTo 0 0)) mempty
          `shouldMutateInto`
          [json|[]|]
 
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?id=gte.2"
           (rangeHdrs (ByteRangeFromTo 0 0)) mempty
@@ -243,7 +279,7 @@ spec =
          [json|[ { "id": 1, "name": "item-1" } ]|]
 
       it "ignores the Range header and does not do a limited delete" $
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?order=id"
           (rangeHdrs (ByteRangeFromTo 0 0)) mempty
@@ -251,7 +287,7 @@ spec =
          [json|[]|]
 
       it "ignores the Range header and does not throw an invalid range error" $
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?order=id&limit=1&offset=1"
           (rangeHdrs (ByteRangeFromTo 0 0)) mempty
@@ -262,7 +298,7 @@ spec =
          ]|]
 
       it "ignores the Range header but not the limit and offset params" $
-        baseTable "limited_delete_items" "id" tblDataBefore
+        baseTable "limited_delete_items" "id" tblDataBeforeItem
          `mutatesWith`
          requestMutation methodDelete "/limited_delete_items?order=id&limit=2&offset=1"
           (rangeHdrs (ByteRangeFromTo 1 1)) mempty
@@ -270,3 +306,290 @@ spec =
          [json|[
            { "id": 1, "name": "item-1" }
          ]|]
+
+    context "bulk deletes" $ do
+      it "can delete tables with simple pk" $
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 2 }
+           , { "id": 3 }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         ]|]
+
+      it "can delete tables with composite pk" $
+        baseTable "bulk_delete_items_cpk" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items_cpk" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 2, "name": "item-2" }
+           , { "id": 3, "name": "item-3" }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         ]|]
+
+      it "deletes ignoring columns different than the pk in the json body" $
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 2, "name": "different value 2" }
+           , { "id": 3, "name": "different value 3" }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         ]|]
+
+      it "deletes with filters in the query string" $
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items?name=like.item-*&id=gte.2" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1 }
+           , { "id": 3 }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         , { "id": 2, "name": "item-2", "observation": null }
+         ]|]
+
+      it "fails when the simple pk is not present in the body" $
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "fails when the composite pk is not present in the body" $
+        request methodDelete "/bulk_delete_items_cpk" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "fails with an empty body" $ do
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| {}|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| []|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| [{}]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| [{}, {}]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "rejects json array that has objects with different keys" $
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "id": 1, "name": "a value", "observation": "New!" }
+             , { "name": "item-2" }
+             , { "id": 3, "done": true}
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST102",
+              "hint":null,
+              "details":null,
+              "message":"All object keys must match"
+            }|]
+            { matchStatus  = 400 }
+
+      it "rejects json array that isn't exclusivily composed of objects" $
+        request methodDelete "/bulk_delete_items" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "id": 1, "name": "a value", "observation": "New!" }
+             , false
+             , [ 1, 2, 3 ]
+             , { "id": 3 }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST102",
+              "hint":null,
+              "details":null,
+              "message":"All object keys must match"
+            }|]
+            { matchStatus  = 400 }
+
+      it "deletes when the simple pk is specified in ?columns" $
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items?columns=id" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1 }
+           , { "id": 3 }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 2, "name": "item-2", "observation": null }
+         ]|]
+
+      it "deletes when the composite pk is specified in ?columns" $
+        baseTable "bulk_delete_items_cpk" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items_cpk?columns=id,name" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1, "name": "item-1" }
+           , { "id": 3, "name": "item-3" }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 2, "name": "item-2", "observation": null }
+         ]|]
+
+      it "deletes ignoring columns different than the pk in ?columns" $
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items?columns=id,name" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1, "name": "different value 1" }
+           , { "id": 3, "other": "value", "observation": "New!" }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 2, "name": "item-2", "observation": null }
+         ]|]
+
+      it "does not delete any row if the pk is present in ?column but not in the body" $ do
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items?columns=id" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { name: "item-1" }
+           , { name: "item-3" }
+           ]|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         , { "id": 2, "name": "item-2", "observation": null }
+         , { "id": 3, "name": "item-3", "observation": null }
+         ]|]
+
+        baseTable "bulk_delete_items" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items?columns=id" [("Prefer", "params=multiple-objects")]
+           [json| []|]
+         `shouldMutateInto`
+         [json|[
+           { "id": 1, "name": "item-1", "observation": null }
+         , { "id": 2, "name": "item-2", "observation": null }
+         , { "id": 3, "name": "item-3", "observation": null }
+         ]|]
+
+      it "fails when there is no simple pk in ?columns" $
+        request methodDelete "/bulk_delete_items?columns=name" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "fails when there is no composite pk in ?columns" $
+        request methodDelete "/bulk_delete_items_cpk?columns=name" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST121",
+              "hint": null,
+              "details": null,
+              "message": "The payload or 'columns' query string parameter must include all primary key columns for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "fails when limit is specified" $
+        request methodDelete "/bulk_delete_items?limit=1" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST122",
+              "hint": null,
+              "details": null,
+              "message": "limit/offset query string parameters are not allowed for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
+
+      it "fails when offset is specified" $
+        request methodDelete "/bulk_delete_items?offset=1" [("Prefer", "params=multiple-objects")]
+             [json| [
+               { "name": "item-2" }
+             , { "name": "item-3" }
+             ]|]
+          `shouldRespondWith`
+            [json| {
+              "code":"PGRST122",
+              "hint": null,
+              "details": null,
+              "message": "limit/offset query string parameters are not allowed for bulk deletes"
+            }|]
+            { matchStatus  = 400 }
