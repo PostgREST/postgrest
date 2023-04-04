@@ -508,7 +508,7 @@ spec =
            { "id": 2, "name": "item-2", "observation": null }
          ]|]
 
-      it "does not delete any row if the pk is present in ?column but not in the body" $ do
+      it "does not delete any rows if the pk is present in ?column but not in the body" $ do
         baseTable "bulk_delete_items" "id" tblDataBeforeBulk
          `mutatesWith`
          requestMutation methodDelete "/bulk_delete_items?columns=id" [("Prefer", "params=multiple-objects")]

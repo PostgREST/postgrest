@@ -144,8 +144,9 @@ mutatePlanToQuery (Delete mainQi dCols body logicForest range ordts returnings p
   | range == allRange =
     "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
     (if isBulk
-      then fromJsonBodyF body dCols False True False False <> whereLogicBulk
-      else whereLogic) <> " " <>
+      then fromJsonBodyF body dCols False True False False
+      else mempty) <>
+    whereLogic <> " " <>
     SQL.sql (returningF mainQi returnings)
 
   | otherwise =
@@ -162,9 +163,8 @@ mutatePlanToQuery (Delete mainQi dCols body logicForest range ordts returnings p
     SQL.sql (returningF mainQi returnings)
 
   where
-    whereLogic = pgFmtWhereF (null logicForest) logicForestF
-    whereLogicBulk = pgFmtWhereF (null logicForest && null pkFlts) (logicForestF <> pgrstDeleteBodyF)
-    pgFmtWhereF hasEmptyLogic flts = if hasEmptyLogic then mempty else " WHERE " <> intercalateSnippet " AND " flts
+    whereLogic = pgFmtWhereF $ if isBulk then logicForestF <> pgrstDeleteBodyF else logicForestF
+    pgFmtWhereF flts = if null flts then mempty else " WHERE " <> intercalateSnippet " AND " flts
     logicForestF = pgFmtLogicTree mainQi <$> logicForest
     pgrstDeleteBodyF = pgFmtBodyFilter mainQi (QualifiedIdentifier mempty "pgrst_body") <$> pkFlts
     pgFmtBodyFilter table cte f = SQL.sql (pgFmtColumn table f <> " = " <> pgFmtColumn cte f)
