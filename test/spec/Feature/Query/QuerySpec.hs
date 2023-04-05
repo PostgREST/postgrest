@@ -1013,7 +1013,7 @@ spec actualPgVersion = do
 
     it "fails if an operator is not given" $
       get "/ghostBusters?id=0" `shouldRespondWith`
-        [json| {"code":"PGRST100","details":"unexpected end of input expecting operator (eq, gt, ...)","hint":null,"message":"\"failed to parse filter (0)\" (line 1, column 2)"} |]
+        [json| {"code":"PGRST100","details":"unexpected \"0\" expecting \"not\" or operator (eq, gt, ...)","hint":null,"message":"\"failed to parse filter (0)\" (line 1, column 1)"} |]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -1285,4 +1285,46 @@ spec actualPgVersion = do
           {"id":3,"name":"IOS","client_id":2},
           {"id":4,"name":"OSX","client_id":2},
           {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+  context "any/all quantifiers" $ do
+    it "works with the eq operator" $
+      get "/projects?id=eq(any).{3,4,5}" `shouldRespondWith`
+        [json|[
+          {"id":3,"name":"IOS","client_id":2},
+          {"id":4,"name":"OSX","client_id":2},
+          {"id":5,"name":"Orphan","client_id":null}
+        ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works with the gt/gte operator" $ do
+      get "/projects?id=gt(all).{4,3}" `shouldRespondWith`
+        [json|[{"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/projects?id=gte(all).{4,3}" `shouldRespondWith`
+        [json|[{"id":4,"name":"OSX","client_id":2}, {"id":5,"name":"Orphan","client_id":null}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works with the lt/lte operator" $ do
+      get "/projects?id=lt(all).{4,3}" `shouldRespondWith`
+        [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/projects?id=lte(all).{4,3}" `shouldRespondWith`
+        [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}, {"id":3,"name":"IOS","client_id":2}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works with the like/ilike operator" $ do
+      get "/articles?body=like(any).{%plan%,%brain%}&select=id" `shouldRespondWith`
+        [json|[ {"id":1}, {"id":2} ]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/articles?body=ilike(all).{%plan%,%greatness%}&select=id" `shouldRespondWith`
+        [json|[ {"id":1} ]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "works with the match/imatch operator" $ do
+      get "/articles?body=match(any).{stop,thing}&select=id" `shouldRespondWith`
+        [json|[{"id":1}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/articles?body=imatch(any).{stop,thing}&select=id" `shouldRespondWith`
+        [json|[{"id":1}, {"id":2}]|]
         { matchHeaders = [matchContentTypeJson] }

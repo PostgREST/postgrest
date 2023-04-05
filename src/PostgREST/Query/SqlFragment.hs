@@ -64,10 +64,12 @@ import PostgREST.ApiRequest.Types        (Alias, Cast, Field,
                                           JsonPath,
                                           LogicOperator (..),
                                           LogicTree (..), OpExpr (..),
+                                          OpQuantifier (..),
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
                                           OrderTerm (..),
+                                          QuantOperator (..),
                                           SimpleOperator (..),
                                           TrileanVal (..))
 import PostgREST.MediaType               (MTPlanFormat (..),
@@ -91,24 +93,27 @@ noLocationF = "array[]::text[]"
 sourceCTEName :: SqlFragment
 sourceCTEName = "pgrst_source"
 
-singleValOperator :: SimpleOperator -> SqlFragment
-singleValOperator = \case
+simpleOperator :: SimpleOperator -> SqlFragment
+simpleOperator = \case
+  OpNotEqual        -> "<>"
+  OpContains        -> "@>"
+  OpContained       -> "<@"
+  OpOverlap         -> "&&"
+  OpStrictlyLeft    -> "<<"
+  OpStrictlyRight   -> ">>"
+  OpNotExtendsRight -> "&<"
+  OpNotExtendsLeft  -> "&>"
+  OpAdjacent        -> "-|-"
+
+quantOperator :: QuantOperator -> SqlFragment
+quantOperator = \case
   OpEqual            -> "="
   OpGreaterThanEqual -> ">="
   OpGreaterThan      -> ">"
   OpLessThanEqual    -> "<="
   OpLessThan         -> "<"
-  OpNotEqual         -> "<>"
   OpLike             -> "like"
   OpILike            -> "ilike"
-  OpContains         -> "@>"
-  OpContained        -> "<@"
-  OpOverlap          -> "&&"
-  OpStrictlyLeft     -> "<<"
-  OpStrictlyRight    -> ">>"
-  OpNotExtendsRight  -> "&<"
-  OpNotExtendsLeft   -> "&>"
-  OpAdjacent         -> "-|-"
   OpMatch            -> "~"
   OpIMatch           -> "~*"
 
@@ -289,39 +294,42 @@ pgFmtOrderTerm qi ot =
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
 pgFmtFilter _ (FilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
 pgFmtFilter _ (Filter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
-pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper of
-   Op op val  -> pgFmtFieldOp op <> " " <> case op of
-     OpLike  -> unknownLiteral (T.map star val)
-     OpILike -> unknownLiteral (T.map star val)
-     _       -> unknownLiteral val
+pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtField table fld <> case oper of
+   Op op val -> " " <> SQL.sql (simpleOperator op) <> " " <> unknownLiteral val
+
+   OpQuant op quant val -> " " <> SQL.sql (quantOperator op) <> " " <> case op of
+     OpLike  -> fmtQuant quant $ unknownLiteral (T.map star val)
+     OpILike -> fmtQuant quant $ unknownLiteral (T.map star val)
+     _       -> fmtQuant quant $ unknownLiteral val
 
    -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
    -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
    -- However that would not accept the TRUE/FALSE/NULL/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
    -- This is why `IS` operands are whitelisted at the Parsers.hs level
-   Is triVal -> pgFmtField table fld <> " IS " <> case triVal of
+   Is triVal -> " IS " <> case triVal of
      TriTrue    -> "TRUE"
      TriFalse   -> "FALSE"
      TriNull    -> "NULL"
      TriUnknown -> "UNKNOWN"
 
-   IsDistinctFrom val -> pgFmtField table fld <> " IS DISTINCT FROM " <> unknownLiteral val
+   IsDistinctFrom val -> " IS DISTINCT FROM " <> unknownLiteral val
 
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
    -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.
-   In vals -> pgFmtField table fld <> " " <> case vals of
+   In vals -> " " <> case vals of
       [""] -> "= ANY('{}') "
       _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
 
-   Fts op lang val ->
-     pgFmtFieldFts op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+   Fts op lang val -> " " <> SQL.sql (ftsOperator op) <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
-   pgFmtFieldOp op = pgFmtField table fld <> " " <> SQL.sql (singleValOperator op)
-   pgFmtFieldFts op = pgFmtField table fld <> " " <> SQL.sql (ftsOperator op)
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
+   fmtQuant q val = case q of
+    Just QuantAny -> "ANY(" <> val <> ")"
+    Just QuantAll -> "ALL(" <> val <> ")"
+    Nothing       -> val
 
 pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =

@@ -30,7 +30,6 @@ import Data.Ranged.Ranges            (Range (..))
 import Data.Tree                     (Tree (..))
 import Text.Parsec.Error             (errorMessages,
                                       showErrorMessages)
-import Text.Parsec.Prim              (parserFail)
 import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
                                       anyChar, between, char, digit,
                                       eof, errorPos, letter,
@@ -51,10 +50,11 @@ import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    JsonOperation (..), JsonPath,
                                    ListVal, LogicOperator (..),
                                    LogicTree (..), OpExpr (..),
-                                   Operation (..),
+                                   OpQuantifier (..), Operation (..),
                                    OrderDirection (..),
                                    OrderNulls (..), OrderTerm (..),
-                                   QPError (..), SelectItem (..),
+                                   QPError (..), QuantOperator (..),
+                                   SelectItem (..),
                                    SimpleOperator (..), SingleVal,
                                    TrileanVal (..))
 
@@ -67,7 +67,9 @@ import Protolude hiding (try)
 -- >>> deriving instance Show QPError
 -- >>> deriving instance Show TrileanVal
 -- >>> deriving instance Show FtsOperator
+-- >>> deriving instance Show QuantOperator
 -- >>> deriving instance Show SimpleOperator
+-- >>> deriving instance Show OpQuantifier
 -- >>> deriving instance Show Operation
 -- >>> deriving instance Show OpExpr
 -- >>> deriving instance Show JsonOperand
@@ -125,12 +127,12 @@ data QueryParams =
 -- Filters are parameters whose value contains an operator, separated by a '.' from its value:
 --
 -- >>> qsFilters <$> parse False "a.b=eq.0"
--- Right [(["a"],Filter {field = ("b",[]), opExpr = OpExpr False (Op OpEqual "0")})]
+-- Right [(["a"],Filter {field = ("b",[]), opExpr = OpExpr False (OpQuant OpEqual Nothing "0")})]
 --
 -- If the operator specified in a filter does not exist, parsing the query string fails:
 --
 -- >>> qsFilters <$> parse False "a.b=noop.0"
--- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 6)" "expecting operator (eq, gt, ...) unknown single value operator noop")
+-- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 1)" "unexpected \"o\" expecting \"not\" or operator (eq, gt, ...)")
 parse :: Bool -> ByteString -> Either QPError QueryParams
 parse isRpcGet qs = do
   rOrd                      <- pRequestOrder `traverse` order
@@ -200,29 +202,31 @@ parse isRpcGet qs = do
         offsetParams =
           HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
 
-operator :: Text -> Maybe SimpleOperator
-operator = \case
-  "eq"     -> Just OpEqual
-  "gte"    -> Just OpGreaterThanEqual
-  "gt"     -> Just OpGreaterThan
-  "lte"    -> Just OpLessThanEqual
-  "lt"     -> Just OpLessThan
-  "neq"    -> Just OpNotEqual
-  "like"   -> Just OpLike
-  "ilike"  -> Just OpILike
-  "cs"     -> Just OpContains
-  "cd"     -> Just OpContained
-  "ov"     -> Just OpOverlap
-  "sl"     -> Just OpStrictlyLeft
-  "sr"     -> Just OpStrictlyRight
-  "nxr"    -> Just OpNotExtendsRight
-  "nxl"    -> Just OpNotExtendsLeft
-  "adj"    -> Just OpAdjacent
-  "match"  -> Just OpMatch
-  "imatch" -> Just OpIMatch
-  _        -> Nothing
+simpleOperator :: Parser SimpleOperator
+simpleOperator =
+  try (string "neq" $> OpNotEqual) <|>
+  try (string "cs" $> OpContains) <|>
+  try (string "cd" $> OpContained) <|>
+  try (string "ov" $> OpOverlap) <|>
+  try (string "sl" $> OpStrictlyLeft) <|>
+  try (string "sr" $> OpStrictlyRight) <|>
+  try (string "nxr" $> OpNotExtendsRight) <|>
+  try (string "nxl" $> OpNotExtendsLeft) <|>
+  try (string "adj" $> OpAdjacent) <?>
+  "unknown single value operator"
 
--- PARSERS
+quantOperator :: Parser QuantOperator
+quantOperator =
+  try (string "eq" $> OpEqual) <|>
+  try (string "gte" $> OpGreaterThanEqual) <|>
+  try (string "gt" $> OpGreaterThan) <|>
+  try (string "lte" $> OpLessThanEqual) <|>
+  try (string "lt" $> OpLessThan) <|>
+  try (string "like" $> OpLike) <|>
+  try (string "ilike" $> OpILike) <|>
+  try (string "match" $> OpMatch) <|>
+  try (string "imatch" $> OpIMatch) <?>
+  "unknown single value operator"
 
 pRequestSelect :: Text -> Either QPError [Tree SelectItem]
 pRequestSelect selStr =
@@ -236,10 +240,10 @@ pRequestOnConflict oncStr =
 -- Parse `id=eq.1`(id, eq.1) into (EmbedPath, Filter)
 --
 -- >>> pRequestFilter False ("id", "eq.1")
--- Right ([],Filter {field = ("id",[]), opExpr = OpExpr False (Op OpEqual "1")})
+-- Right ([],Filter {field = ("id",[]), opExpr = OpExpr False (OpQuant OpEqual Nothing "1")})
 --
 -- >>> pRequestFilter False ("id", "val")
--- Left (QPError "\"failed to parse filter (val)\" (line 1, column 4)" "unexpected end of input expecting operator (eq, gt, ...)")
+-- Left (QPError "\"failed to parse filter (val)\" (line 1, column 1)" "unexpected \"v\" expecting \"not\" or operator (eq, gt, ...)")
 --
 -- >>> pRequestFilter True ("id", "val")
 -- Right ([],Filter {field = ("id",[]), opExpr = NoOpExpr "val"})
@@ -580,26 +584,54 @@ pEmbedParams = do
 -- Parse operator expression used in horizontal filtering
 --
 -- >>> P.parse (pOpExpr pSingleVal) "" "fts().value"
--- Left (line 1, column 7):
+-- Left (line 1, column 5):
+-- unexpected ")"
 -- expecting operator (eq, gt, ...)
--- unknown single value operator fts()
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "eq(any).value"
+-- Right (OpExpr False (OpQuant OpEqual (Just QuantAny) "value"))
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "eq(all).value"
+-- Right (OpExpr False (OpQuant OpEqual (Just QuantAll) "value"))
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "not.eq(all).value"
+-- Right (OpExpr True (OpQuant OpEqual (Just QuantAll) "value"))
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "eq().value"
+-- Left (line 1, column 4):
+-- unexpected ")"
+-- expecting operator (eq, gt, ...)
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "is().value"
+-- Left (line 1, column 3):
+-- unexpected "("
+-- expecting operator (eq, gt, ...)
+--
+-- >>> P.parse (pOpExpr pSingleVal) "" "in().value"
+-- Left (line 1, column 3):
+-- unexpected "("
+-- expecting operator (eq, gt, ...)
 pOpExpr :: Parser SingleVal -> Parser OpExpr
 pOpExpr pSVal = do
   boolExpr <- try (string "not" *> pDelimiter $> True) <|> pure False
   OpExpr boolExpr <$> pOperation
   where
     pOperation :: Parser Operation
-    pOperation = pIn <|> pIs <|> pIsDist <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
+    pOperation = pIn <|> pIs <|> pIsDist <|> try pFts <|> try pSimpleOp <|> try pQuantOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
     pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
 
     pIsDist = IsDistinctFrom <$> (try (string "isdistinct" *> pDelimiter) *> pSVal)
 
-    pOp = do
-      opStr <- try (P.manyTill anyChar (try pDelimiter))
-      op <- parseMaybe ("unknown single value operator " <> opStr) . operator $ toS opStr
-      Op op <$> pSVal
+    pSimpleOp = do
+      op <- simpleOperator
+      pDelimiter *> (Op op <$> pSVal)
+
+    pQuantOp = do
+      op <- quantOperator
+      quant <- optionMaybe $ try (between (char '(') (char ')') (try (string "any" $> QuantAny) <|> string "all" $> QuantAll))
+      pDelimiter *> (OpQuant op quant <$> pSVal)
 
     pTriVal = try (ciString "null"    $> TriNull)
           <|> try (ciString "unknown" $> TriUnknown)
@@ -615,10 +647,6 @@ pOpExpr pSVal = do
 
       lang <- optionMaybe $ try (between (char '(') (char ')') pIdentifier)
       pDelimiter >> Fts op (toS <$> lang) <$> pSVal
-
-    parseMaybe :: [Char] -> Maybe a -> Parser a
-    parseMaybe err Nothing = parserFail err
-    parseMaybe _ (Just x)  = pure x
 
     -- case insensitive char and string
     ciChar :: Char -> GenParser Char state Char

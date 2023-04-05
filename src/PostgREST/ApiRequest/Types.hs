@@ -19,6 +19,7 @@ module PostgREST.ApiRequest.Types
   , NodeName
   , OpExpr(..)
   , Operation (..)
+  , OpQuantifier(..)
   , OrderDirection(..)
   , OrderNulls(..)
   , OrderTerm(..)
@@ -27,6 +28,7 @@ module PostgREST.ApiRequest.Types
   , SingleVal
   , TrileanVal(..)
   , SimpleOperator(..)
+  , QuantOperator(..)
   , FtsOperator(..)
   , SelectItem(..)
   ) where
@@ -187,8 +189,12 @@ data OpExpr
   | NoOpExpr Text
   deriving (Eq)
 
+data OpQuantifier = QuantAny | QuantAll
+  deriving Eq
+
 data Operation
   = Op SimpleOperator SingleVal
+  | OpQuant QuantOperator (Maybe OpQuantifier) SingleVal
   | In ListVal
   | Is TrileanVal
   | IsDistinctFrom SingleVal
@@ -211,15 +217,21 @@ data TrileanVal
   | TriUnknown
   deriving Eq
 
-data SimpleOperator
+-- Operators that are quantifiable, i.e. they can be used with the any/all modifiers
+data QuantOperator
   = OpEqual
   | OpGreaterThanEqual
   | OpGreaterThan
   | OpLessThanEqual
   | OpLessThan
-  | OpNotEqual
   | OpLike
   | OpILike
+  | OpMatch
+  | OpIMatch
+  deriving Eq
+
+data SimpleOperator
+  = OpNotEqual
   | OpContains
   | OpContained
   | OpOverlap
@@ -228,10 +240,9 @@ data SimpleOperator
   | OpNotExtendsRight
   | OpNotExtendsLeft
   | OpAdjacent
-  | OpMatch
-  | OpIMatch
   deriving Eq
 
+--
 -- | Operators for full text search operators
 data FtsOperator
   = FilterFts
