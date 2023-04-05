@@ -152,15 +152,15 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   optionalRollback conf apiReq
   pure resultSet
 
-invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} = do
+invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> PgVersion -> DbHandler ResultSet
+invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} pgVer = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
         (Proc.procReturnsScalar proc)
         (Proc.procReturnsSingleComposite proc)
         (Proc.procReturnsSetOfScalar proc)
-        (QueryBuilder.callPlanToQuery crCallPlan)
+        (QueryBuilder.callPlanToQuery crCallPlan pgVer)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount preferCount)

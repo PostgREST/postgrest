@@ -22,6 +22,8 @@ import qualified Hasql.DynamicStatements.Snippet as SQL
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion110,
+                                           pgVersion130)
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Proc         (ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -163,8 +165,8 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
-callPlanToQuery :: CallPlan -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnings) =
+callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
+callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
   "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
   fromCall
   where
@@ -175,7 +177,8 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
-    callIt argument = SQL.sql (fromQi qi) <> "(" <> argument <> ") pgrst_call"
+    callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> SQL.sql (fromQi qi) <> "(" <> argument <> ")).*) pgrst_call"
+                    | otherwise                                                              = SQL.sql (fromQi qi) <> "(" <> argument <> ") pgrst_call"
 
     fmtParams :: [ProcParam] -> SQL.Snippet
     fmtParams prms = SQL.sql $ BS.intercalate ", "
