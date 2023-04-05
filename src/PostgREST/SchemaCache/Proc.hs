@@ -26,7 +26,7 @@ import Protolude
 
 data PgType
   = Scalar Bool -- True if the type is void
-  | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to workaround a bug in pg 11 and 12, see QueryBuilder.hs)
+  | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
 data RetType
