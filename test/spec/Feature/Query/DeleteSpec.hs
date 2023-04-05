@@ -564,6 +564,50 @@ spec =
             }|]
             { matchStatus  = 400 }
 
+      it "deletes the whole table if it does not have a pk" $ do
+        baseTable "bulk_delete_items_no_pk" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items_no_pk" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1 }
+           , { "id": 3 }
+           ]|]
+         `shouldMutateInto`
+         [json|[]|]
+
+        baseTable "bulk_delete_items_no_pk" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items_no_pk" [("Prefer", "params=multiple-objects")]
+           [json|[]|]
+         `shouldMutateInto`
+         [json|[]|]
+
+        baseTable "bulk_delete_items_no_pk" "id" tblDataBeforeBulk
+         `mutatesWith`
+         requestMutation methodDelete "/bulk_delete_items_no_pk?columns=id,name" [("Prefer", "params=multiple-objects")]
+           [json| [
+             { "id": 1, "name": "item-1" }
+           , { "id": 3, "name": "item-3" }
+           ]|]
+         `shouldMutateInto`
+         [json|[]|]
+
+      it "returns the deleted item and count if requested" $
+        request methodDelete "/bulk_delete_items"
+          [("Prefer", "params=multiple-objects"), ("Prefer", "return=representation"), ("Prefer", "count=exact")]
+          [json| [
+            { "id": 1 }
+          , { "id": 3 }
+          ]|]
+         `shouldRespondWith`
+          [json|[
+            { "id": 1, "name": "item-1", "observation": null }
+          , { "id": 3, "name": "item-3", "observation": null }
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Range" <:> "*/2"]
+          }
+
       it "fails when limit is specified" $
         request methodDelete "/bulk_delete_items?limit=1" [("Prefer", "params=multiple-objects")]
              [json| [

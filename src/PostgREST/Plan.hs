@@ -538,7 +538,8 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
     tbl = HM.lookup qi $ dbTables sCache
     typedColumnsOrError = resolveOrError tbl `traverse` S.toList iColumns
     applyDefaults = preferences.preferMissing == Just ApplyDefaults
-    isBulk = preferences.preferParameters == Just MultipleObjects
+--    isBulk = preferences.preferParameters == Just MultipleObjects
+    isBulk = not (null pkCols) && preferences.preferParameters == Just MultipleObjects
 
 resolveOrError :: Maybe Table -> FieldName -> Either ApiRequestError TypedField
 resolveOrError Nothing _ = Left NotFound

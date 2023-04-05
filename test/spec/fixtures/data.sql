@@ -847,3 +847,6 @@ INSERT INTO test.bulk_delete_items (id, name, observation) VALUES (1, 'item-1', 
 
 TRUNCATE TABLE test.bulk_delete_items_cpk CASCADE;
 INSERT INTO test.bulk_delete_items_cpk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);
+
+TRUNCATE TABLE test.bulk_delete_items_no_pk CASCADE;
+INSERT INTO test.bulk_delete_items_no_pk (id, name, observation) VALUES (1, 'item-1', NULL), (2, 'item-2', NULL), (3, 'item-3', NULL);

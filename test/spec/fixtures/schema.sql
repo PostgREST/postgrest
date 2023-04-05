@@ -3132,3 +3132,9 @@ CREATE TABLE test.bulk_delete_items_cpk (
   observation TEXT,
   PRIMARY KEY (id, name)
 );
+
+CREATE TABLE test.bulk_delete_items_no_pk (
+  id INT,
+  name TEXT,
+  observation TEXT
+);
