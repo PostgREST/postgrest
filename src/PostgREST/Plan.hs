@@ -515,8 +515,8 @@ mutatePlan mutation qi ApiRequest{iPreferences=preferences, ..} sCache readReq =
            qsFilterFields == S.fromList pkCols &&
            not (null (S.fromList pkCols)) &&
            all (\case
-              Filter _ (OpExpr False (Op OpEqual _)) -> True
-              _                                      -> False) qsFiltersRoot
+              Filter _ (OpExpr False (OpQuant OpEqual Nothing _)) -> True
+              _                                                   -> False) qsFiltersRoot
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
           Left InvalidFilters

@@ -30,6 +30,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + New option `db-pool-max-lifetime` (default 30m)
    + `db-pool-acquisition-timeout` is no longer optional and defaults to 10s
    + Fixes postgresql resource leak with long-lived connections (#2638)
+ - #1569, Allow `any/all` modifiers on the `eq,like,ilike,gt,gte,lt,lte,match,imatch` operators, e.g. `/tbl?id=eq(any).{1,2,3}` - @steve-chavez
+   - This converts the input into an array type
 
 ### Fixed
 
@@ -42,7 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2705, Fix bug when using the `Range` header on `PATCH/DELETE` - @laurenceisla
    + Fix the`"message": "syntax error at or near \"RETURNING\""` error
    + Fix doing a limited update/delete when an `order` query parameter was present
-    
+
 ### Changed
 
  - #2705, The `Range` header is now only considered on `GET` requests and is ignored for any other method - @laurenceisla
