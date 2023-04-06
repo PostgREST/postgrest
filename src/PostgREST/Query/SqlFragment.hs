@@ -305,6 +305,8 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> case oper 
      TriNull    -> "NULL"
      TriUnknown -> "UNKNOWN"
 
+   IsDistinctFrom val -> pgFmtField table fld <> " IS DISTINCT FROM " <> unknownLiteral val
+
    -- We don't use "IN", we use "= ANY". IN has the following disadvantages:
    -- + No way to use an empty value on IN: "col IN ()" is invalid syntax. With ANY we can do "= ANY('{}')"
    -- + Can invalidate prepared statements: multiple parameters on an IN($1, $2, $3) will lead to using different prepared statements and not take advantage of caching.

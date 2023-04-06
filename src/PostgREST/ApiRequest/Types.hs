@@ -191,6 +191,7 @@ data Operation
   = Op SimpleOperator SingleVal
   | In ListVal
   | Is TrileanVal
+  | IsDistinctFrom SingleVal
   | Fts FtsOperator (Maybe Language) SingleVal
   deriving (Eq)
 

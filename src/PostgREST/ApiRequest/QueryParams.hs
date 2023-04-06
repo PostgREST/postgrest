@@ -589,10 +589,12 @@ pOpExpr pSVal = do
   OpExpr boolExpr <$> pOperation
   where
     pOperation :: Parser Operation
-    pOperation = pIn <|> pIs <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
+    pOperation = pIn <|> pIs <|> pIsDist <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
     pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
+
+    pIsDist = IsDistinctFrom <$> (try (string "isdistinct" *> pDelimiter) *> pSVal)
 
     pOp = do
       opStr <- try (P.manyTill anyChar (try pDelimiter))
