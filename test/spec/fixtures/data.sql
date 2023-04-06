@@ -379,6 +379,7 @@ INSERT INTO ranges VALUES (1, '[1,3]');
 INSERT INTO ranges VALUES (2, '[3,6]');
 INSERT INTO ranges VALUES (3, '[6,9]');
 INSERT INTO ranges VALUES (4, '[9,12]');
+INSERT INTO ranges VALUES (5, null);
 
 TRUNCATE TABLE being CASCADE;
 INSERT INTO being VALUES (1), (2), (3), (4);

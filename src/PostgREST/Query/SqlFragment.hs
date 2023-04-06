@@ -111,6 +111,7 @@ singleValOperator = \case
   OpAdjacent         -> "-|-"
   OpMatch            -> "~"
   OpIMatch           -> "~*"
+  OpIsDistinctFrom   -> "is distinct from"
 
 ftsOperator :: FtsOperator -> SqlFragment
 ftsOperator = \case

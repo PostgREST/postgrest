@@ -229,6 +229,7 @@ data SimpleOperator
   | OpAdjacent
   | OpMatch
   | OpIMatch
+  | OpIsDistinctFrom
   deriving Eq
 
 -- | Operators for full text search operators

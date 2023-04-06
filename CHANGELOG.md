@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2694, Make `db-root-spec` stable. - @steve-chavez
    + This can be used to override the OpenAPI spec with a custom database function
  - #1567, On bulk inserts, missing values can get the column DEFAULT by using the `Prefer: missing=default` header - @steve-chavez
+ - #2501, Allow filtering by`IS DISTINCT FROM` using the `isdistinct` operator, e.g. `/people?alias=isdistinct.foo`
 
 ### Fixed
 

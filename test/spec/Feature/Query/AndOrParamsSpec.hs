@@ -92,6 +92,9 @@ spec actualPgVersion =
               {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
               {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
             ]|] { matchHeaders = [matchContentTypeJson] }
+        it "can handle isdistinct" $
+          get "/entities?and=(id.gte.2,arr.isdistinct.{1,2})&select=id" `shouldRespondWith`
+            [json|[{ "id": 3 }, { "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
 
         when (actualPgVersion >= pgVersion112) $
           it "can handle wfts (websearch_to_tsquery)" $
@@ -138,6 +141,8 @@ spec actualPgVersion =
             [json|[{ "id": 3 }, { "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
           get "/ranges?range=adj.(3,10]&select=id" `shouldRespondWith`
             [json|[{ "id": 1 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/ranges?range=isdistinct.[1,3]&select=id" `shouldRespondWith`
+            [json|[{ "id": 2 }, { "id": 3 }, { "id": 4 }, {"id": 5}]|] { matchHeaders = [matchContentTypeJson] }
 
         it "can handle array operators" $ do
           get "/entities?arr=eq.{1,2,3}&select=id" `shouldRespondWith`
@@ -166,6 +171,8 @@ spec actualPgVersion =
             [json|[{ "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
           get "/entities?arr=ov.{2,3}&select=id" `shouldRespondWith`
             [json|[{ "id": 2 }, { "id": 3 }]|] { matchHeaders = [matchContentTypeJson] }
+          get "/entities?arr=isdistinct.{1,2}&select=id" `shouldRespondWith`
+            [json|[{ "id": 1 }, { "id": 3 }, { "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
 
         context "operators with not" $ do
           it "eq, cs, like can be negated" $
@@ -180,6 +187,9 @@ spec actualPgVersion =
           it "gt, lte, ilike can be negated" $
             get "/entities?and=(name.not.ilike.*ITY2,or(id.not.gt.4,id.not.lte.1))&select=id" `shouldRespondWith`
               [json|[{"id": 1}, {"id": 2}, {"id": 3}]|] { matchHeaders = [matchContentTypeJson] }
+          it "isdistinct can be negated" $
+            get "/entities?and=(id.not.eq.2,arr.not.isdistinct.{1,2,3})&select=id" `shouldRespondWith`
+              [json|[{"id": 3}]|] { matchHeaders = [matchContentTypeJson] }
 
       context "and/or params with quotes" $ do
         it "eq can have quotes" $

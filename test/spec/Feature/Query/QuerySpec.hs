@@ -324,6 +324,16 @@ spec actualPgVersion = do
         [json|[{"id":1},{"id":2}]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "matches with IS DISTINCT FROM" $
+      get "/no_pk?select=a&a=isdistinct.2" `shouldRespondWith`
+        [json|[{"a":null},{"a":"1"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "matches with IS DISTINCT FROM using not operator" $
+      get "/no_pk?select=a&a=not.isdistinct.2" `shouldRespondWith`
+        [json|[{"a":"2"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
   describe "Shaping response with select parameter" $ do
     it "selectStar works in absense of parameter" $
       get "/complex_items?id=eq.3" `shouldRespondWith`
