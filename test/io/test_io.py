@@ -416,14 +416,8 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
     with run(env=env) as postgrest:
         postgrest.session.post("/rpc/invalid_role_claim_key_reload")
 
-        output = None
-        for _ in range(10):
-            output = postgrest.process.stdout.readline()
-            if output:
-                break
-            time.sleep(0.1)
-
-        assert "failed to parse role-claim-key value" in output.decode()
+        output = postgrest.read_stdout()
+        assert "failed to parse role-claim-key value" in output[0]
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
         assert response.status_code == 204
@@ -572,14 +566,9 @@ def test_pool_acquisition_timeout(defaultenv, metapostgrest):
         assert data["message"] == "Timed out acquiring connection from connection pool."
 
         # ensure the message appears on the logs as well
-        output = None
-        for _ in range(10):
-            output = postgrest.process.stdout.readline()
-            if output:
-                break
-            time.sleep(0.1)
-
-        assert "Timed out acquiring connection from connection pool." in output.decode()
+        output = sorted(postgrest.read_stdout(nlines=2))
+        assert " 504 " in output[0]
+        assert "Timed out acquiring connection from connection pool." in output[1]
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):

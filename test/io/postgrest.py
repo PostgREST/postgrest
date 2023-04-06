@@ -42,6 +42,18 @@ class PostgrestProcess:
     process: object
     session: object
 
+    def read_stdout(self, nlines=1):
+        "Wait for line(s) on standard output."
+        output = []
+        for _ in range(10):
+            l = self.process.stdout.readline()
+            if l:
+                output.append(l.decode())
+                if len(output) >= nlines:
+                    break
+            time.sleep(0.1)
+        return output
+
 
 @contextlib.contextmanager
 def run(
