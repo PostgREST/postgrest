@@ -221,7 +221,7 @@ operator = \case
   "match"      -> Just OpMatch
   "imatch"     -> Just OpIMatch
   "isdistinct" -> Just OpIsDistinctFrom
-  _          -> Nothing
+  _            -> Nothing
 
 -- PARSERS
 
