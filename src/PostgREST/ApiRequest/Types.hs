@@ -191,6 +191,7 @@ data Operation
   = Op SimpleOperator SingleVal
   | In ListVal
   | Is TrileanVal
+  | IsDistinctFrom SingleVal
   | Fts FtsOperator (Maybe Language) SingleVal
   deriving (Eq)
 
@@ -229,7 +230,6 @@ data SimpleOperator
   | OpAdjacent
   | OpMatch
   | OpIMatch
-  | OpIsDistinctFrom
   deriving Eq
 
 -- | Operators for full text search operators

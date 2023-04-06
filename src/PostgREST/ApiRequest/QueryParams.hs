@@ -202,26 +202,25 @@ parse isRpcGet qs = do
 
 operator :: Text -> Maybe SimpleOperator
 operator = \case
-  "eq"         -> Just OpEqual
-  "gte"        -> Just OpGreaterThanEqual
-  "gt"         -> Just OpGreaterThan
-  "lte"        -> Just OpLessThanEqual
-  "lt"         -> Just OpLessThan
-  "neq"        -> Just OpNotEqual
-  "like"       -> Just OpLike
-  "ilike"      -> Just OpILike
-  "cs"         -> Just OpContains
-  "cd"         -> Just OpContained
-  "ov"         -> Just OpOverlap
-  "sl"         -> Just OpStrictlyLeft
-  "sr"         -> Just OpStrictlyRight
-  "nxr"        -> Just OpNotExtendsRight
-  "nxl"        -> Just OpNotExtendsLeft
-  "adj"        -> Just OpAdjacent
-  "match"      -> Just OpMatch
-  "imatch"     -> Just OpIMatch
-  "isdistinct" -> Just OpIsDistinctFrom
-  _            -> Nothing
+  "eq"     -> Just OpEqual
+  "gte"    -> Just OpGreaterThanEqual
+  "gt"     -> Just OpGreaterThan
+  "lte"    -> Just OpLessThanEqual
+  "lt"     -> Just OpLessThan
+  "neq"    -> Just OpNotEqual
+  "like"   -> Just OpLike
+  "ilike"  -> Just OpILike
+  "cs"     -> Just OpContains
+  "cd"     -> Just OpContained
+  "ov"     -> Just OpOverlap
+  "sl"     -> Just OpStrictlyLeft
+  "sr"     -> Just OpStrictlyRight
+  "nxr"    -> Just OpNotExtendsRight
+  "nxl"    -> Just OpNotExtendsLeft
+  "adj"    -> Just OpAdjacent
+  "match"  -> Just OpMatch
+  "imatch" -> Just OpIMatch
+  _        -> Nothing
 
 -- PARSERS
 
@@ -590,10 +589,12 @@ pOpExpr pSVal = do
   OpExpr boolExpr <$> pOperation
   where
     pOperation :: Parser Operation
-    pOperation = pIn <|> pIs <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
+    pOperation = pIn <|> pIs <|> pIsDist <|> try pFts <|> try pOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
     pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
+
+    pIsDist = IsDistinctFrom <$> (try (string "isdistinct" *> pDelimiter) *> pSVal)
 
     pOp = do
       opStr <- try (P.manyTill anyChar (try pDelimiter))
