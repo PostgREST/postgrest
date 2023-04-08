@@ -44,6 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2705, Fix bug when using the `Range` header on `PATCH/DELETE` - @laurenceisla
    + Fix the`"message": "syntax error at or near \"RETURNING\""` error
    + Fix doing a limited update/delete when an `order` query parameter was present
+ - #2742, Fix db settings and pg version queries not getting prepared  - @steve-chavez
 
 ### Changed
 

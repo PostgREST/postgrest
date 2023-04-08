@@ -19,11 +19,11 @@ import Text.InterpolatedString.Perl6 (q)
 
 import Protolude
 
-queryPgVersion :: Session PgVersion
-queryPgVersion = statement mempty pgVersionStatement
+queryPgVersion :: Bool -> Session PgVersion
+queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
 
-pgVersionStatement :: SQL.Statement () PgVersion
-pgVersionStatement = SQL.Statement sql HE.noParams versionRow False
+pgVersionStatement :: Bool -> SQL.Statement () PgVersion
+pgVersionStatement = SQL.Statement sql HE.noParams versionRow
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
@@ -31,11 +31,11 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow False
 queryDbSettings :: Bool -> Session [(Text, Text)]
 queryDbSettings prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty dbSettingsStatement
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ dbSettingsStatement prepared
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
-dbSettingsStatement :: SQL.Statement () [(Text, Text)]
-dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings False
+dbSettingsStatement :: Bool -> SQL.Statement () [(Text, Text)]
+dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings
   where
     sql = [q|
       WITH

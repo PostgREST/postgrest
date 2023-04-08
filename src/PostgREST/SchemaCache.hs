@@ -107,7 +107,7 @@ type SqlQuery = ByteString
 querySchemaCache :: [Schema] -> [Schema] -> Bool -> SQL.Transaction SchemaCache
 querySchemaCache schemas extraSearchPath prepared = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  pgVer   <- SQL.statement mempty pgVersionStatement
+  pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
