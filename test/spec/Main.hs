@@ -67,7 +67,7 @@ main :: IO ()
 main = do
   pool <- P.acquire 3 10 60 $ toUtf8 $ configDbUri testCfg
 
-  actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
+  actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
   baseSchemaCache <-
     loadSchemaCache pool

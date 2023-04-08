@@ -124,7 +124,7 @@ establishConnection appState =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- AppState.usePool appState queryPgVersion
+      pgVersion <- AppState.usePool appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not established
       case pgVersion of
         Left e -> do
           AppState.logPgrstError appState e
