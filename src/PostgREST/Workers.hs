@@ -27,7 +27,8 @@ import Network.Socket.ByteString
 
 import PostgREST.AppState         (AppState)
 import PostgREST.Config           (AppConfig (..), readAppConfig)
-import PostgREST.Config.Database  (queryDbSettings, queryPgVersion)
+import PostgREST.Config.Database  (queryDbSettings, queryPgVersion,
+                                   queryRoleSettings)
 import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
 import PostgREST.Error            (checkIsFatal)
 import PostgREST.SchemaCache      (querySchemaCache)
@@ -124,7 +125,7 @@ establishConnection appState =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- AppState.usePool appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not established
+      pgVersion <- AppState.usePool appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
           AppState.logPgrstError appState e
@@ -248,11 +249,22 @@ reReadConfig startingUp appState = do
               killThread (AppState.getMainThreadId appState)
             Nothing -> do
               AppState.logPgrstError appState e
-          pure []
+          pure mempty
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) >>= \case
+  roleSettings <-
+    if configDbConfig then do
+      rSettings <- AppState.usePool appState $ queryRoleSettings configDbPreparedStatements
+      case rSettings of
+        Left e -> do
+          AppState.logWithZTime appState "An error ocurred when trying to query the role settings"
+          AppState.logPgrstError appState e
+          pure mempty
+        Right x -> pure x
+    else
+      pure mempty
+  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up

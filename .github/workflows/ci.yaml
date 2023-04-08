@@ -84,7 +84,7 @@ jobs:
 
       - name: Run IO tests
         if: always()
-        run: postgrest-with-postgresql-${{ matrix.pgVersion }} -f test/io/fixtures.sql postgrest-test-io
+        run: postgrest-with-postgresql-${{ matrix.pgVersion }} -f test/io/fixtures.sql postgrest-test-io -vv
 
 
   Test-Memory-Nix:
