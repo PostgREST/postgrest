@@ -839,6 +839,40 @@ def test_notify_reloading_catalog_cache(defaultenv):
         assert response.status_code == 200
 
 
+def test_role_settings(defaultenv):
+    "statement_timeout should be set per role"
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    with run(env=env) as postgrest:
+        # statement_timeout for postgrest_test_anonymous
+        response = postgrest.session.get("/rpc/get_guc_value?name=statement_timeout")
+        assert response.text == '"2s"'
+
+        # reload statement_timeout with NOTIFY
+        response = postgrest.session.post(
+            "/rpc/change_role_statement_timeout", data={"timeout": "5s"}
+        )
+        assert response.status_code == 204
+
+        response = postgrest.session.get("/rpc/reload_pgrst_config")
+        assert response.status_code == 204
+        time.sleep(0.1)
+
+        response = postgrest.session.get("/rpc/get_guc_value?name=statement_timeout")
+        assert response.text == '"5s"'
+
+        # statement_timeout for postgrest_test_author
+        headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+        response = postgrest.session.get(
+            "/rpc/get_guc_value?name=statement_timeout", headers=headers
+        )
+        assert response.text == '"10s"'
+
+
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
 # The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
 # A stack size of 200K seems to be enough for succeess

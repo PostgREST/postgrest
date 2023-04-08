@@ -33,7 +33,7 @@ import Protolude hiding (hPutStrLn)
 main :: App.SignalHandlerInstaller -> Maybe App.SocketRunner -> CLI -> IO ()
 main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
-    either panic identity <$> Config.readAppConfig mempty cliPath Nothing
+    either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty
 
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.

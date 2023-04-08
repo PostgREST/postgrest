@@ -98,3 +98,13 @@ as $$
   grant all on table cats to postgrest_test_anonymous;
   notify pgrst, 'reload schema';
 $$;
+
+alter role postgrest_test_anonymous set statement_timeout to '2s';
+alter role postgrest_test_author set statement_timeout to '10s';
+
+create function change_role_statement_timeout(timeout text) returns void as $_$
+begin
+  execute format($$
+    alter role current_user set statement_timeout = %L;
+  $$, timeout);
+end $_$ volatile language plpgsql ;

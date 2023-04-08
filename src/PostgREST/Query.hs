@@ -237,10 +237,10 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> Text ->
                ApiRequest -> PgVersion -> DbHandler ()
-setPgLocals conf claims role req actualPgVersion = lift $
+setPgLocals AppConfig{..} claims role req actualPgVersion = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
-    HD.noResult (configDbPreparedStatements conf)
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
+    HD.noResult configDbPreparedStatements
   where
     methodSql = setConfigLocal mempty ("request.method", iMethod req)
     pathSql = setConfigLocal mempty ("request.path", iPath req)
@@ -253,12 +253,16 @@ setPgLocals conf claims role req actualPgVersion = lift $
     claimsSql = if usesLegacyGucs
                   then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
                   else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
-    roleSql = [setConfigLocal mempty ("role", toUtf8 role)]
-    appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings conf)
+    roleBs = toUtf8 role
+    roleSql = [setConfigLocal mempty ("role", roleBs)]
+    roleSettingsSql = if null configRoleSettings
+      then mempty
+      else setConfigLocal mempty <$> fromMaybe mempty (HM.lookup roleBs configRoleSettings)
+    appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
-      let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath conf) in
+      let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath) in
       setConfigLocal mempty ("search_path", schemas)
-    usesLegacyGucs = configDbUseLegacyGucs conf && actualPgVersion < pgVersion140
+    usesLegacyGucs = configDbUseLegacyGucs && actualPgVersion < pgVersion140
 
     unquoted :: JSON.Value -> Text
     unquoted (JSON.String t) = t
