@@ -50,13 +50,12 @@ import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.SchemaCache.Proc        (ProcDescription (..),
-                                          ProcVolatility (..),
-                                          ProcsMap)
+import PostgREST.SchemaCache.Routine     (FuncVolatility (..),
+                                          Routine (..), RoutineMap)
 import PostgREST.SchemaCache.Table       (Table (..), TablesMap)
 
-import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
-import qualified PostgREST.SchemaCache.Proc as Proc
+import qualified PostgREST.ApiRequest.Types    as ApiRequestTypes
+import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
@@ -189,7 +188,7 @@ infoIdentResponse identifier sCache =
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
 
-infoProcResponse :: ProcDescription -> Wai.Response
+infoProcResponse :: Routine -> Wai.Response
 infoProcResponse proc | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
                       | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
 
@@ -201,7 +200,7 @@ respondInfo allowHeader =
   let allOrigins = ("Access-Control-Allow-Origin", "*") in
   Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
 
-invokeResponse :: InvokeMethod -> ProcDescription -> ApiRequest -> ResultSet -> Wai.Response
+invokeResponse :: InvokeMethod -> Routine -> ApiRequest -> ResultSet -> Wai.Response
 invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
   RSStandard {..} -> do
     let
@@ -214,7 +213,7 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
         else LBS.fromStrict rsBody
       headers = [contentRange]
 
-    if Proc.procReturnsVoid proc then
+    if Routine.funcReturnsVoid proc then
         response HTTP.status204 headers mempty
       else
         response status
@@ -224,7 +223,7 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-openApiResponse :: Bool -> Maybe (TablesMap, ProcsMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
+openApiResponse :: Bool -> Maybe (TablesMap, RoutineMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
 openApiResponse headersOnly body conf sCache schema negotiatedByProfile =
   Wai.responseLBS HTTP.status200
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))

@@ -27,12 +27,12 @@ import qualified Hasql.Encoders                    as HE
 import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
-import qualified PostgREST.Error              as Error
-import qualified PostgREST.Query.QueryBuilder as QueryBuilder
-import qualified PostgREST.Query.Statements   as Statements
-import qualified PostgREST.RangeQuery         as RangeQuery
-import qualified PostgREST.SchemaCache        as SchemaCache
-import qualified PostgREST.SchemaCache.Proc   as Proc
+import qualified PostgREST.Error               as Error
+import qualified PostgREST.Query.QueryBuilder  as QueryBuilder
+import qualified PostgREST.Query.Statements    as Statements
+import qualified PostgREST.RangeQuery          as RangeQuery
+import qualified PostgREST.SchemaCache         as SchemaCache
+import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
@@ -59,8 +59,7 @@ import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema)
-import PostgREST.SchemaCache.Proc        (ProcDescription (..),
-                                          ProcsMap)
+import PostgREST.SchemaCache.Routine     (Routine (..), RoutineMap)
 import PostgREST.SchemaCache.Table       (TablesMap)
 
 import Protolude hiding (Handler)
@@ -152,14 +151,14 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   optionalRollback conf apiReq
   pure resultSet
 
-invokeQuery :: ProcDescription -> CallReadPlan -> ApiRequest -> AppConfig -> PgVersion -> DbHandler ResultSet
+invokeQuery :: Routine -> CallReadPlan -> ApiRequest -> AppConfig -> PgVersion -> DbHandler ResultSet
 invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} pgVer = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
-        (Proc.procReturnsScalar proc)
-        (Proc.procReturnsSingleComposite proc)
-        (Proc.procReturnsSetOfScalar proc)
+        (Routine.funcReturnsScalar proc)
+        (Routine.funcReturnsSingleComposite proc)
+        (Routine.funcReturnsSetOfScalar proc)
         (QueryBuilder.callPlanToQuery crCallPlan pgVer)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
@@ -172,19 +171,19 @@ invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequ
   failNotSingular iAcceptMediaType resultSet
   pure resultSet
 
-openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, ProcsMap, Maybe Text))
+openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
 openApiQuery sCache pgVer AppConfig{..} tSchema =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
       tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
       Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement tSchema (SchemaCache.accessibleProcs pgVer configDbPreparedStatements)
+        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       Just <$> ((,,)
             (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbProcs sCache)
+            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
         <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OADisabled ->
       pure Nothing

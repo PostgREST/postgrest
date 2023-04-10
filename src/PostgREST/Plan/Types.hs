@@ -1,7 +1,6 @@
 module PostgREST.Plan.Types
   ( TypedField(..)
   , resolveTableField
-
   ) where
 
 import qualified Data.HashMap.Strict.InsOrd as HMI

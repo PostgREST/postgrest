@@ -25,11 +25,11 @@ import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion110,
                                            pgVersion130)
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Proc         (ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            relIsToOne)
+import PostgREST.SchemaCache.Routine      (RoutineParam (..))
 
 import PostgREST.ApiRequest.Types
 import PostgREST.Plan.CallPlan
@@ -180,7 +180,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
     callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> SQL.sql (fromQi qi) <> "(" <> argument <> ")).*) pgrst_call"
                     | otherwise                                                              = SQL.sql (fromQi qi) <> "(" <> argument <> ") pgrst_call"
 
-    fmtParams :: [ProcParam] -> SQL.Snippet
+    fmtParams :: [RoutineParam] -> SQL.Snippet
     fmtParams prms = SQL.sql $ BS.intercalate ", "
       ((\a -> (if ppVar a then "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
 
