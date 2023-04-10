@@ -22,7 +22,7 @@ module PostgREST.SchemaCache
   ( SchemaCache(..)
   , querySchemaCache
   , accessibleTables
-  , accessibleProcs
+  , accessibleFuncs
   , schemaDescription
   ) where
 
@@ -44,15 +44,14 @@ import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
 import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
-import PostgREST.SchemaCache.Proc         (PgType (..),
-                                           ProcDescription (..),
-                                           ProcParam (..),
-                                           ProcVolatility (..),
-                                           ProcsMap, RetType (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
+import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
+                                           PgType (..), RetType (..),
+                                           Routine (..), RoutineMap,
+                                           RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Column (..), ColumnMap,
                                            Table (..), TablesMap)
 
@@ -62,7 +61,7 @@ import Protolude
 data SchemaCache = SchemaCache
   { dbTables        :: TablesMap
   , dbRelationships :: RelationshipsMap
-  , dbProcs         :: ProcsMap
+  , dbRoutines      :: RoutineMap
   }
   deriving (Generic, JSON.ToJSON)
 
@@ -111,7 +110,7 @@ querySchemaCache schemas extraSearchPath prepared = do
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
-  procs   <- SQL.statement schemas $ allProcs pgVer prepared
+  funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
@@ -120,7 +119,7 @@ querySchemaCache schemas extraSearchPath prepared = do
   return $ removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
     , dbRelationships = getOverrideRelationshipsMap rels cRels
-    , dbProcs = procs
+    , dbRoutines = funcs
     }
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
@@ -150,7 +149,7 @@ removeInternal schemas dbStruct =
       dbTables        = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
     , dbRelationships = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
                         HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
-    , dbProcs         = dbProcs dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+    , dbRoutines      = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -228,17 +227,17 @@ viewKeyDepFromRow (s1,t1,s2,v2,cons,consType,sCols) = ViewKeyDependency (Qualifi
            | consType == "f" = FKDep
            | otherwise       = FKDepRef -- f_ref, we build this type in the query
 
-decodeProcs :: HD.Result ProcsMap
-decodeProcs =
-  -- Duplicate rows for a function means they're overloaded, order these by least args according to ProcDescription Ord instance
-  map sort . HM.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList procRow
+decodeFuncs :: HD.Result RoutineMap
+decodeFuncs =
+  -- Duplicate rows for a function means they're overloaded, order these by least args according to Routine Ord instance
+  map sort . HM.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList funcRow
   where
-    procRow = ProcDescription
+    funcRow = Function
               <$> column HD.text
               <*> column HD.text
               <*> nullableColumn HD.text
               <*> compositeArrayColumn
-                  (ProcParam
+                  (RoutineParam
                   <$> compositeField HD.text
                   <*> compositeField HD.text
                   <*> compositeField HD.bool
@@ -253,7 +252,7 @@ decodeProcs =
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
 
-    addKey :: ProcDescription -> (QualifiedIdentifier, ProcDescription)
+    addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
 
     parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> Bool -> RetType
@@ -267,23 +266,23 @@ decodeProcs =
           | isComposite = Composite qi isCompositeAlias
           | otherwise   = Scalar False
 
-    parseVolatility :: Char -> ProcVolatility
+    parseVolatility :: Char -> FuncVolatility
     parseVolatility v | v == 'i' = Immutable
                       | v == 's' = Stable
                       | otherwise = Volatile -- only 'v' can happen here
 
-allProcs :: PgVersion -> Bool -> SQL.Statement [Schema] ProcsMap
-allProcs pgVer = SQL.Statement sql (arrayParam HE.text) decodeProcs
+allFunctions :: PgVersion -> Bool -> SQL.Statement [Schema] RoutineMap
+allFunctions pgVer = SQL.Statement sql (arrayParam HE.text) decodeFuncs
   where
-    sql = procsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
+    sql = funcsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
 
-accessibleProcs :: PgVersion -> Bool -> SQL.Statement Schema ProcsMap
-accessibleProcs pgVer = SQL.Statement sql (param HE.text) decodeProcs
+accessibleFuncs :: PgVersion -> Bool -> SQL.Statement Schema RoutineMap
+accessibleFuncs pgVer = SQL.Statement sql (param HE.text) decodeFuncs
   where
-    sql = procsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = funcsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
-procsSqlQuery :: PgVersion -> SqlQuery
-procsSqlQuery pgVer = [q|
+funcsSqlQuery :: PgVersion -> SqlQuery
+funcsSqlQuery pgVer = [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (

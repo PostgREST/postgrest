@@ -27,11 +27,11 @@ module PostgREST.Plan
   ) where
 
 
-import qualified Data.ByteString.Lazy       as LBS
-import qualified Data.HashMap.Strict        as HM
-import qualified Data.List                  as L
-import qualified Data.Set                   as S
-import qualified PostgREST.SchemaCache.Proc as Proc
+import qualified Data.ByteString.Lazy          as LBS
+import qualified Data.HashMap.Strict           as HM
+import qualified Data.List                     as L
+import qualified Data.Set                      as S
+import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete)
@@ -54,16 +54,16 @@ import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
-import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..), ProcsMap,
-                                           procReturnsCompositeAlias,
-                                           procReturnsScalar,
-                                           procReturnsSetOfScalar)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap,
                                            relIsToOne)
+import PostgREST.SchemaCache.Routine      (Routine (..), RoutineMap,
+                                           RoutineParam (..),
+                                           funcReturnsCompositeAlias,
+                                           funcReturnsScalar,
+                                           funcReturnsSetOfScalar)
 import PostgREST.SchemaCache.Table        (Table (tableName),
                                            tablePKCols)
 
@@ -95,7 +95,7 @@ data CallReadPlan = CallReadPlan {
   crReadPlan :: ReadPlanTree
 , crCallPlan :: CallPlan
 , crTxMode   :: SQL.Mode
-, crProc     :: ProcDescription
+, crProc     :: Routine
 , crBinField :: Maybe FieldName
 }
 
@@ -117,9 +117,9 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
         InvGet  -> S.fromList $ fst <$> qsParams'
         InvHead -> S.fromList $ fst <$> qsParams'
         InvPost -> iColumns apiRequest
-  proc@ProcDescription{..} <- mapLeft ApiRequestError $
-    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbProcs sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
-  let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Proc.procTableName proc) -- done so a set returning function can embed other relations
+  proc@Function{..} <- mapLeft ApiRequestError $
+    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
+  let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType apiRequest) of
         (InvGet, _)             -> jsonRpcParams proc qsParams'
@@ -127,11 +127,11 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
         (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) $ iPayload apiRequest
         (InvPost, _)            -> maybe mempty payRaw $ iPayload apiRequest
       txMode = case (invMethod, pdVolatility) of
-          (InvGet,  _)              -> SQL.Read
-          (InvHead, _)              -> SQL.Read
-          (InvPost, Proc.Stable)    -> SQL.Read
-          (InvPost, Proc.Immutable) -> SQL.Read
-          (InvPost, Proc.Volatile)  -> SQL.Write
+          (InvGet,  _)                 -> SQL.Read
+          (InvHead, _)                 -> SQL.Read
+          (InvPost, Routine.Stable)    -> SQL.Read
+          (InvPost, Routine.Immutable) -> SQL.Read
+          (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
   return $ CallReadPlan rPlan cPlan txMode proc binField
@@ -143,7 +143,7 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
   the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> ProcsMap -> MediaType -> Bool -> Either ApiRequestError ProcDescription
+findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> RoutineMap -> MediaType -> Bool -> Either ApiRequestError Routine
 findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
   case matchProc of
     ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost (HM.keys allProcs) lookupProcName
@@ -166,7 +166,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam ProcDescription{pdParams=[ProcParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
+    hasSingleUnnamedParam Function{pdParams=[RoutineParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
       (MTApplicationJSON, "json")  -> True
       (MTApplicationJSON, "jsonb") -> True
       (MTTextPlain, "text")        -> True
@@ -544,14 +544,14 @@ resolveOrError (Just table) field =
     Nothing         -> Left $ ColumnNotFound (tableName table) field
     Just typedField -> Right typedField
 
-callPlan :: ProcDescription -> ApiRequest -> S.Set FieldName -> LBS.ByteString -> ReadPlanTree -> CallPlan
+callPlan :: Routine -> ApiRequest -> S.Set FieldName -> LBS.ByteString -> ReadPlanTree -> CallPlan
 callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
 , funCArgs = Just args
-, funCScalar = procReturnsScalar proc
-, funCSetOfScalar = procReturnsSetOfScalar proc
-, funCRetCompositeAlias = procReturnsCompositeAlias proc
+, funCScalar = funcReturnsScalar proc
+, funCSetOfScalar = funcReturnsSetOfScalar proc
+, funCRetCompositeAlias = funcReturnsCompositeAlias proc
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
@@ -616,11 +616,11 @@ addFilterToLogicForest flt lf = Stmnt flt : lf
 -- | If raw(binary) output is requested, check that MediaType is one of the
 -- admitted rawMediaTypes and that`?select=...` contains only one field other
 -- than `*`
-binaryField :: AppConfig -> MediaType -> Maybe ProcDescription -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
+binaryField :: AppConfig -> MediaType -> Maybe Routine -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
 binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   | isRawMediaType =
-    if (procReturnsScalar <$> proc) == Just True ||
-       (procReturnsSetOfScalar <$> proc) == Just True
+    if (funcReturnsScalar <$> proc) == Just True ||
+       (funcReturnsSetOfScalar <$> proc) == Just True
       then Right $ Just "pgrst_scalar"
       else
         let

@@ -46,7 +46,7 @@ library
                       PostgREST.Cors
                       PostgREST.SchemaCache
                       PostgREST.SchemaCache.Identifiers
-                      PostgREST.SchemaCache.Proc
+                      PostgREST.SchemaCache.Routine
                       PostgREST.SchemaCache.Relationship
                       PostgREST.SchemaCache.Table
                       PostgREST.Error

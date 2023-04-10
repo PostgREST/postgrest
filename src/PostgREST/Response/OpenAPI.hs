@@ -28,11 +28,11 @@ import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
 import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap)
+import PostgREST.SchemaCache.Routine      (Routine (..),
+                                           RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Column (..), Table (..),
                                            TablesMap,
                                            tableColumnsList)
@@ -42,7 +42,7 @@ import PostgREST.MediaType
 
 import Protolude hiding (Proxy, get)
 
-encode :: AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [ProcDescription] -> Maybe Text -> LBS.ByteString
+encode :: AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
 encode conf sCache tables procs schemaDescription =
   JSON.encode $
     postgrestSpec
@@ -145,7 +145,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         & type_ .~ toSwaggerType (colType col)
         & items .~ (SwaggerItemsObject <$> makePropertyItems (colType col))
 
-makeProcSchema :: ProcDescription -> Schema
+makeProcSchema :: Routine -> Schema
 makeProcSchema pd =
   (mempty :: Schema)
   & description .~ pdDescription pd
@@ -153,8 +153,8 @@ makeProcSchema pd =
   & properties .~ fromList (fmap makeProcProperty (pdParams pd))
   & required .~ fmap ppName (filter ppReq (pdParams pd))
 
-makeProcProperty :: ProcParam -> (Text, Referenced Schema)
-makeProcProperty (ProcParam n t _ _) = (n, Inline s)
+makeProcProperty :: RoutineParam -> (Text, Referenced Schema)
+makeProcProperty (RoutineParam n t _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
@@ -180,8 +180,8 @@ makePreferParam ts =
       "resolution" -> ["resolution=ignore-duplicates", "resolution=merge-duplicates"]
       _            -> []
 
-makeProcGetParam :: ProcParam -> Referenced Param
-makeProcGetParam (ProcParam n t r v) =
+makeProcGetParam :: RoutineParam -> Referenced Param
+makeProcGetParam (RoutineParam n t r v) =
   Inline $ (mempty :: Param)
     & name .~ n
     & required ?~ r
@@ -206,10 +206,10 @@ makeProcGetParam (ProcParam n t r v) =
       Nothing           -> SwaggerString
       _                 -> fromJust paramType
 
-makeProcGetParams :: [ProcParam] -> [Referenced Param]
+makeProcGetParams :: [RoutineParam] -> [Referenced Param]
 makeProcGetParams = fmap makeProcGetParam
 
-makeProcPostParams :: ProcDescription -> [Referenced Param]
+makeProcPostParams :: Routine -> [Referenced Param]
 makeProcPostParams pd =
   [ Inline $ (mempty :: Param)
     & name     .~ "args"
@@ -340,7 +340,7 @@ makePathItem t = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t 
     rs = [ T.intercalate "." ["rowFilter", tn, colName c ] | c <- tableColumnsList t ]
     ref = Ref . Reference
 
-makeProcPathItem :: ProcDescription -> (FilePath, PathItem)
+makeProcPathItem :: Routine -> (FilePath, PathItem)
 makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
   where
     -- Use first line of proc description as summary; rest as description (if present)
@@ -372,7 +372,7 @@ makeRootPathItem = ("/", p)
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
 
-makePathItems :: [ProcDescription] -> [Table] -> InsOrdHashMap FilePath PathItem
+makePathItems :: [Routine] -> [Table] -> InsOrdHashMap FilePath PathItem
 makePathItems pds ti = fromList $ makeRootPathItem :
   fmap makePathItem ti ++ fmap makeProcPathItem pds
 
@@ -392,7 +392,7 @@ escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
 
-postgrestSpec :: RelationshipsMap -> [ProcDescription] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Bool -> Swagger
+postgrestSpec :: RelationshipsMap -> [Routine] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Bool -> Swagger
 postgrestSpec rels pds ti (s, h, p, b) sd allowSecurityDef = (mempty :: Swagger)
   & basePath ?~ T.unpack b
   & schemes ?~ [s']

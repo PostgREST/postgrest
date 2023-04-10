@@ -36,9 +36,9 @@ module PostgREST.ApiRequest.Types
 import PostgREST.MediaType                (MediaType (..))
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
-import PostgREST.SchemaCache.Proc         (ProcDescription (..))
 import PostgREST.SchemaCache.Relationship (Relationship,
                                            RelationshipsMap)
+import PostgREST.SchemaCache.Routine      (Routine (..))
 
 import Protolude
 
@@ -66,7 +66,7 @@ data SelectItem
 
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
-  | AmbiguousRpc [ProcDescription]
+  | AmbiguousRpc [Routine]
   | BinaryFieldError MediaType
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
@@ -76,7 +76,7 @@ data ApiRequestError
   | LimitNoOrderError
   | NotFound
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
-  | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [ProcDescription]
+  | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [Routine]
   | NotEmbedded Text
   | PutLimitNotAllowedError
   | QueryParamError QPError

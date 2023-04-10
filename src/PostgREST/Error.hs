@@ -39,12 +39,12 @@ import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
-import PostgREST.SchemaCache.Proc         (ProcDescription (..),
-                                           ProcParam (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
+import PostgREST.SchemaCache.Routine      (Routine (..),
+                                           RoutineParam (..))
 import Protolude
 
 
@@ -283,7 +283,7 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
 -- to all the overloaded functions' params using the form "param1, param2, param3, ..."
 -- and shows the best match as hint.
 --
--- >>> let procsDesc = [ProcDescription {pdParams = [ProcParam {ppName="val"}, ProcParam {ppName="param"}, ProcParam {ppName="name"}]}, ProcDescription {pdParams = [ProcParam {ppName="id"}, ProcParam {ppName="attr"}]}]
+-- >>> let procsDesc = [Routine {pdParams = [RoutineParam {ppName="val"}, RoutineParam {ppName="param"}, RoutineParam {ppName="name"}]}, Routine {pdParams = [RoutineParam {ppName="id"}, RoutineParam {ppName="attr"}]}]
 --
 -- >>> noRpcHint "api" "test" ["vall", "pqaram", "nam"] procs procsDesc
 -- Just "Perhaps you meant to call the function api.test(name, param, val)"
@@ -300,7 +300,7 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
 -- >>> noRpcHint "api" "test" ["noclosealternative"] procs procsDesc
 -- Nothing
 --
-noRpcHint :: Text -> Text -> [Text] -> [QualifiedIdentifier] -> [ProcDescription] -> Maybe Text
+noRpcHint :: Text -> Text -> [Text] -> [QualifiedIdentifier] -> [Routine] -> Maybe Text
 noRpcHint schema procName params allProcs overloadedProcs =
   fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
   where
