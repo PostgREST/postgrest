@@ -283,7 +283,7 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
 -- to all the overloaded functions' params using the form "param1, param2, param3, ..."
 -- and shows the best match as hint.
 --
--- >>> let procsDesc = [Routine {pdParams = [RoutineParam {ppName="val"}, RoutineParam {ppName="param"}, RoutineParam {ppName="name"}]}, Routine {pdParams = [RoutineParam {ppName="id"}, RoutineParam {ppName="attr"}]}]
+-- >>> let procsDesc = [Function {pdParams = [RoutineParam {ppName="val"}, RoutineParam {ppName="param"}, RoutineParam {ppName="name"}]}, Function {pdParams = [RoutineParam {ppName="id"}, RoutineParam {ppName="attr"}]}]
 --
 -- >>> noRpcHint "api" "test" ["vall", "pqaram", "nam"] procs procsDesc
 -- Just "Perhaps you meant to call the function api.test(name, param, val)"

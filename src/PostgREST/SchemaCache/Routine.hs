@@ -25,7 +25,7 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
 import Protolude
 
 data PgType
-  = Scalar Bool -- True if the type is void
+  = Scalar QualifiedIdentifier
   | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
   deriving (Eq, Ord, Generic, JSON.ToJSON)
 
@@ -72,12 +72,12 @@ type RoutineMap = HM.HashMap QualifiedIdentifier [Routine]
 
 funcReturnsScalar :: Routine -> Bool
 funcReturnsScalar proc = case proc of
-  Function{pdReturnType = Single (Scalar _)} -> True
+  Function{pdReturnType = Single (Scalar{})} -> True
   _                                          -> False
 
 funcReturnsSetOfScalar :: Routine -> Bool
 funcReturnsSetOfScalar proc = case proc of
-  Function{pdReturnType = SetOf (Scalar _)} -> True
+  Function{pdReturnType = SetOf (Scalar{})} -> True
   _                                         -> False
 
 funcReturnsCompositeAlias :: Routine -> Bool
@@ -93,8 +93,8 @@ funcReturnsSingleComposite proc = case proc of
 
 funcReturnsVoid :: Routine -> Bool
 funcReturnsVoid proc = case proc of
-  Function{pdReturnType = Single (Scalar True)} -> True
-  _                                             -> False
+  Function{pdReturnType = Single (Scalar (QualifiedIdentifier "pg_catalog" "void"))} -> True
+  _                                                                                  -> False
 
 funcTableName :: Routine -> Maybe TableName
 funcTableName proc = case pdReturnType proc of
