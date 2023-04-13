@@ -429,7 +429,6 @@ jobs:
     name: Release on Docker Hub
     runs-on: ubuntu-latest
     needs:
-      - Build-Cabal-Arm
       - Prepare-Release
     env:
       GITHUB_COMMIT: ${{ github.sha }}
@@ -464,18 +463,6 @@ jobs:
           else
             echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
           fi
-      - name: Publish images for ARM builds on Docker Hub
-        uses: appleboy/ssh-action@master
-        env:
-          REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
-        with:
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
-          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
 #      - name: Update descriptions on Docker Hub
@@ -489,12 +476,44 @@ jobs:
 #            echo "Skipping updating description for pre-release..."
 #          fi
 
+  Release-Docker-Arm:
+    name: Release Arm Builds on Docker Hub
+    runs-on: ubuntu-latest
+    needs:
+      - Build-Cabal-Arm
+      - Prepare-Release
+      - Release-Docker
+    env:
+      GITHUB_COMMIT: ${{ github.sha }}
+      DOCKER_REPO: postgrest
+      DOCKER_USER: stevechavez
+      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
+      VERSION: ${{ needs.Prepare-Release.outputs.version }}
+      ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Publish images for ARM builds on Docker Hub
+        uses: appleboy/ssh-action@master
+        env:
+          REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
+        with:
+          host: ${{ secrets.SSH_ARM_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
+          script_stop: true
+          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
+          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
+
   Clean-Arm-Server:
     name: Remove copied files from server
     needs:
       - Build-Cabal-Arm
-      - Release-Docker
-    if: ${{ always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}
+      - Release-Docker-Arm
+    if: success() ||
+      needs.Build-Cabal-Arm.result == 'failure' ||
+      needs.Build-Cabal-Arm.result == 'cancelled' ||
+      (needs.Build-Cabal-Arm.result == 'success' && !startsWith(github.ref, 'refs/tags/v'))
     runs-on: ubuntu-latest
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
