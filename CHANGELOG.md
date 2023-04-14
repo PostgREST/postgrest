@@ -50,6 +50,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fix the`"message": "syntax error at or near \"RETURNING\""` error
    + Fix doing a limited update/delete when an `order` query parameter was present
  - #2742, Fix db settings and pg version queries not getting prepared  - @steve-chavez
+ - #2618, Fix `PATCH` requests not recognizing embedded filters and using the top-level resource instead - @steve-chavez
 
 ### Changed
 

@@ -382,98 +382,182 @@ spec = do
             }
 
   context "tables with self reference foreign keys" $ do
-    it "embeds children after update" $
-      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
-              [("Prefer", "return=representation")]
-        [json|{"name": "tardis-patched"}|]
-        `shouldRespondWith`
-        [json|
-          [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
-        |]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
-
-    it "embeds parent, children and grandchildren after update" $
-      request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
-              [("Prefer", "return=representation")]
-        [json|{"name": "tardis-patched-2"}|]
-        `shouldRespondWith`
-        [json| [
-          {
-            "id": 0,
-            "name": "tardis-patched-2",
-            "parent_content": { "name": "wat" },
-            "web_content": [
-                { "name": "fezz", "web_content": [ { "name": "wut" } ] },
-                { "name": "foo",  "web_content": [] },
-                { "name": "bar",  "web_content": [] }
-            ]
+    context "embeds children after update" $ do
+      it "without filters" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched"}|]
+          `shouldRespondWith`
+          [json|
+            [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
+          |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
           }
-        ] |]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
 
-    it "embeds children after update without explicitly including the id in the ?select" $
-      request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
-              [("Prefer", "return=representation")]
-        [json|{"name": "tardis-patched"}|]
-        `shouldRespondWith`
-        [json|
-          [ { "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
-        |]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
+      it "with filters" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)&web_content.name=like.f*"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched"}|]
+          `shouldRespondWith`
+          [json|
+            [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" } ]} ]
+          |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
 
-    it "embeds an M2M relationship plus parent after update" $
-      request methodPatch "/users?id=eq.1&select=name,tasks(name,project:projects(name))"
-              [("Prefer", "return=representation")]
-        [json|{"name": "Kevin Malone"}|]
-        `shouldRespondWith`
-        [json|[
-          {
-            "name": "Kevin Malone",
-            "tasks": [
-                { "name": "Design w7", "project": { "name": "Windows 7" } },
-                { "name": "Code w7", "project": { "name": "Windows 7" } },
-                { "name": "Design w10", "project": { "name": "Windows 10" } },
-                { "name": "Code w10", "project": { "name": "Windows 10" } }
-            ]
+    context "embeds parent, children and grandchildren after update" $ do
+      it "without filters" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched-2"}|]
+          `shouldRespondWith`
+          [json| [
+            {
+              "id": 0,
+              "name": "tardis-patched-2",
+              "parent_content": { "name": "wat" },
+              "web_content": [
+                  { "name": "fezz", "web_content": [ { "name": "wut" } ] },
+                  { "name": "foo",  "web_content": [] },
+                  { "name": "bar",  "web_content": [] }
+              ]
+            }
+          ] |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
           }
-        ]|]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
 
-    it "embeds an O2O relationship after update" $ do
-      request methodPatch "/students?id=eq.1&select=name,students_info(address)"
-              [("Prefer", "return=representation")]
-        [json|{"name": "Johnny Doe"}|]
-        `shouldRespondWith`
-        [json|[
-          {
-            "name": "Johnny Doe",
-            "students_info":{"address":"Street 1"}
+      it "with filters" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name,web_content(name)),parent_content:p_web_id(name)&web_content.name=like.f*&web_content.web_content.id=eq.4&parent_content.name=neq.wat"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched-2"}|]
+          `shouldRespondWith`
+          [json| [
+            {
+              "id": 0,
+              "name": "tardis-patched-2",
+              "parent_content": null,
+              "web_content": [
+                  { "name": "fezz", "web_content": [ { "name": "wut" } ] },
+                  { "name": "foo",  "web_content": [] }
+              ]
+            }
+          ] |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
           }
-        ]|]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
-      request methodPatch "/students_info?id=eq.1&select=address,students(name)"
-              [("Prefer", "return=representation")]
-        [json|{"address": "New Street 1"}|]
-        `shouldRespondWith`
-        [json|[
-          {
-            "address": "New Street 1",
-            "students":{"name": "John Doe"}
+
+    context "embeds children after update without explicitly including the id in the ?select" $ do
+      it "without filters" $
+        request methodPatch "/web_content?id=eq.0&select=name,web_content(name)"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched"}|]
+          `shouldRespondWith`
+          [json|
+            [ { "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
+          |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
           }
-        ]|]
-        { matchStatus  = 200,
-          matchHeaders = [matchContentTypeJson]
-        }
+
+      it "with filters" $
+        request methodPatch "/web_content?id=eq.0&select=name,web_content(name)&web_content.name=like.b*"
+                [("Prefer", "return=representation")]
+          [json|{"name": "tardis-patched"}|]
+          `shouldRespondWith`
+          [json|
+            [ { "name": "tardis-patched", "web_content": [ { "name": "bar" } ]} ]
+          |]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+
+  context "tables with foreign keys referencing other tables" $ do
+    context "embeds an M2M relationship plus parent after update" $ do
+      it "without filters" $
+        request methodPatch "/users?id=eq.1&select=name,tasks(name,project:projects(name))"
+                [("Prefer", "return=representation")]
+          [json|{"name": "Kevin Malone"}|]
+          `shouldRespondWith`
+          [json|[
+            {
+              "name": "Kevin Malone",
+              "tasks": [
+                  { "name": "Design w7", "project": { "name": "Windows 7" } },
+                  { "name": "Code w7", "project": { "name": "Windows 7" } },
+                  { "name": "Design w10", "project": { "name": "Windows 10" } },
+                  { "name": "Code w10", "project": { "name": "Windows 10" } }
+              ]
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+
+      it "with filters" $
+        request methodPatch "/users?id=eq.1&select=name,tasks(name,project:projects(name))&tasks.name=ilike.code*&tasks.project.name=like.*10"
+                [("Prefer", "return=representation")]
+          [json|{"name": "Kevin Malone"}|]
+          `shouldRespondWith`
+          [json|[
+            {
+              "name": "Kevin Malone",
+              "tasks": [
+                  { "name": "Code w7", "project": null },
+                  { "name": "Code w10", "project": { "name": "Windows 10" } }
+              ]
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+
+
+    context "embeds an O2O relationship after update" $ do
+      it "without filters" $ do
+        request methodPatch "/students?id=eq.1&select=name,students_info(address)"
+                [("Prefer", "return=representation")]
+          [json|{"name": "Johnny Doe"}|]
+          `shouldRespondWith`
+          [json|[
+            {
+              "name": "Johnny Doe",
+              "students_info":{"address":"Street 1"}
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+        request methodPatch "/students_info?id=eq.1&select=address,students(name)"
+                [("Prefer", "return=representation")]
+          [json|{"address": "New Street 1"}|]
+          `shouldRespondWith`
+          [json|[
+            {
+              "address": "New Street 1",
+              "students":{"name": "John Doe"}
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
+
+      it "with filters" $ do
+        request methodPatch "/students?id=eq.1&select=name,students_info(address)&students_info.code=like.0002"
+                [("Prefer", "return=representation")]
+          [json|{"name": "Johnny Doe"}|]
+          `shouldRespondWith`
+          [json|[
+            {
+              "name": "Johnny Doe",
+              "students_info": null
+            }
+          ]|]
+          { matchStatus  = 200,
+            matchHeaders = [matchContentTypeJson]
+          }
 
   context "table with limited privileges" $ do
     it "succeeds updating row and gives a 204 when using return=minimal" $
