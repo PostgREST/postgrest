@@ -26,5 +26,5 @@ middleware logLevel = case logLevel of
       { Wai.outputFormat = Wai.ApacheWithSettings $
           Wai.defaultApacheSettings
             & Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res)
-            & Wai.setApacheUserGetter (fmap encodeUtf8 . Auth.getRole)
+            & Wai.setApacheUserGetter Auth.getRole
       }

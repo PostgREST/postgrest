@@ -16,6 +16,7 @@ module PostgREST.Query
 import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.Key                    as K
 import qualified Data.Aeson.KeyMap                 as KM
+import qualified Data.ByteString                   as BS
 import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
@@ -234,7 +235,7 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       configDbTxAllowOverride && preferTransaction == Just Rollback
 
 -- | Runs local (transaction scoped) GUCs for every request.
-setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> Text ->
+setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString ->
                ApiRequest -> PgVersion -> DbHandler ()
 setPgLocals AppConfig{..} claims role req actualPgVersion = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
@@ -252,11 +253,10 @@ setPgLocals AppConfig{..} claims role req actualPgVersion = lift $
     claimsSql = if usesLegacyGucs
                   then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
                   else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
-    roleBs = toUtf8 role
-    roleSql = [setConfigLocal mempty ("role", roleBs)]
+    roleSql = [setConfigLocal mempty ("role", role)]
     roleSettingsSql = if null configRoleSettings
       then mempty
-      else setConfigLocal mempty <$> fromMaybe mempty (HM.lookup roleBs configRoleSettings)
+      else setConfigLocal mempty <$> fromMaybe mempty (HM.lookup role configRoleSettings)
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
       let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath) in
