@@ -41,6 +41,14 @@ GRANT USAGE ON SEQUENCE
     , leak_id_seq
 TO postgrest_test_anonymous;
 
+DO $do$
+BEGIN
+  IF current_setting('server_version_num')::INT >= 100000 THEN
+    GRANT USAGE ON SEQUENCE channels_id_seq TO postgrest_test_anonymous;
+  END IF;
+END
+$do$;
+
 -- Privileges for non anonymous users
 GRANT USAGE ON SCHEMA test TO postgrest_test_author;
 GRANT ALL ON TABLE authors_only TO postgrest_test_author;

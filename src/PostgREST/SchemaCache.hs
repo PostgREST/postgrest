@@ -511,7 +511,8 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-          pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,
+  |] <> columnDefault <>
+  [q|
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
               CASE
                   WHEN t.typtype = 'd' THEN
@@ -693,6 +694,16 @@ tablesSqlQuery pgVer =
   "ORDER BY table_schema, table_name"
   where
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+    -- detect default values on columns that have GENERATED .. AS IDENTITY
+    columnDefault =
+      if pgVer >= pgVersion100
+        then [q|
+        CASE
+           WHEN nullif(a.attidentity, '') is null
+             THEN pg_get_expr(ad.adbin, ad.adrelid)::text
+             ELSE format('nextval(%s)', quote_literal(pg_get_serial_sequence(a.attrelid::regclass::text, a.attname::text)))
+        END AS column_default,|]
+        else "pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,"
 
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
