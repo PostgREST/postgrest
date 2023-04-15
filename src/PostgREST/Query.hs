@@ -235,9 +235,9 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       configDbTxAllowOverride && preferTransaction == Just Rollback
 
 -- | Runs local (transaction scoped) GUCs for every request.
-setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString ->
+setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
                ApiRequest -> PgVersion -> DbHandler ()
-setPgLocals AppConfig{..} claims role req actualPgVersion = lift $
+setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
@@ -254,9 +254,7 @@ setPgLocals AppConfig{..} claims role req actualPgVersion = lift $
                   then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
                   else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
     roleSql = [setConfigLocal mempty ("role", role)]
-    roleSettingsSql = if null configRoleSettings
-      then mempty
-      else setConfigLocal mempty <$> fromMaybe mempty (HM.lookup role configRoleSettings)
+    roleSettingsSql = setConfigLocal mempty <$> roleSettings
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
       let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath) in
