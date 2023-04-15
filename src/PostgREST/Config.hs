@@ -65,7 +65,7 @@ import Protolude hiding (Proxy, toList)
 
 data AppConfig = AppConfig
   { configAppSettings              :: [(Text, Text)]
-  , configDbAnonRole               :: Maybe Text
+  , configDbAnonRole               :: Maybe BS.ByteString
   , configDbChannel                :: Text
   , configDbChannelEnabled         :: Bool
   , configDbExtraSearchPath        :: [Text]
@@ -128,7 +128,7 @@ toText conf =
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-anon-role",              q . fromMaybe "" . configDbAnonRole)
+      [("db-anon-role",              q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
@@ -218,7 +218,7 @@ parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> C.P
 parser optPath env dbSettings roleSettings =
   AppConfig
     <$> parseAppSettings "app.settings"
-    <*> optString "db-anon-role"
+    <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")

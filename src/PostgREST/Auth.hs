@@ -23,8 +23,8 @@ import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.Key                  as K
 import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
+import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
-import qualified Data.Text.Encoding              as T
 import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
 import qualified Network.HTTP.Types.Header       as HTTP
@@ -47,7 +47,7 @@ import Protolude
 
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: Text
+  , authRole   :: BS.ByteString
   }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
@@ -79,7 +79,7 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON role)
+           { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
            , authRole = role
            }
   where
@@ -89,9 +89,9 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
     walkJSPath _                      _                 = Nothing
 
-    unquoted :: JSON.Value -> Text
-    unquoted (JSON.String t) = t
-    unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
+    unquoted :: JSON.Value -> BS.ByteString
+    unquoted (JSON.String t) = encodeUtf8 t
+    unquoted v               = LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
 parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
 
@@ -117,5 +117,5 @@ authResultKey = unsafePerformIO Vault.newKey
 getResult :: Wai.Request -> Maybe (Either Error AuthResult)
 getResult = Vault.lookup authResultKey . Wai.vault
 
-getRole :: Wai.Request -> Maybe Text
+getRole :: Wai.Request -> Maybe BS.ByteString
 getRole req = authRole <$> (rightToMaybe =<< getResult req)
