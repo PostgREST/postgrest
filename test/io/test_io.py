@@ -873,6 +873,79 @@ def test_role_settings(defaultenv):
         assert response.text == '"10s"'
 
 
+def test_isolation_level(defaultenv):
+    "isolation_level should be set per role and per function"
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    with run(env=env) as postgrest:
+        # default isolation level for postgrest_test_anonymous
+        response = postgrest.session.get(
+            "/items_w_isolation_level?select=isolation_level&limit=1"
+        )
+        assert response.text == '[{"isolation_level":"read committed"}]'
+
+        # isolation level for postgrest_test_repeatable_read on GET
+        headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
+        response = postgrest.session.get(
+            "/items_w_isolation_level?select=isolation_level&limit=1", headers=headers
+        )
+        assert response.text == '[{"isolation_level":"repeatable read"}]'
+
+        # isolation level for postgrest_test_serializable on POST
+        headers = jwtauthheader({"role": "postgrest_test_serializable"}, SECRET)
+        headers["Prefer"] = "return=representation"
+        response = postgrest.session.post(
+            "/items_w_isolation_level?select=isolation_level",
+            json={"id": "666"},
+            headers=headers,
+        )
+        assert response.text == '[{"isolation_level":"serializable"}]'
+
+        # isolation level for postgrest_test_serializable on PATCH
+        headers = jwtauthheader({"role": "postgrest_test_serializable"}, SECRET)
+        headers["Prefer"] = "return=representation"
+        response = postgrest.session.patch(
+            "/items_w_isolation_level?select=isolation_level&id=eq.666",
+            json={"id": "666"},
+            headers=headers,
+        )
+        assert response.text == '[{"isolation_level":"serializable"}]'
+
+        # isolation level for postgrest_test_serializable on DELETE
+        headers = jwtauthheader({"role": "postgrest_test_serializable"}, SECRET)
+        headers["Prefer"] = "return=representation"
+        response = postgrest.session.delete(
+            "/items_w_isolation_level?select=isolation_level&id=eq.666", headers=headers
+        )
+        assert response.text == '[{"isolation_level":"serializable"}]'
+
+        # default isolation level for function
+        response = postgrest.session.get("/rpc/default_isolation_level")
+        assert response.text == '"read committed"'
+
+        # changes with role isolation level
+        headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
+        response = postgrest.session.get(
+            "/rpc/default_isolation_level", headers=headers
+        )
+        assert response.text == '"repeatable read"'
+
+        # isolation level can be set per function
+        response = postgrest.session.get("/rpc/serializable_isolation_level")
+        assert response.text == '"serializable"'
+        response = postgrest.session.get("/rpc/repeatable_read_isolation_level")
+        assert response.text == '"repeatable read"'
+
+        # isolation level for a function overrides the role isolation level
+        headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
+        response = postgrest.session.get("/rpc/serializable_isolation_level")
+        assert response.text == '"serializable"'
+
+
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
 # The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
 # A stack size of 200K seems to be enough for succeess

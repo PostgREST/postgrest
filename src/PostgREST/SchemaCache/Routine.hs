@@ -48,6 +48,7 @@ data Routine = Function
   , pdReturnType  :: RetType
   , pdVolatility  :: FuncVolatility
   , pdHasVariadic :: Bool
+  , pdIsoLvl      :: Maybe Text
   }
   deriving (Eq, Generic, JSON.ToJSON)
 
@@ -61,10 +62,10 @@ data RoutineParam = RoutineParam
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where
-  Function schema1 name1 des1 prms1 rt1 vol1 hasVar1 `compare` Function schema2 name2 des2 prms2 rt2 vol2 hasVar2
+  Function schema1 name1 des1 prms1 rt1 vol1 hasVar1 iso1 `compare` Function schema2 name2 des2 prms2 rt2 vol2 hasVar2 iso2
     | schema1 == schema2 && name1 == name2 && length prms1 < length prms2  = LT
     | schema2 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
-    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2)
+    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1, iso1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2, iso2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one Routine).
 -- | It uses a HashMap for a faster lookup.

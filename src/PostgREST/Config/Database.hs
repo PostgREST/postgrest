@@ -25,7 +25,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import Protolude
 
-type RoleSettings = (HM.HashMap ByteString [(ByteString, ByteString)])
+type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 
 queryPgVersion :: Bool -> Session PgVersion
 queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
@@ -75,7 +75,7 @@ queryRoleSettings prepared =
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ roleSettingsStatement prepared
 
 roleSettingsStatement :: Bool -> SQL.Statement () RoleSettings
-roleSettingsStatement = SQL.Statement sql HE.noParams decodeSettings
+roleSettingsStatement = SQL.Statement sql HE.noParams decodeRoleSettings
   where
     sql = [q|
       with
@@ -89,14 +89,14 @@ roleSettingsStatement = SQL.Statement sql HE.noParams decodeSettings
         SELECT
           rolname,
           substr(setting, 1, strpos(setting, '=') - 1) as key,
-          substr(setting, strpos(setting, '=') + 1) as value
+          lower(substr(setting, strpos(setting, '=') + 1)) as value
         FROM role_setting
       )
       select rolname, array_agg(row(key, value))
       from kv_settings
       group by rolname;
     |]
-    decodeSettings = HM.fromList . map (bimap encodeUtf8 ((encodeUtf8 *** encodeUtf8) <$>)) <$> HD.rowList aRow
+    decodeRoleSettings = HM.fromList . map (bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>))) <$> HD.rowList aRow
     aRow :: HD.Row (Text, [(Text, Text)])
     aRow = (,) <$> column HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
 

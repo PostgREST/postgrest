@@ -37,6 +37,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
      `ALTER ROLE anon SET statement_timeout TO '5s'` will result in that `statement_timeout` getting applied for that role.
    - Works when switching roles when a JWT is sent
    - Settings can be reloaded with `NOTIFY pgrst, 'reload config'`.
+ - #2468, Configurable transaction isolation level with `default_transaction_isolation` - @steve-chavez
+   - Can be set per function `create function .. set default_transaction_isolation = 'repeatable read'`
+   - Or per role `alter role .. set default_transaction_isolation = 'serializable'`
 
 ### Fixed
 

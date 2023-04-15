@@ -250,6 +250,7 @@ decodeFuncs =
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
+              <*> nullableColumn HD.text
 
     addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -339,7 +340,8 @@ funcsSqlQuery pgVer = [q|
     ) AS rettype_is_composite,
     bt.oid <> bt.base as rettype_is_composite_alias,
     p.provolatile,
-    p.provariadic > 0 as hasvariadic
+    p.provariadic > 0 as hasvariadic,
+    lower((regexp_split_to_array((regexp_split_to_array(config, '='))[2], ','))[1]) AS transaction_isolation_level
   FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
@@ -348,6 +350,7 @@ funcsSqlQuery pgVer = [q|
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid
+  LEFT JOIN LATERAL unnest(proconfig) config ON config like 'default_transaction_isolation%'
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 
