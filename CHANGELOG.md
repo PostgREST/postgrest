@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [11.0.0] - 2023-04-16
+
 ### Added
 
  - #1414, Add related orders - @steve-chavez
