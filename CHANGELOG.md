@@ -26,10 +26,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This can be used to override the OpenAPI spec with a custom database function
  - #1567, On bulk inserts, missing values can get the column DEFAULT by using the `Prefer: missing=default` header - @steve-chavez
  - #2501, Allow filtering by`IS DISTINCT FROM` using the `isdistinct` operator, e.g. `/people?alias=isdistinct.foo`
- - #2663, Limit maximal postgresql connection lifetime - @robx
-   + New option `db-pool-max-lifetime` (default 30m)
-   + `db-pool-acquisition-timeout` is no longer optional and defaults to 10s
-   + Fixes postgresql resource leak with long-lived connections (#2638)
  - #1569, Allow `any/all` modifiers on the `eq,like,ilike,gt,gte,lt,lte,match,imatch` operators, e.g. `/tbl?id=eq(any).{1,2,3}` - @steve-chavez
    - This converts the input into an array type
  - #2561, Configurable role settings - @steve-chavez
@@ -47,7 +43,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2648, Fix inaccurate error codes with new ones - @laurenceisla
    + `PGRST204`: Column is not found
    + `PGRST003`: Timed out when acquiring connection to db
- - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
  - #1652, Fix function call with arguments not inlining - @steve-chavez
  - #2705, Fix bug when using the `Range` header on `PATCH/DELETE` - @laurenceisla
    + Fix the`"message": "syntax error at or near \"RETURNING\""` error
@@ -60,10 +55,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2705, The `Range` header is now only considered on `GET` requests and is ignored for any other method - @laurenceisla
    + Other methods should use the `limit/offset` query parameters for sub-ranges
    + `PUT` requests no longer return an error when this header is present (using `limit/offset` still triggers the error)
-
-### Changed
-
  - #2733, Remove bulk RPC call with the `Prefer: params=multiple-objects` header. A function with a JSON array or object parameter should be used instead.
+
+## [10.2.0] - 2023-04-12
+
+### Added
+
+ - #2663, Limit maximal postgresql connection lifetime - @robx
+   + New option `db-pool-max-lifetime` (default 30m)
+   + `db-pool-acquisition-timeout` is no longer optional and defaults to 10s
+   + Fixes postgresql resource leak with long-lived connections (#2638)
+
+### Fixed
+
+ - #2667, Fix `db-pool-acquisition-timeout` not logging to stderr when the timeout is reached - @steve-chavez
 
 ## [10.1.2] - 2023-02-01
 
