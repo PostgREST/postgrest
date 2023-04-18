@@ -147,7 +147,7 @@ You can do automatic schema cache reloading in a pure SQL way and forget about s
 .. code-block:: postgresql
 
   -- Create an event trigger function
-  CREATE OR REPLACE FUNCTION public.pgrst_watch() RETURNS event_trigger
+  CREATE OR REPLACE FUNCTION pgrst_watch() RETURNS event_trigger
     LANGUAGE plpgsql
     AS $$
   BEGIN
@@ -158,7 +158,7 @@ You can do automatic schema cache reloading in a pure SQL way and forget about s
   -- This event trigger will fire after every ddl_command_end event
   CREATE EVENT TRIGGER pgrst_watch
     ON ddl_command_end
-    EXECUTE PROCEDURE public.pgrst_watch();
+    EXECUTE PROCEDURE pgrst_watch();
 
 Now, whenever the ``pgrst_watch`` trigger is fired in the database, PostgREST will automatically reload the schema cache.
 
