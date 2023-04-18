@@ -1168,6 +1168,12 @@ For example, to override the :ref:`many-to-one relationship <many-to-one>` betwe
 
 Taking advantage of overloaded functions, you can use the same function name for different parameters and thus define relationships from other tables/views to ``directors``.
 
+.. code-block:: postgres
+
+  create function directors(film_schools) returns setof directors as $$
+    select * from directors where film_school_id = $1.id
+  $$ stable language sql;
+
 Computed relationships have good performance as they follow the `Inlining conditions for table functions <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
 
 .. _nested_embedding:
