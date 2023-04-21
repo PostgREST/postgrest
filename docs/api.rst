@@ -1174,7 +1174,13 @@ Taking advantage of overloaded functions, you can use the same function name for
     select * from directors where film_school_id = $1.id
   $$ stable language sql;
 
-Computed relationships have good performance as they follow the `Inlining conditions for table functions <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
+Computed relationships have good performance as their intended design follow the `Inlining conditions for table functions <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
+
+.. warning::
+
+  - Always use ``SETOF`` when creating computed relationships. Functions can return a table without using ``SETOF``, but bear in mind that they will not be inlined.
+
+  - Make sure to correctly label the ``to-one`` part of the relationship. When using the ``ROWS 1`` estimation, PostgREST will expect a single row to be returned. If that is not the case, then it will unnest the embedding and return repeated values for the top level resource.
 
 .. _nested_embedding:
 
