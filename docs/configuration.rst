@@ -109,6 +109,7 @@ It's not possible to change :ref:`env_variables_config` for a running process an
     * :ref:`db-uri`
     * :ref:`db-pool`
     * :ref:`db-pool-acquisition-timeout`
+    * :ref:`db-pool-max-lifetime`
     * :ref:`server-host`
     * :ref:`server-port`
     * :ref:`server-unix-socket`
@@ -156,7 +157,8 @@ db-extra-search-path        String  public            Y
 db-max-rows                 Int     ∞                 Y
 db-plan-enabled             Boolean False             Y
 db-pool                     Int     10
-db-pool-acquisition-timeout Int     ∞
+db-pool-acquisition-timeout Int     10
+db-pool-max-lifetime        Int     1800
 db-pre-request              String                    Y
 db-prepared-statements      Boolean True              Y
 db-schemas                  String  public            Y
@@ -343,6 +345,18 @@ db-pool-acquisition-timeout
   =============== =================
 
   Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database. If it times out without acquiring a connection, then the request is aborted and a ``504`` error is returned.
+
+.. _db-pool-max-lifetime:
+
+db-pool-max-lifetime
+--------------------
+
+  =============== =================
+  **Environment** PGRST_DB_POOL_MAX_LIFETIME
+  **In-Database** `n/a`
+  =============== =================
+
+  Specifies the maximum time in seconds of an existing connection in the pool. When this lifetime is reached, then the connection will be closed and returned to the pool.
 
 .. _db-pre-request:
 
