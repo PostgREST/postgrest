@@ -257,6 +257,8 @@ You can build PostgREST from source with `Stack <https://github.com/commercialha
 
 * Check that the server is installed: :code:`postgrest --help`.
 
+.. _deploy_heroku:
+
 Deploying to Heroku
 ===================
 

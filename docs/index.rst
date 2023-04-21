@@ -98,6 +98,7 @@ The project has a friendly and growing community. Join our `chat room <https://g
    :titlesonly:
    :hidden:
 
+   v10.2.0 <releases/v10.2.0>
    v10.0.0 <releases/v10.0.0>
    v9.0.1 <releases/v9.0.1>
    v9.0.0 <releases/v9.0.0>

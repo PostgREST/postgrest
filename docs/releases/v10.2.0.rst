@@ -1,0 +1,153 @@
+
+PostgREST 10.2.0
+================
+
+This minor version adds bug fixes and some features that provide stability to v10.0.0. These release notes include the changes added in versions `10.1.0 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.0>`_, `10.1.1 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.1>`_ and `10.1.2 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.2>`_. You can look at the detailed changelog and download the pre-compiled binaries on the `GitHub release page <https://github.com/PostgREST/postgrest/releases/tag/v10.2.0>`_.
+
+Features
+--------
+
+Connection Lifetime
+~~~~~~~~~~~~~~~~~~~
+
+To prevent memory leaks caused by long-lived connections, PostgREST limits their lifetime in the pool through :ref:`db-pool-max-lifetime`.
+
+Connection Timeout
+~~~~~~~~~~~~~~~~~~
+
+There is now a time limit to wait for new connections in the pool, that is, if a new request cannot get a connection in the time specified in :ref:`db-pool-acquisition-timeout` then a response with ``504`` status is returned
+
+Documentation improvements
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Added HTTP status codes to the :ref:`pgrst_errors`.
+
+* Added a how-to on :ref:`sql-user-management-using-postgres-users-and-passwords`.
+
+* Updated the :ref:`Heroku installation page <deploy_heroku>`.
+
+Changes
+-------
+
+* Removed ``db-pool-timeout`` option because it was removed in the ``hasql-pool`` library that PostgREST uses for SQL connections. (`#2444 <https://github.com/PostgREST/postgrest/issues/2444>`_)
+
+Deprecated
+----------
+
+* Deprecate bulk-calls when including the ``Prefer: params=multiple-objects`` in the request. It is preferable to use a function with an :ref:`array <s_procs_array>` or JSON parameter for a better performance. (`#1385 <https://github.com/PostgREST/postgrest/issues/1385>`_)
+
+Bug fixes
+---------
+
+* Reduce allocations communication with PostgreSQL, particularly for request bodies. (`#2261 <https://github.com/PostgREST/postgrest/issues/2261>`_, `#2349 <https://github.com/PostgREST/postgrest/issues/2349>`_, `#2467 <https://github.com/PostgREST/postgrest/issues/2467>`_)
+
+* Fix ``SIGUSR1`` to fully flush the connection pool. (`#2401 <https://github.com/PostgREST/postgrest/issues/2401>`_, `#2444 <https://github.com/PostgREST/postgrest/issues/2444>`_)
+
+* Fix opening an empty transaction on failed resource embedding. (`#2428 <https://github.com/PostgREST/postgrest/issues/2428>`_)
+
+* Fix embedding the same table multiple times. (`#2455 <https://github.com/PostgREST/postgrest/issues/2455>`_)
+
+* Fix a regression when embedding views where base tables have a different column order for foreign key columns (`#2518 <https://github.com/PostgREST/postgrest/issues/2518>`_)
+
+* Fix a regression with the ``Location`` header when :ref:`inserting <insert>` into views with primary keys from multiple tables (`#2458 <https://github.com/PostgREST/postgrest/issues/2458>`_)
+
+* Fix a regression in OpenAPI output with mode ``follow-privileges`` (`#2356 <https://github.com/PostgREST/postgrest/issues/2356>`_)
+
+* Fix infinite recursion when loading schema cache with self-referencing view (`#2283 <https://github.com/PostgREST/postgrest/issues/2283>`_)
+
+* Return status code ``200`` instead of ``404`` for ``PATCH`` requests which don't affect any rows (`#2343 <https://github.com/PostgREST/postgrest/issues/2343>`_)
+
+* Treat the :ref:`computed relationships <computed_relationships>` that do not return ``SETOF`` as M2O/O2O relationship (`#2481 <https://github.com/PostgREST/postgrest/issues/2481>`_)
+
+* Fix embedding a computed relationship with a normal relationship (`#2534 <https://github.com/PostgREST/postgrest/issues/2534>`_)
+
+* Fix error message when ``[]`` is used inside ``select`` (`#2362 <https://github.com/PostgREST/postgrest/issues/2362>`_)
+
+* Disallow ``!inner`` on computed columns (`#2475 <https://github.com/PostgREST/postgrest/issues/2475>`_)
+
+* Ignore leading and trailing spaces in column names when parsing the query string (`#2285 <https://github.com/PostgREST/postgrest/issues/2285>`_)
+
+* Fix ``UPSERT`` with PostgreSQL 15 (`#2545 <https://github.com/PostgREST/postgrest/issues/2545>`_)
+
+* Fix embedding views with multiple references to the same base column (`#2459 <https://github.com/PostgREST/postgrest/issues/2459>`_)
+
+* Fix regression when embedding views with partial references to multi column foreign keys (`#2548 <https://github.com/PostgREST/postgrest/issues/2548>`_)
+
+* Fix regression when requesting ``limit=0`` and ``db-max-row`` is set (`#2558 <https://github.com/PostgREST/postgrest/issues/2558>`_)
+
+* Return a clear error without hitting the database when trying to update or insert an unknown column with ``?columns`` (`#2542 <https://github.com/PostgREST/postgrest/issues/2542>`_)
+
+* Fix bad M2M embedding on RPC (`#2565 <https://github.com/PostgREST/postgrest/issues/2565>`_)
+
+* Replace misleading error message when no function is found with a hint containing functions/parameters names suggestions (`#2575 <https://github.com/PostgREST/postgrest/issues/2575>`_)
+
+* Move explanation about "single parameters" from the ``message`` to the ``details`` in the error output (`#2582 <https://github.com/PostgREST/postgrest/issues/2582>`_)
+
+* Replace misleading error message when no relationship is found with a hint containing parent/child names suggestions (`#2569 <https://github.com/PostgREST/postgrest/issues/2569>`_)
+
+* Add the required OpenAPI items object when the parameter is an array (`#1405 <https://github.com/PostgREST/postgrest/issues/1405>`_)
+
+* Add upsert headers for ``POST`` requests to the OpenAPI output (`#2592 <https://github.com/PostgREST/postgrest/issues/2592>`_)
+
+* Fix foreign keys pointing to ``VIEW`` instead of ``TABLE`` in OpenAPI output (`#2623 <https://github.com/PostgREST/postgrest/issues/2623>`_)
+
+* Consider any PostgreSQL authentication failure as fatal and exit immediately (`#2622 <https://github.com/PostgREST/postgrest/issues/2622>`_)
+
+* Fix ``NOTIFY pgrst`` not reloading the db connections catalog cache (`#2620 <https://github.com/PostgREST/postgrest/issues/2620>`_)
+
+* Fix ``db-pool-acquisition-timeout`` not logging to stderr when the timeout is reached (`#2667 <https://github.com/PostgREST/postgrest/issues/2667>`_)
+
+* Fix PostgreSQL resource leak with long-lived connections through the :ref:`db-pool-max-lifetime` configuration (`#2638 <https://github.com/PostgREST/postgrest/issues/2638>`_)
+
+* There is now a stricter parsing of the query string. Instead of silently ignoring, the parser now returns a :ref:`PostgREST error <pgrst100>` on invalid syntax. (`#2537 <https://github.com/PostgREST/postgrest/issues/2537>`_)
+
+Thanks
+------
+
+Big thanks from the `PostgREST team <https://github.com/orgs/PostgREST/people>`_ to our sponsors!
+
+.. container:: image-container
+
+  .. image:: ../_static/cybertec-new.png
+    :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/2ndquadrant.png
+    :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+    :width:  13em
+
+  .. image:: ../_static/retool.png
+    :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/gnuhost.png
+    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/supabase.png
+    :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :width:  13em
+
+  .. image:: ../_static/oblivious.jpg
+    :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* `Franz Gusenbauer <https://www.igutech.at/>`_
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+* Remo Rechkemmer
+* Severin Ibarluzea
+* Tom Saleeba
+* Pawel Tyll
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.
