@@ -7,15 +7,15 @@ This minor version adds bug fixes and some features that provide stability to v1
 Features
 --------
 
-Connection Lifetime
-~~~~~~~~~~~~~~~~~~~
+Pool Connection Lifetime
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 To prevent memory leaks caused by long-lived connections, PostgREST limits their lifetime in the pool through :ref:`db-pool-max-lifetime`.
 
-Connection Timeout
-~~~~~~~~~~~~~~~~~~
+Pool Connection Acquisition Timeout
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There is now a time limit to wait for new connections in the pool, that is, if a new request cannot get a connection in the time specified in :ref:`db-pool-acquisition-timeout` then a response with ``504`` status is returned
+There is now a time limit to wait for pool connections to be acquired. If a new request cannot get a connection in the time specified in :ref:`db-pool-acquisition-timeout` then a response with a ``504`` status is returned.
 
 Documentation improvements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
