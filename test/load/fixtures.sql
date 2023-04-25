@@ -1,5 +1,5 @@
 CREATE ROLE postgrest_test_anonymous;
-GRANT postgrest_test_anonymous TO :USER;
+GRANT postgrest_test_anonymous TO :PGUSER;
 CREATE SCHEMA test;
 
 -- PUT+PATCH target needs one record and column to modify

@@ -15,11 +15,14 @@
 let
   withTmpDb =
     { name, postgresql }:
-    let commandName = "postgrest-with-${name}"; in
+    let
+      commandName = "postgrest-with-${name}";
+      superuserRole = "postgres";
+    in
     checkedShellScript
       {
         name = commandName;
-        docs = "Run the given command in a temporary database with ${name}";
+        docs = "Run the given command in a temporary database with ${name}. If you wish to mutate the database, login with the '${superuserRole}' role.";
         args =
           [
             "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from], [test/spec/fixtures/load.sql])"
@@ -66,7 +69,8 @@ let
         log "Initializing database cluster..."
         # We try to make the database cluster as independent as possible from the host
         # by specifying the timezone, locale and encoding.
-        PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "$PGUSER" --auth=trust \
+        # initdb -U creates a superuser(man initdb)
+        PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "${superuserRole}" --auth=trust \
           >> "$setuplog"
 
         log "Starting the database cluster..."
@@ -82,8 +86,11 @@ let
         }
         trap stop EXIT
 
-        log "Loading fixtures..."
-        psql -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
+        log "Creating a minimally privileged $PGUSER connection role..."
+        createuser "$PGUSER" -U "${superuserRole}" --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
+
+        log "Loading fixtures under the ${superuserRole} role..."
+        psql -U "${superuserRole}" -v PGUSER="$PGUSER" -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
 
         log "Done. Running command..."
 

@@ -4,7 +4,7 @@
 set search_path to public;
 
 CREATE ROLE postgrest_test_anonymous;
-ALTER ROLE :USER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
+ALTER ROLE :PGUSER SET pgrst.db_anon_role = 'postgrest_test_anonymous';
 
 CREATE ROLE postgrest_test_author;
 
@@ -14,7 +14,7 @@ alter role postgrest_test_serializable set default_transaction_isolation = 'seri
 CREATE ROLE postgrest_test_repeatable_read;
 alter role postgrest_test_repeatable_read set default_transaction_isolation = 'REPEATABLE READ';
 
-GRANT postgrest_test_anonymous, postgrest_test_author, postgrest_test_serializable, postgrest_test_repeatable_read TO :USER;
+GRANT postgrest_test_anonymous, postgrest_test_author, postgrest_test_serializable, postgrest_test_repeatable_read TO :PGUSER;
 
 CREATE SCHEMA v1;
 GRANT USAGE ON SCHEMA v1 TO postgrest_test_anonymous;

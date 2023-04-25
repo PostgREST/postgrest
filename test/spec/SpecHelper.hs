@@ -211,7 +211,7 @@ testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =
-  void $ readProcess "psql" ["--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
+  void $ readProcess "psql" ["-U", "postgres", "--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
 
 rangeHdrs :: ByteRange -> [Header]
 rangeHdrs r = [rangeUnit, (hRange, renderByteRange r)]
