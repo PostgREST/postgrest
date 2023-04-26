@@ -506,6 +506,8 @@ tablesSqlQuery pgVer =
   -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
   -- we cannot use those directly as they include the following privilege filter:
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
+  -- on the "columns" CTE, left joining on pg_depend and pg_class is used to obtain the sequence name as a column default in case there are GENERATED .. AS IDENTITY,
+  -- generated columns are only available from pg >= 10 but the query is agnostic to versions. dep.deptype = 'i' is done because there are other 'a' dependencies on PKs
   [q|
   WITH
   columns AS (
@@ -514,8 +516,11 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-  |] <> columnDefault <>
-  [q|
+          CASE
+            WHEN seqclass.relname is null
+              THEN pg_get_expr(ad.adbin, ad.adrelid)::text
+              ELSE format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+          END AS column_default,
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
               CASE
                   WHEN t.typtype = 'd' THEN
@@ -549,6 +554,12 @@ tablesSqlQuery pgVer =
               ON t.typtype = 'd' AND t.typbasetype = bt.oid
           LEFT JOIN (pg_collation co JOIN pg_namespace nco ON co.collnamespace = nco.oid)
               ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
+          LEFT JOIN pg_depend dep
+              ON dep.refobjid = a.attrelid and dep.refobjsubid = a.attnum and dep.deptype = 'i'
+          LEFT JOIN pg_class seqclass
+              ON seqclass.oid = dep.objid
+          LEFT JOIN pg_namespace seqsch
+              ON seqsch.oid = seqclass.relnamespace
       WHERE
           NOT pg_is_other_temp_schema(nc.oid)
           AND a.attnum > 0
@@ -697,17 +708,6 @@ tablesSqlQuery pgVer =
   "ORDER BY table_schema, table_name"
   where
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
-    -- detect default values on columns that have GENERATED .. AS IDENTITY
-    columnDefault =
-      if pgVer >= pgVersion100
-        then [q|
-        CASE
-           WHEN nullif(a.attidentity, '') is null
-             THEN pg_get_expr(ad.adbin, ad.adrelid)::text
-             ELSE format('nextval(%s)', quote_literal(pg_get_serial_sequence(a.attrelid::regclass::text, a.attname::text)))
-        END AS column_default,|]
-        else "pg_get_expr(ad.adbin, ad.adrelid)::text AS column_default,"
-
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
 allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
