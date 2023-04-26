@@ -38,11 +38,17 @@ let
       {
         name = "postgrest-run";
         docs = "Run PostgREST after building it interactively with cabal-install";
-        args = [ "ARG_LEFTOVERS([PostgREST arguments])" ];
+        args =
+          [
+            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_LEFTOVERS([PostgREST arguments])"
+          ];
         inRootDir = true;
         withEnv = postgrest.env;
       }
       ''
+        export PGRST_DB_ANON_ROLE
+
         exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
           postgrest "''${_arg_leftovers[@]}"
       '';
