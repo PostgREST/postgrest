@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #2762, Fixes "permission denied for schema" error during schema cache load - @steve-chavez
+
 ## [11.0.0] - 2023-04-16
 
 ### Added
