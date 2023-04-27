@@ -27,6 +27,7 @@ import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
 import qualified Feature.LegacyGucsSpec
+import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
 import qualified Feature.OpenApi.IgnorePrivOpenApiSpec
@@ -149,6 +150,7 @@ main = do
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
+        , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
         ]
 
   hspec $ do
