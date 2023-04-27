@@ -3122,3 +3122,9 @@ BEGIN
   END IF;
 END
 $do$;
+
+CREATE FUNCTION test.is_superuser() RETURNS boolean
+LANGUAGE sql
+AS $$
+  select current_setting('is_superuser')::boolean;
+$$;
