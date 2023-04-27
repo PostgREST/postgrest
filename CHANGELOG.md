@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2762, Fixes "permission denied for schema" error during schema cache load - @steve-chavez
+ - #2756, Fix bad error message on generated columns when using `Prefer: missing=default` - @steve-chavez
 
 ## [11.0.0] - 2023-04-16
 

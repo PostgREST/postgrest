@@ -40,7 +40,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
-                                           pgVersion110)
+                                           pgVersion110, pgVersion120)
 import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
                                            QualifiedIdentifier (..),
                                            Schema)
@@ -516,11 +516,8 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-          CASE
-            WHEN seqclass.relname is null
-              THEN pg_get_expr(ad.adbin, ad.adrelid)::text
-              ELSE format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-          END AS column_default,
+  |] <> columnDefault <>
+  [q|
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
               CASE
                   WHEN t.typtype = 'd' THEN
@@ -708,6 +705,19 @@ tablesSqlQuery pgVer =
   "ORDER BY table_schema, table_name"
   where
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+    columnDefault
+      | pgVer >= pgVersion120 = [q|
+          CASE
+            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+            WHEN a.attgenerated = 's' THEN null
+            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
+          END AS column_default,|]
+      | pgVer >= pgVersion100 = [q|
+          CASE
+            WHEN a.attidentity = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
+          END AS column_default,|]
+      | otherwise  = "pg_get_expr(ad.adbin, ad.adrelid)::text as column_default,"
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
 allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]

@@ -3128,3 +3128,19 @@ LANGUAGE sql
 AS $$
   select current_setting('is_superuser')::boolean;
 $$;
+
+DO $do$
+BEGIN
+  IF current_setting('server_version_num')::INT >= 120000 THEN
+    CREATE TABLE test.foo (
+      a text,
+      b text GENERATED ALWAYS AS (
+          case WHEN a = 'telegram' THEN 'im'
+               WHEN a = 'proton' THEN 'email'
+               WHEN a = 'infinity' THEN 'idea'
+               ELSE 'bad idea'
+          end) stored
+    );
+  END IF;
+END
+$do$;
