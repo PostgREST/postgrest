@@ -63,7 +63,7 @@ parseToken AppConfig{..} token time = do
   liftEither . mapLeft jwtClaimsError $ JSON.toJSON <$> eitherClaims
   where
     validation =
-      JWT.defaultJWTValidationSettings audienceCheck & set JWT.allowedSkew 1
+      JWT.defaultJWTValidationSettings audienceCheck & set JWT.allowedSkew 30
 
     audienceCheck :: JWT.StringOrURI -> Bool
     audienceCheck = maybe (const True) (==) configJwtAudience
