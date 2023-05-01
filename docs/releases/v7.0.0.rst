@@ -90,7 +90,7 @@ This release was made possible thanks to:
 
 * `Daniel Babiak <https://github.com/dbabiak>`_
 * Evans Fernandes
-* `Jan Sommer <https://github.com/nerfpops>`_
+* Jan Sommer
 * Tsingson Qin
 * Michel Pelletier
 * Jay Hannah

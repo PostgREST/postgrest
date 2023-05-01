@@ -110,7 +110,7 @@ Big thanks from the `PostgREST team <https://github.com/orgs/PostgREST/people>`_
     :width:  13em
 
 * Evans Fernandes
-* `Jan Sommer <https://github.com/nerfpops>`_
+* Jan Sommer
 * `Franz Gusenbauer <https://www.igutech.at/>`_
 * `Daniel Babiak <https://github.com/dbabiak>`_
 * Tsingson Qin
