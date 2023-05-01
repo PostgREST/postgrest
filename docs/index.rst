@@ -131,6 +131,12 @@ Reference guides
 Technical references for PostgREST's functionality.
 
 .. toctree::
+   :caption: Authentication
+   :hidden:
+
+   auth.rst
+
+.. toctree::
    :caption: API
    :hidden:
 
@@ -154,6 +160,7 @@ Technical references for PostgREST's functionality.
 
    errors.rst
 
+- :doc:`Authentication <auth>`
 - :doc:`API <api>`
 - :doc:`configuration`
 - :doc:`Schema Cache <schema_cache>`
@@ -165,10 +172,10 @@ Topic guides
 Explanations of some key concepts in PostgREST.
 
 .. toctree::
-   :caption: Authentication
+   :caption: Database Authorization
    :hidden:
 
-   auth.rst
+   db_authz.rst
 
 .. toctree::
    :caption: Schema Structure
@@ -188,7 +195,7 @@ Explanations of some key concepts in PostgREST.
 
    install.rst
 
-- :doc:`Authentication <auth>`
+- :doc:`Database Authorization <db_authz>`
 - :doc:`Schema Structure <schema_structure>`
 - :doc:`Administration <admin>`
 - :doc:`Installation <install>`
@@ -205,15 +212,17 @@ These are recipes that'll help you address specific use-cases.
    :caption: How-to guides
    :hidden:
 
+   how-tos/sql-user-management
    how-tos/working-with-postgresql-data-types
+   how-tos/sql-user-management-using-postgres-users-and-passwords
    how-tos/providing-images-for-img
    how-tos/create-soap-endpoint
-   how-tos/sql-user-management-using-postgres-users-and-passwords
 
-- :doc:`how-tos/providing-images-for-img`
+- :doc:`how-tos/sql-user-management`
 - :doc:`how-tos/working-with-postgresql-data-types`
-- :doc:`how-tos/create-soap-endpoint`
 - :doc:`how-tos/sql-user-management-using-postgres-users-and-passwords`
+- :doc:`how-tos/providing-images-for-img`
+- :doc:`how-tos/create-soap-endpoint`
 
 Ecosystem
 ---------

@@ -7,8 +7,6 @@ Without configuration, PostgREST won't be able to serve requests. At the minimum
 
 To connect to a database it uses a `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. The connection string can be set in the configuration file or via environment variable or can be read from an external file. See :ref:`db-uri` for details. Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
 
-The user with whom PostgREST connects to the database is also known as the authenticator role. For more information about the anonymous vs authenticator roles see :ref:`roles`.
-
 Config parameters are read in the following order:
 
 1. From the config file.
@@ -462,6 +460,8 @@ db-uri
   =============== =================
 
   The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+
+  The user with whom PostgREST connects to the database is also known as the ``authenticator`` role. For more information see :ref:`roles`.
 
   When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <https://www.postgresql.org/docs/current/auth-peer.html>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
 

@@ -59,7 +59,7 @@ In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we als
   CREATE FUNCTION basic_auth.pbkdf2(salt bytea, pw text, count integer, desired_length integer, algorithm text) RETURNS bytea
       LANGUAGE plpgsql IMMUTABLE
       AS $$
-  DECLARE 
+  DECLARE
     hash_length integer;
     block_count integer;
     output bytea;
@@ -97,7 +97,7 @@ In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we als
       --
       FOR j IN 2 .. count LOOP
         the_last := ext_pgcrypto.HMAC(the_last, pw::bytea, algorithm);
-        
+
         -- xor the two
         FOR k IN 1 .. length(xorsum) LOOP
           xorsum := set_byte(xorsum, k - 1, get_byte(xorsum, k - 1) # get_byte(the_last, k - 1));
@@ -210,8 +210,6 @@ anonymous roles. Below is an example of permissions that allow anonymous users t
 
 .. code-block:: postgres
 
-  -- the names "anon" and "authenticator" are configurable and not
-  -- sacred, we simply choose them for clarity
   CREATE ROLE anon NOINHERIT;
   CREATE role authenticator NOINHERIT LOGIN PASSWORD 'secret';
   GRANT anon TO authenticator;
@@ -299,7 +297,7 @@ Let's add a table, intended for the :code:`foo` user:
 Now try to get the table's contents with:
 
 .. tabs::
-  
+
   .. code-tab:: http
 
     GET /foobar HTTP/1.1
