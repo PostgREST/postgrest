@@ -35,7 +35,7 @@ Added
 
 * Documentation improvements
 
-  + Explanation for :doc:`Schema Structure <../schema_structure>`.
+  + Explanation for :doc:`Schema Structure <../db_authz>`.
   + Reference for :ref:`s_proc_embed`.
   + Reference for :ref:`mutation_embed`.
   + Reference for filters on :ref:`json_columns`.

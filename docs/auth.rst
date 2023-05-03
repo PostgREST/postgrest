@@ -172,7 +172,7 @@ PostgREST does not enforce any extra constraints besides JWT validation. An exam
 
   db-pre-request = "public.check_user"
 
-In the function you can run arbitrary code to check the request and raise an exception(see :ref:`raise_error`) to block it if desired. You can take advantage of :ref:`guc_req_headers_cookies_claims` for
+In the function you can run arbitrary code to check the request and raise an exception(see :ref:`raise_error`) to block it if desired. Here you can take advantage of :ref:`guc_req_headers_cookies_claims` for
 doing custom logic based on the web user info.
 
 .. code-block:: postgres

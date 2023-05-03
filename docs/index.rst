@@ -178,12 +178,6 @@ Explanations of some key concepts in PostgREST.
    db_authz.rst
 
 .. toctree::
-   :caption: Schema Structure
-   :hidden:
-
-   schema_structure.rst
-
-.. toctree::
    :caption: Administration
    :hidden:
 
@@ -196,7 +190,6 @@ Explanations of some key concepts in PostgREST.
    install.rst
 
 - :doc:`Database Authorization <db_authz>`
-- :doc:`Schema Structure <schema_structure>`
 - :doc:`Administration <admin>`
 - :doc:`Installation <install>`
 

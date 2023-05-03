@@ -5,12 +5,12 @@
 Database authorization is the process of granting and verifying database access permissions. PostgreSQL manages permissions using the concept of roles.
 
 Users and Groups
-----------------
+================
 
 A role can be thought of as either a database user, or a group of database users, depending on how the role is set up.
 
 Roles for Each Web User
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 PostgREST can accommodate either viewpoint. If you treat a role as a single user then the :ref:`jwt_impersonation` does most of what you need. When an authenticated user makes a request PostgREST will switch into the database role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
 
@@ -46,7 +46,7 @@ Anyone accessing the generated API endpoint for the chat table will see exactly 
    Roles are namespaced per-cluster rather than per-database so they may be prone to collision.
 
 Web Users Sharing Role
-~~~~~~~~~~~~~~~~~~~~~~
+----------------------
 
 Alternately database roles can represent groups instead of (or in addition to) individual users. You may choose that all signed-in users for a web app share the role ``webuser``. You can distinguish individual users by including extra claims in the JWT such as email.
 
@@ -75,7 +75,7 @@ For PostgreSQL server version < 14
 This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this ``current_setting`` rather than ``current_user``. The second ``'true'`` argument tells ``current_setting`` to return NULL if the setting is missing from the current configuration.
 
 Hybrid User-Group Roles
-~~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
 
@@ -92,3 +92,100 @@ You can mix the group and individual role policies. For instance we could still 
   -- allow authenticator to switch into user000 role
   -- (the role itself has nologin)
 
+.. _schema_isolation:
+
+Schemas
+=======
+
+A PostgREST instance exposes all the tables, views, and stored procedures of the schemas configured in :ref:`db-schemas`. This means private data or implementation details can go inside private schemas and be invisible to HTTP clients.
+
+It is recommended that you don't expose tables on the schemas you expose, instead expose views and stored procedures which insulate the internal details from the outside world.
+This allows you to change the internals of your schema and maintain backwards compatibility. It also keeps your code easier to refactor, and provides a natural way to do API versioning.
+
+.. image:: _static/db.png
+
+Note that you must explicitly allow roles to access the exposed schemas:
+
+.. code-block:: postgres
+
+   GRANT USAGE ON SCHEMA api TO webuser;
+
+.. _func_privs:
+
+Functions
+=========
+
+By default, when a function is created, the privilege to execute it is not restricted by role. The function access is ``PUBLIC`` — executable by all roles (more details at `PostgreSQL Privileges page <https://www.postgresql.org/docs/current/ddl-priv.html>`_). This is not ideal for an API schema. To disable this behavior, you can run the following SQL statement:
+
+.. code-block:: postgres
+
+  ALTER DEFAULT PRIVILEGES REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
+
+This will change the privileges for all functions created in the future in all schemas. Currently there is no way to limit it to a single schema. In our opinion it's a good practice anyway.
+
+.. note::
+
+    It is however possible to limit the effect of this clause only to functions you define. You can put the above statement at the beginning of the API schema definition, and then at the end reverse it with:
+
+    .. code-block:: postgres
+
+        ALTER DEFAULT PRIVILEGES GRANT EXECUTE ON FUNCTIONS TO PUBLIC;
+
+    This will work because the :code:`alter default privileges` statement has effect on function created *after* it is executed. See `PostgreSQL alter default privileges <https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html>`_ for more details.
+
+After that, you'll need to grant EXECUTE privileges on functions explicitly:
+
+.. code-block:: postgres
+
+   GRANT EXECUTE ON FUNCTION login TO anonymous;
+   GRANT EXECUTE ON FUNCTION signup TO anonymous;
+
+You can also grant execute on all functions in a schema to a higher privileged role:
+
+.. code-block:: postgres
+
+    GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA api TO web_user;
+
+Security definer
+----------------
+
+A function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
+If the function accesses private database objects, your :ref:`API roles <roles>` won't be able to successfully execute the function.
+
+Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself.
+
+.. code-block:: postgres
+
+  -- login as a user wich has privileges on the private schemas
+
+  -- create a sample function
+  create or replace function login(email text, pass text) returns jwt_token as $$
+  begin
+    -- access to a private schema called 'auth'
+    select auth.user_role(email, pass) into _role;
+    -- other operations
+    -- ...
+  end;
+  $$ language plpgsql security definer;
+
+Note the ``SECURITY DEFINER`` keywords at the end of the function. See `PostgreSQL documentation <https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY>`_ for more details.
+
+Views
+=====
+
+Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
+
+For changing this, we can create a non-SUPERUSER role and make this role the view's owner.
+
+.. code-block:: postgres
+
+  CREATE ROLE api_views_owner NOINHERIT;
+  ALTER VIEW sample_view OWNER TO api_views_owner;
+
+Rules
+-----
+
+Insertion on views with complex `rules <https://www.postgresql.org/docs/current/sql-createrule.html>`_ might not work out of the box with PostgREST.
+It's recommended that you `use triggers instead of rules <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+If you want to keep using rules, a workaround is to wrap the view insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/1283>`_.
