@@ -104,11 +104,27 @@ This allows you to change the internals of your schema and maintain backwards co
 
 .. image:: _static/db.png
 
-Note that you must explicitly allow roles to access the exposed schemas:
+You must explicitly allow roles to access the exposed schemas:
 
 .. code-block:: postgres
 
    GRANT USAGE ON SCHEMA api TO webuser;
+
+Tables
+======
+
+To let web users access tables you must grant them privileges for the operations you want them to do.
+
+.. code-block:: postgres
+
+  GRANT
+    SELECT
+  , INSERT
+  , UPDATE(message_body)
+  , DELETE
+  ON chat TO webuser;
+
+You can also choose on which table columns the operation is valid. In the above example, the web user can only update the ``message_body`` column.
 
 .. _func_privs:
 
@@ -173,7 +189,7 @@ Note the ``SECURITY DEFINER`` keywords at the end of the function. See `PostgreS
 Views
 =====
 
-Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ policies will be bypassed. This is an unsuitable behavior for an API schema.
+Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ policies will be bypassed.
 
 If you're on PostgreSQL >= 15, this behavior can be changed by specifying the ``security_invoker`` option.
 
