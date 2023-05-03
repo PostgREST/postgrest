@@ -143,10 +143,8 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 
   jwt-secret = "@rsa.jwk.pub"
 
-.. _jwt_validation:
-
-JWT Validation
-~~~~~~~~~~~~~~
+JWT Claims Validation
+~~~~~~~~~~~~~~~~~~~~~
 
 PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens.
 
@@ -168,19 +166,22 @@ PostgREST uses JWT mainly for authentication and authorization purposes and enco
 Custom Validation
 -----------------
 
-PostgREST does not enforce any extra constraints besides :ref:`jwt_validation`. An example of an extra constraint would be to immediately revoke access for a certain user. Using :ref:`db-pre-request` you can specify a stored procedure to call immediately after :ref:`user_impersonation` and before the main query itself runs.
+PostgREST does not enforce any extra constraints besides JWT validation. An example of an extra constraint would be to immediately revoke access for a certain user. Using :ref:`db-pre-request` you can specify a stored procedure to call immediately after :ref:`user_impersonation` and before the main query itself runs.
 
 .. code:: ini
 
   db-pre-request = "public.check_user"
 
-In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
+In the function you can run arbitrary code to check the request and raise an exception(see :ref:`raise_error`) to block it if desired. You can take advantage of :ref:`guc_req_headers_cookies_claims` for
+doing custom logic based on the web user info.
 
 .. code-block:: postgres
 
   CREATE OR REPLACE FUNCTION check_user() RETURNS void AS $$
+  DECLARE
+    email text := current_setting('request.jwt.claims', true)::json->>'email';
   BEGIN
-    IF current_user = 'evil_user' THEN
+    IF email = 'evil.user@malicious.com' THEN
       RAISE EXCEPTION 'No, you are evil'
         USING HINT = 'Stop being so evil and maybe you can log in';
     END IF;
