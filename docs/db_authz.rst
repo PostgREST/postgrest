@@ -173,19 +173,19 @@ Note the ``SECURITY DEFINER`` keywords at the end of the function. See `PostgreS
 Views
 =====
 
-Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ will be bypassed unless a different, non-SUPERUSER owner is specified.
+Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ policies will be bypassed. This is an unsuitable behavior for an API schema.
 
-For changing this, we can create a non-SUPERUSER role and make this role the view's owner.
+If you're on PostgreSQL >= 15, this behavior can be changed by specifying the ``security_invoker`` option.
 
 .. code-block:: postgres
 
-  CREATE ROLE api_views_owner NOINHERIT;
+  CREATE VIEW sample_view WITH (security_invoker = true) AS
+  SELECT * FROM sample_table;
+
+On PostgreSQL < 15, you can create a non-SUPERUSER role and make this role the view's owner.
+
+.. code-block:: postgres
+
+  CREATE ROLE api_views_owner NOSUPERUSER NOBYPASSRLS;
   ALTER VIEW sample_view OWNER TO api_views_owner;
 
-Rules
------
-
-Insertion on views with complex `rules <https://www.postgresql.org/docs/current/sql-createrule.html>`_ might not work out of the box with PostgREST.
-It's recommended that you `use triggers instead of rules <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
-If you want to keep using rules, a workaround is to wrap the view insertion in a stored procedure and call it through the :ref:`s_procs` interface.
-For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/1283>`_.

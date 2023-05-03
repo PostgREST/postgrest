@@ -1755,6 +1755,13 @@ URL encoded payloads can be posted with ``Content-Type: application/x-www-form-u
 
   Some JavaScript libraries will post the data incorrectly if you're not careful. For best results try one of the :ref:`clientside_libraries` built for PostgREST.
 
+.. important::
+
+  It's recommended that you `use triggers instead of rules <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
+  Insertion on views with complex `rules <https://www.postgresql.org/docs/current/sql-createrule.html>`_ might not work out of the box with PostgREST due to its usage of CTEs.
+  If you want to keep using rules, a workaround is to wrap the view insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+  For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/1283>`_.
+
 .. _bulk_insert:
 
 Bulk Insert
