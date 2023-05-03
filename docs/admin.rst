@@ -272,7 +272,7 @@ To do this, set the configuration variable :ref:`admin-server-port` to the port 
 
 The ``live`` endpoint verifies if PostgREST is running on its configured port. A request will return ``200 OK`` if PostgREST is alive or ``503`` otherwise.
 
-The ``ready`` endpoint also checks the state of both the Database Connection and the :ref:`schema_cache`. A request will return ``200 OK`` if it is ready or ``503`` if not.
+The ``ready`` endpoint also checks the state of both the Database Connection and the :doc:`Schema Cache <schema_cache>`. A request will return ``200 OK`` if it is ready or ``503`` if not.
 
 For instance, to verify if PostgREST is running at ``localhost:3000`` while the ``admin-server-port`` is set to ``3001``:
 

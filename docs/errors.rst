@@ -23,7 +23,7 @@ For the most part, error messages will come directly from the database with the 
     "message": "relation \"api.nonexistent_table\" does not exist"
   }
 
-However, some errors do come from PostgREST itself (such as those related to the :ref:`schema_cache`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field (see :ref:`pgrst_errors`). For instance, when querying a function that does not exist, the error will be:
+However, some errors do come from PostgREST itself (such as those related to the :doc:`Schema Cache <schema_cache>`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field (see :ref:`pgrst_errors`). For instance, when querying a function that does not exist, the error will be:
 
 .. code-block:: http
 
@@ -137,8 +137,8 @@ Related to the connection with the database.
 | PGRST001      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst002: | 503         | Could not connect with the database when building the       |
-|               |             | :ref:`schema_cache` due to the PostgreSQL service not       |
-| PGRST002      |             | running.                                                    |
+|               |             | :doc:`Schema Cache <schema_cache>`                          |
+| PGRST002      |             | due to the PostgreSQL service not running.                                                    |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst003: | 504         | The request timed out waiting for a pool connection         |
 |               |             | to be available. See :ref:`db-pool-acquisition-timeout`.    |
