@@ -2,10 +2,15 @@
 
   <h1>Database Authorization</h1>
 
-Database authorization is the process of granting and verifying database access permissions. PostgreSQL manages permissions using the concept of roles. A role can be thought of as either a database user, or a group of database users, depending on how the role is set up.
+Database authorization is the process of granting and verifying database access permissions. PostgreSQL manages permissions using the concept of roles.
+
+Users and Groups
+----------------
+
+A role can be thought of as either a database user, or a group of database users, depending on how the role is set up.
 
 Roles for Each Web User
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 PostgREST can accommodate either viewpoint. If you treat a role as a single user then the :ref:`jwt_impersonation` does most of what you need. When an authenticated user makes a request PostgREST will switch into the database role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
 
@@ -41,7 +46,7 @@ Anyone accessing the generated API endpoint for the chat table will see exactly 
    Roles are namespaced per-cluster rather than per-database so they may be prone to collision.
 
 Web Users Sharing Role
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Alternately database roles can represent groups instead of (or in addition to) individual users. You may choose that all signed-in users for a web app share the role ``webuser``. You can distinguish individual users by including extra claims in the JWT such as email.
 
@@ -70,7 +75,7 @@ For PostgreSQL server version < 14
 This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this ``current_setting`` rather than ``current_user``. The second ``'true'`` argument tells ``current_setting`` to return NULL if the setting is missing from the current configuration.
 
 Hybrid User-Group Roles
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
 

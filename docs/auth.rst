@@ -2,7 +2,7 @@
 
   <h1>Authentication</h1>
 
-PostgREST is designed to keep the database at the center of API security. All authorization happens through database roles and permissions. It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
+PostgREST is designed to keep the database at the center of API security. All :doc:`authorization happens in the database <db_authz>` . It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
 
 .. _roles:
 
