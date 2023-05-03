@@ -3,7 +3,7 @@
 Error Source
 ============
 
-For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/error-style-guide.html>`_. PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON format and add an HTTP status code to the response (see :ref:`status_codes`). For instance, this is the error you will get when querying a nonexistent table:
+For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/error-style-guide.html>`_. PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON and add an HTTP status code to the response. For instance, when querying a nonexistent table:
 
 .. code-block:: http
 
@@ -23,7 +23,7 @@ For the most part, error messages will come directly from the database with the 
     "message": "relation \"api.nonexistent_table\" does not exist"
   }
 
-However, some errors do come from PostgREST itself (such as those related to the :doc:`Schema Cache <schema_cache>`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field (see :ref:`pgrst_errors`). For instance, when querying a function that does not exist, the error will be:
+However, some errors do come from PostgREST itself (such as those related to the :doc:`Schema Cache <schema_cache>`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist:
 
 .. code-block:: http
 
@@ -116,7 +116,11 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 PostgREST Error Codes
 =====================
 
-PostgREST error codes have the form ``PGRSTgxx``, where ``PGRST`` is the prefix that differentiates the error from a PostgreSQL error, ``g`` is the group where the error belongs and ``xx`` is the number that identifies the error in the group.
+PostgREST error codes have the form ``PGRSTgxx``
+
+- ``PGRST`` is the prefix that differentiates the error from a PostgreSQL error.
+- ``g`` is the error group
+- ``xx`` is the error identifier in the group.
 
 .. _pgrst0**:
 
@@ -138,7 +142,7 @@ Related to the connection with the database.
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst002: | 503         | Could not connect with the database when building the       |
 |               |             | :doc:`Schema Cache <schema_cache>`                          |
-| PGRST002      |             | due to the PostgreSQL service not running.                                                    |
+| PGRST002      |             | due to the PostgreSQL service not running.                  |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst003: | 504         | The request timed out waiting for a pool connection         |
 |               |             | to be available. See :ref:`db-pool-acquisition-timeout`.    |
