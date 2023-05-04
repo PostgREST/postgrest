@@ -1,9 +1,14 @@
 .. _error_source:
 
-Error Source
+Error Format
 ============
 
-For the most part, error messages will come directly from the database with the same `structure that PostgreSQL uses <https://www.postgresql.org/docs/current/error-style-guide.html>`_. PostgREST will convert the ``MESSAGE``, ``DETAIL``, ``HINT`` and ``ERRCODE`` from the PostgreSQL error to JSON and add an HTTP status code to the response. For instance, when querying a nonexistent table:
+PostgREST error messages follow the PostgreSQL error structure. It includes ``MESSAGE``, ``DETAIL``, ``HINT``, ``ERRCODE`` and will add an HTTP status code to the response.
+
+Errors from PostgreSQL
+----------------------
+
+PostgREST will forward errors coming from PostgreSQL. For instance, when querying a nonexistent table:
 
 .. code-block:: http
 
@@ -23,7 +28,10 @@ For the most part, error messages will come directly from the database with the 
     "message": "relation \"api.nonexistent_table\" does not exist"
   }
 
-However, some errors do come from PostgREST itself (such as those related to the :doc:`Schema Cache <schema_cache>`). These have the same structure as the PostgreSQL errors but are differentiated by the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist:
+Errors from PostgREST
+---------------------
+
+Errors that come from PostgREST itself maintain the same structure. But differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
 
 .. code-block:: http
 
@@ -37,7 +45,7 @@ However, some errors do come from PostgREST itself (such as those related to the
 .. code-block:: json
 
   {
-    "hint": "If a new function was created in the database with this name and parameters, try reloading the schema cache.",
+    "hint": "...",
     "details": null
     "code": "PGRST202",
     "message": "Could not find the api.nonexistent_function() function in the schema cache"
@@ -250,7 +258,7 @@ Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these e
 +---------------+-------------+-------------------------------------------------------------+
 | Code          | HTTP status | Description                                                 |
 +===============+=============+=============================================================+
-| .. _pgrst200: | 400         | Caused by :ref:`stale_fk_relationships`, otherwise any of   |
+| .. _pgrst200: | 400         | Caused by stale foreign key relationships, otherwise any of |
 |               |             | the embedding resources or the relationship itself may not  |
 | PGRST200      |             | exist in the database.                                      |
 +---------------+-------------+-------------------------------------------------------------+
@@ -258,7 +266,7 @@ Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these e
 |               |             | See :ref:`embed_disamb`.                                    |
 | PGRST201      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst202: | 404         | Caused by a :ref:`stale_function_signature`, otherwise      |
+| .. _pgrst202: | 404         | Caused by a stale function signature, otherwise             |
 |               |             | the function may not exist in the database.                 |
 | PGRST202      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+

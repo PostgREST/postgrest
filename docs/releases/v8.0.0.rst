@@ -84,11 +84,11 @@ Changed
 * Modified the default logging level from ``info`` to ``error``. See :ref:`log-level`.
   |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
 
-* Changed the error message for a not found RPC on a stale schema (see :ref:`stale_function_signature`) and for the unsupported case of
+* Changed the error message for a not found RPC on a stale schema (see :ref:`stale_schema`) and for the unsupported case of
   overloaded functions with the same argument names but different types.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
-* Changed the error message for the no relationship found error. See :ref:`stale_fk_relationships`.
+* Changed the error message for the no relationship found error. See :ref:`stale_schema`.
   |br| -- `@laurenceisla <https://github.com/laurenceisla>`_
 
 Fixed
