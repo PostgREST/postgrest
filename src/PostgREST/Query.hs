@@ -25,7 +25,7 @@ import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Encoders                    as HE
-import qualified Hasql.Session                     as Session
+import qualified Hasql.Session                     as SQL (queuePipelineStatement)
 import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
@@ -240,7 +240,7 @@ usePipeline = True
 
 queuePipelineStatement :: params -> SQL.Statement params () -> SQL.Transaction ()
 queuePipelineStatement params stmt =
-  if usePipeline then SQL.inTransaction $ Session.queuePipelineStatement params stmt
+  if usePipeline then SQL.inTransaction $ SQL.queuePipelineStatement params stmt
                  else SQL.statement params stmt
 
 -- | Runs local (transaction scoped) GUCs for every request.
