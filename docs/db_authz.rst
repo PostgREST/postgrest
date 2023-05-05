@@ -57,20 +57,19 @@ Alternately database roles can represent groups instead of (or in addition to) i
     "email": "john@doe.com"
   }
 
-SQL code can access claims through GUC variables set by PostgREST per request. For instance to get the email claim, call this function:
-
-For PostgreSQL server version >= 14
+SQL code can access claims through PostgREST :ref:`tx_settings`. For instance to get the email claim, call this function:
 
 .. code:: sql
 
   current_setting('request.jwt.claims', true)::json->>'email';
 
+.. note::
 
-For PostgreSQL server version < 14
+  For PostgreSQL < 14
 
-.. code:: sql
+  .. code:: sql
 
-  current_setting('request.jwt.claim.email', true);
+    current_setting('request.jwt.claim.email', true);
 
 This allows JWT generation services to include extra information and your database code to react to it. For instance the RLS example could be modified to use this ``current_setting`` rather than ``current_user``. The second ``'true'`` argument tells ``current_setting`` to return NULL if the setting is missing from the current configuration.
 

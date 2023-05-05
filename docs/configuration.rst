@@ -368,7 +368,7 @@ db-pre-request
   **In-Database** pgrst.db_pre_request
   =============== =================
 
-  A schema-qualified stored procedure name to call right after switching roles for a client request. This provides an opportunity to modify SQL variables or raise an exception to prevent the request from completing.
+  A schema-qualified stored procedure name to call right after the :ref:`tx_settings` are set. See :ref:`pre-request`.
 
 .. _db-prepared-statements:
 

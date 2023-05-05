@@ -12,7 +12,7 @@ PostgreSQL 14 compatibility
 
 PostgreSQL 14 Beta 1 tightened its GUC naming scheme making it impossible to use multiple dots (``.``) and dashes (``-``) on custom GUC parameters, this caused our `old HTTP Context <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ to fail across all requests. Thankfully, `@robertsosinski <https://github.com/robertsosinski>`_ got the PostgreSQL team to reconsider allowing multiple dots in the GUC name, allowing us to avoid a major breaking change. You can see the full discussion `here <https://www.postgresql.org/message-id/17045-6a4a9f0d1513f72b%40postgresql.org>`_.
 
-Still, dashes cannot be used on PostgreSQL 14 custom GUC parameters, so we changed our HTTP Context :ref:`to namespace using a mix of dots and JSON <guc_req_headers_cookies_claims>`. On older PostgreSQL versions we still use the :ref:`guc_legacy_names`. If you wish to use the new JSON GUCs on these versions, set the :ref:`db-use-legacy-gucs` config option to false.
+Still, dashes cannot be used on PostgreSQL 14 custom GUC parameters, so we changed our HTTP Context :ref:`to namespace using a mix of dots and JSON <guc_req_headers_cookies_claims>`. On older PostgreSQL versions we still use the settings legacy names. If you wish to use the new JSON GUCs on these versions, set the :ref:`db-use-legacy-gucs` config option to false.
 
 Resource Embedding with Top-level Filtering
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

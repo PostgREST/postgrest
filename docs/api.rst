@@ -1,6 +1,8 @@
 .. role:: sql(code)
    :language: sql
 
+.. _tables_views:
+
 Tables and Views
 ================
 
@@ -2079,21 +2081,18 @@ The PostgREST URL grammar limits the kinds of queries clients can perform. It pr
 Stored Procedures
 =================
 
-Every stored procedure in the API-exposed database schema is accessible under the :code:`/rpc` prefix. The API endpoint supports POST (and in some cases GET) to execute the function.
+*"A single resource can be the equivalent of a database stored procedure, with the power to abstract state changes over any number of storage items"* -- `Roy T. Fielding <https://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven#comment-743>`_
 
-.. tabs::
+Every stored procedure in the exposed database schema is accessible under the :code:`/rpc` prefix. Procedures can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations).
 
-  .. code-tab:: http
+.. note::
 
-    POST /rpc/function_name HTTP/1.1
+  The ``/rpc`` prefix is used to avoid name collisions between views and procedures.
 
-  .. code-tab:: bash Curl
+POST on Stored Procedures
+-------------------------
 
-    curl "http://localhost:3000/rpc/function_name" -X POST
-
-Such functions can perform any operations allowed by PostgreSQL (read data, modify data, and even DDL operations).
-
-To supply arguments in an API call, include a JSON object in the request payload and each key/value of the object will become an argument.
+To supply arguments in an API call, include a JSON object in the request payload. Each key/value of the object will become an argument.
 
 For instance, assume we have created this function in the database.
 
@@ -2128,39 +2127,18 @@ The client can call it by posting an object like
 
   3
 
-
-Procedures must be declared with named parameters. Procedures declared like
-
-.. code-block:: plpgsql
-
-  CREATE FUNCTION non_named_args(integer, text, integer) ...
-
-cannot be called with PostgREST, since we use `named notation <https://www.postgresql.org/docs/current/sql-syntax-calling-funcs.html#SQL-SYNTAX-CALLING-FUNCS-NAMED>`_ internally.
-
-Note that PostgreSQL converts identifier names to lowercase unless you quote them like:
-
-.. code-block:: postgres
-
-  CREATE FUNCTION "someFunc"("someParam" text) ...
-
-PostgreSQL has four procedural languages that are part of the core distribution: PL/pgSQL, PL/Tcl, PL/Perl, and PL/Python. There are many other procedural languages distributed as additional extensions. Also, plain SQL can be used to write functions (as shown in the example above).
-
 .. note::
 
-  Why the ``/rpc`` prefix? One reason is to avoid name collisions between views and procedures. It also helps emphasize to API consumers that these functions are not normal restful things. The functions can have arbitrary and surprising behavior, not the standard "post creates a resource" thing that users expect from the other routes.
+  PostgreSQL converts identifier names to lowercase unless you quote them like:
 
-Immutable and stable functions
-------------------------------
+  .. code-block:: postgres
 
-PostgREST executes POST requests in a read/write transaction except for functions marked as ``IMMUTABLE`` or ``STABLE``. Those must not modify the database and are executed in a read-only transaction compatible for read-replicas.
+    CREATE FUNCTION "someFunc"("someParam" text) ...
 
-Procedures that do not modify the database can be called with the HTTP GET verb as well, if desired. PostgREST executes all GET requests in a read-only transaction. Modifying the database inside read-only transactions is not possible and calling volatile functions with GET will fail.
+GET on Stored Procedures
+------------------------
 
-.. note::
-
-  The `volatility marker <https://www.postgresql.org/docs/current/xfunc-volatility.html>`_ is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  However, because of the read-only transaction this would still fail with PostgREST.
-
-Because ``add_them`` is ``IMMUTABLE``, we can alternately call the function with a GET request:
+If the function doesn't modify the database, it will also run under the GET method(see :ref:`access_mode`).
 
 .. tabs::
 
@@ -2800,218 +2778,6 @@ You can also select the schema for :ref:`s_procs` and :ref:`open-api`.
 .. note::
 
    These headers are based on the nascent "Content Negotiation by Profile" spec: https://www.w3.org/TR/dx-prof-conneg
-
-.. _http_context:
-
-HTTP Context
-============
-
-.. _guc_req_headers_cookies_claims:
-
-Accessing Request Headers, Cookies and JWT claims
--------------------------------------------------
-
-You can access request headers, cookies and JWT claims by reading GUC variables set by PostgREST per request. They are named :code:`request.headers`, :code:`request.cookies` and :code:`request.jwt.claims`.
-
-.. code-block:: postgresql
-
-  -- To read the value of the User-Agent request header:
-  SELECT current_setting('request.headers', true)::json->>'user-agent';
-
-  -- To read the value of sessionId in a cookie:
-  SELECT current_setting('request.cookies', true)::json->>'sessionId';
-
-  -- To read the value of the email claim in a jwt:
-  SELECT current_setting('request.jwt.claims', true)::json->>'email';
-
-  -- To get all the headers sent in the request
-  SELECT current_setting('request.headers', true)::json;
-
-.. note::
-
-  The ``role`` in ``request.jwt.claims`` defaults to the value of :ref:`db-anon-role`.
-
-.. _guc_legacy_names:
-
-Legacy GUC variable names
-~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For PostgreSQL versions below 14, PostgREST will take into consideration the :ref:`db-use-legacy-gucs` config, which is set to true by default. This means that the interface for accessing these GUCs is `the same as in older versions <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_. You can opt in to use the JSON GUCs mentioned above by setting the ``db-use-legacy-gucs`` to false.
-
-.. _guc_req_path_method:
-
-Accessing Request Path and Method
----------------------------------
-
-You can also access the request path and method with :code:`request.path` and :code:`request.method`.
-
-.. code-block:: postgresql
-
-  -- You can get the path of the request with
-  SELECT current_setting('request.path', true);
-
-  -- You can get the method of the request with
-  SELECT current_setting('request.method', true);
-
-.. _guc_resp_hdrs:
-
-Setting Response Headers
-------------------------
-
-PostgREST reads the ``response.headers`` SQL variable to add extra headers to the HTTP response. Stored procedures can modify this variable. For instance, this statement would add caching headers to the response:
-
-.. code-block:: sql
-
-  -- tell client to cache response for two days
-
-  SELECT set_config('response.headers',
-    '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]', true);
-
-Notice that the variable should be set to an *array* of single-key objects rather than a single multiple-key object. This is because headers such as ``Cache-Control`` or ``Set-Cookie`` need to be repeated when setting multiple values and an object would not allow the repeated key.
-
-.. note::
-
-  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way. Note that irrespective of overridden ``Content-Type`` response header, the content will still be converted to JSON, unless you also set :ref:`raw-media-types` to something like ``text/html``.
-
-.. _pre_req_headers:
-
-Setting headers via pre-request
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-By using a :ref:`db-pre-request` function, you can add headers to GET/POST/PATCH/PUT/DELETE responses.
-As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
-
-.. code-block:: postgresql
-
-   create or replace function custom_headers() returns void as $$
-   declare
-     user_agent text := current_setting('request.headers', true)::json->>'user-agent';
-   begin
-     if user_agent similar to '%MSIE (6.0|7.0)%' then
-       perform set_config('response.headers',
-         '[{"Cache-Control": "no-cache, no-store, must-revalidate"}]', false);
-     end if;
-   end; $$ language plpgsql;
-
-   -- set this function on postgrest.conf
-   -- db-pre-request = custom_headers
-
-Now when you make a GET request to a table or view, you'll get the cache headers.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-    User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" -i \
-     -H "User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)"
-
-.. code-block:: http
-
-  HTTP/1.1 200 OK
-  Content-Type: application/json; charset=utf-8
-  Cache-Control: no-cache, no-store, must-revalidate
-
-.. _guc_resp_status:
-
-Setting Response Status Code
-----------------------------
-
-You can set the ``response.status`` GUC to override the default status code PostgREST provides. For instance, the following function would replace the default ``200`` status code.
-
-.. code-block:: postgres
-
-   create or replace function teapot() returns json as $$
-   begin
-     perform set_config('response.status', '418', true);
-     return json_build_object('message', 'The requested entity body is short and stout.',
-                              'hint', 'Tip it over and pour it out.');
-   end;
-   $$ language plpgsql;
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /rpc/teapot HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/teapot" -i
-
-.. code-block:: http
-
-  HTTP/1.1 418 I'm a teapot
-
-  {
-    "message" : "The requested entity body is short and stout.",
-    "hint" : "Tip it over and pour it out."
-  }
-
-If the status code is standard, PostgREST will complete the status message(**I'm a teapot** in this example).
-
-.. _raise_error:
-
-Raise errors with HTTP Status Codes
------------------------------------
-
-Stored procedures can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
-
-.. code-block:: postgresql
-
-  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-  BEGIN
-    RAISE EXCEPTION 'I refuse!'
-      USING DETAIL = 'Pretty simple',
-            HINT = 'There is nothing you can do.';
-  END
-  $$;
-
-Calling the function returns HTTP 400 with the body
-
-.. code-block:: json
-
-  {
-    "message":"I refuse!",
-    "details":"Pretty simple",
-    "hint":"There is nothing you can do.",
-    "code":"P0001"
-  }
-
-.. note::
-
-   Keep in mind that ``RAISE EXCEPTION`` will abort the transaction and rollback all changes. If you don't want this, you can instead use the :ref:`response.status GUC <guc_resp_status>`.
-
-One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
-
-For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise 'PT402':
-
-.. code-block:: sql
-
-  RAISE sqlstate 'PT402' using
-    message = 'Payment Required',
-    detail = 'Quota exceeded',
-    hint = 'Upgrade your plan';
-
-Returns:
-
-.. code-block:: http
-
-  HTTP/1.1 402 Payment Required
-  Content-Type: application/json; charset=utf-8
-
-  {
-    "message": "Payment Required",
-    "details": "Quota exceeded",
-    "hint": "Upgrade your plan",
-    "code": "PT402"
-  }
 
 .. _explain_plan:
 

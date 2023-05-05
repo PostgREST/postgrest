@@ -125,8 +125,8 @@ Are you new to PostgREST? This is the place to start!
 
 Also have a look at :doc:`Installation <install>` and :ref:`community_tutorials`.
 
-Reference guides
-----------------
+References
+----------
 
 Technical references for PostgREST's functionality.
 
@@ -141,6 +141,12 @@ Technical references for PostgREST's functionality.
    :hidden:
 
    api.rst
+
+.. toctree::
+   :caption: Transactions
+   :hidden:
+
+   transactions.rst
 
 .. toctree::
    :caption: Configuration
@@ -162,14 +168,15 @@ Technical references for PostgREST's functionality.
 
 - :doc:`Authentication <auth>`
 - :doc:`API <api>`
+- :doc:`Transactions <transactions>`
 - :doc:`configuration`
 - :doc:`Schema Cache <schema_cache>`
 - :doc:`Errors <errors>`
 
-Topic guides
+Explanations
 ------------
 
-Explanations of some key concepts in PostgREST.
+Key concepts in PostgREST.
 
 .. toctree::
    :caption: Database Authorization
@@ -198,7 +205,7 @@ Explanations of some key concepts in PostgREST.
 How-to guides
 -------------
 
-These are recipes that'll help you address specific use-cases.
+Recipes that'll help you address specific use-cases.
 
 .. toctree::
    :glob:
