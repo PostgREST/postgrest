@@ -43,8 +43,8 @@ let
           (super.fetchFromGitHub {
             owner = "robx";
             repo = "hasql";
-            rev = "43e380a712f09666667b2beca642412bb339d141"; # pipeline2
-            sha256 = "1s5hrr9fl109nv4h91c7zl4cqhin2aa4d0xby2mgw0qarxavk8pd";
+            rev = "97ff7ce53e2f4586985a86694e586e077fad1718"; # pipeline2
+            sha256 = "0kn1zq4nmbb9kg6bl54w1k69pl5kiaffc8mh6iiiv06q6w8gyr34";
           })
           { });
       hasql-transaction = lib.dontCheck
