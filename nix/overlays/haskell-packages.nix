@@ -62,7 +62,7 @@ let
           {
             pkg = "hasql-notifications";
             ver = "0.2.0.4";
-            sha256 = "sha256-fm1xiDyvDkb5WLOJ73/s8wrWEW23XFS7luAv2brfr8I=";
+            sha256 = "1hmgvyxdjbz0jsxm8p5pdl8xc2pkxizyz2dkb3wlc3mg7j472vby";
           }
           { });
 
@@ -71,7 +71,7 @@ let
           {
             pkg = "hasql-pool";
             ver = "0.9";
-            sha256 = "sha256-5UshbbaBVY8eJ/9VagNVVxonRwMcd7UmGqDc35pJNFY=";
+            sha256 = "0mil96ddzp5038kbaxqw0d3jf6jpal1nlmgz4wg8ymc1nrnj2jz5";
           }
           { });
     } // extraOverrides final prev;
