@@ -2,7 +2,7 @@
 
   <h1>Transactions</h1>
 
-Every :doc:`authenticated <auth>` request to an :doc:`API resource <api>` runs inside a transaction. The sequence of the transaction is as follows:
+After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` runs inside a transaction. The sequence of the transaction is as follows:
 
 .. code-block:: postgresql
 
@@ -84,7 +84,7 @@ And you can set them with ``set_config``
 
   -- response settings use the ``response.`` prefix.
   SELECT
-    set_config('response.setting1', 'value1' ,true);
+    set_config('response.<setting>', 'value1' ,true);
 
 Request Role and Search Path
 -----------------------------
@@ -204,6 +204,8 @@ You can set the ``response.status`` to override the default status code PostgRES
 
 If the status code is standard, PostgREST will complete the status message(**I'm a teapot** in this example).
 
+.. _main_query:
+
 Main query
 ==========
 
@@ -279,7 +281,7 @@ Returns:
 Pre-Request
 ===========
 
-The pre-request is a function that can run after the :ref:`tx_settings` are set and before the main query. It's enabled with :ref:`db-pre-request`.
+The pre-request is a function that can run after the :ref:`tx_settings` are set and before the :ref:`main_query`. It's enabled with :ref:`db-pre-request`.
 
 This provides an opportunity to modify settings or raise an exception to prevent the request from completing.
 
@@ -292,7 +294,8 @@ As an example, let's add some cache headers for all requests that come from an I
 
 .. code-block:: postgresql
 
-   create or replace function custom_headers() returns void as $$
+   create or replace function custom_headers()
+   returns void as $$
    declare
      user_agent text := current_setting('request.headers', true)::json->>'user-agent';
    begin
