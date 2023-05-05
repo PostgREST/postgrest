@@ -94,7 +94,7 @@ let
 
         log "Done. Running command..."
 
-        echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U $PGUSER"
+        echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U ${superuserRole}"
         echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
