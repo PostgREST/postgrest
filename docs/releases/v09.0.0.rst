@@ -1,6 +1,6 @@
 
-PostgREST 9.0.0
-===============
+9.0.0
+=====
 
 This major version is released with PostgreSQL 14 compatibility and is accompanied with new features and bug fixes. You can look at the detailed changelog and download the pre-compiled binaries on the `GitHub release page <https://github.com/PostgREST/postgrest/releases/tag/v9.0.0>`_.
 
@@ -50,7 +50,7 @@ Error messages
 Documentation improvements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* Added ``curl`` snippets to the :doc:`API <../api>` page.
+* Added ``curl`` snippets to the :ref:`api` page.
 
 * Added the :ref:`automatic_recovery` section.
 
@@ -74,7 +74,7 @@ Breaking changes
 
 * Dropped support for PostgreSQL 9.5 as it already reached its end-of-life according to `PostgreSQL versioning policy <https://www.postgresql.org/support/versioning/>`_.
 
-* Partitions of a `partitioned table <https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE>`_ are no longer included in the :doc:`../schema_cache`. This is so errors are not generated when doing resource embedding on partitioned tables.
+* Partitions of a `partitioned table <https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE>`_ are no longer included in the :ref:`schema_cache`. This is so errors are not generated when doing resource embedding on partitioned tables.
 
 * Dropped support for doing :ref:`hint_disamb` using dots instead of exclamation marks, e.g. doing ``select=*,projects.client_id(*)`` instead of ``select=*,projects!client_id(*)``). Using dots was undocumented and deprecated back in `v6.0.2 <https://github.com/PostgREST/postgrest/releases/tag/v6.0.2>`_.
 

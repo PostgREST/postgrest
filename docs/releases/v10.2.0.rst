@@ -1,6 +1,6 @@
 
-PostgREST 10.2.0
-================
+10.2.0
+======
 
 This minor version adds bug fixes and some features that provide stability to v10.0.0. These release notes include the changes added in versions `10.1.0 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.0>`_, `10.1.1 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.1>`_ and `10.1.2 <https://github.com/PostgREST/postgrest/releases/tag/v10.1.2>`_. You can look at the detailed changelog and download the pre-compiled binaries on the `GitHub release page <https://github.com/PostgREST/postgrest/releases/tag/v10.2.0>`_.
 

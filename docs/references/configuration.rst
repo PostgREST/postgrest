@@ -1,7 +1,7 @@
 .. _configuration:
 
 Configuration
-=============
+#############
 
 Without configuration, PostgREST won't be able to serve requests. At the minimum it needs either :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`. Config parameters can be provided via :ref:`file_config`, via :ref:`env_variables_config` or through :ref:`in_db_config`.
 
@@ -16,7 +16,7 @@ Config parameters are read in the following order:
 .. _file_config:
 
 Config File
------------
+===========
 
 PostgREST can read a config file. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
 
@@ -55,14 +55,14 @@ You can run ``postgrest --example`` to display all possible configuration parame
 .. _env_variables_config:
 
 Environment Variables
----------------------
+=====================
 
 You can also set these :ref:`configuration parameters <config_full_list>` using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
 
 .. _in_db_config:
 
 In-Database Configuration
--------------------------
+=========================
 
 By adding settings to the **authenticator** role (see :ref:`roles`), you can make the database the single source of truth for PostgREST's configuration.
 This is enabled by :ref:`db-config`.

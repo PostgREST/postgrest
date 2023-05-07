@@ -95,18 +95,10 @@ The project has a friendly and growing community. Join our `chat room <https://g
 .. toctree::
    :glob:
    :caption: Release Notes
-   :titlesonly:
-   :hidden:
+   :reversed:
+   :maxdepth: 1
 
-   v10.2.0 <releases/v10.2.0>
-   v10.0.0 <releases/v10.0.0>
-   v9.0.1 <releases/v9.0.1>
-   v9.0.0 <releases/v9.0.0>
-   releases/v8.0.0
-   releases/v7.0.1
-   releases/v7.0.0
-   releases/v6.0.2
-   releases/v5.2.0
+   releases/*
 
 Tutorials
 ---------
@@ -116,14 +108,11 @@ Are you new to PostgREST? This is the place to start!
 .. toctree::
    :glob:
    :caption: Tutorials
-   :hidden:
+   :maxdepth: 1
 
    tutorials/*
 
-- :doc:`tutorials/tut0`
-- :doc:`tutorials/tut1`
-
-Also have a look at :doc:`Installation <install>` and :ref:`community_tutorials`.
+Also have a look at :ref:`install` and :ref:`community_tutorials`.
 
 References
 ----------
@@ -131,54 +120,12 @@ References
 Technical references for PostgREST's functionality.
 
 .. toctree::
-   :caption: Authentication
-   :hidden:
+   :glob:
+   :caption: References
+   :name: references
+   :maxdepth: 1
 
-   auth.rst
-
-.. toctree::
-   :caption: API
-   :hidden:
-
-   api.rst
-
-.. toctree::
-   :caption: Transactions
-   :hidden:
-
-   transactions.rst
-
-.. toctree::
-   :caption: Connection Pool
-   :hidden:
-
-   connection_pool.rst
-
-.. toctree::
-   :caption: Configuration
-   :hidden:
-
-   configuration.rst
-
-.. toctree::
-   :caption: Schema Cache
-   :hidden:
-
-   schema_cache.rst
-
-.. toctree::
-   :caption: Errors
-   :hidden:
-
-   errors.rst
-
-- :doc:`Authentication <auth>`
-- :doc:`API <api>`
-- :doc:`Transactions <transactions>`
-- :doc:`Connection pool <connection_pool>`
-- :doc:`configuration`
-- :doc:`Schema Cache <schema_cache>`
-- :doc:`Errors <errors>`
+   references/*
 
 Explanations
 ------------
@@ -186,50 +133,25 @@ Explanations
 Key concepts in PostgREST.
 
 .. toctree::
-   :caption: Database Authorization
-   :hidden:
+   :glob:
+   :caption: Explanations
+   :name: explanations
+   :maxdepth: 1
 
-   db_authz.rst
+   explanations/*
 
-.. toctree::
-   :caption: Administration
-   :hidden:
-
-   admin.rst
-
-.. toctree::
-   :caption: Installation
-   :hidden:
-
-   install.rst
-
-- :doc:`Database Authorization <db_authz>`
-- :doc:`Administration <admin>`
-- :doc:`Installation <install>`
-
-.. _how_tos:
-
-How-to guides
--------------
+How-tos
+-------
 
 Recipes that'll help you address specific use-cases.
 
 .. toctree::
    :glob:
    :caption: How-to guides
-   :hidden:
+   :name: how-tos
+   :maxdepth: 1
 
-   how-tos/sql-user-management
-   how-tos/working-with-postgresql-data-types
-   how-tos/sql-user-management-using-postgres-users-and-passwords
-   how-tos/providing-images-for-img
-   how-tos/create-soap-endpoint
-
-- :doc:`how-tos/sql-user-management`
-- :doc:`how-tos/working-with-postgresql-data-types`
-- :doc:`how-tos/sql-user-management-using-postgres-users-and-passwords`
-- :doc:`how-tos/providing-images-for-img`
-- :doc:`how-tos/create-soap-endpoint`
+   how-tos/*
 
 Ecosystem
 ---------
@@ -238,27 +160,10 @@ PostgREST has a growing ecosystem of examples, libraries, and experiments. Here 
 
 .. toctree::
    :caption: Ecosystem
-   :hidden:
+   :name: ecosystem
+   :maxdepth: 1
 
    ecosystem.rst
-
-* :ref:`external_jwt`
-* :ref:`community_tutorials`
-* :ref:`templates`
-* :ref:`eco_example_apps`
-* :ref:`devops`
-* :ref:`eco_external_notification`
-* :ref:`eco_extensions`
-* :ref:`clientside_libraries`
-
-
-Release Notes
--------------
-
-Changes among versions.
-
-- :doc:`releases/v9.0.0`
-- :doc:`releases/v8.0.0`
 
 In Production
 -------------

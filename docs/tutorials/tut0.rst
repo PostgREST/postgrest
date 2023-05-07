@@ -165,7 +165,7 @@ PostgREST can use a configuration file to tell it how to connect to the database
   db-schemas = "api"
   db-anon-role = "web_anon"
 
-The configuration file has other :doc:`options <../configuration>`, but this is all we need. 
+The configuration file has other :ref:`options <configuration>`, but this is all we need.
 If you are not using Docker, make sure that your port number is correct and replace `postgres` with the name of the database where you added the todos table.
 
 Now run the server:

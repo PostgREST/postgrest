@@ -1,12 +1,12 @@
 .. _error_source:
 
-Error Format
-============
+Errors
+######
 
 PostgREST error messages follow the PostgreSQL error structure. It includes ``MESSAGE``, ``DETAIL``, ``HINT``, ``ERRCODE`` and will add an HTTP status code to the response.
 
 Errors from PostgreSQL
-----------------------
+======================
 
 PostgREST will forward errors coming from PostgreSQL. For instance, when querying a nonexistent table:
 
@@ -31,7 +31,7 @@ PostgREST will forward errors coming from PostgreSQL. For instance, when queryin
 .. _status_codes:
 
 HTTP Status Codes
-=================
+-----------------
 
 PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_ into HTTP status as follows:
 
@@ -97,7 +97,7 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 
 Errors from PostgREST
----------------------
+=====================
 
 Errors that come from PostgREST itself maintain the same structure. But differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
 
@@ -123,7 +123,7 @@ Errors that come from PostgREST itself maintain the same structure. But differ i
 .. _pgrst_errors:
 
 PostgREST Error Codes
-=====================
+---------------------
 
 PostgREST error codes have the form ``PGRSTgxx``
 
@@ -134,7 +134,7 @@ PostgREST error codes have the form ``PGRSTgxx``
 .. _pgrst0**:
 
 Group 0 - Connection
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 Related to the connection with the database.
 
@@ -161,7 +161,7 @@ Related to the connection with the database.
 .. _pgrst1**:
 
 Group 1 - Api Request
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 Related to the HTTP request elements.
 
@@ -252,7 +252,7 @@ Related to the HTTP request elements.
 .. _pgrst2**:
 
 Group 2 - Schema Cache
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these errors are solved by :ref:`reloading the schema cache <schema_reloading>`.
 
@@ -285,7 +285,7 @@ Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these e
 .. _pgrst3**:
 
 Group 3 - JWT
--------------
+~~~~~~~~~~~~~
 
 Related to the authentication process using JWT. You can follow the :ref:`tut1` for an example on how to implement authentication and the :doc:`Authentication page <auth>` for more information on this process.
 
@@ -310,7 +310,7 @@ Related to the authentication process using JWT. You can follow the :ref:`tut1` 
 .. _pgrst_X**:
 
 Group X - Internal
-------------------
+~~~~~~~~~~~~~~~~~~
 
 Internal errors. If you encounter any of these, you may have stumbled on a PostgREST bug, please `open an issue <https://github.com/PostgREST/postgrest/issues>`_ and we'll be glad to fix it.
 

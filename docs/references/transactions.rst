@@ -1,6 +1,5 @@
-.. raw:: html
-
-  <h1>Transactions</h1>
+Transactions
+============
 
 After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` runs inside a transaction. The sequence of the transaction is as follows:
 
@@ -14,7 +13,7 @@ After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` r
 .. _access_mode:
 
 Access Mode
-===========
+-----------
 
 The access mode on :ref:`tables_views` is determined by the HTTP method.
 
@@ -59,14 +58,14 @@ Modifying the database inside READ ONLY transactions is not possible. PostgREST 
 The :ref:`options_requests` method doesn't start a transaction, so it's not relevant here.
 
 Isolation Level
-===============
+---------------
 
 Every transaction uses the PostgreSQL default isolation level: READ COMMITTED.
 
 .. _tx_settings:
 
 Transaction-Scoped Settings
-===========================
+---------------------------
 
 PostgREST uses settings tied to the transaction lifetime. These can be used to get data about the HTTP request. Or to modify the HTTP response.
 
@@ -87,7 +86,7 @@ And you can set them with ``set_config``
     set_config('response.<setting>', 'value1' ,true);
 
 Request Role and Search Path
------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Because of :ref:`user_impersonation`, PostgREST sets the standard ``role``. You can get this in different ways:
 
@@ -105,7 +104,7 @@ Additionally it also sets the ``search_path`` based on :ref:`db-schemas` and :re
 .. _guc_req_headers_cookies_claims:
 
 Request Headers, Cookies and JWT claims
----------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PostgREST stores the headers, cookies and headers as JSON. To get them:
 
@@ -130,7 +129,7 @@ PostgREST stores the headers, cookies and headers as JSON. To get them:
 .. _guc_req_path_method:
 
 Request Path and Method
------------------------
+~~~~~~~~~~~~~~~~~~~~~~~
 
 The path and method are stored as ``text``.
 
@@ -143,7 +142,7 @@ The path and method are stored as ``text``.
 .. _guc_resp_hdrs:
 
 Response Headers
-----------------
+~~~~~~~~~~~~~~~~
 
 You can set ``response.headers`` to add headers to the HTTP response. For instance, this statement would add caching headers to the response:
 
@@ -169,7 +168,7 @@ Notice that the ``response.headers`` should be set to an *array* of single-key o
 .. _guc_resp_status:
 
 Response Status Code
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 You can set the ``response.status`` to override the default status code PostgREST provides. For instance, the following function would replace the default ``200`` status code.
 
@@ -207,24 +206,24 @@ If the status code is standard, PostgREST will complete the status message(**I'm
 .. _main_query:
 
 Main query
-==========
+----------
 
 The main query is produced by requesting the :doc:`API resources <api>`.
 
 Transaction End
-===============
+---------------
 
 If the transaction doesn't fail, it will always end in a COMMIT. Unless :ref:`db-tx-end` is configured to ROLLBACK in any case or conditionally with ``Prefer: tx=rollback``. This can be used for testing purposes.
 
 Aborting transactions
-=====================
+---------------------
 
 Any database failure(like a failed constraint) will result in a rollback of the transaction. You can also do a RAISE inside a function to cause a rollback.
 
 .. _raise_error:
 
 Raise errors with HTTP Status Codes
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
 
@@ -279,7 +278,7 @@ Returns:
 .. _pre-request:
 
 Pre-Request
-===========
+-----------
 
 The pre-request is a function that can run after the :ref:`tx_settings` are set and before the :ref:`main_query`. It's enabled with :ref:`db-pre-request`.
 
@@ -288,7 +287,7 @@ This provides an opportunity to modify settings or raise an exception to prevent
 .. _pre_req_headers:
 
 Setting headers via pre-request
--------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
 

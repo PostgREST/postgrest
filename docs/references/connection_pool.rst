@@ -1,5 +1,5 @@
 Connection Pool
----------------
+===============
 
 Every request to an :doc:`API resource <api>` borrows a connection from the connection pool to start a :doc:`transaction <transactions>`.
 

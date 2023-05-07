@@ -1,6 +1,6 @@
 
-PostgREST 10.0.0
-================
+10.0.0
+======
 
 Features
 --------
@@ -73,9 +73,9 @@ Documentation improvements
 
 * Added the :ref:`file_descriptors` subsection.
 
-* Added a reference page for :doc:`Error documentation </errors>`.
+* Added a reference page for :ref:`error_source`.
 
-* Moved the :ref:`error_source` and the :ref:`status_codes` sections to the :doc:`errors reference page </errors>`.
+* Moved the :ref:`error_source` and the :ref:`status_codes` sections to the :ref:`errors reference page <error_source>`.
 
 * Moved the *Casting type to custom JSON* how-to to the :ref:`casting_range_to_json` subsection.
 

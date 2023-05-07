@@ -1,6 +1,7 @@
-.. raw:: html
+.. _db_authz:
 
-  <h1>Database Authorization</h1>
+Database Authorization
+######################
 
 Database authorization is the process of granting and verifying database access permissions. PostgreSQL manages permissions using the concept of roles.
 
@@ -101,7 +102,7 @@ A PostgREST instance exposes all the tables, views, and stored procedures of the
 It is recommended that you don't expose tables on the schemas you expose, instead expose views and stored procedures which insulate the internal details from the outside world.
 This allows you to change the internals of your schema and maintain backwards compatibility. It also keeps your code easier to refactor, and provides a natural way to do API versioning.
 
-.. image:: _static/db.png
+.. image:: ../_static/db.png
 
 You must explicitly allow roles to access the exposed schemas:
 

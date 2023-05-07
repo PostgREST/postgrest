@@ -1,8 +1,7 @@
-.. raw:: html
+Authentication
+==============
 
-  <h1>Authentication</h1>
-
-PostgREST is designed to keep the database at the center of API security. All :doc:`authorization happens in the database <db_authz>` . It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
+PostgREST is designed to keep the database at the center of API security. All :ref:`authorization happens in the database <db_authz>` . It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
 
 .. _roles:
 
@@ -11,7 +10,7 @@ Overview of role system
 
 There are three types of roles used by PostgREST, the **authenticator**, **anonymous** and **user** roles. The database administrator creates these roles and configures PostgREST to use them.
 
-.. image:: _static/security-roles.png
+.. image:: ../_static/security-roles.png
 
 The authenticator role is used for connecting to the database and should be configured to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests.
 
@@ -32,7 +31,7 @@ User Impersonation
 
 The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role (if it's set in :ref:`db-anon-role`).
 
-.. image:: _static/security-anon-choice.png
+.. image:: ../_static/security-anon-choice.png
 
 This role switching mechanism is called **user impersonation**. In PostgreSQL it's done with the ``SET ROLE`` statement.
 

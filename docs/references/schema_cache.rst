@@ -1,8 +1,7 @@
 .. _schema_cache:
 
-.. raw:: html
-
-  <h1>Schema Cache</h1>
+Schema Cache
+============
 
 Some PostgREST features need metadata from the database schema. Getting this metadata requires expensive queries. To avoid repeating this work, PostgREST uses a schema cache.
 

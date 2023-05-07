@@ -1,3 +1,8 @@
+.. _api:
+
+API
+###
+
 .. role:: sql(code)
    :language: sql
 
@@ -873,7 +878,7 @@ In addition to providing RESTful routes for each table and view, PostgREST allow
 API call. This reduces the need for multiple API requests. The server uses **foreign keys** to determine which tables and views can be
 returned together. For example, consider a database of films and their awards:
 
-.. image:: _static/film.png
+.. image:: ../_static/film.png
 
 .. important::
 
@@ -1552,7 +1557,7 @@ Target Disambiguation
 
 For example, suppose you have the following ``orders`` and ``addresses`` tables:
 
-.. image:: _static/orders.png
+.. image:: ../_static/orders.png
 
 And you try to embed ``orders`` with ``addresses`` (this is the **target**):
 

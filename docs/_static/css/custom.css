@@ -65,3 +65,23 @@ div.line-block {
 .wy-table-responsive {
     overflow: visible !important;
 }
+
+#tutorials span.caption-text {
+    display: none;
+}
+
+#references span.caption-text {
+    display: none;
+}
+
+#explanations span.caption-text {
+    display: none;
+}
+
+#how-tos span.caption-text {
+    display: none;
+}
+
+#ecosystem span.caption-text {
+    display: none;
+}
