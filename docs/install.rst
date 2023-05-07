@@ -289,7 +289,7 @@ Deploying to Heroku
     # wait until the add-on is available
     heroku pg:wait -a ${YOUR_APP_NAME}
 
-4.  Create the necessary user roles according to the 
+4.  Create the necessary user roles according to the
     `PostgREST documentation <https://postgrest.org/en/stable/auth.html>`_:
 
   .. code-block:: bash
@@ -330,7 +330,7 @@ Deploying to Heroku
 
     web: PGRST_SERVER_HOST=0.0.0.0 PGRST_SERVER_PORT=${PORT} PGRST_DB_URI=${PGRST_DB_URI:-${DATABASE_URL}} ./postgrest-${POSTGREST_VER}
   ..
-    
+
   Set the following environment variables on Heroku:
 
   .. code-block:: bash
@@ -340,7 +340,7 @@ Deploying to Heroku
     heroku config:set PGRST_DB_ANON_ROLE=api_user
   ..
 
-  PGRST_DB_URI can be set if an external database is used or if it's different from the default Heroku DATABASE_URL. This latter is used if nothing is provided.  
+  PGRST_DB_URI can be set if an external database is used or if it's different from the default Heroku DATABASE_URL. This latter is used if nothing is provided.
   POSTGREST_VER is mandatory to select and build the required PostgREST release.
 
   See https://postgrest.org/en/stable/configuration.html#environment-variables for the full list of environment variables.
@@ -368,9 +368,9 @@ Deploying to Heroku
   From a different terminal retrieve with curl the records previously created:
 
   .. code-block:: bash
- 
+
     curl https://${YOUR_APP_NAME}.herokuapp.com/todos
-  .. 
+  ..
 
   and test that any attempt to modify the table via a read-only user is not allowed:
 
@@ -378,4 +378,4 @@ Deploying to Heroku
 
     curl https://${YOUR_APP_NAME}.herokuapp.com/todos -X POST \
      -H "Content-Type: application/json" \
-     -d '{"task": "do bad thing"}'   
+     -d '{"task": "do bad thing"}'

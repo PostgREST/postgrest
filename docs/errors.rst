@@ -28,29 +28,6 @@ PostgREST will forward errors coming from PostgreSQL. For instance, when queryin
     "message": "relation \"api.nonexistent_table\" does not exist"
   }
 
-Errors from PostgREST
----------------------
-
-Errors that come from PostgREST itself maintain the same structure. But differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
-
-.. code-block:: http
-
-  POST /rpc/nonexistent_function HTTP/1.1
-
-.. code-block:: http
-
-  HTTP/1.1 404 Not Found
-  Content-Type: application/json; charset=utf-8
-
-.. code-block:: json
-
-  {
-    "hint": "...",
-    "details": null
-    "code": "PGRST202",
-    "message": "Could not find the api.nonexistent_function() function in the schema cache"
-  }
-
 .. _status_codes:
 
 HTTP Status Codes
@@ -118,6 +95,30 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 +--------------------------+-------------------------+---------------------------------+
 | other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
+
+Errors from PostgREST
+---------------------
+
+Errors that come from PostgREST itself maintain the same structure. But differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
+
+.. code-block:: http
+
+  POST /rpc/nonexistent_function HTTP/1.1
+
+.. code-block:: http
+
+  HTTP/1.1 404 Not Found
+  Content-Type: application/json; charset=utf-8
+
+.. code-block:: json
+
+  {
+    "hint": "...",
+    "details": null
+    "code": "PGRST202",
+    "message": "Could not find the api.nonexistent_function() function in the schema cache"
+  }
+
 
 .. _pgrst_errors:
 

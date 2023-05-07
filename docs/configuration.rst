@@ -330,7 +330,7 @@ db-pool
   **In-Database** `n/a`
   =============== =================
 
-  Number of connections to keep open in PostgREST's database pool. Having enough here for the maximum expected simultaneous client connections can improve performance. Note it's pointless to set this higher than the :code:`max_connections` GUC in your database.
+  Number of maximum connections to keep open in PostgREST's database pool.
 
 .. _db-pool-acquisition-timeout:
 
@@ -342,7 +342,7 @@ db-pool-acquisition-timeout
   **In-Database** `n/a`
   =============== =================
 
-  Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database. If it times out without acquiring a connection, then the request is aborted and a ``504`` error is returned.
+  Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database.
 
 .. _db-pool-max-lifetime:
 
@@ -354,7 +354,7 @@ db-pool-max-lifetime
   **In-Database** `n/a`
   =============== =================
 
-  Specifies the maximum time in seconds of an existing connection in the pool. When this lifetime is reached, then the connection will be closed and returned to the pool.
+  Specifies the maximum time in seconds of an existing connection in the pool.
 
 .. _db-pre-request:
 

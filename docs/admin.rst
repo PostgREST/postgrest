@@ -132,19 +132,6 @@ The burst argument tells Nginx to start dropping requests if more than five queu
 
 Nginx rate limiting is general and indiscriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
 
-.. _external_connection_poolers:
-
-Using External Connection Poolers
----------------------------------
-
-PostgREST manages its :ref:`own pool of connections <db-pool>` and uses prepared statements by default in order to increase performance. However, this setting is incompatible with external connection poolers such as PgBouncer working in transaction pooling mode. In this case, you need to set the :ref:`db-prepared-statements` config option to ``false``. On the other hand, session pooling is fully compatible with PostgREST, while statement pooling is not compatible at all.
-
-.. note::
-
-  If prepared statements are enabled, PostgREST will quit after detecting that transaction or statement pooling is being used.
-
-You should also set the :ref:`db-channel-enabled` config option to ``false``, due to the ``LISTEN`` command not being compatible with transaction pooling, although it should not give any errors if it's left enabled by default.
-
 Debugging
 =========
 
@@ -204,17 +191,6 @@ A great way to inspect incoming HTTP requests including headers and query parame
   sudo ngrep -d lo0 port 3000
 
 The options to ngrep vary depending on the address and host on which you've bound the server. The binding is described in the :ref:`configuration` section. The ngrep output isn't particularly pretty, but it's legible.
-
-.. _automatic_recovery:
-
-Automatic Connection Recovery
------------------------------
-
-When PostgREST loses the connection to the database, it retries the connection using capped exponential backoff, with 32 seconds being the maximum backoff time.
-
-This retry behavior is triggered immediately after the connection is lost if :ref:`db-channel-enabled` is set to true(the default), otherwise it will be activated once a request is made.
-
-To notify the client when the next reconnection attempt will be, PostgREST responds with ``503 Service Unavailable`` and the ``Retry-After: x`` header, where ``x`` is the number of seconds programmed for the next retry.
 
 Database Logs
 -------------
