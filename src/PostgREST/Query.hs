@@ -25,6 +25,7 @@ import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Encoders                    as HE
+import qualified Hasql.Session                     as SQL (queuePipelineStatement)
 import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
@@ -189,7 +190,7 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
     OADisabled ->
       pure Nothing
 
-writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
+writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
 writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferences=Preferences{..}} conf =
   let
     (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
@@ -234,11 +235,19 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
     shouldRollback =
       configDbTxAllowOverride && preferTransaction == Just Rollback
 
+usePipeline :: Bool
+usePipeline = True
+
+queuePipelineStatement :: params -> SQL.Statement params () -> SQL.Transaction ()
+queuePipelineStatement params stmt =
+  if usePipeline then SQL.inTransaction $ SQL.queuePipelineStatement params stmt
+                 else SQL.statement params stmt
+
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
                ApiRequest -> PgVersion -> DbHandler ()
 setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
-  SQL.statement mempty $ SQL.dynamicallyParameterized
+  queuePipelineStatement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
@@ -270,7 +279,7 @@ setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()
-runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
+runPreReq conf = lift $ traverse_ (queuePipelineStatement mempty . stmt) (configDbPreRequest conf)
   where
     stmt req = SQL.Statement
       ("select " <> fromQi req <> "()")
