@@ -153,6 +153,17 @@ Recipes that'll help you address specific use-cases.
 
    how-tos/*
 
+Integrations
+------------
+
+.. toctree::
+   :glob:
+   :caption: Integrations
+   :name: integrations
+   :maxdepth: 1
+
+   integrations/*
+
 Ecosystem
 ---------
 

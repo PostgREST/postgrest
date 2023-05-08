@@ -1,0 +1,147 @@
+Nginx
+=====
+
+PostgREST is a fast way to construct a RESTful API. Its default behavior is great for scaffolding in development. When it's time to go to production it works great too, as long as you take precautions.
+PostgREST is a small sharp tool that focuses on performing the API-to-database mapping. We rely on a reverse proxy like Nginx for additional safeguards.
+
+The first step is to create an Nginx configuration file that proxies requests to an underlying PostgREST server.
+
+.. code-block:: nginx
+
+  http {
+    # ...
+    # upstream configuration
+    upstream postgrest {
+      server localhost:3000;
+    }
+    # ...
+    server {
+      # ...
+      # expose to the outside world
+      location /api/ {
+        default_type  application/json;
+        proxy_hide_header Content-Location;
+        add_header Content-Location  /api/$upstream_http_content_location;
+        proxy_set_header  Connection "";
+        proxy_http_version 1.1;
+        proxy_pass http://postgrest/;
+      }
+      # ...
+    }
+  }
+
+.. note::
+
+  For ubuntu, if you already installed nginx through :code:`apt` you can add this to the config file in
+  :code:`/etc/nginx/sites-enabled/default`.
+
+.. _block_fulltable:
+
+Block Full-Table Operations
+---------------------------
+
+Each table in the admin-selected schema gets exposed as a top level route. Client requests are executed by certain database roles depending on their authentication. All HTTP verbs are supported that correspond to actions permitted to the role. For instance if the active role can drop rows of the table then the DELETE verb is allowed for clients. Here's an API request to delete old rows from a hypothetical logs table:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    DELETE /logs?time=lt.1991-08-06 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/logs?time=lt.1991-08-06" -X DELETE
+
+However it's very easy to delete the **entire table** by omitting the query parameter!
+
+.. tabs::
+
+  .. code-tab:: http
+
+    DELETE /logs HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/logs" -X DELETE
+
+This can happen accidentally such as by switching a request from a GET to a DELETE. To protect against accidental operations use the `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ PostgreSQL extension. It raises an error if UPDATE or DELETE are executed without specifying conditions. To install it you can use the `PGXN <https://pgxn.org/>`_ network:
+
+.. code-block:: bash
+
+  sudo -E pgxn install safeupdate
+
+  # then add this to postgresql.conf:
+  # shared_preload_libraries='safeupdate';
+
+This does not protect against malicious actions, since someone can add a url parameter that does not affect the result set. To prevent this you must turn to database permissions, forbidding the wrong people from deleting rows, and using `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ if finer access control is required.
+
+.. _https:
+
+HTTPS
+-----
+
+PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL database. To keep the code small and focused we do not implement HTTPS. Use a reverse proxy such as NGINX to add this, `here's how <https://nginx.org/en/docs/http/configuring_https_servers.html>`_. Note that some Platforms as a Service like Heroku also add SSL automatically in their load balancer.
+
+Rate Limiting
+-------------
+
+Nginx supports "leaky bucket" rate limiting (see `official docs <https://nginx.org/en/docs/http/ngx_http_limit_req_module.html>`_). Using standard Nginx configuration, routes can be grouped into *request zones* for rate limiting. For instance we can define a zone for login attempts:
+
+.. code-block:: nginx
+
+  limit_req_zone $binary_remote_addr zone=login:10m rate=1r/s;
+
+This creates a shared memory zone called "login" to store a log of IP addresses that access the rate limited urls. The space reserved, 10 MB (:code:`10m`) will give us enough space to store a history of 160k requests. We have chosen to allow only allow one request per second (:code:`1r/s`).
+
+Next we apply the zone to certain routes, like a hypothetical stored procedure called :code:`login`.
+
+.. code-block:: nginx
+
+  location /rpc/login/ {
+    # apply rate limiting
+    limit_req zone=login burst=5;
+  }
+
+The burst argument tells Nginx to start dropping requests if more than five queue up from a specific IP.
+
+Nginx rate limiting is general and indiscriminate. To rate limit each authenticated request individually you will need to add logic in a :ref:`Custom Validation <custom_validation>` function.
+
+Alternate URL Structure
+-----------------------
+
+As discussed in :ref:`singular_plural`, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like :code:`/people/1`. It would be specified instead as
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?id=eq.1 HTTP/1.1
+    Accept: application/vnd.pgrst.object+json
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?id=eq.1" \
+      -H "Accept: application/vnd.pgrst.object+json"
+
+This allows compound primary keys and makes the intent for singular response independent of a URL convention.
+
+Nginx rewrite rules allow you to simulate the familiar URL convention. The following example adds a rewrite rule for all table endpoints, but you'll want to restrict it to those tables that have a numeric simple primary key named "id."
+
+.. code-block:: nginx
+
+  # support /endpoint/:id url style
+  location ~ ^/([a-z_]+)/([0-9]+) {
+
+    # make the response singular
+    proxy_set_header Accept 'application/vnd.pgrst.object+json';
+
+    # assuming an upstream named "postgrest"
+    proxy_pass http://postgrest/$1?id=eq.$2;
+
+  }
+
+.. TODO
+.. Administration
+..   API Versioning
+..   HTTP Caching
+..   Upgrading
