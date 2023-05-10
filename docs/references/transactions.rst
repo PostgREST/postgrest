@@ -1,3 +1,5 @@
+.. _transactions:
+
 Transactions
 ============
 

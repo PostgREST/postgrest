@@ -158,7 +158,11 @@ Recipes that'll help you address specific use-cases.
    :name: how-tos
    :maxdepth: 1
 
+   how-tos/sql-user-*
+   how-tos/working-*
    how-tos/*
+
+.. _intgrs:
 
 Integrations
 ------------
