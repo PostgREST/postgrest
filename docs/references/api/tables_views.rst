@@ -82,6 +82,7 @@ in            :code:`IN`                one of a list of values, e.g. :code:`?a=
                                         – also supports commas in quoted strings like
                                         :code:`?a=in.("hi,there","yes,you")`
 is            :code:`IS`                checking for exact equality (null,true,false,unknown)
+isdistinct    :code:`IS DISTINCT FROM`  not equal, treating :code:`NULL` as a comparable value
 fts           :code:`@@`                :ref:`fts` using to_tsquery
 plfts         :code:`@@`                :ref:`fts` using plainto_tsquery
 phfts         :code:`@@`                :ref:`fts` using phraseto_tsquery
