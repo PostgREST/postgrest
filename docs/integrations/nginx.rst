@@ -35,15 +35,6 @@ The first step is to create an Nginx configuration file that proxies requests to
   For ubuntu, if you already installed nginx through :code:`apt` you can add this to the config file in
   :code:`/etc/nginx/sites-enabled/default`.
 
-.. code-block:: bash
-
-  sudo -E pgxn install safeupdate
-
-  # then add this to postgresql.conf:
-  # shared_preload_libraries='safeupdate';
-
-This does not protect against malicious actions, since someone can add a url parameter that does not affect the result set. To prevent this you must turn to database permissions, forbidding the wrong people from deleting rows, and using `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ if finer access control is required.
-
 .. _https:
 
 HTTPS
