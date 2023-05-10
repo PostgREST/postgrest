@@ -35,20 +35,29 @@ Also if you wish to generate a ``summary`` field you can do it by having a multi
     spans
     multiple lines$$;
 
+Similarly, you can override the API title by commenting the schema.
+
+.. code-block:: plpgsql
+
+  COMMENT ON SCHEMA api IS
+  $$FooBar API
+
+  A RESTful API that serves FooBar data.$$;
+
 If you need to include the ``security`` and ``securityDefinitions`` options, set the :ref:`openapi-security-active` configuration to ``true``.
 
 You can use a tool like `Swagger UI <https://swagger.io/tools/swagger-ui/>`_ to create beautiful documentation from the description and to host an interactive web-based dashboard. The dashboard allows developers to make requests against a live PostgREST server, and provides guidance with request headers and example request bodies.
 
 .. important::
 
-  The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
+  The OpenAPI information can go out of date as the schema changes under a running server. See :ref:`schema_reloading`.
 
 .. _override_openapi:
 
-Overriding OpenAPI response
----------------------------
+Overriding Full OpenAPI Response
+--------------------------------
 
-You can override the default response with a function result. To do this, set the function on :ref:`db-root-spec`.
+You can override the whole default response with a function result. To do this, set the function on :ref:`db-root-spec`.
 
 .. code:: bash
 

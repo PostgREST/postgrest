@@ -12,6 +12,7 @@ Horizontal Filtering
 OpenAPI
 ~~~~~~~
 
+- Allow :ref:`overriding the OpenAPI title <open-api>`.
 - Allow :ref:`override_openapi`.
 
 Admin
