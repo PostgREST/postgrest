@@ -89,6 +89,34 @@ When debugging a problem it's important to verify the PostgREST version. Look fo
 
   Server: postgrest/11.0.1
 
+.. _trace_header:
+
+Trace Header
+------------
+
+You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Specify the set header in the request, and the server will include it in the response.
+
+.. code:: bash
+
+  server-trace-header = "X-Request-Id"
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users
+    X-Request-Id: 123
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users" \
+      -H "X-Request-Id: 123"
+
+.. code::
+
+  HTTP/1.1 200 OK
+  X-Request-Id: 123
+
 .. _explain_plan:
 
 Execution plan

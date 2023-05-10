@@ -174,6 +174,7 @@ openapi-server-proxy-uri    String                    Y
 raw-media-types             String                    Y
 server-host                 String  !4
 server-port                 Int     3000
+server-trace-header         String                    Y
 server-unix-socket          String
 server-unix-socket-mode     String  660
 =========================== ======= ================= ==========
@@ -669,6 +670,18 @@ server-port
   =============== =================
 
   The TCP port to bind the web server.
+
+.. _server-trace-header:
+
+server-trace-header
+-------------------
+
+  =============== =================
+  **Environment** PGRST_SERVER_TRACE_HEADER
+  **In-Database** `pgrst.server_trace_header`
+  =============== =================
+
+  The header name used to trace HTTP requests. See :ref:`trace_header`.
 
 .. _server-unix-socket:
 
