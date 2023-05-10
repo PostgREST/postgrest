@@ -43,3 +43,53 @@ You can use a tool like `Swagger UI <https://swagger.io/tools/swagger-ui/>`_ to 
 
   The OpenAPI information can go out of date as the schema changes under a running server. To learn how to refresh the cache see :ref:`schema_reloading`.
 
+.. _override_openapi:
+
+Overriding OpenAPI response
+---------------------------
+
+You can override the default response with a function result. To do this, set the function on :ref:`db-root-spec`.
+
+.. code:: bash
+
+   db-root-spec = "root"
+
+.. code:: postgres
+
+  create or replace function root() returns json as $_$
+  declare
+  openapi json = $$
+    {
+      "swagger": "2.0",
+      "info":{
+        "title":"Overridden",
+        "description":"This is a my own API"
+      }
+    }
+  $$;
+  begin
+    return openapi;
+  end
+  $_$ language plpgsql;
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET / HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl http://localhost:3000
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+
+  {
+    "swagger": "2.0",
+    "info":{
+      "title":"Overridden",
+      "description":"This is a my own API"
+    }
+  }

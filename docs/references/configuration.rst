@@ -387,6 +387,18 @@ db-prepared-statements
 
   You should only set this to ``false`` when using PostgresSQL behind an external connection pooler such as PgBouncer working in transaction pooling mode. See :ref:`this section <external_connection_poolers>` for more information.
 
+.. _db-root-spec:
+
+db-root-spec
+------------
+
+  =============== =================
+  **Environment** PGRST_DB_ROOT_SPEC
+  **In-Database** pgrst.db_root_spec
+  =============== =================
+
+  Function to override the OpenAPI response. See :ref:`override_openapi`.
+
 .. _db-schemas:
 
 db-schemas
