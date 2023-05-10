@@ -13,11 +13,16 @@ Documentation improvements
 - Split :ref:`authn` into :ref:`db_authz` and :ref:`sql_user_management`.
 - Split :ref:`admin` into :ref:`intgrs` and :ref:`nginx`.
 
+Bug fixes
+---------
+
 Breaking changes
 ----------------
 
-Bug fixes
----------
+- Removed Bulk Call with ``Prefer: params=multiple-objects`` on Stored Procedures.
+- To comply with `RFC 9110 <https://www.rfc-editor.org/rfc/rfc9110.html#name-range>`_, the Range header is now only considered on GET.
+  + Other methods will ignore it and instead should use the ``limit/offset``.
+  + PUT requests no longer return an error when this header is present (using limit/offset still triggers the error)
 
 Thanks
 ------
