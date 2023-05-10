@@ -398,30 +398,7 @@ db-schemas
   **In-Database** pgrst.db_schemas
   =============== =================
 
-  The database schema to expose to REST clients. Tables, views and stored procedures in this schema will get API endpoints.
-
-  .. code:: bash
-
-     db-schemas = "api"
-
-  This schema gets added to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
-
-List of schemas
-~~~~~~~~~~~~~~~
-
-  You can also specify a list of schemas that can be used for **schema-based multitenancy** and **api versioning** by :ref:`multiple-schemas`. Example:
-
-  .. code:: bash
-
-     db-schemas = "tenant1, tenant2"
-
-  If you don't :ref:`Switch Schemas <multiple-schemas>`, the first schema in the list(``tenant1`` in this case) is chosen as the default schema.
-
-  *Only the chosen schema* gets added to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request.
-
-  .. warning::
-
-     Never expose private schemas in this way. See :ref:`schema_isolation`.
+  The list of database schemas to expose to clients. See :ref:`schemas`.
 
 .. _db-tx-end:
 

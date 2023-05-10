@@ -89,6 +89,85 @@ When debugging a problem it's important to verify the PostgREST version. Look fo
 
   Server: postgrest/11.0.1
 
+.. _explain_plan:
+
+Execution plan
+--------------
+
+You can get the `EXPLAIN execution plan <https://www.postgresql.org/docs/current/sql-explain.html>`_ of a request by adding the ``Accept: application/vnd.pgrst.plan`` header.
+This is enabled by :ref:`db-plan-enabled` (false by default).
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users?select=name&order=id HTTP/1.1
+    Accept: application/vnd.pgrst.plan
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users?select=name&order=id" \
+      -H "Accept: application/vnd.pgrst.plan"
+
+.. code-block:: psql
+
+  Aggregate  (cost=73.65..73.68 rows=1 width=112)
+    ->  Index Scan using users_pkey on users  (cost=0.15..60.90 rows=850 width=36)
+
+The output of the plan is generated in ``text`` format by default but you can change it to JSON by using the ``+json`` suffix.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users?select=name&order=id HTTP/1.1
+    Accept: application/vnd.pgrst.plan+json
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users?select=name&order=id" \
+      -H "Accept: application/vnd.pgrst.plan+json"
+
+.. code-block:: json
+
+  [
+    {
+      "Plan": {
+        "Node Type": "Aggregate",
+        "Strategy": "Plain",
+        "Partial Mode": "Simple",
+        "Parallel Aware": false,
+        "Async Capable": false,
+        "Startup Cost": 73.65,
+        "Total Cost": 73.68,
+        "Plan Rows": 1,
+        "Plan Width": 112,
+        "Plans": [
+          {
+            "Node Type": "Index Scan",
+            "Parent Relationship": "Outer",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Scan Direction": "Forward",
+            "Index Name": "users_pkey",
+            "Relation Name": "users",
+            "Alias": "users",
+            "Startup Cost": 0.15,
+            "Total Cost": 60.90,
+            "Plan Rows": 850,
+            "Plan Width": 36
+          }
+        ]
+      }
+    }
+  ]
+
+By default the plan is assumed to generate the JSON representation of a resource(``application/json``), but you can obtain the plan for the :ref:`different representations that PostgREST supports <res_format>` by adding them to the ``for`` parameter. For instance, to obtain the plan for a ``text/xml``, you would use ``Accept: application/vnd.pgrst.plan; for="text/xml``.
+
+The other available parameters are ``analyze``, ``verbose``, ``settings``, ``buffers`` and ``wal``, which correspond to the `EXPLAIN command options <https://www.postgresql.org/docs/current/sql-explain.html>`_. To use the ``analyze`` and ``wal`` parameters for example, you would add them like ``Accept: application/vnd.pgrst.plan; options=analyze|wal``.
+
+Note that akin to the EXPLAIN command, the changes will be committed when using the ``analyze`` option. To avoid this, you can use the :ref:`db-tx-end` and the ``Prefer: tx=rollback`` header.
+
 .. _health_check:
 
 Health Check

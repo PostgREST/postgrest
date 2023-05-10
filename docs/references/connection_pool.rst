@@ -67,7 +67,7 @@ If the pool loses the connection to the database, it will retry reconnecting usi
 
 The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true(the default). Otherwise they'll happen once a request arrives.
 
-The server reloads the :ref:`schema_cache` when recoverying.
+The server reloads the :ref:`schema_cache` when recovering.
 
 To notify the client of the next retry, the server sends a ``503 Service Unavailable`` status with the ``Retry-After: x`` header. Where ``x`` is the number of seconds programmed for the next retry.
 

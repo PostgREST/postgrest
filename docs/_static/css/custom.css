@@ -89,3 +89,7 @@ div.line-block {
 #integrations span.caption-text {
     display: none;
 }
+
+#api span.caption-text {
+    display: none;
+}

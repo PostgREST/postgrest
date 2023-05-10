@@ -125,6 +125,13 @@ Technical references for PostgREST's functionality.
    :name: references
    :maxdepth: 1
 
+   references/auth.rst
+   references/api.rst
+   references/transactions.rst
+   references/connection_pool.rst
+   references/schema_cache.rst
+   references/errors.rst
+   references/configuration.rst
    references/*
 
 Explanations
