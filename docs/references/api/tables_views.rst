@@ -100,6 +100,8 @@ adj           :code:`-|-`               is adjacent to, e.g. :code:`?range=adj.(
 not           :code:`NOT`               negates another operator, see :ref:`logical_operators`
 or            :code:`OR`                logical :code:`OR`, see :ref:`logical_operators`
 and           :code:`AND`               logical :code:`AND`, see :ref:`logical_operators`
+all           :code:`ALL`               comparison matches all the values in the list, see :ref:`logical_operators`
+any           :code:`ANY`               comparison matches any value in the list, see :ref:`logical_operators`
 ============  ========================  ==================================================================================
 
 For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
@@ -155,6 +157,37 @@ You can also apply complex logic to the conditions:
   .. code-tab:: bash Curl
 
     curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
+
+.. _modifiers:
+
+Operator Modifiers
+~~~~~~~~~~~~~~~~~~
+
+You may further simplify the logic using the ``any/all`` modifiers of ``eq,like,ilike,gt,gte,lt,lte,match,imatch``.
+
+For instance, to avoid repeating the same column for ``or``, use ``any`` to get people with last names that start with O or P:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?last_name=like(any).{O*,P*} HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?last_name=like(any).{O*,P*}"
+
+In a similar way, you can use ``all`` to avoid repeating the same column for ``and``. To get the people with last names that start with O and end with n:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?last_name=like(all).{O*,*n} HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?last_name=like(all).{O*,*n}"
 
 .. _pattern_matching:
 

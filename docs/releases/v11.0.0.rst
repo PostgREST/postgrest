@@ -8,6 +8,7 @@ Horizontal Filtering
 ~~~~~~~~~~~~~~~~~~~~
 
 - New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
+- New ``and/all`` :ref:`modifiers`.
 
 OpenAPI
 ~~~~~~~
