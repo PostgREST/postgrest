@@ -983,3 +983,41 @@ Hints also work alongside ``!inner`` if a top level filtering is needed. From th
 
   If the relationship is so complex that hint disambiguation does not solve it, you can use :ref:`computed_relationships`.
 
+.. _recursive_m2m_disamb:
+
+Recursive Many-To-Many Disambiguation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use hints plus the :ref:`spread_embed` to disambiguate a recursive many-to-many relationship. Having the following:
+
+.. image:: ../../_static/users.png
+
+Note that ``subscriptions`` has more than one foreign key to ``users``.
+
+To get all the subscribers of a user:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users?select=username,subscribers:subscriptions!subscribed_id(...users!subscriber_id(username))&id=eq.4 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users?select=username,subscribers:subscriptions!subscribed_id(...users!subscriber_id(username))&id=eq.4"
+
+.. code-block:: json
+
+   [
+     {
+       "username": "the_top_artist",
+       "subscribers": [
+         { "username": "patrick109" },
+         { "username": "alicia_smith" }
+       ]
+     }
+   ]
+
+.. note::
+
+  We're working on a better interface for recursive relationships to reduce the request verbosity.
