@@ -4,11 +4,10 @@
 Features
 --------
 
-Horizontal Filtering
-~~~~~~~~~~~~~~~~~~~~
+Inserts
+~~~~~~~
 
-- New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
-- New ``and/all`` :ref:`modifiers`.
+- New :ref:`bulk_insert_default`.
 
 Resource Embedding
 ~~~~~~~~~~~~~~~~~~
@@ -17,6 +16,12 @@ Resource Embedding
 - New :ref:`spread_embed`.
 - New :ref:`null_embed`.
 - New :ref:`empty_embed`.
+
+Horizontal Filtering
+~~~~~~~~~~~~~~~~~~~~
+
+- New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
+- New ``and/all`` :ref:`modifiers`.
 
 OpenAPI
 ~~~~~~~
