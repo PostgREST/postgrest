@@ -14,6 +14,7 @@ Resource Embedding
 ~~~~~~~~~~~~~~~~~~
 
 - New :ref:`empty_embed_filter`.
+- New :ref:`top_level_order`.
 
 OpenAPI
 ~~~~~~~

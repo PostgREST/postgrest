@@ -505,6 +505,25 @@ If you want to filter the films by actors but don't want to include them in the 
     }
   ]
 
+.. _top_level_order:
+
+Top-level Ordering
+------------------
+
+On :ref:`Many-to-One <many-to-one>` and :ref:`One-to-One <one-to-one>` relationships, you can use a column of the "to-one" end to sort the top-level.
+
+For example, to arrange the films in descending order using the director's last name.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,directors(last_name)&order=directors(last_name).desc HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
+
 .. _embedding_partitioned_tables:
 
 Embedding Partitioned Tables
