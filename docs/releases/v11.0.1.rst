@@ -1,5 +1,7 @@
-11.0.0
+11.0.1
 ======
+
+These release notes include the changes in versions `11.0.0 <https://github.com/PostgREST/postgrest/releases/tag/v11.0.0>`_ and `11.0.1 <https://github.com/PostgREST/postgrest/releases/tag/v11.0.1>`_. The detailed changelog and pre-compiled binaries are available on the `GitHub release pages <https://github.com/PostgREST/postgrest/releases>`_.
 
 Features
 --------
