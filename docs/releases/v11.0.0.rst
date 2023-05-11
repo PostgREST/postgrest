@@ -7,13 +7,19 @@ Features
 Transactions
 ~~~~~~~~~~~~
 
-- New :ref:`impersonated_settings`.
 - New configurable :ref:`isolation_lvl`.
+- New :ref:`impersonated_settings`.
 
 Inserts
 ~~~~~~~
 
 - New :ref:`bulk_insert_default`.
+
+Horizontal Filtering
+~~~~~~~~~~~~~~~~~~~~
+
+- New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
+- New ``and/all`` :ref:`modifiers`.
 
 Resource Embedding
 ~~~~~~~~~~~~~~~~~~
@@ -22,12 +28,6 @@ Resource Embedding
 - New :ref:`spread_embed`.
 - New :ref:`null_embed`.
 - New :ref:`empty_embed`.
-
-Horizontal Filtering
-~~~~~~~~~~~~~~~~~~~~
-
-- New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
-- New ``and/all`` :ref:`modifiers`.
 
 OpenAPI
 ~~~~~~~
@@ -47,10 +47,12 @@ Documentation improvements
 - New :ref:`connection_pool` reference.
 - Split :ref:`api` into other sub-references.
 - Split :ref:`authn` into :ref:`db_authz` and :ref:`sql_user_management`.
-- Split :ref:`admin` into :ref:`intgrs` and :ref:`nginx`.
+- Split :ref:`admin` into :ref:`intgrs`, :ref:`nginx` and :ref:`connection_pool`.
 
 Bug fixes
 ---------
+
+- Please check the "Fixed" section on https://github.com/PostgREST/postgrest/releases/tag/v11.0.0 and https://github.com/PostgREST/postgrest/releases/tag/v11.0.1.
 
 Breaking changes
 ----------------
