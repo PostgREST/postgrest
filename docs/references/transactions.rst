@@ -59,10 +59,29 @@ Modifying the database inside READ ONLY transactions is not possible. PostgREST 
 
 The :ref:`options_requests` method doesn't start a transaction, so it's not relevant here.
 
+.. _isolation_lvl:
+
 Isolation Level
 ---------------
 
-Every transaction uses the PostgreSQL default isolation level: READ COMMITTED.
+Every transaction uses the PostgreSQL default isolation level: READ COMMITTED. Unless you modify `default_transaction_isolation <https://www.postgresql.org/docs/15/runtime-config-client.html#GUC-DEFAULT-TRANSACTION-ISOLATION>`_  for an impersonated role or function.
+
+Using :ref:`impersonated_settings`, change the isolation level for all the role's requests with:
+
+.. code-block:: postgresql
+
+  ALTER ROLE webuser SET default_transaction_isolation TO 'repeatable read';
+
+Or to change the isolation level per function call.
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION myfunc()
+  RETURNS text as $$
+    SELECT 'hello';
+  $$
+  LANGUAGE SQL
+  SET default_transaction_isolation TO 'serializable';
 
 .. _tx_settings:
 
@@ -86,34 +105,6 @@ And you can set them with ``set_config``
   -- response settings use the ``response.`` prefix.
   SELECT
     set_config('response.<setting>', 'value1' ,true);
-
-Request Role and Search Path
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Because of :ref:`user_impersonation`, PostgREST sets the standard ``role``. You can get this in different ways:
-
-.. code-block:: postgresql
-
-  SELECT current_role;
-
-  SELECT current_user;
-
-  SELECT current_setting('role', true);
-
-Additionally it also sets the ``search_path`` based on :ref:`db-schemas` and :ref:`db-extra-search-path`.
-
-.. _impersonated_settings:
-
-Impersonated Role Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The :ref:`Impersonated Role <user_impersonation>` settings are applied. For example, if you do:
-
-.. code-block:: postgresql
-
-  ALTER ROLE webuser SET statement_timeout TO '5s';
-
-Every ``webuser`` request gets its queries executed with a ``statement_timeout`` of 5 seconds.
 
 .. _guc_req_headers_cookies_claims:
 
@@ -152,6 +143,34 @@ The path and method are stored as ``text``.
   SELECT current_setting('request.path', true);
 
   SELECT current_setting('request.method', true);
+
+Request Role and Search Path
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Because of :ref:`user_impersonation`, PostgREST sets the standard ``role``. You can get this in different ways:
+
+.. code-block:: postgresql
+
+  SELECT current_role;
+
+  SELECT current_user;
+
+  SELECT current_setting('role', true);
+
+Additionally it also sets the ``search_path`` based on :ref:`db-schemas` and :ref:`db-extra-search-path`.
+
+.. _impersonated_settings:
+
+Impersonated Role Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The :ref:`Impersonated Role <user_impersonation>` settings are applied. For example, if you do:
+
+.. code-block:: postgresql
+
+  ALTER ROLE webuser SET statement_timeout TO '5s';
+
+Every ``webuser`` request gets its queries executed with a ``statement_timeout`` of 5 seconds.
 
 .. _guc_resp_hdrs:
 

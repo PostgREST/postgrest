@@ -8,6 +8,7 @@ Transactions
 ~~~~~~~~~~~~
 
 - New :ref:`impersonated_settings`.
+- New configurable :ref:`isolation_lvl`.
 
 Inserts
 ~~~~~~~
