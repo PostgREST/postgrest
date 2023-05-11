@@ -418,8 +418,8 @@ The result will show the nested actors named Tom and order them by last name. Al
 
 .. _embedding_top_level_filter:
 
-Embedding with Top-level Filtering
-----------------------------------
+Top-level Filtering
+-------------------
 
 By default, :ref:`embed_filters` don't change the top-level resource(``films``) rows at all:
 
@@ -478,6 +478,30 @@ In order to filter the top level rows you need to add ``!inner`` to the embedded
           "last_name": "d'Alcy"
         }
       ]
+    }
+  ]
+
+.. _empty_embed_filter:
+
+Empty Embed Filter
+~~~~~~~~~~~~~~~~~~
+
+If you want to filter the films by actors but don't want to include them in the response, empty the embedded columns.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,actors!inner()&actors.first_name=eq.Jehanne HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,actors!inner()&actors.first_name=eq.Jehanne"
+
+.. code-block:: json
+  [
+    {
+      "title": "The Haunted Castle",
     }
   ]
 

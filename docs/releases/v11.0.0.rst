@@ -10,6 +10,11 @@ Horizontal Filtering
 - New ``isdistinct`` :ref:`operator <operators>`. It is a direct translation of `IS DINTINCT FROM <https://www.postgresql.org/docs/current/functions-comparison.html#FUNCTIONS-COMPARISON-PRED-TABLE>`_.
 - New ``and/all`` :ref:`modifiers`.
 
+Resource Embedding
+~~~~~~~~~~~~~~~~~~
+
+- New :ref:`empty_embed_filter`.
+
 OpenAPI
 ~~~~~~~
 
@@ -38,6 +43,7 @@ Breaking changes
 
 - Removed Bulk Call with ``Prefer: params=multiple-objects`` on Stored Procedures.
 - To comply with `RFC 9110 <https://www.rfc-editor.org/rfc/rfc9110.html#name-range>`_, the Range header is now only considered on GET.
+
   + Other methods will ignore it and instead should use the ``limit/offset``.
   + PUT requests no longer return an error when this header is present (using limit/offset still triggers the error)
 
