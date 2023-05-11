@@ -571,6 +571,65 @@ For example, to arrange the films in descending order using the director's last 
 
     curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
 
+.. _spread_embed:
+
+Spread embedded resource
+------------------------
+
+On many-to-one and one-to-one relationships, you can "spread" the embedded resource. That is, remove the surrounding JSON object for the embedded resource columns.
+
+.. tabs::
+
+  .. code-tab:: http
+
+     GET /films?select=title,...directors(director_last_name:last_name)&title=like.*Workers* HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+     curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
+
+.. code-block:: json
+
+   [
+     {
+       "title": "Workers Leaving The Lumière Factory In Lyon",
+       "director_last_name": "Lumière"
+     }
+   ]
+
+Note that there is no ``"directors"`` object. Also the embed columns can be aliased normally.
+
+You can use this to get the columns of a join table in a many-to-many relationship. For instance, to get films and its actors, but including the ``character`` column from the roles table:
+
+.. tabs::
+
+  .. code-tab:: http
+
+     GET /films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse* HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+     curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
+
+.. code-block:: json
+
+   [
+     {
+       "title": "The Lighthouse",
+       "actors": [
+          {
+            "character": "Thomas Wake",
+            "first_name": "Willem",
+            "last_name": "Dafoe"
+          }
+       ]
+     }
+   ]
+
+.. note::
+
+  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+
 .. _embedding_partitioned_tables:
 
 Embedding Partitioned Tables
