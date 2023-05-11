@@ -4,6 +4,11 @@
 Features
 --------
 
+Transactions
+~~~~~~~~~~~~
+
+- New :ref:`impersonated_settings`.
+
 Inserts
 ~~~~~~~
 
