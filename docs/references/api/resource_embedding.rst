@@ -481,24 +481,71 @@ In order to filter the top level rows you need to add ``!inner`` to the embedded
     }
   ]
 
-.. _empty_embed_filter:
+.. _null_embed:
 
-Empty Embed Filter
-~~~~~~~~~~~~~~~~~~
+Null filtering on Embedded Resources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If you want to filter the films by actors but don't want to include them in the response, empty the embedded columns.
+Null filtering on the embedded resources can behave the same as ``!inner``. While providing more flexibility.
+
+For example, doing ``actors=not.is.null`` returns the same result as ``actors!inner(*)``:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /films?select=title,actors!inner()&actors.first_name=eq.Jehanne HTTP/1.1
+    GET /films?select=title,actors(*)&actors=not.is.null HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/films?select=title,actors!inner()&actors.first_name=eq.Jehanne"
+    curl "http://localhost:3000/films?select=title,actors(*)&actors=not.is.null"
+
+The ``is.null`` filter can be used in embedded resources to perform an anti-join. To get all the films that do not have any nominations:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,nominations()&nominations=is.null HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
+
+
+Both ``is.null`` and ``not.is.null`` can be included inside the `or` operator. For instance, to get the films that have no actors **or** directors registered yet:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
+
+.. _empty_embed:
+
+Empty Embed
+~~~~~~~~~~~
+
+You can leave an embedded resource empty, this helps with filtering in some cases.
+
+To filter the films by actors but not include them:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null"
 
 .. code-block:: json
+
   [
     {
       "title": "The Haunted Castle",

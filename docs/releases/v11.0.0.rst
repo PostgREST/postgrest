@@ -13,8 +13,9 @@ Horizontal Filtering
 Resource Embedding
 ~~~~~~~~~~~~~~~~~~
 
-- New :ref:`empty_embed_filter`.
 - New :ref:`top_level_order`.
+- New :ref:`null_embed`.
+- New :ref:`empty_embed`.
 
 OpenAPI
 ~~~~~~~

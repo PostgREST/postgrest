@@ -104,7 +104,8 @@ You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Spec
 
   .. code-tab:: http
 
-    GET /users
+    GET /users HTTP/1.1
+
     X-Request-Id: 123
 
   .. code-tab:: bash Curl
