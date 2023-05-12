@@ -159,19 +159,6 @@ Because of :ref:`user_impersonation`, PostgREST sets the standard ``role``. You 
 
 Additionally it also sets the ``search_path`` based on :ref:`db-schemas` and :ref:`db-extra-search-path`.
 
-.. _impersonated_settings:
-
-Impersonated Role Settings
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The :ref:`Impersonated Role <user_impersonation>` settings are applied. For example, if you do:
-
-.. code-block:: postgresql
-
-  ALTER ROLE webuser SET statement_timeout TO '5s';
-
-Every ``webuser`` request gets its queries executed with a ``statement_timeout`` of 5 seconds.
-
 .. _guc_resp_hdrs:
 
 Response Headers

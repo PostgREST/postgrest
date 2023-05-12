@@ -188,3 +188,16 @@ doing custom logic based on the web user info.
     END IF;
   END
   $$ LANGUAGE plpgsql;
+
+.. _impersonated_settings:
+
+Impersonated Role Settings
+--------------------------
+
+The :ref:`Impersonated Role <user_impersonation>` settings are applied. For example, if you do:
+
+.. code-block:: postgresql
+
+  ALTER ROLE webuser SET statement_timeout TO '5s';
+
+Every ``webuser`` :ref:`transaction <transactions>` gets its queries executed with a ``statement_timeout`` of 5 seconds.
