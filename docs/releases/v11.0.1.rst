@@ -17,6 +17,11 @@ Inserts
 
 - New :ref:`bulk_insert_default`.
 
+Functions
+~~~~~~~~~
+
+- Filters on Table-Valued Functions are now guaranteed to be inlined. See :ref:`function_inlining`.
+
 Horizontal Filtering
 ~~~~~~~~~~~~~~~~~~~~
 

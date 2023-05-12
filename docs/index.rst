@@ -82,6 +82,11 @@ Leak-proof Abstraction
 
 There is no ORM involved. Creating new views happens in SQL with known performance implications. A database administrator can now create an API from scratch with no custom programming.
 
+Business Logic in Database Functions
+------------------------------------
+
+There is nothing "business" about keeping data segregated across piles of layers. Use database functions to process data and get the performance benefits of data colocality and reduced network roundtrips.
+
 One Thing Well
 --------------
 

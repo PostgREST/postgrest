@@ -340,6 +340,45 @@ A function that returns a table type can be filtered using the same filters as :
 
     curl "http://localhost:3000/rpc/best_films_2017?rating=gt.8&order=title.desc"
 
+.. _function_inlining:
+
+Function Inlining
+~~~~~~~~~~~~~~~~~
+
+A function that follows the `rules for inlining <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_ will also inline :ref:`filters <h_filter>`, :ref:`order <ordering>` and :ref:`limits <limits>`.
+
+For example, for the following function:
+
+.. code-block:: postgres
+
+  create function getallprojects() returns setof projects
+  language sql stable
+  as $$
+    select * from projects;
+  $$;
+
+Let's get its :ref:`explain_plan` when calling it with filters applied:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /rpc/getallprojects?id=eq.1 HTTP/1.1
+    Accept: application/vnd.pgrst.plan
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/getallprojects?id=eq.1" \
+      -H "Accept: application/vnd.pgrst.plan"
+
+.. code-block:: psql
+
+  Aggregate  (cost=8.18..8.20 rows=1 width=112)
+    ->  Index Scan using projects_pkey on projects  (cost=0.15..8.17 rows=1 width=40)
+          Index Cond: (id = 1)
+
+Notice there's no "Function Scan" node in the plan, which tells us it has been inlined.
+
 .. _scalar_functions:
 
 Scalar functions

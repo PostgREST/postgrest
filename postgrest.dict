@@ -19,6 +19,7 @@ Cardano
 cd
 centric
 changelog
+colocality
 ClojureScript
 cloudfared
 config
@@ -62,6 +63,8 @@ HTTP
 HTTPS
 HV
 Ibarluzea
+Inlining
+inlined
 Integrations
 ilike
 imatch
@@ -147,6 +150,7 @@ refactor
 Reloadable
 Remo
 requester's
+roundtrips
 RESTful
 RestSharp
 RLS
