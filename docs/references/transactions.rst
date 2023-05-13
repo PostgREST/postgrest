@@ -131,6 +131,13 @@ PostgREST stores the headers, cookies and headers as JSON. To get them:
 
   The ``role`` in ``request.jwt.claims`` defaults to the value of :ref:`db-anon-role`.
 
+.. _guc_legacy_names:
+
+Legacy settings
+^^^^^^^^^^^^^^^
+
+For PostgreSQL versions below 14, PostgREST will take into consideration the :ref:`db-use-legacy-gucs` config, which is set to true by default. This means that the interface for accessing these GUCs is `the same as in older versions <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_. You can opt in to use the JSON GUCs mentioned above by setting the ``db-use-legacy-gucs`` to false.
+
 .. _guc_req_path_method:
 
 Request Path and Method
