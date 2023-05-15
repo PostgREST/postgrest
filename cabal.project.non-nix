@@ -4,6 +4,9 @@
 
 packages: .
 
+-- pending release of hasql-notifications that allows hasql-pool-0.10
+allow-newer: hasql-notifications:hasql-pool
+
 -- Example of depending on a forked repository (the same dependency
 -- would be mentioned in nix/overlays/haskell-packages.nix and
 -- stack.yaml, and should refer to a main branch commit of the
