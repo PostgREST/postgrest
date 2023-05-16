@@ -155,7 +155,7 @@ exampleConfigFile =
       |# db-pool-max-lifetime = 1800
       |
       |## Time in seconds after which to recycle unused pool connections
-      |# db-pool-max-idletime = 600
+      |# db-pool-max-idletime = 30
       |
       |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"

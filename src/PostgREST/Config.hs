@@ -230,7 +230,7 @@ parser optPath env dbSettings roleSettings =
     <*> (fromMaybe 10 <$> optInt "db-pool")
     <*> (fromMaybe 10 <$> optInt "db-pool-acquisition-timeout")
     <*> (fromMaybe 1800 <$> optInt "db-pool-max-lifetime")
-    <*> (fromMaybe 600 <$> optInt "db-pool-max-idletime")
+    <*> (fromMaybe 30 <$> optInt "db-pool-max-idletime")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
