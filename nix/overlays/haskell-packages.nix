@@ -39,14 +39,14 @@ let
           })
           { });
 
-      hasql-notifications = lib.dontCheck (lib.doJailbreak
+      hasql-notifications = lib.dontCheck
         (prev.callHackageDirect
           {
             pkg = "hasql-notifications";
-            ver = "0.2.0.4";
-            sha256 = "sha256-fm1xiDyvDkb5WLOJ73/s8wrWEW23XFS7luAv2brfr8I=";
+            ver = "0.2.0.5";
+            sha256 = "sha256-KV36zs/RTgJh/oBBPZaNiQshusmakWnjYTcdoNa4JLA=";
           }
-          { }));
+          { });
 
       hasql-pool = lib.dontCheck
         (prev.callHackageDirect
