@@ -66,7 +66,7 @@ import qualified Feature.RpcPreRequestGucsSpec
 
 main :: IO ()
 main = do
-  pool <- P.acquire 3 10 60 $ toUtf8 $ configDbUri testCfg
+  pool <- P.acquire 3 10 60 60 $ toUtf8 $ configDbUri testCfg
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 

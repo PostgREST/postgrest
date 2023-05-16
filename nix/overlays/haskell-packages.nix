@@ -43,8 +43,8 @@ let
         (prev.callHackageDirect
           {
             pkg = "hasql-notifications";
-            ver = "0.2.0.4";
-            sha256 = "sha256-fm1xiDyvDkb5WLOJ73/s8wrWEW23XFS7luAv2brfr8I=";
+            ver = "0.2.0.5";
+            sha256 = "sha256-KV36zs/RTgJh/oBBPZaNiQshusmakWnjYTcdoNa4JLA=";
           }
           { });
 
@@ -52,8 +52,8 @@ let
         (prev.callHackageDirect
           {
             pkg = "hasql-pool";
-            ver = "0.9";
-            sha256 = "sha256-5UshbbaBVY8eJ/9VagNVVxonRwMcd7UmGqDc35pJNFY=";
+            ver = "0.10";
+            sha256 = "sha256-kHzoqtNV9BFWnn1h560JRqMooQRwxokVKgDRBexamNI=";
           }
           { });
     } // extraOverrides final prev;

@@ -115,6 +115,7 @@ initPool AppConfig{..} =
     configDbPoolSize
     (fromIntegral configDbPoolAcquisitionTimeout)
     (fromIntegral configDbPoolMaxLifetime)
+    (fromIntegral configDbPoolMaxIdletime)
     (toUtf8 configDbUri)
 
 -- | Run an action with a database connection.

@@ -16,19 +16,19 @@ packages:
     commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
     git: https://github.com/PostgREST/postgresql-libpq.git
 - completed:
-    hackage: hasql-notifications-0.2.0.4@sha256:9a09fa9b97feadd9492c8bd8bc6b9cffe0513510102f08374b0c45ecd479ed67,2028
+    hackage: hasql-notifications-0.2.0.5@sha256:6c67d2ee42e948162e89176a2f52a2c6bb562678b33688e96e048be9b3d74122,2028
     pantry-tree:
-      sha256: 56f9e240728e7a65711dde45fa2e2075b914e32cd370424aaa4572392378a60e
+      sha256: 8493755b0817a36b910a37d568769ca49ab715ef5dd935a0d09f0716aa39da51
       size: 452
   original:
-    hackage: hasql-notifications-0.2.0.4
+    hackage: hasql-notifications-0.2.0.5
 - completed:
-    hackage: hasql-pool-0.9@sha256:db7a37f6b3a922c37adc3c7ced47a7c10786d1f171e47a735a6e812a587ba44c,2111
+    hackage: hasql-pool-0.10@sha256:912197a328acb85505f98bb9700d61f366b87659ca45126c5c2d636687b801c3,2112
     pantry-tree:
-      sha256: 49b1181d28c6f5317e794671c2dae155754b834bdcfa30f7e5dbad28e4cf0249
+      sha256: b655c540a49764a8d16b62941137e295b936b96edc0785eb9250972f0f92dc47
       size: 346
   original:
-    hackage: hasql-pool-0.9
+    hackage: hasql-pool-0.10
 snapshots:
 - completed:
     sha256: 4905c93319aa94aa53da8f41d614d7bacdbfe6c63a8c6132d32e6e62f24a9af4

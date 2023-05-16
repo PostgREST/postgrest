@@ -74,6 +74,7 @@ data AppConfig = AppConfig
   , configDbPoolSize               :: Int
   , configDbPoolAcquisitionTimeout :: Int
   , configDbPoolMaxLifetime        :: Int
+  , configDbPoolMaxIdletime        :: Int
   , configDbPreRequest             :: Maybe QualifiedIdentifier
   , configDbPreparedStatements     :: Bool
   , configDbRootSpec               :: Maybe QualifiedIdentifier
@@ -137,6 +138,7 @@ toText conf =
       ,("db-pool",                       show . configDbPoolSize)
       ,("db-pool-acquisition-timeout",   show . configDbPoolAcquisitionTimeout)
       ,("db-pool-max-lifetime",          show . configDbPoolMaxLifetime)
+      ,("db-pool-max-idletime",          show . configDbPoolMaxIdletime)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
@@ -228,6 +230,7 @@ parser optPath env dbSettings roleSettings =
     <*> (fromMaybe 10 <$> optInt "db-pool")
     <*> (fromMaybe 10 <$> optInt "db-pool-acquisition-timeout")
     <*> (fromMaybe 1800 <$> optInt "db-pool-max-lifetime")
+    <*> (fromMaybe 30 <$> optInt "db-pool-max-idletime")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
@@ -366,7 +369,7 @@ parser optPath env dbSettings roleSettings =
           if dbSettingName `notElem` [
             "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
             "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_acquisition_timeout",
-            "db_pool_max_lifetime", "db_config"]
+            "db_pool_max_lifetime", "db_pool_max_idletime", "db_config"]
           then lookup dbSettingName dbSettings
           else Nothing
 
