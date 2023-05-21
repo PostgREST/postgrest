@@ -32,6 +32,7 @@ let
             "ARG_USE_ENV([PGDATABASE], [postgres], [PG database name])"
             "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
             "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"
+            "ARG_USE_ENV([PGOPTIONS], [-c search_path=public,test], [PG options to use])"
           ];
         positionalCompletion = "_command";
         inRootDir = true;
@@ -61,6 +62,7 @@ let
         export PGDATABASE
         export PGRST_DB_SCHEMAS
         export PGTZ
+        export PGOPTIONS
 
         HBA_FILE="$tmpdir/pg_hba.conf"
         echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
