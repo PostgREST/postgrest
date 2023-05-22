@@ -42,7 +42,7 @@ This role switching mechanism is called **user impersonation**. In PostgreSQL it
 JWT-Based User Impersonation
 ----------------------------
 
-We use `JSON Web Tokens <https://jwt.io/>`_ to authenticate API requests. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
+We use `JSON Web Tokens <https://jwt.io/>`_ to authenticate API requests, this allows us to be stateless and not require database lookups for verification. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
 
 .. code:: json
 
