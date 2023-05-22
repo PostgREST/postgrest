@@ -358,21 +358,14 @@ parser optPath env dbSettings roleSettings =
                                (C.Key -> C.Parser C.Value a -> C.Parser C.Config b) ->
                                C.Key -> (C.Value -> a) -> C.Parser C.Config b
     overrideFromDbOrEnvironment necessity key coercion =
-      case reloadableDbSetting <|> M.lookup envVarName env of
+      case dbConf <|> M.lookup envVarName env of
         Just dbOrEnvVal -> pure $ justIfMaybe $ coercion $ C.String dbOrEnvVal
-        Nothing  -> necessity key (coercion <$> C.value)
+        Nothing         -> necessity key (coercion <$> C.value)
       where
         dashToUnderscore '-' = '_'
         dashToUnderscore c   = c
         envVarName = "PGRST_" <> (toUpper . dashToUnderscore <$> toS key)
-        reloadableDbSetting =
-          let dbSettingName = T.pack $ dashToUnderscore <$> toS key in
-          if dbSettingName `notElem` [
-            "server_host", "server_port", "server_unix_socket", "server_unix_socket_mode", "admin_server_port", "log_level",
-            "db_uri", "db_channel_enabled", "db_channel", "db_pool", "db_pool_acquisition_timeout",
-            "db_pool_max_lifetime", "db_pool_max_idletime", "db_config"]
-          then lookup dbSettingName dbSettings
-          else Nothing
+        dbConf = lookup (T.pack $ dashToUnderscore <$> toS key) dbSettings
 
     coerceText :: C.Value -> Text
     coerceText (C.String s) = s

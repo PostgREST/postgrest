@@ -40,6 +40,9 @@ ALTER ROLE db_config_authenticator SET pgrst.db_channel_enabled = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_channel = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool_timeout = 'ignored';
+ALTER ROLE db_config_authenticator SET pgrst.db_pool_acquisition_timeout = 'ignored';
+ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_lifetime = 'ignored';
+ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_idletime = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_config = 'ignored';
 
 -- other authenticator reloadable config options

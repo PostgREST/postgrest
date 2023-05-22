@@ -21,11 +21,39 @@ import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 
-import Text.InterpolatedString.Perl6 (q)
+import Text.InterpolatedString.Perl6 (q, qc)
 
 import Protolude
 
 type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+
+prefix :: Text
+prefix = "pgrst."
+
+-- | Settings that can come from the database. Some like server-host are not included bc it would imply a restart.
+dbSettingsNames :: [Text]
+dbSettingsNames =
+  (prefix <>) <$>
+  ["db_anon_role"
+  ,"db_extra_search_path"
+  ,"db_max_rows"
+  ,"db_plan_enabled"
+  ,"db_pre_request"
+  ,"db_prepared_statements"
+  ,"db_root_spec"
+  ,"db_schemas"
+  ,"db_tx_end"
+  ,"db_use_legacy_gucs"
+  ,"jwt_aud"
+  ,"jwt_role_claim_key"
+  ,"jwt_secret"
+  ,"jwt_secret_is_base64"
+  ,"openapi_mode"
+  ,"openapi_security_active"
+  ,"openapi_server_proxy_uri"
+  ,"raw_media_types"
+  ,"server_trace_header"
+  ]
 
 queryPgVersion :: Bool -> Session PgVersion
 queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
@@ -39,33 +67,40 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
 queryDbSettings :: Bool -> Session [(Text, Text)]
 queryDbSettings prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ dbSettingsStatement prepared
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ dbSettingsStatement prepared
 
 -- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
-dbSettingsStatement :: Bool -> SQL.Statement () [(Text, Text)]
-dbSettingsStatement = SQL.Statement sql HE.noParams decodeSettings
+-- i.e. Doing:
+--  ALTER ROLE authenticator IN DATABASE postgres SET <prefix>jwt_aud = 'val';
+--  ALTER ROLE authenticator SET <prefix>jwt_aud = 'overridden';
+-- Will result in <prefix>jwt_aud = 'overridden'
+--
+-- A setting on the database only will have no effect
+--  ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
+dbSettingsStatement :: Bool -> SQL.Statement [Text] [(Text, Text)]
+dbSettingsStatement = SQL.Statement sql (arrayParam HE.text) decodeSettings
   where
-    sql = [q|
+    sql = [qc|
       WITH
-      role_setting (database, setting) AS (
-        SELECT setdatabase,
-               unnest(setconfig)
-          FROM pg_catalog.pg_db_role_setting
-         WHERE setrole = CURRENT_USER::regrole::oid
-           AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))
+      role_setting AS (
+        SELECT setdatabase as database,
+               unnest(setconfig) as setting
+        FROM pg_catalog.pg_db_role_setting
+        WHERE setrole = CURRENT_USER::regrole::oid
+          AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))
       ),
-      kv_settings (database, k, v) AS (
+      kv_settings AS (
         SELECT database,
-               substr(setting, 1, strpos(setting, '=') - 1),
-               substr(setting, strpos(setting, '=') + 1)
-          FROM role_setting
-         WHERE setting LIKE 'pgrst.%'
+               substr(setting, 1, strpos(setting, '=') - 1) as k,
+               substr(setting, strpos(setting, '=') + 1) as v
+        FROM role_setting
       )
       SELECT DISTINCT ON (key)
-             replace(k, 'pgrst.', '') AS key,
+             replace(k, '{prefix}', '') AS key,
              v AS value
-        FROM kv_settings
-       ORDER BY key, database DESC;
+      FROM kv_settings
+      WHERE k = ANY($1)
+      ORDER BY key, database DESC;
     |]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
@@ -111,3 +146,9 @@ compositeArrayColumn = arrayColumn . HD.composite
 
 arrayColumn :: HD.Value a -> HD.Row [a]
 arrayColumn = column . HD.listArray . HD.nonNullable
+
+param :: HE.Value a -> HE.Params a
+param = HE.param . HE.nonNullable
+
+arrayParam :: HE.Value a -> HE.Params [a]
+arrayParam = param . HE.foldableArray . HE.nonNullable
