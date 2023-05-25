@@ -25,13 +25,17 @@ import Hasql.Connection (acquire)
 import Network.Socket
 import Network.Socket.ByteString
 
-import PostgREST.AppState         (AppState)
-import PostgREST.Config           (AppConfig (..), readAppConfig)
-import PostgREST.Config.Database  (queryDbSettings, queryPgVersion,
-                                   queryRoleSettings)
-import PostgREST.Config.PgVersion (PgVersion (..), minimumPgVersion)
-import PostgREST.Error            (checkIsFatal)
-import PostgREST.SchemaCache      (querySchemaCache)
+import PostgREST.AppState                (AppState)
+import PostgREST.Config                  (AppConfig (..),
+                                          readAppConfig)
+import PostgREST.Config.Database         (queryDbSettings,
+                                          queryPgVersion,
+                                          queryRoleSettings)
+import PostgREST.Config.PgVersion        (PgVersion (..),
+                                          minimumPgVersion)
+import PostgREST.Error                   (checkIsFatal)
+import PostgREST.SchemaCache             (querySchemaCache)
+import PostgREST.SchemaCache.Identifiers (dumpQi)
 
 import qualified PostgREST.AppState as AppState
 
@@ -89,8 +93,8 @@ connectionWorker appState = do
           when configDbChannelEnabled $
             AppState.signalListener appState
           AppState.logWithZTime appState "Connection successful"
-          -- this could be fail because the connection drops, but the
-          -- loadSchemaCache will pick the error and retry again
+          -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
+          -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
           when configDbConfig $ reReadConfig False appState
           scStatus <- loadSchemaCache appState
           case scStatus of
@@ -237,7 +241,7 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- AppState.getConfig appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- AppState.usePool appState $ queryDbSettings configDbPreparedStatements
+      qDbSettings <- AppState.usePool appState $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           AppState.logWithZTime appState

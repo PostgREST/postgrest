@@ -11,6 +11,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + New option `db-pool-max-idletime` (default 30s).
    + This is equivalent to the old option `db-pool-timeout` of PostgREST 10.0.0.
    + A config alias for `db-pool-timeout` is included.
+ - #2703, Add pre-config function - @steve-chavez
+    + New config option `db-pre-config`(empty by default)
+    + Allows using the in-database configuration without SUPERUSER
 
 ## [11.0.1] - 2023-04-27
 

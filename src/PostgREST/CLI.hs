@@ -136,6 +136,9 @@ exampleConfigFile =
       |## Enable in-database configuration
       |db-config = true
       |
+      |## Function for in-database configuration
+      |## db-pre-config = "postgrest.pre_config"
+      |
       |## Extra schemas to add to the search_path of every request
       |db-extra-search-path = "public"
       |

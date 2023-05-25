@@ -90,6 +90,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbRootSpec            = Nothing
   , configDbSchemas             = fromList ["test"]
   , configDbConfig              = False
+  , configDbPreConfig           = Nothing
   , configDbUri                 = "postgresql://"
   , configDbUseLegacyGucs       = True
   , configFilePath              = Nothing

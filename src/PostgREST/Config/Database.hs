@@ -35,6 +35,7 @@ dbSettingsNames :: [Text]
 dbSettingsNames =
   (prefix <>) <$>
   ["db_anon_role"
+  ,"db_pre_config"
   ,"db_extra_search_path"
   ,"db_max_rows"
   ,"db_plan_enabled"
@@ -64,21 +65,21 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
 
-queryDbSettings :: Bool -> Session [(Text, Text)]
-queryDbSettings prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ dbSettingsStatement prepared
-
--- | Get db settings from the connection role. Global settings will be overridden by database specific settings.
--- i.e. Doing:
---  ALTER ROLE authenticator IN DATABASE postgres SET <prefix>jwt_aud = 'val';
---  ALTER ROLE authenticator SET <prefix>jwt_aud = 'overridden';
--- Will result in <prefix>jwt_aud = 'overridden'
+-- | Query the in-database configuration. The settings have the following priorities:
 --
--- A setting on the database only will have no effect
---  ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
-dbSettingsStatement :: Bool -> SQL.Statement [Text] [(Text, Text)]
-dbSettingsStatement = SQL.Statement sql (arrayParam HE.text) decodeSettings
+-- 1. Role + with database-specific settings:
+--    ALTER ROLE authenticator IN DATABASE postgres SET <prefix>jwt_aud = 'val';
+-- 2. Role + with settings:
+--    ALTER ROLE authenticator SET <prefix>jwt_aud = 'overridden';
+-- 3. pre-config function:
+--    CREATE FUNCTION pre_config() .. PERFORM set_config(<prefix>jwt_aud, 'pre_config_aud'..)
+--
+-- The example above will result in <prefix>jwt_aud = 'val'
+-- A setting on the database only will have no effect: ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
+queryDbSettings :: Maybe Text -> Bool -> Session [(Text, Text)]
+queryDbSettings preConfFunc prepared =
+  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings prepared
   where
     sql = [qc|
       WITH
@@ -94,14 +95,26 @@ dbSettingsStatement = SQL.Statement sql (arrayParam HE.text) decodeSettings
                substr(setting, 1, strpos(setting, '=') - 1) as k,
                substr(setting, strpos(setting, '=') + 1) as v
         FROM role_setting
+        {preConfigF}
       )
       SELECT DISTINCT ON (key)
              replace(k, '{prefix}', '') AS key,
              v AS value
       FROM kv_settings
-      WHERE k = ANY($1)
-      ORDER BY key, database DESC;
+      WHERE k = ANY($1) AND v IS NOT NULL
+      ORDER BY key, database DESC NULLS LAST;
     |]
+    preConfigF = case preConfFunc of
+      Nothing   -> mempty
+      Just func -> [qc|
+          UNION
+          SELECT
+            null as database,
+            x as k,
+            current_setting(x, true) as v
+          FROM unnest($1) x
+          JOIN {func}() _ ON TRUE
+      |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
 queryRoleSettings :: Bool -> Session RoleSettings
