@@ -80,6 +80,7 @@ data AppConfig = AppConfig
   , configDbRootSpec               :: Maybe QualifiedIdentifier
   , configDbSchemas                :: NonEmpty Text
   , configDbConfig                 :: Bool
+  , configDbPreConfig              :: Maybe QualifiedIdentifier
   , configDbTxAllowOverride        :: Bool
   , configDbTxRollbackAll          :: Bool
   , configDbUri                    :: Text
@@ -144,6 +145,7 @@ toText conf =
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                     T.toLower . show . configDbConfig)
+      ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
@@ -240,6 +242,7 @@ parser optPath env dbSettings roleSettings =
     <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optValue "db-schemas")
                                                                     (optValue "db-schema"))
     <*> (fromMaybe True <$> optBool "db-config")
+    <*> (fmap toQi <$> optString "db-pre-config")
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
