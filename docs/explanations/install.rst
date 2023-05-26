@@ -32,7 +32,7 @@ You can also use your OS package manager.
 
       .. tab:: Arch Linux
 
-        You can install PostgREST from the `community repo <https://archlinux.org/packages/community/x86_64/postgrest>`_.
+        You can install PostgREST from the `community repo <https://archlinux.org/packages/extra/x86_64/postgrest/>`_.
 
         .. code:: bash
 
