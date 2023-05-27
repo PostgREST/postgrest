@@ -8,6 +8,7 @@ ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLY=REALLY=REALLY=
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '."a"."role"';
 ALTER ROLE db_config_authenticator SET pgrst.db_anon_role = 'anonymous';
+ALTER ROLE db_config_authenticator SET pgrst.db_config = 'true';
 ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit-allow-override';
 ALTER ROLE db_config_authenticator SET pgrst.db_schemas = 'test, tenant1, tenant2';
 ALTER ROLE db_config_authenticator SET pgrst.db_root_spec = 'root';
@@ -43,10 +44,10 @@ ALTER ROLE db_config_authenticator SET pgrst.db_pool_timeout = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool_acquisition_timeout = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_lifetime = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_idletime = 'ignored';
-ALTER ROLE db_config_authenticator SET pgrst.db_config = 'ignored';
 
 -- other authenticator reloadable config options
 CREATE ROLE other_authenticator LOGIN NOINHERIT;
+ALTER ROLE other_authenticator SET pgrst.db_config = 'false';
 ALTER ROLE other_authenticator SET pgrst.jwt_aud = 'https://otherexample.org';
 ALTER ROLE other_authenticator SET pgrst.openapi_server_proxy_uri = 'https://otherexample.org/api';
 ALTER ROLE other_authenticator SET pgrst.raw_media_types = 'application/vnd.pgrst.other-db-config';

@@ -35,6 +35,7 @@ dbSettingsNames :: [Text]
 dbSettingsNames =
   (prefix <>) <$>
   ["db_anon_role"
+  ,"db_config"
   ,"db_extra_search_path"
   ,"db_max_rows"
   ,"db_plan_enabled"
