@@ -159,6 +159,7 @@ db-pool-acquisition-timeout Int     10
 db-pool-max-lifetime        Int     1800
 db-pre-request              String                    Y
 db-prepared-statements      Boolean True              Y
+db-root-spec                String                    Y
 db-schemas                  String  public            Y
 db-tx-end                   String  commit
 db-uri                      String  postgresql://
@@ -198,7 +199,7 @@ app.settings.*
 
   =============== ====================
   **Environment** PGRST_APP_SETTINGS_*
-  **In-Database** pgrst.app_settings_*
+  **In-Database** `n/a`
   =============== ====================
 
   Arbitrary settings that can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
@@ -210,7 +211,7 @@ db-anon-role
 
   =============== ==================
   **Environment** PGRST_DB_ANON_ROLE
-  **In-Database** `n/a`
+  **In-Database** `pgrst.db_anon_role`
   =============== ==================
 
   The database role to use when executing commands on behalf of unauthenticated clients. For more information, see :ref:`roles`.
