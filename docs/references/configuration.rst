@@ -57,36 +57,51 @@ Environment Variables
 
 You can also set these :ref:`configuration parameters <config_full_list>` using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
 
+See the full list of environment variable names on :ref:`config_full_list`.
+
 .. _in_db_config:
 
 In-Database Configuration
 =========================
 
-By adding settings to the **authenticator** role (see :ref:`roles`), you can make the database the single source of truth for PostgREST's configuration.
-This is enabled by :ref:`db-config`.
+Using a :ref:`pre-config <db-pre-config>` function, you can configure the server with database settings. For example, you can configure :ref:`db-schemas` and :ref:`jwt-secret` like this:
 
-For example, you can configure :ref:`db-schemas` and :ref:`jwt-secret` like this:
+.. code-block::
 
-.. code:: postgresql
+  # postgrest.conf
 
-   ALTER ROLE authenticator SET pgrst.db_schemas = "tenant1, tenant2, tenant3"
-   ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.jwt_secret = "REALLYREALLYREALLYREALLYVERYSAFE"
+  db-pre-config  = "postgrest.pre_config"
 
-You can use both database-specific settings with `IN DATABASE` and cluster-wide settings without it. Database-specific settings will override cluster-wide settings if both are used for the same parameter.
+  # or env vars
 
-Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config parameters.
+  PGRST_DB_PRE_CONFIG = "postgrest.pre_config"
 
-.. important::
+.. code-block:: postgresql
 
-   For altering a role in this way, you need a SUPERUSER. You might not be able to use this configuration mode on cloud-hosted databases.
+  -- create a dedicated schema, hidden from the API
+  create schema postgrest;
+  -- grant usage on this schema to the authenticator
+  grant usage on schema postgrest to authenticator;
 
-When using both the configuration file and the in-database configuration, the latter takes precedence.
+  -- the function can configure postgREST by using set_config
+  create or replace function postgrest.pre_config()
+  returns void as $$
+    select
+        set_config('pgrst.db_schemas', 'schema1, schema2', true)
+      , set_config('pgrst.db_jwt_secret', 'REALLYREALLYREALLYREALLYVERYSAFE', true);
+  $$ language sql;
 
-.. danger::
+Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config parameters. See the full list of in-database names on :ref:`config_full_list`.
 
-  If direct connections to the database are allowed, then it's not safe to use the in-db configuration for storing the :ref:`jwt-secret`.
-  The settings of every role are PUBLIC - they can be viewed by any user that queries the ``pg_catalog.pg_db_role_setting`` table.
-  In this case you should keep the :ref:`jwt-secret` in the configuration file or as environment variables.
+You can disable the in-database configuration by setting :ref:`db-config` to ``false``.
+
+.. note::
+  For backwards compatibility, you can do in-db config by modifying the :ref:`authenticator role <roles>`. This is no longer recommended as it requires SUPERUSER.
+
+  .. code:: postgresql
+
+     ALTER ROLE authenticator SET pgrst.db_schemas = "tenant1, tenant2, tenant3"
+     ALTER ROLE authenticator IN DATABASE <your_database_name> SET pgrst.db_schemas = "tenant4, tenant5" -- database-specific setting, overrides the previous setting
 
 .. _config_reloading:
 
@@ -97,7 +112,7 @@ It's possible to reload PostgREST's configuration without restarting the server.
 
 - Any modification to the :ref:`file_config` will be applied during reload.
 - Any modification to the :ref:`in_db_config` will be applied during reload.
-- Not all settings are reloadable, the reloadable column on :ref:`config_full_list` specifies which ones are.
+- Not all settings are reloadable, see the reloadable list on :ref:`config_full_list`.
 - It's not possible to change :ref:`env_variables_config` for a running process, hence reloading a Docker container configuration will not work. In these cases, you can restart the process or use :ref:`in_db_config`.
 
 .. _config_reloading_signal:
@@ -138,6 +153,7 @@ db-anon-role                String                    Y          PGRST_DB_ANON_R
 db-channel                  String  pgrst             Y          PGRST_DB_CHANNEL
 db-channel-enabled          Boolean True              Y          PGRST_DB_CHANNEL_ENABLED
 db-config                   Boolean True              Y          PGRST_DB_CONFIG
+db-pre-config               String                    Y          PGRST_DB_PRE_CONFIG               pgrst.db_pre_config
 db-extra-search-path        String  public            Y          PGRST_DB_EXTRA_SEARCH_PATH        pgrst.db_extra_search_path
 db-max-rows                 Int     ∞                 Y          PGRST_DB_MAX_ROWS                 pgrst.db_max_rows
 db-plan-enabled             Boolean False             Y          PGRST_DB_PLAN_ENABLED             pgrst.db_plan_enabled
@@ -212,6 +228,13 @@ db-config
 ---------
 
    Enables the in-database configuration.
+
+.. _db-pre-config:
+
+db-pre-config
+-------------
+
+   Name of the function that does in-database configuration.
 
 .. _db-extra-search-path:
 
