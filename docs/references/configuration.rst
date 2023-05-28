@@ -3,7 +3,9 @@
 Configuration
 #############
 
-Without configuration, PostgREST won't be able to serve requests. At the minimum it needs either :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`. Config parameters can be provided via :ref:`file_config`, via :ref:`env_variables_config` or through :ref:`in_db_config`.
+Config parameters can be provided via :ref:`file_config`, :ref:`env_variables_config` or :ref:`in_db_config`. Using :ref:`config_reloading` you can modify the parameters without restarting the server.
+
+Without configuration, PostgREST won't be able to serve requests. At the minimum it needs either :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`.
 
 To connect to a database it uses a `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. The connection string can be set in the configuration file or via environment variable or can be read from an external file. See :ref:`db-uri` for details. Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
 
@@ -23,10 +25,6 @@ PostgREST can read a config file. There is no predefined location for this file,
 .. code:: bash
 
   ./postgrest /path/to/postgrest.conf
-
-.. note::
-
-   Configuration can be reloaded without restarting the server. See :ref:`config_reloading`.
 
 The configuration file must contain a set of key value pairs:
 
