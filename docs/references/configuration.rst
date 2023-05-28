@@ -97,21 +97,10 @@ Configuration Reloading
 
 It's possible to reload PostgREST's configuration without restarting the server. You can do this :ref:`via signal <config_reloading_signal>` or :ref:`via notification <config_reloading_notify>`.
 
-It's not possible to change :ref:`env_variables_config` for a running process and reloading a Docker container configuration will not work. In these cases, you need to restart the PostgREST server or use :ref:`in_db_config` as an alternative.
-
-.. important::
-
-  The following settings will not be reloaded. You will need to restart PostgREST to change those.
-
-    * :ref:`admin-server-port`
-    * :ref:`db-uri`
-    * :ref:`db-pool`
-    * :ref:`db-pool-acquisition-timeout`
-    * :ref:`db-pool-max-lifetime`
-    * :ref:`server-host`
-    * :ref:`server-port`
-    * :ref:`server-unix-socket`
-    * :ref:`server-unix-socket-mode`
+- Any modification to the :ref:`file_config` will be applied during reload.
+- Any modification to the :ref:`in_db_config` will be applied during reload.
+- Not all settings are reloadable, the reloadable column on :ref:`config_full_list` specifies which ones are.
+- It's not possible to change :ref:`env_variables_config` for a running process, hence reloading a Docker container configuration will not work. In these cases, you can restart the process or use :ref:`in_db_config`.
 
 .. _config_reloading_signal:
 
@@ -135,72 +124,62 @@ To reload the configuration from within the database, you can use a NOTIFY comma
 
    NOTIFY pgrst, 'reload config'
 
-The ``"pgrst"`` notification channel is enabled by default. For configuring the channel, see :ref:`db-channel` and :ref:`db-channel-enabled`.
+The ``"pgrst"`` notification channel is enabled by default. You can name the channel with :ref:`db-channel` and enable or disable it with :ref:`db-channel-enabled`.
 
 .. _config_full_list:
 
 List of parameters
 ==================
 
-=========================== ======= ================= ==========
-Name                        Type    Default           Reloadable
-=========================== ======= ================= ==========
-admin-server-port           Int
-app.settings.*              String                    Y
-db-anon-role                String                    Y
-db-channel                  String  pgrst             Y
-db-channel-enabled          Boolean True              Y
-db-config                   Boolean True              Y
-db-extra-search-path        String  public            Y
-db-max-rows                 Int     ∞                 Y
-db-plan-enabled             Boolean False             Y
-db-pool                     Int     10
-db-pool-acquisition-timeout Int     10
-db-pool-max-lifetime        Int     1800
-db-pre-request              String                    Y
-db-prepared-statements      Boolean True              Y
-db-root-spec                String                    Y
-db-schemas                  String  public            Y
-db-tx-end                   String  commit
-db-uri                      String  postgresql://
-db-use-legacy-gucs          Boolean True              Y
-jwt-aud                     String                    Y
-jwt-role-claim-key          String  .role             Y
-jwt-secret                  String                    Y
-jwt-secret-is-base64        Boolean False             Y
-log-level                   String  error             Y
-openapi-mode                String  follow-privileges Y
-openapi-security-active     Boolean False             Y
-openapi-server-proxy-uri    String                    Y
-raw-media-types             String                    Y
-server-host                 String  !4
-server-port                 Int     3000
-server-trace-header         String                    Y
-server-unix-socket          String
-server-unix-socket-mode     String  660
-=========================== ======= ================= ==========
+=========================== ======= ================= ========== ================================= ==============================
+Name                        Type    Default           Reloadable Environment variable              In-database name
+=========================== ======= ================= ========== ================================= ==============================
+admin-server-port           Int                                  PGRST_ADMIN_SERVER_PORT
+app.settings.*              String                    Y          PGRST_APP_SETTINGS_*
+db-anon-role                String                    Y          PGRST_DB_ANON_ROLE                pgrst.db_anon_role
+db-channel                  String  pgrst             Y          PGRST_DB_CHANNEL
+db-channel-enabled          Boolean True              Y          PGRST_DB_CHANNEL_ENABLED
+db-config                   Boolean True              Y          PGRST_DB_CONFIG
+db-extra-search-path        String  public            Y          PGRST_DB_EXTRA_SEARCH_PATH        pgrst.db_extra_search_path
+db-max-rows                 Int     ∞                 Y          PGRST_DB_MAX_ROWS                 pgrst.db_max_rows
+db-plan-enabled             Boolean False             Y          PGRST_DB_PLAN_ENABLED             pgrst.db_plan_enabled
+db-pool                     Int     10                           PGRST_DB_POOL
+db-pool-acquisition-timeout Int     10                           PGRST_DB_POOL_ACQUISITION_TIMEOUT
+db-pool-max-lifetime        Int     1800                         PGRST_DB_POOL_MAX_LIFETIME
+db-pre-request              String                    Y          PGRST_DB_PRE_REQUEST              pgrst.db_pre_request
+db-prepared-statements      Boolean True              Y          PGRST_DB_PREPARED_STATEMENTS      pgrst.db_prepared_statements
+db-root-spec                String                    Y          PGRST_DB_ROOT_SPEC                pgrst.db_root_spec
+db-schemas                  String  public            Y          PGRST_DB_SCHEMAS                  pgrst.db_schemas
+db-tx-end                   String  commit                       PGRST_DB_TX_END
+db-uri                      String  postgresql://                PGRST_DB_URI
+db-use-legacy-gucs          Boolean True              Y          PGRST_DB_USE_LEGACY_GUCS          pgrst.db_use_legacy_gucs
+jwt-aud                     String                    Y          PGRST_JWT_AUD                     pgrst.jwt_aud
+jwt-role-claim-key          String  .role             Y          PGRST_JWT_ROLE_CLAIM_KEY          pgrst.jwt_role_claim_key
+jwt-secret                  String                    Y          PGRST_JWT_SECRET                  pgrst.jwt_secret
+jwt-secret-is-base64        Boolean False             Y          PGRST_JWT_SECRET_IS_BASE64        pgrst.jwt_secret_is_base64
+log-level                   String  error                        PGRST_LOG_LEVEL
+openapi-mode                String  follow-privileges Y          PGRST_OPENAPI_MODE                pgrst.openapi_mode
+openapi-security-active     Boolean False             Y          PGRST_OPENAPI_SECURITY_ACTIVE     pgrst.openapi_security_active
+openapi-server-proxy-uri    String                    Y          PGRST_OPENAPI_SERVER_PROXY_URI    pgrst.openapi_server_proxy_uri
+raw-media-types             String                    Y          PGRST_RAW_MEDIA_TYPES             pgrst.raw_media_types
+server-host                 String  !4                           PGRST_SERVER_HOST
+server-port                 Int     3000                         PGRST_SERVER_PORT
+server-trace-header         String                    Y          PGRST_SERVER_TRACE_HEADER         pgrst.server_trace_header
+server-unix-socket          String                               PGRST_SERVER_UNIX_SOCKET
+server-unix-socket-mode     String  660                          PGRST_SERVER_UNIX_SOCKET_MODE
+=========================== ======= ================= ========== ================================= ==============================
 
 .. _admin-server-port:
 
 admin-server-port
 -----------------
 
-  =============== =======================
-  **Environment** PGRST_ADMIN_SERVER_PORT
-  **In-Database** `n/a`
-  =============== =======================
-
-Specifies the port for the :ref:`health_check` endpoints.
+  Specifies the port for the :ref:`health_check` endpoints.
 
 .. _app.settings.*:
 
 app.settings.*
 --------------
-
-  =============== ====================
-  **Environment** PGRST_APP_SETTINGS_*
-  **In-Database** `n/a`
-  =============== ====================
 
   Arbitrary settings that can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
 
@@ -208,11 +187,6 @@ app.settings.*
 
 db-anon-role
 ------------
-
-  =============== ==================
-  **Environment** PGRST_DB_ANON_ROLE
-  **In-Database** `pgrst.db_anon_role`
-  =============== ==================
 
   The database role to use when executing commands on behalf of unauthenticated clients. For more information, see :ref:`roles`.
 
@@ -223,22 +197,12 @@ db-anon-role
 db-channel
 ----------
 
-  =============== ================
-  **Environment** PGRST_DB_CHANNEL
-  **In-Database** `n/a`
-  =============== ================
-
   The name of the notification channel that PostgREST uses for :ref:`schema_reloading` and configuration reloading.
 
 .. _db-channel-enabled:
 
 db-channel-enabled
 ------------------
-
-  =============== ========================
-  **Environment** PGRST_DB_CHANNEL_ENABLED
-  **In-Database** `n/a`
-  =============== ========================
 
   When this is set to :code:`true`, the notification channel specified in :ref:`db-channel` is enabled.
 
@@ -249,22 +213,12 @@ db-channel-enabled
 db-config
 ---------
 
-  =============== ===============
-  **Environment** PGRST_DB_CONFIG
-  **In-Database** `n/a`
-  =============== ===============
-
    Enables the in-database configuration.
 
 .. _db-extra-search-path:
 
 db-extra-search-path
 --------------------
-
-  =============== ==========================
-  **Environment** PGRST_DB_EXTRA_SEARCH_PATH
-  **In-Database** pgrst.db_extra_search_path
-  =============== ==========================
 
   Extra schemas to add to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. These schemas tables, views and stored procedures **don't get API endpoints**, they can only be referred from the database objects inside your :ref:`db-schemas`.
 
@@ -279,22 +233,12 @@ db-max-rows
 
   *For backwards compatibility, this config parameter is also available without prefix as "max-rows".*
 
-  =============== =================
-  **Environment** PGRST_DB_MAX_ROWS
-  **In-Database** pgrst.db_max_rows
-  =============== =================
-
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
 
 .. _db-plan-enabled:
 
 db-plan-enabled
 ---------------
-
-  =============== =====================
-  **Environment** PGRST_DB_PLAN_ENABLED
-  **In-Database** pgrst.db_plan_enabled
-  =============== =====================
 
   When this is set to :code:`true`, the execution plan of a request can be retrieved by using the :code:`Accept: application/vnd.pgrst.plan` header. See :ref:`explain_plan`.
 
@@ -327,11 +271,6 @@ db-plan-enabled
 db-pool
 -------
 
-  =============== =================
-  **Environment** PGRST_DB_POOL
-  **In-Database** `n/a`
-  =============== =================
-
   Number of maximum connections to keep open in PostgREST's database pool.
 
 .. _db-pool-acquisition-timeout:
@@ -339,22 +278,12 @@ db-pool
 db-pool-acquisition-timeout
 ---------------------------
 
-  =============== =================
-  **Environment** PGRST_DB_POOL_ACQUISITION_TIMEOUT
-  **In-Database** `n/a`
-  =============== =================
-
   Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database.
 
 .. _db-pool-max-lifetime:
 
 db-pool-max-lifetime
 --------------------
-
-  =============== =================
-  **Environment** PGRST_DB_POOL_MAX_LIFETIME
-  **In-Database** `n/a`
-  =============== =================
 
   Specifies the maximum time in seconds of an existing connection in the pool.
 
@@ -365,22 +294,12 @@ db-pre-request
 
   *For backwards compatibility, this config parameter is also available without prefix as "pre-request".*
 
-  =============== =================
-  **Environment** PGRST_DB_PRE_REQUEST
-  **In-Database** pgrst.db_pre_request
-  =============== =================
-
   A schema-qualified stored procedure name to call right after the :ref:`tx_settings` are set. See :ref:`pre-request`.
 
 .. _db-prepared-statements:
 
 db-prepared-statements
 ----------------------
-
-  =============== =================
-  **Environment** PGRST_DB_PREPARED_STATEMENTS
-  **In-Database** pgrst.db_prepared_statements
-  =============== =================
 
   Enables or disables prepared statements.
 
@@ -393,11 +312,6 @@ db-prepared-statements
 db-root-spec
 ------------
 
-  =============== =================
-  **Environment** PGRST_DB_ROOT_SPEC
-  **In-Database** pgrst.db_root_spec
-  =============== =================
-
   Function to override the OpenAPI response. See :ref:`override_openapi`.
 
 .. _db-schemas:
@@ -407,22 +321,12 @@ db-schemas
 
   *For backwards compatibility, this config parameter is also available in singular as "db-schema".*
 
-  =============== =================
-  **Environment** PGRST_DB_SCHEMAS
-  **In-Database** pgrst.db_schemas
-  =============== =================
-
   The list of database schemas to expose to clients. See :ref:`schemas`.
 
 .. _db-tx-end:
 
 db-tx-end
 ---------
-
-  =============== =================
-  **Environment** PGRST_DB_TX_END
-  **In-Database** pgrst.db_tx_end
-  =============== =================
 
   Specifies how to terminate the database transactions.
 
@@ -445,11 +349,6 @@ db-tx-end
 db-uri
 ------
 
-  =============== =================
-  **Environment** PGRST_DB_URI
-  **In-Database** `n/a`
-  =============== =================
-
   The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
 
   The user with whom PostgREST connects to the database is also known as the ``authenticator`` role. For more information see :ref:`roles`.
@@ -463,11 +362,6 @@ db-uri
 db-use-legacy-gucs
 ------------------
 
-  =============== =================
-  **Environment** PGRST_DB_USE_LEGACY_GUCS
-  **In-Database** pgrst.db_use_legacy_gucs
-  =============== =================
-
   Determine if GUC request settings for headers, cookies and jwt claims use the `legacy names <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the :ref:`new names <guc_req_headers_cookies_claims>` (string without dashes, valid on all PostgreSQL versions) with json values.
 
   On PostgreSQL versions 14 and above, this parameter is ignored.
@@ -477,11 +371,6 @@ db-use-legacy-gucs
 jwt-aud
 -------
 
-  =============== =================
-  **Environment** PGRST_JWT_AUD
-  **In-Database** pgrst.jwt_aud
-  =============== =================
-
   Specifies the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_. If this claim is present in the client provided JWT then you must set this to the same value as in the JWT, otherwise verifying the JWT will fail.
 
 .. _jwt-role-claim-key:
@@ -490,11 +379,6 @@ jwt-role-claim-key
 ------------------
 
   *For backwards compatibility, this config parameter is also available without prefix as "role-claim-key".*
-
-  =============== =================
-  **Environment** PGRST_JWT_ROLE_CLAIM_KEY
-  **In-Database** pgrst.jwt_role_claim_key
-  =============== =================
 
   A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta or Keycloak. Usage examples:
 
@@ -513,11 +397,6 @@ jwt-role-claim-key
 jwt-secret
 ----------
 
-  =============== =================
-  **Environment** PGRST_JWT_SECRET
-  **In-Database** pgrst.jwt_secret
-  =============== =================
-
   The secret or `JSON Web Key (JWK) (or set) <https://datatracker.ietf.org/doc/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. For security the key must be **at least 32 characters long**. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded. Both symmetric and asymmetric cryptography are supported. For more info see :ref:`asym_keys`.
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
@@ -531,22 +410,12 @@ jwt-secret
 jwt-secret-is-base64
 --------------------
 
-  =============== =================
-  **Environment** PGRST_JWT_SECRET_IS_BASE64
-  **In-Database** pgrst.jwt_secret_is_base64
-  =============== =================
-
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
 .. _log-level:
 
 log-level
 ---------
-
-  =============== =================
-  **Environment** PGRST_LOG_LEVEL
-  **In-Database** `n/a`
-  =============== =================
 
   Specifies the level of information to be logged while running PostgREST.
 
@@ -572,11 +441,6 @@ log-level
 openapi-mode
 ------------
 
-  =============== =================
-  **Environment** PGRST_OPENAPI_MODE
-  **In-Database** pgrst.openapi_mode
-  =============== =================
-
   Specifies how the OpenAPI output should be displayed.
 
   .. code:: bash
@@ -598,22 +462,12 @@ openapi-mode
 openapi-security-active
 -----------------------
 
-  =============== =============================
-  **Environment** PGRST_OPENAPI_SECURITY_ACTIVE
-  **In-Database** pgrst.openapi_security_active
-  =============== =============================
-
 When this is set to :code:`true`, security options are included in the :ref:`OpenAPI output <open-api>`.
 
 .. _openapi-server-proxy-uri:
 
 openapi-server-proxy-uri
 ------------------------
-
-  =============== =================
-  **Environment** PGRST_OPENAPI_SERVER_PROXY_URI
-  **In-Database** pgrst.openapi_server_proxy_uri
-  =============== =================
 
   Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path. Use a complete URI syntax :code:`scheme:[//[user:password@]host[:port]][/]path[?query][#fragment]`. Ex. :code:`https://postgrest.com`
 
@@ -638,11 +492,6 @@ openapi-server-proxy-uri
 raw-media-types
 ---------------
 
-  =============== =================
-  **Environment** PGRST_RAW_MEDIA_TYPES
-  **In-Database** pgrst.raw_media_types
-  =============== =================
-
  This serves to extend the `Media Types <https://en.wikipedia.org/wiki/Media_type>`_ that PostgREST currently accepts through an ``Accept`` header.
 
  These media types can be requested by following the same rules as the ones defined in :ref:`scalar_return_formats`.
@@ -659,11 +508,6 @@ raw-media-types
 server-host
 -----------
 
-  =============== =================
-  **Environment** PGRST_SERVER_HOST
-  **In-Database** `n/a`
-  =============== =================
-
   Where to bind the PostgREST web server. In addition to the usual address options, PostgREST interprets these reserved addresses with special meanings:
 
   * :code:`*` - any IPv4 or IPv6 hostname
@@ -677,11 +521,6 @@ server-host
 server-port
 -----------
 
-  =============== =================
-  **Environment** PGRST_SERVER_PORT
-  **In-Database** `n/a`
-  =============== =================
-
   The TCP port to bind the web server.
 
 .. _server-trace-header:
@@ -689,22 +528,12 @@ server-port
 server-trace-header
 -------------------
 
-  =============== =================
-  **Environment** PGRST_SERVER_TRACE_HEADER
-  **In-Database** `pgrst.server_trace_header`
-  =============== =================
-
   The header name used to trace HTTP requests. See :ref:`trace_header`.
 
 .. _server-unix-socket:
 
 server-unix-socket
 ------------------
-
-  =============== =================
-  **Environment** PGRST_SERVER_UNIX_SOCKET
-  **In-Database** `n/a`
-  =============== =================
 
   `Unix domain socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ where to bind the PostgREST web server.
   If specified, this takes precedence over :ref:`server-port`. Example:
@@ -717,11 +546,6 @@ server-unix-socket
 
 server-unix-socket-mode
 -----------------------
-
-  =============== =================
-  **Environment** PGRST_SERVER_UNIX_SOCKET_MODE
-  **In-Database** `n/a`
-  =============== =================
 
   `Unix file mode <https://en.wikipedia.org/wiki/File_system_permissions>`_ to be set for the socket specified in :ref:`server-unix-socket`
   Needs to be a valid octal between 600 and 777.
