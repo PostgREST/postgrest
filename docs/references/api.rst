@@ -78,6 +78,7 @@ PostgREST exposes three database objects of a schema as resources: tables, views
       '#embedding-disambiguation': 'api/resource_embedding.html#embedding-disambiguation',
       '#target-disambiguation': 'api/resource_embedding.html#target-disambiguation',
       '#hint-disambiguation': 'api/resource_embedding.html#hint-disambiguation',
+      "#embedding-through-join-tables": "api/resource_embedding.html#many-to-many-relationships",
       // OpenAPI
       '#openapi-support': 'api/openapi.html',
       // Resource Representation
