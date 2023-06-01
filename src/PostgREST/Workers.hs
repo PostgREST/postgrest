@@ -18,9 +18,10 @@ import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
-import Control.Retry    (RetryStatus, capDelay, exponentialBackoff,
-                         retrying, rsPreviousDelay)
-import Hasql.Connection (acquire)
+import Control.Monad.Extra (whenJust)
+import Control.Retry       (RetryStatus, capDelay, exponentialBackoff,
+                            retrying, rsPreviousDelay)
+import Hasql.Connection    (acquire)
 
 import Network.Socket
 import Network.Socket.ByteString
@@ -287,8 +288,6 @@ runAdmin conf@AppConfig{configAdminServerPort} appState settings =
     AppState.logWithZTime appState $ "Admin server listening on port " <> show adminPort
     void . forkIO $ Warp.runSettings (settings & Warp.setPort adminPort) adminApp
   where
-    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-    whenJust mg f = maybe (pure ()) f mg
     adminApp = admin appState conf
 
 -- | PostgREST admin application

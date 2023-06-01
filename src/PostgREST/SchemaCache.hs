@@ -26,6 +26,8 @@ module PostgREST.SchemaCache
   , schemaDescription
   ) where
 
+import Control.Monad.Extra (whenJust)
+
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
@@ -126,8 +128,6 @@ querySchemaCache AppConfig{..} = do
     , dbRoutines = funcs
     }
   where
-    whenJust :: Applicative m => Maybe a -> (a -> m ()) -> m ()
-    whenJust mg f = maybe (pure ()) f mg
     schemas = toList configDbSchemas
     prepared = configDbPreparedStatements
 
