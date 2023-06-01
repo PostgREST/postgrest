@@ -69,6 +69,7 @@ main = do
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
+  -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSchemaCache pool testCfg
 
   let

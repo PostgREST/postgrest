@@ -12,7 +12,6 @@ module PostgREST.AppState
   , getPgVersion
   , getRetryNextIn
   , getTime
-  , getWorkerSem
   , init
   , initWithPool
   , logWithZTime
@@ -68,8 +67,8 @@ data AppState = AppState
   , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateSchemaCache              :: IORef (Maybe SchemaCache)
-  -- | Binary semaphore to make sure just one connectionWorker can run at a time
-  , stateWorkerSem                :: MVar ()
+  -- | starts the connection worker with a debounce
+  , debouncedConnectionWorker     :: IO ()
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
   , stateListener                 :: MVar ()
   -- | State of the LISTEN channel, used for the admin server checks
@@ -98,7 +97,7 @@ initWithPool pool conf = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
-    <*> newEmptyMVar
+    <*> pure (pure ())
     <*> newEmptyMVar
     <*> newIORef False
     <*> newIORef conf
@@ -108,7 +107,8 @@ initWithPool pool conf = do
     <*> newIORef 0
     <*> pure (pure ())
 
-  deb <-
+
+  debLogTimeout <-
     let oneSecond = 1000000 in
     mkDebounce defaultDebounceSettings
        { debounceAction = logPgrstError appState SQL.AcquisitionTimeoutUsageError
@@ -116,7 +116,15 @@ initWithPool pool conf = do
        , debounceEdge = leadingEdge -- logs at the start and the end
        }
 
-  return appState { debounceLogAcquisitionTimeout = deb }
+  debWorker <-
+    let decisecond = 100000 in
+    mkDebounce defaultDebounceSettings
+       { debounceAction = internalConnectionWorker appState
+       , debounceFreq = decisecond
+       , debounceEdge = leadingEdge -- runs the worker at the start and the end
+       }
+
+  return appState { debounceLogAcquisitionTimeout = debLogTimeout, debouncedConnectionWorker = debWorker }
 
 destroy :: AppState -> IO ()
 destroy = destroyPool
@@ -155,8 +163,8 @@ getSchemaCache = readIORef . stateSchemaCache
 putSchemaCache :: AppState -> Maybe SchemaCache -> IO ()
 putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
 
-getWorkerSem :: AppState -> MVar ()
-getWorkerSem = stateWorkerSem
+connectionWorker :: AppState -> IO ()
+connectionWorker = debouncedConnectionWorker
 
 getRetryNextIn :: AppState -> IO Int
 getRetryNextIn = readIORef . stateRetryNextIn
@@ -253,16 +261,9 @@ data ConnectionStatus
 --  2. Checks if the pg version is supported and if it's not it kills the main
 --     program.
 --  3. Obtains the sCache. If this fails, it goes back to 1.
-connectionWorker :: AppState -> IO ()
-connectionWorker appState = do
-  runExclusively (getWorkerSem appState) work
-  -- Prevents multiple workers to be running at the same time. Could happen on
-  -- too many SIGUSR1s.
+internalConnectionWorker :: AppState -> IO ()
+internalConnectionWorker appState = work
   where
-    runExclusively mvar action = mask_ $ do
-      success <- tryPutMVar mvar ()
-      when success $ do
-        void $ forkIO $ action `finally` takeMVar mvar
     work = do
       AppConfig{..} <- getConfig appState
       logWithZTime appState "Attempting to connect to the database..."
