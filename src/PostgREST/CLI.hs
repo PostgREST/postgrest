@@ -21,7 +21,6 @@ import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.SchemaCache (querySchemaCache)
 import PostgREST.Version     (prettyVersion)
-import PostgREST.Workers     (reReadConfig)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
@@ -43,7 +42,7 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
     AppState.destroy
     (\appState -> case cliCommand of
       CmdDumpConfig -> do
-        when configDbConfig $ reReadConfig True appState
+        when configDbConfig $ AppState.reReadConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
       CmdRun -> App.run installSignalHandlers runAppWithSocket appState)

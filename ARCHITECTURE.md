@@ -55,12 +55,6 @@ It builds the OpenAPI response using the schema cache.
 
 This module provides functions to deal with JWT authorization.
 
-### Workers.hs
-
-This spawns threads which are used to execute concurrent jobs.
-
-Jobs include connection recovery, a listener for the PostgreSQL LISTEN command, and an admin server.
-
 ### SchemaCache.hs
 
 This queries the PostgreSQL system catalogs and caches the metadata into a SchemaCache type,
@@ -68,3 +62,7 @@ This queries the PostgreSQL system catalogs and caches the metadata into a Schem
 ### AppState.hs
 
 The state of the App which is kept across requests.
+
+This spawns threads which are used to execute concurrent jobs.
+
+Jobs include connection recover and a listener for the PostgreSQL LISTEN command.
