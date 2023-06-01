@@ -51,15 +51,12 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
-  AppConfig{..} <- AppState.getConfig appState
+  conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState $
       transaction SQL.ReadCommitted SQL.Read $
-        querySchemaCache
-          (toList configDbSchemas)
-          configDbExtraSearchPath
-          configDbPreparedStatements
+        querySchemaCache conf
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e

@@ -161,11 +161,11 @@ establishConnection appState =
 -- | Load the SchemaCache by using a connection from the pool.
 loadSchemaCache :: AppState -> IO SCacheStatus
 loadSchemaCache appState = do
-  AppConfig{..} <- AppState.getConfig appState
+  conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState . transaction SQL.ReadCommitted SQL.Read $
-      querySchemaCache (toList configDbSchemas) configDbExtraSearchPath configDbPreparedStatements
+      querySchemaCache conf
   case result of
     Left e -> do
       case checkIsFatal e of

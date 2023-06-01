@@ -142,3 +142,19 @@ returns text as $$
   select current_setting('transaction_isolation', true);
 $$
 language sql set default_transaction_isolation = 'REPEATABLE READ';
+
+create or replace function create_function() returns void as $_$
+  drop function if exists mult_them(int, int);
+  create or replace function mult_them(a int, b int) returns int as $$
+    select a*b;
+  $$ language sql;
+  notify pgrst, 'reload schema';
+$_$ language sql security definer;
+
+create or replace function migrate_function() returns void as $_$
+  drop function if exists mult_them(int, int);
+  create or replace function mult_them(c int, d int) returns int as $$
+    select c*d;
+  $$ language sql;
+  notify pgrst, 'reload schema';
+$_$ language sql security definer;

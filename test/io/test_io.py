@@ -551,7 +551,7 @@ def test_pool_size(defaultenv, metapostgrest):
 
 
 def test_pool_acquisition_timeout(defaultenv, metapostgrest):
-    "Verify that PGRST_DB_POOL_ACQUISITON_TIMEOUT times out when the pool is empty"
+    "Verify that PGRST_DB_POOL_ACQUISITION_TIMEOUT times out when the pool is empty"
 
     env = {
         **defaultenv,
@@ -944,6 +944,44 @@ def test_isolation_level(defaultenv):
         headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
         response = postgrest.session.get("/rpc/serializable_isolation_level")
         assert response.text == '"serializable"'
+
+
+def test_schema_cache_reloading(defaultenv):
+    "schema cache should reload successfully"
+
+    # If DB_POOL=1, then the second request(/rpc/migrate_function) will just wait(PGRST_DB_POOL_ACQUISITION_TIMEOUT=10) for the schema cache reload to finish.
+    # This is bc the only pool connection will be busy with the PGRST_INTERNAL_SCHEMA_CACHE_SLEEP(does a pg_sleep)
+    # So this must be tested with a DB_POOL size of at least 2. That way the second request will pick the other pool connection and proceed.
+
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "1",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_DB_POOL": "2",
+    }
+
+    internal_sleep = int(env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"])
+
+    with run(env=env, wait_for_readiness=False) as postgrest:
+        time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
+
+        response = postgrest.session.post("/rpc/create_function")
+        assert response.status_code == 204
+
+        time.sleep(
+            internal_sleep / 2
+        )  # wait to be inside the schema cache reload process
+
+        response = postgrest.session.post("/rpc/migrate_function")
+        assert response.status_code == 204
+
+        time.sleep(
+            2 * internal_sleep
+        )  # wait enough time to ensure the schema cache state remains
+
+        response = postgrest.session.get("/rpc/mult_them?c=3&d=4")
+        assert response.text == "12"
+        assert response.status_code == 200
 
 
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
