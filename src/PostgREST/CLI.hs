@@ -21,7 +21,6 @@ import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.SchemaCache (querySchemaCache)
 import PostgREST.Version     (prettyVersion)
-import PostgREST.Workers     (reReadConfig)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
@@ -43,7 +42,7 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
     AppState.destroy
     (\appState -> case cliCommand of
       CmdDumpConfig -> do
-        when configDbConfig $ reReadConfig True appState
+        when configDbConfig $ AppState.reReadConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
       CmdRun -> App.run installSignalHandlers runAppWithSocket appState)
@@ -51,15 +50,12 @@ main installSignalHandlers runAppWithSocket CLI{cliCommand, cliPath} = do
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
-  AppConfig{..} <- AppState.getConfig appState
+  conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
     AppState.usePool appState $
       transaction SQL.ReadCommitted SQL.Read $
-        querySchemaCache
-          (toList configDbSchemas)
-          configDbExtraSearchPath
-          configDbPreparedStatements
+        querySchemaCache conf
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e

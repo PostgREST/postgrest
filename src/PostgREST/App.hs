@@ -33,6 +33,7 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
+import qualified PostgREST.Admin            as Admin
 import qualified PostgREST.ApiRequest       as ApiRequest
 import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
 import qualified PostgREST.AppState         as AppState
@@ -43,7 +44,6 @@ import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Plan             as Plan
 import qualified PostgREST.Query            as Query
 import qualified PostgREST.Response         as Response
-import qualified PostgREST.Workers          as Workers
 
 import PostgREST.ApiRequest          (Action (..), ApiRequest (..),
                                       Mutation (..), Target (..))
@@ -68,14 +68,14 @@ type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> 
 run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
 run installHandlers maybeRunWithSocket appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
-  Workers.connectionWorker appState -- Loads the initial SchemaCache
+  AppState.connectionWorker appState -- Loads the initial SchemaCache
   installHandlers appState
   -- reload schema cache + config on NOTIFY
-  Workers.runListener conf appState
+  AppState.runListener conf appState
 
-  Workers.runAdmin conf appState $ serverSettings conf
+  Admin.runAdmin conf appState $ serverSettings conf
 
-  let app = postgrest conf appState (Workers.connectionWorker appState)
+  let app = postgrest conf appState (AppState.connectionWorker appState)
 
   case configServerUnixSocket of
     Just socket ->

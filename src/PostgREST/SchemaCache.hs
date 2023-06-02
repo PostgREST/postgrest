@@ -26,6 +26,8 @@ module PostgREST.SchemaCache
   , schemaDescription
   ) where
 
+import Control.Monad.Extra (whenJust)
+
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
@@ -38,6 +40,7 @@ import qualified Hasql.Transaction          as SQL
 import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
 
+import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Config.Database          (pgVersionStatement)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110, pgVersion120)
@@ -103,15 +106,18 @@ data KeyDep
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
-querySchemaCache :: [Schema] -> [Schema] -> Bool -> SQL.Transaction SchemaCache
-querySchemaCache schemas extraSearchPath prepared = do
+querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
+querySchemaCache AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
-  keyDeps <- SQL.statement (schemas, extraSearchPath) $ allViewsKeyDependencies prepared
+  keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
   funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
+  _       <-
+    let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
+    whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
@@ -121,6 +127,9 @@ querySchemaCache schemas extraSearchPath prepared = do
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
     }
+  where
+    schemas = toList configDbSchemas
+    prepared = configDbPreparedStatements
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap

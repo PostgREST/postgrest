@@ -14,7 +14,6 @@ import System.Posix.Files (setFileMode)
 import System.Posix.Types (FileMode)
 
 import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Workers  as Workers
 
 import Protolude
 
@@ -49,10 +48,10 @@ installSignalHandlers appState = do
 
   -- The SIGUSR1 signal updates the internal 'SchemaCache' by running
   -- 'connectionWorker' exactly as before.
-  install Signals.sigUSR1 $ Workers.connectionWorker appState
+  install Signals.sigUSR1 $ AppState.connectionWorker appState
 
   -- Re-read the config on SIGUSR2
-  install Signals.sigUSR2 $ Workers.reReadConfig False appState
+  install Signals.sigUSR2 $ AppState.reReadConfig False appState
   where
     install signal handler =
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing

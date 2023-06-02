@@ -3,8 +3,7 @@ module Main where
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Transaction.Sessions as HT
 
-import Data.Function      (id)
-import Data.List.NonEmpty (toList)
+import Data.Function (id)
 
 import Test.Hspec
 
@@ -70,10 +69,8 @@ main = do
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
-  baseSchemaCache <-
-    loadSchemaCache pool
-      (configDbSchemas testCfg)
-      (configDbExtraSearchPath testCfg)
+  -- cached schema cache so most tests run fast
+  baseSchemaCache <- loadSchemaCache pool testCfg
 
   let
     -- For tests that run with the same refSchemaCache
@@ -85,10 +82,7 @@ main = do
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
-      customSchemaCache <-
-        loadSchemaCache pool
-          (configDbSchemas config)
-          (configDbExtraSearchPath config)
+      customSchemaCache <- loadSchemaCache pool config
       appState <- AppState.initWithPool pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
@@ -265,5 +259,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadSchemaCache pool schemas extraSearchPath =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache (toList schemas) extraSearchPath True)
+    loadSchemaCache pool conf =
+      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)

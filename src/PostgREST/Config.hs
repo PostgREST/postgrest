@@ -103,6 +103,7 @@ data AppConfig = AppConfig
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
+  , configInternalSCSleep          :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
@@ -267,6 +268,7 @@ parser optPath env dbSettings roleSettings =
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> optInt "admin-server-port"
     <*> pure roleSettings
+    <*> optInt "internal-schema-cache-sleep"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value

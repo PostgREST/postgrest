@@ -15,6 +15,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     + New config option `db-pre-config`(empty by default)
     + Allows using the in-database configuration without SUPERUSER
 
+### Fixed
+
+ - #2791, Fix dropping schema cache reload notifications  - @steve-chavez
+
 ## [11.0.1] - 2023-04-27
 
 ### Fixed
