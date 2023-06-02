@@ -90,7 +90,7 @@ create or replace function sleep(seconds double precision) returns void as $$
 $$ language sql;
 
 create or replace function hello() returns text as $$
-  select 'hello';
+  select 'hello'::text;
 $$ language sql;
 
 create table cats(id uuid primary key, name text);
