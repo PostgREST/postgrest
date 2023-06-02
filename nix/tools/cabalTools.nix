@@ -41,6 +41,8 @@ let
         args =
           [
             "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
+            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool size])"
             "ARG_LEFTOVERS([PostgREST arguments])"
           ];
         inRootDir = true;
@@ -48,6 +50,8 @@ let
       }
       ''
         export PGRST_DB_ANON_ROLE
+        export PGRST_DB_POOL
+        export PGRST_DB_POOL_ACQUISITION_TIMEOUT
 
         exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
           postgrest "''${_arg_leftovers[@]}"
