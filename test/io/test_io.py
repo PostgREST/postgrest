@@ -308,13 +308,11 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
         # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
+        time.sleep(0.1)
 
         # reload schema cache to verify that the config reload actually happened
         postgrest.process.send_signal(signal.SIGUSR1)
-
-        # takes max 1 second to load the internal cache(big_schema.sql included now)
-        # TODO this could go back to time.sleep(0.1) if the big_schema is put in another test suite
-        time.sleep(1)
+        time.sleep(0.1)
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"\\"v1\\", \\"public\\""'

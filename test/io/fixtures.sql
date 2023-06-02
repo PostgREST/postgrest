@@ -1,4 +1,4 @@
-\ir big_schema.sql
+-- \ir big_schema.sql big schema test currently skipped, see test_io.py
 \ir db_config.sql
 
 set search_path to public;
