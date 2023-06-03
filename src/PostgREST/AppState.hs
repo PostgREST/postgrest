@@ -18,7 +18,6 @@ module PostgREST.AppState
   , putSchemaCache
   , putPgVersion
   , usePool
-  , debounceLogAcquisitionTimeout
   , loadSchemaCache
   , reReadConfig
   , connectionWorker
@@ -27,6 +26,7 @@ module PostgREST.AppState
 
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Lazy       as LBS
+import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text.Encoding         as T
 import           Hasql.Connection           (acquire)
 import qualified Hasql.Notifications        as SQL
@@ -140,7 +140,12 @@ initPool AppConfig{..} =
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{..} = SQL.use statePool
+usePool AppState{..} x = do
+  res <- SQL.use statePool x
+  whenLeft res (\case
+    SQL.AcquisitionTimeoutUsageError -> debounceLogAcquisitionTimeout -- this can happen rapidly for many requests, so we debounce
+    _                                -> pure ())
+  return res
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.

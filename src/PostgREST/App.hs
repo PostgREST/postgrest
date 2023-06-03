@@ -20,7 +20,7 @@ module PostgREST.App
 
 
 import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft, whenLeft)
+import Data.Either.Combinators  (mapLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
@@ -28,7 +28,6 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
-import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
@@ -158,11 +157,7 @@ runDbHandler :: AppState.AppState -> Maybe Text -> SQL.Mode -> Bool -> Bool -> D
 runDbHandler appState isoLvl mode authenticated prepared handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    res <- AppState.usePool appState . transaction (toIsolationLevel isoLvl) mode $ runExceptT handler
-    whenLeft res (\case
-      SQL.AcquisitionTimeoutUsageError -> AppState.debounceLogAcquisitionTimeout appState -- this can happen rapidly for many requests, so we debounce
-      _ -> pure ())
-    return res
+    AppState.usePool appState . transaction (toIsolationLevel isoLvl) mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
