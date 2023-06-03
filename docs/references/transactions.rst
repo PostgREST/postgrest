@@ -23,7 +23,7 @@ The access mode on :ref:`tables_views` is determined by the HTTP method.
    :header-rows: 1
 
    * - HTTP Method
-     - Access Method
+     - Access Mode
    * - GET, HEAD
      - READ ONLY
    * - POST, PATCH, PUT, DELETE
@@ -35,7 +35,7 @@ The access mode on :ref:`tables_views` is determined by the HTTP method.
    :header-rows: 2
 
    * -
-     - Access Method
+     - Access Mode
      -
      -
    * - HTTP Method
@@ -235,7 +235,7 @@ If the status code is standard, PostgREST will complete the status message(**I'm
 Main query
 ----------
 
-The main query is produced by requesting the :doc:`API resources <api>`.
+The main query is produced by requesting :ref:`tables_views` or :ref:`s_procs`.
 
 Transaction End
 ---------------
@@ -245,62 +245,7 @@ If the transaction doesn't fail, it will always end in a COMMIT. Unless :ref:`db
 Aborting transactions
 ---------------------
 
-Any database failure(like a failed constraint) will result in a rollback of the transaction. You can also do a RAISE inside a function to cause a rollback.
-
-.. _raise_error:
-
-Raise errors with HTTP Status Codes
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can return non-200 HTTP status codes by raising SQL exceptions. For instance, here's a saucy function that always responds with an error:
-
-.. code-block:: postgresql
-
-  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-  BEGIN
-    RAISE EXCEPTION 'I refuse!'
-      USING DETAIL = 'Pretty simple',
-            HINT = 'There is nothing you can do.';
-  END
-  $$;
-
-Calling the function returns HTTP 400 with the body
-
-.. code-block:: json
-
-  {
-    "message":"I refuse!",
-    "details":"Pretty simple",
-    "hint":"There is nothing you can do.",
-    "code":"P0001"
-  }
-
-One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
-
-For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise 'PT402':
-
-.. code-block:: sql
-
-  RAISE sqlstate 'PT402' using
-    message = 'Payment Required',
-    detail = 'Quota exceeded',
-    hint = 'Upgrade your plan';
-
-Returns:
-
-.. code-block:: http
-
-  HTTP/1.1 402 Payment Required
-  Content-Type: application/json; charset=utf-8
-
-  {
-    "message": "Payment Required",
-    "details": "Quota exceeded",
-    "hint": "Upgrade your plan",
-    "code": "PT402"
-  }
+Any database failure(like a failed constraint) will result in a rollback of the transaction. You can also :ref:`RAISE an error inside a function <raise_error>` to cause a rollback.
 
 .. _pre-request:
 

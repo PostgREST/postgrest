@@ -96,6 +96,62 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 | other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
 
+.. _raise_error:
+
+RAISE errors with HTTP Status Codes
+-----------------------------------
+
+You can return custom HTTP status codes by raising SQL exceptions inside :ref:`functions <s_procs>`. For instance, here's a saucy function that always responds with an error:
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    RAISE EXCEPTION 'I refuse!'
+      USING DETAIL = 'Pretty simple',
+            HINT = 'There is nothing you can do.';
+  END
+  $$;
+
+Calling the function returns HTTP 400 with the body
+
+.. code-block:: json
+
+  {
+    "message":"I refuse!",
+    "details":"Pretty simple",
+    "hint":"There is nothing you can do.",
+    "code":"P0001"
+  }
+
+One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
+
+For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise ``PT402``:
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PT402' using
+    message = 'Payment Required',
+    detail = 'Quota exceeded',
+    hint = 'Upgrade your plan';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+
+  {
+    "message": "Payment Required",
+    "details": "Quota exceeded",
+    "hint": "Upgrade your plan",
+    "code": "PT402"
+  }
+
+
 Errors from PostgREST
 =====================
 
