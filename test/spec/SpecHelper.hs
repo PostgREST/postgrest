@@ -113,6 +113,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbTxRollbackAll       = True
   , configAdminServerPort       = Nothing
   , configRoleSettings          = mempty
+  , configRoleIsoLvl            = mempty
   , configInternalSCSleep       = Nothing
   }
 
