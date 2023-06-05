@@ -16,8 +16,10 @@ module PostgREST.SchemaCache.Routine
   , funcReturnsCompositeAlias
   ) where
 
-import qualified Data.Aeson          as JSON
-import qualified Data.HashMap.Strict as HM
+import           Data.Aeson                 ((.=))
+import qualified Data.Aeson                 as JSON
+import qualified Data.HashMap.Strict        as HM
+import qualified Hasql.Transaction.Sessions as SQL
 
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
@@ -48,9 +50,21 @@ data Routine = Function
   , pdReturnType  :: RetType
   , pdVolatility  :: FuncVolatility
   , pdHasVariadic :: Bool
-  , pdIsoLvl      :: Maybe Text
+  , pdIsoLvl      :: Maybe SQL.IsolationLevel
   }
-  deriving (Eq, Generic, JSON.ToJSON)
+  deriving (Eq, Generic)
+-- need to define JSON manually bc SQL.IsolationLevel doesn't have a JSON instance(and we can't define one for that type without getting a compiler error)
+instance JSON.ToJSON Routine where
+  toJSON (Function sch nam desc params ret vol hasVar _) = JSON.object
+    [
+      "pdSchema"      .= sch
+    , "pdName"        .= nam
+    , "pdDescription" .= desc
+    , "pdParams"      .= JSON.toJSON params
+    , "pdReturnType"  .= JSON.toJSON ret
+    , "pdVolatility"  .= JSON.toJSON vol
+    , "pdHasVariadic" .= JSON.toJSON hasVar
+    ]
 
 data RoutineParam = RoutineParam
   { ppName :: Text

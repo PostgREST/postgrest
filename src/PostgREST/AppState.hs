@@ -373,18 +373,18 @@ reReadConfig startingUp appState = do
         Right x -> pure x
     else
       pure mempty
-  roleSettings <-
+  (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
       rSettings <- usePool appState $ queryRoleSettings configDbPreparedStatements
       case rSettings of
         Left e -> do
           logWithZTime appState "An error ocurred when trying to query the role settings"
           logPgrstError appState e
-          pure mempty
+          pure (mempty, mempty)
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings >>= \case
+  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up

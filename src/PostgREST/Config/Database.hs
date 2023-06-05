@@ -6,6 +6,8 @@ module PostgREST.Config.Database
   , queryRoleSettings
   , queryPgVersion
   , RoleSettings
+  , RoleIsolationLvl
+  , toIsolationLevel
   ) where
 
 import Control.Arrow ((***))
@@ -25,7 +27,14 @@ import Text.InterpolatedString.Perl6 (q, qc)
 
 import Protolude
 
-type RoleSettings = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
+type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
+
+toIsolationLevel :: (Eq a, IsString a) => a -> SQL.IsolationLevel
+toIsolationLevel a = case a of
+  "repeatable read" -> SQL.RepeatableRead
+  "serializable"    -> SQL.Serializable
+  _                 -> SQL.ReadCommitted
 
 prefix :: Text
 prefix = "pgrst."
@@ -117,13 +126,10 @@ queryDbSettings preConfFunc prepared =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: Bool -> Session RoleSettings
+queryRoleSettings :: Bool -> Session (RoleSettings, RoleIsolationLvl)
 queryRoleSettings prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ roleSettingsStatement prepared
-
-roleSettingsStatement :: Bool -> SQL.Statement () RoleSettings
-roleSettingsStatement = SQL.Statement sql HE.noParams decodeRoleSettings
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
   where
     sql = [q|
       with
@@ -139,17 +145,39 @@ roleSettingsStatement = SQL.Statement sql HE.noParams decodeRoleSettings
           substr(setting, 1, strpos(setting, '=') - 1) as key,
           lower(substr(setting, strpos(setting, '=') + 1)) as value
         FROM role_setting
+      ),
+      iso_setting AS (
+        SELECT rolname, value
+        FROM kv_settings
+        WHERE key = 'default_transaction_isolation'
       )
-      select rolname, array_agg(row(key, value))
-      from kv_settings
-      group by rolname;
+      select
+        kv.rolname,
+        i.value as iso_lvl,
+        array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transation_isolation') as role_settings
+      from kv_settings kv
+      left join iso_setting i on i.rolname = kv.rolname
+      group by kv.rolname, i.value;
     |]
-    decodeRoleSettings = HM.fromList . map (bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>))) <$> HD.rowList aRow
-    aRow :: HD.Row (Text, [(Text, Text)])
-    aRow = (,) <$> column HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+
+    processRows :: [(Text, Maybe Text, [(Text, Text)])] -> (RoleSettings, RoleIsolationLvl)
+    processRows rs =
+      let
+        rowsWRoleSettings = [ (x, z) | (x, _, z) <- rs ]
+        rowsWIsolation    = [ (x, y) | (x, Just y, _) <- rs ]
+      in
+      ( HM.fromList $ bimap encodeUtf8 (HM.fromList . ((encodeUtf8 *** encodeUtf8) <$>)) <$> rowsWRoleSettings
+      , HM.fromList $ (encodeUtf8 *** toIsolationLevel) <$> rowsWIsolation
+      )
+
+    rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
+    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
 
 compositeField :: HD.Value a -> HD.Composite a
 compositeField = HD.field . HD.nonNullable

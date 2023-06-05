@@ -9,7 +9,6 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( SignalHandlerInstaller
@@ -153,23 +152,17 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   Response.optionalRollback conf apiRequest $
     handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
 
-runDbHandler :: AppState.AppState -> Maybe Text -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
+runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState isoLvl mode authenticated prepared handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState . transaction (toIsolationLevel isoLvl) mode $ runExceptT handler
+    AppState.usePool appState . transaction isoLvl mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
       mapLeft (Error.PgError authenticated) dbResp
 
   liftEither resp
-  where
-    toIsolationLevel = \case
-      Nothing                -> SQL.ReadCommitted
-      Just "repeatable read" -> SQL.RepeatableRead
-      Just "serializable"    -> SQL.Serializable
-      _                      -> SQL.ReadCommitted
 
 handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
 handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache =
@@ -201,7 +194,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
-      resultSet <- runQuery (roleIsoLvl <|> pdIsoLvl (Plan.crProc cPlan))(Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
+      resultSet <- runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan))(Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
       return $ Response.invokeResponse invMethod (Plan.crProc cPlan) apiReq resultSet
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
@@ -224,7 +217,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
       throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
     roleSettings = fromMaybe mempty (HM.lookup authRole $ configRoleSettings conf)
-    roleIsoLvl = decodeUtf8 <$> HM.lookup "default_transaction_isolation" roleSettings
+    roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf
     runQuery isoLvl mode query =
       runDbHandler appState isoLvl mode authenticated prepared $ do
         Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) apiReq pgVer

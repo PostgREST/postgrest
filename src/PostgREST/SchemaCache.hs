@@ -41,7 +41,8 @@ import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config                   (AppConfig (..))
-import PostgREST.Config.Database          (pgVersionStatement)
+import PostgREST.Config.Database          (pgVersionStatement,
+                                           toIsolationLevel)
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion100,
                                            pgVersion110, pgVersion120)
 import PostgREST.SchemaCache.Identifiers  (AccessSet, FieldName,
@@ -259,7 +260,7 @@ decodeFuncs =
                   <*> column HD.bool)
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
-              <*> nullableColumn HD.text
+              <*> nullableColumn (toIsolationLevel <$> HD.text)
 
     addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
