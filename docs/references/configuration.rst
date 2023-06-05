@@ -43,7 +43,7 @@ The configuration file must contain a set of key value pairs:
   # The secret to verify the JWT for authenticated requests with.
   # Needs to be 32 characters minimum.
   jwt-secret           = "reallyreallyreallyreallyverysafe"
-  jwt-secret-is-base64 = False
+  jwt-secret-is-base64 = false
 
   # Port the postgrest process is listening on for http requests
   server-port = 80
