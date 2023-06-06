@@ -450,7 +450,7 @@ checkIsFatal :: SQL.UsageError -> Maybe Text
 checkIsFatal (SQL.ConnectionUsageError e)
   | isAuthFailureMessage = Just $ toS failureMessage
   | otherwise = Nothing
-  where isAuthFailureMessage = "FATAL:  password authentication failed" `isInfixOf` failureMessage
+  where isAuthFailureMessage = or ["FATAL:  password authentication failed" `isInfixOf` failureMessage, "no password supplied" `isInfixOf` failureMessage ]
         failureMessage = BS.unpack $ fromMaybe mempty e
 checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError)))
   = case serverError of
