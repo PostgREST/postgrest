@@ -24,8 +24,7 @@ module PostgREST.AppState
   , runListener
   ) where
 
-import qualified Data.ByteString            as BS
-import qualified Data.ByteString.Char8      as BS8
+import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text.Encoding         as T
@@ -456,7 +455,7 @@ checkIsFatal (SQL.ConnectionUsageError e)
   where isAuthFailureMessage =
           ("FATAL:  password authentication failed" `isInfixOf` failureMessage) ||
           ("no password supplied" `isInfixOf` failureMessage)
-        failureMessage = BS8.unpack $ fromMaybe mempty e
+        failureMessage = BS.unpack $ fromMaybe mempty e
 checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError)))
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
