@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #2791, Fix dropping schema cache reload notifications  - @steve-chavez
+ - #2801, Stop retrying connection when "no password supplied" - @steve-chavez
 
 ## [11.0.1] - 2023-04-27
 
