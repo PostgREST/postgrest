@@ -25,6 +25,7 @@ module PostgREST.AppState
   ) where
 
 import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Char8      as BS8
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text.Encoding         as T
@@ -231,7 +232,7 @@ loadSchemaCache appState = do
       querySchemaCache conf
   case result of
     Left e -> do
-      case Error.checkIsFatal e of
+      case checkIsFatal e of
         Just hint -> do
           logWithZTime appState "A fatal error ocurred when loading the schema cache"
           logPgrstError appState e
@@ -326,7 +327,7 @@ establishConnection appState =
       case pgVersion of
         Left e -> do
           logPgrstError appState e
-          case Error.checkIsFatal e of
+          case checkIsFatal e of
             Just reason ->
               return $ FatalConnectionError reason
             Nothing ->
@@ -362,7 +363,7 @@ reReadConfig startingUp appState = do
         Left e -> do
           logWithZTime appState
             "An error ocurred when trying to query database settings for the config parameters"
-          case Error.checkIsFatal e of
+          case checkIsFatal e of
             Just hint -> do
               logPgrstError appState e
               logWithZTime appState hint
@@ -447,3 +448,29 @@ listener appState = do
       -- reloads the schema cache + restarts pool connections
       -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
       connectionWorker appState
+
+checkIsFatal :: SQL.UsageError -> Maybe Text
+checkIsFatal (SQL.ConnectionUsageError e)
+  | isAuthFailureMessage = Just $ toS failureMessage
+  | otherwise = Nothing
+  where isAuthFailureMessage =
+          ("FATAL:  password authentication failed" `isInfixOf` failureMessage) ||
+          ("no password supplied" `isInfixOf` failureMessage)
+        failureMessage = BS8.unpack $ fromMaybe mempty e
+checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError)))
+  = case serverError of
+      -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
+      SQL.ServerError "42601" _ _ _ _
+        -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
+      -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
+      -- This would mean that a connection pooler in transaction mode is being used
+      -- while prepared statements are enabled in the PostgREST configuration,
+      -- both of which are incompatible with each other.
+      SQL.ServerError "42P05" _ _ _ _
+        -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
+      -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
+      -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
+      SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _
+        -> Just "Hint: Connection poolers in statement mode are not supported."
+      _ -> Nothing
+checkIsFatal _ = Nothing

@@ -11,7 +11,6 @@ module PostgREST.Error
   , PgError(..)
   , Error(..)
   , errorPayload
-  , checkIsFatal
   , singularityError
   ) where
 
@@ -446,29 +445,6 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
 
     _                       -> HTTP.status500
 
-checkIsFatal :: SQL.UsageError -> Maybe Text
-checkIsFatal (SQL.ConnectionUsageError e)
-  | isAuthFailureMessage = Just $ toS failureMessage
-  | otherwise = Nothing
-  where isAuthFailureMessage = or ["FATAL:  password authentication failed" `isInfixOf` failureMessage, "no password supplied" `isInfixOf` failureMessage ]
-        failureMessage = BS.unpack $ fromMaybe mempty e
-checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverError)))
-  = case serverError of
-      -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
-      SQL.ServerError "42601" _ _ _ _
-        -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
-      -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
-      -- This would mean that a connection pooler in transaction mode is being used
-      -- while prepared statements are enabled in the PostgREST configuration,
-      -- both of which are incompatible with each other.
-      SQL.ServerError "42P05" _ _ _ _
-        -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
-      -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
-      -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
-      SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _
-        -> Just "Hint: Connection poolers in statement mode are not supported."
-      _ -> Nothing
-checkIsFatal _ = Nothing
 
 
 data Error
