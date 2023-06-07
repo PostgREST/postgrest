@@ -13,24 +13,24 @@ Minimizing connections it’s paramount to performance. Each PostgreSQL connecti
 Dynamic Connection Pool
 -----------------------
 
-To conserve system resources, PostgREST uses a dynamic connection pool.  This enables the number of connections in the pool to increase and decrease depending on request traffic.
+To conserve system resources, PostgREST uses a dynamic connection pool. This enables the number of connections in the pool to increase and decrease depending on request traffic.
 
-- If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note it’s pointless to set this higher than the ``max_connections`` setting in your database.
-- If a connection is unused for a period of time(determined by :ref:`db-pool-max-idletime`, 30 seconds by default), it will be released.
+- If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note that it’s pointless to set this higher than the ``max_connections`` setting in your database.
+- If a connection is unused for a period of time (determined by :ref:`db-pool-max-idletime`, 30 seconds by default), it will be released.
 
 Connection lifetime
 -------------------
 
-Long-lived PostgreSQL connections can consume considerable memory(see `here <https://www.postgresql.org/message-id/CAFj8pRCQN2B2vrVMH1-bd-8xtzjytWR%2BAjZ%2BMCj9J2wPxKPa9Q%40mail.gmail.com>`_ for more details).
+Long-lived PostgreSQL connections can consume considerable memory (see `here <https://www.postgresql.org/message-id/CAFj8pRCQN2B2vrVMH1-bd-8xtzjytWR%2BAjZ%2BMCj9J2wPxKPa9Q%40mail.gmail.com>`_ for more details).
 Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the connection pool can have many long-lived connections.
 
-To avoid this problem and save resources, a connection max lifetime(determined by :ref:`db-pool-max-lifetime`, 30 minutes by default) is enforced.
-After the max lifetime is reached, connections from the pool will be released and news ones will be created. This doesn't affect running requests, only unused connections will be released.
+To avoid this problem and save resources, a connection max lifetime (determined by :ref:`db-pool-max-lifetime`, 30 minutes by default) is enforced.
+After the max lifetime is reached, connections from the pool will be released and new ones will be created. This doesn't affect running requests, only unused connections will be released.
 
 Acquisition Timeout
 -------------------
 
-If all the available connections in the pool are busy, an HTTP request will wait until reaching a timeout(determined by :ref:`db-pool-acquisition-timeout`, 10 seconds by default).
+If all the available connections in the pool are busy, an HTTP request will wait until reaching a timeout (determined by :ref:`db-pool-acquisition-timeout`, 10 seconds by default).
 
 If the request reaches the timeout, it will be aborted with the following response:
 
@@ -68,9 +68,9 @@ Automatic Recovery
 
 The server will retry reconnecting to the database if connection loss happens.
 
-- It will retry forever with exponential backoff. 32 seconds being the maximum backoff time between retries. Each of these attempts are :ref:`logged <pgrst_logging>`.
+- It will retry forever with exponential backoff, with a maximum backoff time of 32 seconds between retries. Each of these attempts are :ref:`logged <pgrst_logging>`.
 - It will only stop retrying if the server deems the error to be fatal. This can be a password authentication failure or an internal error.
-- The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true(the default). Otherwise they'll happen once a request arrives.
+- The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true (the default). Otherwise they'll happen once a request arrives.
 - To ensure a valid state, the server reloads the :ref:`schema_cache` and :ref:`configuration` when recovering.
 - To notify the client of the next retry, the server sends a ``503 Service Unavailable`` status with the ``Retry-After: x`` header. Where ``x`` is the number of seconds programmed for the next retry.
 

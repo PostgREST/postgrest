@@ -65,7 +65,7 @@ The client can call it by posting an object like
 Calling with GET
 ----------------
 
-If the function doesn't modify the database, it will also run under the GET method(see :ref:`access_mode`).
+If the function doesn't modify the database, it will also run under the GET method (see :ref:`access_mode`).
 
 .. tabs::
 
