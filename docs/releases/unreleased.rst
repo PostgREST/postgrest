@@ -4,6 +4,11 @@ Unreleased
 Features
 --------
 
+Connection Pool
+~~~~~~~~~~~~~~~
+
+- New :ref:`db-pool-max-idletime`. It enables a :ref:`dyn_conn_pool`.
+
 Configuration
 ~~~~~~~~~~~~~
 

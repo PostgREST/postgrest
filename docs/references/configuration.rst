@@ -158,6 +158,7 @@ db-extra-search-path        String  public            Y          PGRST_DB_EXTRA_
 db-max-rows                 Int     ∞                 Y          PGRST_DB_MAX_ROWS                 pgrst.db_max_rows
 db-plan-enabled             Boolean False             Y          PGRST_DB_PLAN_ENABLED             pgrst.db_plan_enabled
 db-pool                     Int     10                           PGRST_DB_POOL
+db-pool-max-idletime        Int     30                           PGRST_DB_POOL_MAX_IDLETIME
 db-pool-acquisition-timeout Int     10                           PGRST_DB_POOL_ACQUISITION_TIMEOUT
 db-pool-max-lifetime        Int     1800                         PGRST_DB_POOL_MAX_LIFETIME
 db-pre-request              String                    Y          PGRST_DB_PRE_REQUEST              pgrst.db_pre_request
@@ -293,6 +294,15 @@ db-pool
 -------
 
   Number of maximum connections to keep open in PostgREST's database pool.
+
+.. _db-pool-max-idletime:
+
+db-pool-max-idletime
+--------------------
+
+   *For backwards compatibility, this config parameter is also available as “db-pool-timeout”.*
+
+   Time in seconds to close idle pool connections.
 
 .. _db-pool-acquisition-timeout:
 
