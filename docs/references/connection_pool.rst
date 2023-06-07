@@ -3,22 +3,20 @@
 Connection Pool
 ===============
 
-Every request to an :doc:`API resource <api>` borrows a connection from the connection pool to start a :doc:`transaction <transactions>`.
-
-A connection pool is a cache of reusable database connections. It allows serving many HTTP requests using few database connections.
+A connection pool is a cache of reusable database connections. It allows serving many HTTP requests using few database connections. Every request to an :doc:`API resource <api>` borrows a connection from the pool to start a :doc:`transaction <transactions>`.
 
 Minimizing connections it’s paramount to performance. Each PostgreSQL connection creates a process, having too many can exhaust available resources.
 
+.. _pool_growth_limit:
 .. _dyn_conn_pool:
 
 Dynamic Connection Pool
 -----------------------
 
-To converve system resources, PostgREST uses a dynamic connection pool.  This enables the number of connections in the pool to increase and decrease depending on request traffic.
+To conserve system resources, PostgREST uses a dynamic connection pool.  This enables the number of connections in the pool to increase and decrease depending on request traffic.
 
-If all the connections are being used, a new connection is added to the pool. The pool can grow until it reaches the :ref:`db-pool` size. Note it’s pointless to set this higher than the ``max_connections`` setting in your database.
-
-If a connection is unused for a period of time(determined by :ref:`db-pool-max-idletime`, 30 seconds by default), it will be closed.
+- If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note it’s pointless to set this higher than the ``max_connections`` setting in your database.
+- If a connection is unused for a period of time(determined by :ref:`db-pool-max-idletime`, 30 seconds by default), it will be released.
 
 Connection lifetime
 -------------------
@@ -27,8 +25,7 @@ Long-lived PostgreSQL connections can consume considerable memory(see `here <htt
 Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the connection pool can have many long-lived connections.
 
 To avoid this problem and save resources, a connection max lifetime(determined by :ref:`db-pool-max-lifetime`, 30 minutes by default) is enforced.
-
-After the max lifetime is reached, connections from the pool will be released and news ones will be created. This doesn't affect running requests. Only unused connections will be released.
+After the max lifetime is reached, connections from the pool will be released and news ones will be created. This doesn't affect running requests, only unused connections will be released.
 
 Acquisition Timeout
 -------------------
@@ -46,34 +43,36 @@ If the request reaches the timeout, it will be aborted with the following respon
    "hint":null,
    "message":"Timed out acquiring connection from connection pool."}
 
-Getting this error message is an indicator of a performance issue. To solve it, you can:
+.. important::
 
-- Reduce your queries execution time.
+  Getting this error message is an indicator of a performance issue. To solve it, you can:
 
-  - Check the request :ref:`explain_plan` to tune your query, this usually means adding indexes.
+  - Reduce your queries execution time.
 
-- Reduce the amount of requests.
+    - Check the request :ref:`explain_plan` to tune your query, this usually means adding indexes.
 
-  - Reduce write requests. Do :ref:`bulk_insert` (or :ref:`upsert`) instead of inserting rows one by one.
-  - Reduce read requests. Use :ref:`resource_embedding`. Combine unrelated data into a single request using custom database views or functions.
-  - Use :ref:`s_procs` for combining read and write logic into a single request.
+  - Reduce the amount of requests.
 
-- Increase the :ref:`pool growth limit <pool_growth_limit>`.
+    - Reduce write requests. Do :ref:`bulk_insert` (or :ref:`upsert`) instead of inserting rows one by one.
+    - Reduce read requests. Use :ref:`resource_embedding`. Combine unrelated data into a single request using custom database views or functions.
+    - Use :ref:`s_procs` for combining read and write logic into a single request.
 
-  - Not a panacea since connections can't grow infinitely. Try the previous recommendations before this.
+  - Increase the :ref:`db-pool` size.
+
+    - Not a panacea since connections can't grow infinitely. Try the previous recommendations before this.
 
 .. _automatic_recovery:
 
 Automatic Recovery
 ------------------
 
-If the pool loses the connection to the database, it will retry reconnecting using exponential backoff. With 32 seconds being the maximum backoff time between retries.
+The server will retry reconnecting to the database if connection loss happens.
 
-The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true(the default). Otherwise they'll happen once a request arrives.
-
-The server reloads the :ref:`schema_cache` and :ref:`configuration` when recovering.
-
-To notify the client of the next retry, the server sends a ``503 Service Unavailable`` status with the ``Retry-After: x`` header. Where ``x`` is the number of seconds programmed for the next retry.
+- It will retry forever with exponential backoff. 32 seconds being the maximum backoff time between retries. Each of these attempts are :ref:`logged <pgrst_logging>`.
+- It will only stop retrying if the server deems the error to be fatal. This can be a password authentication failure or an internal error.
+- The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true(the default). Otherwise they'll happen once a request arrives.
+- To ensure a valid state, the server reloads the :ref:`schema_cache` and :ref:`configuration` when recovering.
+- To notify the client of the next retry, the server sends a ``503 Service Unavailable`` status with the ``Retry-After: x`` header. Where ``x`` is the number of seconds programmed for the next retry.
 
 .. _external_connection_poolers:
 

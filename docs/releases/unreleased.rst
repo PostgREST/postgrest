@@ -14,11 +14,11 @@ Configuration
 
 - New :ref:`in_db_config`. It no longer requires high privileges and can be used on cloud-hosted databases.
 
-Documentation improvements
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 Bug fixes
 ---------
+
+- Fix dropping schema cache reload notifications.
+- Stop automatic recovery when the error is "no password supplied".
 
 Thanks
 ------
