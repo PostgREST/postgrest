@@ -14,7 +14,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2703, Add pre-config function - @steve-chavez
     + New config option `db-pre-config`(empty by default)
     + Allows using the in-database configuration without SUPERUSER
- - #2781, Start automatic connection recovery when pool connections are closed with pg_terminate_backend - @steve-chavez
+ - #2781, When `db-channel-enabled` is false, start automatic connection recovery on a new request when pool connections are closed with `pg_terminate_backend` - @steve-chavez
+    + Mitigates the lack of LISTEN/NOTIFY for schema cache reloading on read replicas.
 
 ### Fixed
 
