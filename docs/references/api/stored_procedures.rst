@@ -5,7 +5,7 @@ Stored Procedures
 
 *"A single resource can be the equivalent of a database stored procedure, with the power to abstract state changes over any number of storage items"* -- `Roy T. Fielding <http://roy.gbiv.com/untangled/2008/rest-apis-must-be-hypertext-driven#comment-743>`_
 
-Every stored procedure in the :ref:`exposed schema <schemas>` and accessible by the :ref:`active database role <roles>` is executable under the :code:`/rpc` prefix. Procedures can perform any operations allowed by PostgreSQL (read data, modify data, :ref:`raise errors <raise_error>`, and even DDL operations).
+Procedures can perform any operations allowed by PostgreSQL (read data, modify data, :ref:`raise errors <raise_error>`, and even DDL operations). Every stored procedure in the :ref:`exposed schema <schemas>` and accessible by the :ref:`active database role <roles>` is executable under the :code:`/rpc` prefix.
 
 If they return table types, Stored Procedures can:
 
