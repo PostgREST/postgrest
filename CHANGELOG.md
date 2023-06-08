@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [11.1.0] - 2023-06-07
+
 ### Added
 
  - #2786, Limit idle postgresql connection lifetime - @robx
