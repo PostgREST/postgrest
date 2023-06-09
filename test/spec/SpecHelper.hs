@@ -15,6 +15,7 @@ import Data.CaseInsensitive (CI (..), mk, original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
 import Network.Wai.Test     (SResponse (simpleBody, simpleHeaders, simpleStatus))
+import System.IO.Unsafe     (unsafePerformIO)
 import System.Process       (readProcess)
 import Text.Regex.TDFA      ((=~))
 
@@ -340,3 +341,6 @@ getInsertDataForTiobePlsTable rows =
   JSON.encode $ fromList $ [TiobePlsRow {name' = nm, rank = rk} | (nm,rk) <- nameRankList]
    where
      nameRankList = [("Lang " <> show i, i) | i <- [20..(rows+20)] ] :: [(Text, Int)]
+
+readFixtureFile :: FilePath -> BL.ByteString
+readFixtureFile file = unsafePerformIO $ BL.readFile $ "test/spec/fixtures/" <> file

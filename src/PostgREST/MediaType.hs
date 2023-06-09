@@ -1,9 +1,10 @@
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module PostgREST.MediaType
   ( MediaType(..)
-  , MTPlanOption (..)
-  , MTPlanFormat (..)
+  , MTVndPlanOption (..)
+  , MTVndPlanFormat (..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -19,8 +20,6 @@ import Protolude
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
-  | MTArrayJSONStrip
-  | MTSingularJSON Bool
   | MTGeoJSON
   | MTTextCSV
   | MTTextPlain
@@ -30,32 +29,23 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  -- TODO MTPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
-  | MTPlan MediaType MTPlanFormat [MTPlanOption]
-  deriving Show
-instance Eq MediaType where
-  MTApplicationJSON    == MTApplicationJSON = True
-  MTArrayJSONStrip     == MTArrayJSONStrip  = True
-  MTSingularJSON x     == MTSingularJSON y  = x == y
-  MTGeoJSON            == MTGeoJSON         = True
-  MTTextCSV            == MTTextCSV         = True
-  MTTextPlain          == MTTextPlain       = True
-  MTTextXML            == MTTextXML         = True
-  MTOpenAPI            == MTOpenAPI         = True
-  MTUrlEncoded         == MTUrlEncoded      = True
-  MTOctetStream        == MTOctetStream     = True
-  MTAny                == MTAny             = True
-  MTOther x            == MTOther y         = x == y
-  MTPlan{}             == MTPlan{}          = True
-  _                    == _                 = False
+  -- vendored media types
+  | MTVndArrayJSONStrip
+  | MTVndSingularJSON Bool
+  -- TODO MTVndPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
+  | MTVndPlan MediaType MTVndPlanFormat [MTVndPlanOption]
+  deriving (Eq, Show, Generic)
+instance Hashable MediaType
 
-data MTPlanOption
+data MTVndPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+instance Hashable MTVndPlanOption
 
-data MTPlanFormat
+data MTVndPlanFormat
   = PlanJSON | PlanText
-  deriving (Eq, Show)
+  deriving (Eq, Show, Generic)
+instance Hashable MTVndPlanFormat
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
@@ -69,31 +59,31 @@ toContentType ct = (hContentType, toMime ct <> charset)
 -- | Convert from MediaType to a ByteString representing the mime type
 toMime :: MediaType -> ByteString
 toMime MTApplicationJSON      = "application/json"
-toMime MTArrayJSONStrip       = "application/vnd.pgrst.array+json;nulls=stripped"
+toMime MTVndArrayJSONStrip    = "application/vnd.pgrst.array+json;nulls=stripped"
 toMime MTGeoJSON              = "application/geo+json"
 toMime MTTextCSV              = "text/csv"
 toMime MTTextPlain            = "text/plain"
 toMime MTTextXML              = "text/xml"
 toMime MTOpenAPI              = "application/openapi+json"
-toMime (MTSingularJSON True)  = "application/vnd.pgrst.object+json;nulls=stripped"
-toMime (MTSingularJSON False) = "application/vnd.pgrst.object+json"
+toMime (MTVndSingularJSON True)  = "application/vnd.pgrst.object+json;nulls=stripped"
+toMime (MTVndSingularJSON False) = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded           = "application/x-www-form-urlencoded"
 toMime MTOctetStream          = "application/octet-stream"
 toMime MTAny                  = "*/*"
 toMime (MTOther ct)           = ct
-toMime (MTPlan mt fmt opts)   =
+toMime (MTVndPlan mt fmt opts)   =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   ("; for=\"" <> toMime mt <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
 
-toMimePlanOption :: MTPlanOption -> ByteString
+toMimePlanOption :: MTVndPlanOption -> ByteString
 toMimePlanOption PlanAnalyze  = "analyze"
 toMimePlanOption PlanVerbose  = "verbose"
 toMimePlanOption PlanSettings = "settings"
 toMimePlanOption PlanBuffers  = "buffers"
 toMimePlanOption PlanWAL      = "wal"
 
-toMimePlanFormat :: MTPlanFormat -> ByteString
+toMimePlanFormat :: MTVndPlanFormat -> ByteString
 toMimePlanFormat PlanJSON = "json"
 toMimePlanFormat PlanText = "text"
 
@@ -103,25 +93,25 @@ toMimePlanFormat PlanText = "text"
 -- MTApplicationJSON
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan;"
--- MTPlan MTApplicationJSON PlanText []
+-- MTVndPlan MTApplicationJSON PlanText []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan;for=\"application/json\""
--- MTPlan MTApplicationJSON PlanText []
+-- MTVndPlan MTApplicationJSON PlanText []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
--- MTPlan MTTextCSV PlanJSON []
+-- MTVndPlan MTTextCSV PlanJSON []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.array+json;nulls=stripped"
--- MTArrayJSONStrip
+-- MTVndArrayJSONStrip
 --
 -- >>> decodeMediaType "application/vnd.pgrst.array+json"
 -- MTApplicationJSON
 --
 -- >>> decodeMediaType "application/vnd.pgrst.object+json;nulls=stripped"
--- MTSingularJSON True
+-- MTVndSingularJSON True
 --
 -- >>> decodeMediaType "application/vnd.pgrst.object+json"
--- MTSingularJSON False
+-- MTVndSingularJSON False
 
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
@@ -145,11 +135,11 @@ decodeMediaType mt =
     other:_                                  -> MTOther other
     _                                        -> MTAny
   where
-    checkArrayNullStrip ["nulls=stripped"] = MTArrayJSONStrip
+    checkArrayNullStrip ["nulls=stripped"] = MTVndArrayJSONStrip
     checkArrayNullStrip  _                 = MTApplicationJSON
 
-    checkSingularNullStrip ["nulls=stripped"] = MTSingularJSON True
-    checkSingularNullStrip  _                 = MTSingularJSON False
+    checkSingularNullStrip ["nulls=stripped"] = MTVndSingularJSON True
+    checkSingularNullStrip  _                 = MTVndSingularJSON False
 
     getPlan fmt rest =
       let
@@ -161,7 +151,7 @@ decodeMediaType mt =
           strippedFor <- BS.stripPrefix "for=" foundFor
           pure . decodeMediaType $ dropAround (== BS.c2w '"') strippedFor
       in
-      MTPlan mtFor fmt $
+      MTVndPlan mtFor fmt $
         [PlanAnalyze  | inOpts "analyze" ] ++
         [PlanVerbose  | inOpts "verbose" ] ++
         [PlanSettings | inOpts "settings"] ++

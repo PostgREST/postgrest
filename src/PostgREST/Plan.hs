@@ -44,8 +44,7 @@ import PostgREST.ApiRequest                  (Action (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (Error (..))
-import PostgREST.MediaType                   (MTPlanFormat (..),
-                                              MediaType (..))
+import PostgREST.MediaType                   (MediaType (..))
 import PostgREST.Query.SqlFragment           (sourceCTEName)
 import PostgREST.RangeQuery                  (NonnegRange, allRange,
                                               convertToLimitZeroRange,
@@ -53,6 +52,7 @@ import PostgREST.RangeQuery                  (NonnegRange, allRange,
 import PostgREST.SchemaCache                 (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
+                                              RelIdentifier (..),
                                               Schema)
 import PostgREST.SchemaCache.Relationship    (Cardinality (..),
                                               Junction (..),
@@ -61,7 +61,7 @@ import PostgREST.SchemaCache.Relationship    (Cardinality (..),
                                               relIsToOne)
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
-import PostgREST.SchemaCache.Routine         (ResultAggregate (..),
+import PostgREST.SchemaCache.Routine         (MediaHandler (..),
                                               Routine (..),
                                               RoutineMap,
                                               RoutineParam (..),
@@ -93,16 +93,18 @@ import Protolude hiding (from)
 data WrappedReadPlan = WrappedReadPlan {
   wrReadPlan :: ReadPlanTree
 , wrTxMode   :: SQL.Mode
-, wrResAgg   :: ResultAggregate
+, wrHandler  :: MediaHandler
 , wrMedia    :: MediaType
+, wrIdent    :: QualifiedIdentifier
 }
 
 data MutateReadPlan = MutateReadPlan {
   mrReadPlan   :: ReadPlanTree
 , mrMutatePlan :: MutatePlan
 , mrTxMode     :: SQL.Mode
-, mrResAgg     :: ResultAggregate
+, mrHandler    :: MediaHandler
 , mrMedia      :: MediaType
+, mrIdent      :: QualifiedIdentifier
 }
 
 data CallReadPlan = CallReadPlan {
@@ -110,8 +112,9 @@ data CallReadPlan = CallReadPlan {
 , crCallPlan :: CallPlan
 , crTxMode   :: SQL.Mode
 , crProc     :: Routine
-, crResAgg   :: ResultAggregate
+, crHandler  :: MediaHandler
 , crMedia    :: MediaType
+, crIdent    :: QualifiedIdentifier
 }
 
 data InspectPlan = InspectPlan {
@@ -122,17 +125,17 @@ data InspectPlan = InspectPlan {
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
+  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType apiRequest) mediaType
+  return $ WrappedReadPlan rPlan SQL.Read hdler mediaType identifier
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType apiRequest) mediaType
+  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache)
+  return $ MutateReadPlan rPlan mPlan SQL.Write hdler mediaType identifier
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
@@ -156,15 +159,19 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
           (InvPost, Routine.Immutable) -> SQL.Read
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
+  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType apiRequest) mediaType
+  return $ CallReadPlan rPlan cPlan txMode proc hdler mediaType relIdentifier
   where
     qsParams' = QueryParams.qsParams iQueryParams
 
-inspectPlan :: AppConfig -> ApiRequest -> Either Error InspectPlan
-inspectPlan conf apiRequest = do
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iAcceptMediaType apiRequest)
+inspectPlan :: ApiRequest -> Either Error InspectPlan
+inspectPlan apiRequest = do
+  let producedMTs = [MTOpenAPI, MTApplicationJSON, MTAny]
+      accepts     = iAcceptMediaType apiRequest
+  mediaType <- if not . null $ L.intersect accepts producedMTs
+    then Right MTOpenAPI
+    else Left . ApiRequestError . MediaTypeError $ MediaType.toMime <$> accepts
   return $ InspectPlan mediaType SQL.Read
 
 {-|
@@ -824,52 +831,34 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
 addFilterToLogicForest :: CoercibleFilter -> [CoercibleLogicTree] -> [CoercibleLogicTree]
 addFilterToLogicForest flt lf = CoercibleStmnt flt : lf
 
-mediaToAggregate :: MediaType -> ApiRequest -> ResultAggregate
-mediaToAggregate mt apiReq@ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} =
-  if noAgg then NoAgg
-  else case mt of
-    MTApplicationJSON     -> BuiltinAggJson
-    MTSingularJSON strip  -> BuiltinAggSingleJson strip
-    MTArrayJSONStrip      -> BuiltinAggArrayJsonStrip
-    MTGeoJSON             -> BuiltinAggGeoJson
-    MTTextCSV             -> BuiltinAggCsv
-    MTAny                 -> BuiltinAggJson
-    MTOpenAPI             -> BuiltinAggJson
-    MTUrlEncoded          -> NoAgg -- TODO: unreachable since a previous step (producedMediaTypes) whitelists the media types that can become aggregates.
-
-    -- Doing `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.plan"` doesn't make sense, so we just empty the body.
-    -- TODO: fail instead to be more strict
-    MTPlan (MTPlan{}) _ _ -> NoAgg
-    MTPlan media      _ _ -> mediaToAggregate media apiReq
-    _                     -> NoAgg
-  where
-    noAgg = case act of
-      ActionMutate _         -> rep == Just HeadersOnly || rep == Just None || isNothing rep
-      ActionRead _isHead     -> _isHead -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
-      ActionInvoke invMethod -> invMethod == InvHead
-      _                      -> False
-
 -- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
-negotiateContent :: AppConfig -> Action -> [MediaType] -> Either ApiRequestError MediaType
-negotiateContent conf action accepts =
-  case firstAcceptedPick of
-    Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
-    Just mt    -> Right mt
-    Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
+negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] ->
+                    HM.HashMap (RelIdentifier, MediaType) MediaHandler -> Either ApiRequestError (MediaHandler, MediaType)
+negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces =
+  mtAnyToJSON $ case (act, firstAcceptedPick) of
+    (_, Nothing)                         -> Left . MediaTypeError $ map MediaType.toMime accepts
+    (ActionMutate _, Just (x, mt))       -> Right (if rep == Just Full then x else NoAgg, mt)
+    -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
+    -- TODO: despite no aggregate, these are responding with a Content-Type, which is not correct.
+    (ActionRead True, Just (_, mt))      -> Right (NoAgg, mt)
+    (ActionInvoke InvHead, Just (_, mt)) -> Right (NoAgg, mt)
+    (_, Just (x, mt))                    -> Right (x, mt)
   where
+    -- TODO initial */* is not overridable
+    -- initial handlers in the schema cache have a */* to BuiltinAggJson but they don't preserve the media type (application/json)
+    -- for now we just convert the resultant */* to application/json here
+    mtAnyToJSON = mapRight (\(x, y) -> (x, if y == MTAny then MTApplicationJSON else y))
     -- if there are multiple accepted media types, pick the first
-    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action
-
-producedMediaTypes :: AppConfig -> Action -> [MediaType]
-producedMediaTypes conf action =
-  case action of
-    ActionRead _    -> defaultMediaTypes
-    ActionInvoke _  -> defaultMediaTypes
-    ActionInfo      -> defaultMediaTypes
-    ActionMutate _  -> defaultMediaTypes
-    ActionInspect _ -> inspectMediaTypes
-  where
-    inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
-    defaultMediaTypes =
-      [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
-      [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
+    firstAcceptedPick = listToMaybe $ mapMaybe searchMT accepts
+    lookupIdent mt = -- first search for an aggregate that applies to the particular relation, then for one that applies to anyelement
+      HM.lookup (RelId identifier, mt) produces <|> HM.lookup (RelAnyElement, mt) produces
+    searchMT mt = case mt of
+      -- all the vendored media types have special handling as they have media type parameters, they cannot be overridden
+      m@(MTVndSingularJSON strip)                 -> Just (BuiltinAggSingleJson strip, m)
+      m@MTVndArrayJSONStrip                       -> Just (BuiltinAggArrayJsonStrip, m)
+      m@(MTVndPlan (MTVndSingularJSON strip) _ _) -> mtPlanToNothing $ Just (BuiltinAggSingleJson strip, m)
+      m@(MTVndPlan MTVndArrayJSONStrip _ _)       -> mtPlanToNothing $ Just (BuiltinAggArrayJsonStrip, m)
+      -- all the other media types can be overridden
+      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ (,) <$> lookupIdent mType <*> pure m
+      x                                           -> (,) <$> lookupIdent x <*> pure x
+    mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed

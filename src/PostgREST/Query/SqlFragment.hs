@@ -7,7 +7,7 @@ Description : Helper functions for PostgREST.QueryBuilder.
 -}
 module PostgREST.Query.SqlFragment
   ( noLocationF
-  , aggF
+  , handlerF
   , countF
   , fromQi
   , limitOffsetF
@@ -65,8 +65,8 @@ import PostgREST.ApiRequest.Types        (Alias, Cast,
                                           QuantOperator (..),
                                           SimpleOperator (..),
                                           TrileanVal (..))
-import PostgREST.MediaType               (MTPlanFormat (..),
-                                          MTPlanOption (..))
+import PostgREST.MediaType               (MTVndPlanFormat (..),
+                                          MTVndPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
 import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleFilter (..),
@@ -77,7 +77,7 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Routine     (ResultAggregate (..),
+import PostgREST.SchemaCache.Routine     (MediaHandler (..),
                                           Routine (..),
                                           funcReturnsScalar,
                                           funcReturnsSetOfScalar,
@@ -211,6 +211,11 @@ asJsonF rout strip
 
 asGeoJsonF ::  SQL.Snippet
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
+
+customFuncF :: Maybe Routine -> QualifiedIdentifier -> QualifiedIdentifier -> SQL.Snippet
+customFuncF rout funcQi target
+  | (funcReturnsScalar <$> rout) == Just True = fromQi funcQi <> "(_postgrest_t.pgrst_scalar)"
+  | otherwise                                 = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
 
 locationF :: [Text] -> SQL.Snippet
 locationF pKeys = [qc|(
@@ -455,13 +460,13 @@ intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
 
-explainF :: MTPlanFormat -> [MTPlanOption] -> SQL.Snippet -> SQL.Snippet
+explainF :: MTVndPlanFormat -> [MTVndPlanOption] -> SQL.Snippet -> SQL.Snippet
 explainF fmt opts snip =
   "EXPLAIN (" <>
     SQL.sql (BS.intercalate ", " (fmtPlanFmt fmt : (fmtPlanOpt <$> opts))) <>
   ") " <> snip
   where
-    fmtPlanOpt :: MTPlanOption -> BS.ByteString
+    fmtPlanOpt :: MTVndPlanOption -> BS.ByteString
     fmtPlanOpt PlanAnalyze  = "ANALYZE"
     fmtPlanOpt PlanVerbose  = "VERBOSE"
     fmtPlanOpt PlanSettings = "SETTINGS"
@@ -486,11 +491,12 @@ setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal k
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
     arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
 
-aggF :: Maybe Routine -> ResultAggregate -> SQL.Snippet
-aggF rout = \case
-  BuiltinAggJson             -> asJsonF rout False
+handlerF :: Maybe Routine -> QualifiedIdentifier -> MediaHandler -> SQL.Snippet
+handlerF rout target = \case
   BuiltinAggArrayJsonStrip   -> asJsonF rout True
   BuiltinAggSingleJson strip -> asJsonSingleF rout strip
-  BuiltinAggGeoJson          -> asGeoJsonF
-  BuiltinAggCsv              -> asCsvF
+  BuiltinOvAggJson           -> asJsonF rout False
+  BuiltinOvAggGeoJson        -> asGeoJsonF
+  BuiltinOvAggCsv            -> asCsvF
+  CustomFunc funcQi          -> customFuncF rout funcQi target
   NoAgg                      -> "''::text"

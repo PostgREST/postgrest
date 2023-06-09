@@ -91,7 +91,7 @@ instance PgrstError ApiRequestError where
   status SingularityError{}      = HTTP.status406
   status PGRSTParseError         = HTTP.status500
 
-  headers SingularityError{}     = [MediaType.toContentType $ MTSingularJSON False]
+  headers SingularityError{}     = [MediaType.toContentType $ MTVndSingularJSON False]
   headers _ = mempty
 
 toJsonPgrstError :: ErrorCode -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value

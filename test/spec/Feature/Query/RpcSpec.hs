@@ -1,12 +1,11 @@
 module Feature.Query.RpcSpec where
 
-import qualified Data.ByteString.Lazy as BL (empty, readFile)
+import qualified Data.ByteString.Lazy as BL (empty)
 
 import Network.Wai      (Application)
 import Network.Wai.Test (SResponse (simpleBody, simpleHeaders, simpleStatus))
 
 import Network.HTTP.Types
-import System.IO.Unsafe    (unsafePerformIO)
 import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
@@ -1077,87 +1076,6 @@ spec actualPgVersion =
             , matchHeaders = []
             }
 
-    context "binary output" $ do
-      context "Proc that returns scalar" $ do
-        it "can query without selecting column" $ do
-          pendingWith "TBD"
-          request methodPost "/rpc/ret_base64_bin" (acceptHdrs "application/octet-stream") ""
-            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
-            }
-
-        it "can get raw output with Accept: text/plain" $ do
-          pendingWith "TBD"
-          request methodGet "/rpc/welcome" (acceptHdrs "text/plain") ""
-            `shouldRespondWith` "Welcome to PostgREST"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
-            }
-
-        it "can get raw xml output with Accept: text/xml" $ do
-          pendingWith "TBD"
-          request methodGet "/rpc/return_scalar_xml" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            "<my-xml-tag/>"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
-            }
-
-        it "can get raw xml output with Accept: text/xml" $ do
-          pendingWith "TBD"
-          request methodGet "/rpc/welcome.xml" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            "<html>\n  <head>\n    <title>PostgREST</title>\n  </head>\n  <body>\n    <h1>Welcome to PostgREST</h1>\n  </body>\n</html>"
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
-            }
-
-        it "should fail with function returning text and Accept: text/xml" $ do
-          pendingWith "TBD"
-          request methodGet "/rpc/welcome" (acceptHdrs "text/xml") ""
-            `shouldRespondWith`
-            [json|
-              {
-                "hint":"No function matches the given name and argument types. You might need to add explicit type casts.",
-                "details":null,
-                "code":"42883",
-                "message":"function xmlagg(text) does not exist"
-              }
-            |]
-            { matchStatus = 406
-            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
-            }
-
-      context "Proc that returns set of scalars" $
-        it "can query without selecting column" $ do
-          pendingWith "TBD"
-          request methodGet "/rpc/welcome_twice"
-              (acceptHdrs "text/plain")
-              ""
-            `shouldRespondWith`
-              "Welcome to PostgRESTWelcome to PostgREST"
-              { matchStatus = 200
-              , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
-              }
-
-      context "Proc that returns rows" $ do
-        it "can query if a single column is selected" $ do
-          pendingWith "TBD"
-          request methodPost "/rpc/ret_rows_with_base64_bin?select=img" (acceptHdrs "application/octet-stream") ""
-            `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
-            { matchStatus = 200
-            , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
-            }
-
-        it "fails if a single column is not selected" $ do
-          pendingWith "TBD"
-          request methodPost "/rpc/ret_rows_with_base64_bin"
-              (acceptHdrs "application/octet-stream") ""
-            `shouldRespondWith`
-              [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
-              { matchStatus = 406 }
-
     context "only for GET rpc" $ do
       it "should fail on mutating procs" $ do
         get "/rpc/callcounter" `shouldRespondWith` 405
@@ -1327,7 +1245,6 @@ spec actualPgVersion =
               [json|{"A": 1, "B": 2, "C": 3}|]
 
         it "can insert text directly" $ do
-          pendingWith "TBD"
           request methodPost "/rpc/unnamed_text_param"
             [("Content-Type", "text/plain"), ("Accept", "text/plain")]
             [str|unnamed text arg|]
@@ -1335,7 +1252,6 @@ spec actualPgVersion =
             [str|unnamed text arg|]
 
         it "can insert xml directly" $ do
-          pendingWith "TBD"
           request methodPost "/rpc/unnamed_xml_param"
             [("Content-Type", "text/xml"), ("Accept", "text/xml")]
             [str|<note><from>John</from><to>Jane</to><message>Remember me</message></note>|]
@@ -1343,8 +1259,7 @@ spec actualPgVersion =
             [str|<note><from>John</from><to>Jane</to><message>Remember me</message></note>|]
 
         it "can insert bytea directly" $ do
-          pendingWith "TBD"
-          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png"
+          let file = readFixtureFile "image.png"
           r <- request methodPost "/rpc/unnamed_bytea_param"
             [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
             file
@@ -1397,10 +1312,9 @@ spec actualPgVersion =
               }
 
         it "will err when no function with single unnamed bytea parameter exists and application/octet-stream is specified" $
-          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png" in
           request methodPost "/rpc/unnamed_int_param"
               [("Content-Type", "application/octet-stream")]
-              file
+              (readFixtureFile "image.png")
           `shouldRespondWith`
             [json|{
               "hint": null,
@@ -1429,7 +1343,6 @@ spec actualPgVersion =
               }
 
         it "should be able to fallback to the single unnamed parameter function when other overloaded functions are not found" $ do
-          pendingWith "TBD"
           request methodPost "/rpc/overloaded_unnamed_param"
               [("Content-Type", "application/json")]
               [json|{"A": 1, "B": 2, "C": 3}|]
@@ -1440,7 +1353,7 @@ spec actualPgVersion =
               [str|unnamed text arg|]
             `shouldRespondWith`
               [str|unnamed text arg|]
-          let file = unsafePerformIO $ BL.readFile "test/spec/fixtures/image.png"
+          let file = readFixtureFile "image.png"
           r <- request methodPost "/rpc/overloaded_unnamed_param"
             [("Content-Type", "application/octet-stream"), ("Accept", "application/octet-stream")]
             file
@@ -1488,7 +1401,6 @@ spec actualPgVersion =
               }
 
         it "should fail on /rpc/unnamed_xml_param when posting invalid xml" $ do
-          pendingWith "TBD"
           request methodPost "/rpc/unnamed_xml_param"
             [("Content-Type", "text/xml"), ("Accept", "text/xml")]
             [str|<|]

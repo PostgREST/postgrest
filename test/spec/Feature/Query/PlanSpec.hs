@@ -275,18 +275,6 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 68.56
 
-    it "outputs the plan for text/xml" $ do
-      pendingWith "TBD"
-      r <- request methodGet "/rpc/return_scalar_xml"
-        (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose") ""
-
-      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
-          resHeaders = simpleHeaders r
-
-      liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
-        aggCol `shouldBe` Just [aesonQQ| "COALESCE(xmlagg(return_scalar_xml.pgrst_scalar), ''::xml)" |]
-
   describe "text format" $ do
     it "outputs the total cost for a function call" $ do
       r <- request methodGet "/projects?id=in.(1,2,3)"
@@ -441,6 +429,34 @@ spec actualPgVersion = do
 
         liftIO $ do
           resBody `shouldSatisfy` (\t -> T.isInfixOf "Index" (decodeUtf8 $ LBS.toStrict t))
+
+  describe "custom media types" $ do
+    it "outputs the plan for a scalar function text/xml" $ do
+      r <- request methodGet "/rpc/return_scalar_xml"
+        (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose") ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe` Just [aesonQQ| "return_scalar_xml.pgrst_scalar" |]
+
+    it "outputs the plan for an aggregate application/vnd.twkb" $ do
+      r <- request methodGet "/lines"
+        (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose") ""
+
+      let aggCol  = simpleBody r ^? nth 0 . key "Plan" . key "Output" . nth 2
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose; charset=utf-8")
+        aggCol `shouldBe`
+          (
+            if actualPgVersion >= pgVersion120
+              then Just [aesonQQ| "twkb_agg(ROW(lines.id, lines.name, lines.geom)::lines)" |]
+              else Just [aesonQQ| "twkb_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.geom)::lines)" |]
+          )
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =

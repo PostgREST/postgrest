@@ -28,7 +28,9 @@ module PostgREST.SchemaCache
 
 import Control.Monad.Extra (whenJust)
 
+import           Data.Aeson                 ((.=))
 import qualified Data.Aeson                 as JSON
+import qualified Data.Aeson.Types           as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
@@ -48,7 +50,8 @@ import PostgREST.Config.PgVersion            (PgVersion, pgVersion100,
                                               pgVersion120)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
-                                              Schema)
+                                              RelIdentifier (..),
+                                              Schema, isAnyElement)
 import PostgREST.SchemaCache.Relationship    (Cardinality (..),
                                               Junction (..),
                                               Relationship (..),
@@ -56,6 +59,8 @@ import PostgREST.SchemaCache.Relationship    (Cardinality (..),
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
 import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
+                                              MediaHandler (..),
+                                              MediaHandlerMap,
                                               PgType (..),
                                               RetType (..),
                                               Routine (..),
@@ -63,6 +68,8 @@ import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
                                               RoutineParam (..))
 import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
                                               Table (..), TablesMap)
+
+import qualified PostgREST.MediaType as MediaType
 
 import Protolude
 
@@ -72,8 +79,16 @@ data SchemaCache = SchemaCache
   , dbRelationships   :: RelationshipsMap
   , dbRoutines        :: RoutineMap
   , dbRepresentations :: RepresentationsMap
+  , dbMediaHandlers   :: MediaHandlerMap
   }
-  deriving (Generic, JSON.ToJSON)
+instance JSON.ToJSON SchemaCache where
+  toJSON (SchemaCache tabs rels routs reps _) = JSON.object [
+      "dbTables"          .= JSON.toJSON tabs
+    , "dbRelationships"   .= JSON.toJSON rels
+    , "dbRoutines"        .= JSON.toJSON routs
+    , "dbRepresentations" .= JSON.toJSON reps
+    , "dbMediaHandlers"   .= JSON.emptyArray
+    ]
 
 -- | A view foreign key or primary key dependency detected on its source table
 -- Each column of the key could be referenced multiple times in the view, e.g.
@@ -113,6 +128,7 @@ data KeyDep
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
 
+
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
@@ -123,6 +139,7 @@ querySchemaCache AppConfig{..} = do
   funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement schemas $ dataRepresentations prepared
+  mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
     whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
@@ -135,6 +152,7 @@ querySchemaCache AppConfig{..} = do
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
     , dbRepresentations = reps
+    , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     }
   where
     schemas = toList configDbSchemas
@@ -169,6 +187,7 @@ removeInternal schemas dbStruct =
                           HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
     , dbRoutines        = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
+    , dbMediaHandlers   = dbMediaHandlers dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -1083,6 +1102,81 @@ allViewsKeyDependencies =
       -- make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs
       having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
+
+initialMediaHandlers :: MediaHandlerMap
+initialMediaHandlers =
+  HM.insert (RelAnyElement, MediaType.MTAny            ) BuiltinOvAggJson $
+  HM.insert (RelAnyElement, MediaType.MTApplicationJSON) BuiltinOvAggJson $
+  HM.insert (RelAnyElement, MediaType.MTTextCSV        ) BuiltinOvAggCsv $
+  HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) BuiltinOvAggGeoJson
+  HM.empty
+
+mediaHandlers :: PgVersion -> Bool -> SQL.Statement [Schema] MediaHandlerMap
+mediaHandlers pgVer =
+  SQL.Statement sql (arrayParam HE.text) decodeMediaHandlers
+  where
+    sql = [q|
+      with
+      all_relations as (
+        select reltype
+        from pg_class
+        where relkind in ('v','r','m','f','p')
+        union
+        select oid
+        from pg_type
+        where typname = 'anyelement'
+      ),
+      media_types as (
+          SELECT
+            t.oid,
+            lower(t.typname) as typname,
+            b.oid as base_oid,
+            b.typname AS basetypname,
+            t.typnamespace
+          FROM pg_type t
+          JOIN pg_type b ON t.typbasetype = b.oid
+          WHERE
+            t.typbasetype <> 0 and
+            t.typname ~* '^[A-Za-z0-9.-]+/[A-Za-z0-9.\+-]+$'
+      )
+      select
+        proc_schema.nspname           as handler_schema,
+        proc.proname                  as handler_name,
+        arg_schema.nspname::text      as target_schema,
+        arg_name.typname::text        as target_name,
+        media_types.typname           as media_type
+      from media_types
+        join pg_proc      proc         on proc.prorettype = media_types.oid
+        join pg_namespace proc_schema  on proc_schema.oid = proc.pronamespace
+        join pg_aggregate agg          on agg.aggfnoid = proc.oid
+        join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
+        join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
+      where
+        proc_schema.nspname = ANY($1) and
+        proc.pronargs = 1 and
+        arg_name.oid in (select reltype from all_relations)
+      union
+      select
+          typ_sch.nspname as handler_schema,
+          mtype.typname   as handler_name,
+          pro_sch.nspname as target_schema,
+          proname         as target_name,
+          mtype.typname   as media_type
+      from pg_proc proc
+        join pg_namespace pro_sch on pro_sch.oid = proc.pronamespace
+        join media_types mtype on proc.prorettype = mtype.oid
+        join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
+      where NOT proretset
+      |] <> (if pgVer >= pgVersion110 then " AND prokind = 'f'" else " AND NOT (proisagg OR proiswindow)")
+
+decodeMediaHandlers :: HD.Result MediaHandlerMap
+decodeMediaHandlers =
+  HM.fromList . fmap (\(x, y, z) -> ((if isAnyElement y then RelAnyElement else RelId y, z), CustomFunc x) ) <$> HD.rowList caggRow
+  where
+    caggRow = (,,)
+              <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+              <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+              <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable

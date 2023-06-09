@@ -220,7 +220,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
       return $ pgrstResponse metrics  pgrst
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
-      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan conf apiReq
+      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
       (rsTime', oaiResult) <- withTiming $ runQuery roleIsoLvl (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
       (renderTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
       let metrics = Map.fromList [(SMPlan, planTime'), (SMQuery, rsTime'), (SMRender, renderTime'), jwtTime]

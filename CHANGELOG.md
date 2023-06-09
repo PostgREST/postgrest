@@ -14,10 +14,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2943, Add `handling=strict/lenient` for Prefer header - @taimoorzaeem
  - #2983, Add more data to `Server-Timing` header - @develop7
  - #2441, Add config `server-cors-allowed-origins` to specify CORS origins - @taimoorzaeem
+ - #2825, SQL handlers for custom media types - @steve-chavez
+  - Solves #1548, #2699, #2763, #2170, #1462, #1102, #1374, #2901
 
 ### Fixed
 
  - #3015, Fix unnecessary count() on RPC returning single - @steve-chavez
+
+### Changed
+
+ - Removed [raw-media-types config](https://postgrest.org/en/v11.1/references/configuration.html#raw-media-types) - @steve-chavez
+ - Removed `application/octet-stream`, `text/plain`, `text/xml` [builtin support for scalar results](https://postgrest.org/en/v11.1/references/api/resource_representation.html#scalar-function-response-format) - @steve-chavez
+ - Removed default `application/openapi+json` media type for [db-root-spec](https://postgrest.org/en/v11.1/references/configuration.html#db-root-spec) - @steve-chavez
 
 ## [11.2.2] - 2023-10-25
 
@@ -85,14 +93,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2863, Deprecate resource embedding target disambiguation - @steve-chavez
    + The `/table?select=*,other!fk(*)` must be used to disambiguate
    + The server aids in choosing the `!fk` by sending a `hint` on the error whenever an ambiguous request happens.
-
-### Changed
-
- - #1462, #1548, Removed [raw-media-types config](https://postgrest.org/en/v11.1/references/configuration.html#raw-media-types) - @steve-chavez
-   + Can be replaced with custom media types
- - #1462, #1548, Removed `application/octet-stream`, `text/plain`, `text/xml` [builtin support for scalar results](https://postgrest.org/en/v11.1/references/api/resource_representation.html#scalar-function-response-format) - @steve-chavez
-   + Can be replaced with custom media types
- - #1462, #1548, Removed default `application/openapi+json` media type for [db-root-spec](https://postgrest.org/en/v11.1/references/configuration.html#db-root-spec) - @steve-chavez
 
 ## [11.1.0] - 2023-06-07
 

@@ -37,11 +37,11 @@ import qualified Feature.OpenApi.SecurityOpenApiSpec
 import qualified Feature.OptionsSpec
 import qualified Feature.Query.AndOrParamsSpec
 import qualified Feature.Query.ComputedRelsSpec
+import qualified Feature.Query.CustomMediaSpec
 import qualified Feature.Query.DeleteSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
-import qualified Feature.Query.HtmlRawOutputSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
@@ -129,6 +129,7 @@ main = do
         , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec actualPgVersion)
         , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
+        , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
         , ("Feature.Query.DeleteSpec"                    , Feature.Query.DeleteSpec.spec)
         , ("Feature.Query.EmbedDisambiguationSpec"       , Feature.Query.EmbedDisambiguationSpec.spec)
         , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
@@ -149,7 +150,6 @@ main = do
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
-        , ("Feature.Query.HtmlRawOutputSpec"             , Feature.Query.HtmlRawOutputSpec.spec)
         , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
         ]
 
