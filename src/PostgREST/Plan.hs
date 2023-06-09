@@ -124,18 +124,16 @@ wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
-  binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType binField apiRequest) mediaType
+  return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType apiRequest) mediaType
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
-  binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType binField apiRequest) mediaType
+  return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType apiRequest) mediaType
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
@@ -160,9 +158,8 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
-  binField <- mapLeft ApiRequestError $ binaryField conf mediaType (Just proc) rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType binField apiRequest) mediaType
+  return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType apiRequest) mediaType
   where
     qsParams' = QueryParams.qsParams iQueryParams
 
@@ -828,40 +825,8 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
 addFilterToLogicForest :: CoercibleFilter -> [CoercibleLogicTree] -> [CoercibleLogicTree]
 addFilterToLogicForest flt lf = CoercibleStmnt flt : lf
 
--- | If raw(binary) output is requested, check that MediaType is one of the
--- admitted rawMediaTypes and that`?select=...` contains only one field other
--- than `*`
-binaryField :: AppConfig -> MediaType -> Maybe Routine -> ReadPlanTree -> Either ApiRequestError (Maybe FieldName)
-binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
-  | isRawMediaType =
-    if (funcReturnsScalar <$> proc) == Just True ||
-       (funcReturnsSetOfScalar <$> proc) == Just True
-      then Right $ Just "pgrst_scalar"
-      else
-        let
-          fieldName = fstFieldName rpTree
-        in
-        case fieldName of
-          Just fld -> Right $ Just fld
-          Nothing  -> Left $ BinaryFieldError acceptMediaType
-  | otherwise =
-      Right Nothing
-  where
-    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
-    isRawPlan mt = case mt of
-      MTPlan MTOctetStream _ _ -> True
-      MTPlan MTTextPlain _ _   -> True
-      MTPlan MTTextXML _ _     -> True
-      _                        -> False
-
-    fstFieldName :: ReadPlanTree -> Maybe FieldName
-    fstFieldName (Node ReadPlan{select=(CoercibleField{cfName="*", cfJsonPath=[]}, _, _):_} [])  = Nothing
-    fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _)]} [])  = Just fld
-    fstFieldName _                                               = Nothing
-
-
-mediaToAggregate :: MediaType -> Maybe FieldName -> ApiRequest -> ResultAggregate
-mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} =
+mediaToAggregate :: MediaType -> ApiRequest -> ResultAggregate
+mediaToAggregate mt apiReq@ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} =
   if noAgg then NoAgg
   else case mt of
     MTApplicationJSON     -> BuiltinAggJson
@@ -873,16 +838,11 @@ mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Prefere
     MTOpenAPI             -> BuiltinAggJson
     MTUrlEncoded          -> NoAgg -- TODO: unreachable since a previous step (producedMediaTypes) whitelists the media types that can become aggregates.
 
-    -- binary types
-    MTTextPlain           -> BuiltinAggBinary binField
-    MTTextXML             -> BuiltinAggXml binField
-    MTOctetStream         -> BuiltinAggBinary binField
-    MTOther _             -> BuiltinAggBinary binField
-
     -- Doing `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.plan"` doesn't make sense, so we just empty the body.
     -- TODO: fail instead to be more strict
     MTPlan (MTPlan{}) _ _ -> NoAgg
-    MTPlan media      _ _ -> mediaToAggregate media binField apiReq
+    MTPlan media      _ _ -> mediaToAggregate media apiReq
+    _                     -> NoAgg
   where
     noAgg = case act of
       ActionMutate _         -> rep == Just HeadersOnly || rep == Just None || isNothing rep
@@ -904,7 +864,7 @@ negotiateContent conf action path accepts =
 producedMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
 producedMediaTypes conf action path =
   case action of
-    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
+    ActionRead _    -> defaultMediaTypes
     ActionInvoke _  -> invokeMediaTypes
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
@@ -913,9 +873,7 @@ producedMediaTypes conf action path =
     inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
     invokeMediaTypes =
       defaultMediaTypes
-        ++ rawMediaTypes
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
       [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
-    rawMediaTypes = configRawMediaTypes conf `L.union` [MTOctetStream, MTTextPlain, MTTextXML]

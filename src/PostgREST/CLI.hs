@@ -218,9 +218,6 @@ exampleConfigFile =
       |## Base url for the OpenAPI output
       |openapi-server-proxy-uri = ""
       |
-      |## Content types to produce raw output
-      |# raw-media-types="image/png, image/jpg"
-      |
       |## Configurable CORS origins
       |# server-cors-allowed-origins = ""
       |

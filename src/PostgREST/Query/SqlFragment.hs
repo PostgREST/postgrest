@@ -209,19 +209,8 @@ asJsonF rout strip
       Just r  -> (funcReturnsSingleComposite r, funcReturnsScalar r, funcReturnsSetOfScalar r)
       Nothing -> (False, False, False)
 
-
-asXmlF :: Maybe FieldName -> SQL.Snippet
-asXmlF (Just fieldName) = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
--- TODO unreachable because a previous step(binaryField) will validate that there's a field. This will be cleared once custom media types are implemented.
-asXmlF Nothing          = "coalesce(xmlagg(_postgrest_t), '')"
-
 asGeoJsonF ::  SQL.Snippet
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
-
-asBinaryF :: Maybe FieldName -> SQL.Snippet
-asBinaryF (Just fieldName) = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
--- TODO unreachable because a previous step(binaryField) will validate that there's a field. This will be cleared once custom media types are implemented.
-asBinaryF Nothing          = "coalesce(string_agg(_postgrest_t, ''), '')"
 
 locationF :: [Text] -> SQL.Snippet
 locationF pKeys = [qc|(
@@ -504,6 +493,4 @@ aggF rout = \case
   BuiltinAggSingleJson strip -> asJsonSingleF rout strip
   BuiltinAggGeoJson          -> asGeoJsonF
   BuiltinAggCsv              -> asCsvF
-  BuiltinAggXml    bField    -> asXmlF    bField
-  BuiltinAggBinary bField    -> asBinaryF bField
   NoAgg                      -> "''::text"

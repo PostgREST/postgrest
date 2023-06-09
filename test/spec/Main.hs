@@ -103,7 +103,6 @@ main = do
       asymJwkApp           = app testCfgAsymJWK
       asymJwkSetApp        = app testCfgAsymJWKSet
       rootSpecApp          = app testCfgRootSpec
-      htmlRawOutputApp     = app testCfgHtmlRawOutput
       responseHeadersApp   = app testCfgResponseHeaders
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
@@ -150,6 +149,7 @@ main = do
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
+        , ("Feature.Query.HtmlRawOutputSpec"             , Feature.Query.HtmlRawOutputSpec.spec)
         , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
         ]
 
@@ -159,10 +159,6 @@ main = do
     -- we analyze to get accurate results from EXPLAIN
     parallel $ beforeAll_ analyze . before withApp $
       describe "Feature.Query.RangeSpec" Feature.Query.RangeSpec.spec
-
-    -- this test runs with a raw-output-media-types set to text/html
-    parallel $ before htmlRawOutputApp $
-      describe "Feature.Query.HtmlRawOutputSpec" Feature.Query.HtmlRawOutputSpec.spec
 
     -- this test runs with a different server flag
     parallel $ before maxRowsApp $

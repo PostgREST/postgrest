@@ -23,8 +23,7 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
 
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema, TableName)
 
 import Protolude
@@ -95,8 +94,6 @@ data ResultAggregate
    | BuiltinAggArrayJsonStrip
    | BuiltinAggGeoJson
    | BuiltinAggCsv
-   | BuiltinAggXml    (Maybe FieldName)
-   | BuiltinAggBinary (Maybe FieldName)
    | NoAgg
    deriving (Eq, Show)
 

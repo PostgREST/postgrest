@@ -86,6 +86,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + The `/table?select=*,other!fk(*)` must be used to disambiguate
    + The server aids in choosing the `!fk` by sending a `hint` on the error whenever an ambiguous request happens.
 
+### Changed
+
+ - #1462, #1548, Removed [raw-media-types config](https://postgrest.org/en/v11.1/references/configuration.html#raw-media-types) - @steve-chavez
+   + Can be replaced with custom media types
+ - #1462, #1548, Removed `application/octet-stream`, `text/plain`, `text/xml` [builtin support for scalar results](https://postgrest.org/en/v11.1/references/api/resource_representation.html#scalar-function-response-format) - @steve-chavez
+   + Can be replaced with custom media types
+
 ## [11.1.0] - 2023-06-07
 
 ### Added
