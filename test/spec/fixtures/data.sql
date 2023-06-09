@@ -858,3 +858,6 @@ TRUNCATE TABLE table_a CASCADE;
 INSERT INTO table_a(id, name) VALUES (1, 'Not null 1'), (2, null), (3, 'Not null 2');
 TRUNCATE TABLE table_b CASCADE;
 INSERT INTO table_b(table_a_id, name) VALUES (1, 'Test 1'), (2, 'Test 2'), (null, 'Test 3');
+
+TRUNCATE TABLE lines CASCADE;
+insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::extensions.geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::extensions.geometry);

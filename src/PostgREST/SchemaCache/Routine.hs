@@ -15,16 +15,20 @@ module PostgREST.SchemaCache.Routine
   , funcTableName
   , funcReturnsCompositeAlias
   , funcReturnsSingle
-  , ResultAggregate(..)
+  , MediaHandlerMap
+  , MediaHandler(..)
   ) where
 
 import           Data.Aeson                 ((.=))
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          Schema, TableName)
+                                          RelIdentifier (..), Schema,
+                                          TableName)
+
 
 import Protolude
 
@@ -88,12 +92,17 @@ instance Ord Routine where
 -- | It uses a HashMap for a faster lookup.
 type RoutineMap = HM.HashMap QualifiedIdentifier [Routine]
 
-data ResultAggregate
-   = BuiltinAggJson
-   | BuiltinAggSingleJson Bool
+-- | A media handler can be an aggregate over a composite type or a function over a scalar
+data MediaHandler
+   -- non overridable builtins
+   = BuiltinAggSingleJson Bool
    | BuiltinAggArrayJsonStrip
-   | BuiltinAggGeoJson
-   | BuiltinAggCsv
+   -- these builtins are overridable
+   | BuiltinOvAggJson
+   | BuiltinOvAggGeoJson
+   | BuiltinOvAggCsv
+   -- custom
+   | CustomFunc QualifiedIdentifier
    | NoAgg
    deriving (Eq, Show)
 
@@ -133,3 +142,5 @@ funcTableName proc = case pdReturnType proc of
   SetOf  (Composite qi _) -> Just $ qiName qi
   Single (Composite qi _) -> Just $ qiName qi
   _                       -> Nothing
+
+type MediaHandlerMap = HM.HashMap (RelIdentifier, MediaType.MediaType) MediaHandler

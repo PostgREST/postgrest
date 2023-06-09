@@ -350,7 +350,7 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
-      & produces ?~ makeMimeList [MTApplicationJSON, MTSingularJSON True, MTSingularJSON False]
+      & produces ?~ makeMimeList [MTApplicationJSON, MTVndSingularJSON True, MTVndSingularJSON False]
       & at 200 ?~ "OK"
     getOp = procOp
       & parameters .~ makeProcGetParams (pdParams pd)
@@ -406,8 +406,8 @@ postgrestSpec (prettyVersion, docsVersion) rels pds ti (s, h, p, b) sd allowSecu
   & definitions .~ fromList (makeTableDef rels <$> ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
-  & produces .~ makeMimeList [MTApplicationJSON, MTSingularJSON True, MTSingularJSON False, MTTextCSV]
-  & consumes .~ makeMimeList [MTApplicationJSON, MTSingularJSON True, MTSingularJSON False, MTTextCSV]
+  & produces .~ makeMimeList [MTApplicationJSON, MTVndSingularJSON True, MTVndSingularJSON False, MTTextCSV]
+  & consumes .~ makeMimeList [MTApplicationJSON, MTVndSingularJSON True, MTVndSingularJSON False, MTTextCSV]
   & securityDefinitions .~ makeSecurityDefinitions securityDefName allowSecurityDef
   & security .~ [SecurityRequirement (fromList [(securityDefName, [])]) | allowSecurityDef]
     where

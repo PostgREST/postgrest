@@ -62,6 +62,7 @@ CREATE TYPE enum_menagerie_type AS ENUM (
     'bar'
 );
 
+create type  bit as enum ('one', 'two');
 
 SET search_path = postgrest, pg_catalog;
 
@@ -118,6 +119,20 @@ SET search_path = test, pg_catalog;
 SET default_tablespace = '';
 
 SET default_with_oids = false;
+
+create domain "text/plain" as text;
+create domain "text/html" as text;
+create domain "text/xml" as pg_catalog.xml;
+create domain "application/octet-stream" as bytea;
+create domain "image/png" as bytea;
+create domain "application/vnd.twkb" as bytea;
+create domain "application/openapi+json" as json;
+create domain "application/geo+json" as jsonb;
+create domain "application/vnd.geo2+json" as jsonb;
+create domain "application/json" as json;
+create domain "application/vnd.pgrst.object" as json;
+create domain "text/tab-separated-values" as text;
+create domain "text/csv" as text;
 
 CREATE TABLE items (
     id bigserial primary key
@@ -1160,12 +1175,8 @@ create or replace function test.ret_null() returns int as $$
   select null::int;
 $$ language sql;
 
-create function test.ret_base64_bin() returns text as $$
-  select i.img from test.images_base64 i where i.name = 'A.png';
-$$ language sql;
-
-create function test.ret_rows_with_base64_bin() returns setof test.images_base64 as $$
-  select i.name, i.img from test.images_base64 i;
+create function test.ret_image() returns "image/png" as $$
+  select i.img::"image/png" from test.images i where i.name = 'A.png';
 $$ language sql;
 
 create function test.single_article(id integer) returns test.articles as $$
@@ -1896,7 +1907,7 @@ returns integer as $$
   select a + b;
 $$ language sql;
 
-create or replace function root() returns json as $_$
+create or replace function root() returns "application/openapi+json" as $_$
 declare
 openapi json = $$
   {
@@ -1912,17 +1923,17 @@ begin
 end
 $_$ language plpgsql;
 
-create or replace function welcome() returns text as $$
-select 'Welcome to PostgREST'::text;
+create or replace function welcome() returns "text/plain" as $$
+select 'Welcome to PostgREST'::"text/plain";
 $$ language sql;
 
-create or replace function welcome_twice() returns setof text as $$
+create or replace function welcome_twice() returns setof "text/plain" as $$
 select 'Welcome to PostgREST'
 union all
 select 'Welcome to PostgREST';
 $$ language sql;
 
-create or replace function "welcome.html"() returns text as $_$
+create or replace function "welcome.html"() returns "text/html" as $_$
 select $$
 <html>
   <head>
@@ -1932,7 +1943,7 @@ select $$
     <h1>Welcome to PostgREST</h1>
   </body>
 </html>
-$$::text;
+$$::"text/html";
 $_$ language sql;
 
 create view getallprojects_view as
@@ -2370,16 +2381,16 @@ create or replace function test.unnamed_json_param(json) returns json as $$
   select $1;
 $$ language sql;
 
-create or replace function test.unnamed_text_param(text) returns text as $$
-  select $1;
+create or replace function test.unnamed_text_param(text) returns "text/plain" as $$
+  select $1::"text/plain";
 $$ language sql;
 
-create or replace function test.unnamed_xml_param(pg_catalog.xml) returns pg_catalog.xml as $$
-  select $1;
+create or replace function test.unnamed_xml_param(pg_catalog.xml) returns "text/xml" as $$
+  select $1::"text/xml";
 $$ language sql;
 
-create or replace function test.unnamed_bytea_param(bytea) returns bytea as $$
-  select $1::bytea;
+create or replace function test.unnamed_bytea_param(bytea) returns "application/octet-stream" as $$
+  select $1::"application/octet-stream";
 $$ language sql;
 
 create or replace function test.unnamed_int_param(int) returns int as $$
@@ -2390,12 +2401,12 @@ create or replace function test.overloaded_unnamed_param(json) returns json as $
   select $1;
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_param(bytea) returns bytea as $$
-select $1;
+create or replace function test.overloaded_unnamed_param(bytea) returns "application/octet-stream" as $$
+select $1::"application/octet-stream";
 $$ language sql;
 
-create or replace function test.overloaded_unnamed_param(text) returns text as $$
-select $1;
+create or replace function test.overloaded_unnamed_param(text) returns "text/plain" as $$
+select $1::"text/plain";
 $$ language sql;
 
 create or replace function test.overloaded_unnamed_param() returns int as $$
@@ -2631,12 +2642,12 @@ create table plate_plan_step (
 	  REFERENCES well(well_id)
 );
 
-CREATE FUNCTION test.return_scalar_xml() RETURNS pg_catalog.xml
+CREATE FUNCTION test.return_scalar_xml() RETURNS "text/xml"
 LANGUAGE sql AS $$
-  SELECT '<my-xml-tag/>'::pg_catalog.xml
+  SELECT '<my-xml-tag/>'::"text/xml"
 $$;
 
-CREATE OR REPLACE FUNCTION "welcome.xml"() RETURNS pg_catalog.xml
+CREATE OR REPLACE FUNCTION "welcome.xml"() RETURNS "text/xml"
 LANGUAGE sql AS $_$
 select $$
 <html>
@@ -2646,12 +2657,29 @@ select $$
   <body>
     <h1>Welcome to PostgREST</h1>
   </body>
-</html>$$::pg_catalog.xml;
+</html>$$::"text/xml";
 $_$;
 
 CREATE TABLE test.xmltest (
     id integer primary key,
     xml pg_catalog.xml NOT NULL
+);
+
+create or replace function test.xml_handler_transition (state "text/xml", next test.xmltest)
+returns "text/xml" as $$
+  select xmlconcat2(state, next.xml)::"text/xml";
+$$ language sql;
+
+create or replace function test.xml_handler_final (data "text/xml")
+returns "text/xml" as $$
+  select data;
+$$ language sql;
+
+drop aggregate if exists test.text_xml_agg(test.xmltest);
+create aggregate test.text_xml_agg (test.xmltest) (
+  stype = "text/xml"
+, sfunc = test.xml_handler_transition
+, finalfunc = test.xml_handler_final
 );
 
 CREATE TABLE oid_test(
@@ -3471,3 +3499,160 @@ stable
 as $$ begin
   return query select items2.id from items2 where items2.id=search2.id;
 end$$;
+
+create table test.lines (
+  id   int primary key
+, name text
+, geom extensions.geometry(LINESTRING, 4326)
+);
+
+create or replace function test.get_lines ()
+returns setof test.lines as $$
+  select * from lines;
+$$ language sql;
+
+create or replace function test.get_shop_bles ()
+returns setof test.shop_bles as $$
+  select * from shop_bles;
+$$ language sql;
+
+-- it can work without a final function too if the stype is already the media type
+create or replace function test.twkb_handler_transition (state "application/vnd.twkb", next test.lines)
+returns "application/vnd.twkb" as $$
+  select (state || extensions.st_astwkb(next.geom)) :: "application/vnd.twkb";
+$$ language sql;
+
+drop aggregate if exists test.twkb_agg(test.lines);
+create aggregate test.twkb_agg (test.lines) (
+  initcond = ''
+, stype = "application/vnd.twkb"
+, sfunc = test.twkb_handler_transition
+);
+
+create or replace function test.geo2json_trans (state "application/vnd.geo2+json", next anyelement)
+returns "application/vnd.geo2+json" as $$
+  select (state || extensions.ST_AsGeoJSON(next)::jsonb)::"application/vnd.geo2+json";
+$$ language sql;
+
+create or replace function test.geo2json_final (data "application/vnd.geo2+json")
+returns "application/vnd.geo2+json" as $$
+  select (jsonb_build_object('type', 'FeatureCollection', 'hello', 'world'))::"application/vnd.geo2+json";
+$$ language sql;
+
+drop aggregate if exists test.geo2json_agg(anyelement);
+create aggregate test.geo2json_agg(anyelement) (
+  initcond = '[]'
+, stype = "application/vnd.geo2+json"
+, sfunc = geo2json_trans
+, finalfunc = geo2json_final
+);
+
+create or replace function test.geo2json_trans (state "application/vnd.geo2+json", next test.shop_bles)
+returns "application/vnd.geo2+json" as $$
+  select '"anyelement overridden"'::"application/vnd.geo2+json";
+$$ language sql;
+
+drop aggregate if exists test.geo2json_agg(test.shop_bles);
+create aggregate test.geo2json_agg(test.shop_bles) (
+  initcond = '[]'
+, stype = "application/vnd.geo2+json"
+, sfunc = geo2json_trans
+);
+
+create table ov_json ();
+
+-- override application/json
+create or replace function test.ov_json_trans (state "application/json", next ov_json)
+returns "application/json" as $$
+  select null;
+$$ language sql;
+
+drop aggregate if exists test.ov_json_agg(ov_json);
+create aggregate test.ov_json_agg(ov_json) (
+  initcond = '{"overridden": "true"}'
+, stype = "application/json"
+, sfunc = ov_json_trans
+);
+
+-- override application/geo+json
+create or replace function test.lines_geojson_trans (state jsonb, next test.lines)
+returns "application/geo+json" as $$
+  select (state || extensions.ST_AsGeoJSON(next)::jsonb)::"application/geo+json";
+$$ language sql;
+
+create or replace function test.lines_geojson_final (data jsonb)
+returns "application/geo+json" as $$
+  select jsonb_build_object(
+    'type', 'FeatureCollection',
+    'crs',  json_build_object(
+        'type',      'name',
+        'properties', json_build_object(
+            'name', 'EPSG:4326'
+         )
+     ),
+    'features', data
+  )::"application/geo+json";
+$$ language sql;
+
+drop aggregate if exists test.lines_geojson_agg(test.lines);
+create aggregate test.lines_geojson_agg (test.lines) (
+  initcond = '[]'
+, stype = "application/geo+json"
+, sfunc = lines_geojson_trans
+, finalfunc = lines_geojson_final
+);
+
+-- override application/vnd.pgrst.object
+create or replace function test.pgrst_obj_json_trans (state "application/vnd.pgrst.object", next anyelement)
+returns "application/vnd.pgrst.object" as $$
+  select null;
+$$ language sql;
+
+drop aggregate if exists test.pgrst_obj_agg(anyelement);
+create aggregate test.pgrst_obj_agg(anyelement) (
+  initcond = '{"overridden": "true"}'
+, stype = "application/vnd.pgrst.object"
+, sfunc = pgrst_obj_json_trans
+);
+
+-- create a "text/tab-separated-values" media type
+create or replace function test.tsv_trans (state text, next test.projects)
+returns "text/tab-separated-values" as $$
+  select (state || next.id::text || E'\t' || next.name || E'\t' || coalesce(next.client_id::text, '') || E'\n')::"text/tab-separated-values";
+$$ language sql;
+
+
+create or replace function test.tsv_final (data "text/tab-separated-values")
+returns "text/tab-separated-values" as $$
+  select set_config('response.headers', '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]', true);
+  select (E'id\tname\tclient_id\n' || data)::"text/tab-separated-values";
+$$ language sql;
+
+drop aggregate if exists test.tsv_agg(test.projects);
+create aggregate test.tsv_agg (test.projects) (
+  initcond = ''
+, stype = "text/tab-separated-values"
+, sfunc = tsv_trans
+, finalfunc = tsv_final
+);
+
+-- override CSV with BOM plus attachment
+create or replace function test.bom_csv_trans (state text, next test.lines)
+returns "text/csv" as $$
+  select (state || next.id::text || ',' || next.name || ',' || next.geom::text || E'\n')::"text/csv";
+$$ language sql;
+
+create or replace function test.bom_csv_final (data "text/csv")
+returns "text/csv" as $$
+  select set_config('response.headers', '[{"Content-Disposition": "attachment; filename=\"lines.csv\""}]', true);
+  -- EFBBBF is the BOM in UTF8 https://en.wikipedia.org/wiki/Byte_order_mark#UTF-8
+  select (convert_from (decode (E'EFBBBF', 'hex'),'UTF8') || (E'id,name,geom\n' || data))::"text/csv";
+$$ language sql;
+
+drop aggregate if exists test.bom_csv_agg(test.lines);
+create aggregate test.bom_csv_agg (test.lines) (
+  initcond = ''
+, stype = "text/csv"
+, sfunc = bom_csv_trans
+, finalfunc = bom_csv_final
+);

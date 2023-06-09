@@ -204,11 +204,11 @@ test-suite spec
                       Feature.OptionsSpec
                       Feature.Query.AndOrParamsSpec
                       Feature.Query.ComputedRelsSpec
+                      Feature.Query.CustomMediaSpec
                       Feature.Query.DeleteSpec
                       Feature.Query.EmbedDisambiguationSpec
                       Feature.Query.EmbedInnerJoinSpec
                       Feature.Query.ErrorSpec
-                      Feature.Query.HtmlRawOutputSpec
                       Feature.Query.InsertSpec
                       Feature.Query.JsonOperatorSpec
                       Feature.Query.MultipleSchemaSpec

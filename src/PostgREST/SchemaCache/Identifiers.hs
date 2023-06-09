@@ -3,6 +3,8 @@
 
 module PostgREST.SchemaCache.Identifiers
   ( QualifiedIdentifier(..)
+  , RelIdentifier(..)
+  , isAnyElement
   , Schema
   , TableName
   , FieldName
@@ -17,6 +19,9 @@ import qualified Data.Text  as T
 
 import Protolude
 
+data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
+  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+instance Hashable RelIdentifier
 
 -- | Represents a pg identifier with a prepended schema name "schema.table".
 -- When qiSchema is "", the schema is defined by the pg search_path.
@@ -27,6 +32,9 @@ data QualifiedIdentifier = QualifiedIdentifier
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 
 instance Hashable QualifiedIdentifier
+
+isAnyElement :: QualifiedIdentifier -> Bool
+isAnyElement y = QualifiedIdentifier "pg_catalog" "anyelement" == y
 
 dumpQi :: QualifiedIdentifier -> Text
 dumpQi (QualifiedIdentifier s i) =

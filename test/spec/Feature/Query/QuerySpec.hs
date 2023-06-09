@@ -1042,61 +1042,6 @@ spec actualPgVersion = do
         [json|[{"a$num$":100}]|]
         { matchHeaders = [matchContentTypeJson] }
 
-  context "binary output" $ do
-    it "can query if a single column is selected" $ do
-      pendingWith "TBD"
-      request methodGet "/images_base64?select=img&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCC"
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
-        }
-
-    it "can get raw output with Accept: text/plain" $ do
-      pendingWith "TBD"
-      request methodGet "/projects?select=name&id=eq.1" (acceptHdrs "text/plain") ""
-        `shouldRespondWith` "Windows 7"
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
-        }
-
-    it "can get raw xml output with Accept: text/xml" $ do
-      pendingWith "TBD"
-      request methodGet "/xmltest?select=xml" (acceptHdrs "text/xml") ""
-        `shouldRespondWith`
-        "<myxml>foo</myxml>bar<foobar><baz/></foobar>"
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
-        }
-
-    it "fails if a single column is not selected" $ do
-      pendingWith "TBD"
-      request methodGet "/images?select=img,name&name=eq.A.png" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
-          { matchStatus = 406 }
-
-      request methodGet "/images?select=*&name=eq.A.png"
-          (acceptHdrs "application/octet-stream")
-          ""
-        `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
-          { matchStatus = 406 }
-
-      request methodGet "/images?name=eq.A.png"
-          (acceptHdrs "application/octet-stream")
-          ""
-        `shouldRespondWith`
-          [json| {"message":"application/octet-stream requested but more than one column was selected","code":"PGRST113","details":null,"hint":null} |]
-          { matchStatus = 406 }
-
-    it "concatenates results if more than one row is returned" $ do
-      pendingWith "TBD"
-      request methodGet "/images_base64?select=img&name=in.(A.png,B.png)" (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith` "iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEUAAAD/AAAb/40iAAAAP0lEQVQI12NgwAbYG2AE/wEYwQMiZB4ACQkQYZEAIgqAhAGIKLCAEQ8kgMT/P1CCEUwc4IMSzA3sUIIdCHECAGSQEkeOTUyCAAAAAElFTkSuQmCCiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeAQMAAAAB/jzhAAAABlBMVEX///8AAP94wDzzAAAAL0lEQVQIW2NgwAb+HwARH0DEDyDxwAZEyGAhLODqHmBRzAcn5GAS///A1IF14AAA5/Adbiiz/0gAAAAASUVORK5CYII="
-        { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
-        }
-
   describe "values with quotes in IN and NOT IN" $ do
     it "succeeds when only quoted values are present" $ do
       get "/w_or_wo_comma_names?name=in.(\"Hebdon, John\")" `shouldRespondWith`

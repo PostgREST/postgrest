@@ -71,6 +71,7 @@ readQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
+        wrIdent
         (QueryBuilder.readPlanToQuery wrReadPlan)
         (if preferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -80,7 +81,7 @@ readQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=
         )
         (shouldCount preferCount)
         wrMedia
-        wrResAgg
+        wrHandler
         configDbPreparedStatements
   failNotSingular wrMedia resultSet
   optionalRollback conf apiReq
@@ -155,13 +156,14 @@ invokeQuery rout CallReadPlan{..} apiReq@ApiRequest{iPreferences=Preferences{..}
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
+        crIdent
         rout
         (QueryBuilder.callPlanToQuery crCallPlan pgVer)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount preferCount)
         crMedia
-        crResAgg
+        crHandler
         configDbPreparedStatements
 
   optionalRollback conf apiReq
@@ -186,17 +188,18 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
       pure Nothing
 
 writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
-writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan, mrResAgg, mrMedia} ApiRequest{iPreferences=Preferences{..}} conf =
+writeQuery MutateReadPlan{..} ApiRequest{iPreferences=Preferences{..}} conf =
   let
     (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
   in
   lift . SQL.statement mempty $
     Statements.prepareWrite
+      mrIdent
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
       mrMedia
-      mrResAgg
+      mrHandler
       preferRepresentation
       pkCols
       (configDbPreparedStatements conf)
@@ -207,7 +210,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan, mrResAgg, mrMedia} ApiReques
 failNotSingular :: MediaType -> ResultSet -> DbHandler ()
 failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
-  when (elem mediaType [MTSingularJSON True,MTSingularJSON False] && queryTotal /= 1) $ do
+  when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError . ApiRequestTypes.SingularityError $ toInteger queryTotal
 
