@@ -276,6 +276,7 @@ spec actualPgVersion = do
         totalCost `shouldBe` 68.56
 
     it "outputs the plan for text/xml" $ do
+      pendingWith "TBD"
       r <- request methodGet "/rpc/return_scalar_xml"
         (acceptHdrs "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose") ""
 

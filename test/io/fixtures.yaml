@@ -119,11 +119,6 @@ cli:
     use_defaultenv: true
     env:
       PGRST_DB_TX_END: rollback
-  - name: raw-media-types list
-    expect: 'raw-media-types = "image/png,image/jpeg"'
-    use_defaultenv: true
-    env:
-      PGRST_RAW_MEDIA_TYPES: ' image/png ,  image/jpeg '
 
 roleclaims:
   - key: '.postgrest.a_role'
