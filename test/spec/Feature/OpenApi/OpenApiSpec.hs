@@ -35,6 +35,11 @@ spec actualPgVersion = describe "OpenAPI" $ do
             (acceptHdrs "application/openapi+json") ""
       `shouldRespondWith` 415
 
+  it "should respond to openapi request with unsupported media type with 415" $
+    request methodGet "/"
+            (acceptHdrs "text/csv") ""
+      `shouldRespondWith` 415
+
   it "includes postgrest.org current version api docs" $ do
     r <- simpleBody <$> get "/"
 
