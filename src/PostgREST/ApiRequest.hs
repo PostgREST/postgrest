@@ -15,6 +15,7 @@ module PostgREST.ApiRequest
   , Action(..)
   , Target(..)
   , Payload(..)
+  , PathInfo(..)
   , userApiRequest
   ) where
 
@@ -26,7 +27,6 @@ import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.CaseInsensitive  as CI
 import qualified Data.Csv              as CSV
 import qualified Data.HashMap.Strict   as HM
-import qualified Data.List             as L
 import qualified Data.List.NonEmpty    as NonEmptyList
 import qualified Data.Map.Strict       as M
 import qualified Data.Set              as S
@@ -37,7 +37,7 @@ import Data.Either.Combinators (mapBoth)
 
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
-import Data.List                 (lookup, union)
+import Data.List                 (lookup)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
 import Network.HTTP.Types.Header (RequestHeaders, hCookie)
@@ -51,8 +51,7 @@ import PostgREST.ApiRequest.Types        (ApiRequestError (..),
                                           RangeError (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.MediaType               (MTPlanFormat (..),
-                                          MediaType (..))
+import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
@@ -128,10 +127,11 @@ data ApiRequest = ApiRequest {
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                :: ByteString                       -- ^ Raw request path
+  , iPathInfo            :: PathInfo                         -- ^ Cached info about the path
   , iMethod              :: ByteString                       -- ^ Raw request method
   , iSchema              :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
   , iNegotiatedByProfile :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
-  , iAcceptMediaType     :: MediaType                        -- ^ The media type in the Accept header
+  , iAcceptMediaType     :: [MediaType]                      -- ^ The resolved media types in the Accept, considering quality(q) factors
   , iContentMediaType    :: MediaType                        -- ^ The media type in the Content-Type header
   }
 
@@ -141,7 +141,6 @@ userApiRequest conf req reqBody = do
   pInfo@PathInfo{..} <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo method
   qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
-  (acceptMediaType, contentMediaType) <- getMediaTypes conf hdrs act pInfo
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act pInfo
@@ -159,10 +158,11 @@ userApiRequest conf req reqBody = do
   , iHeaders = iHdrs
   , iCookies = iCkies
   , iPath = rawPathInfo req
+  , iPathInfo = pInfo
   , iMethod = method
   , iSchema = schema
   , iNegotiatedByProfile = negotiatedByProfile
-  , iAcceptMediaType = acceptMediaType
+  , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
   , iContentMediaType = contentMediaType
   }
   where
@@ -171,6 +171,7 @@ userApiRequest conf req reqBody = do
     lookupHeader    = flip lookup hdrs
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
+    contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
 
 getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
 getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
@@ -203,15 +204,6 @@ getAction PathInfo{pathIsProc, pathIsDefSpec} method =
       "DELETE"                   -> Right $ ActionMutate MutationDelete
       "OPTIONS"                  -> Right ActionInfo
       _                          -> Left $ UnsupportedMethod method
-
-getMediaTypes :: AppConfig -> RequestHeaders -> Action -> PathInfo -> Either ApiRequestError (MediaType, MediaType)
-getMediaTypes conf hdrs action path = do
-   acceptMediaType <- negotiateContent conf action path accepts
-   pure (acceptMediaType, contentMediaType)
-  where
-    accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-    contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
-    lookupHeader    = flip lookup hdrs
 
 getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
 getSchema AppConfig{configDbSchemas} hdrs method = do
@@ -346,34 +338,3 @@ payloadAttributes raw json =
     _ -> Just emptyPJArray
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
-
-
--- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
-negotiateContent :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
-negotiateContent conf action path accepts =
-  case firstAcceptedPick of
-    Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
-    Just mt    -> Right mt
-    Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
-  where
-    -- if there are multiple accepted media types, pick the first
-    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action path
-
-producedMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
-producedMediaTypes conf action path =
-  case action of
-    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
-    ActionInvoke _  -> invokeMediaTypes
-    ActionInfo      -> defaultMediaTypes
-    ActionMutate _  -> defaultMediaTypes
-    ActionInspect _ -> inspectMediaTypes
-  where
-    inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
-    invokeMediaTypes =
-      defaultMediaTypes
-        ++ rawMediaTypes
-        ++ [MTOpenAPI | pathIsRootSpec path]
-    defaultMediaTypes =
-      [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
-      [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
-    rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]

@@ -170,7 +170,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionRead headersOnly, TargetIdent identifier) -> do
       wrPlan <- liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       resultSet <- runQuery roleIsoLvl (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      return $ Response.readResponse headersOnly identifier apiReq resultSet
+      return $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
@@ -180,25 +180,26 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      return $ Response.updateResponse apiReq resultSet
+      return $ Response.updateResponse mrPlan apiReq resultSet
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      return $ Response.singleUpsertResponse apiReq resultSet
+      return $ Response.singleUpsertResponse mrPlan apiReq resultSet
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      return $ Response.deleteResponse apiReq resultSet
+      return $ Response.deleteResponse mrPlan apiReq resultSet
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       resultSet <- runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan))(Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
-      return $ Response.invokeResponse invMethod (Plan.crProc cPlan) apiReq resultSet
+      return $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
-      oaiResult <- runQuery roleIsoLvl Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema
+      iPlan <- liftEither $ Plan.inspectPlan conf apiReq
+      oaiResult <- runQuery roleIsoLvl (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
       return $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
 
     (ActionInfo, TargetIdent identifier) ->

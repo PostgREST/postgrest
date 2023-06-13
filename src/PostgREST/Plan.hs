@@ -19,10 +19,11 @@ module PostgREST.Plan
   ( wrappedReadPlan
   , mutateReadPlan
   , callReadPlan
+  , inspectPlan
   , WrappedReadPlan(..)
   , MutateReadPlan(..)
   , CallReadPlan(..)
-  , inspectPlanTxMode
+  , InspectPlan(..)
   ) where
 
 import qualified Data.ByteString.Lazy          as LBS
@@ -40,10 +41,12 @@ import PostgREST.ApiRequest                  (Action (..),
                                               ApiRequest (..),
                                               InvokeMethod (..),
                                               Mutation (..),
+                                              PathInfo (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (Error (..))
-import PostgREST.MediaType                   (MediaType (..))
+import PostgREST.MediaType                   (MTPlanFormat (..),
+                                              MediaType (..))
 import PostgREST.Query.SqlFragment           (sourceCTEName)
 import PostgREST.RangeQuery                  (NonnegRange, allRange,
                                               convertToLimitZeroRange,
@@ -80,6 +83,7 @@ import PostgREST.Plan.Types
 
 import qualified Hasql.Transaction.Sessions       as SQL
 import qualified PostgREST.ApiRequest.QueryParams as QueryParams
+import qualified PostgREST.MediaType              as MediaType
 
 import Protolude hiding (from)
 
@@ -91,6 +95,7 @@ data WrappedReadPlan = WrappedReadPlan {
   wrReadPlan :: ReadPlanTree
 , wrTxMode   :: SQL.Mode
 , wrResAgg   :: ResultAggregate
+, wrMedia    :: MediaType
 }
 
 data MutateReadPlan = MutateReadPlan {
@@ -98,6 +103,7 @@ data MutateReadPlan = MutateReadPlan {
 , mrMutatePlan :: MutatePlan
 , mrTxMode     :: SQL.Mode
 , mrResAgg     :: ResultAggregate
+, mrMedia      :: MediaType
 }
 
 data CallReadPlan = CallReadPlan {
@@ -106,20 +112,28 @@ data CallReadPlan = CallReadPlan {
 , crTxMode   :: SQL.Mode
 , crProc     :: Routine
 , crResAgg   :: ResultAggregate
+, crMedia    :: MediaType
+}
+
+data InspectPlan = InspectPlan {
+  ipMedia  :: MediaType
+, ipTxmode :: SQL.Mode
 }
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
-  return $ WrappedReadPlan rPlan SQL.Read $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
+  return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType binField apiRequest) mediaType
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  return $ MutateReadPlan rPlan mPlan SQL.Write $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
+  return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType binField apiRequest) mediaType
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest invMethod = do
@@ -143,11 +157,17 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
           (InvPost, Routine.Immutable) -> SQL.Read
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
-  return $ CallReadPlan rPlan cPlan txMode proc $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  binField <- mapLeft ApiRequestError $ binaryField conf mediaType (Just proc) rPlan
+  return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType binField apiRequest) mediaType
   where
     Preferences{..} = iPreferences apiRequest
     qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
+
+inspectPlan :: AppConfig -> ApiRequest -> Either Error InspectPlan
+inspectPlan conf apiRequest = do
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  return $ InspectPlan mediaType SQL.Read
 
 {-|
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
@@ -205,9 +225,6 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
       -- If the function has required and optional parameters, the arguments keys have to match the required parameters
       -- and can match any or none of the default parameters.
         (reqParams, optParams) -> argumentsKeys `S.difference` S.fromList (ppName <$> optParams) == S.fromList (ppName <$> reqParams)
-
-inspectPlanTxMode :: SQL.Mode
-inspectPlanTxMode = SQL.Read
 
 -- | During planning we need to resolve Field -> CoercibleField (finding the context specific target type and map function).
 -- | ResolverContext facilitates this without the need to pass around a laundry list of parameters.
@@ -873,3 +890,33 @@ mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Prefere
       ActionRead _isHead     -> _isHead -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
       ActionInvoke invMethod -> invMethod == InvHead
       _                      -> False
+
+-- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
+negotiateContent :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
+negotiateContent conf action path accepts =
+  case firstAcceptedPick of
+    Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
+    Just mt    -> Right mt
+    Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
+  where
+    -- if there are multiple accepted media types, pick the first
+    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action path
+
+producedMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
+producedMediaTypes conf action path =
+  case action of
+    ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
+    ActionInvoke _  -> invokeMediaTypes
+    ActionInfo      -> defaultMediaTypes
+    ActionMutate _  -> defaultMediaTypes
+    ActionInspect _ -> inspectMediaTypes
+  where
+    inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
+    invokeMediaTypes =
+      defaultMediaTypes
+        ++ rawMediaTypes
+        ++ [MTOpenAPI | pathIsRootSpec path]
+    defaultMediaTypes =
+      [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
+      [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
+    rawMediaTypes = configRawMediaTypes conf `L.union` [MTOctetStream, MTTextPlain, MTTextXML]
