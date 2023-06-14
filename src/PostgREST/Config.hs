@@ -47,6 +47,7 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
+import Network.URI             (escapeURIString, isUnescapedInURI, parseURI, uriQuery)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -60,6 +61,7 @@ import PostgREST.Config.Proxy            (Proxy (..),
 import PostgREST.MediaType               (MediaType (..), toMime)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
+import PostgREST.Version                 (prettyVersion)
 
 import Protolude hiding (Proxy, toList)
 
@@ -219,7 +221,7 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
     decodeLoadFiles :: AppConfig -> IO AppConfig
     decodeLoadFiles parsedConfig =
       decodeJWKS <$>
-        (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
+        (decodeSecret =<< readSecretFile =<< addPgrstVerToDbUri =<< readDbUriFile prevDbUri parsedConfig)
 
 parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
 parser optPath env dbSettings roleSettings roleIsolationLvl =
@@ -460,3 +462,19 @@ type Environment = M.Map [Char] Text
 readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
+
+-- | Allows querying the PostgREST version in SQL by adding `fallback_application_name` to the connection string
+addPgrstVerToDbUri :: AppConfig -> IO AppConfig
+addPgrstVerToDbUri conf = pure $ conf { configDbUri = dbUriWithFallAppName }
+  where
+    dbUriWithFallAppName = dbUri <>
+      case uriQuery <$> parseURI (toS dbUri) of
+        Nothing  -> " " <> keyValStr
+        Just ""  -> "?" <> uriStr
+        Just "?" -> uriStr
+        _        -> "&" <> uriStr
+    dbUri = configDbUri conf
+    uriStr = toS $ escapeURIString isUnescapedInURI $ toS $ pKeyWord <> pgrstVer
+    keyValStr = pKeyWord <> "'" <> pgrstVer <> "'"
+    pKeyWord = "fallback_application_name="
+    pgrstVer = "PostgREST " <> T.decodeUtf8 prettyVersion

@@ -998,3 +998,31 @@ def test_openapi_in_big_schema(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
         assert response.status_code == 200
+
+def test_get_pgrst_version_with_uri_connection_string(dburi, defaultenv):
+    "The fallback_application_name should be added to the db-uri if it has a URI format"
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()}
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/get_pgrst_version")
+        assert response.text.startswith('"PostgREST')
+
+
+def test_get_pgrst_version_with_keyval_connection_string(dburi, defaultenv):
+    "The fallback_application_name should be added to the db-uri if it has a keyword/value format"
+    uri = f'dbname={defaultenv["PGDATABASE"]} host={defaultenv["PGHOST"]} user={defaultenv["PGUSER"]}'
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": uri}
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/get_pgrst_version")
+        assert response.text.startswith('"PostgREST')
