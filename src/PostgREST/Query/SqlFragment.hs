@@ -80,6 +80,10 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Routine     (Routine (..),
+                                          funcReturnsScalar,
+                                          funcReturnsSetOfScalar,
+                                          funcReturnsSingleComposite)
 
 import Protolude hiding (cast)
 
@@ -183,17 +187,23 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       ")"
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
-asJsonSingleF :: Bool -> SqlFragment
-asJsonSingleF returnsScalar
+asJsonSingleF :: Maybe Routine -> SqlFragment
+asJsonSingleF rout
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
   | otherwise     = "coalesce(json_agg(_postgrest_t)->0, 'null')"
+  where
+    returnsScalar = maybe False funcReturnsScalar rout
 
-asJsonF :: Bool -> Bool -> Bool -> SqlFragment
-asJsonF returnsScalar returnsSetOfScalar returnsSingleComposite
+asJsonF :: Maybe Routine -> SqlFragment
+asJsonF rout
   | returnsSingleComposite              = "coalesce(json_agg(_postgrest_t)->0, 'null')"
   | returnsScalar                       = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
   | returnsSetOfScalar                  = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')"
   | otherwise                           = "coalesce(json_agg(_postgrest_t), '[]')"
+  where
+    (returnsSingleComposite, returnsScalar, returnsSetOfScalar) = case rout of
+      Just r  -> (funcReturnsSingleComposite r, funcReturnsScalar r, funcReturnsSetOfScalar r)
+      Nothing -> (False, False, False)
 
 asXmlF :: FieldName -> SqlFragment
 asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"

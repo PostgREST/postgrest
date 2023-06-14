@@ -32,6 +32,7 @@ import PostgREST.MediaType               (MTPlanAttrs (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Identifiers (FieldName)
+import PostgREST.SchemaCache.Routine     (Routine)
 
 import Protolude
 
@@ -86,8 +87,8 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
     | rep /= Full                       = "''"
     | getMediaType mt == MTTextCSV      = asCsvF
     | getMediaType mt == MTGeoJSON      = asGeoJsonF
-    | getMediaType mt == MTSingularJSON = asJsonSingleF False
-    | otherwise                         = asJsonF False False False
+    | getMediaType mt == MTSingularJSON = asJsonSingleF Nothing
+    | otherwise                         = asJsonF Nothing
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
@@ -119,21 +120,21 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
 
   bodyF
     | getMediaType mt == MTTextCSV                       = asCsvF
-    | getMediaType mt == MTSingularJSON                  = asJsonSingleF False
+    | getMediaType mt == MTSingularJSON                  = asJsonSingleF Nothing
     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-    | otherwise                                          = asJsonF False False False
+    | otherwise                                          = asJsonF Nothing
 
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
     MTPlan{} -> planRow
     _        -> HD.singleRow $ standardRow True
 
-prepareCall :: Bool -> Bool -> Bool -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
+prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                MediaType -> Maybe FieldName -> Bool ->
                SQL.Statement () ResultSet
-prepareCall returnsScalar returnsSingleComposite returnsSetOfScalar callProcQuery selectQuery countQuery countTotal mt binaryField =
+prepareCall rout callProcQuery selectQuery countQuery countTotal mt binaryField =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -151,12 +152,12 @@ prepareCall returnsScalar returnsSingleComposite returnsSetOfScalar callProcQuer
     (countCTEF, countResultF) = countF countQuery countTotal
 
     bodyF
-     | getMediaType mt == MTSingularJSON                  = asJsonSingleF returnsScalar
+     | getMediaType mt == MTSingularJSON                  = asJsonSingleF $ Just rout
      | getMediaType mt == MTTextCSV                       = asCsvF
      | getMediaType mt == MTGeoJSON                       = asGeoJsonF
      | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
      | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-     | otherwise                                          = asJsonF returnsScalar returnsSetOfScalar returnsSingleComposite
+     | otherwise                                          = asJsonF $ Just rout
 
     decodeIt :: HD.Result ResultSet
     decodeIt = case mt of

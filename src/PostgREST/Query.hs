@@ -28,12 +28,11 @@ import qualified Hasql.Encoders                    as HE
 import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
-import qualified PostgREST.Error               as Error
-import qualified PostgREST.Query.QueryBuilder  as QueryBuilder
-import qualified PostgREST.Query.Statements    as Statements
-import qualified PostgREST.RangeQuery          as RangeQuery
-import qualified PostgREST.SchemaCache         as SchemaCache
-import qualified PostgREST.SchemaCache.Routine as Routine
+import qualified PostgREST.Error              as Error
+import qualified PostgREST.Query.QueryBuilder as QueryBuilder
+import qualified PostgREST.Query.Statements   as Statements
+import qualified PostgREST.RangeQuery         as RangeQuery
+import qualified PostgREST.SchemaCache        as SchemaCache
 
 import Data.Scientific (FPFormat (..), formatScientific, isInteger)
 
@@ -153,13 +152,11 @@ deleteQuery mrPlan apiReq@ApiRequest{..} conf = do
   pure resultSet
 
 invokeQuery :: Routine -> CallReadPlan -> ApiRequest -> AppConfig -> PgVersion -> DbHandler ResultSet
-invokeQuery proc CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} pgVer = do
+invokeQuery rout CallReadPlan{crReadPlan, crCallPlan, crBinField} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf@AppConfig{..} pgVer = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
-        (Routine.funcReturnsScalar proc)
-        (Routine.funcReturnsSingleComposite proc)
-        (Routine.funcReturnsSetOfScalar proc)
+        rout
         (QueryBuilder.callPlanToQuery crCallPlan pgVer)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
