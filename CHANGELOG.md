@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #2821, Fix OPTIONS not accepting all available media types - @steve-chavez
+
 ## [11.1.0] - 2023-06-07
 
 ### Added

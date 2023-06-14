@@ -40,7 +40,7 @@ spec =
                              \Date, Location, Server, Transfer-Encoding, Range-Unit"]
           }
 
-    it "allows INFO body through even with CORS request headers present to postflight request" $
+    it "allows INFO body through even with CORS request headers present to postflight request" $ do
       request methodOptions "/items"
           [ ("Host", "localhost:3000")
           , ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.9; rv:32.0) Gecko/20100101 Firefox/32.0")
@@ -50,6 +50,20 @@ spec =
           , ("Accept-Encoding", "gzip, deflate")
           , ("Referer", "http://localhost:8000/")
           , ("Connection", "keep-alive") ]
+          ""
+        `shouldRespondWith`
+          ""
+          { matchHeaders = [ "Access-Control-Allow-Origin" <:> "*" ] }
+
+      request methodOptions "/items"
+          [ ("Accept", "application/json") ]
+          ""
+        `shouldRespondWith`
+          ""
+          { matchHeaders = [ "Access-Control-Allow-Origin" <:> "*" ] }
+
+      request methodOptions "/shops"
+          [ ("Accept", "application/geo+json") ]
           ""
         `shouldRespondWith`
           ""

@@ -375,8 +375,8 @@ requestMediaTypes conf action path =
     ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
     ActionInvoke _  -> invokeMediaTypes
     ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
-    ActionInfo      -> [MTTextCSV]
-    _               -> defaultMediaTypes
+    ActionInfo      -> defaultMediaTypes
+    ActionMutate _  -> defaultMediaTypes
   where
     invokeMediaTypes =
       defaultMediaTypes
