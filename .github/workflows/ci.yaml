@@ -29,6 +29,15 @@ jobs:
     - run: nix-env -f default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
 
+  dictcheck:
+    name: Run dictcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: cachix/install-nix-action@v21
+      - run: nix-env -f default.nix -iA dictcheck
+      - run: postgrest-docs-dictcheck
+
   linkcheck:
     name: Run linkcheck
     if: github.base_ref == 'main'

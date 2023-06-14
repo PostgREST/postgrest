@@ -73,7 +73,9 @@ in
          | tail -n+2 \
          | tr '\n' '\0' \
          | xargs -0 -n 1 -i \
-           sh -c "grep \"{}\" $FILES > /dev/null || echo \"{}\""
+           sh -c "grep \"{}\" $FILES > /dev/null || echo \"{}\"" \
+         | tee unuseddict
+        test ! -s unuseddict
       '';
 
   linkcheck =
