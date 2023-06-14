@@ -88,7 +88,7 @@ Using a :ref:`pre-config <db-pre-config>` function, you can configure the server
   returns void as $$
     select
         set_config('pgrst.db_schemas', 'schema1, schema2', true)
-      , set_config('pgrst.db_jwt_secret', 'REALLYREALLYREALLYREALLYVERYSAFE', true);
+      , set_config('pgrst.jwt_secret', 'REALLYREALLYREALLYREALLYVERYSAFE', true);
   $$ language sql;
 
 Note that underscores(``_``) need to be used instead of dashes(``-``) for the in-database config parameters. See the full list of in-database names on :ref:`config_full_list`.
