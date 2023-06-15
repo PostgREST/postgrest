@@ -41,7 +41,6 @@ import PostgREST.ApiRequest                  (Action (..),
                                               ApiRequest (..),
                                               InvokeMethod (..),
                                               Mutation (..),
-                                              PathInfo (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (Error (..))
@@ -123,7 +122,7 @@ data InspectPlan = InspectPlan {
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType apiRequest) mediaType
 
@@ -131,7 +130,7 @@ mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> 
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType apiRequest) mediaType
 
@@ -157,7 +156,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
           (InvPost, Routine.Immutable) -> SQL.Read
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iAcceptMediaType
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType apiRequest) mediaType
   where
@@ -165,7 +164,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
 
 inspectPlan :: AppConfig -> ApiRequest -> Either Error InspectPlan
 inspectPlan conf apiRequest = do
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iAcceptMediaType apiRequest)
   return $ InspectPlan mediaType SQL.Read
 
 {-|
@@ -851,29 +850,26 @@ mediaToAggregate mt apiReq@ApiRequest{iAction=act, iPreferences=Preferences{pref
       _                      -> False
 
 -- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
-negotiateContent :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
-negotiateContent conf action path accepts =
+negotiateContent :: AppConfig -> Action -> [MediaType] -> Either ApiRequestError MediaType
+negotiateContent conf action accepts =
   case firstAcceptedPick of
     Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
     Just mt    -> Right mt
     Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
   where
     -- if there are multiple accepted media types, pick the first
-    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action path
+    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action
 
-producedMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
-producedMediaTypes conf action path =
+producedMediaTypes :: AppConfig -> Action -> [MediaType]
+producedMediaTypes conf action =
   case action of
     ActionRead _    -> defaultMediaTypes
-    ActionInvoke _  -> invokeMediaTypes
+    ActionInvoke _  -> defaultMediaTypes
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
     ActionInspect _ -> inspectMediaTypes
   where
     inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
-    invokeMediaTypes =
-      defaultMediaTypes
-        ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
       [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]

@@ -15,7 +15,6 @@ module PostgREST.ApiRequest
   , Action(..)
   , Target(..)
   , Payload(..)
-  , PathInfo(..)
   , userApiRequest
   ) where
 
@@ -127,7 +126,6 @@ data ApiRequest = ApiRequest {
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                :: ByteString                       -- ^ Raw request path
-  , iPathInfo            :: PathInfo                         -- ^ Cached info about the path
   , iMethod              :: ByteString                       -- ^ Raw request method
   , iSchema              :: Schema                           -- ^ The request schema. Can vary depending on profile headers.
   , iNegotiatedByProfile :: Bool                             -- ^ If schema was was chosen according to the profile spec https://www.w3.org/TR/dx-prof-conneg/
@@ -158,7 +156,6 @@ userApiRequest conf req reqBody = do
   , iHeaders = iHdrs
   , iCookies = iCkies
   , iPath = rawPathInfo req
-  , iPathInfo = pInfo
   , iMethod = method
   , iSchema = schema
   , iNegotiatedByProfile = negotiatedByProfile
