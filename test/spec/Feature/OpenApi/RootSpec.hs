@@ -3,7 +3,7 @@ module Feature.OpenApi.RootSpec where
 import Network.HTTP.Types
 import Network.Wai        (Application)
 
-import Test.Hspec
+import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
@@ -12,7 +12,8 @@ import Protolude hiding (get)
 spec :: SpecWith ((), Application)
 spec =
   describe "root spec function" $ do
-    it "accepts application/openapi+json" $
+    it "accepts application/openapi+json" $ do
+      pendingWith "TBD"
       request methodGet "/"
         [("Accept","application/openapi+json")] "" `shouldRespondWith`
         [json|{

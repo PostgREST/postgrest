@@ -92,6 +92,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Can be replaced with custom media types
  - #1462, #1548, Removed `application/octet-stream`, `text/plain`, `text/xml` [builtin support for scalar results](https://postgrest.org/en/v11.1/references/api/resource_representation.html#scalar-function-response-format) - @steve-chavez
    + Can be replaced with custom media types
+ - #1462, #1548, Removed default `application/openapi+json` media type for [db-root-spec](https://postgrest.org/en/v11.1/references/configuration.html#db-root-spec) - @steve-chavez
 
 ## [11.1.0] - 2023-06-07
 
