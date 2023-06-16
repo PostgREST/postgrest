@@ -207,7 +207,7 @@ getAction PathInfo{pathIsProc, pathIsDefSpec} method =
 
 getMediaTypes :: AppConfig -> RequestHeaders -> Action -> PathInfo -> Either ApiRequestError (MediaType, MediaType)
 getMediaTypes conf hdrs action path = do
-   acceptMediaType <- findAcceptMediaType conf action path accepts
+   acceptMediaType <- negotiateContent conf action path accepts
    pure (acceptMediaType, contentMediaType)
   where
     accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
@@ -299,19 +299,6 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
       ActionInvoke InvPost        -> qsColumns
       _                           -> Nothing
 
-{-|
-  Find the best match from a list of media types accepted by the
-  client in order of decreasing preference and a list of types
-  producible by the server.  If there is no match but the client
-  accepts */* then return the top server pick.
--}
-mutuallyAgreeable :: [MediaType] -> [MediaType] -> Maybe MediaType
-mutuallyAgreeable sProduces cAccepts =
-  let exact = listToMaybe $ L.intersect cAccepts sProduces in
-  if isNothing exact && MTAny `elem` cAccepts
-     then listToMaybe sProduces
-     else exact
-
 type CsvData = V.Vector (M.Map Text LBS.ByteString)
 
 {-|
@@ -361,20 +348,24 @@ payloadAttributes raw json =
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
 
-findAcceptMediaType :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
-findAcceptMediaType conf action path accepts =
-  case mutuallyAgreeable (requestMediaTypes conf action path) accepts of
-    Just ct ->
-      Right ct
-    Nothing ->
-      Left . MediaTypeError $ map MediaType.toMime accepts
 
-requestMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
-requestMediaTypes conf action path =
+-- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
+negotiateContent :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
+negotiateContent conf action path accepts =
+  case firstAcceptedPick of
+    Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
+    Just mt    -> Right mt
+    Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
+  where
+    -- if there are multiple accepted media types, pick the first
+    firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action path
+
+producedMediaTypes :: AppConfig -> Action -> PathInfo -> [MediaType]
+producedMediaTypes conf action path =
   case action of
     ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
     ActionInvoke _  -> invokeMediaTypes
-    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON]
+    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON, MTAny]
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
   where
@@ -384,5 +375,5 @@ requestMediaTypes conf action path =
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
-      [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf]
+      [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf] ++ [MTAny]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
