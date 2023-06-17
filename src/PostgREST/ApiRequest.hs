@@ -53,7 +53,8 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
-                                          MediaType (..))
+                                          MediaType (..),
+                                          NormalMedia (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
@@ -210,8 +211,8 @@ getMediaTypes conf hdrs action path = do
    acceptMediaType <- negotiateContent conf action path accepts
    pure (acceptMediaType, contentMediaType)
   where
-    accepts = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
-    contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
+    accepts = maybe [MTNormal MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
+    contentMediaType = maybe (MTNormal MTApplicationJSON) MediaType.decodeMediaType $ lookupHeader "content-type"
     lookupHeader    = flip lookup hdrs
 
 getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
@@ -264,26 +265,26 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
   where
     payload :: Either ApiRequestError (Maybe Payload)
     payload = mapBoth InvalidBody Just $ case (contentMediaType, pathIsProc) of
-      (MTApplicationJSON, _) ->
+      (MTNormal MTApplicationJSON, _) ->
         if isJust columns
           then Right $ RawJSON reqBody
           else note "All object keys must match" . payloadAttributes reqBody
                  =<< if LBS.null reqBody && pathIsProc
                        then Right emptyObject
                        else first BS.pack $ JSON.eitherDecode reqBody
-      (MTTextCSV, _) -> do
+      (MTNormal MTTextCSV, _) -> do
         json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-      (MTUrlEncoded, isProc) -> do
+      (MTNormal MTUrlEncoded, isProc) -> do
         let params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
         if isProc
           then Right $ ProcessedUrlEncoded params (S.fromList $ fst <$> params)
           else
             let paramsMap = HM.fromList $ (identity *** JSON.String) <$> params in
             Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
-      (MTTextPlain, True) -> Right $ RawPay reqBody
-      (MTTextXML, True) -> Right $ RawPay reqBody
-      (MTOctetStream, True) -> Right $ RawPay reqBody
+      (MTNormal MTTextPlain, True) -> Right $ RawPay reqBody
+      (MTNormal MTTextXML, True) -> Right $ RawPay reqBody
+      (MTNormal MTOctetStream, True) -> Right $ RawPay reqBody
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
 
     shouldParsePayload = case (action, contentMediaType) of
@@ -353,9 +354,9 @@ payloadAttributes raw json =
 negotiateContent :: AppConfig -> Action -> PathInfo -> [MediaType] -> Either ApiRequestError MediaType
 negotiateContent conf action path accepts =
   case firstAcceptedPick of
-    Just MTAny -> Right MTApplicationJSON -- by default(for */*) we respond with json
-    Just mt    -> Right mt
-    Nothing    -> Left . MediaTypeError $ map MediaType.toMime accepts
+    Just (MTNormal MTAny) -> Right (MTNormal MTApplicationJSON) -- by default(for */*) we respond with json
+    Just mt               -> Right mt
+    Nothing               -> Left . MediaTypeError $ map MediaType.toMime accepts
   where
     -- if there are multiple accepted media types, pick the first
     firstAcceptedPick = listToMaybe $ L.intersect accepts $ producedMediaTypes conf action path
@@ -365,15 +366,15 @@ producedMediaTypes conf action path =
   case action of
     ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
     ActionInvoke _  -> invokeMediaTypes
-    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON, MTAny]
+    ActionInspect _ -> [MTNormal MTOpenAPI, MTNormal MTApplicationJSON, MTNormal MTAny]
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
   where
     invokeMediaTypes =
       defaultMediaTypes
         ++ rawMediaTypes
-        ++ [MTOpenAPI | pathIsRootSpec path]
+        ++ [MTNormal MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
-      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
-      [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf] ++ [MTAny]
-    rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]
+      [MTNormal MTApplicationJSON, MTNormal MTSingularJSON, MTNormal MTGeoJSON, MTNormal MTTextCSV] ++
+      [MTPlan $ MTPlanAttrs Nothing PlanJSON mempty | configDbPlanEnabled conf] ++ [MTNormal MTAny]
+    rawMediaTypes = configRawMediaTypes conf `union` [MTNormal MTOctetStream, MTNormal MTTextPlain, MTNormal MTTextXML]

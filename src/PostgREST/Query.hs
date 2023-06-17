@@ -46,7 +46,8 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           pgVersion140)
 import PostgREST.Error                   (Error)
-import PostgREST.MediaType               (MediaType (..))
+import PostgREST.MediaType               (MediaType (..),
+                                          NormalMedia (..))
 import PostgREST.Plan                    (CallReadPlan (..),
                                           MutateReadPlan (..),
                                           WrappedReadPlan (..))
@@ -207,7 +208,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan} apiReq@ApiRequest{iPreferenc
 failNotSingular :: MediaType -> ResultSet -> DbHandler ()
 failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
-  when (mediaType == MTSingularJSON && queryTotal /= 1) $ do
+  when (mediaType == MTNormal MTSingularJSON && queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.singularityError queryTotal
 
