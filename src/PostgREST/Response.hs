@@ -42,8 +42,7 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           toAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.MediaType               (MediaType (..),
-                                          NormalMedia (..))
+import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (MutateReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
@@ -227,7 +226,7 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
 openApiResponse :: Bool -> Maybe (TablesMap, RoutineMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
 openApiResponse headersOnly body conf sCache schema negotiatedByProfile =
   Wai.responseLBS HTTP.status200
-    (MediaType.toContentType (MTNormal MTOpenAPI) : maybeToList (profileHeader schema negotiatedByProfile))
+    (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
     (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode conf sCache x y z) body)
 
 -- | Response with headers and status overridden from GUCs.

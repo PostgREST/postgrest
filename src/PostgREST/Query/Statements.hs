@@ -29,7 +29,6 @@ import PostgREST.ApiRequest.Preferences
 import PostgREST.MediaType               (MTPlanAttrs (..),
                                           MTPlanFormat (..),
                                           MediaType (..),
-                                          NormalMedia (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Identifiers (FieldName)
@@ -190,7 +189,7 @@ standardRow noLocation =
 mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
 mtSnippet mediaType snippet = case mediaType of
   MTPlan (MTPlanAttrs _ fmt opts) -> explainF fmt opts snippet
-  MTNormal _                      -> snippet
+  _                               -> snippet
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet

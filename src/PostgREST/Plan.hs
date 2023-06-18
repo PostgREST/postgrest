@@ -45,8 +45,7 @@ import PostgREST.ApiRequest               (Action (..),
 import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Error                    (Error (..))
 import PostgREST.MediaType                (MTPlanAttrs (..),
-                                           MediaType (..),
-                                           NormalMedia (..))
+                                           MediaType (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            convertToLimitZeroRange,
@@ -123,10 +122,10 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType apiRequest) of
-        (InvGet, _)                      -> jsonRpcParams proc qsParams'
-        (InvHead, _)                     -> jsonRpcParams proc qsParams'
-        (InvPost, MTNormal MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) $ iPayload apiRequest
-        (InvPost, _)                     -> maybe mempty payRaw $ iPayload apiRequest
+        (InvGet, _)             -> jsonRpcParams proc qsParams'
+        (InvHead, _)            -> jsonRpcParams proc qsParams'
+        (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) $ iPayload apiRequest
+        (InvPost, _)            -> maybe mempty payRaw $ iPayload apiRequest
       txMode = case (invMethod, pdVolatility) of
           (InvGet,  _)                 -> SQL.Read
           (InvHead, _)                 -> SQL.Read
@@ -168,12 +167,12 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
     hasSingleUnnamedParam Function{pdParams=[RoutineParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
-      (MTNormal MTApplicationJSON, "json")  -> True
-      (MTNormal MTApplicationJSON, "jsonb") -> True
-      (MTNormal MTTextPlain, "text")        -> True
-      (MTNormal MTTextXML, "xml")           -> True
-      (MTNormal MTOctetStream, "bytea")     -> True
-      _                                     -> False
+      (MTApplicationJSON, "json")  -> True
+      (MTApplicationJSON, "jsonb") -> True
+      (MTTextPlain, "text")        -> True
+      (MTTextXML, "xml")           -> True
+      (MTOctetStream, "bytea")     -> True
+      _                            -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
       let
@@ -185,7 +184,7 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
         then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
       else if null params
-        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTNormal MTOctetStream, MTNormal MTTextPlain, MTNormal MTTextXML])
+        then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
       else case L.partition ppReq params of
@@ -633,7 +632,7 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   | otherwise =
       Right Nothing
   where
-    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTNormal MTOctetStream, MTNormal MTTextPlain, MTNormal MTTextXML] || isRawPlan acceptMediaType
+    isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
     isRawPlan mt = case mt of
       MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
       MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True

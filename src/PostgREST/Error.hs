@@ -33,8 +33,7 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.ApiRequest.Types (ApiRequestError (..),
                                              QPError (..),
                                              RangeError (..))
-import           PostgREST.MediaType        (MediaType (..),
-                                             NormalMedia (..))
+import           PostgREST.MediaType        (MediaType (..))
 import qualified PostgREST.MediaType        as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
@@ -82,7 +81,7 @@ instance PgrstError ApiRequestError where
   status LimitNoOrderError       = HTTP.status400
   status ColumnNotFound{}        = HTTP.status400
 
-  headers _ = [MediaType.toContentType $ MTNormal MTApplicationJSON]
+  headers _ = [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (QueryParamError (QPError message details)) = JSON.object [
@@ -189,18 +188,18 @@ instance JSON.ToJSON ApiRequestError where
         prmsMsg = "(" <> prms <> ")"
         prmsDet = " with parameter" <> (if length argumentKeys > 1 then "s " else " ") <> prms
         fmtPrms p = if null argumentKeys then " without parameters" else p
-        onlySingleParams = hasPreferSingleObject || (isInvPost && contentType `elem` [MTNormal MTTextPlain, MTNormal MTTextXML, MTNormal MTOctetStream])
+        onlySingleParams = hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
     in JSON.object [
     "code"    .= SchemaCacheErrorCode02,
     "message" .= ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"),
     "details" .= ("Searched for the function " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
-        (True, _, _)                          -> " with a single json/jsonb parameter"
-        (_, True, MTNormal MTTextPlain)       -> " with a single unnamed text parameter"
-        (_, True, MTNormal MTTextXML)         -> " with a single unnamed xml parameter"
-        (_, True, MTNormal MTOctetStream)     -> " with a single unnamed bytea parameter"
-        (_, True, MTNormal MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
-        _                                     -> fmtPrms prmsDet) <>
+        (True, _, _)                 -> " with a single json/jsonb parameter"
+        (_, True, MTTextPlain)       -> " with a single unnamed text parameter"
+        (_, True, MTTextXML)         -> " with a single unnamed xml parameter"
+        (_, True, MTOctetStream)     -> " with a single unnamed bytea parameter"
+        (_, True, MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
+        _                            -> fmtPrms prmsDet) <>
       ", but no matches were found in the schema cache."),
     -- The hint will be null in the case of single unnamed parameter functions
     "hint"    .= if onlySingleParams
@@ -362,8 +361,8 @@ instance PgrstError PgError where
 
   headers err =
     if status err == HTTP.status401
-       then [MediaType.toContentType $ MTNormal MTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
-       else [MediaType.toContentType $ MTNormal MTApplicationJSON]
+       then [MediaType.toContentType MTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
+       else [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
@@ -476,11 +475,11 @@ instance PgrstError Error where
   status SingularityError{}      = HTTP.status406
 
   headers (ApiRequestError err)  = headers err
-  headers (JwtTokenInvalid m)    = [MediaType.toContentType $ MTNormal MTApplicationJSON, invalidTokenHeader m]
-  headers JwtTokenRequired       = [MediaType.toContentType $ MTNormal MTApplicationJSON, requiredTokenHeader]
+  headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
+  headers JwtTokenRequired       = [MediaType.toContentType MTApplicationJSON, requiredTokenHeader]
   headers (PgErr err)            = headers err
-  headers SingularityError{}     = [MediaType.toContentType $ MTNormal MTSingularJSON]
-  headers _                      = [MediaType.toContentType $ MTNormal MTApplicationJSON]
+  headers SingularityError{}     = [MediaType.toContentType MTSingularJSON]
+  headers _                      = [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON Error where
   toJSON NoSchemaCacheError = JSON.object [
@@ -531,7 +530,7 @@ instance JSON.ToJSON Error where
   toJSON (SingularityError n) = JSON.object [
     "code"    .= ApiRequestErrorCode16,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (MediaType.toMime $ MTNormal MTSingularJSON), "requires 1 row"],
+    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (MediaType.toMime MTSingularJSON), "requires 1 row"],
     "hint"    .= JSON.Null]
 
   toJSON (PgErr err) = JSON.toJSON err

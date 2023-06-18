@@ -351,7 +351,7 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
       & tags .~ Set.fromList ["(rpc) " <> pdName pd]
-      & produces ?~ makeMimeList [MTNormal MTApplicationJSON, MTNormal MTSingularJSON]
+      & produces ?~ makeMimeList [MTApplicationJSON, MTSingularJSON]
       & at 200 ?~ "OK"
     getOp = procOp
       & parameters .~ makeProcGetParams (pdParams pd)
@@ -367,7 +367,7 @@ makeRootPathItem = ("/", p)
     getOp = (mempty :: Operation)
       & tags .~ Set.fromList ["Introspection"]
       & summary ?~ "OpenAPI description (this document)"
-      & produces ?~ makeMimeList [MTNormal MTOpenAPI, MTNormal MTApplicationJSON]
+      & produces ?~ makeMimeList [MTOpenAPI, MTApplicationJSON]
       & at 200 ?~ "OK"
     pr = (mempty :: PathItem) & get ?~ getOp
     p = pr
@@ -407,8 +407,8 @@ postgrestSpec rels pds ti (s, h, p, b) sd allowSecurityDef = (mempty :: Swagger)
   & definitions .~ fromList (makeTableDef rels <$> ti)
   & parameters .~ fromList (makeParamDefs ti)
   & paths .~ makePathItems pds ti
-  & produces .~ makeMimeList mediaTypes
-  & consumes .~ makeMimeList mediaTypes
+  & produces .~ makeMimeList [MTApplicationJSON, MTSingularJSON, MTTextCSV]
+  & consumes .~ makeMimeList [MTApplicationJSON, MTSingularJSON, MTTextCSV]
   & securityDefinitions .~ makeSecurityDefinitions securityDefName allowSecurityDef
   & security .~ [SecurityRequirement (fromList [(securityDefName, [])]) | allowSecurityDef]
     where
@@ -417,7 +417,6 @@ postgrestSpec rels pds ti (s, h, p, b) sd allowSecurityDef = (mempty :: Swagger)
       securityDefName = "JWT"
       (dTitle, dDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
                     T.breakOn "\n" <$> sd
-      mediaTypes = [MTNormal MTApplicationJSON, MTNormal MTSingularJSON, MTNormal MTTextCSV]
 
 pickProxy :: Maybe Text -> Maybe Proxy
 pickProxy proxy
