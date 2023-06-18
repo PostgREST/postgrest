@@ -16,4 +16,5 @@ main =
     , "src/PostgREST/ApiRequest/Preferences.hs"
     , "src/PostgREST/ApiRequest/QueryParams.hs"
     , "src/PostgREST/Error.hs"
+    , "src/PostgREST/MediaType.hs"
     ]

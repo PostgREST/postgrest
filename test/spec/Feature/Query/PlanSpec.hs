@@ -254,7 +254,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 

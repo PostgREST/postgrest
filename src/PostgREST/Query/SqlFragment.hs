@@ -431,7 +431,7 @@ intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
 
-explainF :: MTPlanFormat -> [MTPlanOption] -> SQL.Snippet -> SQL.Snippet
+explainF :: Maybe MTPlanFormat -> [MTPlanOption] -> SQL.Snippet -> SQL.Snippet
 explainF fmt opts snip =
   "EXPLAIN (" <>
     SQL.sql (BS.intercalate ", " (fmtPlanFmt fmt : (fmtPlanOpt <$> opts))) <>
@@ -444,8 +444,9 @@ explainF fmt opts snip =
     fmtPlanOpt PlanBuffers  = "BUFFERS"
     fmtPlanOpt PlanWAL      = "WAL"
 
-    fmtPlanFmt PlanJSON = "FORMAT JSON"
-    fmtPlanFmt PlanText = "FORMAT TEXT"
+    fmtPlanFmt Nothing         = "FORMAT TEXT"
+    fmtPlanFmt (Just PlanJSON) = "FORMAT JSON"
+    fmtPlanFmt (Just PlanText) = "FORMAT TEXT"
 
 -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
 setConfigLocal :: ByteString -> (ByteString, ByteString) -> SQL.Snippet
