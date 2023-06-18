@@ -4,7 +4,6 @@ module PostgREST.MediaType
   ( MediaType(..)
   , MTPlanOption (..)
   , MTPlanFormat (..)
-  , MTPlanAttrs(..)
   , toContentType
   , toMime
   , decodeMediaType
@@ -19,6 +18,14 @@ import Network.HTTP.Types.Header (Header, hContentType)
 
 import Protolude
 
+--
+-- $setup
+-- Setup for doctests
+-- >>> import Text.Pretty.Simple (pPrint)
+-- >>> deriving instance Show MTPlanFormat
+-- >>> deriving instance Show MTPlanOption
+-- >>> deriving instance Show MediaType
+
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
@@ -32,12 +39,21 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  | MTPlan MTPlanAttrs
-  deriving Eq
-
-data MTPlanAttrs = MTPlanAttrs (Maybe MediaType) MTPlanFormat [MTPlanOption]
-instance Eq MTPlanAttrs where
-  MTPlanAttrs {} == MTPlanAttrs {} = True -- we don't care about the attributes when comparing two MTPlan media types
+  | MTPlan (Maybe MediaType) (Maybe MTPlanFormat) [MTPlanOption]
+instance Eq MediaType where
+  MTApplicationJSON == MTApplicationJSON = True
+  MTSingularJSON    == MTSingularJSON    = True
+  MTGeoJSON         == MTGeoJSON         = True
+  MTTextCSV         == MTTextCSV         = True
+  MTTextPlain       == MTTextPlain       = True
+  MTTextXML         == MTTextXML         = True
+  MTOpenAPI         == MTOpenAPI         = True
+  MTUrlEncoded      == MTUrlEncoded      = True
+  MTOctetStream     == MTOctetStream     = True
+  MTAny             == MTAny             = True
+  MTOther x         == MTOther y         = x == y
+  MTPlan{}          == MTPlan{}          = True
+  _                 == _                 = False
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
@@ -67,8 +83,8 @@ toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
 toMime MTOctetStream     = "application/octet-stream"
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
-toMime (MTPlan (MTPlanAttrs mt fmt opts)) =
-  "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
+toMime (MTPlan mt fmt opts) =
+  "application/vnd.pgrst.plan" <> maybe mempty (\x -> "+" <> toMimePlanFormat x) fmt <>
   (if isNothing mt then mempty else "; for=\"" <> toMime (fromJust mt) <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
 
@@ -83,7 +99,19 @@ toMimePlanFormat :: MTPlanFormat -> ByteString
 toMimePlanFormat PlanJSON = "json"
 toMimePlanFormat PlanText = "text"
 
--- | Convert from ByteString to MediaType. Warning: discards MIME parameters
+-- | Convert from ByteString to MediaType.
+--
+-- >>> decodeMediaType "application/json"
+-- MTApplicationJSON
+--
+-- >>> decodeMediaType "application/vnd.pgrst.plan;"
+-- MTPlan Nothing Nothing []
+--
+-- >>> decodeMediaType "application/vnd.pgrst.plan;for=\"application/json\""
+-- MTPlan (Just MTApplicationJSON) Nothing []
+--
+-- >>> decodeMediaType "application/vnd.pgrst.plan+text;for=\"text/csv\""
+-- MTPlan (Just MTTextCSV) (Just PlanText) []
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
@@ -97,9 +125,9 @@ decodeMediaType mt =
     "application/vnd.pgrst.object":_       -> MTSingularJSON
     "application/x-www-form-urlencoded":_  -> MTUrlEncoded
     "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
+    "application/vnd.pgrst.plan":rest      -> getPlan Nothing rest
+    "application/vnd.pgrst.plan+text":rest -> getPlan (Just PlanText) rest
+    "application/vnd.pgrst.plan+json":rest -> getPlan (Just PlanJSON) rest
     "*/*":_                                -> MTAny
     other:_                                -> MTOther other
     _                                      -> MTAny
@@ -110,7 +138,7 @@ decodeMediaType mt =
        inOpts str   = str `elem` opts
        mtFor        = decodeMediaType . dropAround (== BS.c2w '"') <$> (BS.stripPrefix "for=" =<< find (BS.isPrefixOf "for=") rest)
        dropAround p = BS.dropWhile p . BS.dropWhileEnd p in
-     MTPlan $ MTPlanAttrs mtFor fmt $
+     MTPlan mtFor fmt $
       [PlanAnalyze  | inOpts "analyze" ] ++
       [PlanVerbose  | inOpts "verbose" ] ++
       [PlanSettings | inOpts "settings"] ++
@@ -119,6 +147,6 @@ decodeMediaType mt =
 
 getMediaType :: MediaType -> MediaType
 getMediaType mt = case mt of
-  MTPlan (MTPlanAttrs (Just mType) _ _) -> mType
-  MTPlan (MTPlanAttrs Nothing _ _)      -> MTApplicationJSON
-  other                                 -> other
+  MTPlan (Just mType) _ _ -> mType
+  MTPlan Nothing _ _      -> MTApplicationJSON
+  other                   -> other

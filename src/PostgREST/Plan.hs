@@ -44,8 +44,7 @@ import PostgREST.ApiRequest               (Action (..),
                                            Payload (..))
 import PostgREST.Config                   (AppConfig (..))
 import PostgREST.Error                    (Error (..))
-import PostgREST.MediaType                (MTPlanAttrs (..),
-                                           MediaType (..))
+import PostgREST.MediaType                (MediaType (..))
 import PostgREST.Query.SqlFragment        (sourceCTEName)
 import PostgREST.RangeQuery               (NonnegRange, allRange,
                                            convertToLimitZeroRange,
@@ -634,10 +633,10 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   where
     isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
     isRawPlan mt = case mt of
-      MTPlan (MTPlanAttrs (Just MTOctetStream) _ _) -> True
-      MTPlan (MTPlanAttrs (Just MTTextPlain) _ _)   -> True
-      MTPlan (MTPlanAttrs (Just MTTextXML) _ _)     -> True
-      _                                             -> False
+      MTPlan (Just MTOctetStream) _ _ -> True
+      MTPlan (Just MTTextPlain) _ _   -> True
+      MTPlan (Just MTTextXML) _ _     -> True
+      _                               -> False
 
     fstFieldName :: ReadPlanTree -> Maybe FieldName
     fstFieldName (Node ReadPlan{select=(("*", []), _, _):_} [])  = Nothing

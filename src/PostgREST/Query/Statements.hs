@@ -26,8 +26,7 @@ import Control.Lens ((^?))
 import Data.Maybe   (fromJust)
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType               (MTPlanAttrs (..),
-                                          MTPlanFormat (..),
+import PostgREST.MediaType               (MTPlanFormat (..),
                                           MediaType (..),
                                           getMediaType)
 import PostgREST.Query.SqlFragment
@@ -168,7 +167,7 @@ preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 preparePlanRows countQuery =
   SQL.dynamicallyParameterized snippet decodeIt
   where
-    snippet = explainF PlanJSON mempty countQuery
+    snippet = explainF (Just PlanJSON) mempty countQuery
     decodeIt :: HD.Result (Maybe Int64)
     decodeIt =
       let row = HD.singleRow $ column HD.bytea in
@@ -188,8 +187,8 @@ standardRow noLocation =
 
 mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
 mtSnippet mediaType snippet = case mediaType of
-  MTPlan (MTPlanAttrs _ fmt opts) -> explainF fmt opts snippet
-  _                               -> snippet
+  MTPlan _ fmt opts -> explainF fmt opts snippet
+  _                 -> snippet
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet
