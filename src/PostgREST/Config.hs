@@ -57,8 +57,7 @@ import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
                                           dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.MediaType               (MediaType (..),
-                                          NormalMedia (..), toMime)
+import PostgREST.MediaType               (MediaType (..), toMime)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 
@@ -263,7 +262,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
-    <*> (maybe [] (fmap (MTNormal . MTOther . encodeUtf8) . splitOnCommas) <$> optValue "raw-media-types")
+    <*> (maybe [] (fmap (MTOther . encodeUtf8) . splitOnCommas) <$> optValue "raw-media-types")
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
