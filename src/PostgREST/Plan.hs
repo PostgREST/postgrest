@@ -633,10 +633,10 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
   where
     isRawMediaType = acceptMediaType `elem` configRawMediaTypes `L.union` [MTOctetStream, MTTextPlain, MTTextXML] || isRawPlan acceptMediaType
     isRawPlan mt = case mt of
-      MTPlan (Just MTOctetStream) _ _ -> True
-      MTPlan (Just MTTextPlain) _ _   -> True
-      MTPlan (Just MTTextXML) _ _     -> True
-      _                               -> False
+      MTPlan MTOctetStream _ _ -> True
+      MTPlan MTTextPlain _ _   -> True
+      MTPlan MTTextXML _ _     -> True
+      _                        -> False
 
     fstFieldName :: ReadPlanTree -> Maybe FieldName
     fstFieldName (Node ReadPlan{select=(("*", []), _, _):_} [])  = Nothing

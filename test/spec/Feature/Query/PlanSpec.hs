@@ -33,7 +33,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
@@ -49,7 +49,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe`
           if actualPgVersion > pgVersion120
@@ -65,7 +65,7 @@ spec actualPgVersion = do
               resHeaders = simpleHeaders r
 
           liftIO $ do
-            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=buffers; charset=utf-8")
+            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=buffers; charset=utf-8")
             resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ BS.toStrict t))
         else do
           -- analyze is required for buffers on pg < 13
@@ -75,7 +75,7 @@ spec actualPgVersion = do
               resHeaders = simpleHeaders r
 
           liftIO $ do
-            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|buffers; charset=utf-8")
+            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|buffers; charset=utf-8")
             blocks `shouldBe` Just [aesonQQ| 1.0 |]
 
     when (actualPgVersion >= pgVersion120) $
@@ -86,7 +86,7 @@ spec actualPgVersion = do
             resHeaders = simpleHeaders r
 
         liftIO $ do
-          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=settings; charset=utf-8")
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=settings; charset=utf-8")
           searchPath `shouldBe`
             Just [aesonQQ|
               {
@@ -102,7 +102,7 @@ spec actualPgVersion = do
             resHeaders = simpleHeaders r
 
         liftIO $ do
-          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=analyze|wal; charset=utf-8")
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|wal; charset=utf-8")
           walRecords `shouldBe` Just [aesonQQ|0|]
 
     it "outputs columns info when using the verbose option" $ do
@@ -112,7 +112,7 @@ spec actualPgVersion = do
           resHeaders = simpleHeaders r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; options=verbose; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
         cols `shouldBe` Just [aesonQQ| ["projects.id", "projects.name", "projects.client_id"] |]
 
     it "outputs the plan for application/json " $ do
@@ -151,7 +151,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 3.27
 
@@ -164,7 +164,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 12.45
 
@@ -177,7 +177,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 15.68
 
@@ -191,7 +191,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 1.29
 
@@ -216,7 +216,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 68.56
 
@@ -241,7 +241,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 
@@ -254,7 +254,7 @@ spec actualPgVersion = do
           resStatus  = simpleStatus r
 
       liftIO $ do
-        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan; charset=utf-8")
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 
