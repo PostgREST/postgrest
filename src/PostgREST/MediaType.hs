@@ -12,7 +12,6 @@ module PostgREST.MediaType
 
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
-import           Data.Maybe               (fromJust)
 
 import Network.HTTP.Types.Header (Header, hContentType)
 
@@ -39,7 +38,7 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
-  | MTPlan (Maybe MediaType) (Maybe MTPlanFormat) [MTPlanOption]
+  | MTPlan MediaType MTPlanFormat [MTPlanOption]
 instance Eq MediaType where
   MTApplicationJSON == MTApplicationJSON = True
   MTSingularJSON    == MTSingularJSON    = True
@@ -84,8 +83,8 @@ toMime MTOctetStream     = "application/octet-stream"
 toMime MTAny             = "*/*"
 toMime (MTOther ct)      = ct
 toMime (MTPlan mt fmt opts) =
-  "application/vnd.pgrst.plan" <> maybe mempty (\x -> "+" <> toMimePlanFormat x) fmt <>
-  (if isNothing mt then mempty else "; for=\"" <> toMime (fromJust mt) <> "\"") <>
+  "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
+  ("; for=\"" <> toMime mt <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
 
 toMimePlanOption :: MTPlanOption -> ByteString
@@ -105,13 +104,13 @@ toMimePlanFormat PlanText = "text"
 -- MTApplicationJSON
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan;"
--- MTPlan Nothing Nothing []
+-- MTPlan MTApplicationJSON PlanText []
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan;for=\"application/json\""
--- MTPlan (Just MTApplicationJSON) Nothing []
+-- MTPlan MTApplicationJSON PlanText []
 --
--- >>> decodeMediaType "application/vnd.pgrst.plan+text;for=\"text/csv\""
--- MTPlan (Just MTTextCSV) (Just PlanText) []
+-- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
+-- MTPlan MTTextCSV PlanJSON []
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
@@ -125,28 +124,31 @@ decodeMediaType mt =
     "application/vnd.pgrst.object":_       -> MTSingularJSON
     "application/x-www-form-urlencoded":_  -> MTUrlEncoded
     "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan Nothing rest
-    "application/vnd.pgrst.plan+text":rest -> getPlan (Just PlanText) rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan (Just PlanJSON) rest
+    "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
     "*/*":_                                -> MTAny
     other:_                                -> MTOther other
     _                                      -> MTAny
   where
     getPlan fmt rest =
-     let
-       opts         = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
-       inOpts str   = str `elem` opts
-       mtFor        = decodeMediaType . dropAround (== BS.c2w '"') <$> (BS.stripPrefix "for=" =<< find (BS.isPrefixOf "for=") rest)
-       dropAround p = BS.dropWhile p . BS.dropWhileEnd p in
-     MTPlan mtFor fmt $
-      [PlanAnalyze  | inOpts "analyze" ] ++
-      [PlanVerbose  | inOpts "verbose" ] ++
-      [PlanSettings | inOpts "settings"] ++
-      [PlanBuffers  | inOpts "buffers" ] ++
-      [PlanWAL      | inOpts "wal"     ]
+      let
+        opts         = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
+        inOpts str   = str `elem` opts
+        dropAround p = BS.dropWhile p . BS.dropWhileEnd p
+        mtFor        = fromMaybe MTApplicationJSON $ do
+          foundFor    <- find (BS.isPrefixOf "for=") rest
+          strippedFor <- BS.stripPrefix "for=" foundFor
+          pure . decodeMediaType $ dropAround (== BS.c2w '"') strippedFor
+      in
+      MTPlan mtFor fmt $
+        [PlanAnalyze  | inOpts "analyze" ] ++
+        [PlanVerbose  | inOpts "verbose" ] ++
+        [PlanSettings | inOpts "settings"] ++
+        [PlanBuffers  | inOpts "buffers" ] ++
+        [PlanWAL      | inOpts "wal"     ]
 
 getMediaType :: MediaType -> MediaType
 getMediaType mt = case mt of
-  MTPlan (Just mType) _ _ -> mType
-  MTPlan Nothing _ _      -> MTApplicationJSON
-  other                   -> other
+  MTPlan mType _ _ -> mType
+  other            -> other

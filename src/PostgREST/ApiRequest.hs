@@ -51,7 +51,8 @@ import PostgREST.ApiRequest.Types        (ApiRequestError (..),
                                           RangeError (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.MediaType               (MediaType (..))
+import PostgREST.MediaType               (MTPlanFormat (..),
+                                          MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
@@ -363,9 +364,9 @@ producedMediaTypes conf action path =
   case action of
     ActionRead _    -> defaultMediaTypes ++ rawMediaTypes
     ActionInvoke _  -> invokeMediaTypes
-    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON, MTAny]
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
+    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON, MTAny]
   where
     invokeMediaTypes =
       defaultMediaTypes
@@ -373,5 +374,5 @@ producedMediaTypes conf action path =
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
       [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
-      [MTPlan Nothing Nothing mempty | configDbPlanEnabled conf] ++ [MTAny]
+      [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]

@@ -167,7 +167,7 @@ preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 preparePlanRows countQuery =
   SQL.dynamicallyParameterized snippet decodeIt
   where
-    snippet = explainF (Just PlanJSON) mempty countQuery
+    snippet = explainF PlanJSON mempty countQuery
     decodeIt :: HD.Result (Maybe Int64)
     decodeIt =
       let row = HD.singleRow $ column HD.bytea in
