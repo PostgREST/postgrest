@@ -8,7 +8,6 @@ import Network.Wai.Test (SResponse (..))
 
 import           Data.Aeson.Lens
 import           Data.Aeson.QQ
-import qualified Data.ByteString      as BS
 import qualified Data.ByteString.Lazy as LBS
 import qualified Data.Text            as T
 import           Network.HTTP.Types
@@ -66,7 +65,7 @@ spec actualPgVersion = do
 
           liftIO $ do
             resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=buffers; charset=utf-8")
-            resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ BS.toStrict t))
+            resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ LBS.toStrict t))
         else do
           -- analyze is required for buffers on pg < 13
           r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|buffers") ""
@@ -338,7 +337,7 @@ spec actualPgVersion = do
         let resBody = simpleBody r
 
         liftIO $ do
-          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getallusers" (decodeUtf8 $ BS.toStrict t))
+          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getallusers" (decodeUtf8 $ LBS.toStrict t))
 
       it "should inline a function with arguments(the function won't appear in the plan tree)" $ do
         r <- request methodGet "/rpc/getitemrange?min=10&max=15"
@@ -347,7 +346,7 @@ spec actualPgVersion = do
         let resBody = simpleBody r
 
         liftIO $ do
-          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getitemrange" (decodeUtf8 $ BS.toStrict t))
+          resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getitemrange" (decodeUtf8 $ LBS.toStrict t))
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
