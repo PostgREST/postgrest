@@ -742,7 +742,7 @@ Here's a sample function (notice the ``RETURNS SETOF films``).
 
   CREATE FUNCTION getallfilms() RETURNS SETOF films AS $$
     SELECT * FROM films;
-  $$ LANGUAGE SQL IMMUTABLE;
+  $$ LANGUAGE SQL STABLE;
 
 A request with ``directors`` embedded:
 
