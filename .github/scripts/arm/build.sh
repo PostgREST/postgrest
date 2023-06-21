@@ -10,7 +10,7 @@ PGRST_GITHUB_COMMIT="$1"
 SCRIPT_DIR="$2"
 
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
-CABAL_VERSION="recommended"
+CABAL_VERSION="latest"
 GHC_VERSION="$3"
 
 install_packages() {
