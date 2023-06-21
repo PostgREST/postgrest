@@ -4,13 +4,14 @@
 
 [ -z "$1" ] && { echo "Missing 1st argument: PostgREST github commit SHA"; exit 1; }
 [ -z "$2" ] && { echo "Missing 2nd argument: Build environment directory name"; exit 1; }
+[ -z "$3" ] && { echo "Missing 3rd argument: GHC version"; exit 1; }
 
 PGRST_GITHUB_COMMIT="$1"
 SCRIPT_DIR="$2"
 
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
-CABAL_VERSION="3.6.0.0"
-GHC_VERSION="9.2.4"
+CABAL_VERSION="recommended"
+GHC_VERSION="$3"
 
 install_packages() {
   sudo apt-get update -y
