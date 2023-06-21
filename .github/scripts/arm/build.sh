@@ -10,6 +10,7 @@ PGRST_GITHUB_COMMIT="$1"
 SCRIPT_DIR="$2"
 
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
+# latest is a shortcut documented on https://www.haskell.org/ghcup/guide/#tags-and-shortcuts
 CABAL_VERSION="latest"
 GHC_VERSION="$3"
 
