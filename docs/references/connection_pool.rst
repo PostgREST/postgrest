@@ -22,7 +22,7 @@ Connection lifetime
 -------------------
 
 Long-lived PostgreSQL connections can consume considerable memory (see `here <https://www.postgresql.org/message-id/CAFj8pRCQN2B2vrVMH1-bd-8xtzjytWR%2BAjZ%2BMCj9J2wPxKPa9Q%40mail.gmail.com>`_ for more details).
-Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the connection pool can have many long-lived connections.
+Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the connection pool can be full of long-lived connections.
 
 To avoid this problem and save resources, a connection max lifetime (determined by :ref:`db-pool-max-lifetime`, 30 minutes by default) is enforced.
 After the max lifetime is reached, connections from the pool will be released and new ones will be created. This doesn't affect running requests, only unused connections will be released.
