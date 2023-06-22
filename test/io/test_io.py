@@ -999,6 +999,7 @@ def test_openapi_in_big_schema(defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
+
 def test_get_pgrst_version_with_uri_connection_string(dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
     defaultenv_without_libpq = {
@@ -1010,7 +1011,7 @@ def test_get_pgrst_version_with_uri_connection_string(dburi, defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        assert response.text.startswith('"PostgREST')
+        assert response.text.startswith('"PostgREST ')
 
 
 def test_get_pgrst_version_with_keyval_connection_string(dburi, defaultenv):
@@ -1025,4 +1026,4 @@ def test_get_pgrst_version_with_keyval_connection_string(dburi, defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        assert response.text.startswith('"PostgREST')
+        assert response.text.startswith('"PostgREST ')

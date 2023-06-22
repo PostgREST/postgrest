@@ -24,6 +24,7 @@ module PostgREST.Config
   , readPGRSTEnvironment
   , toURI
   , parseSecret
+  , addPgrstVerToDbUri
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -47,7 +48,7 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
-import Network.URI             (escapeURIString, isUnescapedInURI, parseURI, uriQuery)
+import Network.URI             (parseURI, uriQuery)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -221,7 +222,7 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
     decodeLoadFiles :: AppConfig -> IO AppConfig
     decodeLoadFiles parsedConfig =
       decodeJWKS <$>
-        (decodeSecret =<< readSecretFile =<< addPgrstVerToDbUri =<< readDbUriFile prevDbUri parsedConfig)
+        (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
 
 parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
 parser optPath env dbSettings roleSettings roleIsolationLvl =
@@ -464,17 +465,28 @@ readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
 
 -- | Allows querying the PostgREST version in SQL by adding `fallback_application_name` to the connection string
-addPgrstVerToDbUri :: AppConfig -> IO AppConfig
-addPgrstVerToDbUri conf = pure $ conf { configDbUri = dbUriWithFallAppName }
+--
+-- >>> addPgrstVerToDbUri "postgres://user:pass@host:5432/postgres"
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
+--
+-- >>> addPgrstVerToDbUri "postgres://user:pass@host:5432/postgres?"
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
+--
+-- >>> addPgrstVerToDbUri "postgres:///postgres?host=host&port=5432"
+-- "postgres:///postgres?host=host&port=5432&fallback_application_name=PostgREST%20..."
+--
+-- >>> addPgrstVerToDbUri "host=host port=5432 dbname=postgres"
+-- "host=host port=5432 dbname=postgres fallback_application_name='PostgREST ...'"
+addPgrstVerToDbUri :: Text -> Text
+addPgrstVerToDbUri dbUri = dbUriWithFallAppName
   where
     dbUriWithFallAppName = dbUri <>
       case uriQuery <$> parseURI (toS dbUri) of
-        Nothing  -> " " <> keyValStr
-        Just ""  -> "?" <> uriStr
-        Just "?" -> uriStr
-        _        -> "&" <> uriStr
-    dbUri = configDbUri conf
-    uriStr = toS $ escapeURIString isUnescapedInURI $ toS $ pKeyWord <> pgrstVer
-    keyValStr = pKeyWord <> "'" <> pgrstVer <> "'"
+        Nothing  -> " " <> keyValFmt -- Assume key/value connection string if the uri is not valid
+        Just ""  -> "?" <> uriFmt
+        Just "?" -> uriFmt
+        _        -> "&" <> uriFmt
+    uriFmt = T.replace " " "%20" $ pKeyWord <> pgrstVer
+    keyValFmt = pKeyWord <> "'" <> pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 prettyVersion

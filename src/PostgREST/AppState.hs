@@ -47,6 +47,7 @@ import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                  (AppConfig (..),
+                                          addPgrstVerToDbUri,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
@@ -136,7 +137,7 @@ initPool AppConfig{..} =
     (fromIntegral configDbPoolAcquisitionTimeout)
     (fromIntegral configDbPoolMaxLifetime)
     (fromIntegral configDbPoolMaxIdletime)
-    (toUtf8 configDbUri)
+    (toUtf8 $ addPgrstVerToDbUri configDbUri)
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
@@ -418,7 +419,7 @@ listener appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel) $ do
-    dbOrError <- acquire $ toUtf8 configDbUri
+    dbOrError <- acquire $ toUtf8 (addPgrstVerToDbUri configDbUri)
     case dbOrError of
       Right db -> do
         logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
