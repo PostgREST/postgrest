@@ -31,8 +31,8 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, HEAD, POST,
 
 .. _h_filter:
 
-Horizontal Filtering (Rows)
----------------------------
+Horizontal Filtering
+--------------------
 
 You can filter result rows by adding conditions on columns. For instance, to return people aged under 13 years old:
 
@@ -249,10 +249,10 @@ Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and wi
 
 .. _v_filter:
 
-Vertical Filtering (Columns)
-----------------------------
+Vertical Filtering
+------------------
 
-When certain columns are wide (such as those holding binary data), it is more efficient for the server to withhold them in a response. The client can specify which columns are required using the sql:`select` parameter.
+When certain columns are wide (such as those holding binary data), it is more efficient for the server to withhold them in a response. The client can specify which columns are required using the :code:`select` parameter.
 
 .. tabs::
 
@@ -455,57 +455,6 @@ The arrow operators(``->``, ``->>``) can also be used for accessing composite fi
 
     CREATE INDEX ON mytable ((to_jsonb(data) -> 'identification' ->> 'registration_number'));
 
-.. _computed_cols:
-
-Computed / Virtual Columns
---------------------------
-
-Filters may be applied to computed columns(**a.k.a. virtual columns**) as well as actual table/view columns, even though the computed columns will not appear in the output. For example, to search first and last names at once we can create a computed column that will not appear in the output but can be used in a filter:
-
-.. code-block:: postgres
-
-  CREATE TABLE people (
-    fname text,
-    lname text
-  );
-
-  CREATE FUNCTION full_name(people) RETURNS text AS $$
-    SELECT $1.fname || ' ' || $1.lname;
-  $$ LANGUAGE SQL;
-
-  -- (optional) add an index to speed up anticipated query
-  CREATE INDEX people_full_name_idx ON people
-    USING GIN (to_tsvector('english', full_name(people)));
-
-A full-text search on the computed column:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?full_name=fts.Beckett HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?full_name=fts.Beckett"
-
-As mentioned, computed columns do not appear in the output by default. However you can include them by listing them in the vertical filtering :code:`select` parameter:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?select=*,full_name HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=*,full_name"
-
-.. important::
-
-  Computed columns must be created in the :ref:`exposed schema <db-schemas>` or in a schema in the :ref:`extra search path <db-extra-search-path>` to be used in this way. When placing the computed column in the :ref:`exposed schema <db-schemas>` you can use an **unnamed** argument, as in the example above, to prevent it from being exposed as an :ref:`RPC <s_procs>` under ``/rpc``.
-
-
 .. _ordering:
 
 Ordering
@@ -557,7 +506,17 @@ If you care where nulls are sorted, add ``nullsfirst`` or ``nullslast``:
 
     curl "http://localhost:3000/people?order=age.desc.nullslast"
 
-You can also use :ref:`computed_cols` to order the results, even though the computed columns will not appear in the output. You can sort by nested fields of :ref:`json_columns` with the JSON operators.
+You can also sort on fields of :ref:`composite_array_columns` or :ref:`json_columns`.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /countries?order=location->>lat HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/countries?order=location->>lat"
 
 .. _limits:
 
@@ -1142,3 +1101,19 @@ Using ``offset`` to target a different subset of rows is also possible.
 
   There is no native ``UPDATE...LIMIT`` or ``DELETE...LIMIT`` support in PostgreSQL; the generated query simulates that behavior and is based on `this Crunchy Data blog post <https://www.crunchydata.com/blog/simulating-update-or-delete-with-limit-in-postgres-ctes-to-the-rescue>`_.
 
+.. raw:: html
+
+  <script type="text/javascript">
+    let hash = window.location.hash;
+
+    const redirects = {
+      // Tables and Views
+      '#computed-virtual-columns': 'computed_fields.html#computed-fields',
+    };
+
+    let willRedirectTo = redirects[hash];
+
+    if (willRedirectTo) {
+      window.location.href = willRedirectTo;
+    }
+  </script>
