@@ -24,8 +24,6 @@ import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
-import qualified Hasql.Encoders                    as HE
-import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 
 import qualified PostgREST.Error              as Error
@@ -51,8 +49,8 @@ import PostgREST.Plan                    (CallReadPlan (..),
                                           MutateReadPlan (..),
                                           WrappedReadPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query.SqlFragment       (fromQi, intercalateSnippet,
-                                          pgFmtIdentList,
+import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
+                                          intercalateSnippet,
                                           setConfigLocal,
                                           setConfigLocalJson)
 import PostgREST.Query.Statements        (ResultSet (..))
@@ -254,7 +252,7 @@ setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
     roleSettingsSql = setConfigLocal mempty <$> roleSettings
     appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
-      let schemas = pgFmtIdentList (iSchema req : configDbExtraSearchPath) in
+      let schemas = escapeIdentList (iSchema req : configDbExtraSearchPath) in
       setConfigLocal mempty ("search_path", schemas)
     usesLegacyGucs = configDbUseLegacyGucs && actualPgVersion < pgVersion140
 
@@ -269,8 +267,7 @@ setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
 runPreReq :: AppConfig -> DbHandler ()
 runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
   where
-    stmt req = SQL.Statement
+    stmt req = SQL.dynamicallyParameterized
       ("select " <> fromQi req <> "()")
-      HE.noParams
       HD.noResult
       (configDbPreparedStatements conf)

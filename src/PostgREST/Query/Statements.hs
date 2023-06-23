@@ -61,25 +61,23 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
-    "WITH " <> SQL.sql sourceCTEName <> " AS (" <> mutateQuery <> ") " <>
-    SQL.sql (
+    "WITH " <> sourceCTE <> " AS (" <> mutateQuery <> ") " <>
     "SELECT " <>
       "'' AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       locF <> " AS header, " <>
       bodyF <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
-      responseStatusF  <> " AS response_status "
-    ) <>
+      responseStatusF  <> " AS response_status " <>
     "FROM (" <> selectF <> ") _postgrest_t"
 
   locF =
     if isInsert && rep == HeadersOnly
-      then BS.unwords [
-        "CASE WHEN pg_catalog.count(_postgrest_t) = 1",
-          "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ")",
-          "ELSE " <> noLocationF,
-        "END"]
+      then
+        "CASE WHEN pg_catalog.count(_postgrest_t) = 1 " <>
+          "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ") " <>
+          "ELSE " <> noLocationF <> " " <>
+        "END"
       else noLocationF
 
   bodyF
@@ -91,7 +89,7 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
 
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
-    | rep /= Full = SQL.sql ("SELECT * FROM " <> sourceCTEName)
+    | rep /= Full = "SELECT * FROM " <> sourceCTE
     | otherwise   = selectQuery
 
   decodeIt :: HD.Result ResultSet
@@ -104,16 +102,15 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
-    "WITH " <>
-    SQL.sql sourceCTEName <> " AS ( " <> selectQuery <> " ) " <>
+    "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
     countCTEF <> " " <>
-    SQL.sql ("SELECT " <>
+    "SELECT " <>
       countResultF <> " AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       bodyF <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status " <>
-    "FROM ( SELECT * FROM " <> sourceCTEName <> " ) _postgrest_t")
+    "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
   (countCTEF, countResultF) = countF countQuery countTotal
 
@@ -137,15 +134,14 @@ prepareCall rout callProcQuery selectQuery countQuery countTotal mt binaryField 
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
-      "WITH " <> SQL.sql sourceCTEName <> " AS (" <> callProcQuery <> ") " <>
+      "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
       countCTEF <>
-      SQL.sql (
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
         "pg_catalog.count(_postgrest_t) AS page_total, " <>
         bodyF <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
-        responseStatusF <> " AS response_status ") <>
+        responseStatusF <> " AS response_status " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
     (countCTEF, countResultF) = countF countQuery countTotal
