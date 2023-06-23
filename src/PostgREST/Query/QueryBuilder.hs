@@ -66,45 +66,43 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
     aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
-      (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> SQL.sql al <> " ON " <> cond
+      (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     (sel, joi) = if relIsToOne rel
       then
         ( if relIsSpread
-            then SQL.sql aggAlias <> ".*"
-            else SQL.sql ("row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName)
+            then aggAlias <> ".*"
+            else "row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName
         , correlatedSubquery subquery aggAlias "TRUE")
       else
-        ( SQL.sql $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName
+        ( "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName
         , correlatedSubquery (
-            "SELECT json_agg(" <> SQL.sql aggAlias <> ") AS " <> SQL.sql aggAlias <>
-            "FROM (" <> subquery <> " ) AS " <> SQL.sql aggAlias
-          ) aggAlias $ if relJoinType == Just JTInner then SQL.sql aggAlias <> " IS NOT NULL" else "TRUE")
+            "SELECT json_agg(" <> aggAlias <> ") AS " <> aggAlias <>
+            "FROM (" <> subquery <> " ) AS " <> aggAlias
+          ) aggAlias $ if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE")
   in
   (if null select && null forest then selects else sel:selects, joi:joins)
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _ applyDefaults) =
-  "INSERT INTO " <> SQL.sql (fromQi mainQi) <> SQL.sql (if null iCols then " " else "(" <> cols <> ") ") <>
+  "INSERT INTO " <> fromQi mainQi <> (if null iCols then " " else "(" <> cols <> ") ") <>
   fromJsonBodyF body iCols True False applyDefaults <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
-  SQL.sql (BS.unwords [
-    maybe mempty (\(oncDo, oncCols) ->
-      if null oncCols then
-        mempty
-      else
-        " ON CONFLICT(" <> BS.intercalate ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
-        IgnoreDuplicates ->
-          "DO NOTHING"
-        MergeDuplicates  ->
-          if null iCols
-             then "DO NOTHING"
-             else "DO UPDATE SET " <> BS.intercalate ", " ((pgFmtIdent . tfName) <> const " = EXCLUDED." <> (pgFmtIdent . tfName) <$> iCols)
-      ) onConflct,
-    returningF mainQi returnings
-    ])
+  maybe mempty (\(oncDo, oncCols) ->
+    if null oncCols then
+      mempty
+    else
+      " ON CONFLICT(" <> intercalateSnippet ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
+      IgnoreDuplicates ->
+        "DO NOTHING"
+      MergeDuplicates  ->
+        if null iCols
+           then "DO NOTHING"
+           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . tfName) <> const " = EXCLUDED." <> (pgFmtIdent . tfName) <$> iCols)
+    ) onConflct <> " " <>
+  returningF mainQi returnings
   where
-    cols = BS.intercalate ", " $ pgFmtIdent . tfName <$> iCols
+    cols = intercalateSnippet ", " $ pgFmtIdent . tfName <$> iCols
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
@@ -112,54 +110,54 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
-    SQL.sql $ "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
+    "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
   | range == allRange =
-    "UPDATE " <> mainTbl <> " SET " <> SQL.sql nonRangeCols <> " " <>
+    "UPDATE " <> mainTbl <> " SET " <> nonRangeCols <> " " <>
     fromJsonBodyF body uCols False False applyDefaults <>
     whereLogic <> " " <>
-    SQL.sql (returningF mainQi returnings)
+    returningF mainQi returnings
 
   | otherwise =
     "WITH " <>
     "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
     "pgrst_affected_rows AS (" <>
-      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> mainTbl <>
+      "SELECT " <> rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
       orderF mainQi ordts <> " " <>
       limitOffsetF range <>
     ") " <>
-    "UPDATE " <> mainTbl <> " SET " <> SQL.sql rangeCols <>
+    "UPDATE " <> mainTbl <> " SET " <> rangeCols <>
     "FROM pgrst_affected_rows " <>
-    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
-    SQL.sql (returningF mainQi returnings)
+    "WHERE " <> whereRangeIdF <> " " <>
+    returningF mainQi returnings
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    mainTbl = SQL.sql (fromQi mainQi)
-    emptyBodyReturnedColumns = if null returnings then "NULL" else BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = BS.intercalate ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
-    rangeCols = BS.intercalate ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
+    mainTbl = fromQi mainQi
+    emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
+    nonRangeCols = intercalateSnippet ", " (pgFmtIdent . tfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . tfName <$> uCols)
+    rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (tfName col) <> " = (SELECT " <> pgFmtIdent (tfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
 
 mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
   | range == allRange =
-    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    "DELETE FROM " <> fromQi mainQi <> " " <>
     whereLogic <> " " <>
-    SQL.sql (returningF mainQi returnings)
+    returningF mainQi returnings
 
   | otherwise =
     "WITH " <>
     "pgrst_affected_rows AS (" <>
-      "SELECT " <> SQL.sql rangeIdF <> " FROM " <> SQL.sql (fromQi mainQi) <>
+      "SELECT " <> rangeIdF <> " FROM " <> fromQi mainQi <>
        whereLogic <> " " <>
       orderF mainQi ordts <> " " <>
       limitOffsetF range <>
     ") " <>
-    "DELETE FROM " <> SQL.sql (fromQi mainQi) <> " " <>
+    "DELETE FROM " <> fromQi mainQi <> " " <>
     "USING pgrst_affected_rows " <>
-    "WHERE " <> SQL.sql whereRangeIdF <> " " <>
-    SQL.sql (returningF mainQi returnings)
+    "WHERE " <> whereRangeIdF <> " " <>
+    returningF mainQi returnings
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
@@ -177,17 +175,17 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
-    callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> SQL.sql (fromQi qi) <> "(" <> argument <> ")).*) pgrst_call"
-                    | otherwise                                                              = SQL.sql (fromQi qi) <> "(" <> argument <> ") pgrst_call"
+    callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
+                    | otherwise                                                              = fromQi qi <> "(" <> argument <> ") pgrst_call"
 
     fmtParams :: [RoutineParam] -> SQL.Snippet
-    fmtParams prms = SQL.sql $ BS.intercalate ", "
+    fmtParams prms = intercalateSnippet ", "
       ((\a -> (if ppVar a then "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
 
     returnedColumns :: SQL.Snippet
     returnedColumns
       | null returnings = "*"
-      | otherwise       = SQL.sql $ BS.intercalate ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnings)
+      | otherwise       = intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnings)
 
 -- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
@@ -229,7 +227,7 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
 
 -- FROM clause plus implicit joins
 fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
-fromF rel mainQi tblAlias = SQL.sql $ "FROM " <>
+fromF rel mainQi tblAlias = "FROM " <>
   (case rel of
     Just ComputedRelationship{relFunction,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTable) <> ")"
     _                                               -> fromQi mainQi) <>

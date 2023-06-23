@@ -271,7 +271,7 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
       Node <$> newReadPlan <*> (updateForest . hush $ Node <$> newReadPlan <*> pure forest)
     Nothing -> -- root case
       let
-        newFrom  = QualifiedIdentifier mempty $ decodeUtf8 sourceCTEName
+        newFrom  = QualifiedIdentifier mempty sourceCTEName
         newAlias = Just (qiName $ from rPlan)
         newReadPlan = case action of
           -- the CTE for mutations/rpc is used as WITH sourceCTEName .. SELECT .. FROM sourceCTEName as alias,

@@ -4,12 +4,9 @@
 {-|
 Module      : PostgREST.Query.SqlFragment
 Description : Helper functions for PostgREST.QueryBuilder.
-
-Any function that outputs a SqlFragment should be in this module.
 -}
 module PostgREST.Query.SqlFragment
   ( noLocationF
-  , SqlFragment
   , asBinaryF
   , asCsvF
   , asGeoJsonF
@@ -24,7 +21,6 @@ module PostgREST.Query.SqlFragment
   , orderF
   , pgFmtColumn
   , pgFmtIdent
-  , pgFmtIdentList
   , pgFmtJoinCondition
   , pgFmtLogicTree
   , pgFmtOrderTerm
@@ -34,12 +30,15 @@ module PostgREST.Query.SqlFragment
   , responseStatusF
   , returningF
   , singleParameter
+  , sourceCTE
   , sourceCTEName
   , unknownEncoder
   , intercalateSnippet
   , explainF
   , setConfigLocal
   , setConfigLocalJson
+  , escapeIdent
+  , escapeIdentList
   ) where
 
 import qualified Data.Aeson                      as JSON
@@ -87,17 +86,16 @@ import PostgREST.SchemaCache.Routine     (Routine (..),
 
 import Protolude hiding (cast)
 
-
--- | A part of a SQL query that cannot be executed independently
-type SqlFragment = ByteString
-
-noLocationF :: SqlFragment
-noLocationF = "array[]::text[]"
-
-sourceCTEName :: SqlFragment
+sourceCTEName :: Text
 sourceCTEName = "pgrst_source"
 
-simpleOperator :: SimpleOperator -> SqlFragment
+sourceCTE :: SQL.Snippet
+sourceCTE = "pgrst_source"
+
+noLocationF :: SQL.Snippet
+noLocationF = "array[]::text[]"
+
+simpleOperator :: SimpleOperator -> SQL.Snippet
 simpleOperator = \case
   OpNotEqual        -> "<>"
   OpContains        -> "@>"
@@ -109,7 +107,7 @@ simpleOperator = \case
   OpNotExtendsLeft  -> "&>"
   OpAdjacent        -> "-|-"
 
-quantOperator :: QuantOperator -> SqlFragment
+quantOperator :: QuantOperator -> SQL.Snippet
 quantOperator = \case
   OpEqual            -> "="
   OpGreaterThanEqual -> ">="
@@ -121,7 +119,7 @@ quantOperator = \case
   OpMatch            -> "~"
   OpIMatch           -> "~*"
 
-ftsOperator :: FtsOperator -> SqlFragment
+ftsOperator :: FtsOperator -> SQL.Snippet
 ftsOperator = \case
   FilterFts          -> "@@ to_tsquery"
   FilterFtsPlain     -> "@@ plainto_tsquery"
@@ -149,8 +147,11 @@ pgBuildArrayLiteral vals =
  "{" <> T.intercalate "," (escaped <$> vals) <> "}"
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
-pgFmtIdent :: Text -> SqlFragment
-pgFmtIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
+pgFmtIdent :: Text -> SQL.Snippet
+pgFmtIdent x = SQL.sql $ escapeIdent x
+
+escapeIdent :: Text -> ByteString
+escapeIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 
 -- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
 pgFmtLit :: Text -> Text
@@ -168,12 +169,12 @@ trimNullChars = T.takeWhile (/= '\x0')
 -- |
 -- Format a list of identifiers and separate them by commas.
 --
--- >>> pgFmtIdentList ["schema_1", "schema_2", "SPECIAL \"@/\\#~_-"]
+-- >>> escapeIdentList ["schema_1", "schema_2", "SPECIAL \"@/\\#~_-"]
 -- "\"schema_1\", \"schema_2\", \"SPECIAL \"\"@/\\#~_-\""
-pgFmtIdentList :: [Text] -> SqlFragment
-pgFmtIdentList schemas = BS.intercalate ", " $ pgFmtIdent <$> schemas
+escapeIdentList :: [Text] -> ByteString
+escapeIdentList schemas = BS.intercalate ", " $ escapeIdent <$> schemas
 
-asCsvF :: SqlFragment
+asCsvF :: SQL.Snippet
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
   where
     asCsvHeaderF =
@@ -181,20 +182,20 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       "  FROM (" <>
       "    SELECT json_object_keys(r)::text as k" <>
       "    FROM ( " <>
-      "      SELECT row_to_json(hh) as r from " <> sourceCTEName <> " as hh limit 1" <>
+      "      SELECT row_to_json(hh) as r from " <> sourceCTE <> " as hh limit 1" <>
       "    ) s" <>
       "  ) a" <>
       ")"
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
-asJsonSingleF :: Maybe Routine -> SqlFragment
+asJsonSingleF :: Maybe Routine -> SQL.Snippet
 asJsonSingleF rout
   | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
   | otherwise     = "coalesce(json_agg(_postgrest_t)->0, 'null')"
   where
     returnsScalar = maybe False funcReturnsScalar rout
 
-asJsonF :: Maybe Routine -> SqlFragment
+asJsonF :: Maybe Routine -> SQL.Snippet
 asJsonF rout
   | returnsSingleComposite              = "coalesce(json_agg(_postgrest_t)->0, 'null')"
   | returnsScalar                       = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
@@ -205,16 +206,16 @@ asJsonF rout
       Just r  -> (funcReturnsSingleComposite r, funcReturnsScalar r, funcReturnsSetOfScalar r)
       Nothing -> (False, False, False)
 
-asXmlF :: FieldName -> SqlFragment
+asXmlF :: FieldName -> SQL.Snippet
 asXmlF fieldName = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
 
-asGeoJsonF ::  SqlFragment
+asGeoJsonF ::  SQL.Snippet
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
 
-asBinaryF :: FieldName -> SqlFragment
+asBinaryF :: FieldName -> SQL.Snippet
 asBinaryF fieldName = "coalesce(string_agg(_postgrest_t." <> pgFmtIdent fieldName <> ", ''), '')"
 
-locationF :: [Text] -> SqlFragment
+locationF :: [Text] -> SQL.Snippet
 locationF pKeys = [qc|(
   WITH data AS (SELECT row_to_json(_) AS row FROM {sourceCTEName} AS _ LIMIT 1)
   SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
@@ -224,33 +225,32 @@ locationF pKeys = [qc|(
   where
     fmtPKeys = T.intercalate "','" pKeys
 
-fromQi :: QualifiedIdentifier -> SqlFragment
+fromQi :: QualifiedIdentifier -> SQL.Snippet
 fromQi t = (if T.null s then mempty else pgFmtIdent s <> ".") <> pgFmtIdent n
   where
     n = qiName t
     s = qiSchema t
 
-pgFmtColumn :: QualifiedIdentifier -> Text -> SqlFragment
+pgFmtColumn :: QualifiedIdentifier -> Text -> SQL.Snippet
 pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtField :: QualifiedIdentifier -> Field -> SQL.Snippet
-pgFmtField table (c, []) = SQL.sql (pgFmtColumn table c)
+pgFmtField table (c, []) = pgFmtColumn table c
 -- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
 -- "operator does not exist: json = unknown"
-pgFmtField table (c, jp) = SQL.sql ("to_jsonb(" <> pgFmtColumn table c <> ")") <> pgFmtJsonPath jp
+pgFmtField table (c, jp) = "to_jsonb(" <> pgFmtColumn table c <> ")" <> pgFmtJsonPath jp
 
 pgFmtSelectItem :: QualifiedIdentifier -> (Field, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> SQL.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Nothing, alias) = pgFmtField table f <> pgFmtAs fName jp alias
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> SQL.sql (pgFmtAs fName jp alias)
+pgFmtSelectItem table (f@(fName, jp), Just cast, alias) = "CAST (" <> pgFmtField table f <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> pgFmtAs fName jp alias
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 fromJsonBodyF :: Maybe LBS.ByteString -> [TypedField] -> Bool -> Bool -> Bool -> SQL.Snippet
 fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
-  SQL.sql
   (if includeSelect then "SELECT " <> parsedCols <> " " else mempty) <>
   "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
   -- convert a json object into a json array, this way we can use json_to_recordset for all json payloads
@@ -266,12 +266,12 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
       -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
       -- part). But we still need to ensure as many rows are created as there are array elements.
       then SQL.sql $ jsonArrayElementsF <> "(" <> finalBodyF <> ") _ "
-      else SQL.sql $ jsonToRecordsetF <> "(" <> finalBodyF <> ") AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty
+      else jsonToRecordsetF <> "(" <> SQL.sql finalBodyF <> ") AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty
     ) <>
   ") pgrst_body "
   where
-    parsedCols = BS.intercalate ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . tfName <$> fields
-    typedCols = BS.intercalate ", " $ pgFmtIdent . tfName <> const " " <> encodeUtf8 . tfIRType <$> fields
+    parsedCols = intercalateSnippet ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . tfName <$> fields
+    typedCols = intercalateSnippet ", " $ pgFmtIdent . tfName <> const " " <> SQL.sql . encodeUtf8 . tfIRType <$> fields
     defsJsonb = SQL.sql $ BS.intercalate "," fieldsWDefaults
     fieldsWDefaults = mapMaybe (\case
         TypedField{tfName=nam, tfDefault=Just def} -> Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
@@ -302,12 +302,12 @@ pgFmtOrderTerm qi ot =
 
 
 pgFmtFilter :: QualifiedIdentifier -> Filter -> SQL.Snippet
-pgFmtFilter _ (FilterNullEmbed hasNot fld) = SQL.sql (pgFmtIdent fld) <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
+pgFmtFilter _ (FilterNullEmbed hasNot fld) = pgFmtIdent fld <> " IS " <> (if hasNot then "NOT" else mempty) <> " NULL"
 pgFmtFilter _ (Filter _ (NoOpExpr _)) = mempty -- TODO unreachable because NoOpExpr is filtered on QueryParams
 pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtField table fld <> case oper of
-   Op op val -> " " <> SQL.sql (simpleOperator op) <> " " <> unknownLiteral val
+   Op op val -> " " <> simpleOperator op <> " " <> unknownLiteral val
 
-   OpQuant op quant val -> " " <> SQL.sql (quantOperator op) <> " " <> case op of
+   OpQuant op quant val -> " " <> quantOperator op <> " " <> case op of
      OpLike  -> fmtQuant quant $ unknownLiteral (T.map star val)
      OpILike -> fmtQuant quant $ unknownLiteral (T.map star val)
      _       -> fmtQuant quant $ unknownLiteral val
@@ -331,7 +331,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtField
       [""] -> "= ANY('{}') "
       _    -> "= ANY (" <> unknownLiteral (pgBuildArrayLiteral vals) <> ") "
 
-   Fts op lang val -> " " <> SQL.sql (ftsOperator op) <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+   Fts op lang val -> " " <> ftsOperator op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
  where
    ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    notOp = if hasNot then "NOT" else mempty
@@ -343,7 +343,7 @@ pgFmtFilter table (Filter fld (OpExpr hasNot oper)) = notOp <> " " <> pgFmtField
 
 pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =
-  SQL.sql $ pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
+  pgFmtColumn qi1 col1 <> " = " <> pgFmtColumn qi2 col2
 
 pgFmtLogicTree :: QualifiedIdentifier -> LogicTree -> SQL.Snippet
 pgFmtLogicTree qi (Expr hasNot op forest) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTree qi <$> forest) <> ")"
@@ -363,7 +363,7 @@ pgFmtJsonPath = \case
     pgFmtJsonOperand (JKey k) = unknownLiteral k
     pgFmtJsonOperand (JIdx i) = unknownLiteral i <> "::int"
 
-pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SqlFragment
+pgFmtAs :: FieldName -> JsonPath -> Maybe Alias -> SQL.Snippet
 pgFmtAs _ [] Nothing = mempty
 pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Just (JKey key) -> " AS " <> pgFmtIdent key
@@ -375,7 +375,7 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SqlFragment)
+countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SQL.Snippet)
 countF countQuery shouldCount =
   if shouldCount
     then (
@@ -385,11 +385,11 @@ countF countQuery shouldCount =
         mempty
       , "null::bigint")
 
-returningF :: QualifiedIdentifier -> [FieldName] -> SqlFragment
+returningF :: QualifiedIdentifier -> [FieldName] -> SQL.Snippet
 returningF qi returnings =
   if null returnings
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
-    else "RETURNING " <> BS.intercalate ", " (pgFmtColumn qi <$> returnings)
+    else "RETURNING " <> intercalateSnippet ", " (pgFmtColumn qi <$> returnings)
 
 limitOffsetF :: NonnegRange -> SQL.Snippet
 limitOffsetF range =
@@ -398,22 +398,22 @@ limitOffsetF range =
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
 
-responseHeadersF :: SqlFragment
+responseHeadersF :: SQL.Snippet
 responseHeadersF = currentSettingF "response.headers"
 
-responseStatusF :: SqlFragment
+responseStatusF :: SQL.Snippet
 responseStatusF = currentSettingF "response.status"
 
-currentSettingF :: SqlFragment -> SqlFragment
+currentSettingF :: SQL.Snippet -> SQL.Snippet
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting('" <> setting <> "', true), '')"
 
-mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SqlFragment, SqlFragment)
+mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SQL.Snippet, SQL.Snippet)
 mutRangeF mainQi rangeId =
   (
-    BS.intercalate " AND " $ (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> rangeId
-  , BS.intercalate ", " (pgFmtColumn mainQi <$> rangeId)
+    intercalateSnippet " AND " $ (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> rangeId
+  , intercalateSnippet ", " (pgFmtColumn mainQi <$> rangeId)
   )
 
 orderF :: QualifiedIdentifier -> [OrderTerm] -> SQL.Snippet
