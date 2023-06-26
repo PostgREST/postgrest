@@ -150,3 +150,24 @@ Example 3: If the stored procedure returns non-scalar values, you need to do a :
 .. note::
 
   If more than one row would be returned the binary/plain-text/xml results will be concatenated with no delimiter.
+
+.. _req_body:
+
+Request Body
+============
+
+The server handles the following request body media types:
+
+* ``application/json``
+* ``application/x-www-form-urlencoded``
+* ``text/csv``
+
+For :ref:`tables_views` this works on ``POST``, ``PATCH`` and ``PUT`` methods. For :ref:`s_procs`, it works on ``POST`` methods.
+
+For stored procedures there are three additional types:
+
+* ``application/octet-stream``
+* ``text/plain``
+* ``text/xml``
+
+See :ref:`s_proc_single_unnamed`.
