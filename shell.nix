@@ -15,4 +15,8 @@ pkgs.mkShell {
     docs.dictcheck
     docs.linkcheck
   ];
+
+  shellHook = ''
+    export HISTFILE=.history
+  '';
 }
