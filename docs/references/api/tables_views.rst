@@ -853,21 +853,36 @@ Having:
 
 A request:
 
-.. code-block:: http
+.. tabs::
 
-   POST /foo?columns=id,bar,baz HTTP/1.1
-   Content-Type: application/json
-   Prefer: return=representation
+  .. code-tab:: http
 
-.. code-block:: json
+    POST /foo?columns=id,bar,baz HTTP/1.1
+    Content-Type: application/json
+    Prefer: missing=default, return=representation
 
-  [
-    { "bar": "val1"
-    }
-  , { "bar": "val2"
-    , "baz": 15
-    }
-  ]
+    [
+      { "bar": "val1"
+      }
+    , { "bar": "val2"
+      , "baz": 15
+      }
+    ]
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/foo?columns=id,bar,baz" \
+      -H "Content-Type: application/json" \
+      -H "Prefer: missing=default, return=representation" \
+      -d @- << EOF
+        [
+          { "bar": "val1"
+          }
+        , { "bar": "val2"
+          , "baz": 15
+          }
+        ]
+     EOF
 
 Will result in:
 
