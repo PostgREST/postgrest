@@ -19,6 +19,9 @@ Computed fields are virtual columns that are not stored in a table. PostgreSQL m
     SELECT $1.first_name || ' ' || $1.last_name;
   $$ LANGUAGE SQL;
 
+Horizontal Filtering on Computed Fields
+=======================================
+
 :ref:`h_filter` can be applied to computed fields. For example, we can do a :ref:`fts` on :code:`full_name`:
 
 .. code-block:: postgres
@@ -43,6 +46,8 @@ Computed fields are virtual columns that are not stored in a table. PostgreSQL m
     {"first_name": "Samuel", "last_name": "Beckett", "job": "novelist"}
   ]
 
+Vertical Filtering on Computed Fields
+=====================================
 
 Computed fields won't appear on the response by default but you can use :ref:`v_filter` to include them:
 
@@ -62,6 +67,8 @@ Computed fields won't appear on the response by default but you can use :ref:`v_
     {"full_name": "Samuel Beckett", "job": "novelist"}
   ]
 
+Ordering on Computed Fields
+===========================
 
 :ref:`ordering` on computed fields is also possible:
 
