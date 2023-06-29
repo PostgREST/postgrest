@@ -62,7 +62,6 @@ import PostgREST.Config.Proxy            (Proxy (..),
 import PostgREST.MediaType               (MediaType (..), toMime)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
-import PostgREST.Version                 (prettyVersion)
 
 import Protolude hiding (Proxy, toList)
 
@@ -464,21 +463,26 @@ readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
 
--- | Allows querying the PostgREST version in SQL by adding `fallback_application_name` to the connection string
+-- | Adds `fallback_application_name` to the connection string. This allows querying the PostgREST version on pg_stat_activity.
 --
--- >>> addPgrstVerToDbUri "postgres://user:pass@host:5432/postgres"
+-- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
+--
+-- >>> addPgrstVerToDbUri ver "postgres://user:pass@host:5432/postgres"
 -- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
 --
--- >>> addPgrstVerToDbUri "postgres://user:pass@host:5432/postgres?"
+-- >>> addPgrstVerToDbUri ver "postgres://user:pass@host:5432/postgres?"
 -- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
 --
--- >>> addPgrstVerToDbUri "postgres:///postgres?host=host&port=5432"
--- "postgres:///postgres?host=host&port=5432&fallback_application_name=PostgREST%20..."
+-- >>> addPgrstVerToDbUri ver "postgres:///postgres?host=server&port=5432"
+-- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011.1.0%20(5a04ec7)"
 --
--- >>> addPgrstVerToDbUri "host=host port=5432 dbname=postgres"
--- "host=host port=5432 dbname=postgres fallback_application_name='PostgREST ...'"
-addPgrstVerToDbUri :: Text -> Text
-addPgrstVerToDbUri dbUri = dbUriWithFallAppName
+-- >>> addPgrstVerToDbUri ver "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11.1.0 (5a04ec7)'"
+--
+-- >>> addPgrstVerToDbUri ver "postgresql://"
+-- "postgresql://?fallback_application_name=PostgREST%20..."
+addPgrstVerToDbUri :: ByteString -> Text -> Text
+addPgrstVerToDbUri version dbUri = dbUriWithFallAppName
   where
     dbUriWithFallAppName = dbUri <>
       case uriQuery <$> parseURI (toS dbUri) of
@@ -489,4 +493,4 @@ addPgrstVerToDbUri dbUri = dbUriWithFallAppName
     uriFmt = T.replace " " "%20" $ pKeyWord <> pgrstVer
     keyValFmt = pKeyWord <> "'" <> pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
-    pgrstVer = "PostgREST " <> T.decodeUtf8 prettyVersion
+    pgrstVer = "PostgREST " <> T.decodeUtf8 version

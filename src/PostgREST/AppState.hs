@@ -34,6 +34,7 @@ import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified PostgREST.Error            as Error
+import           PostgREST.Version          (prettyVersion)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -137,7 +138,7 @@ initPool AppConfig{..} =
     (fromIntegral configDbPoolAcquisitionTimeout)
     (fromIntegral configDbPoolMaxLifetime)
     (fromIntegral configDbPoolMaxIdletime)
-    (toUtf8 $ addPgrstVerToDbUri configDbUri)
+    (toUtf8 $ addPgrstVerToDbUri prettyVersion configDbUri)
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
@@ -419,7 +420,7 @@ listener appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel) $ do
-    dbOrError <- acquire $ toUtf8 (addPgrstVerToDbUri configDbUri)
+    dbOrError <- acquire $ toUtf8 (addPgrstVerToDbUri prettyVersion configDbUri)
     case dbOrError of
       Right db -> do
         logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
