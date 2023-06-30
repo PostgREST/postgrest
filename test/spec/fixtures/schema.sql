@@ -3285,3 +3285,11 @@ BEGIN
   END IF;
 END
 $do$;
+
+create domain devil_int as int
+  default 666;
+
+create table evil_friends(
+  id   devil_int
+, name text
+);
