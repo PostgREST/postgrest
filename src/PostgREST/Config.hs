@@ -491,6 +491,6 @@ addFallbackAppName version dbUri = dbUri <>
     _        -> "&" <> uriFmt
   where
     uriFmt = toS $ escapeURIString isUnescapedInURI $ toS (pKeyWord <> pgrstVer)
-    keyValFmt = pKeyWord <> "'" <> pgrstVer <> "'"
+    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
