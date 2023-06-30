@@ -571,8 +571,7 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-  |] <> columnDefault <>
-  [q|
+  |] <> columnDefault <> [q| AS column_default,
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
               CASE
                   WHEN t.typtype = 'd' THEN
@@ -760,19 +759,25 @@ tablesSqlQuery pgVer =
   "ORDER BY table_schema, table_name"
   where
     relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
-    columnDefault
+    columnDefault -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
       | pgVer >= pgVersion120 = [q|
           CASE
+            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
             WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
             WHEN a.attgenerated = 's' THEN null
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END AS column_default,|]
+          END|]
       | pgVer >= pgVersion100 = [q|
           CASE
+            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
             WHEN a.attidentity = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END AS column_default,|]
-      | otherwise  = "pg_get_expr(ad.adbin, ad.adrelid)::text as column_default,"
+          END|]
+      | otherwise  = [q|
+          CASE
+            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
+            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
+          END|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
 allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
