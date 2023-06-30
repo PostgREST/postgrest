@@ -48,7 +48,8 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
-import Network.URI             (parseURI, uriQuery)
+import Network.URI             (escapeURIString, isUnescapedInURI,
+                                parseURI, uriQuery)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -468,10 +469,10 @@ readPGRSTEnvironment =
 -- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
 --
 -- >>> addFallbackAppName ver "postgres://user:pass@host:5432/postgres"
--- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20(5a04ec7)"
 --
 -- >>> addFallbackAppName ver "postgres://user:pass@host:5432/postgres?"
--- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%20..."
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20(5a04ec7)"
 --
 -- >>> addFallbackAppName ver "postgres:///postgres?host=server&port=5432"
 -- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011.1.0%20(5a04ec7)"
@@ -480,7 +481,7 @@ readPGRSTEnvironment =
 -- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11.1.0 (5a04ec7)'"
 --
 -- >>> addFallbackAppName ver "postgresql://"
--- "postgresql://?fallback_application_name=PostgREST%20..."
+-- "postgresql://?fallback_application_name=PostgREST%2011.1.0%20(5a04ec7)"
 addFallbackAppName :: ByteString -> Text -> Text
 addFallbackAppName version dbUri = dbUri <>
   case uriQuery <$> parseURI (toS dbUri) of
@@ -489,7 +490,7 @@ addFallbackAppName version dbUri = dbUri <>
     Just "?" -> uriFmt
     _        -> "&" <> uriFmt
   where
-    uriFmt = T.replace " " "%20" $ pKeyWord <> pgrstVer
+    uriFmt = toS $ escapeURIString isUnescapedInURI $ toS (pKeyWord <> pgrstVer)
     keyValFmt = pKeyWord <> "'" <> pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
