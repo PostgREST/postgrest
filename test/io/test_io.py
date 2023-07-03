@@ -1017,7 +1017,10 @@ def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, default
 
     with run(env=env[dburi_type]) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        assert response.text.startswith('"PostgREST ')
+        version = '"%s"' % response.headers["Server"].replace(
+            "postgrest/", "PostgREST "
+        )
+        assert response.text == version
 
 
 def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
@@ -1032,4 +1035,7 @@ def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        assert response.text.startswith('"PostgREST ')
+        version = '"%s"' % response.headers["Server"].replace(
+            "postgrest/", "PostgREST "
+        )
+        assert response.text == version
