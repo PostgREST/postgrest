@@ -998,3 +998,44 @@ def test_openapi_in_big_schema(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
         assert response.status_code == 200
+
+
+@pytest.mark.parametrize("dburi_type", ["no_params", "no_params_qmark", "with_params"])
+def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
+    "The fallback_application_name should be added to the db-uri if it has a URI format"
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+
+    env = {
+        "no_params": {**defaultenv, "PGRST_DB_URI": "postgresql://"},
+        "no_params_qmark": {**defaultenv, "PGRST_DB_URI": "postgresql://?"},
+        "with_params": {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()},
+    }
+
+    with run(env=env[dburi_type]) as postgrest:
+        response = postgrest.session.post("/rpc/get_pgrst_version")
+        version = '"%s"' % response.headers["Server"].replace(
+            "postgrest/", "PostgREST "
+        )
+        assert response.text == version
+
+
+def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
+    "The fallback_application_name should be added to the db-uri if it has a keyword/value format"
+    uri = f'dbname={defaultenv["PGDATABASE"]} host={defaultenv["PGHOST"]} user={defaultenv["PGUSER"]}'
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": uri}
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/get_pgrst_version")
+        version = '"%s"' % response.headers["Server"].replace(
+            "postgrest/", "PostgREST "
+        )
+        assert response.text == version

@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Completely optional, define the functions in the database and they will be used automatically everywhere
    + Data representations preserve the ability to write to the original column and require no extra storage or complex triggers (compared to using `GENERATED ALWAYS` columns)
    + Note: data representations require Postgres 10 (Postgres 11 if using `IN` predicates); data representations are not implemented for RPC
+ - #2647, Allow to verify the PostgREST version in SQL: `select distinct application_name from pg_stat_activity`. - @laurenceisla
 
 ### Fixed
 

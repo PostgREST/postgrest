@@ -24,6 +24,7 @@ module PostgREST.Config
   , readPGRSTEnvironment
   , toURI
   , parseSecret
+  , addFallbackAppName
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -47,6 +48,9 @@ import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
+import Network.URI             (escapeURIString,
+                                isUnescapedInURIComponent, parseURI,
+                                uriQuery)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -460,3 +464,41 @@ type Environment = M.Map [Char] Text
 readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
+
+-- | Adds a `fallback_application_name` value to the connection string. This allows querying the PostgREST version on pg_stat_activity.
+--
+-- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
+-- >>> let strangeVer = "11'1&0@#$%,.:\"[]{}?+^()=asdfqwer"::ByteString
+--
+-- >>> addFallbackAppName ver "postgres://user:pass@host:5432/postgres"
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- >>> addFallbackAppName ver "postgres://user:pass@host:5432/postgres?"
+-- "postgres://user:pass@host:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- >>> addFallbackAppName ver "postgres:///postgres?host=server&port=5432"
+-- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- >>> addFallbackAppName ver "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11.1.0 (5a04ec7)'"
+--
+-- >>> addFallbackAppName ver "postgresql://"
+-- "postgresql://?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- >>> addFallbackAppName strangeVer "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11\\'1&0@#$%,.:\"[]{}?+^()=asdfqwer'"
+--
+-- >>> addFallbackAppName strangeVer "postgres:///postgres?host=server&port=5432"
+-- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011%271%260%40%23%24%25%2C.%3A%22%5B%5D%7B%7D%3F%2B%5E%28%29%3Dasdfqwer"
+addFallbackAppName :: ByteString -> Text -> Text
+addFallbackAppName version dbUri = dbUri <>
+  case uriQuery <$> parseURI (toS dbUri) of
+    Nothing  -> " " <> keyValFmt -- Assume key/value connection string if the uri is not valid
+    Just ""  -> "?" <> uriFmt
+    Just "?" -> uriFmt
+    _        -> "&" <> uriFmt
+  where
+    uriFmt = pKeyWord <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
+    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
+    pKeyWord = "fallback_application_name="
+    pgrstVer = "PostgREST " <> T.decodeUtf8 version

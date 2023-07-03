@@ -158,3 +158,12 @@ create or replace function migrate_function() returns void as $_$
   $$ language sql;
   notify pgrst, 'reload schema';
 $_$ language sql security definer;
+
+create or replace function get_pgrst_version() returns text
+  language sql
+as $$
+select application_name
+from pg_stat_activity
+where application_name ilike 'postgrest%'
+limit 1;
+$$
