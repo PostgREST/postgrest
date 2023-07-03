@@ -1000,8 +1000,8 @@ def test_openapi_in_big_schema(defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.parametrize("dburiType", ["noParams", "noParamsQMark", "withParams"])
-def test_get_pgrst_version_with_uri_connection_string(dburiType, dburi, defaultenv):
+@pytest.mark.parametrize("dburi_type", ["no_params", "no_params_qmark", "with_params"])
+def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
     defaultenv_without_libpq = {
         key: value
@@ -1010,12 +1010,12 @@ def test_get_pgrst_version_with_uri_connection_string(dburiType, dburi, defaulte
     }
 
     env = {
-        "noParams": {**defaultenv, "PGRST_DB_URI": "postgresql://"},
-        "noParamsQMark": {**defaultenv, "PGRST_DB_URI": "postgresql://?"},
-        "withParams": {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()},
+        "no_params": {**defaultenv, "PGRST_DB_URI": "postgresql://"},
+        "no_params_qmark": {**defaultenv, "PGRST_DB_URI": "postgresql://?"},
+        "with_params": {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()},
     }
 
-    with run(env=env[dburiType]) as postgrest:
+    with run(env=env[dburi_type]) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
         assert response.text.startswith('"PostgREST ')
 
