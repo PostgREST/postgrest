@@ -5,7 +5,7 @@ Connection Pool
 
 A connection pool is a cache of reusable database connections. It allows serving many HTTP requests using few database connections. Every request to an :doc:`API resource <api>` borrows a connection from the pool to start a :doc:`transaction <transactions>`.
 
-Minimizing connections it’s paramount to performance. Each PostgreSQL connection creates a process, having too many can exhaust available resources.
+Minimizing connections is paramount to performance. Each PostgreSQL connection creates a process, having too many can exhaust available resources.
 
 .. _pool_growth_limit:
 .. _dyn_conn_pool:
