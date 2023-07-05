@@ -598,7 +598,6 @@ resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
-resolveFilter _ (FilterNullEmbed isNot fieldName) = CoercibleFilterNullEmbed isNot fieldName
 
 -- Validates that spread embeds are only done on to-one relationships
 validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree

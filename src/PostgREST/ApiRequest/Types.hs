@@ -181,7 +181,6 @@ data Filter
   { field  :: Field
   , opExpr :: OpExpr
   }
-  | FilterNullEmbed Bool FieldName
   deriving (Eq, Show)
 
 data OpExpr
