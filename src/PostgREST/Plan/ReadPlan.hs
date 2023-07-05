@@ -25,7 +25,7 @@ data JoinCondition =
   JoinCondition
     (QualifiedIdentifier, FieldName)
     (QualifiedIdentifier, FieldName)
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data ReadPlan = ReadPlan
   { select       :: [(CoercibleField, Maybe Cast, Maybe Alias)]
@@ -45,4 +45,4 @@ data ReadPlan = ReadPlan
   , depth        :: Depth
   -- ^ used for aliasing
   }
-  deriving (Eq)
+  deriving (Eq, Show)

@@ -65,23 +65,6 @@ import Protolude hiding (try)
 -- Setup for doctests
 -- >>> import Text.Pretty.Simple (pPrint)
 -- >>> deriving instance Show QPError
--- >>> deriving instance Show TrileanVal
--- >>> deriving instance Show FtsOperator
--- >>> deriving instance Show QuantOperator
--- >>> deriving instance Show SimpleOperator
--- >>> deriving instance Show OpQuantifier
--- >>> deriving instance Show Operation
--- >>> deriving instance Show OpExpr
--- >>> deriving instance Show JsonOperand
--- >>> deriving instance Show JsonOperation
--- >>> deriving instance Show Filter
--- >>> deriving instance Show JoinType
--- >>> deriving instance Show SelectItem
--- >>> deriving instance Show OrderDirection
--- >>> deriving instance Show OrderNulls
--- >>> deriving instance Show OrderTerm
--- >>> deriving instance Show LogicOperator
--- >>> deriving instance Show LogicTree
 
 data QueryParams =
   QueryParams

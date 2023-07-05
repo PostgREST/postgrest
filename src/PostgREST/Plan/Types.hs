@@ -31,7 +31,7 @@ data CoercibleField = CoercibleField
   , cfIRType    :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
   , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault   :: Maybe Text
-  } deriving Eq
+  } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
 unknownField name path = CoercibleField name path "" Nothing Nothing
@@ -40,11 +40,11 @@ unknownField name path = CoercibleField name path "" Nothing Nothing
 data CoercibleLogicTree
   = CoercibleExpr Bool LogicOperator [CoercibleLogicTree]
   | CoercibleStmnt CoercibleFilter
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data CoercibleFilter = CoercibleFilter
   { field  :: CoercibleField
   , opExpr :: OpExpr
   }
   | CoercibleFilterNullEmbed Bool FieldName
-  deriving (Eq)
+  deriving (Eq, Show)
