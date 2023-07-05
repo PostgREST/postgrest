@@ -62,7 +62,7 @@ data SelectItem
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data ApiRequestError
   = AmbiguousRelBetween Text Text [Relationship]
@@ -108,17 +108,17 @@ data OrderTerm
     , otDirection :: Maybe OrderDirection
     , otNullOrder :: Maybe OrderNulls
     }
-  deriving Eq
+  deriving (Eq, Show)
 
 data OrderDirection
   = OrderAsc
   | OrderDesc
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data OrderNulls
   = OrderNullsFirst
   | OrderNullsLast
-  deriving (Eq)
+  deriving (Eq, Show)
 
 type Field = (FieldName, JsonPath)
 type Cast = Text
@@ -135,7 +135,7 @@ data EmbedParam
 data JoinType
   = JTInner
   | JTLeft
-  deriving Eq
+  deriving (Eq, Show)
 
 -- | Path of the embedded levels, e.g "clients.projects.name=eq.." gives Path
 -- ["clients", "projects"]
@@ -149,7 +149,7 @@ type JsonPath = [JsonOperation]
 data JsonOperation
   = JArrow { jOp :: JsonOperand }
   | J2Arrow { jOp :: JsonOperand }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | Represents the key(`->'key'`) or index(`->'1`::int`), the index is Text
 -- because we reuse our escaping functons and let pg do the casting with
@@ -157,7 +157,7 @@ data JsonOperation
 data JsonOperand
   = JKey { jVal :: Text }
   | JIdx { jVal :: Text }
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
 -- | Boolean logic expression tree e.g. "and(name.eq.N,or(id.eq.1,id.eq.2))" is:
 --
@@ -169,12 +169,12 @@ data JsonOperand
 data LogicTree
   = Expr Bool LogicOperator [LogicTree]
   | Stmnt Filter
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data LogicOperator
   = And
   | Or
-  deriving Eq
+  deriving (Eq, Show)
 
 data Filter
   = Filter
@@ -182,15 +182,15 @@ data Filter
   , opExpr :: OpExpr
   }
   | FilterNullEmbed Bool FieldName
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data OpExpr
   = OpExpr Bool Operation
   | NoOpExpr Text
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data OpQuantifier = QuantAny | QuantAll
-  deriving Eq
+  deriving (Eq, Show)
 
 data Operation
   = Op SimpleOperator SingleVal
@@ -199,7 +199,7 @@ data Operation
   | Is TrileanVal
   | IsDistinctFrom SingleVal
   | Fts FtsOperator (Maybe Language) SingleVal
-  deriving (Eq)
+  deriving (Eq, Show)
 
 type Language = Text
 
@@ -215,7 +215,7 @@ data TrileanVal
   | TriFalse
   | TriNull
   | TriUnknown
-  deriving Eq
+  deriving (Eq, Show)
 
 -- Operators that are quantifiable, i.e. they can be used with the any/all modifiers
 data QuantOperator
@@ -228,7 +228,7 @@ data QuantOperator
   | OpILike
   | OpMatch
   | OpIMatch
-  deriving Eq
+  deriving (Eq, Show)
 
 data SimpleOperator
   = OpNotEqual
@@ -240,7 +240,7 @@ data SimpleOperator
   | OpNotExtendsRight
   | OpNotExtendsLeft
   | OpAdjacent
-  deriving Eq
+  deriving (Eq, Show)
 
 --
 -- | Operators for full text search operators
@@ -249,4 +249,4 @@ data FtsOperator
   | FilterFtsPlain
   | FilterFtsPhrase
   | FilterFtsWebsearch
-  deriving Eq
+  deriving (Eq, Show)

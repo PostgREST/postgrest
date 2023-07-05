@@ -24,7 +24,7 @@ data QualifiedIdentifier = QualifiedIdentifier
   { qiSchema :: Schema
   , qiName   :: TableName
   }
-  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
 
 instance Hashable QualifiedIdentifier
 

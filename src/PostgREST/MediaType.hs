@@ -17,14 +17,6 @@ import Network.HTTP.Types.Header (Header, hContentType)
 
 import Protolude
 
---
--- $setup
--- Setup for doctests
--- >>> import Text.Pretty.Simple (pPrint)
--- >>> deriving instance Show MTPlanFormat
--- >>> deriving instance Show MTPlanOption
--- >>> deriving instance Show MediaType
-
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
@@ -39,6 +31,7 @@ data MediaType
   | MTAny
   | MTOther ByteString
   | MTPlan MediaType MTPlanFormat [MTPlanOption]
+  deriving Show
 instance Eq MediaType where
   MTApplicationJSON == MTApplicationJSON = True
   MTSingularJSON    == MTSingularJSON    = True
@@ -56,9 +49,11 @@ instance Eq MediaType where
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
+  deriving (Eq, Show)
 
 data MTPlanFormat
   = PlanJSON | PlanText
+  deriving (Eq, Show)
 
 -- | Convert MediaType to a Content-Type HTTP Header
 toContentType :: MediaType -> Header
