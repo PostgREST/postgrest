@@ -13,4 +13,6 @@ EXPOSE 3000
 
 USER 1000
 
-CMD postgrest
+# Use the array form to avoid running the command using bash, which does not handle `SIGTERM` properly. 
+# See https://docs.docker.com/compose/faq/#why-do-my-services-take-10-seconds-to-recreate-or-stop 
+CMD ["postgrest"]
