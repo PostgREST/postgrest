@@ -82,6 +82,10 @@ import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 
 import Protolude hiding (from)
 
+-- $setup
+-- Setup for doctests
+-- >>> import Data.Ranged.Ranges (fullRange)
+
 data WrappedReadPlan = WrappedReadPlan {
   wrReadPlan :: ReadPlanTree
 , wrTxMode   :: SQL.Mode
@@ -552,24 +556,92 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
         Nothing ->
           Left $ NotEmbedded otRelation
 
--- Searches for null filters on embeds, e.g. `clients` on /projects?select=*,clients()&clients=not.is.null.
--- If these are found, it changes the filter to use the internal aggregate name(`projects_clients_1`) so the filter can succeed.
--- It fails if operators other than is.null or not.is.null are used.
+-- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
+--
+-- Setup:
+--
+-- >>> let nullOp    = OpExpr True (Is TriNull)
+-- >>> let nonNullOp = OpExpr False (Is TriNull)
+-- >>> let notEqOp   = OpExpr True (Op OpNotEqual "val")
+-- >>> :{
+-- -- this represents the `projects(*)` part on `/clients?select=*,projects(*)`
+-- let
+-- subForestPlan =
+--   [
+--     Node {
+--       rootLabel = ReadPlan {
+--         select = [], -- there will be fields at this stage but we just omit them for brevity
+--         from = QualifiedIdentifier {qiSchema = "test", qiName = "projects"},
+--         fromAlias = Just "projects_1", where_ = [], order = [], range_ = fullRange,
+--         relName = "projects",
+--         relToParent = Nothing,
+--         relJoinConds = [],
+--         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relIsSpread = False, depth = 1
+--       },
+--       subForest = []
+--     }
+--   ]
+-- :}
+--
+-- >>> :{
+-- -- this represents the full URL `/clients?select=*,projects(*)&projects=not.is.null`, if subForst takes the above subForestPlan and nullOp
+-- let
+-- readPlanTree op subForst =
+--   Node {
+--     rootLabel = ReadPlan {
+--       select = [], -- there will be fields at this stage but we just omit them for brevity
+--       from = QualifiedIdentifier { qiSchema = "test", qiName = "clients"},
+--       fromAlias = Nothing,
+--       where_ = [
+--         CoercibleStmnt (
+--           CoercibleFilter {
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfIRType = "", cfTransform = Nothing, cfDefault = Nothing},
+--            opExpr = op
+--           }
+--         )
+--       ],
+--       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
+--       relJoinType = Nothing, relIsSpread = False, depth = 0
+--     },
+--     subForest = subForst
+--   }
+-- :}
+--
+-- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
+--
+-- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfIRType = "", cfTransform = Nothing, cfDefault = Nothing}, opExpr = OpExpr True (Is TriNull)})]
+--
+-- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
+--
+-- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp subForestPlan)
+-- Right [CoercibleStmnt (CoercibleFilterNullEmbed True "clients_projects_1")]
+--
+-- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nonNullOp subForestPlan)
+-- Right [CoercibleStmnt (CoercibleFilterNullEmbed False "clients_projects_1")]
+--
+-- It fails if operators other than is.null or not.is.null on the embedding are used.
+--
+-- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree notEqOp subForestPlan)
+-- Left (UnacceptableFilter "projects")
 addNullEmbedFilters :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addNullEmbedFilters (Node rp@ReadPlan{where_=oldLogic} forest) = do
-  let readPlans = rootLabel <$> forest
-  newLogic <- getFilters readPlans `traverse` oldLogic
+addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
+  let forestReadPlans = rootLabel <$> forest
+  newLogic <- newNullFilters forestReadPlans `traverse` curLogic
   Node rp{ReadPlan.where_= newLogic} <$> (addNullEmbedFilters `traverse` forest)
   where
-    getFilters :: [ReadPlan] -> CoercibleLogicTree -> Either ApiRequestError CoercibleLogicTree
-    getFilters rPlans (CoercibleExpr b lOp trees) = CoercibleExpr b lOp <$> (getFilters rPlans `traverse` trees)
-    getFilters rPlans flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _) opExpr)) =
-      let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
-      case (foundRP, opExpr) of
-        (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
-        (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
-        _                                                   -> Right flt
-    getFilters _ flt@(CoercibleStmnt _)        = Right flt
+    newNullFilters :: [ReadPlan] -> CoercibleLogicTree -> Either ApiRequestError CoercibleLogicTree
+    newNullFilters rPlans = \case
+      (CoercibleExpr b lOp trees) ->
+        CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
+      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _) opExpr)) ->
+        let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
+        case (foundRP, opExpr) of
+          (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
+          (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
+          _                                                   -> Right flt
+      flt@(CoercibleStmnt _) ->
+        Right flt
 
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =

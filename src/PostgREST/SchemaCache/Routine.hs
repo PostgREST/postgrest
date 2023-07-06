@@ -29,18 +29,18 @@ import Protolude
 data PgType
   = Scalar QualifiedIdentifier
   | Composite QualifiedIdentifier Bool -- True if the composite is a domain alias(used to work around a bug in pg 11 and 12, see QueryBuilder.hs)
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 data RetType
   = Single PgType
   | SetOf PgType
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 data FuncVolatility
   = Volatile
   | Stable
   | Immutable
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 data Routine = Function
   { pdSchema      :: Schema
@@ -52,7 +52,7 @@ data Routine = Function
   , pdHasVariadic :: Bool
   , pdIsoLvl      :: Maybe SQL.IsolationLevel
   }
-  deriving (Eq, Generic)
+  deriving (Eq, Show, Generic)
 -- need to define JSON manually bc SQL.IsolationLevel doesn't have a JSON instance(and we can't define one for that type without getting a compiler error)
 instance JSON.ToJSON Routine where
   toJSON (Function sch nam desc params ret vol hasVar _) = JSON.object
@@ -72,7 +72,7 @@ data RoutineParam = RoutineParam
   , ppReq  :: Bool
   , ppVar  :: Bool
   }
-  deriving (Eq, Ord, Generic, JSON.ToJSON)
+  deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where

@@ -86,12 +86,15 @@ data ApiRequestError
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
   | ColumnNotFound Text Text
+  deriving Show
 
 data QPError = QPError Text Text
+  deriving Show
 data RangeError
   = NegativeLimit
   | LowerGTUpper
   | OutOfBounds Text Text
+  deriving Show
 
 type NodeName = Text
 type Depth = Integer
