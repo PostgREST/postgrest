@@ -60,12 +60,6 @@ import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
 
 import Protolude hiding (try)
 
-
--- $setup
--- Setup for doctests
--- >>> import Text.Pretty.Simple (pPrint)
--- >>> deriving instance Show QPError
-
 data QueryParams =
   QueryParams
     { qsCanonical      :: ByteString

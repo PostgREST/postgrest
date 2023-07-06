@@ -11,6 +11,7 @@ main =
     [ "-XOverloadedStrings"
     , "-XNoImplicitPrelude"
     , "-XStandaloneDeriving"
+    , "-XDuplicateRecordFields"
     , "-isrc"
     , "src/PostgREST/Query/SqlFragment.hs"
     , "src/PostgREST/ApiRequest/Preferences.hs"
@@ -18,4 +19,5 @@ main =
     , "src/PostgREST/Error.hs"
     , "src/PostgREST/MediaType.hs"
     , "src/PostgREST/Config.hs"
+    , "src/PostgREST/Plan.hs"
     ]
