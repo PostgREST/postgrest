@@ -64,6 +64,7 @@ def run(
     host=None,
     wait_for_readiness=True,
     no_pool_connection_available=False,
+    no_startup_stdout=True,
 ):
     "Run PostgREST and yield an endpoint that is ready for connections."
 
@@ -104,7 +105,8 @@ def run(
             if wait_for_readiness:
                 wait_until_ready(adminurl + "/ready")
 
-            process.stdout.read()
+            if no_startup_stdout:
+                process.stdout.read()
 
             if no_pool_connection_available:
                 sleep_pool_connection(baseurl, 10)

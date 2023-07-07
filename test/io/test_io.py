@@ -1039,3 +1039,15 @@ def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
             "postgrest/", "PostgREST "
         )
         assert response.text == version
+
+
+def test_log_postgrest_version(defaultenv):
+    "Should show the PostgREST version in the logs"
+
+    with run(env=defaultenv, no_startup_stdout=False) as postgrest:
+        version = postgrest.session.head("/").headers["Server"].split("/")[1]
+
+        assert (
+            "Starting PostgREST %s..." % version
+            in postgrest.process.stdout.readline().decode()
+        )
