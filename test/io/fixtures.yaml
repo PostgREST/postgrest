@@ -4,6 +4,10 @@ cli:
     args: ['--help']
   - name: help short
     args: ['-h']
+  - name: version long
+    args: ['--version']
+  - name: version short
+    args: ['-v']
   - name: example long
     args: ['--example']
   - name: example short
