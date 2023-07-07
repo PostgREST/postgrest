@@ -80,7 +80,7 @@ readCLIShowHelp =
   where
     prefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
     opts = O.info parser $ O.fullDesc <> progDesc
-    parser = O.helper <*> versionParser <*> exampleParser <*> cliParser
+    parser = O.helper <*> versionFlag <*> exampleParser <*> cliParser
 
     progDesc =
       O.progDesc $
@@ -88,7 +88,7 @@ readCLIShowHelp =
         <> BS.unpack prettyVersion
         <> " / create a REST API to an existing Postgres database"
 
-    versionParser =
+    versionFlag =
       O.infoOption ("PostgREST " <> BS.unpack prettyVersion) $
         O.long "version"
         <> O.short 'v'
