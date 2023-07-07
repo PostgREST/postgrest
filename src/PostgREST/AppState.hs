@@ -273,6 +273,7 @@ internalConnectionWorker appState = work
   where
     work = do
       AppConfig{..} <- getConfig appState
+      logWithZTime appState $ "Starting PostgREST " <> T.decodeUtf8 prettyVersion <> "..."
       logWithZTime appState "Attempting to connect to the database..."
       connected <- establishConnection appState
       case connected of
