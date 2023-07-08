@@ -14,6 +14,7 @@ module PostgREST.SchemaCache.Routine
   , funcReturnsVoid
   , funcTableName
   , funcReturnsCompositeAlias
+  , ResultAggregate(..)
   ) where
 
 import           Data.Aeson                 ((.=))
@@ -21,7 +22,8 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Hasql.Transaction.Sessions as SQL
 
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
                                           Schema, TableName)
 
 import Protolude
@@ -84,6 +86,16 @@ instance Ord Routine where
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one Routine).
 -- | It uses a HashMap for a faster lookup.
 type RoutineMap = HM.HashMap QualifiedIdentifier [Routine]
+
+data ResultAggregate
+   = BuiltinAggJson
+   | BuiltinAggSingleJson
+   | BuiltinAggGeoJson
+   | BuiltinAggCsv
+   | BuiltinAggXml    (Maybe FieldName)
+   | BuiltinAggBinary (Maybe FieldName)
+   | NoAgg
+   deriving (Eq, Show)
 
 funcReturnsScalar :: Routine -> Bool
 funcReturnsScalar proc = case proc of
