@@ -59,7 +59,8 @@ import PostgREST.SchemaCache.Relationship    (Cardinality (..),
                                               relIsToOne)
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
-import PostgREST.SchemaCache.Routine         (Routine (..),
+import PostgREST.SchemaCache.Routine         (ResultAggregate (..),
+                                              Routine (..),
                                               RoutineMap,
                                               RoutineParam (..),
                                               funcReturnsCompositeAlias,
@@ -89,13 +90,14 @@ import Protolude hiding (from)
 data WrappedReadPlan = WrappedReadPlan {
   wrReadPlan :: ReadPlanTree
 , wrTxMode   :: SQL.Mode
-, wrBinField :: Maybe FieldName
+, wrResAgg   :: ResultAggregate
 }
 
 data MutateReadPlan = MutateReadPlan {
   mrReadPlan   :: ReadPlanTree
 , mrMutatePlan :: MutatePlan
 , mrTxMode     :: SQL.Mode
+, mrResAgg     :: ResultAggregate
 }
 
 data CallReadPlan = CallReadPlan {
@@ -103,20 +105,21 @@ data CallReadPlan = CallReadPlan {
 , crCallPlan :: CallPlan
 , crTxMode   :: SQL.Mode
 , crProc     :: Routine
-, crBinField :: Maybe FieldName
+, crResAgg   :: ResultAggregate
 }
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest = do
   rPlan <- readPlan identifier conf sCache apiRequest
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
-  return $ WrappedReadPlan rPlan SQL.Read binField
+  return $ WrappedReadPlan rPlan SQL.Read $ mediaToAggregate (iAcceptMediaType apiRequest) binField Nothing
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
-mutateReadPlan  mutation apiRequest identifier conf sCache = do
+mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{preferRepresentation}} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
+  binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  return $ MutateReadPlan rPlan mPlan SQL.Write
+  return $ MutateReadPlan rPlan mPlan SQL.Write $ mediaToAggregate (iAcceptMediaType apiRequest) binField (Just preferRepresentation)
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest invMethod = do
@@ -141,7 +144,7 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
-  return $ CallReadPlan rPlan cPlan txMode proc binField
+  return $ CallReadPlan rPlan cPlan txMode proc $ mediaToAggregate (iAcceptMediaType apiRequest) binField Nothing
   where
     Preferences{..} = iPreferences apiRequest
     qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
@@ -835,3 +838,27 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
     fstFieldName (Node ReadPlan{select=(CoercibleField{cfName="*", cfJsonPath=[]}, _, _):_} [])  = Nothing
     fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _)]} [])  = Just fld
     fstFieldName _                                               = Nothing
+
+mediaToAggregate :: MediaType -> Maybe FieldName -> Maybe PreferRepresentation ->  ResultAggregate
+mediaToAggregate mt binField rep =
+  if rep == Just HeadersOnly || rep == Just None
+    then NoAgg
+  else case mt of
+    MTApplicationJSON     -> BuiltinAggJson
+    MTSingularJSON        -> BuiltinAggSingleJson
+    MTGeoJSON             -> BuiltinAggGeoJson
+    MTTextCSV             -> BuiltinAggCsv
+    MTAny                 -> BuiltinAggJson
+    MTOpenAPI             -> BuiltinAggJson
+    MTUrlEncoded          -> NoAgg -- TODO: unreachable since a previous step (producedMediaTypes) whitelists the media types that can become aggregates.
+
+    -- binary types
+    MTTextPlain           -> BuiltinAggBinary binField
+    MTTextXML             -> BuiltinAggXml binField
+    MTOctetStream         -> BuiltinAggBinary binField
+    MTOther _             -> BuiltinAggBinary binField
+
+    -- Doing `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.plan"` doesn't make sense, so we just empty the body.
+    -- TODO: fail instead to be more strict
+    MTPlan (MTPlan{}) _ _ -> NoAgg
+    MTPlan media      _ _ -> mediaToAggregate media binField rep

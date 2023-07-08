@@ -23,15 +23,13 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Statement                   as SQL
 
 import Control.Lens ((^?))
-import Data.Maybe   (fromJust)
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType               (MTPlanFormat (..),
-                                          MediaType (..),
-                                          getMediaType)
+import PostgREST.MediaType              (MTPlanFormat (..),
+                                         MediaType (..))
 import PostgREST.Query.SqlFragment
-import PostgREST.SchemaCache.Identifiers (FieldName)
-import PostgREST.SchemaCache.Routine     (Routine)
+import PostgREST.SchemaCache.Routine    (ResultAggregate (..),
+                                         Routine)
 
 import Protolude
 
@@ -55,9 +53,9 @@ data ResultSet
   | RSPlan BS.ByteString -- ^ the plan of the query
 
 
-prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType ->
+prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> ResultAggregate ->
                 PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
+prepareWrite selectQuery mutateQuery isInsert mt rAgg rep pKeys =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
@@ -66,7 +64,7 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
       "'' AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       locF <> " AS header, " <>
-      bodyF <> " AS body, " <>
+      aggF Nothing rAgg <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF  <> " AS response_status " <>
     "FROM (" <> selectF <> ") _postgrest_t"
@@ -80,25 +78,18 @@ prepareWrite selectQuery mutateQuery isInsert mt rep pKeys =
         "END"
       else noLocationF
 
-  bodyF
-    | rep /= Full                       = "''"
-    | getMediaType mt == MTTextCSV      = asCsvF
-    | getMediaType mt == MTGeoJSON      = asGeoJsonF
-    | getMediaType mt == MTSingularJSON = asJsonSingleF Nothing
-    | otherwise                         = asJsonF Nothing
-
   selectF
     -- prevent using any of the column names in ?select= when no response is returned from the CTE
-    | rep /= Full = "SELECT * FROM " <> sourceCTE
-    | otherwise   = selectQuery
+    | rAgg == NoAgg = "SELECT * FROM " <> sourceCTE
+    | otherwise     = selectQuery
 
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
     MTPlan{} -> planRow
     _        -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> Maybe FieldName -> Bool -> SQL.Statement () ResultSet
-prepareRead selectQuery countQuery countTotal mt binaryField =
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> ResultAggregate -> Bool -> SQL.Statement () ResultSet
+prepareRead selectQuery countQuery countTotal mt rAgg =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
@@ -107,20 +98,12 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     "SELECT " <>
       countResultF <> " AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
-      bodyF <> " AS body, " <>
+      aggF Nothing rAgg <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status " <>
     "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
   (countCTEF, countResultF) = countF countQuery countTotal
-
-  bodyF
-    | getMediaType mt == MTTextCSV                       = asCsvF
-    | getMediaType mt == MTSingularJSON                  = asJsonSingleF Nothing
-    | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-    | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
-    | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-    | otherwise                                          = asJsonF Nothing
 
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
@@ -128,9 +111,9 @@ prepareRead selectQuery countQuery countTotal mt binaryField =
     _        -> HD.singleRow $ standardRow True
 
 prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-               MediaType -> Maybe FieldName -> Bool ->
+               MediaType -> ResultAggregate -> Bool ->
                SQL.Statement () ResultSet
-prepareCall rout callProcQuery selectQuery countQuery countTotal mt binaryField =
+prepareCall rout callProcQuery selectQuery countQuery countTotal mt rAgg =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -139,20 +122,12 @@ prepareCall rout callProcQuery selectQuery countQuery countTotal mt binaryField 
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
         "pg_catalog.count(_postgrest_t) AS page_total, " <>
-        bodyF <> " AS body, " <>
+        aggF (Just rout) rAgg <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
         responseStatusF <> " AS response_status " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
     (countCTEF, countResultF) = countF countQuery countTotal
-
-    bodyF
-     | getMediaType mt == MTSingularJSON                  = asJsonSingleF $ Just rout
-     | getMediaType mt == MTTextCSV                       = asCsvF
-     | getMediaType mt == MTGeoJSON                       = asGeoJsonF
-     | isJust binaryField && getMediaType mt == MTTextXML = asXmlF $ fromJust binaryField
-     | isJust binaryField                                 = asBinaryF $ fromJust binaryField
-     | otherwise                                          = asJsonF $ Just rout
 
     decodeIt :: HD.Result ResultSet
     decodeIt = case mt of

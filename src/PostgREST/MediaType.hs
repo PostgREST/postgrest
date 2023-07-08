@@ -30,6 +30,7 @@ data MediaType
   | MTOctetStream
   | MTAny
   | MTOther ByteString
+  -- TODO MTPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
   | MTPlan MediaType MTPlanFormat [MTPlanOption]
   deriving Show
 instance Eq MediaType where
