@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2821, Fix OPTIONS not accepting all available media types - @steve-chavez
  - #2834, Fix compilation on Ubuntu by being compatible with GHC 9.0.2 - @steve-chavez
  - #2840, Fix `Prefer: missing=default` with DOMAIN default values - @steve-chavez
+ - #2849, Fix HEAD unnecessarily executing aggregates - @steve-chavez
 
 ## [11.1.0] - 2023-06-07
 
