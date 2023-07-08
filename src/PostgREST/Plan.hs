@@ -112,14 +112,14 @@ wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest
 wrappedReadPlan  identifier conf sCache apiRequest = do
   rPlan <- readPlan identifier conf sCache apiRequest
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
-  return $ WrappedReadPlan rPlan SQL.Read $ mediaToAggregate (iAcceptMediaType apiRequest) binField Nothing
+  return $ WrappedReadPlan rPlan SQL.Read $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
-mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{preferRepresentation}} identifier conf sCache = do
+mutateReadPlan  mutation apiRequest identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) Nothing rPlan
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  return $ MutateReadPlan rPlan mPlan SQL.Write $ mediaToAggregate (iAcceptMediaType apiRequest) binField (Just preferRepresentation)
+  return $ MutateReadPlan rPlan mPlan SQL.Write $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest invMethod = do
@@ -144,7 +144,7 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   binField <- mapLeft ApiRequestError $ binaryField conf (iAcceptMediaType apiRequest) (Just proc) rPlan
-  return $ CallReadPlan rPlan cPlan txMode proc $ mediaToAggregate (iAcceptMediaType apiRequest) binField Nothing
+  return $ CallReadPlan rPlan cPlan txMode proc $ mediaToAggregate (iAcceptMediaType apiRequest) binField apiRequest
   where
     Preferences{..} = iPreferences apiRequest
     qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
@@ -839,10 +839,10 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
     fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _)]} [])  = Just fld
     fstFieldName _                                               = Nothing
 
-mediaToAggregate :: MediaType -> Maybe FieldName -> Maybe PreferRepresentation ->  ResultAggregate
-mediaToAggregate mt binField rep =
-  if rep == Just HeadersOnly || rep == Just None
-    then NoAgg
+
+mediaToAggregate :: MediaType -> Maybe FieldName -> ApiRequest -> ResultAggregate
+mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} =
+  if noAgg then NoAgg
   else case mt of
     MTApplicationJSON     -> BuiltinAggJson
     MTSingularJSON        -> BuiltinAggSingleJson
@@ -861,4 +861,10 @@ mediaToAggregate mt binField rep =
     -- Doing `Accept: application/vnd.pgrst.plan; for="application/vnd.pgrst.plan"` doesn't make sense, so we just empty the body.
     -- TODO: fail instead to be more strict
     MTPlan (MTPlan{}) _ _ -> NoAgg
-    MTPlan media      _ _ -> mediaToAggregate media binField rep
+    MTPlan media      _ _ -> mediaToAggregate media binField apiReq
+  where
+    noAgg = case act of
+      ActionMutate _         -> rep == HeadersOnly || rep == None
+      ActionRead _isHead     -> _isHead -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
+      ActionInvoke invMethod -> invMethod == InvHead
+      _                      -> False

@@ -7,7 +7,6 @@ module PostgREST.MediaType
   , toContentType
   , toMime
   , decodeMediaType
-  , getMediaType
   ) where
 
 import qualified Data.ByteString          as BS
@@ -143,8 +142,3 @@ decodeMediaType mt =
         [PlanSettings | inOpts "settings"] ++
         [PlanBuffers  | inOpts "buffers" ] ++
         [PlanWAL      | inOpts "wal"     ]
-
-getMediaType :: MediaType -> MediaType
-getMediaType mt = case mt of
-  MTPlan mType _ _ -> mType
-  other            -> other
