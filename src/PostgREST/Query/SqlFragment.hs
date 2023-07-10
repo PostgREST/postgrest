@@ -61,7 +61,6 @@ import PostgREST.ApiRequest.Types        (Alias, Cast,
                                           Operation (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
-                                          OrderTerm (..),
                                           QuantOperator (..),
                                           SimpleOperator (..),
                                           TrileanVal (..))
@@ -71,6 +70,7 @@ import PostgREST.Plan.ReadPlan           (JoinCondition (..))
 import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleFilter (..),
                                           CoercibleLogicTree (..),
+                                          CoercibleOrderTerm (..),
                                           unknownField)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
@@ -241,10 +241,9 @@ pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
 pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]} = pgFmtColumn table fn
--- Using to_jsonb instead of to_json to avoid missing operator errors when filtering:
--- "operator does not exist: json = unknown"
-pgFmtField table CoercibleField{cfName=fn, cfJsonPath=jp} = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
+pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]}                                = pgFmtColumn table fn
+pgFmtField table CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
+                                                                             | otherwise = pgFmtColumn table fn <> pgFmtJsonPath jp
 
 -- Select the value of a named element from a table, applying its optional coercion mapping if any.
 pgFmtTableCoerce :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
@@ -299,16 +298,16 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
         else ("pgrst_uniform_json.val", "json_typeof", "json_build_array", "json_array_elements", "json_to_recordset")
     jsonPlaceHolder = SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
 
-pgFmtOrderTerm :: QualifiedIdentifier -> OrderTerm -> SQL.Snippet
+pgFmtOrderTerm :: QualifiedIdentifier -> CoercibleOrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
   fmtOTerm ot <> " " <>
   SQL.sql (BS.unwords [
-    maybe mempty direction $ otDirection ot,
-    maybe mempty nullOrder $ otNullOrder ot])
+    maybe mempty direction $ coDirection ot,
+    maybe mempty nullOrder $ coNullOrder ot])
   where
     fmtOTerm = \case
-      OrderTerm{otTerm=(fn, jp)}                        -> pgFmtField qi (unknownField fn jp)
-      OrderRelationTerm{otRelation, otRelTerm=(fn, jp)} -> pgFmtField (QualifiedIdentifier mempty otRelation) (unknownField fn jp)
+      CoercibleOrderTerm{coField=cof}                            -> pgFmtField qi cof
+      CoercibleOrderRelationTerm{coRelation, coRelTerm=(fn, jp)} -> pgFmtField (QualifiedIdentifier mempty coRelation) (unknownField fn jp)
 
     direction OrderAsc  = "ASC"
     direction OrderDesc = "DESC"
@@ -446,7 +445,7 @@ mutRangeF mainQi rangeId =
   , intercalateSnippet ", " (pgFmtColumn mainQi <$> rangeId)
   )
 
-orderF :: QualifiedIdentifier -> [OrderTerm] -> SQL.Snippet
+orderF :: QualifiedIdentifier -> [CoercibleOrderTerm] -> SQL.Snippet
 orderF _ []    = mempty
 orderF qi ordts = "ORDER BY " <> intercalateSnippet ", " (pgFmtOrderTerm qi <$> ordts)
 

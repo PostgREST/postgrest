@@ -138,7 +138,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     nonRangeCols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
     rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
 mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
   | range == allRange =
@@ -161,7 +161,7 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (fst . otTerm <$> ordts)
+    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
@@ -171,7 +171,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty (ppType p) Nothing Nothing) <$> prms) False True False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty False (ppType p) Nothing Nothing) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

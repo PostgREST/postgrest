@@ -219,7 +219,7 @@ data ResolverContext = ResolverContext
   }
 
 resolveColumnField :: Column -> CoercibleField
-resolveColumnField col = CoercibleField (colName col) mempty (colNominalType col) Nothing (colDefault col)
+resolveColumnField col = CoercibleField (colName col) mempty False (colNominalType col) Nothing (colDefault col)
 
 resolveTableFieldName :: Table -> FieldName -> CoercibleField
 resolveTableFieldName table fieldName =
@@ -228,11 +228,14 @@ resolveTableFieldName table fieldName =
 
 resolveTableField :: Table -> Field -> CoercibleField
 resolveTableField table (fieldName, []) = resolveTableFieldName table fieldName
--- If the field is known and a JSON path is given, always assume the JSON type. But don't assume a type for entirely unknown fields.
 resolveTableField table (fieldName, jp) =
   case resolveTableFieldName table fieldName of
-    cf@CoercibleField{cfIRType=""} -> cf{cfJsonPath=jp}
-    cf                             -> cf{cfJsonPath=jp, cfIRType="json"}
+    -- types that are already json/jsonb don't need to be converted with `to_jsonb` for using arrow operators `data->attr`
+    -- this prevents indexes not applying https://github.com/PostgREST/postgrest/issues/2594
+    cf@CoercibleField{cfIRType="json"}  -> cf{cfJsonPath=jp}
+    cf@CoercibleField{cfIRType="jsonb"} -> cf{cfJsonPath=jp}
+    -- other types will get converted `to_jsonb(col)->attr`
+    cf                                  -> cf{cfJsonPath=jp, cfToJson=True}
 
 -- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `cfIRType` isn't empty.
 resolveTypeOrUnknown :: ResolverContext -> Field -> CoercibleField
@@ -289,7 +292,7 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbTab
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
-    addOrders apiRequest =<<
+    addOrders ctx apiRequest =<<
     addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
 -- Build the initial read plan tree
@@ -526,8 +529,8 @@ addFilters ctx ApiRequest{..} rReq =
     addFilterToNode =
       updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
 
-addOrders :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addOrders ApiRequest{..} rReq =
+addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addOrders ctx ApiRequest{..} rReq =
   case iAction of
     ActionMutate _ -> Right rReq
     _              -> foldr addOrderToNode (Right rReq) qsOrder
@@ -535,29 +538,32 @@ addOrders ApiRequest{..} rReq =
     QueryParams.QueryParams{..} = iQueryParams
 
     addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
-    addOrderToNode = updateNode (\o (Node q f) -> Node q{order=o} f)
+    addOrderToNode = updateNode (\o (Node q f) -> Node q{order=resolveOrder ctx <$> o} f)
+
+resolveOrder :: ResolverContext -> OrderTerm -> CoercibleOrderTerm
+resolveOrder _ (OrderRelationTerm a b c d) = CoercibleOrderRelationTerm a b c d
+resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUnknown ctx fld) dir nulls
 
 -- Validates that the related resource on the order is an embedded resource,
 -- e.g. if `clients` is inside the `select` in /projects?order=clients(id)&select=*,clients(*),
 -- and if it's a to-one relationship, it adds the right alias to the OrderRelationTerm so the generated query can succeed.
--- TODO might be clearer if there's an additional intermediate type
 addRelatedOrders :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
-  newOrder <- getRelOrder `traverse` order
+  newOrder <- newRelOrder `traverse` order
   Node rp{order=newOrder} <$> addRelatedOrders `traverse` forest
   where
-    getRelOrder ot@OrderTerm{}                   = Right ot
-    getRelOrder ot@OrderRelationTerm{otRelation} =
-      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> otRelation == fromMaybe relName relAlias) forest in
+    newRelOrder cot@CoercibleOrderTerm{}                   = Right cot
+    newRelOrder cot@CoercibleOrderRelationTerm{coRelation} =
+      let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> coRelation == fromMaybe relName relAlias) forest in
       case foundRP of
         Just ReadPlan{relName,relAlias,relAggAlias,relToParent} ->
           let isToOne = relIsToOne <$> relToParent
               name    = fromMaybe relName relAlias in
           if isToOne == Just True
-            then Right $ ot{otRelation=relAggAlias}
+            then Right $ cot{coRelation=relAggAlias}
             else Left $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
-          Left $ NotEmbedded otRelation
+          Left $ NotEmbedded coRelation
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
@@ -598,7 +604,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       where_ = [
 --         CoercibleStmnt (
 --           CoercibleFilter {
---            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfIRType = "", cfTransform = Nothing, cfDefault = Nothing},
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing},
 --            opExpr = op
 --           }
 --         )
@@ -613,7 +619,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfIRType = "", cfTransform = Nothing, cfDefault = Nothing}, opExpr = OpExpr True (Is TriNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing}, opExpr = OpExpr True (Is TriNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -637,7 +643,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
     newNullFilters rPlans = \case
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
-      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _) opExpr)) ->
+      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _) opExpr)) ->
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
           (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
@@ -726,7 +732,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     tbl = HM.lookup qi dbTables
     pkCols = maybe mempty tablePKCols tbl
     logic = map (resolveLogicTree ctx . snd) qsLogic
-    rootOrder = maybe [] snd $ find (\(x, _) -> null x) qsOrder
+    rootOrder = resolveOrder ctx <$> maybe [] snd (find (\(x, _) -> null x) qsOrder)
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults

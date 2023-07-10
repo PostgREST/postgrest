@@ -348,6 +348,43 @@ spec actualPgVersion = do
         liftIO $ do
           resBody `shouldSatisfy` (\t -> not $ T.isInfixOf "getitemrange" (decodeUtf8 $ LBS.toStrict t))
 
+    context "index usage" $ do
+      it "should use an index for a json arrow operator filter" $ do
+        r <- request methodGet "/bets?data_json->>contractId=eq.1"
+               [(hAccept, "application/vnd.pgrst.plan")] ""
+
+        let resBody = simpleBody r
+
+        liftIO $ do
+          resBody `shouldSatisfy` (\t -> T.isInfixOf "Index Cond" (decodeUtf8 $ LBS.toStrict t))
+
+      it "should use an index for a jsonb arrow operator filter" $ do
+        r <- request methodGet "/bets?data_jsonb->>contractId=eq.1"
+               [(hAccept, "application/vnd.pgrst.plan")] ""
+
+        let resBody = simpleBody r
+
+        liftIO $ do
+          resBody `shouldSatisfy` (\t -> T.isInfixOf "Index" (decodeUtf8 $ LBS.toStrict t))
+
+      it "should use an index for ordering on a json arrow operator" $ do
+        r <- request methodGet "/bets?order=data_json->>contractId"
+               [(hAccept, "application/vnd.pgrst.plan")] ""
+
+        let resBody = simpleBody r
+
+        liftIO $ do
+          resBody `shouldSatisfy` (\t -> T.isInfixOf "Index" (decodeUtf8 $ LBS.toStrict t))
+
+      it "should use an index for ordering on a jsonb arrow operator" $ do
+        r <- request methodGet "/bets?order=data_jsonb->>contractId"
+               [(hAccept, "application/vnd.pgrst.plan")] ""
+
+        let resBody = simpleBody r
+
+        liftIO $ do
+          resBody `shouldSatisfy` (\t -> T.isInfixOf "Index" (decodeUtf8 $ LBS.toStrict t))
+
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
   it "doesn't work if db-plan-enabled=false(the default)" $ do
