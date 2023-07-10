@@ -449,7 +449,7 @@ The arrow operators(``->``, ``->>``) can also be used for accessing composite fi
 
 .. important::
 
-  When using the ``->`` and ``->>`` operators, PostgREST uses a query like ``to_jsonb(<col>)->'field'``. To make filtering and ordering on those nested fields use an index, the index needs to be created on the same expression, including the ``to_jsonb(...)`` call:
+  When using the ``->`` and ``->>`` operators on composite and array columns, PostgREST uses a query like ``to_jsonb(<col>)->'field'``. To make filtering and ordering on those nested fields use an index, the index needs to be created on the same expression, including the ``to_jsonb(...)`` call:
 
   .. code-block:: postgres
 
