@@ -19,6 +19,7 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
 
 .. code::
 
+   12/Jun/2021:17:47:39 -0500: Starting PostgREST 11.1.0...
    12/Jun/2021:17:47:39 -0500: Attempting to connect to the database...
    12/Jun/2021:17:47:39 -0500: Listening on port 3000
    12/Jun/2021:17:47:39 -0500: Connection successful
@@ -83,11 +84,33 @@ Restart the database and watch the log file in real-time to understand how HTTP 
 Server Version
 --------------
 
-When debugging a problem it's important to verify the PostgREST version. Look for the :code:`Server` HTTP response header, which contains the version number.
+When debugging a problem it's important to verify the running PostgREST version. There are three ways to do this:
+
+- Look for the :code:`Server` HTTP response header that is returned on every request.
 
 .. code::
 
+  HEAD /users HTTP/1.1
+
   Server: postgrest/11.0.1
+
+- Query ``application_name`` on `pg_stat_activity <https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ACTIVITY-VIEW>`_.
+
+.. code-block:: psql
+
+  select distinct application_name
+  from pg_stat_activity
+  where application_name ilike '%postgrest%';
+
+        application_name
+  ------------------------------
+  PostgREST 11.1.0
+
+.. note::
+
+  The server sets the `fallback_application_name <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-FALLBACK-APPLICATION-NAME>`_ for this query to work. To override the value set ``application_name`` on the connection string.
+
+- The ``stderr`` logs also contain the version, as noted on :ref:`pgrst_logging`.
 
 .. _trace_header:
 
