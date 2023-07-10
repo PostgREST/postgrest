@@ -7,10 +7,10 @@ module PostgREST.Plan.ReadPlan
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest.Types         (Alias, Cast, Depth, Hint,
-                                           JoinType, NodeName,
-                                           OrderTerm)
+                                           JoinType, NodeName)
 import PostgREST.Plan.Types               (CoercibleField (..),
-                                           CoercibleLogicTree)
+                                           CoercibleLogicTree,
+                                           CoercibleOrderTerm)
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -32,7 +32,7 @@ data ReadPlan = ReadPlan
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
   , where_       :: [CoercibleLogicTree]
-  , order        :: [OrderTerm]
+  , order        :: [CoercibleOrderTerm]
   , range_       :: NonnegRange
   , relName      :: NodeName
   , relToParent  :: Maybe Relationship

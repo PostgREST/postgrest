@@ -29,6 +29,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2834, Fix compilation on Ubuntu by being compatible with GHC 9.0.2 - @steve-chavez
  - #2840, Fix `Prefer: missing=default` with DOMAIN default values - @steve-chavez
  - #2849, Fix HEAD unnecessarily executing aggregates - @steve-chavez
+ - #2594, Fix unused index on jsonb/jsonb arrow filter and order (``/bets?data->>contractId=eq.1`` and ``/bets?order=data->>contractId``) - @steve-chavez
 
 ## [11.1.0] - 2023-06-07
 

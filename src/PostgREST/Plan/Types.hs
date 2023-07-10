@@ -4,9 +4,11 @@ module PostgREST.Plan.Types
   , CoercibleLogicTree(..)
   , CoercibleFilter(..)
   , TransformerProc
+  , CoercibleOrderTerm(..)
   ) where
 
-import PostgREST.ApiRequest.Types (JsonPath, LogicOperator, OpExpr)
+import PostgREST.ApiRequest.Types (Field, JsonPath, LogicOperator,
+                                   OpExpr, OrderDirection, OrderNulls)
 
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
@@ -28,13 +30,14 @@ type TransformerProc = Text
 data CoercibleField = CoercibleField
   { cfName      :: FieldName
   , cfJsonPath  :: JsonPath
+  , cfToJson    :: Bool
   , cfIRType    :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
   , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault   :: Maybe Text
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
-unknownField name path = CoercibleField name path "" Nothing Nothing
+unknownField name path = CoercibleField name path False "" Nothing Nothing
 
 -- | Like an API request LogicTree, but with coercible field information.
 data CoercibleLogicTree
@@ -47,4 +50,18 @@ data CoercibleFilter = CoercibleFilter
   , opExpr :: OpExpr
   }
   | CoercibleFilterNullEmbed Bool FieldName
+  deriving (Eq, Show)
+
+data CoercibleOrderTerm
+  = CoercibleOrderTerm
+    { coField     :: CoercibleField
+    , coDirection :: Maybe OrderDirection
+    , coNullOrder :: Maybe OrderNulls
+    }
+  | CoercibleOrderRelationTerm
+    { coRelation  :: FieldName
+    , coRelTerm   :: Field
+    , coDirection :: Maybe OrderDirection
+    , coNullOrder :: Maybe OrderNulls
+    }
   deriving (Eq, Show)

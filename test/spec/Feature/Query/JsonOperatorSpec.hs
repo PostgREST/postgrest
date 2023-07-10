@@ -103,7 +103,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
       it "can get array of objects" $ do
         get "/json_arr?select=data->0->>a&id=in.(5,6)" `shouldRespondWith`
-          [json| [{"a":"A"}, {"a":"[1, 2, 3]"}] |]
+          [json|[{"a":"A"}, {"a":"[1,2,3]"}]|]
           { matchHeaders = [matchContentTypeJson] }
         get "/json_arr?select=data->0->a->>2&id=in.(5,6)" `shouldRespondWith`
           [json| [{"a":null}, {"a":"3"}] |]
@@ -275,7 +275,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         [json| [{"data":8}, {"data":7}] |]
         { matchHeaders = [matchContentTypeJson] }
       get "/json_arr?select=data->-2->>a&id=in.(5,6)" `shouldRespondWith`
-        [json| [{"a":"A"}, {"a":"[1, 2, 3]"}] |]
+        [json| [{"a":"A"}, {"a":"[1,2,3]"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
     it "can filter with negative indexes" $ do

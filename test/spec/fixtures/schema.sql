@@ -3293,3 +3293,12 @@ create table evil_friends(
   id   devil_int
 , name text
 );
+
+create table bets (
+  id int
+, data_json  json
+, data_jsonb jsonb
+);
+
+create index bets_data_json  on bets ((data_json  ->>'contractId'));
+create index bets_data_jsonb on bets ((data_jsonb ->>'contractId'));
