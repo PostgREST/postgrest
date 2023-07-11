@@ -685,6 +685,14 @@ If we make a similar request on ``bigtable``, which has 3573458 rows, we would g
   HTTP/1.1 206 Partial Content
   Content-Range: 0-24/3572000
 
+.. _head_req:
+
+HEAD
+----
+
+A HEAD method will behave identically to GET except that no body will be returned (`RFC 2616 <https://datatracker.ietf.org/doc/html/rfc2616#section-9.4>`_) .
+As an optimization, the generated query won't execute an aggregate (to avoid unnecessary data transfer).
+
 .. _update:
 
 Update
