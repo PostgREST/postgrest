@@ -1,0 +1,7 @@
+[Employees]
+*id
+first_name
+last_name
++supervisor_id
+
+Employees 1--* Employees

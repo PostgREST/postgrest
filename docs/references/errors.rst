@@ -320,7 +320,7 @@ Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these e
 | PGRST200      |             | exist in the database.                                      |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst201: | 300         | An ambiguous embedding request was made.                    |
-|               |             | See :ref:`embed_disamb`.                                    |
+|               |             | See :ref:`complex_rels`.                                    |
 | PGRST201      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst202: | 404         | Caused by a stale function signature, otherwise             |

@@ -159,6 +159,7 @@ SSL
 stateful
 stdout
 Stolarz
+supervisees
 SvelteKit
 SwaggerUI
 syslog
