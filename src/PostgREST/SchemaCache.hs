@@ -573,19 +573,19 @@ tablesSqlQuery pgVer =
           d.description AS description,
   |] <> columnDefault <> [q| AS column_default,
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
+          CASE
+              WHEN t.typtype = 'd' THEN
               CASE
-                  WHEN t.typtype = 'd' THEN
-                  CASE
-                      WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
-                      ELSE format_type(a.atttypid, a.atttypmod)
-                  END
-                  ELSE
-                  CASE
-                      WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
-                      ELSE format_type(a.atttypid, a.atttypmod)
-                  END
-              END::text AS data_type,
-          t.oid AS data_type_id,
+                  WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
+                  ELSE format_type(a.atttypid, a.atttypmod)
+              END
+              ELSE
+              CASE
+                  WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
+                  ELSE format_type(a.atttypid, a.atttypmod)
+              END
+          END::text AS data_type,
+          format_type(a.atttypid, a.atttypmod)::text AS nominal_data_type,
           information_schema._pg_char_max_length(
               information_schema._pg_truetypid(a.*, t.*),
               information_schema._pg_truetypmod(a.*, t.*)
@@ -627,7 +627,7 @@ tablesSqlQuery pgVer =
           info.description,
           info.is_nullable::boolean,
           info.data_type,
-          info.data_type_id::regtype::text,
+          info.nominal_data_type,
           info.character_maximum_length,
           info.column_default,
           coalesce(enum_info.vals, '{}')) order by info.position) as columns
