@@ -30,6 +30,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2840, Fix `Prefer: missing=default` with DOMAIN default values - @steve-chavez
  - #2849, Fix HEAD unnecessarily executing aggregates - @steve-chavez
  - #2594, Fix unused index on jsonb/jsonb arrow filter and order (``/bets?data->>contractId=eq.1`` and ``/bets?order=data->>contractId``) - @steve-chavez
+ - #2861, Fix character and bit columns with fixed length not inserting/updating properly - @laurenceisla
+   + Fixes the error "value too long for type character(1)" when the char length of the column was bigger than one.
 
 ## [11.1.0] - 2023-06-07
 
