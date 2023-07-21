@@ -849,3 +849,7 @@ INSERT INTO datarep_todos VALUES (4, 'Opus Magnum', NULL, NULL);
 TRUNCATE TABLE datarep_next_two_todos CASCADE;
 INSERT INTO datarep_next_two_todos VALUES (1, 2, 3, 'school related');
 INSERT INTO datarep_next_two_todos VALUES (2, 1, 3, 'do these first');
+
+TRUNCATE TABLE bitchar_with_length CASCADE;
+INSERT INTO bitchar_with_length(bit, char) VALUES ('00000', 'aaaaa');
+INSERT INTO bitchar_with_length(bit, char) VALUES ('11111', 'bbbbb');

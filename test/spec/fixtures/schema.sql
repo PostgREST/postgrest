@@ -3302,3 +3302,9 @@ create table bets (
 
 create index bets_data_json  on bets ((data_json  ->>'contractId'));
 create index bets_data_jsonb on bets ((data_jsonb ->>'contractId'));
+
+-- https://github.com/PostgREST/postgrest/issues/2861
+CREATE TABLE bitchar_with_length (
+  bit bit(5),
+  char char(5)
+);

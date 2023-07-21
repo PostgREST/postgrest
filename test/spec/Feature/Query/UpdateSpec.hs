@@ -384,6 +384,22 @@ spec actualPgVersion = do
             , matchHeaders = ["Preference-Applied" <:> "missing=default"]
             }
 
+    -- https://github.com/PostgREST/postgrest/issues/2861
+    context "bit and char columns with length" $ do
+      it "should update a bit column with length" $
+        request methodPatch "/bitchar_with_length?char=eq.aaaaa"
+            [("Prefer", "return=representation")]
+            [json|{"bit": "11100"}|]
+          `shouldRespondWith` [json|[{ "bit": "11100", "char": "aaaaa" }]|]
+            { matchStatus  = 200 }
+
+      it "should update a char column with length" $
+        request methodPatch "/bitchar_with_length?bit=eq.00000"
+            [("Prefer", "return=representation")]
+            [json|{"char": "zzzyy"}|]
+          `shouldRespondWith` [json|[{ "bit": "00000", "char": "zzzyy" }]|]
+            { matchStatus  = 200 }
+
   context "tables with self reference foreign keys" $ do
     context "embeds children after update" $ do
       it "without filters" $

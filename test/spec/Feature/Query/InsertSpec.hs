@@ -391,6 +391,22 @@ spec actualPgVersion = do
           `shouldRespondWith` [json|[{ id: 20 }]|]
             { matchStatus  = 201 }
 
+    -- https://github.com/PostgREST/postgrest/issues/2861
+    context "bit and char columns with length" $ do
+      it "should insert to a bit column with length" $
+        request methodPost "/bitchar_with_length?select=bit"
+            [("Prefer", "return=representation")]
+            [json|{"bit": "10101"}|]
+          `shouldRespondWith` [json|[{ "bit": "10101" }]|]
+            { matchStatus  = 201 }
+
+      it "should insert to a char column with length" $
+        request methodPost "/bitchar_with_length?select=char"
+            [("Prefer", "return=representation")]
+            [json|{"char": "abcde"}|]
+          `shouldRespondWith` [json|[{ "char": "abcde" }]|]
+            { matchStatus  = 201 }
+
     context "POST with ?columns parameter" $ do
       it "ignores json keys not included in ?columns" $ do
         request methodPost "/articles?columns=id,body" [("Prefer", "return=representation")]
