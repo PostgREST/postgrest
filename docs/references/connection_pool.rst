@@ -16,7 +16,7 @@ Dynamic Connection Pool
 To conserve system resources, PostgREST uses a dynamic connection pool. This enables the number of connections in the pool to increase and decrease depending on request traffic.
 
 - If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note that it’s pointless to set this higher than the ``max_connections`` setting in your database.
-- If a connection is unused for a period of time (determined by :ref:`db-pool-max-idletime`, 30 seconds by default), it will be released.
+- If a connection is unused for a period of time (:ref:`db-pool-max-idletime`), it will be released.
 
 Connection lifetime
 -------------------
@@ -24,13 +24,13 @@ Connection lifetime
 Long-lived PostgreSQL connections can consume considerable memory (see `here <https://www.postgresql.org/message-id/CAFj8pRCQN2B2vrVMH1-bd-8xtzjytWR%2BAjZ%2BMCj9J2wPxKPa9Q%40mail.gmail.com>`_ for more details).
 Under a busy system, the :ref:`db-pool-max-idletime` won't be reached and the connection pool can be full of long-lived connections.
 
-To avoid this problem and save resources, a connection max lifetime (determined by :ref:`db-pool-max-lifetime`, 30 minutes by default) is enforced.
+To avoid this problem and save resources, a connection max lifetime (:ref:`db-pool-max-lifetime`) is enforced.
 After the max lifetime is reached, connections from the pool will be released and new ones will be created. This doesn't affect running requests, only unused connections will be released.
 
 Acquisition Timeout
 -------------------
 
-If all the available connections in the pool are busy, an HTTP request will wait until reaching a timeout (determined by :ref:`db-pool-acquisition-timeout`, 10 seconds by default).
+If all the available connections in the pool are busy, an HTTP request will wait until reaching a timeout (:ref:`db-pool-acquisition-timeout`).
 
 If the request reaches the timeout, it will be aborted with the following response:
 

@@ -3,24 +3,26 @@
 Configuration
 #############
 
-Config parameters can be provided via :ref:`file_config`, :ref:`env_variables_config` or :ref:`in_db_config`. Using :ref:`config_reloading` you can modify the parameters without restarting the server.
+Configuration parameters can be provided via:
 
-Without configuration, PostgREST won't be able to serve requests. At the minimum it needs either :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`.
+- :ref:`file_config`.
+- :ref:`env_variables_config`, overriding values from the config file.
+- :ref:`in_db_config`, overriding values from both the config file and environment variables.
 
-To connect to a database it uses a `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. The connection string can be set in the configuration file or via environment variable or can be read from an external file. See :ref:`db-uri` for details. Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
+Using :ref:`config_reloading` you can modify the parameters without restarting the server.
 
-Config parameters are read in the following order:
 
-1. From the config file.
-2. From environment variables, overriding values from the config file.
-3. From the database, overriding values from both the config file and environment variables.
+Minimum parameters
+==================
+
+The server is able to start without any config parameters, but it won't be able to serve requests unless it has :ref:`a role to serve anonymous requests with <db-anon-role>` - or :ref:`a secret to use for JWT authentication <jwt-secret>`.
 
 .. _file_config:
 
 Config File
 ===========
 
-PostgREST can read a config file. There is no predefined location for this file, you must specify the file path as the one and only argument to the server:
+There is no predefined location for the config file, you must specify the file path as the one and only argument to the server:
 
 .. code:: bash
 
@@ -46,7 +48,7 @@ The configuration file must contain a set of key value pairs:
   jwt-secret-is-base64 = false
 
   # Port the postgrest process is listening on for http requests
-  server-port = 80
+  server-port = 3000
 
 You can run ``postgrest --example`` to display all possible configuration parameters and how to use them in a configuration file.
 
@@ -55,7 +57,9 @@ You can run ``postgrest --example`` to display all possible configuration parame
 Environment Variables
 =====================
 
-You can also set these :ref:`configuration parameters <config_full_list>` using environment variables. They are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
+Environment variables are capitalized, have a ``PGRST_`` prefix, and use underscores. For example: ``PGRST_DB_URI`` corresponds to ``db-uri`` and ``PGRST_APP_SETTINGS_*`` to ``app.settings.*``.
+
+`libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_ are also supported for constructing the connection string, see :ref:`db-uri`.
 
 See the full list of environment variable names on :ref:`config_full_list`.
 
@@ -64,7 +68,7 @@ See the full list of environment variable names on :ref:`config_full_list`.
 In-Database Configuration
 =========================
 
-Using a :ref:`pre-config <db-pre-config>` function, you can configure the server with database settings. For example, you can configure :ref:`db-schemas` and :ref:`jwt-secret` like this:
+You can also configure the server with database settings by using a :ref:`pre-config <db-pre-config>` function. For example, you can configure :ref:`db-schemas` and :ref:`jwt-secret` like this:
 
 .. code-block::
 
@@ -144,50 +148,18 @@ The ``"pgrst"`` notification channel is enabled by default. You can name the cha
 List of parameters
 ==================
 
-=========================== ======= ================= ========== ================================= ==============================
-Name                        Type    Default           Reloadable Environment variable              In-database name
-=========================== ======= ================= ========== ================================= ==============================
-admin-server-port           Int                                  PGRST_ADMIN_SERVER_PORT
-app.settings.*              String                    Y          PGRST_APP_SETTINGS_*
-db-anon-role                String                    Y          PGRST_DB_ANON_ROLE                pgrst.db_anon_role
-db-channel                  String  pgrst             Y          PGRST_DB_CHANNEL
-db-channel-enabled          Boolean True              Y          PGRST_DB_CHANNEL_ENABLED
-db-config                   Boolean True              Y          PGRST_DB_CONFIG
-db-pre-config               String                    Y          PGRST_DB_PRE_CONFIG               pgrst.db_pre_config
-db-extra-search-path        String  public            Y          PGRST_DB_EXTRA_SEARCH_PATH        pgrst.db_extra_search_path
-db-max-rows                 Int     ∞                 Y          PGRST_DB_MAX_ROWS                 pgrst.db_max_rows
-db-plan-enabled             Boolean False             Y          PGRST_DB_PLAN_ENABLED             pgrst.db_plan_enabled
-db-pool                     Int     10                           PGRST_DB_POOL
-db-pool-acquisition-timeout Int     10                           PGRST_DB_POOL_ACQUISITION_TIMEOUT
-db-pool-max-idletime        Int     30                           PGRST_DB_POOL_MAX_IDLETIME
-db-pool-max-lifetime        Int     1800                         PGRST_DB_POOL_MAX_LIFETIME
-db-pre-request              String                    Y          PGRST_DB_PRE_REQUEST              pgrst.db_pre_request
-db-prepared-statements      Boolean True              Y          PGRST_DB_PREPARED_STATEMENTS      pgrst.db_prepared_statements
-db-root-spec                String                    Y          PGRST_DB_ROOT_SPEC                pgrst.db_root_spec
-db-schemas                  String  public            Y          PGRST_DB_SCHEMAS                  pgrst.db_schemas
-db-tx-end                   String  commit                       PGRST_DB_TX_END
-db-uri                      String  postgresql://                PGRST_DB_URI
-db-use-legacy-gucs          Boolean True              Y          PGRST_DB_USE_LEGACY_GUCS          pgrst.db_use_legacy_gucs
-jwt-aud                     String                    Y          PGRST_JWT_AUD                     pgrst.jwt_aud
-jwt-role-claim-key          String  .role             Y          PGRST_JWT_ROLE_CLAIM_KEY          pgrst.jwt_role_claim_key
-jwt-secret                  String                    Y          PGRST_JWT_SECRET                  pgrst.jwt_secret
-jwt-secret-is-base64        Boolean False             Y          PGRST_JWT_SECRET_IS_BASE64        pgrst.jwt_secret_is_base64
-log-level                   String  error                        PGRST_LOG_LEVEL
-openapi-mode                String  follow-privileges Y          PGRST_OPENAPI_MODE                pgrst.openapi_mode
-openapi-security-active     Boolean False             Y          PGRST_OPENAPI_SECURITY_ACTIVE     pgrst.openapi_security_active
-openapi-server-proxy-uri    String                    Y          PGRST_OPENAPI_SERVER_PROXY_URI    pgrst.openapi_server_proxy_uri
-raw-media-types             String                    Y          PGRST_RAW_MEDIA_TYPES             pgrst.raw_media_types
-server-host                 String  !4                           PGRST_SERVER_HOST
-server-port                 Int     3000                         PGRST_SERVER_PORT
-server-trace-header         String                    Y          PGRST_SERVER_TRACE_HEADER         pgrst.server_trace_header
-server-unix-socket          String                               PGRST_SERVER_UNIX_SOCKET
-server-unix-socket-mode     String  660                          PGRST_SERVER_UNIX_SOCKET_MODE
-=========================== ======= ================= ========== ================================= ==============================
-
 .. _admin-server-port:
 
 admin-server-port
 -----------------
+
+  =============== =======================
+  **Type**        Int
+  **Default**     `n/a`
+  **Reloadable**  N
+  **Environment** PGRST_ADMIN_SERVER_PORT
+  **In-Database** `n/a`
+  =============== =======================
 
   Specifies the port for the :ref:`health_check` endpoints.
 
@@ -196,12 +168,28 @@ admin-server-port
 app.settings.*
 --------------
 
+  =============== =======================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  &
+  **Environment** PGRST_APP_SETTINGS_*
+  **In-Database** `n/a`
+  =============== =======================
+
   Arbitrary settings that can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
 
 .. _db-anon-role:
 
 db-anon-role
 ------------
+
+  =============== =======================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_DB_ANON_ROLE
+  **In-Database** pgrst.db_anon_role
+  =============== =======================
 
   The database role to use when executing commands on behalf of unauthenticated clients. For more information, see :ref:`roles`.
 
@@ -212,12 +200,28 @@ db-anon-role
 db-channel
 ----------
 
+  =============== =======================
+  **Type**        String
+  **Default**     pgrst
+  **Reloadable**  Y
+  **Environment** PGRST_DB_CHANNEL
+  **In-Database** `n/a`
+  =============== =======================
+
   The name of the notification channel that PostgREST uses for :ref:`schema_reloading` and configuration reloading.
 
 .. _db-channel-enabled:
 
 db-channel-enabled
 ------------------
+
+  =============== =======================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_CHANNEL_ENABLED
+  **In-Database** `n/a`
+  =============== =======================
 
   When this is set to :code:`true`, the notification channel specified in :ref:`db-channel` is enabled.
 
@@ -228,6 +232,14 @@ db-channel-enabled
 db-config
 ---------
 
+  =============== =======================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_CONFIG
+  **In-Database** `n/a`
+  =============== =======================
+
    Enables the in-database configuration.
 
 .. _db-pre-config:
@@ -235,12 +247,28 @@ db-config
 db-pre-config
 -------------
 
+  =============== =======================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_DB_PRE_CONFIG
+  **In-Database** pgrst.db_pre_config
+  =============== =======================
+
    Name of the function that does in-database configuration.
 
 .. _db-extra-search-path:
 
 db-extra-search-path
 --------------------
+
+  =============== ==========================
+  **Type**        String
+  **Default**     public
+  **Reloadable**  Y
+  **Environment** PGRST_DB_EXTRA_SEARCH_PATH
+  **In-Database** pgrst.db_extra_search_path
+  =============== ==========================
 
   Extra schemas to add to the `search_path <https://www.postgresql.org/docs/current/ddl-schemas.html#DDL-SCHEMAS-PATH>`_ of every request. These schemas tables, views and stored procedures **don't get API endpoints**, they can only be referred from the database objects inside your :ref:`db-schemas`.
 
@@ -253,6 +281,14 @@ db-extra-search-path
 db-max-rows
 -----------
 
+  =============== ==========================
+  **Type**        Int
+  **Default**     ∞
+  **Reloadable**  Y
+  **Environment** PGRST_DB_MAX_ROWS
+  **In-Database** pgrst.db_max_rows
+  =============== ==========================
+
   *For backwards compatibility, this config parameter is also available without prefix as "max-rows".*
 
   A hard limit to the number of rows PostgREST will fetch from a view, table, or stored procedure. Limits payload size for accidental or malicious requests.
@@ -262,36 +298,28 @@ db-max-rows
 db-plan-enabled
 ---------------
 
+  =============== ==========================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_DB_PLAN_ENABLED
+  **In-Database** pgrst.db_plan_enabled
+  =============== ==========================
+
   When this is set to :code:`true`, the execution plan of a request can be retrieved by using the :code:`Accept: application/vnd.pgrst.plan` header. See :ref:`explain_plan`.
-
-  It's recommended to use this in testing environments only since it reveals internal database details.
-  However, if you choose to use it in production you can add a :ref:`db-pre-request` to filter the requests that can use this feature.
-
-  For example, to only allow requests from an IP address to get the execution plans:
-
-  .. code-block:: postgresql
-
-   -- Assuming a proxy(Nginx, Cloudflare, etc) passes an "X-Forwarded-For" header(https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
-   create or replace function filter_plan_requests()
-   returns void as $$
-   declare
-     headers   json := current_setting('request.headers', true)::json;
-     client_ip text := coalesce(headers->>'x-forwarded-for', '');
-     accept    text := coalesce(headers->>'accept', '');
-   begin
-     if accept like 'application/vnd.pgrst.plan%' and client_ip != '144.96.121.73' then
-       raise insufficient_privilege using
-         message = 'Not allowed to use application/vnd.pgrst.plan';
-     end if;
-   end; $$ language plpgsql;
-
-   -- set this function on your postgrest.conf
-   -- db-pre-request = filter_plan_requests
 
 .. _db-pool:
 
 db-pool
 -------
+
+  =============== ==========================
+  **Type**        Int
+  **Default**     10
+  **Reloadable**  N
+  **Environment** PGRST_DB_POOL
+  **In-Database** n/a
+  =============== ==========================
 
   Number of maximum connections to keep open in PostgREST's database pool.
 
@@ -300,12 +328,28 @@ db-pool
 db-pool-acquisition-timeout
 ---------------------------
 
+  =============== =================================
+  **Type**        Int
+  **Default**     10
+  **Reloadable**  N
+  **Environment** PGRST_DB_POOL_ACQUISITION_TIMEOUT
+  **In-Database** `n/a`
+  =============== =================================
+
   Specifies the maximum time in seconds that the request will wait for the pool to free up a connection slot to the database.
 
 .. _db-pool-max-idletime:
 
 db-pool-max-idletime
 --------------------
+
+  =============== =================================
+  **Type**        Int
+  **Default**     30
+  **Reloadable**  N
+  **Environment** PGRST_DB_POOL_MAX_IDLETIME
+  **In-Database** `n/a`
+  =============== =================================
 
    *For backwards compatibility, this config parameter is also available as “db-pool-timeout”.*
 
@@ -316,12 +360,28 @@ db-pool-max-idletime
 db-pool-max-lifetime
 --------------------
 
+  =============== =================================
+  **Type**        Int
+  **Default**     1800
+  **Reloadable**  N
+  **Environment** PGRST_DB_POOL_MAX_LIFETIME
+  **In-Database** `n/a`
+  =============== =================================
+
   Specifies the maximum time in seconds of an existing connection in the pool.
 
 .. _db-pre-request:
 
 db-pre-request
 --------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_DB_PRE_REQUEST
+  **In-Database** pgrst.db_pre_request
+  =============== =================================
 
   *For backwards compatibility, this config parameter is also available without prefix as "pre-request".*
 
@@ -331,6 +391,14 @@ db-pre-request
 
 db-prepared-statements
 ----------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_PREPARED_STATEMENTS
+  **In-Database** pgrst.db_prepared_statements
+  =============== =================================
 
   Enables or disables prepared statements.
 
@@ -343,12 +411,28 @@ db-prepared-statements
 db-root-spec
 ------------
 
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_DB_ROOT_SPEC
+  **In-Database** pgrst.db_root_spec
+  =============== =================================
+
   Function to override the OpenAPI response. See :ref:`override_openapi`.
 
 .. _db-schemas:
 
 db-schemas
 ----------
+
+  =============== =================================
+  **Type**        String
+  **Default**     public
+  **Reloadable**  Y
+  **Environment** PGRST_DB_SCHEMAS
+  **In-Database** pgrst.db_schemas
+  =============== =================================
 
   *For backwards compatibility, this config parameter is also available in singular as "db-schema".*
 
@@ -358,6 +442,14 @@ db-schemas
 
 db-tx-end
 ---------
+
+  =============== =================================
+  **Type**        String
+  **Default**     commit
+  **Reloadable**  N
+  **Environment** PGRST_DB_TX_END
+  **In-Database** `n/a`
+  =============== =================================
 
   Specifies how to terminate the database transactions.
 
@@ -380,7 +472,19 @@ db-tx-end
 db-uri
 ------
 
-  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error. If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+  =============== =================================
+  **Type**        String
+  **Default**     postgresql://
+  **Reloadable**  N
+  **Environment** PGRST_DB_URI
+  **In-Database** `n/a`
+  =============== =================================
+
+  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error.
+
+  If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+
+  Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
 
   The user with whom PostgREST connects to the database is also known as the ``authenticator`` role. For more information see :ref:`roles`.
 
@@ -393,6 +497,14 @@ db-uri
 db-use-legacy-gucs
 ------------------
 
+  =============== =================================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_USE_LEGACY_GUCS
+  **In-Database** pgrst.db_use_legacy_gucs
+  =============== =================================
+
   Determine if GUC request settings for headers, cookies and jwt claims use the `legacy names <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the :ref:`new names <guc_req_headers_cookies_claims>` (string without dashes, valid on all PostgreSQL versions) with json values.
 
   On PostgreSQL versions 14 and above, this parameter is ignored.
@@ -402,12 +514,28 @@ db-use-legacy-gucs
 jwt-aud
 -------
 
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_AUD
+  **In-Database** pgrst.jwt_aud
+  =============== =================================
+
   Specifies the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_. If this claim is present in the client provided JWT then you must set this to the same value as in the JWT, otherwise verifying the JWT will fail.
 
 .. _jwt-role-claim-key:
 
 jwt-role-claim-key
 ------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     .role
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_ROLE_CLAIM_KEY
+  **In-Database** pgrst.jwt_role_claim_key
+  =============== =================================
 
   *For backwards compatibility, this config parameter is also available without prefix as "role-claim-key".*
 
@@ -428,6 +556,14 @@ jwt-role-claim-key
 jwt-secret
 ----------
 
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_SECRET
+  **In-Database** pgrst.jwt_secret
+  =============== =================================
+
   The secret or `JSON Web Key (JWK) (or set) <https://datatracker.ietf.org/doc/html/rfc7517>`_ used to decode JWT tokens clients provide for authentication. For security the key must be **at least 32 characters long**. If this parameter is not specified then PostgREST refuses authentication requests. Choosing a value for this parameter beginning with the at sign such as :code:`@filename` loads the secret out of an external file. This is useful for automating deployments. Note that any binary secrets must be base64 encoded. Both symmetric and asymmetric cryptography are supported. For more info see :ref:`asym_keys`.
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the secret out of an external file.
@@ -441,12 +577,28 @@ jwt-secret
 jwt-secret-is-base64
 --------------------
 
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_SECRET_IS_BASE64
+  **In-Database** pgrst.jwt_secret_is_base64
+  =============== =================================
+
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
 .. _log-level:
 
 log-level
 ---------
+
+  =============== =================================
+  **Type**        String
+  **Default**     error
+  **Reloadable**  N
+  **Environment** PGRST_LOG_LEVEL
+  **In-Database** `n/a`
+  =============== =================================
 
   Specifies the level of information to be logged while running PostgREST.
 
@@ -472,6 +624,14 @@ log-level
 openapi-mode
 ------------
 
+  =============== =================================
+  **Type**        String
+  **Default**     follow-privileges
+  **Reloadable**  Y
+  **Environment** PGRST_OPENAPI_MODE
+  **In-Database** pgrst.openapi_mode
+  =============== =================================
+
   Specifies how the OpenAPI output should be displayed.
 
   .. code:: bash
@@ -493,12 +653,28 @@ openapi-mode
 openapi-security-active
 -----------------------
 
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_OPENAPI_SECURITY_ACTIVE
+  **In-Database** pgrst.openapi_security_active
+  =============== =================================
+
 When this is set to :code:`true`, security options are included in the :ref:`OpenAPI output <open-api>`.
 
 .. _openapi-server-proxy-uri:
 
 openapi-server-proxy-uri
 ------------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  N
+  **Environment** PGRST_OPENAPI_SERVER_PROXY_URI
+  **In-Database** pgrst.openapi_server_proxy_uri
+  =============== =================================
 
   Overrides the base URL used within the OpenAPI self-documentation hosted at the API root path. Use a complete URI syntax :code:`scheme:[//[user:password@]host[:port]][/]path[?query][#fragment]`. Ex. :code:`https://postgrest.com`
 
@@ -523,6 +699,14 @@ openapi-server-proxy-uri
 raw-media-types
 ---------------
 
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_RAW_MEDIA_TYPES
+  **In-Database** pgrst.raw_media_types
+  =============== =================================
+
  This serves to extend the `Media Types <https://en.wikipedia.org/wiki/Media_type>`_ that PostgREST currently accepts through an ``Accept`` header.
 
  These media types can be requested by following the same rules as the ones defined in :ref:`scalar_return_formats`.
@@ -539,6 +723,14 @@ raw-media-types
 server-host
 -----------
 
+  =============== =================================
+  **Type**        String
+  **Default**     !4
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_HOST
+  **In-Database** `n/a`
+  =============== =================================
+
   Where to bind the PostgREST web server. In addition to the usual address options, PostgREST interprets these reserved addresses with special meanings:
 
   * :code:`*` - any IPv4 or IPv6 hostname
@@ -552,6 +744,14 @@ server-host
 server-port
 -----------
 
+  =============== =================================
+  **Type**        Int
+  **Default**     3000
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_PORT
+  **In-Database** `n/a`
+  =============== =================================
+
   The TCP port to bind the web server.
 
 .. _server-trace-header:
@@ -559,12 +759,28 @@ server-port
 server-trace-header
 -------------------
 
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  Y
+  **Environment** PGRST_SERVER_TRACE_HEADER
+  **In-Database** pgrst.server_trace_header
+  =============== =================================
+
   The header name used to trace HTTP requests. See :ref:`trace_header`.
 
 .. _server-unix-socket:
 
 server-unix-socket
 ------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     `n/a`
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_UNIX_SOCKET
+  **In-Database** `n/a`
+  =============== =================================
 
   `Unix domain socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ where to bind the PostgREST web server.
   If specified, this takes precedence over :ref:`server-port`. Example:
@@ -577,6 +793,14 @@ server-unix-socket
 
 server-unix-socket-mode
 -----------------------
+
+  =============== =================================
+  **Type**        String
+  **Default**     660
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_UNIX_SOCKET_MODE
+  **In-Database** `n/a`
+  =============== =================================
 
   `Unix file mode <https://en.wikipedia.org/wiki/File_system_permissions>`_ to be set for the socket specified in :ref:`server-unix-socket`
   Needs to be a valid octal between 600 and 777.

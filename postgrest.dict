@@ -17,7 +17,8 @@ cd
 centric
 changelog
 coercible
-Cloudfare
+conf
+Cloudflare
 config
 CORS
 CPUs
@@ -124,6 +125,7 @@ postgrest
 PostgREST's
 pre
 preflight
+plpgsql
 psql
 Qin
 RabbitMQ

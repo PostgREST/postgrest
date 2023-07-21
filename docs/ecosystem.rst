@@ -18,7 +18,7 @@ Community Tutorials
 
 * `REST Data Service on YugabyteDB / PostgreSQL <https://dev.to/yugabyte/rest-data-service-on-yugabytedb-postgresql-5f2h>`_
 
-* `Build data-driven applications with Workers and PostgreSQL <https://developers.cloudflare.com/workers/tutorials/postgres/>`_ - A tutorial on how to integrate with PostgREST and PostgreSQL using Cloudfare Workers.
+* `Build data-driven applications with Workers and PostgreSQL <https://developers.cloudflare.com/workers/tutorials/postgres/>`_ - A tutorial on how to integrate with PostgREST and PostgreSQL using Cloudflare Workers.
 
 .. _templates:
 

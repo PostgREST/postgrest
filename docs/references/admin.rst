@@ -220,6 +220,34 @@ The other available parameters are ``analyze``, ``verbose``, ``settings``, ``buf
 
 Note that akin to the EXPLAIN command, the changes will be committed when using the ``analyze`` option. To avoid this, you can use the :ref:`db-tx-end` and the ``Prefer: tx=rollback`` header.
 
+Securing the Execution Plan
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It's recommended to only activate :ref:`db-plan-enabled` on testing environments since it reveals internal database details.
+However, if you choose to use it in production you can add a :ref:`db-pre-request` to filter the requests that can use this feature.
+
+For example, to only allow requests from an IP address to get the execution plans:
+
+.. code-block:: postgresql
+
+ -- Assuming a proxy(Nginx, Cloudflare, etc) passes an "X-Forwarded-For" header(https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
+ create or replace function filter_plan_requests()
+ returns void as $$
+ declare
+   headers   json := current_setting('request.headers', true)::json;
+   client_ip text := coalesce(headers->>'x-forwarded-for', '');
+   accept    text := coalesce(headers->>'accept', '');
+ begin
+   if accept like 'application/vnd.pgrst.plan%' and client_ip != '144.96.121.73' then
+     raise insufficient_privilege using
+       message = 'Not allowed to use application/vnd.pgrst.plan';
+   end if;
+ end; $$ language plpgsql;
+
+ -- set this function on your postgrest.conf
+ -- db-pre-request = filter_plan_requests
+
+
 .. _health_check:
 
 Health Check
