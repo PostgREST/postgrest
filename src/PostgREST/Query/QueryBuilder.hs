@@ -171,7 +171,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
     fromCall = case params of
       OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty False (ppType p) Nothing Nothing) <$> prms) False True False <> ", " <>
+      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty False (ppTypeMaxLength p) Nothing Nothing) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet

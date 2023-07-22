@@ -3329,3 +3329,13 @@ create table tournaments(
   id bigint primary key,
   status bigint references status(id)
 );
+
+create or replace function char_param(char_ char(4), char_arr char(4)[])
+returns table(char_ char, char_arr char[]) as $$
+  select $1, $2;
+$$ language sql;
+
+create or replace function bit_param(bit_ char(4), bit_arr char(4)[])
+returns table(bit_ char, bit_arr char[]) as $$
+  select $1, $2;
+$$ language sql;

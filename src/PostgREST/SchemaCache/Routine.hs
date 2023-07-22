@@ -69,10 +69,11 @@ instance JSON.ToJSON Routine where
     ]
 
 data RoutineParam = RoutineParam
-  { ppName :: Text
-  , ppType :: Text
-  , ppReq  :: Bool
-  , ppVar  :: Bool
+  { ppName          :: Text
+  , ppType          :: Text
+  , ppTypeMaxLength :: Text
+  , ppReq           :: Bool
+  , ppVar           :: Bool
   }
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
 

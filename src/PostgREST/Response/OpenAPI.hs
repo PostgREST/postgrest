@@ -154,7 +154,7 @@ makeProcSchema pd =
   & required .~ fmap ppName (filter ppReq (pdParams pd))
 
 makeProcProperty :: RoutineParam -> (Text, Referenced Schema)
-makeProcProperty (RoutineParam n t _ _) = (n, Inline s)
+makeProcProperty (RoutineParam n t _ _ _) = (n, Inline s)
   where
     s = (mempty :: Schema)
           & type_ .~ toSwaggerType t
@@ -181,7 +181,7 @@ makePreferParam ts =
       _            -> []
 
 makeProcGetParam :: RoutineParam -> Referenced Param
-makeProcGetParam (RoutineParam n t r v) =
+makeProcGetParam (RoutineParam n t _ r v) =
   Inline $ (mempty :: Param)
     & name .~ n
     & required ?~ r

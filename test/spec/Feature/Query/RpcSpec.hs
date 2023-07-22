@@ -1447,3 +1447,15 @@ spec actualPgVersion =
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
+
+    -- https://github.com/PostgREST/postgrest/issues/1586#issuecomment-696345442
+    context "a proc with bit and char parameters" $ do
+      it "modifies the param type from character to character varying" $ do
+        get "/rpc/char_param?char_=abcdefg&char_arr={abc,abcdefg}" `shouldRespondWith`
+          [json| [{ "char_": "abcdefg", "char_arr": [ "abc", "abcdefg" ] }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "modifies the param type from bit to bit varying" $ do
+        get "/rpc/bit_param?bit_=101010&bit_arr={101,101010}" `shouldRespondWith`
+          [json| [{ "bit_": "101010", "bit_arr": [ "101", "101010" ] }] |]
+          { matchHeaders = [matchContentTypeJson] }

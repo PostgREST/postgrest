@@ -259,6 +259,7 @@ decodeFuncs =
                   (RoutineParam
                   <$> compositeField HD.text
                   <*> compositeField HD.text
+                  <*> compositeField HD.text
                   <*> compositeField HD.bool
                   <*> compositeField HD.bool)
               <*> (parseRetType
@@ -367,6 +368,13 @@ funcsSqlQuery pgVer = [q|
       array_agg((
         COALESCE(name, ''), -- name
         type::regtype::text, -- type
+        CASE type
+          WHEN 'bit'::regtype THEN 'bit varying'
+          WHEN 'bit[]'::regtype THEN 'bit varying[]'
+          WHEN 'character'::regtype THEN 'character varying'
+          WHEN 'character[]'::regtype THEN 'character varying[]'
+          ELSE type::regtype::text
+        END, -- convert types that ignore the lenth and accept any value till maximum size
         idx <= (pronargs - pronargdefaults), -- is_required
         COALESCE(mode = 'v', FALSE) -- is_variadic
       ) ORDER BY idx) AS args,
