@@ -33,6 +33,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2861, Fix character and bit columns with fixed length not inserting/updating properly - @laurenceisla
    + Fixes the error "value too long for type character(1)" when the char length of the column was bigger than one.
  - #2862, Fix null filtering on embedded resource when using a column name equal to the relation name - @steve-chave
+ - #2861, Fix function parameters of type character and bit not ignoring length - @laurenceisla
+   + Fixes the error "value too long for type character(1)" when the char length of the parameter was bigger than one.
 
 ## [11.1.0] - 2023-06-07
 
