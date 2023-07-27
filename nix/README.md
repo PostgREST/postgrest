@@ -5,24 +5,14 @@ for developing, testing and building PostgREST.
 
 ## Getting started with Nix
 
-You'll need to [get Nix](https://nixos.org/download.html). The installer will
-create your Nix store in the `/nix/` directory, where all build artifacts and
-their dependencies will be stored. It will also link the Nix executables like
-`nix-env`, `nix-build` and `nix-shell` into your PATH. Nix will manage all
-other PostgREST dependencies from here on out. To clean up older build
-artifacts from the `/nix/store`, you can run `nix-collect-garbage`.
-
-If you are on a system that does not support nix, for example Windows, you can
-run the nix development environment in a docker container. Inside the `nix/`
-directory run `docker-compose run --rm nix` to start the docker container. This
-will set up the binary cache and launch `nix-shell` automatically.
+You'll need to [get Nix](https://nixos.org/download.html). Follow the recommended installation for your operating system from the official download website.
 
 ## Building PostgREST
 
 To build PostgREST from your local checkout of the repository, run:
 
 ```bash
-nix-build --attr postgrestPackage
+$ nix-build --attr postgrestPackage
 
 ```
 
@@ -39,10 +29,10 @@ We recommend that you use the PostgREST binary cache on
 
 ```bash
 # Install cachix:
-nix-env -iA cachix -f https://cachix.org/api/v1/install
+$ nix-env -iA cachix -f https://cachix.org/api/v1/install
 
 # Set cachix up to use the PostgREST binary cache:
-cachix use postgrest
+$ cachix use postgrest
 
 ```
 
@@ -56,7 +46,7 @@ following command will put you into a new shell that has GHC and Cabal on the
 PATH:
 
 ```bash
-nix-shell
+$ nix-shell
 
 ```
 
@@ -146,10 +136,10 @@ Note: Once inside nix-shell, the utilities work from any directory inside
 the PostgREST repo. Paths are resolved relative to the repo root:
 
 ```bash
-$ cd src
+[nix-shell]$ cd src
 # Even though the current directory is ./src, the config path must still start
 # from the repo root:
-$ postgrest-run test/io/configs/simple.conf
+[nix-shell]$ postgrest-run test/io/configs/simple.conf
 ```
 
 ## Testing
@@ -177,21 +167,21 @@ run with `postgrest-test-io`. The test runner under the hood is
 
 ```bash
 # Filter the tests to run by name, including all that contain 'config':
-postgrest-test-io -k config
+[nix-shell]$ postgrest-test-io -k config
 
 # Run tests in parallel using xdist, specifying the number of processes:
-postgrest-test-io -n auto
-postgrest-test-io -n 8
+[nix-shell]$ postgrest-test-io -n auto
+[nix-shell]$ postgrest-test-io -n 8
 ```
 
 The memory tests check that we don't surpass a memory threshold for big request bodies.
 
 ```bash
 # Build the dependencies needed for the memory test
-nix-shell --arg memory true
+$ nix-shell --arg memory true
 
 # Run the memory test
-postgrest-test-memory
+[nix-shell]$ postgrest-test-memory
 ```
 
 The loadtests ensure that performance doesn't drop on a change. Underlyingly they use
@@ -199,25 +189,25 @@ The loadtests ensure that performance doesn't drop on a change. Underlyingly the
 
 ```bash
 # Run the loadtests on the latest commit(HEAD)
-postgrest-loadtest
+[nix-shell]$ postgrest-loadtest
 
 # You can loadtest comparing to a different branch
-postgrest-loadtest-against master
+[nix-shell]$ postgrest-loadtest-against master
 
 # You can simulate latency client/postgrest and postgrest/database
-PGRST_DELAY=5ms PGDELAY=5ms postgrest-loadtest
+[nix-shell]$ PGRST_DELAY=5ms PGDELAY=5ms postgrest-loadtest
 
 # You can build postgrest directly with cabal for faster iteration
-PGRST_BUILD_CABAL=1 postgrest-loadtest
+[nix-shell]$ PGRST_BUILD_CABAL=1 postgrest-loadtest
 
 # Produce a markdown report to be used on CI
-postgrest-loadtest-report
+[nix-shell]$ postgrest-loadtest-report
 ```
 
 doctests for some of our modules are also available:
 
 ```bash
-postgrest-test-doctest
+[nix-shell]$ postgrest-test-doctest
 ```
 
 ## Code coverage
@@ -226,11 +216,11 @@ Code coverage is available under the `postgrest-coverage` command. This will pro
 
 ```bash
 # Will run all the tests and produce a coverage dir
-postgrest-coverage
+[nix-shell]$ postgrest-coverage
 
 # Visualize the output
-cd coverage
-python -mSimpleHTTPServer 8080
+[nix-shell]$ cd coverage
+[nix-shell]$ python -mSimpleHTTPServer 8080
 ```
 
 ## Linting and styling code
