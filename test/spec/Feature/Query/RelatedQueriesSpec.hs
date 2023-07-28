@@ -233,24 +233,26 @@ spec = describe "related queries" $ do
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "only works with is null or is not null operators" $
-      get "/projects?select=name,clients(*)&clients=eq.3" `shouldRespondWith`
-        [json|{
-          "code":"PGRST120",
-          "details":"Only is null or not is null filters are allowed on embedded resources",
-          "hint":null,
-          "message":"Bad operator on the 'clients' embedded resource"
-        }|]
-        { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
-        }
-
     it "doesn't interfere filtering when embedding using the column name" $
       get "/projects?select=name,client_id,client:client_id(name)&client_id=eq.2" `shouldRespondWith`
         [json|[
           {"name":"IOS","client_id":2,"client":{"name":"Apple"}},
           {"name":"OSX","client_id":2,"client":{"name":"Apple"}}
         ]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "doesn't interfere filtering on column names used for disambiguation" $
+      get "/user_friend?select=*,user1(*)&user1=eq.a02fb934-3a4d-469b-a6b6-4fcd88b973cf" `shouldRespondWith`
+        [json|[]|]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "doesn't interfere filtering on column names that are the same as the relation name" $
+      get "/tournaments?select=*,status(*)&status=eq.3" `shouldRespondWith`
+        [json|[]|]
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
