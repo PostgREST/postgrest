@@ -3308,3 +3308,24 @@ CREATE TABLE bitchar_with_length (
   bit bit(5),
   char char(5)
 );
+
+--- https://github.com/PostgREST/postgrest/issues/2862
+create table profiles (
+  id uuid primary key,
+  username text null
+);
+
+create table user_friend (
+  id bigint primary key,
+  user1 uuid references profiles (id),
+  user2 uuid references profiles (id)
+);
+
+create table status(
+  id bigint primary key
+);
+
+create table tournaments(
+  id bigint primary key,
+  status bigint references status(id)
+);

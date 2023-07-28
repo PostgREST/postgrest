@@ -567,6 +567,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
+-- (It doesn't err but uses an Either ApiRequestError type so it can combine with the other functions that modify the read plan tree)
+--
 -- Setup:
 --
 -- >>> let nullOp    = OpExpr True (Is TriNull)
@@ -628,11 +630,6 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nonNullOp subForestPlan)
 -- Right [CoercibleStmnt (CoercibleFilterNullEmbed False "clients_projects_1")]
---
--- It fails if operators other than is.null or not.is.null on the embedding are used.
---
--- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree notEqOp subForestPlan)
--- Left (UnacceptableFilter "projects")
 addNullEmbedFilters :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
   let forestReadPlans = rootLabel <$> forest
@@ -647,7 +644,6 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
           (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
-          (Just ReadPlan{relName}, _)                         -> Left $ UnacceptableFilter relName
           _                                                   -> Right flt
       flt@(CoercibleStmnt _) ->
         Right flt
