@@ -3332,6 +3332,7 @@ CREATE TABLE bitchar_with_length (
   char_arr char(5)[]
 );
 
+-- https://github.com/PostgREST/postgrest/issues/1586
 create or replace function char_param_select(char_ char(4), char_arr char(4)[])
 returns table(char_ char, char_arr char[]) as $$
   select $1, $2;
