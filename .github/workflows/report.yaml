@@ -22,7 +22,7 @@ jobs:
           name: loadtest.md
           path: artifacts
       - name: Upload to GitHub Checks
-        uses: LouisBrunner/checks-action@v1.6.1
+        uses: LouisBrunner/checks-action@v1.6.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sha: ${{ github.event.workflow_run.head_sha }}
