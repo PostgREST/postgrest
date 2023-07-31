@@ -3303,12 +3303,6 @@ create table bets (
 create index bets_data_json  on bets ((data_json  ->>'contractId'));
 create index bets_data_jsonb on bets ((data_jsonb ->>'contractId'));
 
--- https://github.com/PostgREST/postgrest/issues/2861
-CREATE TABLE bitchar_with_length (
-  bit bit(5),
-  char char(5)
-);
-
 --- https://github.com/PostgREST/postgrest/issues/2862
 create table profiles (
   id uuid primary key,
@@ -3329,3 +3323,32 @@ create table tournaments(
   id bigint primary key,
   status bigint references status(id)
 );
+
+-- https://github.com/PostgREST/postgrest/issues/2861
+CREATE TABLE bitchar_with_length (
+  bit bit(5),
+  char char(5),
+  bit_arr bit(5)[],
+  char_arr char(5)[]
+);
+
+-- https://github.com/PostgREST/postgrest/issues/1586
+create or replace function char_param_select(char_ char(4), char_arr char(4)[])
+returns table(char_ char, char_arr char[]) as $$
+  select $1, $2;
+$$ language sql;
+
+create or replace function bit_param_select(bit_ char(4), bit_arr char(4)[])
+returns table(bit_ char, bit_arr char[]) as $$
+  select $1, $2;
+$$ language sql;
+
+create or replace function char_param_insert(char_ char(4), char_arr char(4)[])
+returns void as $$
+  insert into bitchar_with_length(char, char_arr) values($1, $2);
+$$ language sql;
+
+create or replace function bit_param_insert(bit_ bit(4), bit_arr bit(4)[])
+returns void as $$
+insert into bitchar_with_length(bit, bit_arr) values($1, $2);
+$$ language sql;

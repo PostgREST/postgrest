@@ -1447,3 +1447,25 @@ spec actualPgVersion =
               { matchStatus  = 400
               , matchHeaders = [matchContentTypeJson]
               }
+
+    -- https://github.com/PostgREST/postgrest/issues/1586#issuecomment-696345442
+    context "a proc with bit and char parameters" $ do
+      it "modifies the param type from character to character varying" $ do
+        get "/rpc/char_param_select?char_=abcdefg&char_arr={abc,abcdefg}" `shouldRespondWith`
+          [json| [{ "char_": "abcdefg", "char_arr": [ "abc", "abcdefg" ] }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+        post "/rpc/char_param_insert" [json| { "char_": "abcdefg", "char_arr": "{abc,abcdefg}" } |]
+           `shouldRespondWith`
+             [json| {"code":"22001","details":null,"hint":null,"message":"value too long for type character(5)"} |]
+           { matchStatus = 400 }
+
+      it "modifies the param type from bit to bit varying" $ do
+        get "/rpc/bit_param_select?bit_=101010&bit_arr={101,101010}" `shouldRespondWith`
+          [json| [{ "bit_": "101010", "bit_arr": [ "101", "101010" ] }] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+        post "/rpc/bit_param_insert" [json| { "bit_": "101010", "bit_arr": "{101,101010}" } |]
+           `shouldRespondWith`
+             [json| {"code":"22026","details":null,"hint":null,"message":"bit string length 6 does not match type bit(5)"} |]
+           { matchStatus = 400 }
