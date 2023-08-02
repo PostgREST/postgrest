@@ -27,6 +27,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.Text.Encoding         as T
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
@@ -53,7 +54,7 @@ import PostgREST.Error               (Error)
 import PostgREST.Query               (DbHandler)
 import PostgREST.SchemaCache         (SchemaCache (..))
 import PostgREST.SchemaCache.Routine (Routine (..))
-import PostgREST.Version             (prettyVersion)
+import PostgREST.Version             (docsVersion, prettyVersion)
 
 import Protolude hiding (Handler)
 
@@ -199,7 +200,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       oaiResult <- runQuery roleIsoLvl Plan.inspectPlanTxMode $ Query.openApiQuery sCache pgVer conf tSchema
-      return $ Response.openApiResponse headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
+      return $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
 
     (ActionInfo, TargetIdent identifier) ->
       return $ Response.infoIdentResponse identifier sCache
