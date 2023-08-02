@@ -223,11 +223,11 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
 
-openApiResponse :: Bool -> Maybe (TablesMap, RoutineMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
-openApiResponse headersOnly body conf sCache schema negotiatedByProfile =
+openApiResponse :: (Text, Text) -> Bool -> Maybe (TablesMap, RoutineMap, Maybe Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Wai.Response
+openApiResponse versions headersOnly body conf sCache schema negotiatedByProfile =
   Wai.responseLBS HTTP.status200
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
-    (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode conf sCache x y z) body)
+    (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body)
 
 -- | Response with headers and status overridden from GUCs.
 gucResponse
