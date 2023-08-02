@@ -530,7 +530,7 @@ instance JSON.ToJSON Error where
   toJSON (SingularityError n) = JSON.object [
     "code"    .= ApiRequestErrorCode16,
     "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["Results contain", show n, "rows,", T.decodeUtf8 (MediaType.toMime MTSingularJSON), "requires 1 row"],
+    "details" .= T.unwords ["The result contains", show n, "rows"],
     "hint"    .= JSON.Null]
 
   toJSON (PgErr err) = JSON.toJSON err
