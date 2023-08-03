@@ -165,7 +165,7 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
-  "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call AS pgrst_scalar " else returnedColumns) <> " " <>
+  "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.val AS pgrst_scalar " else returnedColumns) <> " " <>
   fromCall
   where
     fromCall = case params of
@@ -176,6 +176,7 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
 
     callIt :: SQL.Snippet -> SQL.Snippet
     callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
+                    | returnsScalar || returnsSetOfScalar                                    = "(SELECT " <> fromQi qi <> "(" <> argument <> ") val) pgrst_call"
                     | otherwise                                                              = fromQi qi <> "(" <> argument <> ") pgrst_call"
 
     fmtParams :: [RoutineParam] -> SQL.Snippet
