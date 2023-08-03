@@ -475,6 +475,27 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|null|]
 
+      when (actualPgVersion >= pgVersion110) $ do
+        it "returns a record type" $ do
+          post "/rpc/returns_record"
+            ""
+           `shouldRespondWith`
+            [json|{"id":1,"name":"Windows 7","client_id":1}|]
+          post "/rpc/returns_record_params"
+            [json|{"id":1, "name": "Windows%"}|]
+           `shouldRespondWith`
+            [json|{"id":1,"name":"Windows 7","client_id":1}|]
+
+        it "returns a setof record type" $ do
+          post "/rpc/returns_setof_record"
+            ""
+           `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
+          post "/rpc/returns_setof_record_params"
+            [json|{"id":1,"name":"Windows%"}|]
+           `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
+
       context "different types when overloaded" $ do
         it "returns composite type" $
           post "/rpc/ret_point_overloaded"
@@ -1469,11 +1490,3 @@ spec actualPgVersion =
            `shouldRespondWith`
              [json| {"code":"22026","details":null,"hint":null,"message":"bit string length 6 does not match type bit(5)"} |]
            { matchStatus = 400 }
-
-      it "should work on a function that returns record" $
-        get "/rpc/record" `shouldRespondWith`
-          [json|{"id":1,"name":"Windows 7","client_id":1}|] {matchStatus = 200}
-
-      it "should work on a function that returns setof record" $
-        get "/rpc/setof_record" `shouldRespondWith`
-          [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|] {matchStatus = 200}
