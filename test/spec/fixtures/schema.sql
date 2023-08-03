@@ -3352,3 +3352,12 @@ create or replace function bit_param_insert(bit_ bit(4), bit_arr bit(4)[])
 returns void as $$
 insert into bitchar_with_length(bit, bit_arr) values($1, $2);
 $$ language sql;
+
+create function record() returns record as $$
+select * from projects limit 1;
+$$ language sql;
+
+
+create function setof_record() returns setof record as $$
+select * from projects limit 2;
+$$ language sql;

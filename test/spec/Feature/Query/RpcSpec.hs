@@ -1469,3 +1469,11 @@ spec actualPgVersion =
            `shouldRespondWith`
              [json| {"code":"22026","details":null,"hint":null,"message":"bit string length 6 does not match type bit(5)"} |]
            { matchStatus = 400 }
+
+      it "should work on a function that returns record" $
+        get "/rpc/record" `shouldRespondWith`
+          [json|{"id":1,"name":"Windows 7","client_id":1}|] {matchStatus = 200}
+
+      it "should work on a function that returns setof record" $
+        get "/rpc/setof_record" `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|] {matchStatus = 200}
