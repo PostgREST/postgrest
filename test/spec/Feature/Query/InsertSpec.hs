@@ -43,7 +43,8 @@ spec actualPgVersion = do
           , "enum": "foo"
           }] |] `shouldRespondWith` [json|[{"integer":14,"varchar":"testing!"}]|]
           { matchStatus  = 201
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [matchContentTypeJson
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "ignores &select when return not set or using return=minimal" $ do
@@ -69,7 +70,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus  = 201
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "return=minimal"]
             }
 
     context "non uniform json array" $ do
@@ -99,7 +101,8 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/1" ]
+                           , "Content-Range" <:> "*/1"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "can rename and cast the selected columns" $
@@ -110,7 +113,8 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/*" ]
+                           , "Content-Range" <:> "*/*"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "should not throw and return location header when selecting without PK" $
@@ -120,7 +124,8 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/*" ]
+                           , "Content-Range" <:> "*/*"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
     context "requesting headers only representation" $ do
@@ -133,7 +138,8 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/projects?id=eq.11"
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=headers-only"]
             }
 
       when (actualPgVersion >= pgVersion110) $
@@ -146,7 +152,8 @@ spec actualPgVersion = do
               { matchStatus  = 201
               , matchHeaders = [ matchHeaderAbsent hContentType
                                , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
-                               , "Content-Range" <:> "*/*" ]
+                               , "Content-Range" <:> "*/*"
+                               , "Preference-Applied" <:> "return=headers-only"]
               }
 
     context "requesting no representation" $
@@ -193,7 +200,8 @@ spec actualPgVersion = do
               ""
               { matchStatus  = 201
               , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Location" <:> "/auto_incrementing_pk?id=eq.2" ]
+                               , "Location" <:> "/auto_incrementing_pk?id=eq.2"
+                               , "Preference-Applied" <:> "return=headers-only"]
               }
 
       context "into a table with simple pk" $
@@ -227,7 +235,8 @@ spec actualPgVersion = do
             `shouldRespondWith`
               [json| [{ "a":"bar", "b":"baz" }] |]
               { matchStatus  = 201
-              , matchHeaders = [matchHeaderAbsent hLocation]
+              , matchHeaders = [matchHeaderAbsent hLocation
+                               , "Preference-Applied" <:> "return=representation"]
               }
 
         it "returns empty array when no items inserted, and return=rep" $ do
@@ -485,7 +494,7 @@ spec actualPgVersion = do
                   {"id": 6, "name": "Sechs", "field-with_sep": 6, "settings":null,"arr_data":[1,2,3]}
                 ]|]
                 { matchStatus  = 201
-                , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+                , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
                 }
 
         it "inserts view default values(field-with_sep) when json keys are undefined" $
@@ -500,7 +509,7 @@ spec actualPgVersion = do
                 {"id": 8, "name": "Default", "field-with_sep": 1, "settings":null,"arr_data":null}
               ]|]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         it "doesn't insert json duplicate keys(since it uses jsonb)" $
@@ -509,7 +518,7 @@ spec actualPgVersion = do
             `shouldRespondWith`
               [json| [ { "data": { "a": 2 }, "id": 3 } ] |]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
         when (actualPgVersion >= pgVersion100) $
@@ -519,7 +528,7 @@ spec actualPgVersion = do
               `shouldRespondWith`
                 [json| [{"data":{"foo": "bar"},"slug":"foo"}] |] -- id 1 was inserted here, we don't get it for idempotence in the tests
                 { matchStatus  = 201
-                , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+                , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
                 }
 
         when (actualPgVersion >= pgVersion120) $
@@ -551,7 +560,7 @@ spec actualPgVersion = do
             `shouldRespondWith`
               [json| [{"id": 666, "name": "Lu"}] |]
               { matchStatus  = 201
-              , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
     it "inserts json that has duplicate keys" $ do
@@ -719,7 +728,8 @@ spec actualPgVersion = do
         `shouldRespondWith`
           ""
           { matchStatus = 201
-          , matchHeaders = [matchHeaderAbsent hContentType]
+          , matchHeaders = [matchHeaderAbsent hContentType
+                           , "Preference-Applied" <:> "return=minimal"]
           }
 
   describe "Inserting into VIEWs" $ do
@@ -742,7 +752,8 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2"
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=headers-only"]
             }
 
     context "requesting header only representation" $ do
@@ -754,7 +765,8 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=headers-only"]
             }
 
       it "should not throw and return location header when a PK is null" $
@@ -765,8 +777,10 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=headers-only"]
             }
+
 
   -- Data representations for payload parsing requires Postgres 10 or above.
   when (actualPgVersion >= pgVersion100) $ do
@@ -782,7 +796,8 @@ spec actualPgVersion = do
               { matchStatus  = 201
               , matchHeaders = [ matchHeaderAbsent hContentType
                                , "Location" <:> "/datarep_todos?id=eq.5"
-                               , "Content-Range" <:> "*/*" ]
+                               , "Content-Range" <:> "*/*"
+                               , "Preference-Applied" <:> "return=headers-only"]
               }
 
         it "parses values in POST body and formats individually selected values in return=representation" $
@@ -836,7 +851,8 @@ spec actualPgVersion = do
               { matchStatus  = 201
               , matchHeaders = [ matchHeaderAbsent hContentType
                                , "Location" <:> "/datarep_todos_computed?id=eq.5"
-                               , "Content-Range" <:> "*/*" ]
+                               , "Content-Range" <:> "*/*"
+                               , "Preference-Applied" <:> "return=headers-only"]
               }
 
         it "parses values in POST body and formats individually selected values in return=representation" $

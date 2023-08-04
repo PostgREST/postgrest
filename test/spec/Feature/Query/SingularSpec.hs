@@ -61,7 +61,8 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "return=minimal"]
             }
 
       it "raises an error for multiple rows" $ do
@@ -133,7 +134,8 @@ spec =
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=minimal"]
             }
 
       it "raises an error when attempting to create multiple entities" $ do

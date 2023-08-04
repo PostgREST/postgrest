@@ -41,7 +41,7 @@ import Protolude
 data Preferences
   = Preferences
     { preferResolution     :: Maybe PreferResolution
-    , preferRepresentation :: PreferRepresentation
+    , preferRepresentation :: Maybe PreferRepresentation
     , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
@@ -56,7 +56,7 @@ data Preferences
 -- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates, count=exact")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
---     , preferRepresentation = None
+--     , preferRepresentation = Nothing
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
@@ -68,7 +68,7 @@ data Preferences
 -- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
---     , preferRepresentation = None
+--     , preferRepresentation = Nothing
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
@@ -100,7 +100,7 @@ data Preferences
 -- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default")]
 -- Preferences
 --     { preferResolution = Nothing
---     , preferRepresentation = Full
+--     , preferRepresentation = Just Full
 --     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
@@ -110,12 +110,12 @@ data Preferences
 fromHeaders :: [HTTP.Header] -> Preferences
 fromHeaders headers =
   Preferences
-    { preferResolution = parsePrefs [MergeDuplicates, IgnoreDuplicates]
-    , preferRepresentation = fromMaybe None $ parsePrefs [Full, None, HeadersOnly]
-    , preferParameters = parsePrefs [SingleObject]
-    , preferCount = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction = parsePrefs [Commit, Rollback]
-    , preferMissing = parsePrefs [ApplyDefaults, ApplyNulls]
+    { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
+    , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
+    , preferParameters     = parsePrefs [SingleObject]
+    , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
+    , preferTransaction    = parsePrefs [Commit, Rollback]
+    , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     }
   where
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
@@ -167,6 +167,8 @@ data PreferRepresentation
   | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
   | None        -- ^ Return nothing from the mutated data.
   deriving Eq
+
+instance ToAppliedHeader PreferRepresentation
 
 instance ToHeaderValue PreferRepresentation where
   toHeaderValue Full        = "return=representation"

@@ -75,7 +75,7 @@ spec actualPgVersion = do
           `shouldRespondWith` "[]"
           {
             matchStatus  = 200,
-            matchHeaders = []
+            matchHeaders = ["Preference-Applied" <:> "return=representation"]
           }
 
       it "returns status code 200 when no rows updated" $
@@ -88,7 +88,8 @@ spec actualPgVersion = do
           [("Prefer", "return=representation")] [json| { "id":2 } |]
           `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200,
-            matchHeaders = ["Content-Range" <:> "0-0/*"]
+            matchHeaders = ["Content-Range" <:> "0-0/*"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "can update multiple items" $ do
@@ -137,7 +138,9 @@ spec actualPgVersion = do
             [json| { id: 100 } |]
             `shouldRespondWith` [json| [{ id: 100 }] |]
             { matchStatus  = 200,
-              matchHeaders = [matchContentTypeJson, "Content-Range" <:> "0-0/*"]
+              matchHeaders = [matchContentTypeJson
+                             ,"Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
             }
 
         it "returns empty array when no rows updated and return=rep" $
@@ -147,7 +150,7 @@ spec actualPgVersion = do
             [json| { id: 100 } |]
             `shouldRespondWith` "[]"
             { matchStatus  = 200,
-              matchHeaders = []
+              matchHeaders = ["Preference-Applied" <:> "return=representation"]
             }
 
       context "with representation requested" $ do
@@ -159,7 +162,9 @@ spec actualPgVersion = do
             [("Prefer", "return=representation")]
             [json| { id: 99 } |]
             `shouldRespondWith` [json| [{id:99}] |]
-            { matchHeaders = [matchContentTypeJson] }
+            { matchHeaders = [matchContentTypeJson
+                             , "Preference-Applied" <:> "return=representation"]
+            }
           -- put value back for other tests
           void $ request methodPatch "/items?id=eq.99" [] [json| { "id":1 } |]
 
@@ -169,7 +174,9 @@ spec actualPgVersion = do
             [("Prefer", "return=representation")]
             [json| { id: 1 } |]
             `shouldRespondWith` [json| [{ id: 1, always_true: true }] |]
-            { matchHeaders = [matchContentTypeJson] }
+            { matchHeaders = [matchContentTypeJson
+                             , "Preference-Applied" <:> "return=representation"]
+            }
 
         it "can select overloaded computed columns" $ do
           request methodPatch
@@ -177,22 +184,28 @@ spec actualPgVersion = do
             [("Prefer", "return=representation")]
             [json| { id: 1 } |]
             `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
-            { matchHeaders = [matchContentTypeJson] }
+            { matchHeaders = [matchContentTypeJson
+                             , "Preference-Applied" <:> "return=representation"]
+            }
           request methodPatch
             "/items2?id=eq.1&select=id,computed_overload"
             [("Prefer", "return=representation")]
             [json| { id: 1 } |]
             `shouldRespondWith` [json| [{ id: 1, computed_overload: true }] |]
-            { matchHeaders = [matchContentTypeJson] }
+            { matchHeaders = [matchContentTypeJson
+                             , "Preference-Applied" <:> "return=representation"]
+            }
 
       it "ignores ?select= when return not set or return=minimal" $ do
         request methodPatch "/items?id=eq.1&select=id"
-            [] [json| { id:1 } |]
+           [("Prefer", "return=minimal")]
+           [json| { id:1 } |]
           `shouldRespondWith`
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "0-0/*" ]
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=minimal"]
             }
         request methodPatch "/items?id=eq.1&select=id"
             [("Prefer", "return=minimal")]
@@ -201,7 +214,8 @@ spec actualPgVersion = do
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "0-0/*" ]
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=minimal"]
             }
 
       context "when patching with an empty body" $ do
@@ -272,7 +286,8 @@ spec actualPgVersion = do
             `shouldRespondWith` "[]"
             {
               matchStatus  = 200,
-              matchHeaders = ["Content-Range" <:> "*/*"]
+              matchHeaders = ["Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=representation"]
             }
 
         it "makes no updates and returns 200 with return=rep and with ?select=" $
@@ -280,7 +295,8 @@ spec actualPgVersion = do
             `shouldRespondWith` "[]"
             {
               matchStatus  = 200,
-              matchHeaders = ["Content-Range" <:> "*/*"]
+              matchHeaders = ["Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=representation"]
             }
 
         it "makes no updates and returns 200 with return=rep and with ?select= for overloaded computed columns" $
@@ -288,7 +304,8 @@ spec actualPgVersion = do
             `shouldRespondWith` "[]"
             {
               matchStatus  = 200,
-              matchHeaders = ["Content-Range" <:> "*/*"]
+              matchHeaders = ["Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=representation"]
             }
 
     context "with unicode values" $
@@ -343,7 +360,7 @@ spec actualPgVersion = do
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
             }
 
         it "updates with limit/offset using table default values(field-with_sep) when json keys are undefined" $ do
@@ -355,7 +372,7 @@ spec actualPgVersion = do
               {"id":3,"name":"Tres"}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
             }
 
         it "updates table default values(field-with_sep) when json keys are undefined" $ do
@@ -367,7 +384,7 @@ spec actualPgVersion = do
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
             }
 
         it "updates view default values(field-with_sep) when json keys are undefined" $
@@ -381,7 +398,7 @@ spec actualPgVersion = do
               {"id":3,"name":"Default","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":null,"field-with_sep":3}
             ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default"]
+            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
             }
 
     -- https://github.com/PostgREST/postgrest/issues/2861
@@ -391,14 +408,18 @@ spec actualPgVersion = do
             [("Prefer", "return=representation")]
             [json|{"bit": "11100"}|]
           `shouldRespondWith` [json|[{ "bit": "11100", "char": "aaaaa" }]|]
-            { matchStatus  = 200 }
+            { matchStatus  = 200
+            , matchHeaders = ["Preference-Applied" <:> "return=representation"]
+            }
 
       it "should update a char column with length" $
         request methodPatch "/bitchar_with_length?select=bit,char&bit=eq.00000"
             [("Prefer", "return=representation")]
             [json|{"char": "zzzyy"}|]
           `shouldRespondWith` [json|[{ "bit": "00000", "char": "zzzyy" }]|]
-            { matchStatus  = 200 }
+            { matchStatus  = 200
+            , matchHeaders = ["Preference-Applied" <:> "return=representation"]
+            }
 
   context "tables with self reference foreign keys" $ do
     context "embeds children after update" $ do
@@ -410,8 +431,8 @@ spec actualPgVersion = do
           [json|
             [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
           |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
       it "with filters" $
@@ -422,8 +443,8 @@ spec actualPgVersion = do
           [json|
             [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" } ]} ]
           |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
     context "embeds parent, children and grandchildren after update" $ do
@@ -444,8 +465,8 @@ spec actualPgVersion = do
               ]
             }
           ] |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
       it "with filters" $
@@ -464,8 +485,8 @@ spec actualPgVersion = do
               ]
             }
           ] |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
     context "embeds children after update without explicitly including the id in the ?select" $ do
@@ -477,8 +498,8 @@ spec actualPgVersion = do
           [json|
             [ { "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
           |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
       it "with filters" $
@@ -489,8 +510,8 @@ spec actualPgVersion = do
           [json|
             [ { "name": "tardis-patched", "web_content": [ { "name": "bar" } ]} ]
           |]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
   context "tables with foreign keys referencing other tables" $ do
@@ -511,8 +532,8 @@ spec actualPgVersion = do
               ]
             }
           ]|]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
       it "with filters" $
@@ -529,8 +550,8 @@ spec actualPgVersion = do
               ]
             }
           ]|]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
 
@@ -546,8 +567,8 @@ spec actualPgVersion = do
               "students_info":{"address":"Street 1"}
             }
           ]|]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
         request methodPatch "/students_info?id=eq.1&select=address,students(name)"
                 [("Prefer", "return=representation")]
@@ -559,8 +580,8 @@ spec actualPgVersion = do
               "students":{"name": "John Doe"}
             }
           ]|]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
       it "with filters" $ do
@@ -574,8 +595,8 @@ spec actualPgVersion = do
               "students_info": null
             }
           ]|]
-          { matchStatus  = 200,
-            matchHeaders = [matchContentTypeJson]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
   context "table with limited privileges" $ do
@@ -586,7 +607,8 @@ spec actualPgVersion = do
         `shouldRespondWith`
           ""
           { matchStatus = 204
-          , matchHeaders = [matchHeaderAbsent hContentType]
+          , matchHeaders = [matchHeaderAbsent hContentType
+                           , "Preference-Applied" <:> "return=minimal"]
           }
 
     it "can update without return=minimal and no explicit select" $
@@ -773,7 +795,7 @@ spec actualPgVersion = do
             ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "0-0/*" ]
+                               , "Content-Range" <:> "0-0/*"]
               }
 
         it "parses values in payload and formats individually selected values in return=representation" $
@@ -782,8 +804,9 @@ spec actualPgVersion = do
             `shouldRespondWith`
             [json| [{"id":2, "label_color": "#221100"}] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-0/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
 
         it "parses values in payload and formats values in return=representation" $
@@ -792,8 +815,9 @@ spec actualPgVersion = do
             `shouldRespondWith`
             [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-0/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
 
         it "parses values in payload and formats star mixed selected values in return=representation" $
@@ -803,8 +827,9 @@ spec actualPgVersion = do
             -- end up with due_at twice here but that's unrelated to data reps
             [json| [{"due_at":"2019-01-03T11:00:00Z","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-0/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
       context "for multiple rows" $ do
         it "parses values in payload and formats individually selected values in return=representation" $
@@ -817,8 +842,9 @@ spec actualPgVersion = do
               {"id":3, "name": "Algebra", "label_color": "#221100"}
             ] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-2/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-2/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
 
         it "parses values in payload and formats values in return=representation" $
@@ -831,8 +857,9 @@ spec actualPgVersion = do
               {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
             ] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-2/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-2/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
       context "with ?columns parameter" $ do
         it "ignores json keys not included in ?columns; parses only the ones specified" $
@@ -843,8 +870,9 @@ spec actualPgVersion = do
                {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
             ] |]
               { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                "Content-Range" <:> "0-0/*"]
+              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
               }
 
         it "fails if at least one specified column doesn't exist" $
@@ -878,8 +906,9 @@ spec actualPgVersion = do
               `shouldRespondWith`
               [json| [{"id":2, "label_color": "#221100"}] |]
                 { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                  "Content-Range" <:> "0-0/*"]
+                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
                 }
 
           it "parses values in payload and formats values in return=representation" $
@@ -888,8 +917,9 @@ spec actualPgVersion = do
               `shouldRespondWith`
               [json| [{"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:20Z"}] |]
                 { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                  "Content-Range" <:> "0-0/*"]
+                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
                 }
         context "for multiple rows" $ do
           it "parses values in payload and formats individually selected values in return=representation" $
@@ -902,8 +932,9 @@ spec actualPgVersion = do
                 {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880"}
               ] |]
                 { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                  "Content-Range" <:> "0-2/*"]
+                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-2/*"
+                               , "Preference-Applied" <:> "return=representation"]
                 }
 
           it "parses values in payload and formats values in return=representation" $
@@ -916,8 +947,9 @@ spec actualPgVersion = do
                 {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"}
               ] |]
                 { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                  "Content-Range" <:> "0-2/*"]
+                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-2/*"
+                               , "Preference-Applied" <:> "return=representation"]
                 }
         context "with ?columns parameter" $ do
           it "ignores json keys not included in ?columns; parses only the ones specified" $
@@ -928,8 +960,9 @@ spec actualPgVersion = do
                 {"id":2, "name": "Essay", "label_color": "#000100", "dark_color": "#000080", "due_at":"2019-01-03T11:00:00Z"}
               ] |]
                 { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                                  "Content-Range" <:> "0-0/*"]
+                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                               , "Content-Range" <:> "0-0/*"
+                               , "Preference-Applied" <:> "return=representation"]
                 }
 
           it "fails if at least one specified column doesn't exist" $

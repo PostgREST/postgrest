@@ -37,7 +37,8 @@ spec =
         request methodDelete "/items?id=eq.2" [("Prefer", "return=representation"), ("Prefer", "count=exact")] ""
           `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/1"]
+          , matchHeaders = ["Content-Range" <:> "*/1"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "ignores ?select= when return not set or return=minimal" $ do
@@ -57,7 +58,8 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=minimal"]
             }
 
       it "returns the deleted item and shapes the response" $
@@ -137,7 +139,8 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "return=minimal" ]
             }
 
       it "suceeds deleting the row with no explicit select by default" $

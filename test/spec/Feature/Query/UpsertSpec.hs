@@ -29,7 +29,7 @@ spec actualPgVersion =
               { "name": "C", "rank": 1 }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
         it "INSERTs and UPDATEs row on composite pk conflict" $
@@ -42,7 +42,7 @@ spec actualPgVersion =
               { "first_name": "Peter S.", "last_name": "Yang", "salary": "$42,000.00", "company": null, "occupation": null }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
         when (actualPgVersion >= pgVersion110) $
@@ -56,13 +56,14 @@ spec actualPgVersion =
                 { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
               ]|]
               { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "succeeds when the payload has no elements" $
           request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[]|] `shouldRespondWith`
-            [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+            [json|[]|] { matchStatus = 201
+                       , matchHeaders = [matchContentTypeJson] }
 
         it "INSERTs and UPDATEs rows on single unique key conflict" $
           request methodPost "/single_unique?on_conflict=unique_key" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
@@ -74,7 +75,7 @@ spec actualPgVersion =
               { "unique_key": 2, "value": "C" }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
         it "INSERTs and UPDATEs rows on compound unique keys conflict" $
@@ -87,7 +88,7 @@ spec actualPgVersion =
               { "key1": 1, "key2": 2, "value": "C" }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
       context "when Prefer: resolution=ignore-duplicates is specified" $ do
@@ -100,7 +101,7 @@ spec actualPgVersion =
               { "name": "PHP", "rank": 9 }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
             }
 
         it "INSERTs and ignores rows on composite pk conflict" $
@@ -112,7 +113,7 @@ spec actualPgVersion =
               { "first_name": "Sara M.", "last_name": "Torpey", "salary": "$60,000.00", "company": "Burstein-Applebee", "occupation": "Soil scientist" }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
             }
 
         when (actualPgVersion >= pgVersion110) $
@@ -125,7 +126,7 @@ spec actualPgVersion =
                 { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
               ]|]
               { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates", matchContentTypeJson]
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
               }
 
         it "INSERTs and ignores rows on single unique key conflict" $
@@ -142,7 +143,7 @@ spec actualPgVersion =
                 { "unique_key": 3, "value": "D" }
               ]|]
               { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
               }
 
         it "INSERTs and UPDATEs rows on compound unique keys conflict" $
@@ -159,7 +160,7 @@ spec actualPgVersion =
                 { "key1": 1, "key2": 3, "value": "D" }
               ]|]
               { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
               }
 
       it "succeeds if the table has only PK cols and no other cols" $ do
@@ -168,7 +169,7 @@ spec actualPgVersion =
           `shouldRespondWith`
           [json|[ { "id": 3} ]|]
           { matchStatus = 201 ,
-            matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates",
+            matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation",
             matchContentTypeJson] }
 
         request methodPost "/only_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
@@ -176,22 +177,30 @@ spec actualPgVersion =
           `shouldRespondWith`
           [json|[ { "id": 1 }, { "id": 2 }, { "id": 4} ]|]
           { matchStatus = 201 ,
-            matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates",
+            matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation",
             matchContentTypeJson] }
 
       it "succeeds and ignores the Prefer: resolution header(no Preference-Applied present) if the table has no PK" $
         request methodPost "/no_pk" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
           [json|[ { "a": "1", "b": "0" } ]|]
           `shouldRespondWith`
-          [json|[ { "a": "1", "b": "0" } ]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          [json|[ { "a": "1", "b": "0" } ]|]
+          { matchStatus = 201
+          , matchHeaders = [matchContentTypeJson
+                           , "Preference-Applied" <:> "return=representation"] }
 
       it "succeeds if not a single resource is created" $ do
         request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
           [json|[ { "name": "Java", "rank": 1 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          [json|[]|]
+          { matchStatus = 201
+          , matchHeaders = [matchContentTypeJson] }
+
         request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
           [json|[ { "name": "Java", "rank": 1 }, { "name": "C", "rank": 2 } ]|] `shouldRespondWith`
-          [json|[]|] { matchStatus = 201 , matchHeaders = [matchContentTypeJson] }
+          [json|[]|]
+          { matchStatus = 201
+          , matchHeaders = [matchContentTypeJson] }
 
     context "with PUT" $ do
       context "Restrictions" $ do
@@ -408,7 +417,7 @@ spec actualPgVersion =
               { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates"]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation"]
             }
 
       it "works with POST and ignore-duplicates headers" $ do
@@ -423,7 +432,7 @@ spec actualPgVersion =
               { "idUnitTest": 2, "nameUnitTest": "name of unittest 2" }
             ]|]
             { matchStatus = 201
-            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates"]
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation"]
             }
 
       it "works with PUT" $ do
@@ -433,6 +442,19 @@ spec actualPgVersion =
             ""
             { matchStatus = 204
             , matchHeaders = [matchHeaderAbsent hContentType]
+            }
+        get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
+          [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
+
+      it "works with request method PUT and return=minimal" $ do
+        request methodPut "/UnitTest?idUnitTest=eq.1"
+            [("Prefer", "return=minimal")]
+            [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
+          `shouldRespondWith`
+            ""
+            { matchStatus = 204
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , "Preference-Applied" <:> "return=minimal"]
             }
         get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
