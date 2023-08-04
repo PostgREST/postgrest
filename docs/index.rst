@@ -90,7 +90,7 @@ PostgREST has a focused scope. It works well with other tools like Nginx. This f
 Getting Support
 ----------------
 
-The project has a friendly and growing community. Join our `chat room <https://gitter.im/begriffs/postgrest>`_ for discussion and help. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
+The project has a friendly and growing community. For discussions, use the Github `discussions page <https://github.com/PostgREST/postgrest/discussions>`_ or join our `chat room <https://gitter.im/begriffs/postgrest>`_. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
 
 .. toctree::
    :glob:
