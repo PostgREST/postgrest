@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2647, Allow to verify the PostgREST version in SQL: `select distinct application_name from pg_stat_activity`. - @laurenceisla
  - #2856, Add the `--version` CLI option that prints the version information - @laurenceisla
  - #1655, Improve `details` field of the singular error response - @taimoorzaeem
+ - #740, Add `Preference-Applied` in response for `Prefer: return=representation/headers-only/minimal` - @taimoorzaeem
 
 ### Fixed
 

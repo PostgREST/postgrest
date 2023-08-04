@@ -54,7 +54,7 @@ data ResultSet
 
 
 prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> ResultAggregate ->
-                PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
+                Maybe PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
 prepareWrite selectQuery mutateQuery isInsert mt rAgg rep pKeys =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
@@ -70,7 +70,7 @@ prepareWrite selectQuery mutateQuery isInsert mt rAgg rep pKeys =
     "FROM (" <> selectF <> ") _postgrest_t"
 
   locF =
-    if isInsert && rep == HeadersOnly
+    if isInsert && rep == Just HeadersOnly
       then
         "CASE WHEN pg_catalog.count(_postgrest_t) = 1 " <>
           "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ") " <>

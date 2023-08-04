@@ -722,7 +722,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
     returnings =
-      if preferRepresentation == None
+      if preferRepresentation == Just None || isNothing preferRepresentation
         then []
         else inferColsEmbedNeeds readReq pkCols
     tbl = HM.lookup qi dbTables
@@ -866,7 +866,7 @@ mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Prefere
     MTPlan media      _ _ -> mediaToAggregate media binField apiReq
   where
     noAgg = case act of
-      ActionMutate _         -> rep == HeadersOnly || rep == None
+      ActionMutate _         -> rep == Just HeadersOnly || rep == Just None || isNothing rep
       ActionRead _isHead     -> _isHead -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
       ActionInvoke invMethod -> invMethod == InvHead
       _                      -> False

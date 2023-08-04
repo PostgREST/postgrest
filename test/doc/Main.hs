@@ -20,4 +20,5 @@ main =
     , "src/PostgREST/MediaType.hs"
     , "src/PostgREST/Config.hs"
     , "src/PostgREST/Plan.hs"
+    , "src/PostgREST/Response.hs"
     ]
