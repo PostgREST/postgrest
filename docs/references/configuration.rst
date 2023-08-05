@@ -480,17 +480,41 @@ db-uri
   **In-Database** `n/a`
   =============== =================================
 
-  The standard connection PostgreSQL `URI format <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_. Symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error.
+  The standard `PostgreSQL connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_, there are different ways to specify it:
 
-  If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+URI Format
+~~~~~~~~~~
 
-  Any parameter that is not set in the connection string is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
+  .. code::
 
-  The user with whom PostgREST connects to the database is also known as the ``authenticator`` role. For more information see :ref:`roles`.
+    "postgres://authenticator:mysecretpassword@localhost:5433/postgres?parameters=val"
 
-  When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <https://www.postgresql.org/docs/current/auth-peer.html>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
+  - Under this format symbols and unusual characters in the password or other fields should be percent encoded to avoid a parse error.
+  - If enforcing an SSL connection to the database is required you can use `sslmode <https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-SSLMODE-STATEMENTS>`_ in the URI, for example ``postgres://user:pass@host:5432/dbname?sslmode=require``.
+  - The user with whom PostgREST connects to the database is also known as the ``authenticator`` role. For more information see :ref:`roles`.
+  - When running PostgREST on the same machine as PostgreSQL, it is also possible to connect to the database using a `Unix socket <https://en.wikipedia.org/wiki/Unix_domain_socket>`_ and the `Peer Authentication method <https://www.postgresql.org/docs/current/auth-peer.html>`_ as an alternative to TCP/IP communication and authentication with a password, this also grants higher performance.  To do this you can omit the host and the password, e.g. ``postgres://user@/dbname``, see the `libpq connection string <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING>`_ documentation for more details.
+
+Keyword/Value Format
+~~~~~~~~~~~~~~~~~~~~
+
+  .. code::
+
+    "host=localhost port=5433 user=authenticator password=mysecretpassword dbname=postgres"
+
+LIBPQ Environment Variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+  .. code::
+
+    PGHOST=localhost PGPORT=5433 PGUSER=authenticator PGDATABASE=postgres
+
+  Any parameter that is not set in the above formats is read from `libpq environment variables <https://www.postgresql.org/docs/current/libpq-envars.html>`_. The default connection string is ``postgresql://``, which reads **all** parameters from the environment.
+
+External config file
+~~~~~~~~~~~~~~~~~~~~
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the connection string out of an external file.
+
 
 .. _db-use-legacy-gucs:
 
