@@ -1,6 +1,7 @@
 personal_ws-1.1 en 0 utf-8
 api
 API's
+APISIX
 Archlinux
 aud
 Auth
@@ -186,6 +187,7 @@ Upsert
 upsert
 uri
 url
+urlencoded
 urls
 variadic
 verifier
@@ -197,4 +199,5 @@ websearch
 Websockets
 webuser
 wfts
+www
 Zac
