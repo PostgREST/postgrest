@@ -693,33 +693,6 @@ HEAD
 A HEAD method will behave identically to GET except that no body will be returned (`RFC 2616 <https://datatracker.ietf.org/doc/html/rfc2616#section-9.4>`_) .
 As an optimization, the generated query won't execute an aggregate (to avoid unnecessary data transfer).
 
-.. _update:
-
-Update
-======
-
-To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    PATCH /people?age=lt.13 HTTP/1.1
-
-    { "category": "child" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?age=lt.13" \
-      -X PATCH -H "Content-Type: application/json" \
-      -d '{ "category": "child" }'
-
-Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
-
-.. warning::
-
-  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
-
 .. _insert:
 
 Insert
@@ -743,9 +716,76 @@ To create a row in a database table post a JSON object whose keys are the names 
       -X POST -H "Content-Type: application/json" \
       -d '{ "col1": "value1", "col2": "value2" }'
 
+.. code::
+
+  HTTP/1.1 201 Created
+
+No request body will be returned by default.
+
+.. note::
+
+   You can use the ``Prefer: return=minimal`` header to get the same behavior. This is only provided for completeness because it's basically a no-op.
+
+Prefer: return=headers-only
+---------------------------
+
 If the table has a primary key, the response can contain a :code:`Location` header describing where to find the new object by including the header :code:`Prefer: return=headers-only` in the request. Make sure that the table is not write-only, otherwise constructing the :code:`Location` header will cause a permissions error.
 
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /projects HTTP/1.1
+    Prefer: return=headers-only
+
+    {"id":33, "name": "x"}
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/projects" \
+      -X POST -H "Content-Type: application/json" -H "Prefer: return=headers-only" \
+      -d '{"id":33, "name": "x"}'
+
+.. code-block:: http
+
+  HTTP/1.1 201 Created
+  Location: /projects?id=eq.34
+
+Prefer: return=representation
+-----------------------------
+
 On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /projects HTTP/1.1
+    Content-Type: application/json; charset=utf-8
+    Prefer: return=representation
+
+    {"id":33, "name": "x"}
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/projects" \
+      -X POST -H "Content-Type: application/json" -H "Prefer: return=representation" \
+      -d '{"id":33, "name": "x"}'
+
+.. code::
+
+  HTTP/1.1 201 Created
+  Transfer-Encoding: chunked
+
+  [
+      {
+          "id": 33,
+          "name": "x"
+      }
+  ]
+
+x-www-form-urlencoded
+---------------------
 
 URL encoded payloads can be posted with ``Content-Type: application/x-www-form-urlencoded``.
 
@@ -951,6 +991,33 @@ In this case, only **source**, **publication_date** and **figure** will be inser
 
 Using this also has the side-effect of being more efficient for :ref:`bulk_insert` since PostgREST will not process the JSON and
 it'll send it directly to PostgreSQL.
+
+.. _update:
+
+Update
+======
+
+To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    PATCH /people?age=lt.13 HTTP/1.1
+
+    { "category": "child" }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?age=lt.13" \
+      -X PATCH -H "Content-Type: application/json" \
+      -d '{ "category": "child" }'
+
+Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+
+.. warning::
+
+  Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
 
 .. _upsert:
 
