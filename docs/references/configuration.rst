@@ -255,7 +255,7 @@ db-pre-config
   **In-Database** pgrst.db_pre_config
   =============== =======================
 
-   Name of the function that does in-database configuration.
+   Name of the function that does :ref:`in_db_config`.
 
 .. _db-extra-search-path:
 

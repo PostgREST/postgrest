@@ -105,3 +105,52 @@ You can only switch to a schema included in :ref:`db-schemas`. Using another sch
     "message":"The schema must be one of the following: tenant1, tenant2"
   }
 
+
+Dynamic schemas
+~~~~~~~~~~~~~~~
+
+To add schemas dynamically, you can use :ref:`in_db_config` plus :ref:`config reloading <config_reloading_notify>` and :ref:`schema cache reloading <schema_reloading_notify>`. Here are some options for how to do this:
+
+- If the schemas' names have a pattern, like a ``tenant_`` prefix, do:
+
+.. code-block:: postgresql
+
+  create or replace function postgrest.pre_config()
+  returns void as $$
+    select
+      set_config('pgrst.db_schemas', string_agg(nspname, ','), true)
+    from pg_namespace
+    where nspname like 'tenant_%';
+  $$ language sql;
+
+- If there's no name pattern but they're created with a particular role (``CREATE SCHEMA mine AUTHORIZATION joe``), do:
+
+.. code-block:: postgresql
+
+  create or replace function postgrest.pre_config()
+  returns void as $$
+    select
+      set_config('pgrst.db_schemas', string_agg(nspname, ','), true)
+    from pg_namespace
+    where nspowner = 'joe'::regrole;
+  $$ language sql;
+
+- Otherwise, you might need to create a table that stores the allowed schemas.
+
+.. code-block:: postgresql
+
+  create table postgrest.config (schemas text);
+
+  create or replace function postgrest.pre_config()
+  returns void as $$
+    select
+      set_config('pgrst.db_schemas', schemas, true)
+    from postgrest.config;
+  $$ language sql;
+
+Then each time you add an schema, do:
+
+.. code-block:: postgresql
+
+   NOTIFY pgrst, 'reload config';
+   NOTIFY pgrst, 'reload schema';
