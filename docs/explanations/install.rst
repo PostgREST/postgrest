@@ -55,6 +55,18 @@ You can also use your OS package manager.
       choco install postgrest
       scoop install postgrest
 
+
+.. _pg-dependency:
+
+Supported PostgreSQL versions
+=============================
+
+=============== =================================
+**Supported**   PostgreSQL >= 9.6
+=============== =================================
+
+PostgREST works with all PostgreSQL versions starting from 9.6.
+
 Running PostgREST
 =================
 
@@ -100,13 +112,6 @@ For a complete reference of the configuration file, see :ref:`configuration`.
   It usually lives in :code:`C:\Program Files\PostgreSQL\<version>\bin`. See this `article <https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/>`_ about how to modify the system path.
 
   To test that the system path is set correctly, run ``pg_config`` from the command line. You should see it output a list of paths.
-
-.. _pg-dependency:
-
-PostgreSQL dependency
----------------------
-
-To use PostgREST you will need an underlying database. We require PostgreSQL 9.6 or greater. You can use something like `Amazon RDS <https://aws.amazon.com/rds/>`_ but installing your own locally is cheaper and more convenient for development. You can also run PostgreSQL in a :ref:`docker container<pg-in-docker>`.
 
 Docker
 ======
