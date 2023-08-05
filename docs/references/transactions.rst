@@ -113,6 +113,10 @@ Request Headers, Cookies and JWT claims
 
 PostgREST stores the headers, cookies and headers as JSON. To get them:
 
+.. important::
+
+  The headers names are lowercased. e.g. If the request sends ``User-Agent: x`` this will be obtainable as ``current_setting('request.headers', true)::json->>'user-agent'``.
+
 .. code-block:: postgresql
 
   -- To get all the headers sent in the request
