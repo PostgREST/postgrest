@@ -5,19 +5,31 @@ Resource Embedding
 
 PostgREST allows including related resources in a single API call. This reduces the need for many API requests.
 
-**Foreign Keys** determine which tables and views can be returned together. For example, consider a database of films and their awards:
+.. _fk_join:
 
-.. image:: ../../_static/film.png
+Foreign Key Joins
+=================
+
+The server uses **Foreign Keys** to determine which tables and views can be joined together.
+
+- For joining tables, it reads foreign keys (respecting composite keys) and generates a join condition based on the foreign key columns.
+- For joining views, it reads the base tables of the views' definition, and generates a join condition based on the foreign key columns of the base tables.
 
 .. important::
 
-  - PostgREST respects composite foreign keys.
   - Whenever foreign keys change you must do :ref:`schema_reloading` for this feature to work.
+
+Relationships
+=============
+
+For example, consider a database of films and their awards:
+
+.. image:: ../../_static/film.png
 
 .. _many-to-one:
 
 Many-to-one relationships
-=========================
+-------------------------
 
 Since ``films`` has a **foreign key** to ``directors``, this establishes a many-to-one relationship. Thus, we're able to request all the films and the director for each film.
 
@@ -83,7 +95,7 @@ Since the table name is plural, we can be more accurate by making it singular wi
 .. _one-to-many:
 
 One-to-many relationships
-=========================
+-------------------------
 
 The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the “to-many” end.
 
@@ -120,7 +132,7 @@ The **foreign key reference** establishes the inverse one-to-many relationship. 
 .. _many-to-many:
 
 Many-to-many relationships
-==========================
+--------------------------
 
 The join table determines many-to-many relationships. It must contain foreign keys to other two tables and they must be part of its composite key.
 
@@ -168,7 +180,7 @@ For the many-to-many relationship between ``films`` and ``actors``, the join tab
 .. _one-to-one:
 
 One-to-one relationships
-========================
+------------------------
 
 One-to-one relationships are detected in two ways.
 
@@ -220,7 +232,7 @@ One-to-one relationships are detected in two ways.
 Computed Relationships
 ======================
 
-You can manually define relationships between resources using functions. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
+You can manually define relationships between using functions. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
 
 Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
@@ -325,13 +337,21 @@ Computed relationships have good performance as their intended design enable `in
 .. _target_disamb:
 .. _complex_rels:
 
-Complex Relationships
-=====================
+FK Joins on Multiple Foreign Key Relationships
+==============================================
 
-As mentioned on :ref:`resource_embedding`, the server does joins based on **Foreign Keys**.
-When there are many foreign keys between tables, it needs disambiguation to resolve which foreign key columns to use for the join.
+When there are multiple foreign keys between tables, :ref:`fk_join` need disambiguation to resolve which foreign key columns to use for the join.
 
-:ref:`computed_relationships` can do the job here, they can choose join columns arbitrarily.
+.. code::
+
+  HTTP/1.1 300 Multiple Choices
+
+  {
+    "code": "PGRST201",
+    "details": [ "..." ],
+    "hint": "...",
+    "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'"
+  }
 
 .. note::
 
@@ -365,7 +385,7 @@ Multiple Many-To-One
       shipping_address_id int references addresses(id)
     );
 
-To successfully embed ``orders`` with ``addresses``, you need to create computed relationships for the foreign keys columns you want to use:
+To successfully join ``orders`` with ``addresses``, you need to create computed relationships for the foreign keys columns you want to use:
 
 .. code-block:: postgresql
 
@@ -377,7 +397,7 @@ To successfully embed ``orders`` with ``addresses``, you need to create computed
     select * from addresses where id = $1.shipping_address_id
   $$ stable language sql;
 
-Now, we can unambiguously embed the billing and shipping addresses.
+Now, we can unambiguously join the billing and shipping addresses.
 
 .. tabs::
 
@@ -409,7 +429,7 @@ Multiple One-To-Many
 --------------------
 
 Let's take the tables from :ref:`multiple_m2o`.
-To embed ``addresses`` with  ``orders``, you need to create computed relationships like these ones:
+To join ``addresses`` with  ``orders``, you need to create computed relationships like these ones:
 
 .. code-block:: postgresql
 
@@ -666,6 +686,144 @@ Then, the request would be:
        "following": [
          { "username": "top_streamer" }
        ]
+     }
+   ]
+
+.. _embedding_partitioned_tables:
+
+FK Joins on Partitioned Tables
+==============================
+
+Foreign Key joins can also be done between `partitioned tables <https://www.postgresql.org/docs/current/ddl-partitioning.html>`_ and other tables.
+
+For example, let's create the ``box_office`` partitioned table that has the gross daily revenue of a film:
+
+.. code-block:: postgres
+
+  CREATE TABLE box_office (
+    bo_date DATE NOT NULL,
+    film_id INT REFERENCES test.films NOT NULL,
+    gross_revenue DECIMAL(12,2) NOT NULL,
+    PRIMARY KEY (bo_date, film_id)
+  ) PARTITION BY RANGE (bo_date);
+
+  -- Let's also create partitions for each month of 2021
+
+  CREATE TABLE box_office_2021_01 PARTITION OF test.box_office
+  FOR VALUES FROM ('2021-01-01') TO ('2021-01-31');
+
+  CREATE TABLE box_office_2021_02 PARTITION OF test.box_office
+  FOR VALUES FROM ('2021-02-01') TO ('2021-02-28');
+
+  -- and so until december 2021
+
+Since it contains the ``films_id`` foreign key, it is possible to join ``box_office`` and ``films``:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
+
+.. note::
+
+  * FK joins on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. More details at `#1783(comment) <https://github.com/PostgREST/postgrest/issues/1783#issuecomment-959823827>`_). :ref:`computed_relationships` can be used if this is needed.
+
+  * Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
+
+.. _embedding_views:
+
+FK Joins on Views
+=================
+
+PostgREST will infer the relationships of a view based on its base tables. Base tables are the ones referenced in the ``FROM`` and ``JOIN`` clauses of the view definition.
+The foreign keys of the relationships must be present in the top ``SELECT`` clause of the view for this to work.
+
+For instance, the following view has ``nominations``, ``films`` and ``competitions`` as base tables:
+
+.. code-block:: postgres
+
+  CREATE VIEW nominations_view AS
+    SELECT
+       films.title as film_title
+     , competitions.name as competition_name
+     , nominations.rank
+     , nominations.film_id as nominations_film_id
+     , films.id as film_id
+    FROM nominations
+    JOIN films ON films.id = nominations.film_id
+    JOIN competitions ON competitions.id = nominations.competition_id;
+
+Since this view contains ``nominations.film_id``, which has a **foreign key** relationship to ``films``, then we can join the ``films`` table. Similarly, because the view contains ``films.id``, then we can also join the ``roles`` and the ``actors`` tables (the last one in a many-to-many relationship):
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
+
+It's also possible to foreign key join `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
+
+.. important::
+
+  - It's not guaranteed that FK joins will work on all kinds of views. In particular, FK joins won't work on views that contain UNIONs.
+
+    + Why? PostgREST detects base table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
+      This may fail depending on the complexity of the view.
+    + As a workaround, you can use :ref:`computed_relationships` to define manual relationships for views.
+
+  - If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
+
+.. _embedding_view_chains:
+
+FK Joins on Chains of Views
+---------------------------
+
+Views can also depend on other views, which in turn depend on the actual base table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schemas`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the base table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
+
+.. _s_proc_embed:
+
+FK Joins on Table-Valued Functions
+==================================
+
+If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can do a Foreign Key join on the result.
+
+Here's a sample function (notice the ``RETURNS SETOF films``).
+
+.. code-block:: plpgsql
+
+  CREATE FUNCTION getallfilms() RETURNS SETOF films AS $$
+    SELECT * FROM films;
+  $$ LANGUAGE SQL STABLE;
+
+A request with ``directors`` embedded:
+
+.. tabs::
+
+  .. code-tab:: http
+
+     GET /rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers* HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+     curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
+
+.. code-block:: json
+
+   [
+     { "title": "Workers Leaving The Lumière Factory In Lyon",
+       "directors": {
+         "id": 2,
+         "last_name": "Lumière"
+       }
      }
    ]
 
@@ -980,143 +1138,6 @@ You can use this to get the columns of a join table in a many-to-many relationsh
 .. note::
 
   The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
-
-.. _embedding_partitioned_tables:
-
-Embedding Partitioned Tables
-============================
-
-Embedding can also be done between `partitioned tables <https://www.postgresql.org/docs/current/ddl-partitioning.html>`_ and other tables.
-
-For example, let's create the ``box_office`` partitioned table that has the gross daily revenue of a film:
-
-.. code-block:: postgres
-
-  CREATE TABLE box_office (
-    bo_date DATE NOT NULL,
-    film_id INT REFERENCES test.films NOT NULL,
-    gross_revenue DECIMAL(12,2) NOT NULL,
-    PRIMARY KEY (bo_date, film_id)
-  ) PARTITION BY RANGE (bo_date);
-
-  -- Let's also create partitions for each month of 2021
-
-  CREATE TABLE box_office_2021_01 PARTITION OF test.box_office
-  FOR VALUES FROM ('2021-01-01') TO ('2021-01-31');
-
-  CREATE TABLE box_office_2021_02 PARTITION OF test.box_office
-  FOR VALUES FROM ('2021-02-01') TO ('2021-02-28');
-
-  -- and so until december 2021
-
-Since it contains the ``films_id`` foreign key, it is possible to embed ``box_office`` and ``films``:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
-
-.. note::
-
-  * Embedding on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. More details at `#1783(comment) <https://github.com/PostgREST/postgrest/issues/1783#issuecomment-959823827>`_). :ref:`custom_queries` can be used if this is needed.
-
-  * Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
-
-.. _embedding_views:
-
-Embedding Views
-===============
-
-PostgREST will infer the relationships of a view based on its source tables. Source tables are the ones referenced in the ``FROM`` and ``JOIN`` clauses of the view definition. The foreign keys of the relationships must be present in the top ``SELECT`` clause of the view for this to work.
-
-For instance, the following view has ``nominations``, ``films`` and ``competitions`` as source tables:
-
-.. code-block:: postgres
-
-  CREATE VIEW nominations_view AS
-    SELECT
-       films.title as film_title
-     , competitions.name as competition_name
-     , nominations.rank
-     , nominations.film_id as nominations_film_id
-     , films.id as film_id
-    FROM nominations
-    JOIN films ON films.id = nominations.film_id
-    JOIN competitions ON competitions.id = nominations.competition_id;
-
-Since this view contains ``nominations.film_id``, which has a **foreign key** relationship to ``films``, then we can embed the ``films`` table. Similarly, because the view contains ``films.id``, then we can also embed the ``roles`` and the ``actors`` tables (the last one in a many-to-many relationship):
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
-
-It's also possible to embed `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
-
-.. important::
-
-  - It's not guaranteed that all kinds of views will be embeddable. In particular, views that contain UNIONs will not be made embeddable.
-
-    + Why? PostgREST detects source table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
-      This may fail depending on the complexity of the view.
-    + As a workaround, you can use :ref:`computed_relationships` to define manual relationships for views.
-
-  - If view definitions change you must refresh PostgREST's schema cache for this to work properly. See the section :ref:`schema_reloading`.
-
-.. _embedding_view_chains:
-
-Embedding Chains of Views
-=========================
-
-Views can also depend on other views, which in turn depend on the actual source table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schemas`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the source table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
-
-.. _s_proc_embed:
-
-Embedding on Stored Procedures
-==============================
-
-If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can embed its related resources.
-
-Here's a sample function (notice the ``RETURNS SETOF films``).
-
-.. code-block:: plpgsql
-
-  CREATE FUNCTION getallfilms() RETURNS SETOF films AS $$
-    SELECT * FROM films;
-  $$ LANGUAGE SQL STABLE;
-
-A request with ``directors`` embedded:
-
-.. tabs::
-
-  .. code-tab:: http
-
-     GET /rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers* HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
-
-.. code-block:: json
-
-   [
-     { "title": "Workers Leaving The Lumière Factory In Lyon",
-       "directors": {
-         "id": 2,
-         "last_name": "Lumière"
-       }
-     }
-   ]
 
 .. _mutation_embed:
 
