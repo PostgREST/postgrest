@@ -19,7 +19,8 @@ import Protolude
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
-  | MTSingularJSON
+  | MTArrayJSONStrip
+  | MTSingularJSON Bool
   | MTGeoJSON
   | MTTextCSV
   | MTTextPlain
@@ -33,19 +34,20 @@ data MediaType
   | MTPlan MediaType MTPlanFormat [MTPlanOption]
   deriving Show
 instance Eq MediaType where
-  MTApplicationJSON == MTApplicationJSON = True
-  MTSingularJSON    == MTSingularJSON    = True
-  MTGeoJSON         == MTGeoJSON         = True
-  MTTextCSV         == MTTextCSV         = True
-  MTTextPlain       == MTTextPlain       = True
-  MTTextXML         == MTTextXML         = True
-  MTOpenAPI         == MTOpenAPI         = True
-  MTUrlEncoded      == MTUrlEncoded      = True
-  MTOctetStream     == MTOctetStream     = True
-  MTAny             == MTAny             = True
-  MTOther x         == MTOther y         = x == y
-  MTPlan{}          == MTPlan{}          = True
-  _                 == _                 = False
+  MTApplicationJSON    == MTApplicationJSON = True
+  MTArrayJSONStrip     == MTArrayJSONStrip  = True
+  MTSingularJSON x     == MTSingularJSON y  = x == y
+  MTGeoJSON            == MTGeoJSON         = True
+  MTTextCSV            == MTTextCSV         = True
+  MTTextPlain          == MTTextPlain       = True
+  MTTextXML            == MTTextXML         = True
+  MTOpenAPI            == MTOpenAPI         = True
+  MTUrlEncoded         == MTUrlEncoded      = True
+  MTOctetStream        == MTOctetStream     = True
+  MTAny                == MTAny             = True
+  MTOther x            == MTOther y         = x == y
+  MTPlan{}             == MTPlan{}          = True
+  _                    == _                 = False
 
 data MTPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
@@ -66,18 +68,20 @@ toContentType ct = (hContentType, toMime ct <> charset)
 
 -- | Convert from MediaType to a ByteString representing the mime type
 toMime :: MediaType -> ByteString
-toMime MTApplicationJSON = "application/json"
-toMime MTGeoJSON         = "application/geo+json"
-toMime MTTextCSV         = "text/csv"
-toMime MTTextPlain       = "text/plain"
-toMime MTTextXML         = "text/xml"
-toMime MTOpenAPI         = "application/openapi+json"
-toMime MTSingularJSON    = "application/vnd.pgrst.object+json"
-toMime MTUrlEncoded      = "application/x-www-form-urlencoded"
-toMime MTOctetStream     = "application/octet-stream"
-toMime MTAny             = "*/*"
-toMime (MTOther ct)      = ct
-toMime (MTPlan mt fmt opts) =
+toMime MTApplicationJSON      = "application/json"
+toMime MTArrayJSONStrip       = "application/vnd.pgrst.array+json;nulls=stripped"
+toMime MTGeoJSON              = "application/geo+json"
+toMime MTTextCSV              = "text/csv"
+toMime MTTextPlain            = "text/plain"
+toMime MTTextXML              = "text/xml"
+toMime MTOpenAPI              = "application/openapi+json"
+toMime (MTSingularJSON True)  = "application/vnd.pgrst.object+json;nulls=stripped"
+toMime (MTSingularJSON False) = "application/vnd.pgrst.object+json"
+toMime MTUrlEncoded           = "application/x-www-form-urlencoded"
+toMime MTOctetStream          = "application/octet-stream"
+toMime MTAny                  = "*/*"
+toMime (MTOther ct)           = ct
+toMime (MTPlan mt fmt opts)   =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   ("; for=\"" <> toMime mt <> "\"") <>
   (if null opts then mempty else "; options=" <> BS.intercalate "|" (toMimePlanOption <$> opts))
@@ -106,26 +110,46 @@ toMimePlanFormat PlanText = "text"
 --
 -- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
 -- MTPlan MTTextCSV PlanJSON []
+--
+-- >>> decodeMediaType "application/vnd.pgrst.array+json;nulls=stripped"
+-- MTArrayJSONStrip
+--
+-- >>> decodeMediaType "application/vnd.pgrst.array+json"
+-- MTApplicationJSON
+--
+-- >>> decodeMediaType "application/vnd.pgrst.object+json;nulls=stripped"
+-- MTSingularJSON True
+--
+-- >>> decodeMediaType "application/vnd.pgrst.object+json"
+-- MTSingularJSON False
+
 decodeMediaType :: BS.ByteString -> MediaType
 decodeMediaType mt =
   case BS.split (BS.c2w ';') mt of
-    "application/json":_                   -> MTApplicationJSON
-    "application/geo+json":_               -> MTGeoJSON
-    "text/csv":_                           -> MTTextCSV
-    "text/plain":_                         -> MTTextPlain
-    "text/xml":_                           -> MTTextXML
-    "application/openapi+json":_           -> MTOpenAPI
-    "application/vnd.pgrst.object+json":_  -> MTSingularJSON
-    "application/vnd.pgrst.object":_       -> MTSingularJSON
-    "application/x-www-form-urlencoded":_  -> MTUrlEncoded
-    "application/octet-stream":_           -> MTOctetStream
-    "application/vnd.pgrst.plan":rest      -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+text":rest -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+json":rest -> getPlan PlanJSON rest
-    "*/*":_                                -> MTAny
-    other:_                                -> MTOther other
-    _                                      -> MTAny
+    "application/json":_                     -> MTApplicationJSON
+    "application/geo+json":_                 -> MTGeoJSON
+    "text/csv":_                             -> MTTextCSV
+    "text/plain":_                           -> MTTextPlain
+    "text/xml":_                             -> MTTextXML
+    "application/openapi+json":_             -> MTOpenAPI
+    "application/x-www-form-urlencoded":_    -> MTUrlEncoded
+    "application/octet-stream":_             -> MTOctetStream
+    "application/vnd.pgrst.plan":rest        -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+text":rest   -> getPlan PlanText rest
+    "application/vnd.pgrst.plan+json":rest   -> getPlan PlanJSON rest
+    "application/vnd.pgrst.object+json":rest -> checkSingularNullStrip rest
+    "application/vnd.pgrst.object":rest      -> checkSingularNullStrip rest
+    "application/vnd.pgrst.array+json":rest  -> checkArrayNullStrip rest
+    "*/*":_                                  -> MTAny
+    other:_                                  -> MTOther other
+    _                                        -> MTAny
   where
+    checkArrayNullStrip ["nulls=stripped"] = MTArrayJSONStrip
+    checkArrayNullStrip  _                 = MTApplicationJSON
+
+    checkSingularNullStrip ["nulls=stripped"] = MTSingularJSON True
+    checkSingularNullStrip  _                 = MTSingularJSON False
+
     getPlan fmt rest =
       let
         opts         = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)

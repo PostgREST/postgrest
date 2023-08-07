@@ -366,13 +366,14 @@ producedMediaTypes conf action path =
     ActionInvoke _  -> invokeMediaTypes
     ActionInfo      -> defaultMediaTypes
     ActionMutate _  -> defaultMediaTypes
-    ActionInspect _ -> [MTOpenAPI, MTApplicationJSON, MTAny]
+    ActionInspect _ -> inspectMediaTypes
   where
+    inspectMediaTypes = [MTOpenAPI, MTApplicationJSON, MTArrayJSONStrip, MTAny]
     invokeMediaTypes =
       defaultMediaTypes
         ++ rawMediaTypes
         ++ [MTOpenAPI | pathIsRootSpec path]
     defaultMediaTypes =
-      [MTApplicationJSON, MTSingularJSON, MTGeoJSON, MTTextCSV] ++
+      [MTApplicationJSON, MTArrayJSONStrip, MTSingularJSON True, MTSingularJSON False, MTGeoJSON, MTTextCSV] ++
       [MTPlan MTApplicationJSON PlanText mempty | configDbPlanEnabled conf] ++ [MTAny]
     rawMediaTypes = configRawMediaTypes conf `union` [MTOctetStream, MTTextPlain, MTTextXML]

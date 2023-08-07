@@ -40,6 +40,12 @@ matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
 matchContentTypeSingular :: MatchHeader
 matchContentTypeSingular = "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
 
+matchCTArrayStrip :: MatchHeader
+matchCTArrayStrip = "Content-Type" <:> "application/vnd.pgrst.array+json;nulls=stripped; charset=utf-8"
+
+matchCTSingularStrip :: MatchHeader
+matchCTSingularStrip = "Content-Type" <:> "application/vnd.pgrst.object+json;nulls=stripped; charset=utf-8"
+
 matchHeaderAbsent :: HeaderName -> MatchHeader
 matchHeaderAbsent name = MatchHeader $ \headers _body ->
   case lookup name headers of

@@ -218,6 +218,7 @@ test-suite spec
                       Feature.Query.RelatedQueriesSpec
                       Feature.Query.RpcSpec
                       Feature.Query.SingularSpec
+                      Feature.Query.NullsStrip
                       Feature.Query.SpreadQueriesSpec
                       Feature.Query.UnicodeSpec
                       Feature.Query.UpdateSpec

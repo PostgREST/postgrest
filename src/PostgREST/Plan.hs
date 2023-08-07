@@ -847,7 +847,8 @@ mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Prefere
   if noAgg then NoAgg
   else case mt of
     MTApplicationJSON     -> BuiltinAggJson
-    MTSingularJSON        -> BuiltinAggSingleJson
+    MTSingularJSON strip  -> BuiltinAggSingleJson strip
+    MTArrayJSONStrip      -> BuiltinAggArrayJsonStrip
     MTGeoJSON             -> BuiltinAggGeoJson
     MTTextCSV             -> BuiltinAggCsv
     MTAny                 -> BuiltinAggJson

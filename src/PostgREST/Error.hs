@@ -478,7 +478,7 @@ instance PgrstError Error where
   headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
   headers JwtTokenRequired       = [MediaType.toContentType MTApplicationJSON, requiredTokenHeader]
   headers (PgErr err)            = headers err
-  headers SingularityError{}     = [MediaType.toContentType MTSingularJSON]
+  headers SingularityError{}     = [MediaType.toContentType (MTSingularJSON False)]
   headers _                      = [MediaType.toContentType MTApplicationJSON]
 
 instance JSON.ToJSON Error where
