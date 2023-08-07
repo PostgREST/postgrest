@@ -8,6 +8,8 @@ You can go download erd from https://github.com/BurntSushi/erd/releases and then
 ./erd_static-x86-64 -i diagrams/film.er -o docs/_static/film.png
 ```
 
+The fonts used belong to the GNU FreeFont family. You can download them here: http://ftp.gnu.org/gnu/freefont/
+
 ## LaTeX
 
 The schema structure diagram is done with LaTeX. You can use a GUI like https://www.mathcha.io/editor to create the .tex file.

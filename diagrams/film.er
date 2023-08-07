@@ -1,3 +1,6 @@
+entity {font: "FreeSans"}
+relationship {font: "FreeSerif"}
+
 [Films]
 *id
 +director_id
@@ -31,6 +34,12 @@ year
 *+film_id
 rank
 
+[Technical_Specs]
+*+film_id
+runtime
+camera
+sound
+
 Roles *--1 Actors
 Roles *--1 Films
 
@@ -38,3 +47,5 @@ Nominations *--1 Competitions
 Nominations *--1 Films
 
 Films *--1 Directors
+
+Films 1--1 Technical_Specs

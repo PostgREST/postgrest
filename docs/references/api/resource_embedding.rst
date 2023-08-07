@@ -24,7 +24,56 @@ Relationships
 
 For example, consider a database of films and their awards:
 
-.. image:: ../../_static/film.png
+.. _erd_film:
+
+.. tabs::
+
+  .. group-tab:: ERD
+
+    .. image:: ../../_static/film.png
+
+  .. code-tab:: postgresql SQL
+
+    create table actors(
+      id int primary key generated always as identity,
+      first_name text,
+      last_name text
+    );
+
+    create table directors(
+      id int primary key generated always as identity,
+      first_name text,
+      last_name text
+    );
+
+    create table films(
+      id int primary key generated always as identity,
+      director_id int references directors(id),
+      title text,
+      year int,
+      rating numeric(3,1),
+      language text
+    );
+
+    create table roles(
+      film_id int references films(id),
+      actor_id int references actors(id),
+      character text,
+      primary key(film_id, actor_id)
+    );
+
+    create table competitions(
+      id int primary key generated always as identity,
+      name text,
+      year int
+    );
+
+    create table nominations(
+      competition_id int references competitions(id),
+      film_id int references films(id),
+      rank int,
+      primary key (competition_id, film_id)
+    );
 
 .. _many-to-one:
 
@@ -136,24 +185,7 @@ Many-to-many relationships
 
 The join table determines many-to-many relationships. It must contain foreign keys to other two tables and they must be part of its composite key.
 
-For the many-to-many relationship between ``films`` and ``actors``, the join table ``roles`` is:
-
-.. code-block:: postgresql
-
-  create table roles(
-    film_id int references films(id)
-  , actor_id int references actors(id)
-  , primary key(film_id, actor_id)
-  );
-
-  -- the join table can also be detected if the composite key has additional columns
-
-  create table roles(
-    id int generated always as identity,
-  , film_id int references films(id)
-  , actor_id int references actors(id)
-  , primary key(id, film_id, actor_id)
-  );
+Thus, it can detect the join table ``roles`` between ``films`` and ``actors``:
 
 .. tabs::
 
@@ -177,6 +209,18 @@ For the many-to-many relationship between ``films`` and ``actors``, the join tab
     ".."
   ]
 
+The join table can also be detected if the composite key has additional columns:
+
+.. code-block:: postgresql
+
+  create table roles(
+    id int generated always as identity,
+  , film_id int references films(id)
+  , actor_id int references actors(id)
+  , character text,
+  , primary key(id, film_id, actor_id)
+  );
+
 .. _one-to-one:
 
 One-to-one relationships
@@ -184,38 +228,27 @@ One-to-one relationships
 
 One-to-one relationships are detected in two ways.
 
+- When the foreign key is a primary key as specified in the :ref:`DB structure example <erd_film>`.
 - When the foreign key has a unique constraint.
 
-.. code-block:: postgresql
+  .. code-block:: postgresql
 
-  CREATE TABLE technical_specs(
-    film_id INT REFERENCES films UNIQUE,
-    runtime TIME,
-    camera TEXT,
-    sound TEXT
-  );
-
-- When the foreign key is a primary key.
-
-.. code-block:: postgresql
-
-  -- references Films using the primary key as a foreign key
-  CREATE TABLE technical_specs(
-    film_id INT PRIMARY KEY REFERENCES films,
-    runtime TIME,
-    camera TEXT,
-    sound TEXT
-  );
+    CREATE TABLE technical_specs(
+      film_id INT REFERENCES films UNIQUE,
+      runtime TIME,
+      camera TEXT,
+      sound TEXT
+    );
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /films?select=title,technical_specs(runtime) HTTP/1.1
+    GET /films?select=title,technical_specs(camera) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/films?select=title,technical_specs(runtime)"
+    curl "http://localhost:3000/films?select=title,technical_specs(camera)"
 
 .. code-block:: json
 
@@ -236,20 +269,26 @@ You can manually define relationships between using functions. This is useful fo
 
 Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
-.. code-block:: postgres
+.. tabs::
 
-  create foreign table premieres (
-    id integer,
-    location text,
-    "date" date,
-    film_id integer
-  ) server import_csv options ( filename '/tmp/directors.csv', format 'csv');
+  .. group-tab:: ERD
 
-  create function film(premieres) returns setof films rows 1 as $$
-    select * from films where id = $1.film_id
-  $$ stable language sql;
+    .. image:: ../../_static/premieres.png
 
-The above function defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type). Since there's a ``rows 1``, this defines a many-to-one relationship.
+  .. code-tab:: postgresql SQL
+
+    create foreign table premieres (
+      id integer,
+      location text,
+      "date" date,
+      film_id integer
+    ) server import_csv options ( filename '/tmp/directors.csv', format 'csv');
+
+    create function film(premieres) returns setof films rows 1 as $$
+      select * from films where id = $1.film_id
+    $$ stable language sql;
+
+The above function (see the **SQL** tab) defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type). Since there's a ``rows 1``, this defines a many-to-one relationship.
 The name of the function ``film`` is arbitrary and can be used to do the embedding:
 
 .. tabs::
@@ -698,24 +737,30 @@ Foreign Key joins can also be done between `partitioned tables <https://www.post
 
 For example, let's create the ``box_office`` partitioned table that has the gross daily revenue of a film:
 
-.. code-block:: postgres
+.. tabs::
 
-  CREATE TABLE box_office (
-    bo_date DATE NOT NULL,
-    film_id INT REFERENCES test.films NOT NULL,
-    gross_revenue DECIMAL(12,2) NOT NULL,
-    PRIMARY KEY (bo_date, film_id)
-  ) PARTITION BY RANGE (bo_date);
+  .. group-tab:: ERD
 
-  -- Let's also create partitions for each month of 2021
+    .. image:: ../../_static/boxoffice.png
 
-  CREATE TABLE box_office_2021_01 PARTITION OF test.box_office
-  FOR VALUES FROM ('2021-01-01') TO ('2021-01-31');
+  .. code-tab:: postgresql SQL
 
-  CREATE TABLE box_office_2021_02 PARTITION OF test.box_office
-  FOR VALUES FROM ('2021-02-01') TO ('2021-02-28');
+    CREATE TABLE box_office (
+      bo_date DATE NOT NULL,
+      film_id INT REFERENCES films NOT NULL,
+      gross_revenue DECIMAL(12,2) NOT NULL,
+      PRIMARY KEY (bo_date, film_id)
+    ) PARTITION BY RANGE (bo_date);
 
-  -- and so until december 2021
+    -- Let's also create partitions for each month of 2021
+
+    CREATE TABLE box_office_2021_01 PARTITION OF box_office
+    FOR VALUES FROM ('2021-01-01') TO ('2021-01-31');
+
+    CREATE TABLE box_office_2021_02 PARTITION OF box_office
+    FOR VALUES FROM ('2021-02-01') TO ('2021-02-28');
+
+    -- and so until december 2021
 
 Since it contains the ``films_id`` foreign key, it is possible to join ``box_office`` and ``films``:
 
