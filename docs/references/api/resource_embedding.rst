@@ -372,7 +372,6 @@ Computed relationships have good performance as their intended design enable `in
   - Make sure to correctly label the ``to-one`` part of the relationship. When using the ``ROWS 1`` estimation, PostgREST will expect a single row to be returned. If that is not the case, it will unnest the embedding and return repeated values for the top level resource.
 
 .. _embed_disamb:
-.. _hint_disamb:
 .. _target_disamb:
 .. _complex_rels:
 
@@ -392,14 +391,8 @@ When there are multiple foreign keys between tables, :ref:`fk_join` need disambi
     "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'"
   }
 
-.. note::
-
-  Previous versions addressed complex relationships with `Embedding disambiguation <https://postgrest.org/en/v11.1/references/api/resource_embedding.html#embedding-disambiguation>`_ but this is now deprecated. Follow the solutions in this section when a ``300 Multiple Choices`` error is returned.
-
-.. _multiple_m2o:
-
-Multiple Many-To-One
---------------------
+Instead of the **table name**, you can specify the **foreign key constraint name** or the **column name** that is part of the foreign key.
+For example, let's use the following tables:
 
 .. tabs::
 
@@ -420,23 +413,15 @@ Multiple Many-To-One
     create table orders (
       id int primary key generated always as identity,
       name text,
-      billing_address_id int references addresses(id),
-      shipping_address_id int references addresses(id)
+      billing_address_id int,
+      shipping_address_id int,
+      constraint billing_address
+        foreign key(billing_address_id) references addresses(id),
+      constraint shipping_address
+        foreign key(shipping_address_id) references addresses(id)
     );
 
-To successfully join ``orders`` with ``addresses``, you need to create computed relationships for the foreign keys columns you want to use:
-
-.. code-block:: postgresql
-
-  create function billing_address(orders) returns setof addresses rows 1 as $$
-    select * from addresses where id = $1.billing_address_id
-  $$ stable language sql;
-
-  create function shipping_address(orders) returns setof addresses rows 1 as $$
-    select * from addresses where id = $1.shipping_address_id
-  $$ stable language sql;
-
-Now, we can unambiguously join the billing and shipping addresses.
+To successfully join ``orders`` with the billing and shipping ``addresses``, use the corresponding foreign key constraints:
 
 .. tabs::
 
@@ -462,48 +447,36 @@ Now, we can unambiguously join the billing and shipping addresses.
      }
    ]
 
-.. _multiple_o2m:
+.. _hint_disamb:
 
-Multiple One-To-Many
---------------------
+Multiple FK Relationships to Many Resources
+-------------------------------------------
 
-Let's take the tables from :ref:`multiple_m2o`.
-To join ``addresses`` with  ``orders``, you need to create computed relationships like these ones:
-
-.. code-block:: postgresql
-
-  create function billing_orders(addresses) returns setof orders as $$
-    select * from orders where billing_address_id = $1.id
-  $$ stable language sql;
-
-  create function shipping_orders(addresses) returns setof orders as $$
-    select * from orders where shipping_address_id = $1.id
-  $$ stable language sql;
-
-Then, the request would look like:
+Additionally, let's create two views for ``addresses``: ``central_addresses`` and ``eastern_addresses``.
+Using the the view name is not enough to join ``orders`` with any of them.
+To solve this, you need to add the foreign key as a hint:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /addresses?select=name,billing_orders(name),shipping_orders(name)&id=eq.1 HTTP/1.1
+    GET /orders?select=name,central_addresses!billing_address(name),central_addresses!shipping_address(name) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/addresses?select=name,billing_orders(name),shipping_orders(name)&id=eq.1"
+    curl "http://localhost:3000/orders?select=name,central_addresses!billing_address(name),central_addresses!shipping_address(name)"
 
 .. code-block:: json
 
    [
      {
-       "name": "32 Glenlake Dr.Dearborn, MI 48124",
-       "billing_orders": [
-         { "name": "Personal Water Filter" },
-         { "name": "Coffee Machine" }
-       ],
-       "shipping_orders": [
-         { "name": "Coffee Machine" }
-       ]
+       "name": "Personal Water Filter",
+       "billing_address": {
+         "name": "32 Glenlake Dr.Dearborn, MI 48124"
+       },
+       "shipping_address": {
+         "name": "30 Glenlake Dr.Dearborn, MI 48124"
+       }
      }
    ]
 
