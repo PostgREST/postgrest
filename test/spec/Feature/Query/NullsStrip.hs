@@ -68,3 +68,13 @@ spec =
           , matchHeaders = [matchCTSingularStrip]
           }
 
+    context "doesn't strip nulls" $ do
+      it "doesn't strips nulls when Accept: application/vnd.pgrst.array+json" $
+        request methodGet  "/organizations?select=id,referee,auditor"
+          [("Accept", "application/vnd.pgrst.array+json")]
+          ""
+          `shouldRespondWith`
+          [json|[{"id":1,"referee":null,"auditor":null},{"id":2,"referee":null,"auditor":null},{"id":3,"referee":1,"auditor":2},{"id":4,"referee":1,"auditor":2},{"id":5,"referee":3,"auditor":4},{"id":6,"referee":3,"auditor":4}]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
