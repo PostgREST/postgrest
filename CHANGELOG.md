@@ -37,6 +37,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1586, Fix function parameters of type character and bit not ignoring length - @laurenceisla
    + Fixes the error "value too long for type character(1)" when the char length of the parameter was bigger than one.
  - #2881, Fix error when a function returns `RECORD` or `SET OF RECORD` - @laurenceisla
+ - #2896, Fix applying superuser settings for impersonated role - @steve-chavez
 
 ## [11.1.0] - 2023-06-07
 

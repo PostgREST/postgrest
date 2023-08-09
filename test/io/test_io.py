@@ -1051,3 +1051,15 @@ def test_log_postgrest_version(defaultenv):
             "Starting PostgREST %s..." % version
             in postgrest.process.stdout.readline().decode()
         )
+
+
+def test_succeed_w_role_having_superuser_settings(defaultenv):
+    "Should succeed when having superuser settings on the impersonated role"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        headers = jwtauthheader({"role": "postgrest_test_w_superuser_settings"}, SECRET)
+        response = postgrest.session.get("/projects", headers=headers)
+        print(response.text)
+        assert response.status_code == 200
