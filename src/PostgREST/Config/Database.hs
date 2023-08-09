@@ -156,6 +156,7 @@ queryRoleSettings prepared =
         i.value as iso_lvl,
         array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transation_isolation') as role_settings
       from kv_settings kv
+      join pg_settings ps on ps.name = kv.key and ps.context = 'user'
       left join iso_setting i on i.rolname = kv.rolname
       group by kv.rolname, i.value;
     |]

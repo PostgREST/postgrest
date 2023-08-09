@@ -14,7 +14,14 @@ alter role postgrest_test_serializable set default_transaction_isolation = 'seri
 CREATE ROLE postgrest_test_repeatable_read;
 alter role postgrest_test_repeatable_read set default_transaction_isolation = 'REPEATABLE READ';
 
-GRANT postgrest_test_anonymous, postgrest_test_author, postgrest_test_serializable, postgrest_test_repeatable_read TO :PGUSER;
+CREATE ROLE postgrest_test_w_superuser_settings;
+alter role postgrest_test_w_superuser_settings set log_min_duration_statement = 1;
+alter role postgrest_test_w_superuser_settings set log_min_messages = 'fatal';
+
+GRANT
+  postgrest_test_anonymous, postgrest_test_author,
+  postgrest_test_serializable, postgrest_test_repeatable_read,
+  postgrest_test_w_superuser_settings TO :PGUSER;
 
 CREATE SCHEMA v1;
 GRANT USAGE ON SCHEMA v1 TO postgrest_test_anonymous;
@@ -23,7 +30,7 @@ CREATE TABLE authors_only ();
 GRANT SELECT ON authors_only TO postgrest_test_author;
 
 CREATE TABLE projects AS SELECT FROM generate_series(1,5);
-GRANT SELECT ON projects TO postgrest_test_anonymous;
+GRANT SELECT ON projects TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
 
 create function get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
