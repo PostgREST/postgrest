@@ -186,23 +186,28 @@ asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF
       ")"
     asCsvBodyF = "coalesce(string_agg(substring(_postgrest_t::text, 2, length(_postgrest_t::text) - 2), '\n'), '')"
 
-asJsonSingleF :: Maybe Routine -> SQL.Snippet
-asJsonSingleF rout
-  | returnsScalar = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
-  | otherwise     = "coalesce(json_agg(_postgrest_t)->0, 'null')"
+addNullsToSnip :: Bool -> SQL.Snippet -> SQL.Snippet
+addNullsToSnip strip snip =
+  if strip then "json_strip_nulls(" <> snip <> ")" else  snip
+
+asJsonSingleF :: Maybe Routine -> Bool -> SQL.Snippet
+asJsonSingleF rout strip
+  | returnsScalar = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t.pgrst_scalar)->0"  <> ", 'null')"
+  | otherwise     = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t)->0"  <> ", 'null')"
   where
     returnsScalar = maybe False funcReturnsScalar rout
 
-asJsonF :: Maybe Routine -> SQL.Snippet
-asJsonF rout
-  | returnsSingleComposite              = "coalesce(json_agg(_postgrest_t)->0, 'null')"
-  | returnsScalar                       = "coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null')"
-  | returnsSetOfScalar                  = "coalesce(json_agg(_postgrest_t.pgrst_scalar), '[]')"
-  | otherwise                           = "coalesce(json_agg(_postgrest_t), '[]')"
+asJsonF :: Maybe Routine -> Bool -> SQL.Snippet
+asJsonF rout strip
+  | returnsSingleComposite    = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t)->0" <> ", 'null')"
+  | returnsScalar             = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t.pgrst_scalar)->0" <> ", 'null')"
+  | returnsSetOfScalar        = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t.pgrst_scalar)" <> ", '[]')"
+  | otherwise                 = "coalesce(" <> addNullsToSnip strip "json_agg(_postgrest_t)" <> ", '[]')"
   where
     (returnsSingleComposite, returnsScalar, returnsSetOfScalar) = case rout of
       Just r  -> (funcReturnsSingleComposite r, funcReturnsScalar r, funcReturnsSetOfScalar r)
       Nothing -> (False, False, False)
+
 
 asXmlF :: Maybe FieldName -> SQL.Snippet
 asXmlF (Just fieldName) = "coalesce(xmlagg(_postgrest_t." <> pgFmtIdent fieldName <> "), '')"
@@ -493,10 +498,11 @@ setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal k
 
 aggF :: Maybe Routine -> ResultAggregate -> SQL.Snippet
 aggF rout = \case
-  BuiltinAggJson          -> asJsonF rout
-  BuiltinAggSingleJson    -> asJsonSingleF rout
-  BuiltinAggGeoJson       -> asGeoJsonF
-  BuiltinAggCsv           -> asCsvF
-  BuiltinAggXml    bField -> asXmlF    bField
-  BuiltinAggBinary bField -> asBinaryF bField
-  NoAgg                   -> "''::text"
+  BuiltinAggJson             -> asJsonF rout False
+  BuiltinAggArrayJsonStrip   -> asJsonF rout True
+  BuiltinAggSingleJson strip -> asJsonSingleF rout strip
+  BuiltinAggGeoJson          -> asGeoJsonF
+  BuiltinAggCsv              -> asCsvF
+  BuiltinAggXml    bField    -> asXmlF    bField
+  BuiltinAggBinary bField    -> asBinaryF bField
+  NoAgg                      -> "''::text"

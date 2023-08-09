@@ -24,6 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2856, Add the `--version` CLI option that prints the version information - @laurenceisla
  - #1655, Improve `details` field of the singular error response - @taimoorzaeem
  - #740, Add `Preference-Applied` in response for `Prefer: return=representation/headers-only/minimal` - @taimoorzaeem
+ - #1601, Add optional `nulls=stripped` parameter for mediatypes `application/vnd.pgrst.array+json` and `application/vnd.pgrst.object+json` - @taimoorzaeem
 
 ### Fixed
 

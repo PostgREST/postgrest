@@ -90,7 +90,8 @@ type RoutineMap = HM.HashMap QualifiedIdentifier [Routine]
 
 data ResultAggregate
    = BuiltinAggJson
-   | BuiltinAggSingleJson
+   | BuiltinAggSingleJson Bool
+   | BuiltinAggArrayJsonStrip
    | BuiltinAggGeoJson
    | BuiltinAggCsv
    | BuiltinAggXml    (Maybe FieldName)
