@@ -750,6 +750,7 @@ If the table has a primary key, the response can contain a :code:`Location` head
 
   HTTP/1.1 201 Created
   Location: /projects?id=eq.34
+  Preference-Applied: return=headers-only
 
 Prefer: return=representation
 -----------------------------
@@ -775,7 +776,7 @@ On the other end of the spectrum you can get the full created object back in the
 .. code::
 
   HTTP/1.1 201 Created
-  Transfer-Encoding: chunked
+  Preference-Applied: return=representation
 
   [
       {
