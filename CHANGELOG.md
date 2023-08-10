@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [11.2.0] - 2023-08-10
+
 ### Added
 
  - #2523, Data representations - @aljungberg
