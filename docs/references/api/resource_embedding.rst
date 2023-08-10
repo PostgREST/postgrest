@@ -15,7 +15,7 @@ table-valued functions.
 
 - For tables, it generates a join condition using the foreign keys columns (respecting composite keys).
 - For views, it generates a join condition using the views' base tables foreign key columns.
-- For table-valued functions, it generates a join condition based on the foreign key columns of the function return type.
+- For table-valued functions, it generates a join condition based on the foreign key columns of the returned table type.
 
 .. important::
 
@@ -381,7 +381,7 @@ Foreign Key Joins on Multiple Foreign Key Relationships
 =======================================================
 
 When there are multiple foreign keys between tables, :ref:`fk_join` need disambiguation to resolve which foreign key columns to use for the join.
-To do this, you can specify a foreign key by using the ``!hint`` syntax.
+To do this, you can specify a foreign key by using the ``!<fk>`` syntax.
 
 .. _multiple_m2o:
 
@@ -432,10 +432,28 @@ Since the ``orders`` table has two foreign keys to the ``addresses`` table, a fo
 
    HTTP/1.1 300 Multiple Choices
 
-   {..}
+.. code-block:: json
 
+   {
+     "code": "PGRST201",
+     "details": [
+       {
+         "cardinality": "many-to-one",
+         "embedding": "orders with addresses",
+         "relationship": "billing using orders(billing_address_id) and addresses(id)"
+       },
+       {
+         "cardinality": "many-to-one",
+         "embedding": "orders with addresses",
+         "relationship": "shipping using orders(shipping_address_id) and addresses(id)"
+       }
+     ],
+     "hint": "Try changing 'addresses' to one of the following: 'addresses!billing', 'addresses!shipping'. Find the desired relationship in the 'details' key.",
+     "message": "Could not embed because more than one relationship was found for 'orders' and 'addresses'"
+   }
 
-To successfully join ``orders`` with ``addresses``, you can specify the foreign key name like so:
+To successfully join ``orders`` with ``addresses``, we can follow the error ``hint`` which tells us to add the foreign key name as ``!billing`` or ``!shipping``.
+Note that the foreign keys have been named explicitly in the :ref:`SQL definition above <multiple_m2o>`. To make the result clearer we'll also alias the tables:
 
 .. tabs::
 
@@ -460,8 +478,6 @@ To successfully join ``orders`` with ``addresses``, you can specify the foreign 
        }
      }
    ]
-
-Note that ``!billing`` and ``!shipping`` are foreign keys names, which have been named explicitly in the :ref:`SQL definition above <multiple_m2o>`.
 
 .. _multiple_o2m:
 
