@@ -420,6 +420,39 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
 
 To manually choose a return format such as binary, plain text or XML, see the section :ref:`scalar_return_formats`.
 
+.. _untyped_functions:
+
+Untyped functions
+-----------------
+
+Functions that return ``record`` or ``SETOF record`` are supported:
+
+.. code-block:: postgres
+
+  create function projects_setof_record() returns setof record as $$
+    select * from projects;
+  $$ language sql;
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /rpc/projects_setof_record HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/rpc/projects_setof_record"
+
+.. code-block:: json
+
+  [{"id":1,"name":"Windows 7","client_id":1},
+   {"id":2,"name":"Windows 10","client_id":1},
+   {"id":3,"name":"IOS","client_id":2}]
+
+However note that they will fail when trying to use :ref:`v_filter` and :ref:`h_filter` on them.
+
+So while they can be used for quick tests, it's recommended to always choose a strict return type for the function.
+
 Overloaded functions
 --------------------
 
