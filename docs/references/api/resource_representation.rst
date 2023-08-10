@@ -85,6 +85,43 @@ When a singular response is requested but no entries are found, the server respo
 
   Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
 
+Stripped Nulls
+--------------
+
+By default PostgREST returns all JSON null values. For example, requesting ``/projects?id=gt.10`` returns
+
+.. code:: json
+
+  [
+    { "id": 11, "name": "OSX",      "client_id": 1,    "another_col": "val" },
+    { "id": 12, "name": "ProjectX", "client_id": null, "another_col": null },
+    { "id": 13, "name": "Y",        "client_id": null, "another_col": null }
+  ]
+
+On large result sets, the unused keys with ``null`` values can waste bandwith unnecessarily. To remove them, specify ``nulls=stripped`` as a parameter of ``application/vnd.pgrst.array``:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /projects?id=gt.10 HTTP/1.1
+    Accept: application/vnd.pgrst.array+json;nulls=stripped
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/projects?id=gt.10" \
+      -H "Accept: application/vnd.pgrst.array+json;nulls=stripped"
+
+This returns
+
+.. code:: json
+
+  [
+    { "id": 11, "name": "OSX", "client_id": 1, "another_col": "val" },
+    { "id": 12, "name": "ProjectX" },
+    { "id": 13, "name": "Y"}
+  ]
+
 .. _scalar_return_formats:
 
 Scalar Function Response Format
