@@ -140,6 +140,7 @@ decodeMediaType mt =
     "application/vnd.pgrst.object+json":rest -> checkSingularNullStrip rest
     "application/vnd.pgrst.object":rest      -> checkSingularNullStrip rest
     "application/vnd.pgrst.array+json":rest  -> checkArrayNullStrip rest
+    "application/vnd.pgrst.array":rest       -> checkArrayNullStrip rest
     "*/*":_                                  -> MTAny
     other:_                                  -> MTOther other
     _                                        -> MTAny
