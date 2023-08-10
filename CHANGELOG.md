@@ -41,6 +41,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2881, Fix error when a function returns `RECORD` or `SET OF RECORD` - @laurenceisla
  - #2896, Fix applying superuser settings for impersonated role - @steve-chavez
 
+### Deprecated
+
+ - #2863, Deprecate resource embedding target disambiguation - @steve-chavez
+   + The `/table?select=*,other!fk(*)` must be used to disambiguate
+   + The server aids in choosing the `!fk` by sending a `hint` on the error whenever an ambiguous request happens.
+
 ## [11.1.0] - 2023-06-07
 
 ### Added

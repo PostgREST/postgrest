@@ -485,7 +485,9 @@ findRel schema allRels origin target hint =
             target == qiName relForeignTable && isO2M relCardinality
             && matchFKRefSingleCol hnt relCardinality -- auditor
         else case hint of
+          -- DEPRECATED(remove after 2 major releases since v11.1.0): remove target
           -- target = table / view / constraint / column-from-origin (constraint/column-from-origin can only come from tables https://github.com/PostgREST/postgrest/issues/2277)
+          -- DEPRECATED(remove after 2 major releases since v11.1.0): remove hint as table/view/columns and only leave it as constraint
           -- hint   = table / view / constraint / column-from-origin / column-from-target (hint can take table / view values to aid in finding the junction in an m2m relationship)
           Nothing ->
               -- /projects?select=clients(*)
