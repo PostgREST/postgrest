@@ -10,7 +10,7 @@ Minimizing connections is paramount to performance. Each PostgreSQL connection c
 Connection String
 -----------------
 
-For connecting to the database, the pool requires a connection string. You can can configure it using :ref:`db-uri`.
+For connecting to the database, the pool requires a connection string. You can configure it using :ref:`db-uri`.
 
 .. _pool_growth_limit:
 .. _dyn_conn_pool:
