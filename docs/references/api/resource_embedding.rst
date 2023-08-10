@@ -10,10 +10,12 @@ PostgREST allows including related resources in a single API call. This reduces 
 Foreign Key Joins
 =================
 
-The server uses **Foreign Keys** to determine which tables and views can be joined together.
+The server uses **Foreign Keys** to determine which database objects can be joined together. It supports joining tables, views and
+table-valued functions.
 
-- For joining tables, it reads foreign keys (respecting composite keys) and generates a join condition based on the foreign key columns.
-- For joining views, it reads the base tables of the views' definition, and generates a join condition based on the foreign key columns of the base tables.
+- For tables, it generates a join condition using the foreign keys columns (respecting composite keys).
+- For views, it generates a join condition using the views' base tables foreign key columns.
+- For table-valued functions, it generates a join condition based on the foreign key columns of the function return type.
 
 .. important::
 
@@ -55,6 +57,13 @@ For example, consider a database of films and their awards:
       language text
     );
 
+    CREATE TABLE technical_specs(
+      film_id INT REFERENCES films UNIQUE,
+      runtime TIME,
+      camera TEXT,
+      sound TEXT
+    );
+
     create table roles(
       film_id int references films(id),
       actor_id int references actors(id),
@@ -80,7 +89,7 @@ For example, consider a database of films and their awards:
 Many-to-one relationships
 -------------------------
 
-Since ``films`` has a **foreign key** to ``directors``, this establishes a many-to-one relationship. Thus, we're able to request all the films and the director for each film.
+Since ``films`` has a **foreign key** to ``directors``, this establishes a many-to-one relationship. This enables us to request all the films and the director for each film.
 
 .. tabs::
 
@@ -183,9 +192,19 @@ The **foreign key reference** establishes the inverse one-to-many relationship. 
 Many-to-many relationships
 --------------------------
 
-The join table determines many-to-many relationships. It must contain foreign keys to other two tables and they must be part of its composite key.
+The join table determines many-to-many relationships. It must contain foreign keys to other two tables and they must be part of its composite key. In the :ref:`sample film database <erd_film>`, ``roles`` is taken as a join table.
 
-Thus, it can detect the join table ``roles`` between ``films`` and ``actors``:
+The join table is also detected if the composite key has additional columns.
+
+.. code-block:: postgresql
+
+  create table roles(
+    id int generated always as identity,
+  , film_id int references films(id)
+  , actor_id int references actors(id)
+  , character text,
+  , primary key(id, film_id, actor_id)
+  );
 
 .. tabs::
 
@@ -209,18 +228,6 @@ Thus, it can detect the join table ``roles`` between ``films`` and ``actors``:
     ".."
   ]
 
-The join table can also be detected if the composite key has additional columns:
-
-.. code-block:: postgresql
-
-  create table roles(
-    id int generated always as identity,
-  , film_id int references films(id)
-  , actor_id int references actors(id)
-  , character text,
-  , primary key(id, film_id, actor_id)
-  );
-
 .. _one-to-one:
 
 One-to-one relationships
@@ -228,7 +235,7 @@ One-to-one relationships
 
 One-to-one relationships are detected in two ways.
 
-- When the foreign key is a primary key as specified in the :ref:`DB structure example <erd_film>`.
+- When the foreign key is a primary key as specified in the :ref:`sample film database <erd_film>`.
 - When the foreign key has a unique constraint.
 
   .. code-block:: postgresql
@@ -265,30 +272,24 @@ One-to-one relationships are detected in two ways.
 Computed Relationships
 ======================
 
-You can manually define relationships between using functions. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
+You can manually define relationships by using functions. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
 
 Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
-.. tabs::
+.. code-block:: postgresql
 
-  .. group-tab:: ERD
+  create foreign table premieres (
+    id integer,
+    location text,
+    "date" date,
+    film_id integer
+  ) server import_csv options ( filename '/tmp/directors.csv', format 'csv');
 
-    .. image:: ../../_static/premieres.png
+  create function film(premieres) returns setof films rows 1 as $$
+    select * from films where id = $1.film_id
+  $$ stable language sql;
 
-  .. code-tab:: postgresql SQL
-
-    create foreign table premieres (
-      id integer,
-      location text,
-      "date" date,
-      film_id integer
-    ) server import_csv options ( filename '/tmp/directors.csv', format 'csv');
-
-    create function film(premieres) returns setof films rows 1 as $$
-      select * from films where id = $1.film_id
-    $$ stable language sql;
-
-The above function (see the **SQL** tab) defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type). Since there's a ``rows 1``, this defines a many-to-one relationship.
+The above function defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type). Since there's a ``rows 1``, this defines a many-to-one relationship.
 The name of the function ``film`` is arbitrary and can be used to do the embedding:
 
 .. tabs::
@@ -363,36 +364,31 @@ Thanks to overloaded functions, you can use the same function name for different
     select * from directors where film_school_id = $1.id
   $$ stable language sql;
 
-Computed relationships have good performance as their intended design enable `inlining <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
+Computed relationships have good performance as their intended design enable `function inlining <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
 
 .. warning::
 
-  - Always use ``SETOF`` when creating computed relationships. Functions can return a table without using ``SETOF``, but bear in mind that they will not be inlined.
+  - Always use ``SETOF`` when creating computed relationships. Functions can return a table without using ``SETOF``, but bear in mind that PostgreSQL will not inline them.
 
   - Make sure to correctly label the ``to-one`` part of the relationship. When using the ``ROWS 1`` estimation, PostgREST will expect a single row to be returned. If that is not the case, it will unnest the embedding and return repeated values for the top level resource.
 
 .. _embed_disamb:
 .. _target_disamb:
+.. _hint_disamb:
 .. _complex_rels:
 
-FK Joins on Multiple Foreign Key Relationships
-==============================================
+Foreign Key Joins on Multiple Foreign Key Relationships
+=======================================================
 
 When there are multiple foreign keys between tables, :ref:`fk_join` need disambiguation to resolve which foreign key columns to use for the join.
+To do this, you can specify a foreign key by using the ``!hint`` syntax.
 
-.. code::
+.. _multiple_m2o:
 
-  HTTP/1.1 300 Multiple Choices
+Multiple Many-To-One
+--------------------
 
-  {
-    "code": "PGRST201",
-    "details": [ "..." ],
-    "hint": "...",
-    "message": "Could not embed because more than one relationship was found for 'sites' and 'big_projects'"
-  }
-
-Instead of the **table name**, you can specify the **foreign key constraint name** or the **column name** that is part of the foreign key.
-For example, let's use the following tables:
+For example, suppose you have the following ``orders`` and ``addresses`` tables:
 
 .. tabs::
 
@@ -415,23 +411,41 @@ For example, let's use the following tables:
       name text,
       billing_address_id int,
       shipping_address_id int,
-      constraint billing_address
-        foreign key(billing_address_id) references addresses(id),
-      constraint shipping_address
-        foreign key(shipping_address_id) references addresses(id)
+      constraint billing  foreign key(billing_address_id) references addresses(id),
+      constraint shipping foreign key(shipping_address_id) references addresses(id)
     );
 
-To successfully join ``orders`` with the billing and shipping ``addresses``, use the corresponding foreign key constraints:
+Since the ``orders`` table has two foreign keys to the ``addresses`` table, a foreign key join is ambiguous and PostgREST will respond with an error:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /orders?select=name,billing_address(name),shipping_address(name) HTTP/1.1
+    GET /orders?select=*,addresses(*) HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/orders?select=name,billing_address(name),shipping_address(name)"
+    curl "http://localhost:3000/orders?select=*,addresses(*)" -i
+
+
+.. code-block:: http
+
+   HTTP/1.1 300 Multiple Choices
+
+   {..}
+
+
+To successfully join ``orders`` with ``addresses``, you can specify the foreign key name like so:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name) HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
 
 .. code-block:: json
 
@@ -447,43 +461,49 @@ To successfully join ``orders`` with the billing and shipping ``addresses``, use
      }
    ]
 
-.. _hint_disamb:
+Note that ``!billing`` and ``!shipping`` are foreign keys names, which have been named explicitly in the :ref:`SQL definition above <multiple_m2o>`.
 
-Multiple FK Relationships to Many Resources
--------------------------------------------
+.. _multiple_o2m:
 
-Additionally, let's create two views for ``addresses``: ``central_addresses`` and ``eastern_addresses``.
-Using the the view name is not enough to join ``orders`` with any of them.
-To solve this, you need to add the foreign key as a hint:
+Multiple One-To-Many
+--------------------
+
+Let's take the tables from :ref:`multiple_m2o`. To get the opposite one-to-many relationship, we can also specify the foreign key name:
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /orders?select=name,central_addresses!billing_address(name),central_addresses!shipping_address(name) HTTP/1.1
+    GET /addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1 HTTP/1.1
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/orders?select=name,central_addresses!billing_address(name),central_addresses!shipping_address(name)"
+    curl "http://localhost:3000/addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1"
 
 .. code-block:: json
 
    [
      {
-       "name": "Personal Water Filter",
-       "billing_address": {
-         "name": "32 Glenlake Dr.Dearborn, MI 48124"
-       },
-       "shipping_address": {
-         "name": "30 Glenlake Dr.Dearborn, MI 48124"
-       }
+       "name": "32 Glenlake Dr.Dearborn, MI 48124",
+       "billing_orders": [
+         { "name": "Personal Water Filter" },
+         { "name": "Coffee Machine" }
+       ],
+       "shipping_orders": [
+         { "name": "Coffee Machine" }
+       ]
      }
    ]
+
+Recursive Relationships
+-----------------------
+
+To disambiguate recursive relationships, PostgREST requires :ref:`computed_relationships`.
 
 .. _recursive_o2o_embed:
 
 Recursive One-To-One
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 .. tabs::
 
@@ -541,7 +561,7 @@ Now, to query a president with their predecessor and successor:
 .. _recursive_o2m_embed:
 
 Recursive One-To-Many
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 .. tabs::
 
@@ -593,7 +613,7 @@ Now, the query would be:
 .. _recursive_m2o_embed:
 
 Recursive Many-To-One
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 Let's take the same ``employees`` table from :ref:`recursive_o2m_embed`.
 To get the Many-To-One relationship, that is, the employees with their respective supervisor, you need to create a function like this one:
@@ -630,7 +650,7 @@ Then, the query would be:
 .. _recursive_m2m_embed:
 
 Recursive Many-To-Many
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 .. tabs::
 
@@ -703,8 +723,8 @@ Then, the request would be:
 
 .. _embedding_partitioned_tables:
 
-FK Joins on Partitioned Tables
-==============================
+Foreign Key Joins on Partitioned Tables
+=======================================
 
 Foreign Key joins can also be done between `partitioned tables <https://www.postgresql.org/docs/current/ddl-partitioning.html>`_ and other tables.
 
@@ -749,17 +769,17 @@ Since it contains the ``films_id`` foreign key, it is possible to join ``box_off
 
 .. note::
 
-  * FK joins on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. More details at `#1783(comment) <https://github.com/PostgREST/postgrest/issues/1783#issuecomment-959823827>`_). :ref:`computed_relationships` can be used if this is needed.
+  * Foreign key joins on partitions is not allowed because it leads to ambiguity errors (see :ref:`embed_disamb`) between them and their parent partitioned table. More details at `#1783(comment) <https://github.com/PostgREST/postgrest/issues/1783#issuecomment-959823827>`_). :ref:`computed_relationships` can be used if this is needed.
 
   * Partitioned tables can reference other tables since PostgreSQL 11 but can only be referenced from any other table since PostgreSQL 12.
 
 .. _embedding_views:
 
-FK Joins on Views
-=================
+Foreign Key Joins on Views
+==========================
 
-PostgREST will infer the relationships of a view based on its base tables. Base tables are the ones referenced in the ``FROM`` and ``JOIN`` clauses of the view definition.
-The foreign keys of the relationships must be present in the top ``SELECT`` clause of the view for this to work.
+PostgREST will infer the foreign keys of a view using its base tables. Base tables are the ones referenced in the ``FROM`` and ``JOIN`` clauses of the view definition.
+The foreign keys' columns must be present in the top ``SELECT`` clause of the view for this to work.
 
 For instance, the following view has ``nominations``, ``films`` and ``competitions`` as base tables:
 
@@ -792,7 +812,7 @@ It's also possible to foreign key join `Materialized Views <https://www.postgres
 
 .. important::
 
-  - It's not guaranteed that FK joins will work on all kinds of views. In particular, FK joins won't work on views that contain UNIONs.
+  - It's not guaranteed that foreign key joins will work on all kinds of views. In particular, foreign key joins won't work on views that contain UNIONs.
 
     + Why? PostgREST detects base table foreign keys in the view by querying and parsing `pg_rewrite <https://www.postgresql.org/docs/current/catalog-pg-rewrite.html>`_.
       This may fail depending on the complexity of the view.
@@ -802,15 +822,15 @@ It's also possible to foreign key join `Materialized Views <https://www.postgres
 
 .. _embedding_view_chains:
 
-FK Joins on Chains of Views
----------------------------
+Foreign Key Joins on Chains of Views
+------------------------------------
 
 Views can also depend on other views, which in turn depend on the actual base table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schemas`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the base table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
 
 .. _s_proc_embed:
 
-FK Joins on Table-Valued Functions
-==================================
+Foreign Key Joins on Table-Valued Functions
+===========================================
 
 If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can do a Foreign Key join on the result.
 
@@ -844,6 +864,59 @@ A request with ``directors`` embedded:
        }
      }
    ]
+
+.. _mutation_embed:
+
+Foreign Key Joins on Writes
+===========================
+
+You can join related database objects after doing :ref:`insert`, :ref:`update` or :ref:`delete`.
+
+Say you want to insert a **film** and then get some of its attributes plus join its **director**.
+
+.. tabs::
+
+  .. code-tab:: http
+
+     POST /films?select=title,year,director:directors(first_name,last_name) HTTP/1.1
+     Prefer: return=representation
+
+     {
+      "id": 100,
+      "director_id": 40,
+      "title": "127 hours",
+      "year": 2010,
+      "rating": 7.6,
+      "language": "english"
+     }
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/films?select=title,year,director:directors(first_name,last_name)" \
+      -H "Prefer: return=representation" \
+      -d @- << EOF
+      {
+        "id": 100,
+        "director_id": 40,
+        "title": "127 hours",
+        "year": 2010,
+        "rating": 7.6,
+        "language": "english"
+      }
+    EOF
+
+Response:
+
+.. code-block:: json
+
+   {
+    "title": "127 hours",
+    "year": 2010,
+    "director": {
+      "first_name": "Danny",
+      "last_name": "Boyle"
+    }
+   }
 
 .. _nested_embedding:
 
@@ -1157,55 +1230,3 @@ You can use this to get the columns of a join table in a many-to-many relationsh
 
   The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
 
-.. _mutation_embed:
-
-Embedding after Insertions/Updates/Deletions
-============================================
-
-You can embed related resources after doing :ref:`insert`, :ref:`update` or :ref:`delete`.
-
-Say you want to insert a **film** and then get some of its attributes plus embed its **director**.
-
-.. tabs::
-
-  .. code-tab:: http
-
-     POST /films?select=title,year,director:directors(first_name,last_name) HTTP/1.1
-     Prefer: return=representation
-
-     {
-      "id": 100,
-      "director_id": 40,
-      "title": "127 hours",
-      "year": 2010,
-      "rating": 7.6,
-      "language": "english"
-     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,year,director:directors(first_name,last_name)" \
-      -H "Prefer: return=representation" \
-      -d @- << EOF
-      {
-        "id": 100,
-        "director_id": 40,
-        "title": "127 hours",
-        "year": 2010,
-        "rating": 7.6,
-        "language": "english"
-      }
-    EOF
-
-Response:
-
-.. code-block:: json
-
-   {
-    "title": "127 hours",
-    "year": 2010,
-    "director": {
-      "first_name": "Danny",
-      "last_name": "Boyle"
-    }
-   }
