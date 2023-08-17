@@ -212,15 +212,14 @@ doctests for some of our modules are also available:
 
 ## Code coverage
 
-Code coverage is available under the `postgrest-coverage` command. This will produce a `./coverage` directory that can be visualized with a simple http server.
+Code coverage is available under the `postgrest-coverage` command. This will produce a `./coverage` directory that can be visualized on a browser.
 
 ```bash
 # Will run all the tests and produce a coverage dir
 [nix-shell]$ postgrest-coverage
+...
 
-# Visualize the output
-[nix-shell]$ cd coverage
-[nix-shell]$ python -mSimpleHTTPServer 8080
+postgrest-coverage: To see the results, visit file://$(pwd)/coverage/check/hpc_index.html
 ```
 
 ## Linting and styling code
