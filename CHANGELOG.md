@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+ 
+ - #1614, Add `db-pool-automatic-recovery` configuration to disable connection retrying - @taimoorzaeem
+
 ### Fixed
 
  - #2899, Fix `application/vnd.pgrst.array` not accepted as a valid mediatype - @taimoorzaeem

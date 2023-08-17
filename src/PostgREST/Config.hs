@@ -80,6 +80,7 @@ data AppConfig = AppConfig
   , configDbPoolAcquisitionTimeout :: Int
   , configDbPoolMaxLifetime        :: Int
   , configDbPoolMaxIdletime        :: Int
+  , configDbPoolAutomaticRecovery  :: Bool
   , configDbPreRequest             :: Maybe QualifiedIdentifier
   , configDbPreparedStatements     :: Bool
   , configDbRootSpec               :: Maybe QualifiedIdentifier
@@ -147,6 +148,7 @@ toText conf =
       ,("db-pool-acquisition-timeout",   show . configDbPoolAcquisitionTimeout)
       ,("db-pool-max-lifetime",          show . configDbPoolMaxLifetime)
       ,("db-pool-max-idletime",          show . configDbPoolMaxIdletime)
+      ,("db-pool-automatic-recovery",    T.toLower . show . configDbPoolAutomaticRecovery)
       ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
       ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
       ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
@@ -241,6 +243,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe 1800 <$> optInt "db-pool-max-lifetime")
     <*> (fromMaybe 30 <$> optWithAlias (optInt "db-pool-timeout")
                                        (optInt "db-pool-max-idletime"))
+    <*> (fromMaybe True <$> optBool "db-pool-automatic-recovery")
     <*> (fmap toQi <$> optWithAlias (optString "db-pre-request")
                                     (optString "pre-request"))
     <*> (fromMaybe True <$> optBool "db-prepared-statements")

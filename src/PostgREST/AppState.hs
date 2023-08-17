@@ -281,8 +281,9 @@ internalConnectionWorker appState = work
           -- Fatal error when connecting
           logWithZTime appState reason >> killThread (getMainThreadId appState)
         NotConnected ->
-          -- Unreachable because establishConnection will keep trying to connect
-          return ()
+          -- Unreachable because establishConnection will keep trying to connect, unless disable-recovery is turned on
+          unless configDbPoolAutomaticRecovery
+              $ logWithZTime appState "Automatic recovery disabled, exiting." >> killThread (getMainThreadId appState)
         Connected actualPgVersion -> do
           -- Procede with initialization
           putPgVersion appState actualPgVersion
@@ -344,9 +345,10 @@ establishConnection appState =
 
     shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
     shouldRetry rs isConnSucc = do
+      AppConfig{..} <- getConfig appState
       let
         delay = fromMaybe 0 (rsPreviousDelay rs) `div` backoffMicroseconds
-        itShould = NotConnected == isConnSucc
+        itShould = NotConnected == isConnSucc && configDbPoolAutomaticRecovery
       when itShould . logWithZTime appState $
         "Attempting to reconnect to the database in "
         <> (show delay::Text)
@@ -420,7 +422,7 @@ listener appState = do
   waitListener appState
 
   -- forkFinally allows to detect if the thread dies
-  void . flip forkFinally (handleFinally dbChannel) $ do
+  void . flip forkFinally (handleFinally dbChannel configDbPoolAutomaticRecovery) $ do
     dbOrError <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
     case dbOrError of
       Right db -> do
@@ -431,7 +433,9 @@ listener appState = do
       _ ->
         die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
   where
-    handleFinally dbChannel _ = do
+    handleFinally _ False _ =
+      logWithZTime appState "Automatic recovery disabled, exiting." >> killThread (getMainThreadId appState)
+    handleFinally dbChannel True _ = do
       -- if the thread dies, we try to recover
       logWithZTime appState $ "Retrying listening for notifications on the " <> dbChannel <> " channel.."
       putIsListenerOn appState False
