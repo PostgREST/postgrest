@@ -108,6 +108,7 @@ library
                     , optparse-applicative      >= 0.13 && < 0.18
                     , parsec                    >= 3.1.11 && < 3.2
                     , protolude                 >= 0.3.1 && < 0.4
+                    , postgresql-libpq          >= 0.9.4.3 && < 0.9.5
                     , regex-tdfa                >= 1.2.2 && < 1.4
                     , retry                     >= 0.7.4 && < 0.10
                     , scientific                >= 0.3.4 && < 0.4

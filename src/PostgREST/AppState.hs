@@ -28,7 +28,8 @@ import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text.Encoding         as T
-import           Hasql.Connection           (acquire)
+import           Hasql.Connection           (acquire, Connection, withLibPQConnection)
+import qualified Database.PostgreSQL.LibPQ as PQ
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Session              as SQL
@@ -427,7 +428,7 @@ listener appState = do
         logWithZTime appState $ "Listening for notifications on the " <> dbChannel <> " channel"
         putIsListenerOn appState True
         SQL.listen db $ SQL.toPgIdentifier dbChannel
-        SQL.waitForNotifications handleNotification db
+        waitForNotifications_ handleNotification db
       _ ->
         die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
   where
@@ -476,3 +477,23 @@ checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverEr
         -> Just "Hint: Connection poolers in statement mode are not supported."
       _ -> Nothing
 checkIsFatal _ = Nothing
+
+waitForNotifications_ :: (ByteString -> ByteString -> IO()) -- ^ Callback function to handle incoming notifications
+                     -> Connection -- ^ Connection where we will listen to
+                     -> IO ()
+waitForNotifications_ sendNotification con =
+  withLibPQConnection con $ void . forever . pqFetch
+  where
+    pqFetch pqCon = do
+      mNotification <- PQ.notifies pqCon
+      case mNotification of
+        Nothing -> do
+          mfd <- PQ.socket pqCon
+          case mfd of
+            Nothing  -> panic "Error checking for PostgreSQL notifications"
+            Just _ -> do
+              -- void $ threadWaitRead fd
+              void $ threadDelay 5000000
+              void $ PQ.consumeInput pqCon
+        Just notification ->
+           sendNotification (PQ.notifyRelname notification) (PQ.notifyExtra notification)
