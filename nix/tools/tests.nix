@@ -164,7 +164,7 @@ let
             ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/overlay "$tmpdir"/overlay.tix || true
             ${ghc}/bin/hpc markup --highlight-covered --destdir=coverage/check "$tmpdir"/check.tix || true
             echo "ERROR: Something is covered by both the tests and the overlay:"
-            echo "file://$(pwd)/coverage/check/hpc_index.html"
+            echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/check/hpc_index.html"
             exit 1
           else
             # copy the result .tix file to the coverage/ dir to make it available to postgrest-coverage-draft-overlay, too
@@ -174,7 +174,7 @@ let
 
             # create html and stdout reports
             ${ghc}/bin/hpc markup --destdir=coverage coverage/postgrest.tix
-            echo "file://$(pwd)/coverage/hpc_index.html"
+            echo "postgrest-coverage: To see the results, visit file://$(pwd)/coverage/hpc_index.html"
             ${ghc}/bin/hpc report coverage/postgrest.tix "''${_arg_leftovers[@]}"
           fi
         ''
