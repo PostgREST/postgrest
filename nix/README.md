@@ -242,7 +242,7 @@ the check resulted in any uncommited changes. It's mostly useful for CI.
 
 ## General development tools
 
-Tools like `postgrest-build`, `postgrest-run` etc. are simple wrappers around
+Tools like `postgrest-build`, `postgrest-run`, `postgrest-repl` etc. are simple wrappers around
 `cabal` and should do what you expect. `postgrest-check` runs most checks that will
 also run in CI, with the exception of the IO and Memory checks that need to be run
 separately.
@@ -255,6 +255,23 @@ run against the latest PostgreSQL version by default.
 `postgrest-watch` takes a command as an argument that it will re-run if any source
 file is changed. For example, `postgrest-watch postgrest-with-all postgrest-test-spec`
 will re-run the full spec test suite against all PostgreSQL versions on every change.
+
+## REPL
+
+You can use `postgrest-repl` to manually inspect the PostgREST modules.
+
+```bash
+$ postgrest-repl
+
+ghci> import PostgREST.<tab>
+PostgREST.Admin                        PostgREST.Config.Database              PostgREST.Plan.MutatePlan              PostgREST.Response.OpenAPI
+PostgREST.ApiRequest                   PostgREST.Config.JSPath                PostgREST.Plan.ReadPlan                PostgREST.SchemaCache
+...
+
+ghci> import PostgREST.MediaType
+ghci> decodeMediaType "application/json"
+MTApplicationJSON
+```
 
 ## Tour
 

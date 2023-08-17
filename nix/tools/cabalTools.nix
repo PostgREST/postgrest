@@ -57,6 +57,18 @@ let
           postgrest "''${_arg_leftovers[@]}"
       '';
 
+  repl =
+    checkedShellScript
+      {
+        name = "postgrest-repl";
+        docs = "Interact with PostgREST modules using the cabal repl";
+        args = [ "ARG_LEFTOVERS([cabal v2-repl arguments])" ];
+        inRootDir = true;
+        withEnv = postgrest.env;
+      }
+      ''
+        exec ${cabal-install}/bin/cabal v2-repl "''${_arg_leftovers[@]}"
+      '';
 in
 buildToolbox
 {
@@ -65,5 +77,6 @@ buildToolbox
     build
     clean
     run
+    repl
   ];
 }
