@@ -12,5 +12,5 @@ nix:
 extra-deps:
   - git: https://github.com/PostgREST/postgresql-libpq.git
     commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
-  - hasql-notifications-0.2.0.5
+  - hasql-notifications-0.2.0.6
   - hasql-pool-0.10
