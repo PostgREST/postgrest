@@ -43,8 +43,8 @@ let
         (prev.callHackageDirect
           {
             pkg = "hasql-notifications";
-            ver = "0.2.0.5";
-            sha256 = "sha256-KV36zs/RTgJh/oBBPZaNiQshusmakWnjYTcdoNa4JLA=";
+            ver = "0.2.0.6";
+            sha256 = "sha256-7PyFlB2B70njudOjaX6tk1m77ol9vnF5fI0LF86kVAI=";
           }
           { });
 
