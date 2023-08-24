@@ -297,11 +297,36 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} resp = d
       | otherwise =
           identity
 
--- | Add headers not already included to allow the user to override them instead of duplicating them
+-- | Add headers not already included to allow the user to override them instead of duplicating them. The exception here is the Preference-Applied header, which will be duplicated here, but later get combined into a single header
+--
+-- >>> :{
+--  addHeadersIfNotIncluded
+--     [("Content-Type","application/json"),
+--      ("Preference-Applied","tx=commit"),
+--      ("Content-Range","*/*")]
+--     [("Content-Type","custom/type"),
+--      ("Preference-Applied","return=representation")]
+-- :}
+-- [("Preference-Applied","tx=commit"),("Content-Range","*/*"),("Content-Type","custom/type"),("Preference-Applied","return=representation")]
+--
+-- | Hmm, below seems like a problem, however this won't happen practically
+--   because preferRepresentation is only added once in the request processing
+--   pipeline. Thus, no need to add an extra filter. In case this becomes a
+--   problem in the future, we can always change this
+--
+-- >>> :{
+--  addHeadersIfNotIncluded
+--      [("Preference-Applied","return=minimal")]
+--      [("Preference-Applied","return=representation")]
+-- :}
+-- [("Preference-Applied","return=minimal"),("Preference-Applied","return=representation")]
+
 addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
-  filter (\(nk, nv) -> isNothing $ find (\(ik, iv) -> ik == nk && nv == iv) initialHeaders) newHeaders ++
-  initialHeaders
+  filter (keyNotSameOrPrefApp . fst) newHeaders ++ initialHeaders
+    where
+      keyNotSameOrPrefApp k = isNothing (find ((== k) . fst) initialHeaders) ||
+                              (k == HTTP.hPreferenceApplied)
 
 -- |  Filters out multiple Preference-Applied Headers from the list and concatenate them into a single Preference-Applied header:
 --
