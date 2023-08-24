@@ -1063,3 +1063,35 @@ def test_succeed_w_role_having_superuser_settings(defaultenv):
         response = postgrest.session.get("/projects", headers=headers)
         print(response.text)
         assert response.status_code == 200
+
+
+def test_fail_with_invalid_dbname_and_automatic_recovery_disabled(defaultenv):
+    "Should fail without retries when automatic recovery is disabled and dbname is invalid"
+    dbname = "INVALID"
+    uri = f'postgresql://?dbname={dbname}&host={defaultenv["PGHOST"]}&user={defaultenv["PGUSER"]}'
+    env = {
+        **defaultenv,
+        "PGRST_DB_URI": uri,
+        "PGRST_DB_POOL_AUTOMATIC_RECOVERY": "false",
+    }
+
+    with run(env=env, wait_for_readiness=False) as postgrest:
+        exitCode = wait_until_exit(postgrest)
+        assert exitCode == 1
+
+
+def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaultenv):
+    "Should fail without retries when automatic recovery is disabled and pg_terminate_backend(pid) is called"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL_AUTOMATIC_RECOVERY": "false",
+    }
+
+    with run(env=env) as postgrest:
+        os.system(
+            f'psql -d {defaultenv["PGDATABASE"]} -U {defaultenv["PGUSER"]} -h {defaultenv["PGHOST"]} --set ON_ERROR_STOP=1 -a -c "SELECT terminate_pgrst()"'
+        )
+
+        exitCode = wait_until_exit(postgrest)
+        assert exitCode == 1

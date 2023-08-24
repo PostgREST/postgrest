@@ -173,4 +173,8 @@ select application_name
 from pg_stat_activity
 where application_name ilike 'postgrest%'
 limit 1;
-$$
+$$;
+
+create function terminate_pgrst() returns setof record as $$
+select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%postgrest%';
+$$ language sql security definer;

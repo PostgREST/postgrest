@@ -162,6 +162,9 @@ exampleConfigFile =
       |## Time in seconds after which to recycle unused pool connections
       |# db-pool-max-idletime = 30
       |
+      |## Allow autmatic database connection retrying
+      |# db-pool-automatic-recovery = true
+      |
       |## Stored proc to exec immediately after auth
       |# db-pre-request = "stored_proc_name"
       |
