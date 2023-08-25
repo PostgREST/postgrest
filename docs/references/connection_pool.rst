@@ -78,6 +78,7 @@ The server will retry reconnecting to the database if connection loss happens.
 - The retries happen immediately after a connection loss, if :ref:`db-channel-enabled` is set to true (the default). Otherwise they'll happen once a request arrives.
 - To ensure a valid state, the server reloads the :ref:`schema_cache` and :ref:`configuration` when recovering.
 - To notify the client of the next retry, the server sends a ``503 Service Unavailable`` status with the ``Retry-After: x`` header. Where ``x`` is the number of seconds programmed for the next retry.
+- Automatic recovery can be disabled by setting :ref:`db-pool-automatic-recovery` to ``false``.
 
 .. _external_connection_poolers:
 

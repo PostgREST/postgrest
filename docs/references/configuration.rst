@@ -370,6 +370,23 @@ db-pool-max-lifetime
 
   Specifies the maximum time in seconds of an existing connection in the pool.
 
+.. _db-pool-automatic-recovery:
+
+db-pool-automatic-recovery
+--------------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     True
+  **Reloadable**  Y
+  **Environment** PGRST_DB_POOL_AUTOMATIC_RECOVERY
+  **In-Database** `n/a`
+  =============== =================================
+
+  Enables or disables connection retrying.
+
+  When disabled, PostgREST would terminate immediately after connection loss instead of retrying indefinitely. See :ref:`this section <automatic_recovery>` for more information.
+
 .. _db-pre-request:
 
 db-pre-request
