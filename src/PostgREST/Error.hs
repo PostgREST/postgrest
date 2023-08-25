@@ -362,11 +362,11 @@ instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
   headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
-      case (parseMessage m, parseDetails d) of -- make sure both parse successfully
-            (Just _, Just r) -> headers JSONParseError ++ map intoHeader (M.toList $ getHeaders r)
-            _                -> headers JSONParseError
-        where
-          intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
+    case (parseMessage m, parseDetails d) of
+      (Just _, Just r) -> headers JSONParseError ++ map intoHeader (M.toList $ getHeaders r)
+      _                -> headers JSONParseError
+    where
+      intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
 
   headers err =
     if status err == HTTP.status401
@@ -394,17 +394,17 @@ instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
 instance JSON.ToJSON SQL.CommandError where
-  -- Special error raised from the pg with code PGRST, to allow full response control
+  -- Special error raised with code PGRST, to allow full response control
   toJSON (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
-    case (parseDetails d, parseMessage m) of -- continue only if both are parsed successfully
-              (Just _, Just r) -> JSON.object [
-                            "code"     .= getCode r,
-                            "message"  .= getMessage r,
-                            "details"  .= checkEmpty (getDetails r),
-                            "hint"     .= checkEmpty (getHint r)]
-              _ -> JSON.toJSON JSONParseError
-        where
-          checkEmpty det = if det == "" then JSON.Null else JSON.String det
+    case (parseMessage m, parseDetails d) of
+      (Just r, Just _) -> JSON.object [
+        "code"     .= getCode r,
+        "message"  .= getMessage r,
+        "details"  .= checkEmpty (getDetails r),
+        "hint"     .= checkEmpty (getHint r)]
+      _ -> JSON.toJSON JSONParseError
+    where
+      checkEmpty det = if det == "" then JSON.Null else JSON.String det
 
   toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = JSON.object [
     "code"     .= (T.decodeUtf8 c      :: Text),
@@ -465,7 +465,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         "42501"   -> if authed then HTTP.status403 else HTTP.status401 -- insufficient privilege
         'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)
         "PGRST"   ->
-          case (parseMessage m, parseDetails d) of -- make sure both m and d are parsed successfully
+          case (parseMessage m, parseDetails d) of
             (Just _, Just r) -> HTTP.mkStatus (getStatus r) "CustomHTTPResponse"
             _                -> status JSONParseError
         _         -> HTTP.status400
@@ -580,6 +580,44 @@ requiredTokenHeader = ("WWW-Authenticate", "Bearer")
 singularityError :: (Integral a) => a -> Error
 singularityError = SingularityError . toInteger
 
+-- For parsing byteString to JSON Object, used for allowing full response control
+data PgRaiseErrMessage = PgRaiseErrMessage {
+  getCode    :: Text,
+  getMessage :: Text,
+  getDetails :: Text,
+  getHint    :: Text
+}
+
+data PgRaiseErrDetails = PgRaiseErrDetails {
+  getStatus  :: Int,
+  getHeaders :: Map Text Text
+}
+
+instance JSON.FromJSON PgRaiseErrMessage where
+  parseJSON (JSON.Object m) =
+    PgRaiseErrMessage
+      <$> m .: "code"
+      <*> m .: "message"
+      <*> m .:? "details" .!= ""
+      <*> m .:? "hint"    .!= ""
+
+  parseJSON _ = mzero
+
+instance JSON.FromJSON PgRaiseErrDetails where
+  parseJSON (JSON.Object d) =
+    PgRaiseErrDetails
+      <$> d .: "status"
+      <*> d .: "headers"
+
+  parseJSON _ = mzero
+
+parseMessage :: ByteString -> Maybe PgRaiseErrMessage
+parseMessage m = JSON.decodeStrict m :: Maybe PgRaiseErrMessage
+
+parseDetails :: Maybe ByteString -> Maybe PgRaiseErrDetails
+parseDetails (Just d) = JSON.decodeStrict d :: Maybe PgRaiseErrDetails
+parseDetails Nothing  = Nothing
+
 -- Error codes are grouped by common modules or characteristics
 data ErrorCode
   -- PostgreSQL connection errors
@@ -669,41 +707,3 @@ buildErrorCode code = "PGRST" <> case code of
   JWTErrorCode02         -> "302"
 
   InternalErrorCode00    -> "X00"
-
--- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Text,
-  getHint    :: Text
-}
-
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus  :: Int,
-  getHeaders :: Map Text Text
-}
-
-instance JSON.FromJSON PgRaiseErrMessage where
-  parseJSON (JSON.Object m) =
-    PgRaiseErrMessage
-      <$> m .: "code"
-      <*> m .: "message"
-      <*> m .:? "details" .!= ""
-      <*> m .:? "hint"    .!= ""
-
-  parseJSON _ = mzero
-
-instance JSON.FromJSON PgRaiseErrDetails where
-  parseJSON (JSON.Object d) =
-    PgRaiseErrDetails
-      <$> d .: "status"
-      <*> d .: "headers"
-
-  parseJSON _ = mzero
-
-parseMessage :: ByteString -> Maybe PgRaiseErrMessage
-parseMessage m = JSON.decodeStrict m :: Maybe PgRaiseErrMessage
-
-parseDetails :: Maybe ByteString -> Maybe PgRaiseErrDetails
-parseDetails (Just d) = JSON.decodeStrict d :: Maybe PgRaiseErrDetails
-parseDetails Nothing  = Nothing
