@@ -1493,27 +1493,61 @@ spec actualPgVersion =
 
     context "get message and details from raise sqlstate" $ do
       it "gets message and details from raise sqlstate PGRST" $ do
-        get "/rpc/raise_sqlstate_test1" `shouldRespondWith`
-          [json|{"code":"123","message":"ABC","details":"DEF","hint":"XYZ"}|]
-          { matchStatus = 332
-          , matchHeaders = ["X-Header" <:> "str"] }
+        r <- request methodGet "/rpc/raise_sqlstate_test1"
+                [] ""
+
+        let resStatus  = simpleStatus r
+            resHeaders = simpleHeaders r
+            resBody    = simpleBody r
+
+        liftIO $ do
+          resStatus `shouldBe` Status { statusCode = 332, statusMessage = "My Custom Status" }
+          resHeaders `shouldSatisfy` elem ("X-Header", "str")
+          resBody `shouldBe` [json|{"code":"123","message":"ABC","details":"DEF","hint":"XYZ"}|]
 
         get "/rpc/raise_sqlstate_test2" `shouldRespondWith`
           [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
           { matchStatus = 332
           , matchHeaders = ["X-Header" <:> "str"] }
 
+      it "get message and details from PGRST raise and checks standard status message" $ do
+        r <- request methodGet "/rpc/raise_sqlstate_test3"
+                [] ""
+
+        let resStatus  = simpleStatus r
+            resHeaders = simpleHeaders r
+            resBody    = simpleBody r
+
+        liftIO $ do
+          resStatus `shouldBe` Status { statusCode = 404, statusMessage = "Not Found" }
+          resHeaders `shouldSatisfy` elem ("X-Header", "str")
+          resBody `shouldBe` [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
+
+
+      it "get message and details from PGRST raise and checks custom status message" $ do
+        r <- request methodGet "/rpc/raise_sqlstate_test4"
+                [] ""
+
+        let resStatus  = simpleStatus r
+            resHeaders = simpleHeaders r
+            resBody    = simpleBody r
+
+        liftIO $ do
+          resStatus `shouldBe` Status { statusCode = 404, statusMessage = "My Not Found" }
+          resHeaders `shouldSatisfy` elem ("X-Header", "str")
+          resBody `shouldBe` [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
+
       it "returns JSONParseError for invalid JSON in RAISE Message field" $
         get "/rpc/raise_sqlstate_invalid_json_message" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
-          { matchStatus = 400 }
+          { matchStatus = 500 }
 
       it "returns JSONParseError for invalid JSON in RAISE Details field" $
         get "/rpc/raise_sqlstate_invalid_json_details" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
-          { matchStatus = 400 }
+          { matchStatus = 500 }
 
       it "returns JSONParseError for missing Details field in RAISE" $
         get "/rpc/raise_sqlstate_missing_details" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
-          { matchStatus = 400 }
+          { matchStatus = 500 }

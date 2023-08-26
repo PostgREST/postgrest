@@ -3375,7 +3375,7 @@ create function raise_sqlstate_test1() returns void
 begin
     raise sqlstate 'PGRST' USING
       message = '{"code":"123","message":"ABC","details":"DEF","hint":"XYZ"}',
-      detail = '{"status":332,"headers":{"X-Header":"str"}}';
+      detail = '{"status":332,"status_text":"My Custom Status","headers":{"X-Header":"str"}}';
 end
 $$;
 
@@ -3386,6 +3386,26 @@ begin
     raise sqlstate 'PGRST' USING
       message = '{"code":"123","message":"ABC"}',
       detail = '{"status":332,"headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_test3() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC"}',
+      detail = '{"status":404,"headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_test4() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC"}',
+      detail = '{"status":404,"status_text":"My Not Found","headers":{"X-Header":"str"}}';
 end
 $$;
 

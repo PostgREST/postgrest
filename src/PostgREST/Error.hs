@@ -27,7 +27,7 @@ import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 
-import Data.Aeson  ((.!=), (.:), (.:?), (.=))
+import Data.Aeson  ((.:), (.:?), (.=))
 import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
@@ -373,7 +373,6 @@ instance PgrstError PgError where
        then [MediaType.toContentType MTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
        else [MediaType.toContentType MTApplicationJSON]
 
-
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
 
@@ -400,11 +399,11 @@ instance JSON.ToJSON SQL.CommandError where
       (Just r, Just _) -> JSON.object [
         "code"     .= getCode r,
         "message"  .= getMessage r,
-        "details"  .= checkEmpty (getDetails r),
-        "hint"     .= checkEmpty (getHint r)]
+        "details"  .= checkMaybe (getDetails r),
+        "hint"     .= checkMaybe (getHint r)]
       _ -> JSON.toJSON JSONParseError
     where
-      checkEmpty det = if det == "" then JSON.Null else JSON.String det
+      checkMaybe = maybe JSON.Null JSON.String
 
   toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = JSON.object [
     "code"     .= (T.decodeUtf8 c      :: Text),
@@ -423,7 +422,6 @@ instance JSON.ToJSON SQL.CommandError where
     "message" .= ("Database client error. Retrying the connection." :: Text),
     "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
     "hint"    .= JSON.Null]
-
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
@@ -466,12 +464,11 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)
         "PGRST"   ->
           case (parseMessage m, parseDetails d) of
-            (Just _, Just r) -> HTTP.mkStatus (getStatus r) "CustomHTTPResponse"
+            (Just _, Just r) -> maybe (toEnum $ getStatus r) (HTTP.mkStatus (getStatus r) . T.encodeUtf8) (getStatusText r)
             _                -> status JSONParseError
         _         -> HTTP.status400
 
     _                       -> HTTP.status500
-
 
 
 data Error
@@ -500,7 +497,7 @@ instance PgrstError Error where
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
   status SingularityError{}      = HTTP.status406
-  status JSONParseError          = HTTP.status400
+  status JSONParseError          = HTTP.status500
 
   headers (ApiRequestError err)  = headers err
   headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
@@ -584,13 +581,14 @@ singularityError = SingularityError . toInteger
 data PgRaiseErrMessage = PgRaiseErrMessage {
   getCode    :: Text,
   getMessage :: Text,
-  getDetails :: Text,
-  getHint    :: Text
+  getDetails :: Maybe Text,
+  getHint    :: Maybe Text
 }
 
 data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus  :: Int,
-  getHeaders :: Map Text Text
+  getStatus     :: Int,
+  getStatusText :: Maybe Text,
+  getHeaders    :: Map Text Text
 }
 
 instance JSON.FromJSON PgRaiseErrMessage where
@@ -598,8 +596,8 @@ instance JSON.FromJSON PgRaiseErrMessage where
     PgRaiseErrMessage
       <$> m .: "code"
       <*> m .: "message"
-      <*> m .:? "details" .!= ""
-      <*> m .:? "hint"    .!= ""
+      <*> m .:? "details"
+      <*> m .:? "hint"
 
   parseJSON _ = mzero
 
@@ -607,16 +605,16 @@ instance JSON.FromJSON PgRaiseErrDetails where
   parseJSON (JSON.Object d) =
     PgRaiseErrDetails
       <$> d .: "status"
+      <*> d .:? "status_text"
       <*> d .: "headers"
 
   parseJSON _ = mzero
 
 parseMessage :: ByteString -> Maybe PgRaiseErrMessage
-parseMessage m = JSON.decodeStrict m :: Maybe PgRaiseErrMessage
+parseMessage = JSON.decodeStrict
 
 parseDetails :: Maybe ByteString -> Maybe PgRaiseErrDetails
-parseDetails (Just d) = JSON.decodeStrict d :: Maybe PgRaiseErrDetails
-parseDetails Nothing  = Nothing
+parseDetails d = JSON.decodeStrict =<< d
 
 -- Error codes are grouped by common modules or characteristics
 data ErrorCode
