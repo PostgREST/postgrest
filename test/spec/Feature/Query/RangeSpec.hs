@@ -453,3 +453,17 @@ spec = do
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
             }
+
+        it "refuses a range with first position the same as number of items" $
+          request methodGet "/rpc/getitemrange?min=1&max=2"
+                  (rangeHdrsWithCount $ ByteRangeFromTo 1 2) mempty
+            `shouldRespondWith`
+              [json| {
+                "message":"Requested range not satisfiable",
+                "code":"PGRST103",
+                "details":"An offset of 1 was requested, but there are only 1 rows.",
+                "hint":null
+              }|]
+            { matchStatus  = 416
+            , matchHeaders = ["Content-Range" <:> "*/1"]
+            }
