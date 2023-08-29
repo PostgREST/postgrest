@@ -12,6 +12,12 @@ First, create postgrest configuration in ``/etc/postgrest/config``
   db-anon-role = "<your_anon_role>"
   jwt-secret = "<your_secret>"
 
+Create a dedicated  ``postgrest`` user with:
+
+.. code-block:: ini
+
+  sudo useradd -M -U -d /nonexistent -s /usr/sbin/nologin postgrest
+
 Then create the systemd service file in ``/etc/systemd/system/postgrest.service``
 
 .. code-block:: ini
@@ -21,6 +27,8 @@ Then create the systemd service file in ``/etc/systemd/system/postgrest.service`
   After=postgresql.service
 
   [Service]
+  User=postgrest
+  Group=postgrest
   ExecStart=/bin/postgrest /etc/postgrest/config
   ExecReload=/bin/kill -SIGUSR1 $MAINPID
 
