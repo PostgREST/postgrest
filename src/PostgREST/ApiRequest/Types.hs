@@ -1,6 +1,7 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module PostgREST.ApiRequest.Types
-  ( Alias
+  ( AggregateFunction(..)
+  , Alias
   , Cast
   , Depth
   , EmbedParam(..)
@@ -42,12 +43,13 @@ import PostgREST.SchemaCache.Routine      (Routine (..))
 
 import Protolude
 
--- | The value in `/tbl?select=alias:field::cast`
+-- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`
 data SelectItem
   = SelectField
-    { selField :: Field
-    , selCast  :: Maybe Cast
-    , selAlias :: Maybe Alias
+    { selField              :: Field
+    , selAggregateFunction  :: Maybe AggregateFunction
+    , selCast               :: Maybe Cast
+    , selAlias              :: Maybe Alias
     }
 -- | The value in `/tbl?select=alias:another_tbl(*)`
   | SelectRelation
@@ -127,6 +129,9 @@ type Field = (FieldName, JsonPath)
 type Cast = Text
 type Alias = Text
 type Hint = Text
+
+data AggregateFunction = Sum | Avg | Max | Min | Count
+  deriving (Show, Eq)
 
 data EmbedParam
   -- | Disambiguates an embedding operation when there's multiple relationships

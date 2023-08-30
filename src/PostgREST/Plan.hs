@@ -317,15 +317,15 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
             (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
             fldForest:rForest
         SelectField{..} ->
-          Node q{select=(resolveOutputField ctx{qi=from q} selField, selCast, selAlias):select q} rForest
+          Node q{select=(resolveOutputField ctx{qi=from q} selField, selAggregateFunction, selCast, selAlias):select q} rForest
 
 -- | Preserve the original field name if data representation is used to coerce the value.
 addDataRepresentationAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=sel} -> rPlan{select=map aliasSelectItem sel}) rPlanTree
   where
-    aliasSelectItem :: (CoercibleField, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe Cast, Maybe Alias)
+    aliasSelectItem :: (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias)
     -- If there already is an alias, don't overwrite it.
-    aliasSelectItem (fld@(CoercibleField{cfName=fieldName, cfTransform=(Just _)}), Nothing, Nothing) = (fld, Nothing, Just fieldName)
+    aliasSelectItem (fld@(CoercibleField{cfName=fieldName, cfTransform=(Just _)}), Nothing, Nothing, Nothing) = (fld, Nothing, Nothing, Just fieldName)
     aliasSelectItem fld = fld
 
 knownColumnsInContext :: ResolverContext -> [Column]
@@ -348,7 +348,7 @@ expandStarsForDataRepresentations ctx@ResolverContext{qi} rPlanTree = Right $ fm
 expandStarsForTable :: ResolverContext -> ReadPlan -> ReadPlan
 expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadPlan{select=selectItems} =
   -- If we have a '*' select AND the target table has at least one data representation, expand.
-  if ("*" `elem` map (\(field, _, _) -> cfName field) selectItems) && any hasOutputRep knownColumns
+  if ("*" `elem` map (\(field, _, _, _) -> cfName field) selectItems) && any hasOutputRep knownColumns
     then rplan{select=concatMap (expandStarSelectItem knownColumns) selectItems}
     else rplan
   where
@@ -357,8 +357,8 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadP
     hasOutputRep :: Column -> Bool
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
 
-    expandStarSelectItem :: [Column] -> (CoercibleField, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe Cast, Maybe Alias)]
-    expandStarSelectItem columns (CoercibleField{cfName="*", cfJsonPath=[]}, b, c) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c)) columns
+    expandStarSelectItem :: [Column] -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe AggregateFunction,Maybe Cast, Maybe Alias)]
+    expandStarSelectItem columns (CoercibleField{cfName="*", cfJsonPath=[]}, b, c, d) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c, d)) columns
     expandStarSelectItem _ selectItem = [selectItem]
 
 -- | Enforces the `max-rows` config on the result
@@ -770,7 +770,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = cfName . (\(f, _, _) -> f) <$> select
+    fldNames = cfName . (\(f, _, _, _) -> f) <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
@@ -839,8 +839,8 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
       _                        -> False
 
     fstFieldName :: ReadPlanTree -> Maybe FieldName
-    fstFieldName (Node ReadPlan{select=(CoercibleField{cfName="*", cfJsonPath=[]}, _, _):_} [])  = Nothing
-    fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _)]} [])  = Just fld
+    fstFieldName (Node ReadPlan{select=(CoercibleField{cfName="*", cfJsonPath=[]}, _, _, _):_} [])  = Nothing
+    fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _, _)]} [])  = Just fld
     fstFieldName _                                               = Nothing
 
 

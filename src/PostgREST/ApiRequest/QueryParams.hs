@@ -31,8 +31,8 @@ import Data.Tree                     (Tree (..))
 import Text.Parsec.Error             (errorMessages,
                                       showErrorMessages)
 import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
-                                      anyChar, between, char, digit,
-                                      eof, errorPos, letter,
+                                      anyChar, between, char, choice,
+                                      digit, eof, errorPos, letter,
                                       lookAhead, many1, noneOf,
                                       notFollowedBy, oneOf,
                                       optionMaybe, sepBy, sepBy1,
@@ -43,7 +43,8 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeOffset, restrictRange)
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
-import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
+import PostgREST.ApiRequest.Types (AggregateFunction(..),
+                                   EmbedParam (..), EmbedPath, Field,
                                    Filter (..), FtsOperator (..),
                                    Hint, JoinType (..),
                                    JsonOperand (..),
@@ -58,7 +59,7 @@ import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    SimpleOperator (..), SingleVal,
                                    TrileanVal (..))
 
-import Protolude hiding (try)
+import Protolude hiding (try, Sum)
 
 data QueryParams =
   QueryParams
@@ -452,9 +453,11 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     name <- pFieldName
+    guard (name /= "count")
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SelectRelation name alias hint jType
+
 
 -- |
 -- Parse regular fields in select
@@ -495,18 +498,31 @@ pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $ try (do
     s <- pStar
     pEnd
-    return $ SelectField (s, []) Nothing Nothing)
+    return $ SelectField (s, []) Nothing Nothing Nothing)
+  <|> try (do
+    alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+    _ <- string "count()"
+    pEnd
+    return $ SelectField ("*", []) (Just Count) Nothing alias)
   <|> do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     fld <- pField
     cast' <- optionMaybe (string "::" *> pIdentifier)
+    agg <- optionMaybe (try (char '.' *> pAggregation <* string "()"))
     pEnd
-    return $ SelectField fld (toS <$> cast') alias
+    return $ SelectField fld agg (toS <$> cast') alias
   where
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
            try eof
     pStar = string "*" $> "*"
+    pAggregation = choice
+      [ string "sum"   $> Sum
+      , string "avg"   $> Avg
+      , string "max"   $> Max
+      , string "min"   $> Min
+      , string "count" $> Count
+      ]
 
 
 -- |

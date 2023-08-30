@@ -9,6 +9,7 @@ module PostgREST.Query.SqlFragment
   ( noLocationF
   , aggF
   , countF
+  , groupF
   , fromQi
   , limitOffsetF
   , locationF
@@ -50,7 +51,8 @@ import Control.Arrow ((***))
 import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
-import PostgREST.ApiRequest.Types        (Alias, Cast,
+import PostgREST.ApiRequest.Types        (AggregateFunction (..),
+                                          Alias, Cast,
                                           FtsOperator (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
@@ -82,7 +84,7 @@ import PostgREST.SchemaCache.Routine     (ResultAggregate (..),
                                           funcReturnsSetOfScalar,
                                           funcReturnsSingleComposite)
 
-import Protolude hiding (cast)
+import Protolude hiding (cast, Sum)
 
 sourceCTEName :: Text
 sourceCTEName = "pgrst_source"
@@ -260,12 +262,21 @@ pgFmtCoerceNamed :: CoercibleField -> SQL.Snippet
 pgFmtCoerceNamed CoercibleField{cfName=fn, cfTransform=(Just formatterProc)} = pgFmtCallUnary formatterProc (pgFmtIdent fn) <> " AS " <> pgFmtIdent fn
 pgFmtCoerceNamed CoercibleField{cfName=fn} = pgFmtIdent fn
 
-pgFmtSelectItem :: QualifiedIdentifier -> (CoercibleField, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtSelectItem table (fld, Nothing, alias) = pgFmtTableCoerce table fld <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
+pgFmtSelectItem :: QualifiedIdentifier -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> SQL.Snippet
+pgFmtSelectItem table (fld, agg, Nothing, alias) = pgFmtApplyAggregate agg (pgFmtTableCoerce table fld) <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (fld, Just cast, alias) = "CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )" <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
+pgFmtSelectItem table (fld, agg, Just cast, alias) = pgFmtApplyAggregate agg ("CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )") <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
+
+pgFmtApplyAggregate :: Maybe AggregateFunction -> SQL.Snippet -> SQL.Snippet
+pgFmtApplyAggregate Nothing snippet = snippet
+pgFmtApplyAggregate (Just agg) snippet = case agg of
+  Sum   -> "SUM( "   <> snippet <> " )"
+  Max   -> "MAX( "   <> snippet <> " )"
+  Min   -> "MIN( "   <> snippet <> " )"
+  Avg   -> "AVG( "   <> snippet <> " )"
+  Count -> "COUNT( " <> snippet <> " )"
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> SQL.Snippet
@@ -409,6 +420,19 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
+groupF :: QualifiedIdentifier -> [(CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias)] -> SQL.Snippet
+groupF _ [] = mempty
+groupF qi fields =
+  if all (\(_, agg, _, _) -> isNothing agg) fields || all (\(_, agg, _, _) -> isJust agg) fields
+    then
+      mempty
+    else
+    " GROUP BY " <> intercalateSnippet ", " (pgFmtGroup qi <$> (filter (\(_, agg, _, _) -> isNothing agg) fields))
+
+pgFmtGroup :: QualifiedIdentifier -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> SQL.Snippet
+pgFmtGroup _ (_, Just _, _, _) = mempty
+pgFmtGroup qi (fld, _, _, _) = pgFmtField qi fld
+
 countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SQL.Snippet)
 countF countQuery shouldCount =
   if shouldCount
@@ -496,6 +520,7 @@ setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal k
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
     arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
 
+-- Investigate this
 aggF :: Maybe Routine -> ResultAggregate -> SQL.Snippet
 aggF rout = \case
   BuiltinAggJson             -> asJsonF rout False
