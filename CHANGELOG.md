@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
  
  - #1614, Add `db-pool-automatic-recovery` configuration to disable connection retrying - @taimoorzaeem
+ - #2492, Allow full response control when raising exceptions - @taimoorzaeem, @laurenceisla
 
 ### Fixed
 
