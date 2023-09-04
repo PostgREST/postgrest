@@ -115,7 +115,6 @@ PostgREST stores the headers, cookies and headers as JSON. To get them:
 
 .. important::
 
-  The headers names are lowercased. e.g. If the request sends ``User-Agent: x`` this will be obtainable as ``current_setting('request.headers', true)::json->>'user-agent'``.
 
 .. code-block:: postgresql
 
@@ -131,9 +130,21 @@ PostgREST stores the headers, cookies and headers as JSON. To get them:
   -- value of the email claim in a jwt
   SELECT current_setting('request.jwt.claims', true)::json->>'email';
 
-.. note::
+.. important::
 
-  The ``role`` in ``request.jwt.claims`` defaults to the value of :ref:`db-anon-role`.
+  - The headers names are lowercased. e.g. If the request sends ``User-Agent: x`` this will be obtainable as ``current_setting('request.headers', true)::json->>'user-agent'``.
+  - The ``role`` in ``request.jwt.claims`` defaults to the value of :ref:`db-anon-role`.
+  - Settings don't become NULL after the transaction is committed, instead they're set to a an empty string ``''``.
+
+    + This is considered expected behavior by PostgreSQL. For more details, see `this discussion <https://www.postgresql.org/message-id/flat/CAB_pDVVa84w7hXhzvyuMTb8f5kKV3bee_p9QTZZ58Rg7zYM7sw%40mail.gmail.com>`_.
+    + To avoid this inconsistency, you can create a wrapper function like:
+
+    .. code-block:: postgresql
+
+      CREATE FUNCTION my_current_setting(text) RETURNS text
+      LANGUAGE SQL AS $$
+        SELECT nullif(current_setting($1, true), '');
+      $$;
 
 .. _guc_legacy_names:
 
