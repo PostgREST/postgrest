@@ -1,16 +1,15 @@
-.. note::
-
-  This page is a work in progress.
 
 .. _providing_html_htmx:
 
-Providing HTML Content Using htmx
+Providing HTML Content Using Htmx
 =================================
 
 :author: `Laurence Isla <https://github.com/laurenceisla>`_
 
 This how-to shows a way to return HTML content and use the `htmx library <https://htmx.org/>`_ to handle the AJAX requests.
 Htmx expects an HTML response and uses it to replace an element inside the DOM (see the `htmx introduction <https://htmx.org/docs/#introduction>`_ in the docs).
+
+.. image:: ../_static/how-tos/htmx-demo.gif
 
 Preparatory Configuration
 -------------------------
@@ -22,6 +21,7 @@ To simplify things, we won't be using authentication, so grant all permissions o
 .. code-block:: postgres
 
   grant all on api.todos to web_anon;
+  grant usage, select on sequence api.todos_id_seq to web_anon;
 
 Next, add the ``text/html`` media type to the :ref:`raw-media-types` configuration.
 With this, PostgREST can identify the request made by your web browser (with the ``Accept: text/html`` header) and return a raw HTML document file.
@@ -49,14 +49,14 @@ Let's create a function that returns a basic HTML file, using `Tailwind CSS <htt
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostgREST To-Do list</title>
+    <title>PostgREST + HTMX To-Do List</title>
     <!-- Tailwind for CSS styling -->
     <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   </head>
   <body class="bg-gray-900">
     <div class="flex justify-center">
       <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
-        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST To-Do List</h5>
+        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
       </div>
     </div>
   </body>
@@ -65,6 +65,8 @@ Let's create a function that returns a basic HTML file, using `Tailwind CSS <htt
   end $$;
 
 The web browser will open the web page at ``http://localhost:3000/rpc/index``.
+
+.. image:: ../_static/how-tos/htmx-simple.jpg
 
 .. _html_htmx_list_create:
 
@@ -98,18 +100,19 @@ Now, let's show a list of the to-dos already inserted in the database.
     '<ul id="todo-list" role="list" class="divide-y divide-gray-700 text-gray-100">'
       || string_agg(api.html_todo(t), '' order by t.id) ||
     '</ul>',
-    '<p>There is nothing else to do.</p>'
+    '<p class="text-gray-100">There is nothing else to do.</p>'
   )
   from api.todos t;
   $$;
 
-These two functions are used to build the to-do list template. We won't call them outside of PostgreSQL.
+These two functions are used to build the to-do list template. We won't use them as PostgREST endpoints.
 
-- The ``html_todo`` function uses the table ``api.todos`` as a parameter and is used to format each element into a list element ``<li>``.
-  The PostgreSQL `format <https://www.postgresql.org/docs/current/functions-string.html#FUNCTIONS-STRING-FORMAT>`_ function is useful to that end.
-  It replaces the values according to the position in the template, e.g. the ``%1$s`` in the template will be replaced with the value of ``$1.id`` (the first parameter).
+- The ``api.html_todo`` function uses the table ``api.todos`` as a parameter and formats each item into a list element ``<li>``.
+  The PostgreSQL `format <https://www.postgresql.org/docs/current/functions-string.html#FUNCTIONS-STRING-FORMAT>`_ is useful to that end.
+  It replaces the values according to the position in the template, e.g. ``%1$s`` will be replaced with the value of ``$1.id`` (the first parameter).
 
-- The ``html_all_todos`` function is the ``<ul>`` wrapper for all the list elements and uses `string_arg <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ to concatenate all the to-dos in a single text value.
+- The ``api.html_all_todos`` function returns the ``<ul>`` wrapper for all the list elements.
+  It uses `string_arg <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ to concatenate all the to-dos in a single text value.
   It also returns an alternative message, instead of a list, when the ``api.todos`` table is empty.
 
 Next, let's add an endpoint to register a to-do in the database and modify the ``/rpc/index`` page accordingly.
@@ -137,7 +140,7 @@ Next, let's add an endpoint to register a to-do in the database and modify the `
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostgREST To-Do list</title>
+    <title>PostgREST + HTMX To-Do List</title>
     <!-- Tailwind for CSS styling -->
     <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- htmx for AJAX requests -->
@@ -147,9 +150,8 @@ Next, let's add an endpoint to register a to-do in the database and modify the `
         hx-headers='{"Accept": "text/html"}'>
     <div class="flex justify-center">
       <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
-        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST To-Do List</h5>
-        <form name="add-task"
-              hx-post="/rpc/add_todo"
+        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
+        <form hx-post="/rpc/add_todo"
               hx-target="#todo-list-area"
               hx-trigger="submit"
               hx-on="htmx:afterRequest: this.reset()">
@@ -179,20 +181,23 @@ Next, let's add an endpoint to register a to-do in the database and modify the `
 
   + ``hx-target="#todo-list-area"``: the HTML content returned from the request will go inside ``<div id="todo-list-area"></div>`` (which is the list of to-dos).
 
-  + ``hx-trigger="submit"``: htmx will do this request when submitting the form (by pressing enter inside the ``<input>``).
+  + ``hx-trigger="submit"``: htmx will do this request when submitting the form (by pressing enter while inside the ``<input>``).
 
   + ``hx-on="htmx:afterRequest: this.reset()">``: this is a Javascript command that clears the form `after the request is done <https://htmx.org/events/#htmx:afterRequest>`_.
 
 With this, the ``http://localhost:3000/rpc/index`` page lists all the todos and adds new ones by submitting tasks in the input element.
+Don't forget to refresh the :ref:`schema cache <schema_reloading>`.
+
+.. image:: ../_static/how-tos/htmx-insert.gif
 
 Editing and Deleting To-Dos
 ---------------------------
 
-Now, let's modify the ``html_todo`` function and make it more functional.
+Now, let's modify ``api.html_todo`` and make it more functional.
 
 .. code-block:: postgres
 
-  create or replace function api.html_todo_template(api.todos) returns text
+  create or replace function api.html_todo(api.todos) returns text
     language sql stable
     as $$
   select format($html$
@@ -200,7 +205,6 @@ Now, let's modify the ``html_todo`` function and make it more functional.
     <div class="flex justify-between items-center">
       <div id="todo-edit-area-%1$s" class="pr-5">
         <form id="edit-task-state-%1$s"
-              name="edit-task-state"
               hx-post="/rpc/change_todo_state"
               hx-vals='{"_id": %1$s, "_done": %4$s}'
               hx-target="#todo-list-area"
@@ -211,8 +215,7 @@ Now, let's modify the ``html_todo`` function and make it more functional.
         </form>
       </div>
       <div>
-        <button class="p-1.5 rounded-full hover:bg-gray-700 focus:ring-gray-800 del-button"
-                name="edit-button"
+        <button class="p-1.5 rounded-full hover:bg-gray-700 focus:ring-gray-800"
                 hx-get="/todos?select=html_editable_task"
                 hx-vals='{"id": "eq.%1$s"}'
                 hx-target="#todo-edit-area-%1$s"
@@ -222,8 +225,7 @@ Now, let's modify the ``html_todo`` function and make it more functional.
             <path d="M13.243 3.2 7.359 9.081a.5.5 0 0 0-.136.256L6.51 12.9a.5.5 0 0 0 .59.59l3.566-.713a.5.5 0 0 0 .255-.136L16.8 6.757 13.243 3.2Z"/>
           </svg>
         </button>
-        <button class="p-1.5 rounded-full hover:bg-gray-700 focus:ring-gray-800 del-button"
-                name="del-button"
+        <button class="p-1.5 rounded-full hover:bg-gray-700 focus:ring-gray-800"
                 hx-post="/rpc/delete_todo"
                 hx-vals='{"_id": %1$s}'
                 hx-target="#todo-list-area"
@@ -243,7 +245,7 @@ Now, let's modify the ``html_todo`` function and make it more functional.
   );
   $$;
 
-Let's deconstruct the new features:
+Let's deconstruct the new htmx features added:
 
 - The ``<form>`` element is configured as follows:
 
@@ -252,36 +254,25 @@ Let's deconstruct the new features:
   + ``hx-vals='{"_id": %1$s, "_done": %4$s}'``: adds the parameters to the request.
     This is an alternative to using hidden inputs inside the ``<form>``.
 
-  + ``hx-target="#todo-list-area"``: the returned HTML will replace the element with this id.
-
   + ``hx-trigger="click"``: htmx does the request after clicking on the element.
 
-- The ``<button>`` with ``name=edit-button`` has the following:
+- For the first ``<button>``:
 
-  + ``hx-post="/rpc/delete_todo"``: does an AJAX POST request to that endpoint. It will delete the corresponding to-do.
+  + ``hx-get="/todos?select=html_editable_task"``: it does an AJAX GET request to that endpoint.
+    It returns an HTML with an input that will allow us to edit the task.
 
-  + ``hx-vals='{"_id": %1$s}'``: adds the parameters to the POST request.
-
-  + ``hx-target="#todo-list-area"``: the returned HTML will replace the element with this id.
-
-  + ``hx-trigger="click"``: htmx does the request after clicking on the element.
-
-- The ``<button>`` with ``name=edit-button`` is configured as such:
-
-  + ``hx-get="/todos?select=html_editable_task"``: does an AJAX GET request to that endpoint.
-    It returns an HTML form that
+  + ``hx-target="#todo-edit-area"``: the returned HTML will replace the element with this id.
+    In this case, this replaces an individual task, not the whole list.
 
   + ``hx-vals='{"id": "eq.%1$s"}'``: adds the query parameters to the GET request.
     Note that this needs the ``eq.`` operator because it represents a table column not a function parameter.
 
-  + ``hx-target="#todo-edit-area-%1$s"``: the returned HTML will replace the element with this id.
+- For the second ``<button>``:
 
-  + ``hx-trigger="click"``: htmx does the request after clicking on the element.
+  + ``hx-post="/rpc/delete_todo"``: this post request will delete the corresponding to-do.
 
-.. TODO: COMPLETE!
-
-As mentioned above the ``name=edit-button`` does not call a function endpoint.
-This is because we will create the following :ref:`computed field <computed_cols>` to
+Clicking on the first button will enable the task editing.
+That's why we create the ``api.html_editable_task`` :ref:`computed field <computed_cols>` and use the ``api.todos`` table as an endpoint:
 
 .. code-block:: postgres
 
@@ -290,14 +281,13 @@ This is because we will create the following :ref:`computed field <computed_cols
     language sql as $$
   select format ($html$
   <form id="edit-task-%1$s"
-        name="edit-task"
         hx-post="/rpc/change_todo_task"
         hx-headers='{"Accept": "text/html"}'
         hx-vals='{"_id": %1$s}'
         hx-target="#todo-list-area"
         hx-trigger="submit,focusout">
     <input class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 bg-gray-700 border-gray-600 text-white focus:ring-blue-500 focus:border-blue-500"
-           id="task-%1$s" type="text" name="_task" value="%2$s">
+           id="task-%1$s" type="text" name="_task" value="%2$s" autofocus>
   </form>
   $html$,
     $1.id,
@@ -305,7 +295,8 @@ This is because we will create the following :ref:`computed field <computed_cols
   );
   $$;
 
-The purpose of the ``api.html_editable_task`` function is to return an HTML with an ``<input>`` that allows us to edit a task
+We could use a function too, but this demonstrates that we can build HTML components (specially for a list) directly from a table by using computed fields.
+In this example, this will return an input field that allows us to edit the corresponding to-do task.
 
 Finally, let's add the endpoints that will modify and delete the to-dos in the database.
 
@@ -349,5 +340,8 @@ All of those functions return an HTML list of to-dos that will replace the outda
 
 - The ``api.change_todo_task`` function modifies the ``task`` column  using the ``_id`` and the ``_task`` value from the request.
 
+After refreshing the :ref:`schema cache <schema_reloading>`, the page at ``http://localhost:3000/rpc/index`` will allow us to edit, delete and complete any to-do.
 
+.. image:: ../_static/how-tos/htmx-edit-delete.gif
 
+With that, we completed the to-do list functionality.
