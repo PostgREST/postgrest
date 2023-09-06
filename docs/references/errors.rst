@@ -151,6 +151,43 @@ Returns:
     "code": "PT402"
   }
 
+.. _raise_headers:
+
+Add HTTP Headers with RAISE
+---------------------------
+
+You can add custom HTTP status and headers to the response by raising a ``PGRST`` SQLSTATE error. You can achieve this by adding the ``code``, ``message``, ``detail`` and ``hint`` in the postgresql error message field as a JSON object. Here, the ``details`` and ``hint`` are optional. Similarly, the ``status`` and ``headers`` must be added to the SQL error detail field as a JSON object. For instance:
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"Payment Required","details":"Quota exceeded","hint":"Upgrade your plan"}',
+      detail = '{"status":402,"headers":{"X-Powered-By":"Nerd Rage"}}';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+  X-Powered-By: Nerd Rage
+
+  {
+    "message": "Payment Required",
+    "details": "Quota exceeded",
+    "hint": "Upgrade your plan",
+    "code": "123"
+  }
+  
+
+For non standard HTTP status, you can optionally add ``status_text`` to describe the status code. For status code ``419`` the detail field may look like this:
+
+.. code-block:: sql
+
+  detail = '{"status":419,"status_text":"Page Expired","headers":{"X-Powered-By":"Nerd Rage"}}';
+
+If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will throw a ``PGRST121`` error. See :ref:`Errors from PostgREST<pgrst1**>`.
+
 
 Errors from PostgREST
 =====================
@@ -303,6 +340,10 @@ Related to the HTTP request elements.
 | .. _pgrst120: | 400         | An embedded resource can only be filtered using the         |
 |               |             | ``is.null`` or ``not.is.null`` :ref:`operators <operators>`.|
 | PGRST120      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst121: | 400         | PostgREST can't parse the JSON objects in RAISE             |
+|               |             | ``PGRST`` error. See :ref:`raise headers <raise_headers>`.  |
+| PGRST121      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst2**:
