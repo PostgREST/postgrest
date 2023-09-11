@@ -6,7 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Unreleased
 
 ### Added
- 
+
  - #1614, Add `db-pool-automatic-recovery` configuration to disable connection retrying - @taimoorzaeem
  - #2492, Allow full response control when raising exceptions - @taimoorzaeem, @laurenceisla
 
@@ -16,6 +16,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2524, Fix schema cache and configuration reloading with `NOTIFY` not working on Windows - @diogob, @laurenceisla
  - #2915, Fix duplicate headers in response - @taimoorzaeem
  - #2824, Fix range request with first position same as length return status 206 - @taimoorzaeem
+ - #2939, Fix wrong `Preference-Applied` with `Prefer: tx=commit` when transaction is rollbacked - @steve-chavez
+ - #2939, Fix `count=exact` not being included in `Preference-Applied` - @steve-chavez
 
 ## [11.2.0] - 2023-08-10
 

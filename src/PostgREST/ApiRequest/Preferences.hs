@@ -6,6 +6,7 @@
 --
 -- [1] https://datatracker.ietf.org/doc/html/rfc7240
 --
+{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
@@ -15,8 +16,8 @@ module PostgREST.ApiRequest.Preferences
   , PreferResolution(..)
   , PreferTransaction(..)
   , fromHeaders
-  , ToAppliedHeader(..)
   , shouldCount
+  , prefAppliedHeader
   ) where
 
 import qualified Data.ByteString.Char8     as BS
@@ -53,7 +54,7 @@ data Preferences
 --
 -- One header with comma-separated values can be used to set multiple preferences:
 --
--- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates, count=exact")]
+-- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates, count=exact")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -65,7 +66,7 @@ data Preferences
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null")]
+-- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -77,13 +78,13 @@ data Preferences
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders True [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders $
+--   preferResolution . fromHeaders True $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -92,12 +93,12 @@ data Preferences
 --
 -- Preferences not recognized by the application are ignored:
 --
--- >>> preferResolution $ fromHeaders [("Prefer", "resolution=foo")]
+-- >>> preferResolution $ fromHeaders True [("Prefer", "resolution=foo")]
 -- Nothing
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default")]
+-- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -107,14 +108,14 @@ data Preferences
 --     , preferMissing = Just ApplyDefaults
 --     }
 --
-fromHeaders :: [HTTP.Header] -> Preferences
-fromHeaders headers =
+fromHeaders :: Bool -> [HTTP.Header] -> Preferences
+fromHeaders allowTxEndOverride headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
     , preferParameters     = parsePrefs [SingleObject]
     , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction    = parsePrefs [Commit, Rollback]
+    , preferTransaction    = if allowTxEndOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     }
   where
@@ -128,6 +129,22 @@ fromHeaders headers =
     prefMap :: ToHeaderValue a => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
+prefAppliedHeader :: Preferences -> Maybe HTTP.Header
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing } =
+  if null prefsVals
+    then Nothing
+    else Just (HTTP.hPreferenceApplied, combined)
+  where
+    combined = BS.intercalate ", " prefsVals
+    prefsVals = catMaybes [
+        toHeaderValue <$> preferResolution
+      , toHeaderValue <$> preferMissing
+      , toHeaderValue <$> preferRepresentation
+      , toHeaderValue <$> preferParameters
+      , toHeaderValue <$> preferCount
+      , toHeaderValue <$> preferTransaction
+      ]
+
 -- |
 -- Convert a preference into the value that we look for in the 'Prefer' headers.
 --
@@ -136,16 +153,6 @@ fromHeaders headers =
 --
 class ToHeaderValue a where
   toHeaderValue :: a -> ByteString
-
--- |
--- Header to indicate that a preference has been applied.
---
--- >>> toAppliedHeader MergeDuplicates
--- ("Preference-Applied","resolution=merge-duplicates")
---
-class ToHeaderValue a => ToAppliedHeader a where
-  toAppliedHeader :: a -> HTTP.Header
-  toAppliedHeader x = (HTTP.hPreferenceApplied, toHeaderValue x)
 
 -- | How to handle duplicate values.
 data PreferResolution
@@ -156,8 +163,6 @@ instance ToHeaderValue PreferResolution where
   toHeaderValue MergeDuplicates  = "resolution=merge-duplicates"
   toHeaderValue IgnoreDuplicates = "resolution=ignore-duplicates"
 
-instance ToAppliedHeader PreferResolution
-
 -- |
 -- How to return the mutated data.
 --
@@ -167,8 +172,6 @@ data PreferRepresentation
   | HeadersOnly -- ^ Return the Location header(in case of POST). This needs a SELECT privilege on the pk.
   | None        -- ^ Return nothing from the mutated data.
   deriving Eq
-
-instance ToAppliedHeader PreferRepresentation
 
 instance ToHeaderValue PreferRepresentation where
   toHeaderValue Full        = "return=representation"
@@ -209,8 +212,6 @@ instance ToHeaderValue PreferTransaction where
   toHeaderValue Commit   = "tx=commit"
   toHeaderValue Rollback = "tx=rollback"
 
-instance ToAppliedHeader PreferTransaction
-
 -- |
 -- How to handle the insertion/update when the keys specified in ?columns are not present
 -- in the json body.
@@ -222,5 +223,3 @@ data PreferMissing
 instance ToHeaderValue PreferMissing where
   toHeaderValue ApplyDefaults = "missing=default"
   toHeaderValue ApplyNulls    = "missing=null"
-
-instance ToAppliedHeader PreferMissing

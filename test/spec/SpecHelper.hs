@@ -46,6 +46,12 @@ matchCTArrayStrip = "Content-Type" <:> "application/vnd.pgrst.array+json;nulls=s
 matchCTSingularStrip :: MatchHeader
 matchCTSingularStrip = "Content-Type" <:> "application/vnd.pgrst.object+json;nulls=stripped; charset=utf-8"
 
+matchHeaderValuePresent :: HeaderName -> BS.ByteString -> MatchHeader
+matchHeaderValuePresent name val = MatchHeader $ \headers _ ->
+  case lookup name headers of
+    Just hdr -> if val `BS.isInfixOf` hdr then Nothing else Just $ "missing header value: " <> toS val <> "\n"
+    Nothing  -> Just $ "missing header: " <> toS (original name) <> "\n"
+
 matchHeaderAbsent :: HeaderName -> MatchHeader
 matchHeaderAbsent name = MatchHeader $ \headers _body ->
   case lookup name headers of

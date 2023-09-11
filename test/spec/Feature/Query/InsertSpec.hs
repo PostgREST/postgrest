@@ -102,7 +102,7 @@ spec actualPgVersion = do
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
                            , "Content-Range" <:> "*/1"
-                           , "Preference-Applied" <:> "return=representation"]
+                           , "Preference-Applied" <:> "return=representation, count=exact"]
           }
 
       it "can rename and cast the selected columns" $
