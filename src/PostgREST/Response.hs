@@ -17,9 +17,6 @@ module PostgREST.Response
   , updateResponse
   , addRetryHint
   , isServiceUnavailable
-  , optionalRollback
-  , concatPrefAppsHeaders
-  , addPrefToHeaders
   , traceHeaderMiddleware
   ) where
 
@@ -42,10 +39,9 @@ import qualified PostgREST.Response.OpenAPI as OpenAPI
 import PostgREST.ApiRequest              (ApiRequest (..),
                                           InvokeMethod (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
-                                          PreferTransaction (..),
                                           Preferences (..),
-                                          shouldCount,
-                                          toAppliedHeader)
+                                          prefAppliedHeader,
+                                          shouldCount)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
@@ -68,11 +64,12 @@ import Protolude.Conv (toS)
 
 
 readResponse :: Bool -> QualifiedIdentifier -> ApiRequest -> ResultSet -> Wai.Response
-readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+readResponse headersOnly identifier ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} resultSet = case resultSet of
   RSStandard{..} -> do
     let
       (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
       response = gucResponse rsGucStatus rsGucHeaders
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing Nothing preferCount preferTransaction Nothing
       headers =
         [ contentRange
         , ( "Content-Location"
@@ -82,6 +79,7 @@ readResponse headersOnly identifier ctxApiRequest@ApiRequest{..} resultSet = cas
           )
         ]
         ++ contentTypeHeaders ctxApiRequest
+        ++ prefHeader
       rsOrErrBody = if status == HTTP.status416
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
           $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
@@ -98,6 +96,9 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
       response = gucResponse rsGucStatus rsGucHeaders
+      prefHeader = prefAppliedHeader $
+        Preferences (if null pkCols && isNothing (qsOnConflict iQueryParams) then Nothing else preferResolution)
+        preferRepresentation Nothing preferCount preferTransaction preferMissing
       headers =
         catMaybes
           [ if null rsLocation then
@@ -111,19 +112,14 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan} ctxApiReques
                 )
           , Just . RangeQuery.contentRangeH 1 0 $
               if shouldCount preferCount then Just rsQueryTotal else Nothing
-          , if null pkCols && isNothing (qsOnConflict iQueryParams) then
-              Nothing
-            else
-              toAppliedHeader <$> preferResolution
-          , toAppliedHeader <$> preferMissing
+          , prefHeader
           ]
 
     case preferRepresentation of
-      Just Full -> response HTTP.status201 (addPrefToHeaders headers Full ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
-      Just None -> response HTTP.status201 (addPrefToHeaders headers None) mempty
-      Just HeadersOnly -> response HTTP.status201 (addPrefToHeaders headers HeadersOnly) mempty
+      Just Full -> response HTTP.status201 (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+      Just None -> response HTTP.status201 headers mempty
+      Just HeadersOnly -> response HTTP.status201 headers mempty
       Nothing -> response HTTP.status201 headers mempty
-
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
@@ -137,12 +133,12 @@ updateResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
       contentRangeHeader =
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      headers = catMaybes [contentRangeHeader, toAppliedHeader <$> preferMissing]
+      prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction preferMissing
+      headers = catMaybes [contentRangeHeader, prefHeader]
 
     case preferRepresentation of
-        Just Full -> response HTTP.status200 (addPrefToHeaders headers Full ++ contentTypeHeaders ctxApiRequest)
-          (LBS.fromStrict rsBody)
-        Just None -> response HTTP.status204 (addPrefToHeaders headers None) mempty
+        Just Full -> response HTTP.status200 (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+        Just None -> response HTTP.status204 headers mempty
         _ -> response HTTP.status204 headers mempty
 
   RSPlan plan ->
@@ -153,11 +149,12 @@ singleUpsertResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resu
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing
 
     case preferRepresentation of
-      Just Full -> response HTTP.status200 (contentTypeHeaders ctxApiRequest ++ [toAppliedHeader Full]) (LBS.fromStrict rsBody)
-      Just None -> response HTTP.status204 [toAppliedHeader None] mempty
-      _ -> response HTTP.status204 [] mempty
+      Just Full -> response HTTP.status200 (contentTypeHeaders ctxApiRequest ++ prefHeader) (LBS.fromStrict rsBody)
+      Just None -> response HTTP.status204 prefHeader mempty
+      _ -> response HTTP.status204 prefHeader mempty
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders ctxApiRequest) $ LBS.fromStrict plan
@@ -170,12 +167,12 @@ deleteResponse ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet 
       contentRangeHeader =
         RangeQuery.contentRangeH 1 0 $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      headers = [contentRangeHeader]
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing
+      headers = contentRangeHeader : prefHeader
 
     case preferRepresentation of
-        Just Full -> response HTTP.status200 (addPrefToHeaders headers Full ++ contentTypeHeaders ctxApiRequest)
-          (LBS.fromStrict rsBody)
-        Just None -> response HTTP.status204 (addPrefToHeaders headers None) mempty
+        Just Full -> response HTTP.status200 (headers ++ contentTypeHeaders ctxApiRequest) (LBS.fromStrict rsBody)
+        Just None -> response HTTP.status204 headers mempty
         _ -> response HTTP.status204 headers mempty
 
   RSPlan plan ->
@@ -209,7 +206,7 @@ respondInfo allowHeader =
   Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
 
 invokeResponse :: InvokeMethod -> Routine -> ApiRequest -> ResultSet -> Wai.Response
-invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resultSet of
+invokeResponse invMethod proc ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -219,7 +216,8 @@ invokeResponse invMethod proc ctxApiRequest@ApiRequest{..} resultSet = case resu
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
           $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
-      headers = [contentRange]
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferParameters preferCount preferTransaction Nothing
+      headers = contentRange : prefHeader
 
     if Routine.funcReturnsVoid proc then
         response HTTP.status204 headers mempty
@@ -278,86 +276,11 @@ addRetryHint delay response = do
 isServiceUnavailable :: Wai.Response -> Bool
 isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
 
-optionalRollback :: AppConfig -> ApiRequest -> ExceptT Error.Error IO Wai.Response -> ExceptT Error.Error IO Wai.Response
-optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} resp = do
-  newRes <- catchError resp $ return . Error.errorResponseFor
-  return $ Wai.mapResponseHeaders preferenceApplied newRes
-  where
-    shouldCommit =
-      configDbTxAllowOverride && preferTransaction == Just Commit
-    shouldRollback =
-      configDbTxAllowOverride && preferTransaction == Just Rollback
-    preferenceApplied
-      | shouldCommit =
-          addHeadersIfNotIncluded
-            [toAppliedHeader Commit]
-      | shouldRollback =
-          addHeadersIfNotIncluded
-            [toAppliedHeader Rollback]
-      | otherwise =
-          identity
-
--- | Add headers not already included to allow the user to override them instead of duplicating them. The exception here is the Preference-Applied header, which will be duplicated here, but later get combined into a single header
---
--- >>> :{
---  addHeadersIfNotIncluded
---     [("Content-Type","application/json"),
---      ("Preference-Applied","tx=commit"),
---      ("Content-Range","*/*")]
---     [("Content-Type","custom/type"),
---      ("Preference-Applied","return=representation")]
--- :}
--- [("Preference-Applied","tx=commit"),("Content-Range","*/*"),("Content-Type","custom/type"),("Preference-Applied","return=representation")]
---
--- | Hmm, below seems like a problem, however this won't happen practically
---   because preferRepresentation is only added once in the request processing
---   pipeline. Thus, no need to add an extra filter. In case this becomes a
---   problem in the future, we can always change this
---
--- >>> :{
---  addHeadersIfNotIncluded
---      [("Preference-Applied","return=minimal")]
---      [("Preference-Applied","return=representation")]
--- :}
--- [("Preference-Applied","return=minimal"),("Preference-Applied","return=representation")]
-
+-- | Add headers not already included to allow the user to override them instead of duplicating them
 addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
-  filter (keyNotSameOrPrefApp . fst) newHeaders ++ initialHeaders
-    where
-      keyNotSameOrPrefApp k = isNothing (find ((== k) . fst) initialHeaders) ||
-                              (k == HTTP.hPreferenceApplied)
-
--- |  Filters out multiple Preference-Applied Headers from the list and concatenate them into a single Preference-Applied header:
---
--- >>> :{
---  concatPrefAppsHeaders
---     [("Content-Type","application/json")
---     , ("Preference-Applied","tx=commit")
---     , ("Preference-Applied","return=minimal")]
--- :}
--- [("Content-Type","application/json"),("Preference-Applied","tx=commit, return=minimal")]
-
-concatPrefAppsHeaders :: [HTTP.Header] -> [HTTP.Header]
-concatPrefAppsHeaders headers = otherHeaders ++ [(HTTP.hPreferenceApplied, combinedPrefApps)]
-  where
-  (prefApps, otherHeaders) = L.partition (\(k, _) -> k == HTTP.hPreferenceApplied) headers
-  prefAppsValues = [ v | (_,v) <- prefApps]
-  combinedPrefApps = BS.intercalate ", " prefAppsValues
-
--- | Given response headers and a preferRepresentation value, add
---   preferRepresentation to Preference-Applied
---
--- >>> :{
---  addPrefToHeaders
---      [("Content-Type", "application/json")
---      , ("Preference-Applied", "tx=commit")]
---      None
--- :}
--- [("Content-Type","application/json"),("Preference-Applied","tx=commit, return=minimal")]
-
-addPrefToHeaders :: [HTTP.Header] -> PreferRepresentation -> [HTTP.Header]
-addPrefToHeaders headers pref = concatPrefAppsHeaders (headers ++ [toAppliedHeader pref])
+  filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
+  initialHeaders
 
 traceHeaderMiddleware :: AppConfig -> Wai.Middleware
 traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =

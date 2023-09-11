@@ -72,8 +72,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should not be updated, either
@@ -88,8 +87,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should not be updated, either
@@ -145,8 +143,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should not exist, either
@@ -161,8 +158,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should not exist, either
@@ -177,8 +173,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should not exist, either
@@ -226,8 +221,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should still exist
@@ -244,8 +238,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular ]
             }
 
         -- the rows should still exist
@@ -318,8 +311,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular
-                             , "Preference-Applied" <:> "tx=commit" ]
+            , matchHeaders = [ matchContentTypeSingular]
             }
 
         -- should rollback function
