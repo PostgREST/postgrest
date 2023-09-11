@@ -15,7 +15,7 @@ jobs:
     name: Build docs
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v23
     - run: nix-env -f default.nix -iA build
     - run: postgrest-docs-build
@@ -24,7 +24,7 @@ jobs:
     name: Run spellcheck
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v23
     - run: nix-env -f default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
@@ -33,7 +33,7 @@ jobs:
     name: Run dictcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v23
       - run: nix-env -f default.nix -iA dictcheck
       - run: postgrest-docs-dictcheck
@@ -43,7 +43,7 @@ jobs:
     if: github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v23
     - run: nix-env -f default.nix -iA linkcheck
     - run: postgrest-docs-linkcheck
