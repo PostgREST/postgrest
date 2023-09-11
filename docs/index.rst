@@ -42,10 +42,6 @@ Sponsors
     :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
     :width:  13em
 
-  .. image:: _static/retool.png
-    :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
-    :width:  13em
-
   .. image:: _static/gnuhost.png
     :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
