@@ -11,7 +11,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: cachix/install-nix-action@v22
+    - uses: cachix/install-nix-action@v23
       with:
         install_url: https://releases.nixos.org/nix/nix-2.13.3/install
     - uses: cachix/cachix-action@v12
