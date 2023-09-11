@@ -28,7 +28,7 @@ jobs:
     name: Seed ${{ matrix.os }}
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
