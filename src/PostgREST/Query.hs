@@ -226,9 +226,9 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
     SQL.condemn
   where
     shouldCommit =
-      configDbTxAllowOverride && preferTransaction == Just Commit
+      preferTransaction == Just Commit
     shouldRollback =
-      configDbTxAllowOverride && preferTransaction == Just Rollback
+      preferTransaction == Just Rollback
 
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->

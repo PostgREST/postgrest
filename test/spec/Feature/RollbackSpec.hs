@@ -37,8 +37,8 @@ preferCommit   = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
 preferRollback = [("Prefer", "return=representation"), ("Prefer", "tx=rollback")]
 
 withoutPreferenceApplied      = []
-withPreferenceCommitApplied   = [ "Preference-Applied" <:> "tx=commit" ]
-withPreferenceRollbackApplied = [ "Preference-Applied" <:> "tx=rollback" ]
+withPreferenceCommitApplied   = [ matchHeaderValuePresent "Preference-Applied" "tx=commit" ]
+withPreferenceRollbackApplied = [ matchHeaderValuePresent "Preference-Applied" "tx=rollback" ]
 
 shouldRespondToReads reqHeaders respHeaders = do
   it "responds to GET" $ do

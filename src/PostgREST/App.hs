@@ -150,8 +150,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf req body
 
-  Response.optionalRollback conf apiRequest $
-    handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
+  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
 
 runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState isoLvl mode authenticated prepared handler = do

@@ -38,7 +38,7 @@ spec =
           `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/1"
-                           , "Preference-Applied" <:> "return=representation"]
+                           , "Preference-Applied" <:> "return=representation, count=exact"]
           }
 
       it "ignores ?select= when return not set or return=minimal" $ do
