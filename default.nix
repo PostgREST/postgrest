@@ -20,7 +20,7 @@ let
 
   python = pkgs.python3.withPackages (ps: [ ps.sphinx ps.sphinx_rtd_theme ps.livereload (sphinxTabsPkg ps) (sphinxCopybuttonPkg ps) ]);
 in
-{
+rec {
   inherit pkgs;
 
   build =
@@ -84,5 +84,15 @@ in
         set -euo pipefail
 
         ${python}/bin/sphinx-build --color -b linkcheck docs _build
+      '';
+
+  check =
+    pkgs.writeShellScriptBin "postgrest-docs-check"
+      ''
+        set -euo pipefail
+        ${build}/bin/postgrest-docs-build
+        ${dictcheck}/bin/postgrest-docs-dictcheck
+        ${linkcheck}/bin/postgrest-docs-linkcheck
+        ${spellcheck}/bin/postgrest-docs-spellcheck
       '';
 }

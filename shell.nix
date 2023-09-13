@@ -14,6 +14,7 @@ pkgs.mkShell {
     docs.spellcheck
     docs.dictcheck
     docs.linkcheck
+    docs.check
   ];
 
   shellHook = ''
