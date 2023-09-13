@@ -17,7 +17,7 @@ write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest" target="_blank">
-          <img width="222px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/cybertec-new.png">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/cybertec-new.png">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -26,26 +26,21 @@ write from scratch.
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://tryretool.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/retool.png">
+        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/gnuhost.png">
         </a>
       </td>
     </tr>
     <tr></tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/gnuhost.png">
+        <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/oblivious.jpg">
         </a>
       </td>
       <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.png">
-        </a>
-      </td>
-      <td align="center" valign="middle">
-        <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/oblivious.jpg">
         </a>
       </td>
     </tr>
