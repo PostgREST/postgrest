@@ -11,8 +11,9 @@ on:
       - main
 
 jobs:
-  Loadtest-Nix:
-    name: Loadtest (Nix)
+  Loadtest-PR-Nix:
+    name: Loadtest PR (Nix)
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,3 +33,31 @@ jobs:
           name: loadtest.md
           path: loadtest/loadtest.md
           if-no-files-found: error
+
+  Loadtest-Merge-Nix:
+    name: Loadtest Merge (Nix)
+    if: ${{ github.event_name == 'merge' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
+        with:
+          semver_only: true          
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          tools: loadtest
+      - name: Run loadtest
+        run: |
+          postgrest-loadtest-against ${{ steps.get-latest-tag.outputs.tag }}
+          postgrest-loadtest-report > loadtest/loadtest.md
+      - name: Upload report
+        uses: actions/upload-artifact@v3
+        with:
+          name: loadtest.md
+          path: loadtest/loadtest.md
+          if-no-files-found: error
+        
