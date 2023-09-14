@@ -52,7 +52,7 @@ import Data.Foldable                 (foldr1)
 import Text.InterpolatedString.Perl6 (qc)
 
 import PostgREST.ApiRequest.Types        (AggregateFunction (..),
-                                          Alias, Cast,
+                                          Alias,
                                           FtsOperator (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
@@ -73,6 +73,7 @@ import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleFilter (..),
                                           CoercibleLogicTree (..),
                                           CoercibleOrderTerm (..),
+                                          SelectTerm(..),
                                           unknownField)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
@@ -262,12 +263,14 @@ pgFmtCoerceNamed :: CoercibleField -> SQL.Snippet
 pgFmtCoerceNamed CoercibleField{cfName=fn, cfTransform=(Just formatterProc)} = pgFmtCallUnary formatterProc (pgFmtIdent fn) <> " AS " <> pgFmtIdent fn
 pgFmtCoerceNamed CoercibleField{cfName=fn} = pgFmtIdent fn
 
-pgFmtSelectItem :: QualifiedIdentifier -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtSelectItem table (fld, agg, Nothing, alias) = pgFmtApplyAggregate agg (pgFmtTableCoerce table fld) <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
--- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
--- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
--- Not quoting should be fine, we validate the input on Parsers.
-pgFmtSelectItem table (fld, agg, Just cast, alias) = pgFmtApplyAggregate agg ("CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )") <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
+pgFmtSelectItem :: QualifiedIdentifier -> SelectTerm -> SQL.Snippet
+pgFmtSelectItem table SelectTerm{selField=fld, selAggFunction=agg, selCast=Nothing, selAlias=alias} =
+  pgFmtApplyAggregate agg (pgFmtTableCoerce table fld) <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
+pgFmtSelectItem table SelectTerm{selField=fld, selAggFunction=agg, selCast=(Just cast), selAlias=alias} =
+  -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
+  -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
+  -- Not quoting should be fine, we validate the input on Parsers.
+  pgFmtApplyAggregate agg ("CAST (" <> pgFmtTableCoerce table fld <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )") <> pgFmtAs (cfName fld) (cfJsonPath fld) alias
 
 pgFmtApplyAggregate :: Maybe AggregateFunction -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyAggregate Nothing snippet = snippet
@@ -420,18 +423,17 @@ pgFmtAs fName jp Nothing = case jOp <$> lastMay jp of
   Nothing -> mempty
 pgFmtAs _ _ (Just alias) = " AS " <> pgFmtIdent alias
 
-groupF :: QualifiedIdentifier -> [(CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias)] -> SQL.Snippet
-groupF _ [] = mempty
-groupF qi fields =
-  if all (\(_, agg, _, _) -> isNothing agg) fields || all (\(_, agg, _, _) -> isJust agg) fields
+groupF :: QualifiedIdentifier -> [SelectTerm] -> [SQL.Snippet] -> SQL.Snippet
+groupF qi fields joinSelects =
+  if all (\SelectTerm{selAggFunction=agg} -> isNothing agg) fields || all (\SelectTerm{selAggFunction=agg} -> isJust agg) fields && null joinSelects
     then
       mempty
     else
-    " GROUP BY " <> intercalateSnippet ", " (pgFmtGroup qi <$> (filter (\(_, agg, _, _) -> isNothing agg) fields))
+      " GROUP BY " <> intercalateSnippet ", " ((pgFmtGroup qi <$> (filter (\SelectTerm{selAggFunction=agg} -> isNothing agg) fields)) ++ joinSelects)
 
-pgFmtGroup :: QualifiedIdentifier -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> SQL.Snippet
-pgFmtGroup _ (_, Just _, _, _) = mempty
-pgFmtGroup qi (fld, _, _, _) = pgFmtField qi fld
+pgFmtGroup :: QualifiedIdentifier -> SelectTerm -> SQL.Snippet
+pgFmtGroup _ SelectTerm{selAggFunction=Just _} = mempty
+pgFmtGroup qi SelectTerm{selField=fld, selAggFunction=Nothing} = pgFmtField qi fld
 
 countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SQL.Snippet)
 countF countQuery shouldCount =

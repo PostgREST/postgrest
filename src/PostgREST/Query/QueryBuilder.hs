@@ -50,19 +50,37 @@ readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,o
   (if null logicForest && null relJoinConds
     then mempty
     else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
-  groupF qi select <> " " <>
+  groupF qi select selects <> " " <>
   orderF qi order <> " " <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
-    defSelect = [(unknownField "*" [], Nothing, Nothing, Nothing)] -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
+-- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
+    defSelect = [SelectTerm { selField = unknownField "*" [], selAggFunction = Nothing, selCast = Nothing, selAlias = Nothing }]
     (selects, joins) = foldr getSelectsJoins ([],[]) forest
 
 getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
 getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
 getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} forest) (selects,joins) =
   let
+    -- The top-level will only ever see it as selecting the columns (or the aggregations) from one table.
+    -- We only care about the aliases in either mode. The problem is that any embedded relationship isn't
+    -- obviously aware of its descendants.
+    -- EmbeddedSelect
+    --
+    -- RelAggAlias
+    --
+    -- HasOneJsonObject -> columnName
+    -- HasManyJsonArray -> columnName
+    --
+    -- HasOneSpread -> columnNames
+    --
+    --
+    -- ComputeEmbeddedSelects
+    -- updateChildren
+    -- then that's just the relName or relAlias
+    -- harder with spreads: it's the selected columns + the embedded columns
     subquery = readPlanToQuery rr
     aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
     aggAlias = pgFmtIdent relAggAlias
@@ -72,7 +90,11 @@ getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggA
       then
         ( if relIsSpread
             then aggAlias <> ".*"
-            else "row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName
+            -- We need to cast the row to jsonb to allow for potential grouping,
+            -- as there is no equality operator for json.
+            else "row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> aliasOrName
+        -- Expand stars on JOINs if there is a group at any level?
+        -- And then we need to return whatever was selected as a third tuple element
         , correlatedSubquery subquery aggAlias "TRUE")
       else
         ( "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName

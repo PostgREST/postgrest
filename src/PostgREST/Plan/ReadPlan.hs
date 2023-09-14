@@ -6,11 +6,14 @@ module PostgREST.Plan.ReadPlan
 
 import Data.Tree (Tree (..))
 
-import PostgREST.ApiRequest.Types         (AggregateFunction, Alias, Cast, Depth,
-                                           Hint, JoinType, NodeName)
-import PostgREST.Plan.Types               (CoercibleField (..),
-                                           CoercibleLogicTree,
-                                           CoercibleOrderTerm)
+import PostgREST.ApiRequest.Types         (Alias,
+                                           Depth,
+                                           Hint,
+                                           JoinType,
+                                           NodeName)
+import PostgREST.Plan.Types               (CoercibleLogicTree,
+                                           CoercibleOrderTerm,
+                                           SelectTerm(..))
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -28,7 +31,7 @@ data JoinCondition =
   deriving (Eq, Show)
 
 data ReadPlan = ReadPlan
-  { select       :: [(CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias)]
+  { select       :: [SelectTerm]
   , from         :: QualifiedIdentifier
   , fromAlias    :: Maybe Alias
   , where_       :: [CoercibleLogicTree]
@@ -41,7 +44,8 @@ data ReadPlan = ReadPlan
   , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
-  , relIsSpread  :: Bool
+  , relIsSpread  :: Bool,
+  , relSelect    :: [RelSelectTerm]
   , depth        :: Depth
   -- ^ used for aliasing
   }

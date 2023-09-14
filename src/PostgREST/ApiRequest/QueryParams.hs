@@ -519,9 +519,12 @@ pFieldSelect = lexeme $ try (do
     pAggregation = choice
       [ string "sum"   $> Sum
       , string "avg"   $> Avg
-      , string "max"   $> Max
-      , string "min"   $> Min
       , string "count" $> Count
+      -- Using 'try' for "min" and "max" to allow backtracking.
+      -- This is necessary because both start with the same character 'm',
+      -- and without 'try', a partial match on "max" would prevent "min" from being tried.
+      , try (string "max") $> Max
+      , try (string "min") $> Min
       ]
 
 

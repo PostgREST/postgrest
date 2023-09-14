@@ -35,6 +35,7 @@ import qualified PostgREST.SchemaCache.Routine as Routine
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete)
 import Data.Tree               (Tree (..))
+import Data.Maybe              (fromJust)
 
 import PostgREST.ApiRequest                  (Action (..),
                                               ApiRequest (..),
@@ -265,6 +266,13 @@ withTextParse ctx field@CoercibleField{cfIRType} = withTransformer ctx "text" cf
 withJsonParse :: ResolverContext -> CoercibleField -> CoercibleField
 withJsonParse ctx field@CoercibleField{cfIRType} = withTransformer ctx "json" cfIRType field
 
+resolveSelectTerm :: ResolverContext -> Field -> Maybe AggregateFunction -> Maybe Cast -> Maybe Alias -> SelectTerm
+resolveSelectTerm ctx field agg sCast alias =
+  let
+    coercibleField = resolveOutputField ctx field
+  in
+    SelectTerm { selField = coercibleField, selAggFunction = agg, selCast = sCast, selAlias = alias }
+
 -- | Map the intermediate representation type to the output type defined by the resolver context (normally json), if available.
 resolveOutputField :: ResolverContext -> Field -> CoercibleField
 resolveOutputField ctx field = withOutputFormat ctx $ resolveTypeOrUnknown ctx field
@@ -288,7 +296,7 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbTab
     validateSpreadEmbeds =<<
     addRelatedOrders =<<
     addDataRepresentationAliases =<<
-    expandStarsForDataRepresentations ctx =<<
+    expandStars ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
@@ -301,7 +309,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -317,16 +325,17 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
             (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
             fldForest:rForest
         SelectField{..} ->
-          Node q{select=(resolveOutputField ctx{qi=from q} selField, selAggregateFunction, selCast, selAlias):select q} rForest
+          Node q{select=resolveSelectTerm ctx{qi=from q} selField selAggregateFunction selCast selAlias:select q} rForest
 
 -- | Preserve the original field name if data representation is used to coerce the value.
 addDataRepresentationAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=sel} -> rPlan{select=map aliasSelectItem sel}) rPlanTree
+addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=sel} -> rPlan{select=map aliasSelectTerm sel}) rPlanTree
   where
-    aliasSelectItem :: (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias)
+    aliasSelectTerm :: SelectTerm -> SelectTerm
     -- If there already is an alias, don't overwrite it.
-    aliasSelectItem (fld@(CoercibleField{cfName=fieldName, cfTransform=(Just _)}), Nothing, Nothing, Nothing) = (fld, Nothing, Nothing, Just fieldName)
-    aliasSelectItem fld = fld
+    aliasSelectTerm term@(SelectTerm {selField = CoercibleField{cfName=fieldName, cfTransform=(Just _)}, selAggFunction = Nothing, selCast = Nothing, selAlias = Nothing}) =
+      term { PostgREST.Plan.Types.selAlias = Just fieldName}
+    aliasSelectTerm term = term
 
 knownColumnsInContext :: ResolverContext -> [Column]
 knownColumnsInContext ResolverContext{..} =
@@ -334,32 +343,48 @@ knownColumnsInContext ResolverContext{..} =
   Just . tableColumnsList
 
 -- | Expand "select *" into explicit field names of the table, if necessary to apply data representations.
-expandStarsForDataRepresentations :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-expandStarsForDataRepresentations ctx@ResolverContext{qi} rPlanTree = Right $ fmap expandStars rPlanTree
+expandStars :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+expandStars ctx@ResolverContext{qi} rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
   where
-    expandStars :: ReadPlan -> ReadPlan
-    -- When the schema is "" and the table is the source CTE, we assume the true source table is given in the from
-    -- alias and belongs to the request schema. See the bit in `addRels` with `newFrom = ...`.
-    expandStars rPlan@ReadPlan{from=(QualifiedIdentifier "" "pgrst_source"), fromAlias=(Just tblAlias)} =
-      expandStarsForTable ctx{qi=qi{qiName=tblAlias}} rPlan
-    expandStars rPlan@ReadPlan{from=fromTable} =
-      expandStarsForTable ctx{qi=fromTable} rPlan
+    expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
+    expandStarsForReadPlan hasAgg (Node rPlan children) =
+      let
+        -- Update the hasAgg flag based on whether this node has an aggregate function
+        newHasAgg = hasAgg || any (\SelectTerm{selAggFunction=agg} -> isJust agg) (select rPlan)
 
-expandStarsForTable :: ResolverContext -> ReadPlan -> ReadPlan
-expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadPlan{select=selectItems} =
+        -- Choose the appropriate context based on whether we're dealing with "pgrst_source"
+        fromQI = from rPlan
+        alias = fromAlias rPlan
+        isPgrstSource = fromQI == QualifiedIdentifier "" "pgrst_source"
+        newCtx = if isPgrstSource && isJust alias
+                then ctx{qi = qi{qiName = fromJust alias}}
+                else ctx{qi = fromQI}
+
+        -- Expand stars for this node based on the new context and hasAgg flag
+        newRPlan = expandStarsForTable newCtx newHasAgg rPlan
+      in
+        -- Continue expanding stars for the children, passing along the updated hasAgg flag
+        Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
+
+expandStarsForTable :: ResolverContext -> Bool -> ReadPlan -> ReadPlan
+expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rplan@ReadPlan{select=selectTerms} =
   -- If we have a '*' select AND the target table has at least one data representation, expand.
-  if ("*" `elem` map (\(field, _, _, _) -> cfName field) selectItems) && any hasOutputRep knownColumns
-    then rplan{select=concatMap (expandStarSelectItem knownColumns) selectItems}
+  -- We ignore any '*' selects that have an aggregate function attached (i.e for COUNT(*)).
+  if hasAgg || ("*" `elem` map (cfName . PostgREST.Plan.Types.selField) filteredSelectTerms) && any hasOutputRep knownColumns
+    then rplan{select=concatMap (expandStarSelectTerm knownColumns) selectTerms}
     else rplan
   where
+    filteredSelectTerms = filter (\SelectTerm{selAggFunction=agg} -> isNothing agg) selectTerms
     knownColumns = knownColumnsInContext ctx
 
     hasOutputRep :: Column -> Bool
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
 
-    expandStarSelectItem :: [Column] -> (CoercibleField, Maybe AggregateFunction, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe AggregateFunction,Maybe Cast, Maybe Alias)]
-    expandStarSelectItem columns (CoercibleField{cfName="*", cfJsonPath=[]}, b, c, d) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c, d)) columns
-    expandStarSelectItem _ selectItem = [selectItem]
+    expandStarSelectTerm :: [Column] -> SelectTerm -> [SelectTerm]
+    -- TODO: why would you ever want a cast or alias to bubble down here?
+    expandStarSelectTerm columns (SelectTerm { selField = CoercibleField{cfName="*", cfJsonPath=[]}, selAggFunction = Nothing, selCast = c, selAlias = d }) =
+      map (\col -> SelectTerm { selField = withOutputFormat ctx $ resolveColumnField col, selAggFunction = Nothing, selCast = c, selAlias = d }) columns
+    expandStarSelectTerm _ selectTerm = [selectTerm]
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -770,7 +795,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = cfName . (\(f, _, _, _) -> f) <$> select
+    fldNames = cfName . PostgREST.Plan.Types.selField <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
@@ -839,10 +864,9 @@ binaryField AppConfig{configRawMediaTypes} acceptMediaType proc rpTree
       _                        -> False
 
     fstFieldName :: ReadPlanTree -> Maybe FieldName
-    fstFieldName (Node ReadPlan{select=(CoercibleField{cfName="*", cfJsonPath=[]}, _, _, _):_} [])  = Nothing
-    fstFieldName (Node ReadPlan{select=[(CoercibleField{cfName=fld, cfJsonPath=[]}, _, _, _)]} [])  = Just fld
-    fstFieldName _                                               = Nothing
-
+    fstFieldName (Node ReadPlan{select=[SelectTerm{selField=CoercibleField{cfName="*", cfJsonPath=[]}}]} [])  = Nothing
+    fstFieldName (Node ReadPlan{select=[SelectTerm{selField=CoercibleField{cfName=fld, cfJsonPath=[]}}]} [])  = Just fld
+    fstFieldName _ = Nothing
 
 mediaToAggregate :: MediaType -> Maybe FieldName -> ApiRequest -> ResultAggregate
 mediaToAggregate mt binField apiReq@ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} =
