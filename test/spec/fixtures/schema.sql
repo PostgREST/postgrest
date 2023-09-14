@@ -3437,3 +3437,13 @@ begin
       message = '{"code":"123","message":"ABC","details":"DEF"}';
 end
 $$;
+
+create table table_a (
+  id int primary key,
+  name text
+);
+
+create table table_b (
+  table_a_id int references table_a(id),
+  name text
+);

@@ -853,3 +853,8 @@ INSERT INTO datarep_next_two_todos VALUES (2, 1, 3, 'do these first');
 TRUNCATE TABLE bitchar_with_length CASCADE;
 INSERT INTO bitchar_with_length(bit, char) VALUES ('00000', 'aaaaa');
 INSERT INTO bitchar_with_length(bit, char) VALUES ('11111', 'bbbbb');
+
+TRUNCATE TABLE table_a CASCADE;
+INSERT INTO table_a(id, name) VALUES (1, 'Not null'), (2, null);
+TRUNCATE TABLE table_b CASCADE;
+INSERT INTO table_b(table_a_id, name) VALUES (1, 'Test 1'), (2, 'Test 2');
