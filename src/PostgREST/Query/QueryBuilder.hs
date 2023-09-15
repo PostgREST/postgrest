@@ -203,7 +203,7 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
     then mempty
     else " WHERE " ) <>
   intercalateSnippet " AND " (
-    map (pgFmtLogicTree qi) logicForest ++
+    map (pgFmtLogicTreeCount qi) logicForest ++
     map pgFmtJoinCondition relJoinConds ++
     subQueries
   )
@@ -216,6 +216,17 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
       if joinType == Just JTInner
         then ("EXISTS (" <> readPlanToCountQuery readReq <> " )"):rest
         else rest
+    findNullEmbedRel fld = find (\(Node ReadPlan{relAggAlias} _) -> fld == relAggAlias) forest
+
+    pgFmtLogicTreeCount :: QualifiedIdentifier -> CoercibleLogicTree -> SQL.Snippet
+    pgFmtLogicTreeCount qiCount (CoercibleExpr hasNot op frst) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTreeCount qiCount <$> frst) <> ")"
+      where
+        notOp =  if hasNot then "NOT" else mempty
+        opSql And = " AND "
+        opSql Or  = " OR "
+    pgFmtLogicTreeCount _ (CoercibleStmnt (CoercibleFilterNullEmbed hasNot fld)) =
+      maybe mempty (\x -> (if not hasNot then "NOT " else mempty) <> "EXISTS (" <> readPlanToCountQuery x <> ")") (findNullEmbedRel fld)
+    pgFmtLogicTreeCount qiCount (CoercibleStmnt flt) = pgFmtFilter qiCount flt
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
 limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
