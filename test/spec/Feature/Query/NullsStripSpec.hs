@@ -1,4 +1,4 @@
-module Feature.Query.NullsStrip where
+module Feature.Query.NullsStripSpec where
 
 import Network.Wai (Application)
 
