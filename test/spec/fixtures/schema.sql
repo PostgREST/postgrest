@@ -3368,3 +3368,82 @@ $$ language sql;
 create function returns_setof_record_params(id int, name text) returns setof record as $$
 select * from projects p where p.id >= $1 and p.name like $2;
 $$ language sql;
+
+create function raise_sqlstate_test1() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC","details":"DEF","hint":"XYZ"}',
+      detail = '{"status":332,"status_text":"My Custom Status","headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_test2() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC"}',
+      detail = '{"status":332,"headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_test3() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC"}',
+      detail = '{"status":404,"headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_test4() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC"}',
+      detail = '{"status":404,"status_text":"My Not Found","headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_invalid_json_message() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = 'INVALID',
+      detail = '{"status":332,"headers":{"X-Header":"str"}}';
+end
+$$;
+
+create function raise_sqlstate_invalid_json_details() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC","details":"DEF"}',
+      detail = 'INVALID';
+end
+$$;
+
+create function raise_sqlstate_missing_details() returns void
+  language plpgsql
+  as $$
+begin
+    raise sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"ABC","details":"DEF"}';
+end
+$$;
+
+create table table_a (
+  id int primary key,
+  name text
+);
+
+create table table_b (
+  table_a_id int references table_a(id),
+  name text
+);
