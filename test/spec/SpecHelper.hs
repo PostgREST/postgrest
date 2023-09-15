@@ -58,6 +58,12 @@ matchHeaderAbsent name = MatchHeader $ \headers _body ->
     Just _  -> Just $ "unexpected header: " <> toS (original name) <> "\n"
     Nothing -> Nothing
 
+matchHeaderPresent :: HeaderName -> MatchHeader
+matchHeaderPresent name = MatchHeader $ \headers _body ->
+  case lookup name headers of
+    Just _  -> Nothing
+    Nothing -> Just $ "missing header: " <> toS (original name) <> "\n"
+
 validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do
   r <- request methodGet "/" headers ""
@@ -225,6 +231,9 @@ testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIden
 
 testObservabilityCfg :: AppConfig
 testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-Id" }
+
+testCfgServerTiming :: AppConfig
+testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

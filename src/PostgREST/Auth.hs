@@ -14,6 +14,7 @@ very simple authentication system inside the PostgreSQL database.
 module PostgREST.Auth
   ( AuthResult (..)
   , getResult
+  , getJwtDur
   , getRole
   , middleware
   ) where
@@ -37,6 +38,7 @@ import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime)
 import System.IO.Unsafe        (unsafePerformIO)
+import System.TimeIt           (timeItT)
 
 import PostgREST.AppState (AppState, getConfig, getTime)
 import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
@@ -102,13 +104,19 @@ middleware appState app req respond = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-  authResult <- runExceptT $
-    parseToken conf (LBS.fromStrict token) time >>=
-    parseClaims conf
+  let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+      parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
 
-  let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-  app req' respond
+  if configDbPlanEnabled conf
+    then do
+      (dur,authResult) <- timeItT parseJwt
+      let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
+      app req' respond
+    else do
+      authResult <- parseJwt
+      let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+      app req' respond
+
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey
@@ -116,6 +124,13 @@ authResultKey = unsafePerformIO Vault.newKey
 
 getResult :: Wai.Request -> Maybe (Either Error AuthResult)
 getResult = Vault.lookup authResultKey . Wai.vault
+
+jwtDurKey :: Vault.Key Double
+jwtDurKey = unsafePerformIO Vault.newKey
+{-# NOINLINE jwtDurKey #-}
+
+getJwtDur :: Wai.Request -> Maybe Double
+getJwtDur =  Vault.lookup jwtDurKey . Wai.vault
 
 getRole :: Wai.Request -> Maybe BS.ByteString
 getRole req = authRole <$> (rightToMaybe =<< getResult req)

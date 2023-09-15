@@ -52,6 +52,7 @@ import PostgREST.Config              (AppConfig (..))
 import PostgREST.Config.PgVersion    (PgVersion (..))
 import PostgREST.Error               (Error)
 import PostgREST.Query               (DbHandler)
+import PostgREST.Response            (ServerTimingParams (..))
 import PostgREST.SchemaCache         (SchemaCache (..))
 import PostgREST.SchemaCache.Routine (Routine (..))
 import PostgREST.Version             (docsVersion, prettyVersion)
@@ -150,7 +151,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf req body
 
-  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache
+  let serverTimingParams = if configDbPlanEnabled then Just (ServerTimingParams { jwtDur = fromJust $ Auth.getJwtDur req }) else Nothing
+  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache serverTimingParams
 
 runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState isoLvl mode authenticated prepared handler = do
@@ -164,38 +166,38 @@ runDbHandler appState isoLvl mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Maybe ServerTimingParams -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache serverTimingParams =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       wrPlan <- liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       resultSet <- runQuery roleIsoLvl (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      return $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
+      return $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet serverTimingParams
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
-      return $ Response.createResponse identifier mrPlan apiReq resultSet
+      return $ Response.createResponse identifier mrPlan apiReq resultSet serverTimingParams
 
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      return $ Response.updateResponse mrPlan apiReq resultSet
+      return $ Response.updateResponse mrPlan apiReq resultSet serverTimingParams
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      return $ Response.singleUpsertResponse mrPlan apiReq resultSet
+      return $ Response.singleUpsertResponse mrPlan apiReq resultSet serverTimingParams
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      return $ Response.deleteResponse mrPlan apiReq resultSet
+      return $ Response.deleteResponse mrPlan apiReq resultSet serverTimingParams
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       resultSet <- runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan))(Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
-      return $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
+      return $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet serverTimingParams
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       iPlan <- liftEither $ Plan.inspectPlan conf apiReq
