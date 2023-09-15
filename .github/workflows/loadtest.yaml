@@ -36,7 +36,7 @@ jobs:
 
   Loadtest-Merge-Nix:
     name: Loadtest Merge (Nix)
-    if: ${{ github.event_name == 'merge' && github.ref == 'refs/heads/main' }}
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
