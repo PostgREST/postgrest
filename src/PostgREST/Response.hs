@@ -18,6 +18,7 @@ module PostgREST.Response
   , addRetryHint
   , isServiceUnavailable
   , traceHeaderMiddleware
+  , ServerTimingParams(..)
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -30,6 +31,7 @@ import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.HTTP.Types.URI    as HTTP
 import qualified Network.Wai               as Wai
+import           Numeric                   (showFFloat)
 
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.MediaType        as MediaType
@@ -64,35 +66,44 @@ import qualified PostgREST.SchemaCache.Routine as Routine
 import Protolude      hiding (Handler, toS)
 import Protolude.Conv (toS)
 
-readResponse :: WrappedReadPlan -> Bool -> QualifiedIdentifier -> ApiRequest -> ResultSet -> Wai.Response
-readResponse WrappedReadPlan{wrMedia} headersOnly identifier ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} resultSet = case resultSet of
-  RSStandard{..} -> do
-    let
-      (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
-      response = gucResponse rsGucStatus rsGucHeaders
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing Nothing preferCount preferTransaction Nothing
-      headers =
-        [ contentRange
-        , ( "Content-Location"
-          , "/"
-              <> toUtf8 (qiName identifier)
-              <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
-          )
-        ]
-        ++ contentTypeHeaders wrMedia ctxApiRequest
-        ++ prefHeader
-      rsOrErrBody = if status == HTTP.status416
-        then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
-        else LBS.fromStrict rsBody
+-- Parameters for server-timing header
+-- e.g "Server-Timing: jwt;dur=23.2"
+-- Add other durations like app, db, render later
+newtype ServerTimingParams = ServerTimingParams {
+  jwtDur :: Double
+}
 
-    response status headers $ if headersOnly then mempty else rsOrErrBody
+readResponse :: WrappedReadPlan -> Bool -> QualifiedIdentifier -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+readResponse WrappedReadPlan{wrMedia} headersOnly identifier ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} resultSet serverTimingParams =
+  case resultSet of
+    RSStandard{..} -> do
+      let
+        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
+        response = gucResponse rsGucStatus rsGucHeaders
+        prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing Nothing preferCount preferTransaction Nothing
+        headers =
+          [ contentRange
+          , ( "Content-Location"
+            , "/"
+                <> toUtf8 (qiName identifier)
+                <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
+            )
+          ]
+          ++ contentTypeHeaders wrMedia ctxApiRequest
+          ++ prefHeader
+          ++ serverTimingHeader serverTimingParams
+        rsOrErrBody = if status == HTTP.status416
+          then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
+            $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+          else LBS.fromStrict rsBody
 
-  RSPlan plan ->
-    Wai.responseLBS HTTP.status200 (contentTypeHeaders wrMedia ctxApiRequest) $ LBS.fromStrict plan
+      response status headers $ if headersOnly then mempty else rsOrErrBody
 
-createResponse :: QualifiedIdentifier -> MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet = case resultSet of
+    RSPlan plan ->
+      Wai.responseLBS HTTP.status200 (contentTypeHeaders wrMedia ctxApiRequest) $ LBS.fromStrict plan
+
+createResponse :: QualifiedIdentifier -> MutateReadPlan -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} resultSet serverTimingParams = case resultSet of
   RSStandard{..} -> do
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
@@ -114,7 +125,7 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrMedia} ctx
           , Just . RangeQuery.contentRangeH 1 0 $
               if shouldCount preferCount then Just rsQueryTotal else Nothing
           , prefHeader
-          ]
+          ] ++ serverTimingHeader serverTimingParams
 
     case preferRepresentation of
       Just Full -> response HTTP.status201 (headers ++ contentTypeHeaders mrMedia ctxApiRequest) (LBS.fromStrict rsBody)
@@ -125,8 +136,8 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrMedia} ctx
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-updateResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-updateResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+updateResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+updateResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet serverTimingParams = case resultSet of
   RSStandard{..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -134,7 +145,7 @@ updateResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Pre
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
       prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction preferMissing
-      headers = catMaybes [contentRangeHeader, prefHeader]
+      headers = catMaybes [contentRangeHeader, prefHeader] ++ serverTimingHeader serverTimingParams
 
     case preferRepresentation of
         Just Full -> response HTTP.status200 (headers ++ contentTypeHeaders mrMedia ctxApiRequest) (LBS.fromStrict rsBody)
@@ -144,23 +155,25 @@ updateResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Pre
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-singleUpsertResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-singleUpsertResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+singleUpsertResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+singleUpsertResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet serverTimingParams = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing
+      sTHeader = serverTimingHeader serverTimingParams
+      cTHeader = contentTypeHeaders mrMedia ctxApiRequest
 
     case preferRepresentation of
-      Just Full -> response HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest ++ prefHeader) (LBS.fromStrict rsBody)
-      Just None -> response HTTP.status204 prefHeader mempty
-      _ -> response HTTP.status204 prefHeader mempty
+      Just Full -> response HTTP.status200 (cTHeader ++ sTHeader ++ prefHeader) (LBS.fromStrict rsBody)
+      Just None -> response HTTP.status204 (sTHeader ++ prefHeader) mempty
+      _ -> response HTTP.status204 (sTHeader ++ prefHeader) mempty
 
   RSPlan plan ->
     Wai.responseLBS HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-deleteResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Wai.Response
-deleteResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet = case resultSet of
+deleteResponse :: MutateReadPlan -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+deleteResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} resultSet serverTimingParams = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -168,7 +181,7 @@ deleteResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Pre
         RangeQuery.contentRangeH 1 0 $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing
-      headers = contentRangeHeader : prefHeader
+      headers = contentRangeHeader : prefHeader ++ serverTimingHeader serverTimingParams
 
     case preferRepresentation of
         Just Full -> response HTTP.status200 (headers ++ contentTypeHeaders mrMedia ctxApiRequest) (LBS.fromStrict rsBody)
@@ -205,8 +218,8 @@ respondInfo allowHeader =
   let allOrigins = ("Access-Control-Allow-Origin", "*") in
   Wai.responseLBS HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
 
-invokeResponse :: CallReadPlan -> InvokeMethod -> Routine -> ApiRequest -> ResultSet -> Wai.Response
-invokeResponse CallReadPlan{crMedia} invMethod proc ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} resultSet = case resultSet of
+invokeResponse :: CallReadPlan -> InvokeMethod -> Routine -> ApiRequest -> ResultSet -> Maybe ServerTimingParams -> Wai.Response
+invokeResponse CallReadPlan{crMedia} invMethod proc ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} resultSet serverTimingParams = case resultSet of
   RSStandard {..} -> do
     let
       response = gucResponse rsGucStatus rsGucHeaders
@@ -217,7 +230,7 @@ invokeResponse CallReadPlan{crMedia} invMethod proc ctxApiRequest@ApiRequest{iPr
           $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferParameters preferCount preferTransaction Nothing
-      headers = contentRange : prefHeader
+      headers = contentRange : prefHeader ++ serverTimingHeader serverTimingParams
 
     if Routine.funcReturnsVoid proc then
         response HTTP.status204 headers mempty
@@ -281,6 +294,18 @@ addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
   filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
   initialHeaders
+
+-- | Adds the server-timing parameters to Server-Timing Header
+--
+-- >>> :{
+--  serverTimingHeader $
+--      Just ServerTimingParams { jwtDur = 0.0000134 }
+-- :}
+-- [("Server-Timing","jwt;dur=13.4")]
+
+serverTimingHeader :: Maybe ServerTimingParams -> [HTTP.Header]
+serverTimingHeader (Just ServerTimingParams{..}) = [("Server-Timing", "jwt;dur=" <> BS.pack (showFFloat (Just 1) (jwtDur*1000000) ""))]
+serverTimingHeader Nothing = []
 
 traceHeaderMiddleware :: AppConfig -> Wai.Middleware
 traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =

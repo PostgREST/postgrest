@@ -114,6 +114,7 @@ library
                     , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 1.3
                     , time                      >= 1.6 && < 1.12
+                    , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
                     , vault                     >= 0.3.1.5 && < 0.4
                     , vector                    >= 0.11 && < 0.14
@@ -203,13 +204,14 @@ test-suite spec
                       Feature.Query.DeleteSpec
                       Feature.Query.EmbedDisambiguationSpec
                       Feature.Query.EmbedInnerJoinSpec
-                      Feature.Query.PlanSpec
+                      Feature.Query.ErrorSpec
                       Feature.Query.HtmlRawOutputSpec
                       Feature.Query.InsertSpec
                       Feature.Query.JsonOperatorSpec
                       Feature.Query.MultipleSchemaSpec
-                      Feature.Query.ErrorSpec
+                      Feature.Query.NullsStrip
                       Feature.Query.PgSafeUpdateSpec
+                      Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec
@@ -217,8 +219,8 @@ test-suite spec
                       Feature.Query.RawOutputTypesSpec
                       Feature.Query.RelatedQueriesSpec
                       Feature.Query.RpcSpec
+                      Feature.Query.ServerTimingSpec
                       Feature.Query.SingularSpec
-                      Feature.Query.NullsStrip
                       Feature.Query.SpreadQueriesSpec
                       Feature.Query.UnicodeSpec
                       Feature.Query.UpdateSpec

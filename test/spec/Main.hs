@@ -55,6 +55,7 @@ import qualified Feature.Query.RangeSpec
 import qualified Feature.Query.RawOutputTypesSpec
 import qualified Feature.Query.RelatedQueriesSpec
 import qualified Feature.Query.RpcSpec
+import qualified Feature.Query.ServerTimingSpec
 import qualified Feature.Query.SingularSpec
 import qualified Feature.Query.SpreadQueriesSpec
 import qualified Feature.Query.UnicodeSpec
@@ -109,6 +110,7 @@ main = do
       planEnabledApp       = app testPlanEnabledCfg
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
       obsApp               = app testObservabilityCfg
+      serverTiming         = app testCfgServerTiming
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -244,6 +246,9 @@ main = do
     -- this test runs with server-trace-header set
     parallel $ before obsApp $
       describe "Feature.ObservabilitySpec.spec" Feature.ObservabilitySpec.spec
+
+    parallel $ before serverTiming $
+      describe "Feature.Query.ServerTimingSpec.spec" Feature.Query.ServerTimingSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions
