@@ -218,6 +218,7 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
         else rest
     findNullEmbedRel fld = find (\(Node ReadPlan{relAggAlias} _) -> fld == relAggAlias) forest
 
+    -- https://github.com/PostgREST/postgrest/pull/2930#discussion_r1325293698
     pgFmtLogicTreeCount :: QualifiedIdentifier -> CoercibleLogicTree -> SQL.Snippet
     pgFmtLogicTreeCount qiCount (CoercibleExpr hasNot op frst) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTreeCount qiCount <$> frst) <> ")"
       where
