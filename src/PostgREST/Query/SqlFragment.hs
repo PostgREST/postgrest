@@ -15,6 +15,7 @@ module PostgREST.Query.SqlFragment
   , mutRangeF
   , orderF
   , pgFmtColumn
+  , pgFmtFilter
   , pgFmtIdent
   , pgFmtJoinCondition
   , pgFmtLogicTree
