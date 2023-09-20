@@ -4,16 +4,16 @@ self: super:
 {
   ## Example for including a postgresql version from a specific nixpks commit:
   ##
-  #  postgresql_14 =
-  #    let
-  #      rev = "76b1e16c6659ccef7187ca69b287525fea133244";
-  #      tarballHash = "1vsahpcx80k2bgslspb0sa6j4bmhdx77sw6la455drqcrqhdqj6a";
-  #
-  #      pinnedPkgs =
-  #        builtins.fetchTarball {
-  #          url = "https://github.com/nixos/nixpkgs/archive/${rev}.tar.gz";
-  #          sha256 = tarballHash;
-  #        };
-  #    in
-  #    (import pinnedPkgs { }).pkgs.postgresql_14;
+  postgresql_16 =
+    let
+      rev = "5148520bfab61f99fd25fb9ff7bfbb50dad3c9db";
+      tarballHash = "1dfjmz65h8z4lk845724vypzmf3dbgsdndjpj8ydlhx6c7rpcq3p";
+
+      pinnedPkgs =
+        builtins.fetchTarball {
+          url = "https://github.com/nixos/nixpkgs/archive/${rev}.tar.gz";
+          sha256 = tarballHash;
+        };
+    in
+    (import pinnedPkgs { }).pkgs.postgresql_16;
 }
