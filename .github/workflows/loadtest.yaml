@@ -23,9 +23,13 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: loadtest
+      - uses: actions-ecosystem/action-get-latest-tag@v1
+        id: get-latest-tag
+        with:
+          semver_only: true          
       - name: Run loadtest
         run: |
-          postgrest-loadtest-against main
+          postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report > loadtest/loadtest.md
       - name: Upload report
         uses: actions/upload-artifact@v3
