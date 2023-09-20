@@ -76,13 +76,12 @@ let
         inherit name;
         docs =
           ''
-            Run the vegeta loadtest twice:
-            - once on the <target> branch
+            Run the vegeta loadtest against every target branch and HEAD:
+            - once on the every <target-#> branch
             - once in the current worktree
           '';
         args = [
-          "ARG_POSITIONAL_SINGLE([target], [Commit-ish reference to compare with])"
-          "ARG_LEFTOVERS([additional vegeta arguments])"
+          "ARG_POSITIONAL_INF([target], [Commit-ish reference to compare with], 1)"
         ];
         positionalCompletion =
           ''
@@ -93,9 +92,11 @@ let
         inRootDir = true;
       }
       ''
+        for tgt in "''${_arg_target[@]}"; do
+
         cat << EOF
 
-        Running loadtest on "$_arg_target"...
+        Running loadtest on "$tgt"...
 
         EOF
 
@@ -104,13 +105,15 @@ let
         # Save the results in the current working tree, too,
         # otherwise they'd be lost in the temporary working tree
         # created by withTools.withGit.
-        ${withTools.withGit} "$_arg_target" ${loadtest} --output "$PWD/loadtest/$_arg_target.bin" --testdir "$PWD/test/load" "''${_arg_leftovers[@]}"
+        ${withTools.withGit} "$tgt" ${loadtest} --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
-        Done running on "$_arg_target".
+        Done running on "$tgt".
 
         EOF
+
+        done
 
         cat << EOF
 
@@ -118,7 +121,7 @@ let
 
         EOF
 
-        ${loadtest} --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load" "''${_arg_leftovers[@]}"
+        ${loadtest} --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
