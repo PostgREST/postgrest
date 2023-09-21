@@ -89,6 +89,7 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride        :: Bool
   , configDbTxRollbackAll          :: Bool
   , configDbUri                    :: Text
+  , configDbUriReadReplicas        :: [Text]
   , configDbUseLegacyGucs          :: Bool
   , configFilePath                 :: Maybe FilePath
   , configJWKS                     :: Maybe JWKSet
@@ -157,6 +158,7 @@ toText conf =
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
+      ,("db-uri-read-replicas",      q . T.intercalate " " . configDbUriReadReplicas)
       ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
@@ -257,6 +259,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
+    <*> (maybe [] split <$> optValue "db-uri-read-replicas")
     <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
@@ -402,6 +405,10 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         -- numeric instead?
         Nothing -> (> 0) <$> (readMaybe s :: Maybe Integer)
     coerceBool _            = Nothing
+
+    split :: C.Value -> [Text]
+    split (C.String s) = T.words s
+    split _            = []
 
     splitOnCommas :: C.Value -> [Text]
     splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s

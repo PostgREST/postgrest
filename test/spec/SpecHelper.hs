@@ -116,6 +116,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbConfig                  = False
   , configDbPreConfig               = Nothing
   , configDbUri                     = "postgresql://"
+  , configDbUriReadReplicas         = []
   , configDbUseLegacyGucs           = True
   , configFilePath                  = Nothing
   , configJWKS                      = parseSecret <$> secret

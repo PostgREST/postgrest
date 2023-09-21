@@ -166,7 +166,7 @@ runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> B
 runDbHandler appState isoLvl mode authenticated prepared handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState . transaction isoLvl mode $ runExceptT handler
+    AppState.usePool appState mode . transaction isoLvl mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
