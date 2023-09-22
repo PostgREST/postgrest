@@ -1,6 +1,6 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from operator import attrgetter
 import os
 import re
@@ -1095,3 +1095,122 @@ def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaul
 
         exitCode = wait_until_exit(postgrest)
         assert exitCode == 1
+
+
+def test_server_timing_jwt_should_decrease_on_subsequent_requests(defaultenv):
+    "assert that server-timing duration for JWT should decrease on subsequent requests"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PLAN_ENABLED": "true",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": "@/dev/stdin",
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    headers = jwtauthheader(
+        {
+            "role": "postgrest_test_author",
+            "exp": int(
+                (datetime.now(timezone.utc) + timedelta(minutes=30)).timestamp()
+            ),
+        },
+        SECRET,
+    )
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        first_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+        second_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+
+        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
+        second_dur = float(second_dur_text[8:])
+
+        # their difference should be atleast 300, implying
+        # that JWT Caching is working as expected
+        assert (first_dur - second_dur) > 300.0
+
+
+# just added to complete code coverage
+def test_jwt_caching_works_with_db_plan_disabled(defaultenv):
+    "assert that JWT caching words even when Server-Timing header is not returned"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PLAN_ENABLED": "false",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": "@/dev/stdin",
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        first_request = postgrest.session.get("/authors_only", headers=headers)
+        second_request = postgrest.session.get("/authors_only", headers=headers)
+
+        # in this case we don't get server-timing in response headers
+        # so we can't compare durations, we just check if request succeeds
+        assert first_request.status_code == 200 and second_request.status_code == 200
+
+
+def test_server_timing_jwt_should_not_decrease_when_caching_disabled(defaultenv):
+    "assert than jwt duration should not decrease when disabled"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PLAN_ENABLED": "true",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "0",  # cache disabled
+        "PGRST_JWT_SECRET": "@/dev/stdin",
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        warmup_req = postgrest.session.get("/authors_only", headers=headers)
+        first_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+        second_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+
+        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
+        second_dur = float(second_dur_text[8:])
+
+        # their difference should be less than 100
+        # implying that token is not cached
+        assert (first_dur - second_dur) < 100.0
+
+
+def test_jwt_cache_with_no_exp_claim(defaultenv):
+    "assert than jwt duration should decrease"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PLAN_ENABLED": "true",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": "@/dev/stdin",
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)  # no exp
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        first_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+        second_dur_text = postgrest.session.get(
+            "/authors_only", headers=headers
+        ).headers["Server-Timing"]
+
+        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
+        second_dur = float(second_dur_text[8:])
+
+        # their difference should be less than 100
+        # implying that token is not cached
+        assert (first_dur - second_dur) > 300.0

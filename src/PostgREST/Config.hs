@@ -163,7 +163,7 @@ toText conf =
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("jwt-cache-max-lifetime",                   show . configJwtCaching)
+      ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
