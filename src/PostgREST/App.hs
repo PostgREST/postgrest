@@ -172,47 +172,57 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     (ActionRead headersOnly, TargetIdent identifier) -> do
       wrPlan <- liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       resultSet <- runQuery roleIsoLvl (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      return $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
-      return $ Response.createResponse identifier mrPlan apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.createResponse identifier mrPlan apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      return $ Response.updateResponse mrPlan apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.updateResponse mrPlan apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      return $ Response.singleUpsertResponse mrPlan apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       mrPlan <- liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       resultSet <- runQuery roleIsoLvl (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      return $ Response.deleteResponse mrPlan apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.deleteResponse mrPlan apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       resultSet <- runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan))(Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
-      return $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet serverTimingParams
+      pgrst <- liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet serverTimingParams
+      return $ pgrstResponse pgrst
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       iPlan <- liftEither $ Plan.inspectPlan conf apiReq
       oaiResult <- runQuery roleIsoLvl (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
-      return $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
+      pgrst <- liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
+      return $ pgrstResponse pgrst
 
-    (ActionInfo, TargetIdent identifier) ->
-      return $ Response.infoIdentResponse identifier sCache
+    (ActionInfo, TargetIdent identifier) -> do
+      pgrst <- liftEither $ Response.infoIdentResponse identifier sCache
+      return $ pgrstResponse pgrst
 
     (ActionInfo, TargetProc identifier _) -> do
       cPlan <- liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
-      return $ Response.infoProcResponse (Plan.crProc cPlan)
+      pgrst <- liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
+      return $ pgrstResponse pgrst
 
-    (ActionInfo, TargetDefaultSpec _) ->
-      return Response.infoRootResponse
+    (ActionInfo, TargetDefaultSpec _) -> do
+      pgrst <- liftEither Response.infoRootResponse
+      return $ pgrstResponse pgrst
 
     _ ->
       -- This is unreachable as the ApiRequest.hs rejects it before
@@ -226,3 +236,6 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
         Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) apiReq pgVer
         Query.runPreReq conf
         query
+
+    pgrstResponse :: Response.PgrstResponse -> Wai.Response
+    pgrstResponse (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st hdrs bod
