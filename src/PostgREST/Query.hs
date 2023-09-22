@@ -206,7 +206,7 @@ writeQuery MutateReadPlan{mrReadPlan, mrMutatePlan, mrResAgg, mrMedia} ApiReques
 failNotSingular :: MediaType -> ResultSet -> DbHandler ()
 failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
-  when (elem mediaType [MTSingularJSON True,MTSingularJSON False]  && queryTotal /= 1) $ do
+  when (elem mediaType [MTSingularJSON True,MTSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.singularityError queryTotal
 
