@@ -97,6 +97,7 @@ data AppConfig = AppConfig
   , configJwtRoleClaimKey          :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
+  , configJwtCacheMaxLifetime      :: Int
   , configLogLevel                 :: LogLevel
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
@@ -162,6 +163,7 @@ toText conf =
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
+      ,("jwt-cache-max-lifetime",                   show . configJwtCaching)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
@@ -265,6 +267,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optWithAlias
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
+    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
     <*> parseLogLevel "log-level"
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
