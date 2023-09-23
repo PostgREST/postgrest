@@ -31,7 +31,7 @@ Some PostgREST features need metadata from the database schema. Getting this met
 Stale Schema Cache
 ------------------
 
-One operational problem that comes a cache is that it can go stale. This can happen for PostgREST when you make changes to the metadata before mentioned. Requests that depend on the metadata will fail.
+One operational problem that comes with a cache is that it can go stale. This can happen for PostgREST when you make changes to the metadata before mentioned. Requests that depend on the metadata will fail.
 
 You can solve this by reloading the cache manually or automatically.
 

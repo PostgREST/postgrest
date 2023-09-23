@@ -8,24 +8,25 @@ PostgREST error messages follow the PostgreSQL error structure. It includes ``ME
 Errors from PostgreSQL
 ======================
 
-PostgREST will forward errors coming from PostgreSQL. For instance, when querying a nonexistent table:
+PostgREST will forward errors coming from PostgreSQL. For instance, on a failed constraint:
 
 .. code-block:: http
 
-  GET /nonexistent_table?id=eq.1 HTTP/1.1
+  POST /projects HTTP/1.1
 
 .. code-block:: http
 
-  HTTP/1.1 404 Not Found
+  HTTP/1.1 400 Bad Request
   Content-Type: application/json; charset=utf-8
 
 .. code-block:: json
 
+
   {
-    "hint": null,
-    "details": null,
-    "code": "42P01",
-    "message": "relation \"api.nonexistent_table\" does not exist"
+      "code": "23502",
+      "details": "Failing row contains (null, foo, null).",
+      "hint": null,
+      "message": "null value in column \"id\" of relation \"projects\" violates not-null constraint"
   }
 
 .. _status_codes:
@@ -96,103 +97,10 @@ PostgREST translates `PostgreSQL error codes <https://www.postgresql.org/docs/cu
 | other                    | 400                     |                                 |
 +--------------------------+-------------------------+---------------------------------+
 
-.. _raise_error:
-
-RAISE errors with HTTP Status Codes
------------------------------------
-
-You can return custom HTTP status codes by raising SQL exceptions inside :ref:`functions <s_procs>`. For instance, here's a saucy function that always responds with an error:
-
-.. code-block:: postgresql
-
-  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
-    LANGUAGE plpgsql
-    AS $$
-  BEGIN
-    RAISE EXCEPTION 'I refuse!'
-      USING DETAIL = 'Pretty simple',
-            HINT = 'There is nothing you can do.';
-  END
-  $$;
-
-Calling the function returns HTTP 400 with the body
-
-.. code-block:: json
-
-  {
-    "message":"I refuse!",
-    "details":"Pretty simple",
-    "hint":"There is nothing you can do.",
-    "code":"P0001"
-  }
-
-One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
-
-For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise ``PT402``:
-
-.. code-block:: sql
-
-  RAISE sqlstate 'PT402' using
-    message = 'Payment Required',
-    detail = 'Quota exceeded',
-    hint = 'Upgrade your plan';
-
-Returns:
-
-.. code-block:: http
-
-  HTTP/1.1 402 Payment Required
-  Content-Type: application/json; charset=utf-8
-
-  {
-    "message": "Payment Required",
-    "details": "Quota exceeded",
-    "hint": "Upgrade your plan",
-    "code": "PT402"
-  }
-
-.. _raise_headers:
-
-Add HTTP Headers with RAISE
----------------------------
-
-You can add custom HTTP status and headers to the response by raising a ``PGRST`` SQLSTATE error. You can achieve this by adding the ``code``, ``message``, ``detail`` and ``hint`` in the postgresql error message field as a JSON object. Here, the ``details`` and ``hint`` are optional. Similarly, the ``status`` and ``headers`` must be added to the SQL error detail field as a JSON object. For instance:
-
-.. code-block:: sql
-
-  RAISE sqlstate 'PGRST' USING
-      message = '{"code":"123","message":"Payment Required","details":"Quota exceeded","hint":"Upgrade your plan"}',
-      detail = '{"status":402,"headers":{"X-Powered-By":"Nerd Rage"}}';
-
-Returns:
-
-.. code-block:: http
-
-  HTTP/1.1 402 Payment Required
-  Content-Type: application/json; charset=utf-8
-  X-Powered-By: Nerd Rage
-
-  {
-    "message": "Payment Required",
-    "details": "Quota exceeded",
-    "hint": "Upgrade your plan",
-    "code": "123"
-  }
-  
-
-For non standard HTTP status, you can optionally add ``status_text`` to describe the status code. For status code ``419`` the detail field may look like this:
-
-.. code-block:: sql
-
-  detail = '{"status":419,"status_text":"Page Expired","headers":{"X-Powered-By":"Nerd Rage"}}';
-
-If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will throw a ``PGRST121`` error. See :ref:`Errors from PostgREST<pgrst1**>`.
-
-
 Errors from PostgREST
 =====================
 
-Errors that come from PostgREST itself maintain the same structure. But differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
+Errors that come from PostgREST itself maintain the same structure but differ in the ``PGRST`` prefix in the ``code`` field. For instance, when querying a function that does not exist in the :doc:`schema cache <schema_cache>`:
 
 .. code-block:: http
 
@@ -218,7 +126,7 @@ Errors that come from PostgREST itself maintain the same structure. But differ i
 PostgREST Error Codes
 ---------------------
 
-PostgREST error codes have the form ``PGRSTgxx``
+PostgREST error codes have the form ``PGRSTgxx``.
 
 - ``PGRST`` is the prefix that differentiates the error from a PostgreSQL error.
 - ``g`` is the error group
@@ -418,3 +326,102 @@ Internal errors. If you encounter any of these, you may have stumbled on a Postg
 |               |             | to the database.                                            |
 | PGRSTX00      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+
+Custom Errors
+=============
+
+You can customize the errors by using the `RAISE statement <https://www.postgresql.org/docs/current/plpgsql-errors-and-messages.html#PLPGSQL-STATEMENTS-RAISE>`_  on functions.
+
+.. _raise_error:
+
+RAISE errors with HTTP Status Codes
+-----------------------------------
+
+Custom status codes can be done by raising SQL exceptions inside :ref:`functions <s_procs>`. For instance, here's a saucy function that always responds with an error:
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION just_fail() RETURNS void
+    LANGUAGE plpgsql
+    AS $$
+  BEGIN
+    RAISE EXCEPTION 'I refuse!'
+      USING DETAIL = 'Pretty simple',
+            HINT = 'There is nothing you can do.';
+  END
+  $$;
+
+Calling the function returns HTTP 400 with the body
+
+.. code-block:: json
+
+  {
+    "message":"I refuse!",
+    "details":"Pretty simple",
+    "hint":"There is nothing you can do.",
+    "code":"P0001"
+  }
+
+One way to customize the HTTP status code is by raising particular exceptions according to the PostgREST :ref:`error to status code mapping <status_codes>`. For example, :code:`RAISE insufficient_privilege` will respond with HTTP 401/403 as appropriate.
+
+For even greater control of the HTTP status code, raise an exception of the ``PTxyz`` type. For instance to respond with HTTP 402, raise ``PT402``:
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PT402' using
+    message = 'Payment Required',
+    detail = 'Quota exceeded',
+    hint = 'Upgrade your plan';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+
+  {
+    "message": "Payment Required",
+    "details": "Quota exceeded",
+    "hint": "Upgrade your plan",
+    "code": "PT402"
+  }
+
+.. _raise_headers:
+
+Add HTTP Headers with RAISE
+---------------------------
+
+For full control over headers and status you can raise a ``PGRST`` SQLSTATE error. You can achieve this by adding the ``code``, ``message``, ``detail`` and ``hint`` in the postgresql error message field as a JSON object. Here, the ``details`` and ``hint`` are optional. Similarly, the ``status`` and ``headers`` must be added to the SQL error detail field as a JSON object. For instance:
+
+.. code-block:: sql
+
+  RAISE sqlstate 'PGRST' USING
+      message = '{"code":"123","message":"Payment Required","details":"Quota exceeded","hint":"Upgrade your plan"}',
+      detail = '{"status":402,"headers":{"X-Powered-By":"Nerd Rage"}}';
+
+Returns:
+
+.. code-block:: http
+
+  HTTP/1.1 402 Payment Required
+  Content-Type: application/json; charset=utf-8
+  X-Powered-By: Nerd Rage
+
+  {
+    "message": "Payment Required",
+    "details": "Quota exceeded",
+    "hint": "Upgrade your plan",
+    "code": "123"
+  }
+
+
+For non standard HTTP status, you can optionally add ``status_text`` to describe the status code. For status code ``419`` the detail field may look like this:
+
+.. code-block:: sql
+
+  detail = '{"status":419,"status_text":"Page Expired","headers":{"X-Powered-By":"Nerd Rage"}}';
+
+If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will throw a ``PGRST121`` error. See :ref:`Errors from PostgREST<pgrst1**>`.
+
+
