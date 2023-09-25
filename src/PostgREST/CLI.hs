@@ -162,7 +162,7 @@ exampleConfigFile =
       |## Time in seconds after which to recycle unused pool connections
       |# db-pool-max-idletime = 30
       |
-      |## Allow autmatic database connection retrying
+      |## Allow automatic database connection retrying
       |# db-pool-automatic-recovery = true
       |
       |## Stored proc to exec immediately after auth
@@ -204,6 +204,9 @@ exampleConfigFile =
       |## (use "@filename" to load from separate file)
       |# jwt-secret = "secret_with_at_least_32_characters"
       |jwt-secret-is-base64 = false
+      |
+      |## Enables and set JWT Cache max lifetime, disables caching with 0
+      |# jwt-cache-max-lifetime = 0
       |
       |## Logging level, the admitted values are: crit, error, warn and info.
       |log-level = "error"

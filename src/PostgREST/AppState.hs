@@ -4,6 +4,7 @@
 
 module PostgREST.AppState
   ( AppState
+  , AuthResult(..)
   , destroy
   , getConfig
   , getSchemaCache
@@ -12,6 +13,7 @@ module PostgREST.AppState
   , getPgVersion
   , getRetryNextIn
   , getTime
+  , getJwtCache
   , init
   , initWithPool
   , logWithZTime
@@ -24,8 +26,11 @@ module PostgREST.AppState
   , runListener
   ) where
 
+import qualified Data.Aeson                 as JSON
+import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text.Encoding         as T
 import           Hasql.Connection           (acquire)
@@ -62,6 +67,11 @@ import PostgREST.SchemaCache.Identifiers (dumpQi)
 import Protolude
 
 
+data AuthResult = AuthResult
+  { authClaims :: KM.KeyMap JSON.Value
+  , authRole   :: BS.ByteString
+  }
+
 data AppState = AppState
   -- | Database connection pool
   { statePool                     :: SQL.Pool
@@ -87,6 +97,8 @@ data AppState = AppState
   , stateRetryNextIn              :: IORef Int
   -- | Logs a pool error with a debounce
   , debounceLogAcquisitionTimeout :: IO ()
+  -- | JWT Cache
+  , jwtCache                      :: C.Cache ByteString AuthResult
   }
 
 init :: AppConfig -> IO AppState
@@ -108,6 +120,7 @@ initWithPool pool conf = do
     <*> myThreadId
     <*> newIORef 0
     <*> pure (pure ())
+    <*> C.newCache Nothing
 
 
   debLogTimeout <-
@@ -187,6 +200,9 @@ putConfig = atomicWriteIORef . stateConf
 
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
+
+getJwtCache :: AppState -> C.Cache ByteString AuthResult
+getJwtCache = jwtCache
 
 -- | Log to stderr with local time
 logWithZTime :: AppState -> Text -> IO ()

@@ -26,6 +26,8 @@ import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
+import qualified Data.Cache                      as C
+import qualified Data.Scientific                 as Sci
 import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
 import qualified Network.HTTP.Types.Header       as HTTP
@@ -36,21 +38,19 @@ import Control.Lens            (set)
 import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
-import Data.Time.Clock         (UTCTime)
+import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
+import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
+import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, getConfig, getTime)
+import PostgREST.AppState (AppState, AuthResult (..), getConfig,
+                           getJwtCache, getTime)
 import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
 import PostgREST.Error    (Error (..))
 
 import Protolude
 
-
-data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: BS.ByteString
-  }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
@@ -107,16 +107,48 @@ middleware appState app req respond = do
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
 
-  if configDbPlanEnabled conf
-    then do
-      (dur,authResult) <- timeItT parseJwt
-      let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-      app req' respond
-    else do
-      authResult <- parseJwt
-      let req' = req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-      app req' respond
+-- If DbPlanEnabled       -> calculate JWT validation time
+-- If JwtCacheMaxLifetime -> cache JWT validation result
+  req' <- case (configDbPlanEnabled conf, configJwtCacheMaxLifetime conf) of
+    (True, 0)            -> do
+          (dur, authResult) <- timeItT parseJwt
+          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
+    (True, maxLifetime)  -> do
+          (dur, authResult) <- timeItT $ getJWTFromCache appState token maxLifetime parseJwt time
+          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
+
+    (False, 0)           -> do
+          authResult <- parseJwt
+          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+
+    (False, maxLifetime) -> do
+          authResult <- getJWTFromCache appState token maxLifetime parseJwt time
+          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+
+  app req' respond
+
+-- | Used to retrieve and insert JWT to JWT Cache
+getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
+getJWTFromCache appState token maxLifetime parseJwt utc = do
+  checkCache <- C.lookup (getJwtCache appState) token
+  authResult <- maybe parseJwt (pure . Right) checkCache
+
+  case (authResult,checkCache) of
+    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    _                    -> pure ()
+
+  return authResult
+
+-- Used to extract JWT exp claim and add to JWT Cache
+getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
+getTimeSpec res maxLifetime utc = do
+  let expireJSON = KM.lookup "exp" (authClaims res)
+      utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
+      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
+  case expireJSON of
+    Just (JSON.Number seconds) -> Just $ TimeSpec (sciToInt seconds - utcToSecs utc) 0
+    _                          -> Just $ TimeSpec (fromIntegral maxLifetime :: Int64) 0
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey
