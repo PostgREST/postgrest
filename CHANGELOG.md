@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2939, Fix `count=exact` not being included in `Preference-Applied` - @steve-chavez
  - #2800, Fix not including to-one embed resources that had a `NULL` value in any of the selected fields when doing null filtering on them - @laurenceisla
  - #2846, Fix error when requesting `Prefer: count=<type>` and doing null filtering on embedded resources - @laurenceisla
+ - #2846, Fix setting `default_transaction_isolation` unnecessarily - @steve-chavez
 
 ## [11.2.0] - 2023-08-10
 
