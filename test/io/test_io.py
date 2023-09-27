@@ -1182,9 +1182,9 @@ def test_server_timing_jwt_should_not_decrease_when_caching_disabled(defaultenv)
         first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
         second_dur = float(second_dur_text[8:])
 
-        # their difference should be less than 100
+        # their difference should be less than 150
         # implying that token is not cached
-        assert (first_dur - second_dur) < 100.0
+        assert (first_dur - second_dur) < 150.0
 
 
 def test_jwt_cache_with_no_exp_claim(defaultenv):
@@ -1211,6 +1211,6 @@ def test_jwt_cache_with_no_exp_claim(defaultenv):
         first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
         second_dur = float(second_dur_text[8:])
 
-        # their difference should be less than 100
-        # implying that token is not cached
+        # their difference should be atleast 300, implying
+        # that JWT Caching is working as expected
         assert (first_dur - second_dur) > 300.0

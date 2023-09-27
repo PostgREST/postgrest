@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2492, Allow full response control when raising exceptions - @taimoorzaeem, @laurenceisla
  - #2771, Add `Server-Timing` header with JWT duration - @taimoorzaeem
  - #2698, Add config `jwt-cache-max-lifetime` and implement JWT caching - @taimoorzaeem
+ - #2943, Add `handling=strict/lenient` for Prefer header - @taimoorzaeem
 
 ### Fixed
 

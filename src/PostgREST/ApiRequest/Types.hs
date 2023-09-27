@@ -71,6 +71,7 @@ data ApiRequestError
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
+  | InvalidPreferences [ByteString]
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
   | LimitNoOrderError

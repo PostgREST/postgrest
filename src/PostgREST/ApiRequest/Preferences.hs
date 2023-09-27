@@ -15,6 +15,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferRepresentation(..)
   , PreferResolution(..)
   , PreferTransaction(..)
+  , PreferHandling(..)
   , fromHeaders
   , shouldCount
   , prefAppliedHeader
@@ -26,7 +27,6 @@ import qualified Network.HTTP.Types.Header as HTTP
 
 import Protolude
 
-
 -- $setup
 -- Setup for doctests
 -- >>> import Text.Pretty.Simple (pPrint)
@@ -36,6 +36,7 @@ import Protolude
 -- >>> deriving instance Show PreferCount
 -- >>> deriving instance Show PreferTransaction
 -- >>> deriving instance Show PreferMissing
+-- >>> deriving instance Show PreferHandling
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -47,6 +48,8 @@ data Preferences
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
     , preferMissing        :: Maybe PreferMissing
+    , preferHandling       :: Maybe PreferHandling
+    , invalidPrefs         :: [ByteString]
     }
 
 -- |
@@ -62,11 +65,13 @@ data Preferences
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
 --     , preferMissing = Nothing
+--     , preferHandling = Nothing
+--     , invalidPrefs = []
 --     }
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null")]
+-- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -74,6 +79,8 @@ data Preferences
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
 --     , preferMissing = Just ApplyNulls
+--     , preferHandling = Just Lenient
+--     , invalidPrefs = [ "invalid" ]
 --     }
 --
 -- If a preference is set more than once, only the first is used:
@@ -91,14 +98,10 @@ data Preferences
 -- :}
 -- Just IgnoreDuplicates
 --
--- Preferences not recognized by the application are ignored:
---
--- >>> preferResolution $ fromHeaders True [("Prefer", "resolution=foo")]
--- Nothing
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default")]
+-- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -106,6 +109,8 @@ data Preferences
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
 --     , preferMissing = Just ApplyDefaults
+--     , preferHandling = Just Strict
+--     , invalidPrefs = [ "anything" ]
 --     }
 --
 fromHeaders :: Bool -> [HTTP.Header] -> Preferences
@@ -117,8 +122,20 @@ fromHeaders allowTxEndOverride headers =
     , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction    = if allowTxEndOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
+    , preferHandling       = parsePrefs [Strict, Lenient]
+    , invalidPrefs         = filter (`notElem` acceptedPrefs) prefs
     }
   where
+    mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
+    mapToHeadVal = map toHeaderValue
+    acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
+                    mapToHeadVal [Full, None, HeadersOnly] ++
+                    mapToHeadVal [SingleObject] ++
+                    mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
+                    mapToHeadVal [Commit, Rollback] ++
+                    mapToHeadVal [ApplyDefaults, ApplyNulls] ++
+                    mapToHeadVal [Strict, Lenient]
+
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
 
@@ -130,7 +147,7 @@ fromHeaders allowTxEndOverride headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -143,6 +160,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferParameters
       , toHeaderValue <$> preferCount
       , toHeaderValue <$> preferTransaction
+      , toHeaderValue <$> preferHandling
       ]
 
 -- |
@@ -223,3 +241,14 @@ data PreferMissing
 instance ToHeaderValue PreferMissing where
   toHeaderValue ApplyDefaults = "missing=default"
   toHeaderValue ApplyNulls    = "missing=null"
+
+-- |
+-- Handling of unrecognised preferences
+data PreferHandling
+  = Strict  -- ^ Throw error on unrecognised preferences
+  | Lenient -- ^ Ignore unrecognised preferences
+  deriving Eq
+
+instance ToHeaderValue PreferHandling where
+  toHeaderValue Strict  = "handling=strict"
+  toHeaderValue Lenient = "handling=lenient"

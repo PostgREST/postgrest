@@ -66,6 +66,7 @@ instance PgrstError ApiRequestError where
   status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
+  status InvalidPreferences{}    = HTTP.status400
   status InvalidRpcMethod{}      = HTTP.status405
   status InvalidRange{}          = HTTP.status416
   status NotFound                = HTTP.status404
@@ -171,6 +172,11 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode20,
     "message" .= ("Bad operator on the '" <> target <> "' embedded resource":: Text),
     "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
+    "hint"    .= JSON.Null]
+  toJSON (InvalidPreferences prefs) = JSON.object [
+    "code"    .= ApiRequestErrorCode22,
+    "message" .= ("Invalid preferences given with handling=strict" :: Text),
+    "details" .= T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs),
     "hint"    .= JSON.Null]
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = JSON.object [
@@ -646,6 +652,7 @@ data ErrorCode
   | ApiRequestErrorCode19
   | ApiRequestErrorCode20
   | ApiRequestErrorCode21
+  | ApiRequestErrorCode22
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -693,6 +700,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode19  -> "119"
   ApiRequestErrorCode20  -> "120"
   ApiRequestErrorCode21  -> "121"
+  ApiRequestErrorCode22  -> "122"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
