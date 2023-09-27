@@ -121,35 +121,37 @@ data InspectPlan = InspectPlan {
 }
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
-wrappedReadPlan  identifier conf sCache apiRequest = do
+wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
   binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read (mediaToAggregate mediaType binField apiRequest) mediaType
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
-mutateReadPlan  mutation apiRequest identifier conf sCache = do
+mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
   binField <- mapLeft ApiRequestError $ binaryField conf mediaType Nothing rPlan
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ MutateReadPlan rPlan mPlan SQL.Write (mediaToAggregate mediaType binField apiRequest) mediaType
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
-callReadPlan identifier conf sCache apiRequest invMethod = do
+callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
   let paramKeys = case invMethod of
         InvGet  -> S.fromList $ fst <$> qsParams'
         InvHead -> S.fromList $ fst <$> qsParams'
-        InvPost -> iColumns apiRequest
+        InvPost -> iColumns
   proc@Function{..} <- mapLeft ApiRequestError $
-    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) (iContentMediaType apiRequest) (invMethod == InvPost)
+    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) iContentMediaType (invMethod == InvPost)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
-  let args = case (invMethod, iContentMediaType apiRequest) of
+  let args = case (invMethod, iContentMediaType) of
         (InvGet, _)             -> jsonRpcParams proc qsParams'
         (InvHead, _)            -> jsonRpcParams proc qsParams'
-        (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) $ iPayload apiRequest
-        (InvPost, _)            -> maybe mempty payRaw $ iPayload apiRequest
+        (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) iPayload
+        (InvPost, _)            -> maybe mempty payRaw iPayload
       txMode = case (invMethod, pdVolatility) of
           (InvGet,  _)                 -> SQL.Read
           (InvHead, _)                 -> SQL.Read
@@ -157,12 +159,12 @@ callReadPlan identifier conf sCache apiRequest invMethod = do
           (InvPost, Routine.Immutable) -> SQL.Read
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  mediaType <- mapLeft ApiRequestError $ negotiateContent conf (iAction apiRequest) (iPathInfo apiRequest) (iAcceptMediaType apiRequest)
+  mediaType <- mapLeft ApiRequestError $ negotiateContent conf iAction iPathInfo iAcceptMediaType
   binField <- mapLeft ApiRequestError $ binaryField conf mediaType (Just proc) rPlan
+  if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ CallReadPlan rPlan cPlan txMode proc (mediaToAggregate mediaType binField apiRequest) mediaType
   where
-    Preferences{..} = iPreferences apiRequest
-    qsParams' = QueryParams.qsParams (iQueryParams apiRequest)
+    qsParams' = QueryParams.qsParams iQueryParams
 
 inspectPlan :: AppConfig -> ApiRequest -> Either Error InspectPlan
 inspectPlan conf apiRequest = do

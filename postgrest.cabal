@@ -215,6 +215,7 @@ test-suite spec
                       Feature.Query.PgSafeUpdateSpec
                       Feature.Query.PlanSpec
                       Feature.Query.PostGISSpec
+                      Feature.Query.PreferencesSpec
                       Feature.Query.QueryLimitedSpec
                       Feature.Query.QuerySpec
                       Feature.Query.RangeSpec
