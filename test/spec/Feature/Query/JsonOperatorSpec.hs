@@ -300,3 +300,11 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
          "code": "PGRST100",
          "hint": null} |]
       { matchStatus = 400, matchHeaders = [matchContentTypeJson] }
+
+  it "works when an RPC returns a dynamic TABLE with a composite type" $
+    get "/rpc/returns_complex?select=val->r&val->i=gt.0.5&order=val->>i.desc" `shouldRespondWith`
+      [json|[
+        {"r":0.3},
+        {"r":0.2}
+      ]|]
+      { matchStatus = 200, matchHeaders = [matchContentTypeJson] }

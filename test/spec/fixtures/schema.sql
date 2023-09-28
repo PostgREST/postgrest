@@ -3447,3 +3447,12 @@ create table table_b (
   table_a_id int references table_a(id),
   name text
 );
+
+create or replace function test.returns_complex()
+returns table(id int, val complex) as $$
+  select 1, row(0.1, 0.5)::complex as val
+  union
+  select 2, row(0.2, 0.6)::complex as val
+  union
+  select 3, row(0.3, 0.7)::complex as val;
+$$ language sql;
