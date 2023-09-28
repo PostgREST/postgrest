@@ -245,22 +245,19 @@ resolveTableFieldName table fieldName =
   fromMaybe (unknownField fieldName []) $ HMI.lookup fieldName (tableColumns table) >>=
     Just . resolveColumnField
 
-resolveTableField :: Table -> Field -> CoercibleField
-resolveTableField table (fieldName, []) = resolveTableFieldName table fieldName
-resolveTableField table (fieldName, jp) =
-  case resolveTableFieldName table fieldName of
-    -- types that are already json/jsonb don't need to be converted with `to_jsonb` for using arrow operators `data->attr`
-    -- this prevents indexes not applying https://github.com/PostgREST/postgrest/issues/2594
-    cf@CoercibleField{cfIRType="json"}  -> cf{cfJsonPath=jp}
-    cf@CoercibleField{cfIRType="jsonb"} -> cf{cfJsonPath=jp}
-    -- other types will get converted `to_jsonb(col)->attr`
-    cf                                  -> cf{cfJsonPath=jp, cfToJson=True}
-
 -- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `cfIRType` isn't empty.
 resolveTypeOrUnknown :: ResolverContext -> Field -> CoercibleField
-resolveTypeOrUnknown ResolverContext{..} field@(fn, jp) =
-  fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
-    Just . flip resolveTableField field
+resolveTypeOrUnknown ResolverContext{..} (fn, jp) =
+  case res of
+    -- types that are already json/jsonb don't need to be converted with `to_jsonb` for using arrow operators `data->attr`
+    -- this prevents indexes not applying https://github.com/PostgREST/postgrest/issues/2594
+    cf@CoercibleField{cfIRType="json"}  -> cf{cfJsonPath=jp, cfToJson=False}
+    cf@CoercibleField{cfIRType="jsonb"} -> cf{cfJsonPath=jp, cfToJson=False}
+    -- other types will get converted `to_jsonb(col)->attr`, even unknown types
+    cf                                  -> cf{cfJsonPath=jp, cfToJson=True}
+  where
+    res = fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
+          Just . flip resolveTableFieldName fn
 
 -- | Install any pre-defined data representation from source to target to coerce this reference.
 --
