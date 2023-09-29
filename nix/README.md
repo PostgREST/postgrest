@@ -13,7 +13,6 @@ To build PostgREST from your local checkout of the repository, run:
 
 ```bash
 $ nix-build --attr postgrestPackage
-
 ```
 
 This will create a `result` directory that contains the PostgREST binary at
@@ -21,6 +20,15 @@ This will create a `result` directory that contains the PostgREST binary at
 build the `postgrestPackage` attribute from the Nix expression it finds in our
 `default.nix` (see below for details). Nix will take care of getting the right
 GHC version and all the build dependencies.
+
+You can also build a statically linked binary with:
+
+```bash
+$ nix-build --attr postgrestStatic
+
+$ ldd result/bin/postgrest
+$       not a dynamic executable
+```
 
 ## Binary cache
 

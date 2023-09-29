@@ -49,8 +49,7 @@ import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Network.URI             (escapeURIString,
-                                isUnescapedInURIComponent, parseURI,
-                                uriQuery)
+                                isUnescapedInURIComponent)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -472,6 +471,8 @@ readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
 
 -- | Adds a `fallback_application_name` value to the connection string. This allows querying the PostgREST version on pg_stat_activity.
+-- | This follows the same logic as libpq for parsing the URI https://github.com/postgres/postgres/blob/a829b704015104f49a11ea007957ef03a03dc0d4/src/interfaces/libpq/fe-connect.c#L5880-L5921
+-- | If there's a postgres URI scheme designator prefix ("postgres://") then the connstring is considered an URI, if not, it's in key/value format.
 --
 -- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
 -- >>> let strangeVer = "11'1&0@#$%,.:\"[]{}?+^()=asdfqwer"::ByteString
@@ -496,15 +497,25 @@ readPGRSTEnvironment =
 --
 -- >>> addFallbackAppName strangeVer "postgres:///postgres?host=server&port=5432"
 -- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011%271%260%40%23%24%25%2C.%3A%22%5B%5D%7B%7D%3F%2B%5E%28%29%3Dasdfqwer"
+--
+-- Special chars in password
+-- >>> addFallbackAppName ver "postgres:///postgres:pass=()[]&#?host=server&port=5432"
+-- "postgres:///postgres:pass=()[]&#?host=server&port=5432&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 addFallbackAppName :: ByteString -> Text -> Text
 addFallbackAppName version dbUri = dbUri <>
-  case uriQuery <$> parseURI (toS dbUri) of
-    Nothing  -> " " <> keyValFmt -- Assume key/value connection string if the uri is not valid
-    Just ""  -> "?" <> uriFmt
-    Just "?" -> uriFmt
-    _        -> "&" <> uriFmt
+  if isPgURI dbUri
+    then case snd $ T.breakOn "?" dbUri of
+      "?" -> fallbackUriFmt
+      ""  -> "?" <> fallbackUriFmt
+      _   -> "&" <> fallbackUriFmt
+    else " " <> fallbackKeyValFmt
   where
-    uriFmt = pKeyWord <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
-    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
-    pKeyWord = "fallback_application_name="
+    fallbackUriFmt    = key <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
+    fallbackKeyValFmt = key <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
+    key = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
+    isPgURI str =
+      let
+        uriDesignator = "postgresql://"
+        shortUriDesignator = "postgres://" in
+      uriDesignator `T.isPrefixOf` str || shortUriDesignator `T.isPrefixOf` str
