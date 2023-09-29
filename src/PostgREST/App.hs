@@ -9,6 +9,7 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( SignalHandlerInstaller
@@ -57,7 +58,10 @@ import PostgREST.SchemaCache         (SchemaCache (..))
 import PostgREST.SchemaCache.Routine (Routine (..))
 import PostgREST.Version             (docsVersion, prettyVersion)
 
-import Protolude hiding (Handler)
+import qualified Data.ByteString.Char8 as BS
+import qualified Data.List             as L
+import qualified Network.HTTP.Types    as HTTP
+import           Protolude             hiding (Handler)
 
 type Handler = ExceptT Error
 
@@ -101,7 +105,7 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: AppConfig -> AppState.AppState -> IO () -> Wai.Application
 postgrest conf appState connWorker =
-  Response.traceHeaderMiddleware conf .
+  traceHeaderMiddleware conf .
   Cors.middleware .
   Auth.middleware appState .
   Logger.middleware (configLogLevel conf) $
@@ -123,10 +127,10 @@ postgrest conf appState connWorker =
         -- Launch the connWorker when the connection is down.  The postgrest
         -- function can respond successfully (with a stale schema cache) before
         -- the connWorker is done.
-        when (Response.isServiceUnavailable response) connWorker
+        when (isServiceUnavailable response) connWorker
         resp <- do
           delay <- AppState.getRetryNextIn appState
-          return $ Response.addRetryHint delay response
+          return $ addRetryHint delay response
         respond resp
 
 postgrestResponse
@@ -239,3 +243,19 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
 
     pgrstResponse :: Response.PgrstResponse -> Wai.Response
     pgrstResponse (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st hdrs bod
+
+traceHeaderMiddleware :: AppConfig -> Wai.Middleware
+traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =
+  case configServerTraceHeader of
+    Nothing -> app req respond
+    Just hdr ->
+      let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
+      app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
+
+addRetryHint :: Int -> Wai.Response -> Wai.Response
+addRetryHint delay response = do
+  let h = ("Retry-After", BS.pack $ show delay)
+  Wai.mapResponseHeaders (\hs -> if isServiceUnavailable response then h:hs else hs) response
+
+isServiceUnavailable :: Wai.Response -> Bool
+isServiceUnavailable response = Wai.responseStatus response == HTTP.status503

@@ -15,9 +15,6 @@ module PostgREST.Response
   , readResponse
   , singleUpsertResponse
   , updateResponse
-  , addRetryHint
-  , isServiceUnavailable
-  , traceHeaderMiddleware
   , ServerTimingParams(..)
   , PgrstResponse(..)
   ) where
@@ -26,12 +23,10 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.HashMap.Strict       as HM
-import qualified Data.List                 as L
 import           Data.Text.Read            (decimal)
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.HTTP.Types.URI    as HTTP
-import qualified Network.Wai               as Wai
 import           Numeric                   (showFFloat)
 
 import qualified PostgREST.Error            as Error
@@ -301,14 +296,6 @@ profileHeader schema negotiatedByProfile =
   else
     Nothing
 
-addRetryHint :: Int -> Wai.Response -> Wai.Response
-addRetryHint delay response = do
-  let h = ("Retry-After", BS.pack $ show delay)
-  Wai.mapResponseHeaders (\hs -> if isServiceUnavailable response then h:hs else hs) response
-
-isServiceUnavailable :: Wai.Response -> Bool
-isServiceUnavailable response = Wai.responseStatus response == HTTP.status503
-
 -- | Add headers not already included to allow the user to override them instead of duplicating them
 addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
@@ -326,11 +313,3 @@ addHeadersIfNotIncluded newHeaders initialHeaders =
 serverTimingHeader :: Maybe ServerTimingParams -> [HTTP.Header]
 serverTimingHeader (Just ServerTimingParams{..}) = [("Server-Timing", "jwt;dur=" <> BS.pack (showFFloat (Just 1) (jwtDur*1000000) ""))]
 serverTimingHeader Nothing = []
-
-traceHeaderMiddleware :: AppConfig -> Wai.Middleware
-traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =
-  case configServerTraceHeader of
-    Nothing -> app req respond
-    Just hdr ->
-      let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
-      app req (respond . Wai.mapResponseHeaders ([(hdr, fromMaybe mempty hdrVal)] ++))
