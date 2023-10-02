@@ -38,6 +38,7 @@ import qualified Feature.OptionsSpec
 import qualified Feature.Query.AndOrParamsSpec
 import qualified Feature.Query.ComputedRelsSpec
 import qualified Feature.Query.DeleteSpec
+import qualified Feature.Query.DisableExactCountSpec
 import qualified Feature.Query.EmbedDisambiguationSpec
 import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
@@ -112,6 +113,7 @@ main = do
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
       obsApp               = app testObservabilityCfg
       serverTiming         = app testCfgServerTiming
+      exactCountEnable     = app testCfgExactCountEnable
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -251,6 +253,10 @@ main = do
 
     parallel $ before serverTiming $
       describe "Feature.Query.ServerTimingSpec.spec" Feature.Query.ServerTimingSpec.spec
+
+    -- this test runs with db-exact-count-enable = false
+    before exactCountEnable $
+      describe "Feature.Query.DisableExactCountSpec" Feature.Query.DisableExactCountSpec.spec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

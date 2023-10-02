@@ -141,6 +141,9 @@ exampleConfigFile =
       |## Function for in-database configuration
       |## db-pre-config = "postgrest.pre_config"
       |
+      |## Enable or Disable `Prefer: count=exact`
+      |# db-exact-count-enable = true
+      |
       |## Extra schemas to add to the search_path of every request
       |db-extra-search-path = "public"
       |

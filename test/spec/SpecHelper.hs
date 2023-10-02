@@ -96,6 +96,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbAnonRole            = Just "postgrest_test_anonymous"
   , configDbChannel             = mempty
   , configDbChannelEnabled      = True
+  , configDbExactCountEnable    = True
   , configDbExtraSearchPath     = []
   , configDbMaxRows             = Nothing
   , configDbPlanEnabled         = False
@@ -235,6 +236,9 @@ testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-
 
 testCfgServerTiming :: AppConfig
 testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
+
+testCfgExactCountEnable :: AppConfig
+testCfgExactCountEnable = baseCfg { configDbExactCountEnable = False }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =
