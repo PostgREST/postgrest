@@ -192,3 +192,29 @@ spec = describe "computed relationships" $ do
           {"name":"Windows 10","computed_clients":{"name":"Microsoft"}}
         ]}
       ]|] { matchHeaders = [matchContentTypeJson] }
+
+  -- https://github.com/PostgREST/postgrest/issues/2963
+  context "can be defined using overloaded functions" $ do
+    it "tables" $ do
+      get "/items?select=*,computed_rel_overload(*)&limit=1"
+        `shouldRespondWith`
+        [json|
+          [{"id":1,"computed_rel_overload":[{"id":1}]}]
+        |] { matchHeaders = [matchContentTypeJson] }
+      get "/items2?select=*,computed_rel_overload(*)&limit=1"
+        `shouldRespondWith`
+        [json|
+          [{"id":1,"computed_rel_overload":[{"id":1},{"id":2}]}]
+        |] { matchHeaders = [matchContentTypeJson] }
+
+    it "rpc" $ do
+      get "/rpc/search?id=1&select=*,computed_rel_overload(*)"
+        `shouldRespondWith`
+        [json|
+          [{"id":1,"computed_rel_overload":[{"id":1}]}]
+        |] { matchHeaders = [matchContentTypeJson] }
+      get "/rpc/search2?id=1&select=*,computed_rel_overload(*)"
+        `shouldRespondWith`
+        [json|
+          [{"id":1,"computed_rel_overload":[{"id":1},{"id":2}]}]
+        |] { matchHeaders = [matchContentTypeJson] }
