@@ -882,6 +882,7 @@ allComputedRels =
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
+    pure (QualifiedIdentifier mempty mempty) <*>
     column HD.bool <*>
     column HD.bool
 
