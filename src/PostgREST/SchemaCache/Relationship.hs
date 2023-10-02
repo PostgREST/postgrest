@@ -31,6 +31,7 @@ data Relationship = Relationship
   { relFunction     :: QualifiedIdentifier
   , relTable        :: QualifiedIdentifier
   , relForeignTable :: QualifiedIdentifier
+  , relTableAlias   :: QualifiedIdentifier
   , relToOne        :: Bool
   , relIsSelf       :: Bool
   }

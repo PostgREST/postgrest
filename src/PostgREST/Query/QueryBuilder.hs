@@ -242,8 +242,8 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
 fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
 fromF rel mainQi tblAlias = "FROM " <>
   (case rel of
-    Just ComputedRelationship{relFunction,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTable) <> ")"
-    _                                               -> fromQi mainQi) <>
+    Just ComputedRelationship{relFunction,relTableAlias,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTableAlias) <> "::" <> fromQi relTable <> ")"
+    _                                                             -> fromQi mainQi) <>
   maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias <>
   (case rel of
     Just Relationship{relCardinality=M2M Junction{junTable=jt}} -> ", " <> fromQi jt
