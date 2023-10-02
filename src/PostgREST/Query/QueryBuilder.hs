@@ -242,6 +242,8 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
 fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
 fromF rel mainQi tblAlias = "FROM " <>
   (case rel of
+    -- Due to the use of CTEs on RPC, we need to cast the parameter to the table name in case of function overloading.
+    -- See https://github.com/PostgREST/postgrest/issues/2963#issuecomment-1736557386
     Just ComputedRelationship{relFunction,relTableAlias,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTableAlias) <> "::" <> fromQi relTable <> ")"
     _                                                             -> fromQi mainQi) <>
   maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias <>
