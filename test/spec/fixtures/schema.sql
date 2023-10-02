@@ -3456,3 +3456,18 @@ returns table(id int, val complex) as $$
   union
   select 3, row(0.3, 0.7)::complex as val;
 $$ language sql;
+
+create function computed_rel_overload(items) returns setof items2 as $$
+  select * from items2 limit 1
+$$ language sql;
+
+create function computed_rel_overload(items2) returns setof items2 as $$
+  select * from items2 limit 2
+$$ language sql;
+
+create function search2(id bigint) returns setof items2
+language plpgsql
+stable
+as $$ begin
+  return query select items2.id from items2 where items2.id=search2.id;
+end$$;
