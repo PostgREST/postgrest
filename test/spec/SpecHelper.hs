@@ -24,6 +24,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
+import Data.String                       (String)
 import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
@@ -58,11 +59,14 @@ matchHeaderAbsent name = MatchHeader $ \headers _body ->
     Just _  -> Just $ "unexpected header: " <> toS (original name) <> "\n"
     Nothing -> Nothing
 
-matchHeaderPresent :: HeaderName -> MatchHeader
-matchHeaderPresent name = MatchHeader $ \headers _body ->
-  case lookup name headers of
-    Just _  -> Nothing
-    Nothing -> Just $ "missing header: " <> toS (original name) <> "\n"
+-- | Matches Server-Timing header has a well-formed metric with the given name
+matchServerTimingHasTiming :: String -> MatchHeader
+matchServerTimingHasTiming metric = MatchHeader $ \headers _body ->
+  case lookup "Server-Timing" headers of
+    Just hdr -> if hdr =~ (metric <> ";dur=[[:digit:]]+.[[:digit:]]+")
+                  then Nothing
+                  else Just $ "missing metric: " <> metric <> "\n"
+    Nothing  -> Just "missing Server-Timing header\n"
 
 validateOpenApiResponse :: [Header] -> WaiSession () ()
 validateOpenApiResponse headers = do

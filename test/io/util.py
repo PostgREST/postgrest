@@ -40,3 +40,20 @@ def authheader(token):
 def jwtauthheader(claim, secret):
     "Authorization header with signed JWT."
     return authheader(jwt.encode(claim, secret))
+
+
+def parse_server_timings_header(header):
+    """Parse the Server-Timing header into a dict of metric names to values.
+
+    The header is a comma-separated list of metrics, each of which has a name
+    and a duration. The duration may be followed by a semicolon and a list of
+    parameters, but we ignore those.
+
+    See https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing
+    """
+    timings = {}
+    for timing in header.split(","):
+        name, duration_text, *_ = timing.split(";")
+        _, duration = duration_text.split("=")
+        timings[name] = float(duration)
+    return timings
