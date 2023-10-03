@@ -485,26 +485,26 @@ readPGRSTEnvironment =
 -- >>> addFallbackAppName ver "postgres:///postgres?host=server&port=5432"
 -- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 --
--- >>> addFallbackAppName ver "host=localhost port=5432 dbname=postgres"
--- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11.1.0 (5a04ec7)'"
---
 -- >>> addFallbackAppName ver "postgresql://"
 -- "postgresql://?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 --
--- >>> addFallbackAppName strangeVer "host=localhost port=5432 dbname=postgres"
--- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11\\'1&0@#$%,.:\"[]{}?+^()=asdfqwer'"
---
 -- >>> addFallbackAppName strangeVer "postgres:///postgres?host=server&port=5432"
 -- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011%271%260%40%23%24%25%2C.%3A%22%5B%5D%7B%7D%3F%2B%5E%28%29%3Dasdfqwer"
+--
+-- >>> addFallbackAppName ver "postgres://user:invalid_chars[]#@host:5432/postgres"
+-- "postgres://user:invalid_chars[]#@host:5432/postgres"
+--
+-- >>> addFallbackAppName ver "invalid_uri1=val1 invalid_uri2=val2"
+-- "invalid_uri1=val1 invalid_uri2=val2"
 addFallbackAppName :: ByteString -> Text -> Text
 addFallbackAppName version dbUri = dbUri <>
   case uriQuery <$> parseURI (toS dbUri) of
-    Nothing  -> " " <> keyValFmt -- Assume key/value connection string if the uri is not valid
+    -- Does not add the application name to key=val connection strings or invalid URIs
+    Nothing  -> mempty
     Just ""  -> "?" <> uriFmt
     Just "?" -> uriFmt
     _        -> "&" <> uriFmt
   where
     uriFmt = pKeyWord <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
-    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
