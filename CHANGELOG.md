@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2959, Fix setting `default_transaction_isolation` unnecessarily - @steve-chavez
  - #2929, Fix arrow filtering on RPC returning dynamic TABLE with composite type - @steve-chavez
  - #2963, Fix RPCs not embedding correctly when using overloaded functions for computed relationships - @laurenceisla
+ - #2970, Fix regression that rejects URI connection strings with certain unescaped characters in the password - @laurenceisla, @steve-chavez
 
 ## [11.2.0] - 2023-08-10
 
