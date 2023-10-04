@@ -13,6 +13,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2698, Add config `jwt-cache-max-lifetime` and implement JWT caching - @taimoorzaeem
  - #2943, Add `handling=strict/lenient` for Prefer header - @taimoorzaeem
 
+## [11.2.1] - 2023-10-03
+
 ### Fixed
 
  - #2899, Fix `application/vnd.pgrst.array` not accepted as a valid mediatype - @taimoorzaeem
