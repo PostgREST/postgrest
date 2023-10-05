@@ -57,7 +57,9 @@ class (JSON.ToJSON a) => PgrstError a where
   errorPayload = JSON.encode
 
   errorResponseFor :: a -> Response
-  errorResponseFor err = responseLBS (status err) (headers err) $ errorPayload err
+  errorResponseFor err =
+    let baseHeader = MediaType.toContentType MTApplicationJSON in
+    responseLBS (status err) (baseHeader : headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
   status AmbiguousRelBetween{}   = HTTP.status300
@@ -84,7 +86,7 @@ instance PgrstError ApiRequestError where
   status LimitNoOrderError       = HTTP.status400
   status ColumnNotFound{}        = HTTP.status400
 
-  headers _ = [MediaType.toContentType MTApplicationJSON]
+  headers _ = mempty
 
 instance JSON.ToJSON ApiRequestError where
   toJSON (QueryParamError (QPError message details)) = JSON.object [
@@ -376,8 +378,8 @@ instance PgrstError PgError where
 
   headers err =
     if status err == HTTP.status401
-       then [MediaType.toContentType MTApplicationJSON, ("WWW-Authenticate", "Bearer") :: Header]
-       else [MediaType.toContentType MTApplicationJSON]
+       then [("WWW-Authenticate", "Bearer") :: Header]
+       else mempty
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
@@ -506,11 +508,11 @@ instance PgrstError Error where
   status JSONParseError          = HTTP.status500
 
   headers (ApiRequestError err)  = headers err
-  headers (JwtTokenInvalid m)    = [MediaType.toContentType MTApplicationJSON, invalidTokenHeader m]
-  headers JwtTokenRequired       = [MediaType.toContentType MTApplicationJSON, requiredTokenHeader]
+  headers (JwtTokenInvalid m)    = [invalidTokenHeader m]
+  headers JwtTokenRequired       = [requiredTokenHeader]
   headers (PgErr err)            = headers err
-  headers SingularityError{}     = [MediaType.toContentType (MTSingularJSON False)]
-  headers _                      = [MediaType.toContentType MTApplicationJSON]
+  headers SingularityError{}     = [MediaType.toContentType $ MTSingularJSON False]
+  headers _                      = mempty
 
 instance JSON.ToJSON Error where
   toJSON NoSchemaCacheError = JSON.object [
