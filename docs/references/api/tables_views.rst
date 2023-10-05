@@ -196,7 +196,7 @@ Pattern Matching
 
 The pattern-matching operators (:code:`like`, :code:`ilike`, :code:`match`, :code:`imatch`) exist to support filtering data using patterns instead of concrete strings, as described in the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-matching.html>`__.
 
-To ensure best performance on larger data sets, an `appropriate index <https://www.postgresql.org/docs/current/pgtrgm.html#id-1.11.7.44.8>`__ should be used and even then, it depends on the pattern value and actual data statistics whether an existing index will be used by the query planner or not.
+To ensure best performance on larger data sets, an `appropriate index <https://www.postgresql.org/docs/current/pgtrgm.html#PGTRGM-INDEX>`__ should be used and even then, it depends on the pattern value and actual data statistics whether an existing index will be used by the query planner or not.
 
 .. _fts:
 
