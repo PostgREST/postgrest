@@ -57,7 +57,7 @@ data Preferences
 --
 -- One header with comma-separated values can be used to set multiple preferences:
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates, count=exact")]
+-- >>> pPrint $ fromHeaders (True,True) [("Prefer", "resolution=ignore-duplicates, count=exact")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -71,7 +71,7 @@ data Preferences
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
+-- >>> pPrint $ fromHeaders (True,True) [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -85,13 +85,13 @@ data Preferences
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders True [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders (True,True) [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders True $
+--   preferResolution . fromHeaders (True,True) $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -101,7 +101,7 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
+-- >>> pPrint $ fromHeaders (True,True) [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -113,14 +113,18 @@ data Preferences
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
-fromHeaders :: Bool -> [HTTP.Header] -> Preferences
-fromHeaders allowTxEndOverride headers =
+fromHeaders :: (Bool,Bool) -> [HTTP.Header] -> Preferences
+fromHeaders (dbAllowTxOverride,exactCountEnable) headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
     , preferParameters     = parsePrefs [SingleObject]
-    , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction    = if allowTxEndOverride then parsePrefs [Commit, Rollback] else Nothing
+    , preferCount          = if exactCountEnable
+                                then parsePrefs [ExactCount, PlannedCount, EstimatedCount]
+                                else parsePrefs [PlannedCount, EstimatedCount]
+    , preferTransaction    = if dbAllowTxOverride
+                                then parsePrefs [Commit, Rollback]
+                                else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
     , invalidPrefs         = filter (`notElem` acceptedPrefs) prefs

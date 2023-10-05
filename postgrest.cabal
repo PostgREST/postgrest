@@ -204,6 +204,7 @@ test-suite spec
                       Feature.Query.AndOrParamsSpec
                       Feature.Query.ComputedRelsSpec
                       Feature.Query.DeleteSpec
+                      Feature.Query.DisableExactCountSpec
                       Feature.Query.EmbedDisambiguationSpec
                       Feature.Query.EmbedInnerJoinSpec
                       Feature.Query.ErrorSpec
