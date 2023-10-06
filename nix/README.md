@@ -22,6 +22,15 @@ build the `postgrestPackage` attribute from the Nix expression it finds in our
 `default.nix` (see below for details). Nix will take care of getting the right
 GHC version and all the build dependencies.
 
+You can also build a statically linked binary with:
+
+```bash
+$ nix-build --attr postgrestStatic
+
+$ ldd result/bin/postgrest
+$       not a dynamic executable
+```
+
 ## Binary cache
 
 We recommend that you use the PostgREST binary cache on
