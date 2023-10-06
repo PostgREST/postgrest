@@ -87,6 +87,12 @@ data ApiRequestError
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
   | ColumnNotFound Text Text
+  | GucHeadersError
+  | GucStatusError
+  | OffLimitsChangesError Int64 Integer
+  | PutMatchingPkError
+  | SingularityError Integer
+  | PGRSTParseError
   deriving Show
 
 data QPError = QPError Text Text

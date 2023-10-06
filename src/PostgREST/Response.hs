@@ -279,11 +279,11 @@ overrideStatusHeaders rsGucStatus rsGucHeaders pgrstStatus pgrstHeaders = do
 
 decodeGucHeaders :: Maybe BS.ByteString -> Either Error.Error [GucHeader]
 decodeGucHeaders =
-  maybe (Right []) $ first (const Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
+  maybe (Right []) $ first (const . Error.ApiRequestError $ ApiRequestTypes.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
 
 decodeGucStatus :: Maybe Text -> Either Error.Error (Maybe HTTP.Status)
 decodeGucStatus =
-  maybe (Right Nothing) $ first (const Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
+  maybe (Right Nothing) $ first (const . Error.ApiRequestError $ ApiRequestTypes.GucStatusError) . fmap (Just . toEnum . fst) . decimal
 
 contentTypeHeaders :: MediaType -> ApiRequest -> [HTTP.Header]
 contentTypeHeaders mediaType ApiRequest{..} =
