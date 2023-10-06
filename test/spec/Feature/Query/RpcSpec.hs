@@ -1537,17 +1537,17 @@ spec actualPgVersion =
           resHeaders `shouldSatisfy` elem ("X-Header", "str")
           resBody `shouldBe` [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
 
-      it "returns JSONParseError for invalid JSON in RAISE Message field" $
+      it "returns error for invalid JSON in RAISE Message field" $
         get "/rpc/raise_sqlstate_invalid_json_message" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
           { matchStatus = 500 }
 
-      it "returns JSONParseError for invalid JSON in RAISE Details field" $
+      it "returns error for invalid JSON in RAISE Details field" $
         get "/rpc/raise_sqlstate_invalid_json_details" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
           { matchStatus = 500 }
 
-      it "returns JSONParseError for missing Details field in RAISE" $
+      it "returns error for missing Details field in RAISE" $
         get "/rpc/raise_sqlstate_missing_details" `shouldRespondWith`
           [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
           { matchStatus = 500 }
