@@ -413,6 +413,15 @@ spec = do
               matchHeader "Content-Range" "10-14/*"
             simpleStatus r `shouldBe` ok200
 
+        it "does not throw error when offset is 0 and and total is 0" $
+          request methodGet "/rpc/getitemrange?min=0&max=0"
+                  (rangeHdrsWithCount $ ByteRangeFromTo 0 1) mempty
+            `shouldRespondWith`
+            [json|[]|]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Range" <:> "*/0"]
+            }
+
       context "of invalid range" $ do
         it "fails with 416 for offside range" $
           request methodGet  "/items"
