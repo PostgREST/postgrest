@@ -26,6 +26,7 @@ import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
 
+import qualified PostgREST.ApiRequest.Types   as ApiRequestTypes
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
@@ -139,7 +140,7 @@ failPut RSPlan{} = pure ()
 failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError Error.PutMatchingPkError
+    throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
 
 deleteQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
 deleteQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{..} conf = do
@@ -208,7 +209,7 @@ failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
   when (elem mediaType [MTSingularJSON True,MTSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError $ Error.singularityError queryTotal
+    throwError $ Error.ApiRequestError . ApiRequestTypes.SingularityError $ toInteger queryTotal
 
 failsChangesOffLimits :: Maybe Integer -> ResultSet -> DbHandler ()
 failsChangesOffLimits _ RSPlan{} = pure ()
@@ -216,7 +217,7 @@ failsChangesOffLimits Nothing _  = pure ()
 failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal > fromIntegral maxChanges) $ do
     lift SQL.condemn
-    throwError $ Error.OffLimitsChangesError queryTotal maxChanges
+    throwError $ Error.ApiRequestError $ ApiRequestTypes.OffLimitsChangesError queryTotal maxChanges
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()

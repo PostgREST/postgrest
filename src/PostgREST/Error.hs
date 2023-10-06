@@ -11,7 +11,6 @@ module PostgREST.Error
   , PgError(..)
   , Error(..)
   , errorPayload
-  , singularityError
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -85,7 +84,14 @@ instance PgrstError ApiRequestError where
   status UnsupportedMethod{}     = HTTP.status405
   status LimitNoOrderError       = HTTP.status400
   status ColumnNotFound{}        = HTTP.status400
+  status GucHeadersError         = HTTP.status500
+  status GucStatusError          = HTTP.status500
+  status OffLimitsChangesError{} = HTTP.status400
+  status PutMatchingPkError      = HTTP.status400
+  status SingularityError{}      = HTTP.status406
+  status PGRSTParseError         = HTTP.status500
 
+  headers SingularityError{}     = [MediaType.toContentType $ MTSingularJSON False]
   headers _ = mempty
 
 instance JSON.ToJSON ApiRequestError where
@@ -140,6 +146,24 @@ instance JSON.ToJSON ApiRequestError where
     "details" .= JSON.Null,
     "hint"    .= ("Apply an 'order' using unique column(s)" :: Text)]
 
+  toJSON (OffLimitsChangesError n maxs) = JSON.object [
+      "code"    .= ApiRequestErrorCode10,
+      "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
+      "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
+      "hint"    .= JSON.Null]
+
+  toJSON GucHeadersError = JSON.object [
+    "code"    .= ApiRequestErrorCode11,
+    "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON GucStatusError = JSON.object [
+    "code"    .= ApiRequestErrorCode12,
+    "message" .= ("response.status guc must be a valid status code" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON (BinaryFieldError ct) = JSON.object [
     "code"    .= ApiRequestErrorCode13,
     "message" .= ((T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") :: Text),
@@ -150,6 +174,18 @@ instance JSON.ToJSON ApiRequestError where
     "code"    .= ApiRequestErrorCode14,
     "message" .= ("limit/offset querystring parameters are not allowed for PUT" :: Text),
     "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON PutMatchingPkError = JSON.object [
+    "code"    .= ApiRequestErrorCode15,
+    "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
+  toJSON (SingularityError n) = JSON.object [
+    "code"    .= ApiRequestErrorCode16,
+    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
+    "details" .= T.unwords ["The result contains", show n, "rows"],
     "hint"    .= JSON.Null]
 
   toJSON (UnsupportedMethod method) = JSON.object [
@@ -175,6 +211,13 @@ instance JSON.ToJSON ApiRequestError where
     "message" .= ("Bad operator on the '" <> target <> "' embedded resource":: Text),
     "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
     "hint"    .= JSON.Null]
+
+  toJSON PGRSTParseError = JSON.object [
+    "code"    .= ApiRequestErrorCode21,
+    "message" .= ("The message and detail field of RAISE 'PGRST' error expects JSON" :: Text),
+    "details" .= JSON.Null,
+    "hint"    .= JSON.Null]
+
   toJSON (InvalidPreferences prefs) = JSON.object [
     "code"    .= ApiRequestErrorCode22,
     "message" .= ("Invalid preferences given with handling=strict" :: Text),
@@ -481,38 +524,25 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
 
 data Error
   = ApiRequestError ApiRequestError
-  | GucHeadersError
-  | GucStatusError
   | JwtTokenInvalid Text
   | JwtTokenMissing
   | JwtTokenRequired
   | NoSchemaCacheError
-  | OffLimitsChangesError Int64 Integer
   | PgErr PgError
-  | PutMatchingPkError
-  | SingularityError Integer
-  | PGRSTParseError
 
 instance PgrstError Error where
-  status (ApiRequestError err)   = status err
-  status GucHeadersError         = HTTP.status500
-  status GucStatusError          = HTTP.status500
-  status JwtTokenInvalid{}       = HTTP.unauthorized401
-  status JwtTokenMissing         = HTTP.status500
-  status JwtTokenRequired        = HTTP.unauthorized401
-  status NoSchemaCacheError      = HTTP.status503
-  status OffLimitsChangesError{} = HTTP.status400
-  status (PgErr err)             = status err
-  status PutMatchingPkError      = HTTP.status400
-  status SingularityError{}      = HTTP.status406
-  status PGRSTParseError         = HTTP.status500
+  status (ApiRequestError err) = status err
+  status JwtTokenInvalid{}     = HTTP.unauthorized401
+  status JwtTokenMissing       = HTTP.status500
+  status JwtTokenRequired      = HTTP.unauthorized401
+  status NoSchemaCacheError    = HTTP.status503
+  status (PgErr err)           = status err
 
-  headers (ApiRequestError err)  = headers err
-  headers (JwtTokenInvalid m)    = [invalidTokenHeader m]
-  headers JwtTokenRequired       = [requiredTokenHeader]
-  headers (PgErr err)            = headers err
-  headers SingularityError{}     = [MediaType.toContentType $ MTSingularJSON False]
-  headers _                      = mempty
+  headers (ApiRequestError err) = headers err
+  headers (JwtTokenInvalid m)   = [invalidTokenHeader m]
+  headers JwtTokenRequired      = [requiredTokenHeader]
+  headers (PgErr err)           = headers err
+  headers _                     = mempty
 
 instance JSON.ToJSON Error where
   toJSON NoSchemaCacheError = JSON.object [
@@ -537,41 +567,6 @@ instance JSON.ToJSON Error where
       "details" .= JSON.Null,
       "hint"    .= JSON.Null]
 
-  toJSON (OffLimitsChangesError n maxs) = JSON.object [
-      "code"    .= ApiRequestErrorCode10,
-      "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
-      "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
-      "hint"    .= JSON.Null]
-
-  toJSON GucHeadersError = JSON.object [
-    "code"    .= ApiRequestErrorCode11,
-    "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON GucStatusError = JSON.object [
-    "code"    .= ApiRequestErrorCode12,
-    "message" .= ("response.status guc must be a valid status code" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-
-  toJSON PutMatchingPkError = JSON.object [
-    "code"    .= ApiRequestErrorCode15,
-    "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-
-  toJSON (SingularityError n) = JSON.object [
-    "code"    .= ApiRequestErrorCode16,
-    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["The result contains", show n, "rows"],
-    "hint"    .= JSON.Null]
-
-  toJSON PGRSTParseError = JSON.object [
-    "code"    .= ApiRequestErrorCode21,
-    "message" .= ("The message and detail field of RAISE 'PGRST' error expects JSON" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
 
@@ -581,9 +576,6 @@ invalidTokenHeader m =
 
 requiredTokenHeader :: Header
 requiredTokenHeader = ("WWW-Authenticate", "Bearer")
-
-singularityError :: (Integral a) => a -> Error
-singularityError = SingularityError . toInteger
 
 -- For parsing byteString to JSON Object, used for allowing full response control
 data PgRaiseErrMessage = PgRaiseErrMessage {
