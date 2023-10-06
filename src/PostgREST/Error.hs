@@ -371,8 +371,8 @@ instance PgrstError PgError where
 
   headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
     case (parseMessage m, parseDetails d) of
-      (Just _, Just r) -> headers JSONParseError ++ map intoHeader (M.toList $ getHeaders r)
-      _                -> headers JSONParseError
+      (Just _, Just r) -> headers PGRSTParseError ++ map intoHeader (M.toList $ getHeaders r)
+      _                -> headers PGRSTParseError
     where
       intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
 
@@ -409,7 +409,7 @@ instance JSON.ToJSON SQL.CommandError where
         "message"  .= getMessage r,
         "details"  .= checkMaybe (getDetails r),
         "hint"     .= checkMaybe (getHint r)]
-      _ -> JSON.toJSON JSONParseError
+      _ -> JSON.toJSON PGRSTParseError
     where
       checkMaybe = maybe JSON.Null JSON.String
 
@@ -473,7 +473,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         "PGRST"   ->
           case (parseMessage m, parseDetails d) of
             (Just _, Just r) -> maybe (toEnum $ getStatus r) (HTTP.mkStatus (getStatus r) . T.encodeUtf8) (getStatusText r)
-            _                -> status JSONParseError
+            _                -> status PGRSTParseError
         _         -> HTTP.status400
 
     _                       -> HTTP.status500
@@ -491,7 +491,7 @@ data Error
   | PgErr PgError
   | PutMatchingPkError
   | SingularityError Integer
-  | JSONParseError
+  | PGRSTParseError
 
 instance PgrstError Error where
   status (ApiRequestError err)   = status err
@@ -505,7 +505,7 @@ instance PgrstError Error where
   status (PgErr err)             = status err
   status PutMatchingPkError      = HTTP.status400
   status SingularityError{}      = HTTP.status406
-  status JSONParseError          = HTTP.status500
+  status PGRSTParseError         = HTTP.status500
 
   headers (ApiRequestError err)  = headers err
   headers (JwtTokenInvalid m)    = [invalidTokenHeader m]
@@ -566,7 +566,7 @@ instance JSON.ToJSON Error where
     "details" .= T.unwords ["The result contains", show n, "rows"],
     "hint"    .= JSON.Null]
 
-  toJSON JSONParseError = JSON.object [
+  toJSON PGRSTParseError = JSON.object [
     "code"    .= ApiRequestErrorCode21,
     "message" .= ("The message and detail field of RAISE 'PGRST' error expects JSON" :: Text),
     "details" .= JSON.Null,
