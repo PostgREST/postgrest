@@ -21,6 +21,8 @@ The authenticator role is used for connecting to the database and should be conf
 
 
   CREATE ROLE authenticator LOGIN NOINHERIT NOCREATEDB NOCREATEROLE NOSUPERUSER;
+  CREATE ROLE anonymous NOLOGIN;
+  CREATE ROLE webuser NOLOGIN;
 
 .. note::
 
