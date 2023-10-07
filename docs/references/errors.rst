@@ -253,6 +253,10 @@ Related to the HTTP request elements.
 |               |             | ``PGRST`` error. See :ref:`raise headers <raise_headers>`.  |
 | PGRST121      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst122: | 400         | Invalid preferences found in ``Prefer`` header with         |
+|               |             | ``Prefer: handling=strict``. See :ref:`prefer_handling`.    |
+| PGRST122      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst2**:
 
