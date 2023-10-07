@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## Unreleased
+
+### Fixed
+
+ - #2824, Fix range request with 0 rows and 0 offset return status 416 - @strengthless
+
 ## [11.2.1] - 2023-10-03
 
 ### Fixed
