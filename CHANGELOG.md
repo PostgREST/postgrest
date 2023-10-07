@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2771, Add `Server-Timing` header with JWT duration - @taimoorzaeem
  - #2698, Add config `jwt-cache-max-lifetime` and implement JWT caching - @taimoorzaeem
  - #2943, Add `handling=strict/lenient` for Prefer header - @taimoorzaeem
+ - #2824, Fix range request with 0 rows and 0 offset return status 416 - @strengthless
 
 ## [11.2.1] - 2023-10-03
 
