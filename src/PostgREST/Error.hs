@@ -94,147 +94,122 @@ instance PgrstError ApiRequestError where
   headers SingularityError{}     = [MediaType.toContentType $ MTSingularJSON False]
   headers _ = mempty
 
+toJsonPgrstError :: ErrorCode -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value
+toJsonPgrstError code msg details hint = JSON.object [
+    "code"     .= code
+  , "message"  .= msg
+  , "details"  .= details
+  , "hint"     .= hint
+  ]
+
 instance JSON.ToJSON ApiRequestError where
-  toJSON (QueryParamError (QPError message details)) = JSON.object [
-    "code"    .= ApiRequestErrorCode00,
-    "message" .= message,
-    "details" .= details,
-    "hint"    .= JSON.Null]
-  toJSON (InvalidRpcMethod method) = JSON.object [
-    "code"    .= ApiRequestErrorCode01,
-    "message" .= ("Cannot use the " <> T.decodeUtf8 method <> " method on RPC"),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON (InvalidBody errorMessage) = JSON.object [
-    "code"    .= ApiRequestErrorCode02,
-    "message" .= T.decodeUtf8 errorMessage,
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON (InvalidRange rangeError) = JSON.object [
-    "code"    .= ApiRequestErrorCode03,
-    "message" .= ("Requested range not satisfiable" :: Text),
-    "details" .= (case rangeError of
-                   NegativeLimit           -> "Limit should be greater than or equal to zero."
-                   LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
-                   OutOfBounds lower total -> "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows."),
-    "hint"    .= JSON.Null]
-  toJSON InvalidFilters = JSON.object [
-    "code"    .= ApiRequestErrorCode05,
-    "message" .= ("Filters must include all and only primary key columns with 'eq' operators" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON (UnacceptableSchema schemas) = JSON.object [
-    "code"    .= ApiRequestErrorCode06,
-    "message" .= ("The schema must be one of the following: " <> T.intercalate ", " schemas),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
-  toJSON (MediaTypeError cts)    = JSON.object [
-    "code"    .= ApiRequestErrorCode07,
-    "message" .= ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (QueryParamError (QPError message details)) = toJsonPgrstError
+    ApiRequestErrorCode00 message (Just (JSON.String details)) Nothing
+
+  toJSON (InvalidRpcMethod method) = toJsonPgrstError
+    ApiRequestErrorCode01 ("Cannot use the " <> T.decodeUtf8 method <> " method on RPC") Nothing Nothing
+
+  toJSON (InvalidBody errorMessage) = toJsonPgrstError
+    ApiRequestErrorCode02 (T.decodeUtf8 errorMessage) Nothing Nothing
+
+  toJSON (InvalidRange rangeError) = toJsonPgrstError
+    ApiRequestErrorCode03
+    "Requested range not satisfiable"
+    (Just $ case rangeError of
+       NegativeLimit           -> "Limit should be greater than or equal to zero."
+       LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
+       OutOfBounds lower total -> JSON.String $ "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows.")
+    Nothing
+
+  toJSON InvalidFilters = toJsonPgrstError
+    ApiRequestErrorCode05 "Filters must include all and only primary key columns with 'eq' operators" Nothing Nothing
+
+  toJSON (UnacceptableSchema schemas) = toJsonPgrstError
+    ApiRequestErrorCode06 ("The schema must be one of the following: " <> T.intercalate ", " schemas) Nothing Nothing
+
+  toJSON (MediaTypeError cts) = toJsonPgrstError
+    ApiRequestErrorCode07 ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)) Nothing Nothing
+
   toJSON NotFound = JSON.object []
-  toJSON (NotEmbedded resource) = JSON.object [
-    "code"    .= ApiRequestErrorCode08,
-    "message" .= ("'" <> resource <> "' is not an embedded resource in this request" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= ("Verify that '" <> resource <> "' is included in the 'select' query parameter." :: Text)]
 
-  toJSON LimitNoOrderError = JSON.object [
-    "code"    .= ApiRequestErrorCode09,
-    "message" .= ("A 'limit' was applied without an explicit 'order'":: Text),
-    "details" .= JSON.Null,
-    "hint"    .= ("Apply an 'order' using unique column(s)" :: Text)]
+  toJSON (NotEmbedded resource) = toJsonPgrstError
+    ApiRequestErrorCode08
+    ("'" <> resource <> "' is not an embedded resource in this request")
+    Nothing
+    (Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter.")
 
-  toJSON (OffLimitsChangesError n maxs) = JSON.object [
-      "code"    .= ApiRequestErrorCode10,
-      "message" .= ("The maximum number of rows allowed to change was surpassed" :: Text),
-      "details" .= T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs],
-      "hint"    .= JSON.Null]
+  toJSON LimitNoOrderError = toJsonPgrstError
+    ApiRequestErrorCode09 "A 'limit' was applied without an explicit 'order'" Nothing (Just "Apply an 'order' using unique column(s)")
 
-  toJSON GucHeadersError = JSON.object [
-    "code"    .= ApiRequestErrorCode11,
-    "message" .= ("response.headers guc must be a JSON array composed of objects with a single key and a string value" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (OffLimitsChangesError n maxs) = toJsonPgrstError
+    ApiRequestErrorCode10
+    "The maximum number of rows allowed to change was surpassed"
+    (Just $ JSON.String $ T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs])
+    Nothing
 
-  toJSON GucStatusError = JSON.object [
-    "code"    .= ApiRequestErrorCode12,
-    "message" .= ("response.status guc must be a valid status code" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON GucHeadersError = toJsonPgrstError
+    ApiRequestErrorCode11 "response.headers guc must be a JSON array composed of objects with a single key and a string value" Nothing Nothing
 
-  toJSON (BinaryFieldError ct) = JSON.object [
-    "code"    .= ApiRequestErrorCode13,
-    "message" .= ((T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON GucStatusError = toJsonPgrstError
+    ApiRequestErrorCode12 "response.status guc must be a valid status code" Nothing Nothing
 
-  toJSON PutLimitNotAllowedError = JSON.object [
-    "code"    .= ApiRequestErrorCode14,
-    "message" .= ("limit/offset querystring parameters are not allowed for PUT" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (BinaryFieldError ct) = toJsonPgrstError
+    ApiRequestErrorCode13 (T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") Nothing Nothing
 
-  toJSON PutMatchingPkError = JSON.object [
-    "code"    .= ApiRequestErrorCode15,
-    "message" .= ("Payload values do not match URL in primary key column(s)" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON PutLimitNotAllowedError = toJsonPgrstError
+    ApiRequestErrorCode14 "limit/offset querystring parameters are not allowed for PUT" Nothing Nothing
 
-  toJSON (SingularityError n) = JSON.object [
-    "code"    .= ApiRequestErrorCode16,
-    "message" .= ("JSON object requested, multiple (or no) rows returned" :: Text),
-    "details" .= T.unwords ["The result contains", show n, "rows"],
-    "hint"    .= JSON.Null]
+  toJSON PutMatchingPkError = toJsonPgrstError
+    ApiRequestErrorCode15 "Payload values do not match URL in primary key column(s)" Nothing Nothing
 
-  toJSON (UnsupportedMethod method) = JSON.object [
-    "code"    .= ApiRequestErrorCode17,
-    "message" .= ("Unsupported HTTP method: " <> T.decodeUtf8 method),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (SingularityError n) = toJsonPgrstError
+    ApiRequestErrorCode16
+    "JSON object requested, multiple (or no) rows returned"
+    (Just $ JSON.String $ T.unwords ["The result contains", show n, "rows"])
+    Nothing
 
-  toJSON (RelatedOrderNotToOne origin target) = JSON.object [
-    "code"    .= ApiRequestErrorCode18,
-    "message" .= ("A related order on '" <> target <> "' is not possible" :: Text),
-    "details" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
-    "hint"    .= JSON.Null]
+  toJSON (UnsupportedMethod method) = toJsonPgrstError
+    ApiRequestErrorCode17 ("Unsupported HTTP method: " <> T.decodeUtf8 method) Nothing Nothing
 
-  toJSON (SpreadNotToOne origin target) = JSON.object [
-    "code"    .= ApiRequestErrorCode19,
-    "message" .= ("A spread operation on '" <> target <> "' is not possible" :: Text),
-    "details" .= ("'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship" :: Text),
-    "hint"    .= JSON.Null]
+  toJSON (RelatedOrderNotToOne origin target) = toJsonPgrstError
+    ApiRequestErrorCode18
+    ("A related order on '" <> target <> "' is not possible")
+    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
+    Nothing
 
-  toJSON (UnacceptableFilter target) = JSON.object [
-    "code"    .= ApiRequestErrorCode20,
-    "message" .= ("Bad operator on the '" <> target <> "' embedded resource":: Text),
-    "details" .= ("Only is null or not is null filters are allowed on embedded resources":: Text),
-    "hint"    .= JSON.Null]
+  toJSON (SpreadNotToOne origin target) = toJsonPgrstError
+    ApiRequestErrorCode19
+    ("A spread operation on '" <> target <> "' is not possible")
+    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
+    Nothing
 
-  toJSON PGRSTParseError = JSON.object [
-    "code"    .= ApiRequestErrorCode21,
-    "message" .= ("The message and detail field of RAISE 'PGRST' error expects JSON" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (UnacceptableFilter target) = toJsonPgrstError
+    ApiRequestErrorCode20
+    ("Bad operator on the '" <> target <> "' embedded resource")
+    (Just "Only is null or not is null filters are allowed on embedded resources")
+    Nothing
 
-  toJSON (InvalidPreferences prefs) = JSON.object [
-    "code"    .= ApiRequestErrorCode22,
-    "message" .= ("Invalid preferences given with handling=strict" :: Text),
-    "details" .= T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs),
-    "hint"    .= JSON.Null]
+  toJSON PGRSTParseError = toJsonPgrstError
+    ApiRequestErrorCode21 "The message and detail field of RAISE 'PGRST' error expects JSON" Nothing Nothing
 
-  toJSON (NoRelBetween parent child embedHint schema allRels) = JSON.object [
-    "code"    .= SchemaCacheErrorCode00,
-    "message" .= ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache" :: Text),
-    "details" .= ("Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."),
-    "hint"    .= noRelBetweenHint parent child schema allRels]
+  toJSON (InvalidPreferences prefs) = toJsonPgrstError
+    ApiRequestErrorCode22
+    "Invalid preferences given with handling=strict"
+    (Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs))
+    Nothing
 
-  toJSON (AmbiguousRelBetween parent child rels) = JSON.object [
-    "code"    .= SchemaCacheErrorCode01,
-    "message" .= ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'" :: Text),
-    "details" .= (compressedRel <$> rels),
-    "hint"    .= ("Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key." :: Text)]
+  toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
+    SchemaCacheErrorCode00
+    ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache")
+    (Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found.")
+    (JSON.String <$> noRelBetweenHint parent child schema allRels)
+
+  toJSON (AmbiguousRelBetween parent child rels) = toJsonPgrstError
+    SchemaCacheErrorCode01
+    ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'")
+    (Just $ JSON.toJSONList (compressedRel <$> rels))
+    (Just $ JSON.String $ "Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key.")
+
   toJSON (NoRpc schema procName argumentKeys hasPreferSingleObject contentType isInvPost allProcs overloadedProcs)  =
     let func = schema <> "." <> procName
         prms = T.intercalate ", " argumentKeys
@@ -242,10 +217,10 @@ instance JSON.ToJSON ApiRequestError where
         prmsDet = " with parameter" <> (if length argumentKeys > 1 then "s " else " ") <> prms
         fmtPrms p = if null argumentKeys then " without parameters" else p
         onlySingleParams = hasPreferSingleObject || (isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream])
-    in JSON.object [
-    "code"    .= SchemaCacheErrorCode02,
-    "message" .= ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"),
-    "details" .= ("Searched for the function " <> func <>
+    in toJsonPgrstError
+    SchemaCacheErrorCode02
+    ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache")
+    (Just $ JSON.String $ "Searched for the function " <> func <>
       (case (hasPreferSingleObject, isInvPost, contentType) of
         (True, _, _)                 -> " with a single json/jsonb parameter"
         (_, True, MTTextPlain)       -> " with a single unnamed text parameter"
@@ -253,21 +228,20 @@ instance JSON.ToJSON ApiRequestError where
         (_, True, MTOctetStream)     -> " with a single unnamed bytea parameter"
         (_, True, MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
         _                            -> fmtPrms prmsDet) <>
-      ", but no matches were found in the schema cache."),
+      ", but no matches were found in the schema cache.")
     -- The hint will be null in the case of single unnamed parameter functions
-    "hint"    .= if onlySingleParams
-                 then Nothing
-                 else noRpcHint schema procName argumentKeys allProcs overloadedProcs ]
-  toJSON (AmbiguousRpc procs)  = JSON.object [
-    "code"    .= SchemaCacheErrorCode03,
-    "message" .= ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]),
-    "details" .= JSON.Null,
-    "hint"    .= ("Try renaming the parameters or the function itself in the database so function overloading can be resolved" :: Text)]
-  toJSON (ColumnNotFound relName colName) = JSON.object [
-    "code"    .= SchemaCacheErrorCode04,
-    "message" .= ("Column '" <> colName <> "' of relation '" <> relName <> "' does not exist" :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+    (if onlySingleParams
+      then Nothing
+      else JSON.String <$> noRpcHint schema procName argumentKeys allProcs overloadedProcs)
+
+  toJSON (AmbiguousRpc procs)  = toJsonPgrstError
+    SchemaCacheErrorCode03
+    ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs])
+    Nothing
+    (Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved")
+
+  toJSON (ColumnNotFound relName colName) = toJsonPgrstError
+    SchemaCacheErrorCode04 ("Column '" <> colName <> "' of relation '" <> relName <> "' does not exist") Nothing Nothing
 
 -- |
 -- If no relationship is found then:
@@ -428,17 +402,16 @@ instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
 
 instance JSON.ToJSON SQL.UsageError where
-  toJSON (SQL.ConnectionUsageError e) = JSON.object [
-    "code"    .= ConnectionErrorCode00,
-    "message" .= ("Database connection error. Retrying the connection." :: Text),
-    "details" .= (T.decodeUtf8With T.lenientDecode $ fromMaybe "" e :: Text),
-    "hint"    .= JSON.Null]
+  toJSON (SQL.ConnectionUsageError e) = toJsonPgrstError
+    ConnectionErrorCode00
+    "Database connection error. Retrying the connection."
+    (Just $ JSON.String $ T.decodeUtf8With T.lenientDecode $ fromMaybe "" e)
+    Nothing
+
   toJSON (SQL.SessionUsageError e) = JSON.toJSON e -- SQL.Error
-  toJSON SQL.AcquisitionTimeoutUsageError = JSON.object [
-    "code"    .= ConnectionErrorCode03,
-    "message" .= ("Timed out acquiring connection from connection pool." :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+
+  toJSON SQL.AcquisitionTimeoutUsageError = toJsonPgrstError
+    ConnectionErrorCode03 "Timed out acquiring connection from connection pool." Nothing Nothing
 
 instance JSON.ToJSON SQL.QueryError where
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
@@ -462,17 +435,11 @@ instance JSON.ToJSON SQL.CommandError where
     "details"  .= (fmap T.decodeUtf8 d :: Maybe Text),
     "hint"     .= (fmap T.decodeUtf8 h :: Maybe Text)]
 
-  toJSON (SQL.ResultError resultError) = JSON.object [
-    "code"    .= InternalErrorCode00,
-    "message" .= (show resultError :: Text),
-    "details" .= JSON.Null,
-    "hint"    .= JSON.Null]
+  toJSON (SQL.ResultError resultError) = toJsonPgrstError
+    InternalErrorCode00 (show resultError) Nothing Nothing
 
-  toJSON (SQL.ClientError d) = JSON.object [
-    "code"    .= ConnectionErrorCode01,
-    "message" .= ("Database client error. Retrying the connection." :: Text),
-    "details" .= (fmap T.decodeUtf8 d :: Maybe Text),
-    "hint"    .= JSON.Null]
+  toJSON (SQL.ClientError d) = toJsonPgrstError
+    ConnectionErrorCode01 "Database client error. Retrying the connection." (JSON.String <$> fmap T.decodeUtf8 d) Nothing
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
@@ -545,27 +512,17 @@ instance PgrstError Error where
   headers _                     = mempty
 
 instance JSON.ToJSON Error where
-  toJSON NoSchemaCacheError = JSON.object [
-      "code"    .= ConnectionErrorCode02,
-      "message" .= ("Could not query the database for the schema cache. Retrying." :: Text),
-      "details" .= JSON.Null,
-      "hint"    .= JSON.Null]
+  toJSON NoSchemaCacheError = toJsonPgrstError
+      ConnectionErrorCode02 "Could not query the database for the schema cache. Retrying." Nothing Nothing
 
-  toJSON JwtTokenMissing = JSON.object [
-      "code"    .= JWTErrorCode00,
-      "message" .= ("Server lacks JWT secret" :: Text),
-      "details" .= JSON.Null,
-      "hint"    .= JSON.Null]
-  toJSON (JwtTokenInvalid message) = JSON.object [
-      "code"    .= JWTErrorCode01,
-      "message" .= (message :: Text),
-      "details" .= JSON.Null,
-      "hint"    .= JSON.Null]
-  toJSON JwtTokenRequired = JSON.object [
-      "code"    .= JWTErrorCode02,
-      "message" .= ("Anonymous access is disabled" :: Text),
-      "details" .= JSON.Null,
-      "hint"    .= JSON.Null]
+  toJSON JwtTokenMissing = toJsonPgrstError
+      JWTErrorCode00 "Server lacks JWT secret" Nothing Nothing
+
+  toJSON (JwtTokenInvalid message) = toJsonPgrstError
+      JWTErrorCode01 message Nothing Nothing
+
+  toJSON JwtTokenRequired = toJsonPgrstError
+      JWTErrorCode02 "Anonymous access is disabled" Nothing Nothing
 
   toJSON (PgErr err) = JSON.toJSON err
   toJSON (ApiRequestError err) = JSON.toJSON err
