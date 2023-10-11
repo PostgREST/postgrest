@@ -628,6 +628,21 @@ jwt-secret-is-base64
 
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
+.. _jwt-cache-max-lifetime:
+
+jwt-cache-max-lifetime
+----------------------
+
+  =============== =================================
+  **Type**        Int
+  **Default**     0
+  **Reloadable**  Y
+  **Environment** PGRST_JWT_CACHE_MAX_LIFETIME
+  **In-Database** `n/a`
+  =============== =================================
+
+  Maximum number of seconds of lifetime for cached entries. The default :code:`0` disables caching. See :ref:`jwt_caching`.
+
 .. _log-level:
 
 log-level

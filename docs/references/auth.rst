@@ -114,6 +114,15 @@ To make an authenticated request the client must include an :code:`Authorization
 
 The ``Bearer`` header value can be used with or without capitalization(``bearer``).
 
+.. _jwt_caching:
+
+JWT Caching
+-----------
+
+PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid this performance overhead.
+
+To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results. The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
+
 Symmetric Keys
 ~~~~~~~~~~~~~~
 
