@@ -24,6 +24,8 @@ module PostgREST.Query.SqlFragment
   , fromJsonBodyF
   , responseHeadersF
   , responseStatusF
+  , addConfigPgrstInserted
+  , currentSettingF
   , returningF
   , singleParameter
   , sourceCTE
@@ -432,6 +434,11 @@ responseHeadersF = currentSettingF "response.headers"
 
 responseStatusF :: SQL.Snippet
 responseStatusF = currentSettingF "response.status"
+
+addConfigPgrstInserted :: Bool -> SQL.Snippet
+addConfigPgrstInserted add =
+  let (symbol, num) =  if add then ("+", "0") else ("-", "-1") in
+  "set_config('pgrst.inserted', (coalesce(" <> currentSettingF "pgrst.inserted" <> "::int, 0) " <> symbol <> " 1)::text, true) <> '" <> num <> "'"
 
 currentSettingF :: SQL.Snippet -> SQL.Snippet
 currentSettingF setting =

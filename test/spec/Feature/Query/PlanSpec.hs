@@ -192,7 +192,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 1.29
+        totalCost `shouldBe` 3.55
 
     it "outputs the total cost for 2 upserts" $ do
       r <- request methodPost "/tiobe_pls"
@@ -206,7 +206,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe` 5.53
 
     it "outputs the total cost for an upsert with 10 rows" $ do
       r <- request methodPost "/tiobe_pls"
@@ -220,7 +220,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe` 5.53
 
     it "outputs the total cost for an upsert with 100 rows" $ do
       r <- request methodPost "/tiobe_pls"
@@ -234,7 +234,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe` 5.53
 
     it "outputs the total cost for an upsert with 1000 rows" $ do
       r <- request methodPost "/tiobe_pls"
@@ -248,7 +248,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe` 5.53
 
     it "outputs the plan for application/vnd.pgrst.object" $ do
       r <- request methodDelete "/projects?id=eq.6"

@@ -50,15 +50,19 @@ data ResultSet
   -- ^ the HTTP headers to be added to the response
   , rsGucStatus  :: Maybe Text
   -- ^ the HTTP status to be added to the response
+  , rsInserted   :: Maybe Int64
+  -- ^ the number of rows inserted (Only used with PUT)
   }
   | RSPlan BS.ByteString -- ^ the plan of the query
 
 
-prepareWrite :: QualifiedIdentifier -> SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler ->
-                Maybe PreferRepresentation -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite qi selectQuery mutateQuery isInsert mt handler rep pKeys =
+prepareWrite :: QualifiedIdentifier -> SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
+                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> SQL.Statement () ResultSet
+prepareWrite qi selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
+  checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
+  pgrstInsertedF = checkUpsert "nullif(current_setting('pgrst.inserted', true),'')::int"
   snippet =
     "WITH " <> sourceCTE <> " AS (" <> mutateQuery <> ") " <>
     "SELECT " <>
@@ -67,7 +71,8 @@ prepareWrite qi selectQuery mutateQuery isInsert mt handler rep pKeys =
       locF <> " AS header, " <>
       handlerF Nothing qi handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
-      responseStatusF  <> " AS response_status " <>
+      responseStatusF  <> " AS response_status, " <>
+      pgrstInsertedF <> " AS response_inserted " <>
     "FROM (" <> selectF <> ") _postgrest_t"
 
   locF =
@@ -87,7 +92,7 @@ prepareWrite qi selectQuery mutateQuery isInsert mt handler rep pKeys =
   decodeIt :: HD.Result ResultSet
   decodeIt = case mt of
     MTVndPlan{} -> planRow
-    _        -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow False)
+    _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
 prepareRead :: QualifiedIdentifier -> SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> SQL.Statement () ResultSet
 prepareRead qi selectQuery countQuery countTotal mt handler =
@@ -101,7 +106,8 @@ prepareRead qi selectQuery countQuery countTotal mt handler =
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       handlerF Nothing qi handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
-      responseStatusF <> " AS response_status " <>
+      responseStatusF <> " AS response_status, " <>
+      "''" <> " AS response_inserted " <>
     "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
   (countCTEF, countResultF) = countF countQuery countTotal
@@ -127,7 +133,8 @@ prepareCall qi rout callProcQuery selectQuery countQuery countTotal mt handler =
           else "pg_catalog.count(_postgrest_t)") <> " AS page_total, " <>
         handlerF (Just rout) qi handler <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
-        responseStatusF <> " AS response_status " <>
+        responseStatusF <> " AS response_status, " <>
+        "''" <> " AS response_inserted " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
     (countCTEF, countResultF) = countF countQuery countTotal
@@ -135,7 +142,7 @@ prepareCall qi rout callProcQuery selectQuery countQuery countTotal mt handler =
     decodeIt :: HD.Result ResultSet
     decodeIt = case mt of
       MTVndPlan{} -> planRow
-      _        -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing) <$> HD.rowMaybe (standardRow True)
+      _           -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
 preparePlanRows :: SQL.Snippet -> Bool -> SQL.Statement () (Maybe Int64)
 preparePlanRows countQuery =
@@ -153,6 +160,7 @@ standardRow noLocation =
              <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea) <*> column HD.bytea
              <*> nullableColumn HD.bytea
              <*> nullableColumn HD.text
+             <*> nullableColumn HD.int8
   where
     splitKeyValue :: ByteString -> (ByteString, ByteString)
     splitKeyValue kv =

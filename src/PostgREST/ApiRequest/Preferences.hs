@@ -176,6 +176,7 @@ class ToHeaderValue a where
 data PreferResolution
   = MergeDuplicates
   | IgnoreDuplicates
+  deriving Eq
 
 instance ToHeaderValue PreferResolution where
   toHeaderValue MergeDuplicates  = "resolution=merge-duplicates"

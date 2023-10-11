@@ -32,6 +32,21 @@ spec actualPgVersion =
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
+        it "UPDATEs rows on pk conflict" $
+          request methodPost "/tiobe_pls" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json| [
+              { "name": "Python", "rank": 6 },
+              { "name": "Java", "rank": 2 },
+              { "name": "C", "rank": 1 }
+            ]|] `shouldRespondWith` [json| [
+              { "name": "Python", "rank": 6 },
+              { "name": "Java", "rank": 2 },
+              { "name": "C", "rank": 1 }
+            ]|]
+            { matchStatus = 200
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+            }
+
         it "INSERTs and UPDATEs row on composite pk conflict" $
           request methodPost "/employees" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json| [
@@ -62,7 +77,7 @@ spec actualPgVersion =
         it "succeeds when the payload has no elements" $
           request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
             [json|[]|] `shouldRespondWith`
-            [json|[]|] { matchStatus = 201
+            [json|[]|] { matchStatus = 200 -- nothing was inserted, so it should be 200
                        , matchHeaders = [matchContentTypeJson] }
 
         it "INSERTs and UPDATEs rows on single unique key conflict" $
@@ -282,6 +297,7 @@ spec actualPgVersion =
               [json| [ { "name": "Go", "rank": 19 } ]|]
             `shouldRespondWith`
               [json| [ { "name": "Go", "rank": 19 } ]|]
+              { matchStatus = 201 }
 
         it "succeeds on table with composite pk" $ do
           -- assert that the next request will indeed be an insert
@@ -294,6 +310,7 @@ spec actualPgVersion =
               [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "48000", "company": "GEX", "occupation": "Railroad engineer" } ]|]
             `shouldRespondWith`
               [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
+              { matchStatus = 201 }
 
         when (actualPgVersion >= pgVersion110) $
           it "succeeds on a partitioned table with composite pk" $ do
@@ -307,6 +324,7 @@ spec actualPgVersion =
                 [json| [ { "name": "Supra", "year": 2021 } ]|]
               `shouldRespondWith`
                 [json| [ { "name": "Supra", "year": 2021, "car_brand_name": null } ]|]
+              { matchStatus = 201 }
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an insert
@@ -319,6 +337,7 @@ spec actualPgVersion =
               [json|[ { "id": 10 } ]|]
             `shouldRespondWith`
               [json|[ { "id": 10 } ]|]
+              { matchStatus = 201 }
 
       context "Updating row" $ do
         it "succeeds on table with single pk col" $ do
@@ -401,7 +420,11 @@ spec actualPgVersion =
         request methodPut "/tiobe_pls?name=eq.Ruby"
           [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.object+json")]
           [json| [ { "name": "Ruby", "rank": 11 } ]|]
-          `shouldRespondWith` [json|{ "name": "Ruby", "rank": 11 }|] { matchHeaders = [matchContentTypeSingular] }
+          `shouldRespondWith`
+          [json|{ "name": "Ruby", "rank": 11 }|]
+          { matchStatus  = 201
+          , matchHeaders = [matchContentTypeSingular] }
+
 
     context "with a camel case pk column" $ do
       it "works with POST and merge-duplicates" $ do

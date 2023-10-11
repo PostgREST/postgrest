@@ -22,6 +22,7 @@ import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.HashMap.Strict       as HM
+import           Data.Maybe                (fromJust)
 import           Data.Text.Read            (decimal)
 import qualified Network.HTTP.Types.Header as HTTP
 import qualified Network.HTTP.Types.Status as HTTP
@@ -35,6 +36,7 @@ import qualified PostgREST.Response.OpenAPI as OpenAPI
 import PostgREST.ApiRequest              (ApiRequest (..),
                                           InvokeMethod (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
+                                          PreferResolution (..),
                                           Preferences (..),
                                           prefAppliedHeader,
                                           shouldCount)
@@ -119,8 +121,13 @@ createResponse QualifiedIdentifier{..} MutateReadPlan{mrMutatePlan, mrMedia} ctx
               if shouldCount preferCount then Just rsQueryTotal else Nothing
           , prefHeader ]
 
-    let status = HTTP.status201
-    let (headers', bod) = case preferRepresentation of
+    let isInsertIfGTZero i =
+          if i <= 0 && preferResolution == Just MergeDuplicates then
+            HTTP.status200
+          else
+            HTTP.status201
+        status = maybe HTTP.status200 isInsertIfGTZero rsInserted
+        (headers', bod) = case preferRepresentation of
           Just Full -> (headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
           Just None -> (headers, mempty)
           Just HeadersOnly -> (headers, mempty)
@@ -142,11 +149,11 @@ updateResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferences=Pre
       prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction preferMissing preferHandling []
       headers = catMaybes [contentRangeHeader, prefHeader]
 
-    let
-      (status, headers', body) = case preferRepresentation of
-                          Just Full -> (HTTP.status200, headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
-                          Just None -> (HTTP.status204, headers, mempty)
-                          _ -> (HTTP.status204, headers, mempty)
+    let (status, headers', body) =
+          case preferRepresentation of
+            Just Full -> (HTTP.status200, headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
+            Just None -> (HTTP.status204, headers, mempty)
+            _         -> (HTTP.status204, headers, mempty)
 
     (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
 
@@ -162,9 +169,11 @@ singleUpsertResponse MutateReadPlan{mrMedia} ctxApiRequest@ApiRequest{iPreferenc
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling []
       cTHeader = contentTypeHeaders mrMedia ctxApiRequest
 
-    let (status, headers, body) =
+    let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
+        upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
+        (status, headers, body) =
           case preferRepresentation of
-            Just Full -> (HTTP.status200, cTHeader ++ prefHeader, LBS.fromStrict rsBody)
+            Just Full -> (upsertStatus, cTHeader ++ prefHeader, LBS.fromStrict rsBody)
             Just None -> (HTTP.status204,  prefHeader, mempty)
             _ -> (HTTP.status204, prefHeader, mempty)
     (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
