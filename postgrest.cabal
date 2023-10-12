@@ -71,6 +71,7 @@ library
                       PostgREST.Response
                       PostgREST.Response.OpenAPI
                       PostgREST.Response.GucHeader
+                      PostgREST.Response.Performance
                       PostgREST.Version
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.17

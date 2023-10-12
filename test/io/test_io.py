@@ -1119,15 +1119,15 @@ def test_server_timing_jwt_should_decrease_on_subsequent_requests(defaultenv):
     )
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
-        first_dur_text = postgrest.session.get(
-            "/authors_only", headers=headers
-        ).headers["Server-Timing"]
-        second_dur_text = postgrest.session.get(
+        first_timings = postgrest.session.get("/authors_only", headers=headers).headers[
+            "Server-Timing"
+        ]
+        second_timings = postgrest.session.get(
             "/authors_only", headers=headers
         ).headers["Server-Timing"]
 
-        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
-        second_dur = float(second_dur_text[8:])
+        first_dur = parse_server_timings_header(first_timings)["jwt"]
+        second_dur = parse_server_timings_header(second_timings)["jwt"]
 
         # their difference should be atleast 300, implying
         # that JWT Caching is working as expected
@@ -1172,15 +1172,15 @@ def test_server_timing_jwt_should_not_decrease_when_caching_disabled(defaultenv)
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
         warmup_req = postgrest.session.get("/authors_only", headers=headers)
-        first_dur_text = postgrest.session.get(
-            "/authors_only", headers=headers
-        ).headers["Server-Timing"]
-        second_dur_text = postgrest.session.get(
+        first_timings = postgrest.session.get("/authors_only", headers=headers).headers[
+            "Server-Timing"
+        ]
+        second_timings = postgrest.session.get(
             "/authors_only", headers=headers
         ).headers["Server-Timing"]
 
-        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
-        second_dur = float(second_dur_text[8:])
+        first_dur = parse_server_timings_header(first_timings)["jwt"]
+        second_dur = parse_server_timings_header(second_timings)["jwt"]
 
         # their difference should be less than 150
         # implying that token is not cached
@@ -1201,15 +1201,15 @@ def test_jwt_cache_with_no_exp_claim(defaultenv):
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)  # no exp
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
-        first_dur_text = postgrest.session.get(
-            "/authors_only", headers=headers
-        ).headers["Server-Timing"]
-        second_dur_text = postgrest.session.get(
+        first_timings = postgrest.session.get("/authors_only", headers=headers).headers[
+            "Server-Timing"
+        ]
+        second_timings = postgrest.session.get(
             "/authors_only", headers=headers
         ).headers["Server-Timing"]
 
-        first_dur = float(first_dur_text[8:])  # skip "jwt;dur="
-        second_dur = float(second_dur_text[8:])
+        first_dur = parse_server_timings_header(first_timings)["jwt"]
+        second_dur = parse_server_timings_header(second_timings)["jwt"]
 
         # their difference should be atleast 300, implying
         # that JWT Caching is working as expected
