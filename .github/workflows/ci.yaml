@@ -306,6 +306,65 @@ jobs:
           path: result/postgrest
           if-no-files-found: error
 
+  release-nightly:
+    name: Upload Nightly Build
+    # if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    needs:
+      - Lint-Style
+      - Test-Nix
+      - Test-Pg-Nix
+      - Test-Memory-Nix
+      - Build-Static-Nix
+      - Build-Stack
+      - Get-FreeBSD-CirrusCI
+      - Build-Cabal-Arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+      - name: Get current date & time
+        id: datetime
+        run: echo "datetime=$(date +%Y-%m-%d-%H-%M-%S)" >> "$GITHUB_OUTPUT"
+      - name: Create release bundle with archives for all builds
+        env:
+          VERSION: "${{ steps.datetime.outputs.datetime }}-${{ github.sha }}"
+        run: |
+          find artifacts -type f -iname postgrest -exec chmod +x {} \;
+
+          mkdir -p release-bundle
+
+          tar cJvf "release-bundle/postgrest-nightly-$VERSION-linux-static-x64.tar.xz" \
+            -C artifacts/postgrest-linux-static-x64 postgrest
+
+          tar cJvf "release-bundle/postgrest-nightly-$VERSION-macos-x64.tar.xz" \
+            -C artifacts/postgrest-macos-x64 postgrest
+
+          # TODO: Fix timeouts for FreeBSD builds in Cirrus
+          tar cJvf "release-bundle/postgrest-nightly-$VERSION-freebsd-x64.tar.xz" \
+            -C artifacts/postgrest-freebsd-x64 postgrest
+
+          tar cJvf "release-bundle/postgrest-nightly-$VERSION-ubuntu-aarch64.tar.xz" \
+            -C artifacts/postgrest-ubuntu-aarch64 postgrest
+
+          zip "release-bundle/postgrest-nightly-$VERSION-windows-x64.zip" \
+            artifacts/postgrest-windows-x64/postgrest.exe
+
+      - name: Save release bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: release-bundle
+          path: release-bundle
+          if-no-files-found: error
+      - name: Publish release on GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Releasing version $VERSION on GitHub..."
+          gh release upload "nightly" \
+            release-bundle/*
 
   Prepare-Release:
     name: Prepare release
