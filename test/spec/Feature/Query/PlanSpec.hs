@@ -194,6 +194,62 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 1.29
 
+    it "outputs the total cost for 2 upserts" $ do
+      r <- request methodPost "/tiobe_pls"
+            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            [json| [ { "name": "Python", "rank": 19 }, { "name": "Go", "rank": 20} ]|]
+
+      let totalCost  = planCost r
+          resStatus  = simpleStatus r
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` 3.27
+
+    it "outputs the total cost for an upsert with 10 rows" $ do
+      r <- request methodPost "/tiobe_pls"
+            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            (getInsertDataForTiobePlsTable 10)
+
+      let totalCost  = planCost r
+          resStatus  = simpleStatus r
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` 3.27
+
+    it "outputs the total cost for an upsert with 100 rows" $ do
+      r <- request methodPost "/tiobe_pls"
+            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            (getInsertDataForTiobePlsTable 100)
+
+      let totalCost  = planCost r
+          resStatus  = simpleStatus r
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` 3.27
+
+    it "outputs the total cost for an upsert with 1000 rows" $ do
+      r <- request methodPost "/tiobe_pls"
+            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            (getInsertDataForTiobePlsTable 1000)
+
+      let totalCost  = planCost r
+          resStatus  = simpleStatus r
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` 3.27
+
     it "outputs the plan for application/vnd.pgrst.object" $ do
       r <- request methodDelete "/projects?id=eq.6"
         [("Prefer", "return=representation"), ("Accept", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose")] ""
