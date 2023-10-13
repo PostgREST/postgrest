@@ -322,11 +322,6 @@ jobs:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
           if-no-files-found: error
-      - name: Upload executable to nightly release
-        uses: ./.github/actions/release-nightly
-        with:
-          artifact: postgrest-ubuntu-aarch64
-          platform: ubuntu-aarch64
   
   Prepare-Release:
     name: Prepare release
