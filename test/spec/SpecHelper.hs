@@ -1,6 +1,7 @@
 module SpecHelper where
 
 import           Control.Lens           ((^?))
+import qualified Data.Aeson             as JSON
 import           Data.Aeson.Lens
 import qualified Data.ByteString.Base64 as B64 (decodeLenient)
 import qualified Data.ByteString.Char8  as BS
@@ -9,7 +10,7 @@ import qualified Data.Map.Strict        as M
 import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
 
-import Data.Aeson           (Value (..), decode, encode)
+import Data.Aeson           ((.=))
 import Data.CaseInsensitive (CI (..), mk, original)
 import Data.List            (lookup)
 import Data.List.NonEmpty   (fromList)
@@ -79,14 +80,14 @@ validateOpenApiResponse headers = do
     let respHeaders = simpleHeaders r in
     respHeaders `shouldSatisfy`
       \hs -> ("Content-Type", "application/openapi+json; charset=utf-8") `elem` hs
-  Just body <- pure $ decode (simpleBody r)
-  Just schema <- liftIO $ decode <$> BL.readFile "test/spec/fixtures/openapi.json"
-  let args :: M.Map Text Value
+  Just body <- pure $ JSON.decode (simpleBody r)
+  Just schema <- liftIO $ JSON.decode <$> BL.readFile "test/spec/fixtures/openapi.json"
+  let args :: M.Map Text JSON.Value
       args = M.fromList
         [ ( "schema", schema )
         , ( "data", body ) ]
       hdrs = acceptHdrs "application/json"
-  request methodPost "/rpc/validate_json_schema" hdrs (encode args)
+  request methodPost "/rpc/validate_json_schema" hdrs (JSON.encode args)
       `shouldRespondWith` "true"
       { matchStatus = 200
       , matchHeaders = []
@@ -284,7 +285,7 @@ isErrorFormat s =
   "message" `S.member` keys &&
     S.null (S.difference keys validKeys)
  where
-  obj = decode s :: Maybe (M.Map Text Value)
+  obj = JSON.decode s :: Maybe (M.Map Text JSON.Value)
   keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]
 
@@ -309,7 +310,7 @@ mutatesWith = MutationCheck
 
 -- | The original table data before it is modified.
 -- The column order is needed for an accurate comparison after the mutation
-baseTable :: ByteString -> ByteString -> Value -> BaseTable
+baseTable :: ByteString -> ByteString -> JSON.Value -> BaseTable
 baseTable = BaseTable
 
 -- | The mutation (update/delete) that will be applied to the base table
@@ -317,7 +318,7 @@ requestMutation :: Method -> ByteString -> [Header] -> BL.ByteString -> WaiExpec
 requestMutation method path headers body =
   request method path (("Prefer", "tx=commit") : headers) body `shouldRespondWith` 204
 
-data BaseTable = BaseTable ByteString ByteString Value
+data BaseTable = BaseTable ByteString ByteString JSON.Value
 data MutationCheck = MutationCheck BaseTable (WaiExpectation ())
 
 planCost :: SResponse -> Float
@@ -326,6 +327,20 @@ planCost resp =
   -- big value in case parsing fails
   fromMaybe 1000000000.0 $ unbox =<< res
   where
-    unbox :: Value -> Maybe Float
-    unbox (Number n) = Just $ toRealFloat n
-    unbox _          = Nothing
+    unbox :: JSON.Value -> Maybe Float
+    unbox (JSON.Number n) = Just $ toRealFloat n
+    unbox _               = Nothing
+
+data TiobePlsRow = TiobePlsRow {
+  name' :: Text,
+  rank  :: Int
+} deriving (Show)
+
+instance JSON.ToJSON TiobePlsRow where
+  toJSON (TiobePlsRow name'' rank') = JSON.object ["name" .= name'', "rank" .= rank']
+
+getInsertDataForTiobePlsTable :: Int -> BL.ByteString
+getInsertDataForTiobePlsTable rows =
+  JSON.encode $ fromList $ [TiobePlsRow {name' = nm, rank = rk} | (nm,rk) <- nameRankList]
+   where
+     nameRankList = [("Lang " <> show i, i) | i <- [20..(rows+20)] ] :: [(Text, Int)]
