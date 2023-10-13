@@ -34,7 +34,8 @@ runs:
       shell: bash
     - name: Render archive name
       id: archive_name
-      run: echo "::set-output name=archive_name::postgresql-nightly-${{ steps.datetime.outputs.datetime }}-${{ github.sha }}-${{ inputs.platform }}.${{ inputs.format }}"
+      run: |
+        echo "archive_name=postgresql-nightly-${{ steps.datetime.outputs.datetime }}-${{ github.sha }}-${{ inputs.platform }}" >> "$GITHUB_ENV"
       shell: bash
     - name: Compress tarball
       if: ${{ inputs.format == 'tar' }}

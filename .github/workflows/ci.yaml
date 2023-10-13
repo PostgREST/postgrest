@@ -160,6 +160,7 @@ jobs:
               .stack-work
             platform: ubuntu-x64
             ext: ''
+            release_format: tar
 
           - name: MacOS
             runs-on: macos-latest
@@ -168,6 +169,7 @@ jobs:
               .stack-work
             platform: macos-x64
             ext: ''
+            release_format: tar
 
           - name: Windows
             runs-on: windows-latest
@@ -178,6 +180,7 @@ jobs:
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
             platform: windows-x64
             ext: '.exe'
+            release_format: zip
 
     name: Build ${{ matrix.name }} (Stack)
     runs-on: ${{ matrix.runs-on }}
@@ -206,6 +209,7 @@ jobs:
         with:
           artifact: postgrest-${{ matrix.platform }}${{ matrix.ext }}
           platform: ${{ matrix.platform }}
+          format: ${{ matrix.release_format }}
   
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
