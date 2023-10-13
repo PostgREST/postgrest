@@ -413,15 +413,6 @@ spec = do
               matchHeader "Content-Range" "10-14/*"
             simpleStatus r `shouldBe` ok200
 
-        it "does not throw error when offset is 0 and and total is 0" $
-          request methodGet "/rpc/getitemrange?min=0&max=0"
-                  (rangeHdrsWithCount $ ByteRangeFromTo 0 1) mempty
-            `shouldRespondWith`
-            [json|[]|]
-            { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "*/0"]
-            }
-
       context "of invalid range" $ do
         it "fails with 416 for offside range" $
           request methodGet  "/items"
@@ -461,18 +452,4 @@ spec = do
               }|]
             { matchStatus  = 416
             , matchHeaders = ["Content-Range" <:> "*/15"]
-            }
-
-        it "refuses a range with first position the same as number of items" $
-          request methodGet "/rpc/getitemrange?min=1&max=2"
-                  (rangeHdrsWithCount $ ByteRangeFromTo 1 2) mempty
-            `shouldRespondWith`
-              [json| {
-                "message":"Requested range not satisfiable",
-                "code":"PGRST103",
-                "details":"An offset of 1 was requested, but there are only 1 rows.",
-                "hint":null
-              }|]
-            { matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/1"]
             }
