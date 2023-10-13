@@ -27,18 +27,23 @@ runs:
         name: ${{ inputs.artifact }}
     - name: Chmod artifact
       run: 'chmod +x ${{ inputs.artifact }}'
+      shell: bash
     - name: Get current date & time
       id: datetime
       run: echo "datetime=$(date +%Y-%m-%d-%H-%M)" >> "$GITHUB_OUTPUT"
+      shell: bash
     - name: Render archive name
       id: archive_name
       run: echo "::set-output name=archive_name::postgresql-nightly-${{ steps.datetime.outputs.datetime }}-${{ github.sha }}-${{ inputs.platform }}.${{ inputs.format }}"
+      shell: bash
     - name: Compress tarball
       if: ${{ inputs.format == 'tar' }}
       run: 'tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}'
+      shell: bash
     - name: Compress zip
       if: ${{ inputs.format == 'zip' }}
       run: 'zip ${{ steps.archive_name.outputs.archive_name }}.zip ${{ inputs.artifact }}'
+      shell: bash
     - name: Upload to release
       uses: softprops/action-gh-release@v0.1.15
       with:
@@ -46,5 +51,3 @@ runs:
           ${{ steps.archive_name.outputs.archive_name }}.tar.xz
           ${{ steps.archive_name.outputs.archive_name }}.zip
         name: ${{ inputs.release }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
