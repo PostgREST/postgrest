@@ -1,0 +1,50 @@
+name: Release Nightly
+
+inputs:
+  artifact:
+    description: 'The name of the artifact to process'
+    required: true
+  release:
+    description: 'The name of the release to upload to'
+    required: false
+    default: 'nightly'
+  platform:
+    description: 'The platform to use for the archive name'
+    required: true
+  format:
+    description: 'The format to use for the archive name'
+    required: false
+    default: 'tar'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Download artifact 
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ inputs.artifact }}
+    - name: Chmod artifact
+      run: 'chmod +x ${{ inputs.artifact }}'
+    - name: Get current date & time
+      id: datetime
+      run: echo "datetime=$(date +%Y-%m-%d-%H-%M)" >> "$GITHUB_OUTPUT"
+    - name: Render archive name
+      id: archive_name
+      run: echo "::set-output name=archive_name::postgresql-nightly-${{ steps.datetime.outputs.datetime }}-${{ github.sha }}-${{ inputs.platform }}.${{ inputs.format }}"
+    - name: Compress tarball
+      if: ${{ inputs.format == 'tar' }}
+      run: 'tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}'
+    - name: Compress zip
+      if: ${{ inputs.format == 'zip' }}
+      run: 'zip ${{ steps.archive_name.outputs.archive_name }}.zip ${{ inputs.artifact }}'
+    - name: Upload to release
+      uses: softprops/action-gh-release@v0.1.15
+      with:
+        files: |
+          ${{ steps.archive_name.outputs.archive_name }}.tar.xz
+          ${{ steps.archive_name.outputs.archive_name }}.zip
+        name: ${{ inputs.release }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
