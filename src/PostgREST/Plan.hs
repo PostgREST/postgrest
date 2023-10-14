@@ -659,10 +659,12 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
       flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _) opExpr)) ->
-        let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
+        let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans
+            getJoinColName joins rel = if maybe False relIsToOne rel then (\(JoinCondition (_, joinCol) _) -> joinCol ) <$> joins else [] in
         case (foundRP, opExpr) of
-          (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
-          _                                                   -> Right flt
+          (Just ReadPlan{relAggAlias, relJoinConds, relToParent}, OpExpr b (Is TriNull))
+            -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias (getJoinColName relJoinConds relToParent)
+          _ -> Right flt
       flt@(CoercibleStmnt _) ->
         Right flt
 

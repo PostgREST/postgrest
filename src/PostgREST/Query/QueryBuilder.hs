@@ -41,6 +41,30 @@ import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
+-- OLD
+--
+--   (SELECT projects.id, "api"."projects"."name",
+--           row_to_json("projects_clients_1".*) AS "clients"
+--    FROM "api"."projects"
+--    LEFT JOIN LATERAL
+--      (SELECT "clients_1"."name"
+--       FROM "api"."clients" AS "clients_1"
+--       WHERE "clients_1"."id" = "api"."projects"."client_id") AS "projects_clients_1"
+--      ON TRUE
+--    WHERE "projects_clients_1" IS DISTINCT FROM NULL)
+--
+-- NEW
+--
+--  (SELECT projects.id, "api"."projects"."name",
+--          row_to_json("projects_clients_1"."clients_1_row") AS "clients"
+--   FROM "api"."projects"
+--   LEFT JOIN LATERAL
+--     (SELECT "clients_1_row", "clients_1"."id"
+--      FROM "api"."clients" AS "clients_1",
+--      LATERAL (SELECT "clients_1"."name") AS "clients_1_row") AS "projects_clients_1"
+--     ON "projects_clients_1"."id" = "api"."projects"."client_id"
+--   WHERE "projects_clients_1"."id" IS NULL)
+
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
 readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
   "SELECT " <>

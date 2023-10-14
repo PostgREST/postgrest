@@ -258,8 +258,10 @@ spec = describe "related queries" $ do
         , matchHeaders = [matchContentTypeJson]
         }
 
-    -- "?table=not.is.null" does a "table IS DISTINCT FROM NULL" instead of a "table IS NOT NULL"
-    -- https://github.com/PostgREST/postgrest/issues/2800#issuecomment-1720315818
+    -- "?table=not.is.null" translates to:
+    -- * "table.join_column IS NOT NULL" for to-one relationships
+    -- * "table IS NOT NULL" for to-many relationships
+    -- https://github.com/PostgREST/postgrest/issues/2961
     it "embeds verifying that the entire target table row is not null" $ do
       get "/table_b?select=name,table_a(name)&table_a=not.is.null" `shouldRespondWith`
         [json|[

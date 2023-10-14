@@ -49,7 +49,7 @@ data CoercibleFilter = CoercibleFilter
   { field  :: CoercibleField
   , opExpr :: OpExpr
   }
-  | CoercibleFilterNullEmbed Bool FieldName
+  | CoercibleFilterNullEmbed Bool FieldName [FieldName]
   deriving (Eq, Show)
 
 data CoercibleOrderTerm
