@@ -25,8 +25,9 @@ runs:
       uses: actions/download-artifact@v2
       with:
         name: ${{ inputs.artifact }}
-    - name: Chmod artifact
-      run: 'chmod +x ${{ inputs.artifact }}'
+    - name: "Fix artifact name & perms"
+      run: |
+        mv postgrest ${{ inputs.artifact }} && chmod +x ${{ inputs.artifact }}
       shell: bash
     - name: Get current date & time
       id: datetime
