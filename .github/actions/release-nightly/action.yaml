@@ -53,4 +53,5 @@ runs:
           ${{ steps.archive_name.outputs.archive_name }}.tar.xz
           ${{ steps.archive_name.outputs.archive_name }}.zip
         tag_name: ${{ inputs.release }}
-
+        fail_on_unmatched_files: false
+        prerelease: true
