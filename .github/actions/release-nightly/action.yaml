@@ -52,4 +52,5 @@ runs:
         files: |
           ${{ steps.archive_name.outputs.archive_name }}.tar.xz
           ${{ steps.archive_name.outputs.archive_name }}.zip
-        name: ${{ inputs.release }}
+        tag_name: ${{ inputs.release }}
+
