@@ -15,6 +15,9 @@ inputs:
     description: 'The format to use for the archive name'
     required: false
     default: 'tar'
+  repo-token:
+    description: 'The token to use for the upload'
+    required: true
 
 runs:
   using: "composite"
@@ -48,7 +51,7 @@ runs:
       shell: bash
     - name: Upload to release
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.repo-token }}
       run: |
         gh release upload nightly ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ steps.archive_name.outputs.archive_name }}.zip
       shell: bash

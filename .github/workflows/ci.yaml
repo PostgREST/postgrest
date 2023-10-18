@@ -125,6 +125,7 @@ jobs:
         with:
           artifact: postgrest-linux-static-x64
           platform: linux-static-x64
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
@@ -210,6 +211,7 @@ jobs:
           artifact: postgrest-${{ matrix.platform }}${{ matrix.ext }}
           platform: ${{ matrix.platform }}
           format: ${{ matrix.release_format }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
   
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
@@ -233,6 +235,7 @@ jobs:
         with:
           artifact: postgrest-freebsd-x64
           platform: freebsd-x64
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
   
   Build-Cabal:
     strategy:
