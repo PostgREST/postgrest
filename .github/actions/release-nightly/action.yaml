@@ -47,11 +47,17 @@ runs:
       run: 'zip ${{ steps.archive_name.outputs.archive_name }}.zip ${{ inputs.artifact }}'
       shell: bash
     - name: Upload to release
-      uses: softprops/action-gh-release@v0.1.15
-      with:
-        files: |
-          ${{ steps.archive_name.outputs.archive_name }}.tar.xz
-          ${{ steps.archive_name.outputs.archive_name }}.zip
-        tag_name: ${{ inputs.release }}
-        fail_on_unmatched_files: false
-        prerelease: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release upload nightly ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ steps.archive_name.outputs.archive_name }}.zip
+      shell: bash
+    # - name: Upload to release
+    #   uses: softprops/action-gh-release@v0.1.15
+    #   with:
+    #     files: |
+    #       ${{ steps.archive_name.outputs.archive_name }}.tar.xz
+    #       ${{ steps.archive_name.outputs.archive_name }}.zip
+    #     tag_name: ${{ inputs.release }}
+    #     fail_on_unmatched_files: false
+    #     prerelease: true
