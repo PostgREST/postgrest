@@ -45,7 +45,7 @@ runs:
       if: ${{ inputs.format == 'tar' }}
       run: |
         echo "asset_name=${{ steps.archive_name.outputs.archive_name }}.tar.xz" >> "$GITHUB_ENV"
-        tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}'
+        tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}
       shell: bash
     - name: Compress zip
       if: ${{ inputs.format == 'zip' }}
