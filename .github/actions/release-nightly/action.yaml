@@ -53,7 +53,7 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.repo-token }}
       run: |
-        gh release upload nightly ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ steps.archive_name.outputs.archive_name }}.zip
+        find -type f -name "${{ steps.archive_name.outputs.archive_name }}.*" -exec gh release upload nightly {} \;
       shell: bash
     # - name: Upload to release
     #   uses: softprops/action-gh-release@v0.1.15
