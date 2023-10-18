@@ -43,17 +43,26 @@ runs:
       shell: bash
     - name: Compress tarball
       if: ${{ inputs.format == 'tar' }}
-      run: 'tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}'
+      run: |
+        echo "asset_name=${{ steps.archive_name.outputs.archive_name }}.tar.xz" >> "$GITHUB_ENV" \
+        tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}'
       shell: bash
     - name: Compress zip
       if: ${{ inputs.format == 'zip' }}
-      run: 'zip ${{ steps.archive_name.outputs.archive_name }}.zip ${{ inputs.artifact }}'
+      run: |
+        echo "asset_name=${{ steps.archive_name.outputs.archive_name }}.zip" >> "$GITHUB_ENV" \
+        zip ${{ steps.archive_name.outputs.archive_name }}.zip ${{ inputs.artifact }}
       shell: bash
     - name: Upload to release
       env:
         GITHUB_TOKEN: ${{ inputs.repo-token }}
       run: |
-        find -type f -name "${{ steps.archive_name.outputs.archive_name }}.*" -exec gh release upload nightly {} \;
+        gh api \
+          --method POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          /repos/PostgREST/postgrest/releases/33773182/assets?name=${asset_name} \
+          -f "@${asset_name}"
       shell: bash
     # - name: Upload to release
     #   uses: softprops/action-gh-release@v0.1.15
