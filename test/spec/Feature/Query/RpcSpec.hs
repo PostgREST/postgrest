@@ -98,6 +98,27 @@ spec actualPgVersion =
             , matchHeaders = ["Content-Range" <:> "0-1/2"]
             }
 
+      it "includes exact count of 1 for functions that return a single scalar, domain or composite" $ do
+        request methodGet "/rpc/add_them?a=3&b=4"
+                [("Prefer", "count=exact")] ""
+           `shouldRespondWith` "7"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            }
+        request methodGet "/rpc/ret_domain?val=8"
+                [("Prefer", "count=exact")] ""
+           `shouldRespondWith` "8"
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            }
+        request methodGet "/rpc/ret_point_2d"
+                [("Prefer", "count=exact")] ""
+           `shouldRespondWith`
+            [json|{"x": 10, "y": 5}|]
+            { matchStatus = 200
+            , matchHeaders = ["Content-Range" <:> "0-0/1"]
+            }
+
       it "returns proper json" $ do
         post "/rpc/getitemrange" [json| { "min": 2, "max": 4 } |] `shouldRespondWith`
           [json| [ {"id": 3}, {"id":4} ] |]
