@@ -29,7 +29,7 @@ import PostgREST.MediaType              (MTPlanFormat (..),
                                          MediaType (..))
 import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Routine    (ResultAggregate (..),
-                                         Routine)
+                                         Routine, funcReturnsSingle)
 
 import Protolude
 
@@ -121,7 +121,9 @@ prepareCall rout callProcQuery selectQuery countQuery countTotal mt rAgg =
       countCTEF <>
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
-        "pg_catalog.count(_postgrest_t) AS page_total, " <>
+        (if funcReturnsSingle rout
+          then "1"
+          else "pg_catalog.count(_postgrest_t)") <> " AS page_total, " <>
         aggF (Just rout) rAgg <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
         responseStatusF <> " AS response_status " <>
