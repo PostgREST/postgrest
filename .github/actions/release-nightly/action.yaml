@@ -63,7 +63,7 @@ runs:
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           /repos/PostgREST/postgrest/releases/33773182/assets?name=${asset_name} \
-          -f "@${asset_name}"
+          --field "@${asset_name}"
       shell: bash
     # - name: Upload to release
     #   uses: softprops/action-gh-release@v0.1.15
