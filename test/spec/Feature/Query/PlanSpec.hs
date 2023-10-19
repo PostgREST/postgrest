@@ -383,7 +383,7 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/add_them?a=3&b=4"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 1.18)
+      liftIO $ planCost r `shouldSatisfy` (< 0.11)
 
     context "function inlining" $ do
       it "should inline a zero argument function(the function won't appear in the plan tree)" $ do

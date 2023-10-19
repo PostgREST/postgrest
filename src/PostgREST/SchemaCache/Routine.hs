@@ -14,6 +14,7 @@ module PostgREST.SchemaCache.Routine
   , funcReturnsVoid
   , funcTableName
   , funcReturnsCompositeAlias
+  , funcReturnsSingle
   , ResultAggregate(..)
   ) where
 
@@ -98,6 +99,11 @@ data ResultAggregate
    | BuiltinAggBinary (Maybe FieldName)
    | NoAgg
    deriving (Eq, Show)
+
+funcReturnsSingle :: Routine -> Bool
+funcReturnsSingle proc = case proc of
+  Function{pdReturnType = Single _} -> True
+  _                                 -> False
 
 funcReturnsScalar :: Routine -> Bool
 funcReturnsScalar proc = case proc of
