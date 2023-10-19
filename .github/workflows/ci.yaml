@@ -103,6 +103,8 @@ jobs:
   Build-Static-Nix:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
@@ -185,6 +187,8 @@ jobs:
 
     name: Build ${{ matrix.name }} (Stack)
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Stack working files cache
