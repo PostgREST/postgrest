@@ -56,7 +56,7 @@ runs:
     - name: Upload to release
       env:
         GITHUB_TOKEN: ${{ inputs.repo-token }}
-        GH_DEBUG: true
+        GH_DEBUG: 1
       run: |
         gh api \
           --method POST \
