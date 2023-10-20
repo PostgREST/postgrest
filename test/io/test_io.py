@@ -169,7 +169,7 @@ def test_app_settings_flush_pool(defaultenv):
 
         # SIGUSR1 causes the postgres connection pool to be flushed
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         uri = "/rpc/get_guc_value?name=app.settings.external_api_secret"
         response = postgrest.session.get(uri)
@@ -213,7 +213,7 @@ def test_app_settings_reload(tmp_path, defaultenv):
         # reload
         postgrest.process.send_signal(signal.SIGUSR2)
 
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.get(uri)
         assert response.text == '"Jane"'
@@ -237,7 +237,7 @@ def test_jwt_secret_reload(tmp_path, defaultenv):
         # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
 
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
@@ -267,14 +267,14 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
         # SIGUSR1 doesn't reload external files, at least when db-config=false
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
 
         # reload config and external file with SIGUSR2
         postgrest.process.send_signal(signal.SIGUSR2)
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 200
@@ -285,7 +285,7 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
         # reload config and external file with NOTIFY
         response = postgrest.session.post("/rpc/reload_pgrst_config")
         assert response.status_code == 204
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
@@ -308,11 +308,11 @@ def test_db_schema_reload(tmp_path, defaultenv):
 
         # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         # reload schema cache to verify that the config reload actually happened
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"\\"v1\\", \\"public\\""'
@@ -332,7 +332,7 @@ def test_db_schema_notify_reload(defaultenv):
             "/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"}
         )
 
-        time.sleep(0.2)
+        sleep_until_postgrest_full_reload()
 
         response = postgrest.session.get("/rpc/get_guc_value?name=search_path")
         assert response.text == '"\\"v1\\", \\"public\\""'
@@ -360,7 +360,7 @@ def test_max_rows_reload(defaultenv):
         # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
 
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.head("/projects")
         assert response.status_code == 200
@@ -390,7 +390,7 @@ def test_max_rows_notify_reload(defaultenv):
             "/rpc/change_max_rows_config", data={"val": 1, "notify": True}
         )
 
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.head("/projects")
         assert response.status_code == 200
@@ -501,7 +501,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
 
         # trigger schema refresh
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/rpc/sleep?seconds=1")
         assert response.status_code == 500
@@ -512,7 +512,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
 
         # trigger role setting refresh
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/rpc/sleep?seconds=1")
         assert response.status_code == 204
@@ -663,7 +663,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         response = postgrest.admin.get("/ready")
         assert response.status_code == 503
@@ -830,7 +830,7 @@ def test_notify_reloading_catalog_cache(defaultenv):
         # change it to a bigint
         response = postgrest.session.post("/rpc/drop_change_cats")
         assert response.status_code == 204
-        time.sleep(0.1)
+        sleep_until_postgrest_scache_reload()
 
         # next request should succeed with a bigint value
         response = postgrest.session.get("/cats?id=eq.1")
@@ -858,7 +858,7 @@ def test_role_settings(defaultenv):
 
         response = postgrest.session.get("/rpc/reload_pgrst_config")
         assert response.status_code == 204
-        time.sleep(0.1)
+        sleep_until_postgrest_config_reload()
 
         response = postgrest.session.get("/rpc/get_guc_value?name=statement_timeout")
         assert response.text == '"5s"'
