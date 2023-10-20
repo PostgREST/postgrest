@@ -17,6 +17,21 @@ import requests_unixsocket
 from config import *
 
 
+def sleep_until_postgrest_scache_reload():
+    "Sleep until schema cache reload"
+    time.sleep(0.2)
+
+
+def sleep_until_postgrest_config_reload():
+    "Sleep until config reload"
+    time.sleep(0.1)
+
+
+def sleep_until_postgrest_full_reload():
+    "Sleep until schema cache plus config reload"
+    time.sleep(0.2)
+
+
 class PostgrestTimedOut(Exception):
     "Connecting to PostgREST endpoint timed out."
 
