@@ -196,7 +196,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for 2 upserts" $ do
       r <- request methodPost "/tiobe_pls"
-            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
             [json| [ { "name": "Python", "rank": 19 }, { "name": "Go", "rank": 20} ]|]
 
       let totalCost  = planCost r
@@ -210,7 +210,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for an upsert with 10 rows" $ do
       r <- request methodPost "/tiobe_pls"
-            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
             (getInsertDataForTiobePlsTable 10)
 
       let totalCost  = planCost r
@@ -224,7 +224,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for an upsert with 100 rows" $ do
       r <- request methodPost "/tiobe_pls"
-            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
             (getInsertDataForTiobePlsTable 100)
 
       let totalCost  = planCost r
@@ -238,7 +238,7 @@ spec actualPgVersion = do
 
     it "outputs the total cost for an upsert with 1000 rows" $ do
       r <- request methodPost "/tiobe_pls"
-            [("Prefer","handling=strict; resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+            [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
             (getInsertDataForTiobePlsTable 1000)
 
       let totalCost  = planCost r
