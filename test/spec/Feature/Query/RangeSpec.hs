@@ -145,6 +145,14 @@ spec = do
         it "returns whole range with status 200" $
           get "/items" `shouldRespondWith` 200
 
+      context "count with an empty body" $ do
+        it "returns empty body with Content-Range */0" $
+          request methodGet "/items?id=eq.0"
+            [("Prefer", "count=exact")] ""
+            `shouldRespondWith`
+              [json|[]|]
+              { matchHeaders = ["Content-Range" <:> "*/0"] }            
+
       context "when I don't want the count" $ do
         it "returns range Content-Range with /*" $
           request methodGet "/menagerie"
@@ -211,11 +219,24 @@ spec = do
                              , "Content-Range" <:> "2-4/*" ]
             }
 
-      it "succeeds if offset equals 0 as a no-op" $
-        get "/items?select=id&offset=0&order=id"
-          `shouldRespondWith`
-            [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
-            { matchHeaders = ["Content-Range" <:> "0-14/*"] }
+      context "succeeds if offset equals 0 as a no-op" $ do
+        it  "no items" $ do
+          get "/items?offset=0&id=eq.0"
+            `shouldRespondWith`
+              [json|[]|]
+              { matchHeaders = ["Content-Range" <:> "*/*"] }
+
+          request methodGet "/items?offset=0&id=eq.0"
+            [("Prefer", "count=exact")] ""
+            `shouldRespondWith`
+              [json|[]|]
+              { matchHeaders = ["Content-Range" <:> "*/0"] }
+
+        it  "one or more items" $
+          get "/items?select=id&offset=0&order=id"
+            `shouldRespondWith`
+              [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},{"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},{"id":14},{"id":15}]|]
+              { matchHeaders = ["Content-Range" <:> "0-14/*"] }
 
       it "succeeds if offset is negative as a no-op" $
         get "/items?select=id&offset=-4&order=id"
