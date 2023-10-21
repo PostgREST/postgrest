@@ -104,9 +104,9 @@ rangeStatusHeader topLevelRange queryTotal tableTotal =
     rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
     rangeStatus _ _ Nothing = status200
     rangeStatus lower upper (Just total)
-      | lower >= total && lower /= upper && lower /= 0 = status416 -- 416 Range Not Satisfiable
-      | (1 + upper - lower) < total                    = status206 -- 206 Partial Content
-      | otherwise                                      = status200 -- 200 OK
+      | lower > total               = status416 -- 416 Range Not Satisfiable
+      | (1 + upper - lower) < total = status206 -- 206 Partial Content
+      | otherwise                   = status200 -- 200 OK
 
 contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
 contentRangeH lower upper total =
