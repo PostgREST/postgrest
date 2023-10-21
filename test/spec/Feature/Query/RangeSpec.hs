@@ -151,7 +151,7 @@ spec = do
             [("Prefer", "count=exact")] ""
             `shouldRespondWith`
               [json|[]|]
-              { matchHeaders = ["Content-Range" <:> "*/0"] }            
+              { matchHeaders = ["Content-Range" <:> "*/0"] }
 
       context "when I don't want the count" $ do
         it "returns range Content-Range with /*" $
