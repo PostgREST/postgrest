@@ -18,6 +18,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_pre_request = 'test.custom_heade
 ALTER ROLE db_config_authenticator SET pgrst.db_max_rows = '1000';
 ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, extensions';
 ALTER ROLE db_config_authenticator SET pgrst.not_existing = 'should be ignored';
+ALTER ROLE db_config_authenticator SET pgrst.server_cors_allowed_origins = 'http://example.com';
 ALTER ROLE db_config_authenticator SET pgrst.server_trace_header = 'CF-Ray';
 
 -- override with database specific setting
@@ -62,6 +63,7 @@ ALTER ROLE other_authenticator SET pgrst.db_max_rows = '100';
 ALTER ROLE other_authenticator SET pgrst.db_extra_search_path = 'public, extensions, other';
 ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';
 ALTER ROLE other_authenticator SET pgrst.openapi_security_active = 'false';
+ALTER ROLE other_authenticator SET pgrst.server_cors_allowed_origins = 'http://example.com';
 ALTER ROLE other_authenticator SET pgrst.server_trace_header = 'traceparent';
 ALTER ROLE other_authenticator SET pgrst.db_pre_config = 'postgrest.pre_config';
 

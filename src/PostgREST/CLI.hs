@@ -221,6 +221,9 @@ exampleConfigFile =
       |## Content types to produce raw output
       |# raw-media-types="image/png, image/jpg"
       |
+      |## Configurable CORS origins
+      |# server-cors-allowed-origins = ""
+      |
       |server-host = "!4"
       |server-port = 3000
       |

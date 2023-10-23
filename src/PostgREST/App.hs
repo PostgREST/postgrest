@@ -110,7 +110,7 @@ serverSettings AppConfig{..} =
 postgrest :: AppConfig -> AppState.AppState -> IO () -> Wai.Application
 postgrest conf appState connWorker =
   traceHeaderMiddleware conf .
-  Cors.middleware .
+  Cors.middleware (configServerCorsAllowedOrigins conf) .
   Auth.middleware appState .
   Logger.middleware (configLogLevel conf) $
     -- fromJust can be used, because the auth middleware will **always** add
