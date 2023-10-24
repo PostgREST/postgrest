@@ -20,8 +20,7 @@ spec =
           ""
         `shouldRespondWith`
           ""
-          { matchHeaders = [ "Access-Control-Allow-Origin" <:> "http://example.com"
-                           , "Access-Control-Allow-Credentials" <:> "true"
+          { matchHeaders = [ "Access-Control-Allow-Origin" <:> "*"
                            , "Access-Control-Allow-Methods" <:> "GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD"
                            , "Access-Control-Allow-Headers" <:> "Authorization, Foo, Bar, Accept, Accept-Language, Content-Language"
                            , "Access-Control-Max-Age" <:> "86400" ]

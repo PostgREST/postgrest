@@ -1214,3 +1214,62 @@ def test_jwt_cache_with_no_exp_claim(defaultenv):
         # their difference should be atleast 300, implying
         # that JWT Caching is working as expected
         assert (first_dur - second_dur) > 300.0
+
+
+def test_preflight_request_with_cors_allowed_origin_config(defaultenv):
+    "OPTIONS preflight request should return Access-Control-Allow-Origin equal to origin"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_CORS_ALLOWED_ORIGINS": "http://example.com, http://example2.com",
+    }
+
+    headers = {
+        "Accept": "*/*",
+        "Origin": "http://example.com",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "Content-Type",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.options("/items", headers=headers)
+        assert (
+            response.headers["Access-Control-Allow-Origin"] == "http://example.com"
+            and response.headers["Access-Control-Allow-Credentials"] == "true"
+        )
+
+
+def test_no_preflight_request_with_CORS_config_should_return_header(defaultenv):
+    "GET no preflight request should return Access-Control-Allow-Origin equal to origin"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_CORS_ALLOWED_ORIGINS": "http://example.com, http://example2.com",
+    }
+
+    headers = {
+        "Accept": "*/*",
+        "Origin": "http://example.com",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/items", headers=headers)
+        assert response.headers["Access-Control-Allow-Origin"] == "http://example.com"
+
+
+def test_no_preflight_request_with_CORS_config_should_not_return_header(defaultenv):
+    "GET no preflight request should not return Access-Control-Allow-Origin"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_CORS_ALLOWED_ORIGINS": "http://example.com, http://example2.com",
+    }
+
+    headers = {
+        "Accept": "*/*",
+        "Origin": "http://invalid.com",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/items", headers=headers)
+        assert "Access-Control-Allow-Origin" not in response.headers
