@@ -17,8 +17,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
- - #2824, Fix regression by reverting fix that returned 206 when first position = length in a `Range` header - @laurenceisla, @strengthless
  - #3015, Fix unnecessary count() on RPC returning single - @steve-chavez
+
+## [11.2.2] - 2023-10-25
+
+### Fixed
+
+ - #2824, Fix regression by reverting fix that returned 206 when first position = length in a `Range` header - @laurenceisla, @strengthless
 
 ## [11.2.1] - 2023-10-03
 
