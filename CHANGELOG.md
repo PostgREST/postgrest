@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [11.2.2] - 2023-10-25
+
 ### Fixed
 
  - #2824, Fix regression by reverting fix that returned 206 when first position = length in a `Range` header - @laurenceisla, @strengthless
