@@ -56,8 +56,8 @@ let
         inRootDir = true;
       }
       ''
-        trap "echo You need to be on the main branch to proceed. Exiting ..." ERR
-        [ "$(git rev-parse --abbrev-ref HEAD)" == "main" ]
+        trap "echo You need to be on the main branch or a release branch to proceed. Exiting ..." ERR
+        [[ "$(git rev-parse --abbrev-ref HEAD)" =~ ^main$|^rel- ]]
         trap "" ERR
 
         trap "echo You have uncommitted changes in postgrest.cabal. Exiting ..." ERR
