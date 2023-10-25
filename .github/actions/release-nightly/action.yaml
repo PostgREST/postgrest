@@ -45,7 +45,7 @@ runs:
       if: ${{ inputs.format == 'tar' }}
       run: |
         echo "asset_name=${{ steps.archive_name.outputs.archive_name }}.tar.xz" >> "$GITHUB_ENV"
-        tar -cJvf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}
+        tar -cJf ${{ steps.archive_name.outputs.archive_name }}.tar.xz ${{ inputs.artifact }}
       shell: bash
     - name: Compress zip
       if: ${{ inputs.format == 'zip' }}
@@ -63,7 +63,7 @@ runs:
           -H "Authorization: Bearer ${GITHUB_TOKEN}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           -H "Content-Type: application/octet-stream" \
-          "https://uploads.github.com/repos/PostgREST/postgrest/releases/33773182/assets?name=${asset_name}" \
+          "https://uploads.github.com/repos/develop7/postgrest/releases/126613367/assets?name=${asset_name}" \
           --data-binary "@${asset_name}"
       shell: bash
     # - name: Upload to release
