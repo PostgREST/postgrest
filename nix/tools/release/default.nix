@@ -111,7 +111,7 @@ let
         remote="$(git remote -v | grep PostgREST/postgrest | grep push | cut -f1)"
         trap "" ERR
 
-        push="git push --atomic $remote main v$new_version"
+        push="git push --atomic $remote $(git rev-parse --abbrev-ref HEAD) v$new_version"
 
         echo "To push both the branch and the new tag, the following will be run:"
         echo
