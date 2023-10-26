@@ -51,7 +51,7 @@ data ResultSet
   , rsGucStatus  :: Maybe Text
   -- ^ the HTTP status to be added to the response
   , rsInserted   :: Maybe Int64
-  -- ^ the number of rows inserted (Only used with PUT)
+  -- ^ the number of rows inserted (Only used for upserts)
   }
   | RSPlan BS.ByteString -- ^ the plan of the query
 
