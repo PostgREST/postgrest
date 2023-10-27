@@ -20,6 +20,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #3015, Fix unnecessary count() on RPC returning single - @steve-chavez
+ - #1070, Fix HTTP status responses for upserts - @taimoorzaeem
+   + `PUT` returns `201` instead of `200` when rows are inserted
+   + `POST` with `Prefer: resolution=merge-duplicates` returns `200` instead of `201` when no rows are inserted
 
 ### Changed
 

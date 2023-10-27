@@ -45,11 +45,11 @@ spec =
             }
 
       it "works with put request" $
-        request methodPut "/tiobe_pls?name=eq.Go"
+        request methodPut "/tiobe_pls?name=eq.Python"
             [("Prefer", "return=representation")]
-            [json| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Python", "rank": 19 } ]|]
           `shouldRespondWith`
-            [json| [ { "name": "Go", "rank": 19 } ]|]
+            [json| [ { "name": "Python", "rank": 19 } ]|]
             { matchStatus  = 200
             , matchHeaders = map matchServerTimingHasTiming ["jwt", "plan", "query", "render"]
             }

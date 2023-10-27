@@ -225,13 +225,11 @@ spec =
 
       it "succeeds on PUT on the v2 schema" $
         request methodPut "/children?id=eq.111" [("Content-Profile", "v2"), ("Prefer", "return=representation")]
-          [json| [ { "id": 111, "name": "child v2-111", "parent_id": null } ]|]
+          [json|[{"id": 111, "name": "child v2-111", "parent_id": null}]|]
           `shouldRespondWith`
-          [json|[{ "id": 111, "name": "child v2-111", "parent_id": null }]|]
-          {
-            matchStatus = 200
-          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
-          }
+          [json|[{"id": 111, "name": "child v2-111", "parent_id": null}]|]
+          { matchStatus  = 201
+          , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]}
 
     context "OpenAPI output" $ do
       it "succeeds in reading table definition from default schema v1 if no schema is selected via header" $ do

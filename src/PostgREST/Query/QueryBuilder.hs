@@ -87,7 +87,8 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
   "INSERT INTO " <> fromQi mainQi <> (if null iCols then " " else "(" <> cols <> ") ") <>
   fromJsonBodyF body iCols True False applyDefaults <>
   -- Only used for PUT
-  (if null putConditions then mempty else "WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
+  (if null putConditions then mempty else "WHERE " <> addConfigPgrstInserted True <> " AND " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
+  (if null putConditions && mergeDups then "WHERE " <> addConfigPgrstInserted True else mempty) <>
   maybe mempty (\(oncDo, oncCols) ->
     if null oncCols then
       mempty
@@ -98,11 +99,12 @@ mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _
       MergeDuplicates  ->
         if null iCols
            then "DO NOTHING"
-           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols)
+           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else "WHERE " <> addConfigPgrstInserted False)
     ) onConflct <> " " <>
-  returningF mainQi returnings
+    returningF mainQi returnings
   where
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
+    mergeDups = case onConflct of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
 -- An update without a limit is always filtered with a WHERE
 mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)

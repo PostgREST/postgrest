@@ -118,11 +118,12 @@ shouldPersistMutations reqHeaders respHeaders = do
 
   it "does persist put" $ do
     request methodPut "/items?id=eq.0"
-        reqHeaders
-        [json|{"id":0}|]
+      reqHeaders
+      [json|{"id":0}|]
       `shouldRespondWith`
-        [json|[{"id":0}]|]
-        { matchHeaders = respHeaders }
+      [json|[{"id":0}]|]
+      { matchStatus  = 201
+      , matchHeaders = respHeaders }
     get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[{"id":0}]|]
@@ -175,7 +176,8 @@ shouldNotPersistMutations reqHeaders respHeaders = do
         [json|{"id":0}|]
       `shouldRespondWith`
         [json|[{"id":0}]|]
-        { matchHeaders = respHeaders }
+        { matchStatus  = 201
+        , matchHeaders = respHeaders }
     get "/items?id=eq.0"
       `shouldRespondWith`
         [json|[]|]

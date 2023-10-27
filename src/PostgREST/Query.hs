@@ -190,7 +190,7 @@ openApiQuery sCache pgVer AppConfig{..} tSchema =
 writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
 writeQuery MutateReadPlan{..} ApiRequest{iPreferences=Preferences{..}} conf =
   let
-    (isInsert, pkCols) = case mrMutatePlan of {Insert{insPkCols} -> (True, insPkCols); _ -> (False, mempty);}
+    (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
   in
   lift . SQL.statement mempty $
     Statements.prepareWrite
@@ -198,9 +198,11 @@ writeQuery MutateReadPlan{..} ApiRequest{iPreferences=Preferences{..}} conf =
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
+      isPut
       mrMedia
       mrHandler
       preferRepresentation
+      preferResolution
       pkCols
       (configDbPreparedStatements conf)
 
