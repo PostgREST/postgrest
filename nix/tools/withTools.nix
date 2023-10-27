@@ -64,6 +64,9 @@ let
         export PGTZ
         export PGOPTIONS
 
+        # FIXME this should point to a read replica
+        export PGHOSTREP="$PGHOST"
+
         HBA_FILE="$tmpdir/pg_hba.conf"
         echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
         echo "local $PGDATABASE all trust" >> "$HBA_FILE"
