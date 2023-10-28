@@ -271,7 +271,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
-    <*> (fmap splitOnCommas <$> optValue "server-cors-allowed-origins")
+    <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
@@ -352,6 +352,11 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
       optWithAlias (optString k) (optString al) >>= \case
         Nothing  -> pure [JSPKey "role"]
         Just rck -> either (fail . show) pure $ pRoleClaimKey rck
+
+    parseCORSAllowedOrigins k =
+      optString k >>= \case
+        Nothing   -> pure Nothing
+        Just orig -> pure $ Just (T.strip <$> T.splitOn "," orig)
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =
