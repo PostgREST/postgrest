@@ -23,13 +23,12 @@ To simplify things, we won't be using authentication, so grant all permissions o
   grant all on api.todos to web_anon;
   grant usage, select on sequence api.todos_id_seq to web_anon;
 
-Next, add the ``text/html`` media type to the :ref:`raw-media-types` configuration.
-With this, PostgREST can identify the request made by your web browser (with the ``Accept: text/html`` header) and return a raw HTML document file.
+Next, add the ``text/html`` media type as a DOMAIN. With this, PostgREST can identify the request made by your web browser (with the ``Accept: text/html`` header)
+and return a raw HTML document file.
 
-.. code-block:: ini
+.. code-block:: postgres
 
-  # tutorial.conf
-  raw-media-types = "text/html"
+  create domain "text/html" as text;
 
 Creating an HTML Response
 -------------------------
@@ -38,31 +37,27 @@ Let's create a function that returns a basic HTML file, using `Tailwind CSS <htt
 
 .. code-block:: postgres
 
-  create or replace function api.index() returns text
-    language plpgsql
-    as $$
-  begin
-  perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
-  return $html$
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostgREST + HTMX To-Do List</title>
-    <!-- Tailwind for CSS styling -->
-    <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  </head>
-  <body class="bg-gray-900">
-    <div class="flex justify-center">
-      <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
-        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
-      </div>
-    </div>
-  </body>
-  </html>
-  $html$;
-  end $$;
+  create or replace function api.index() returns "text/html" as $$
+    select $html$
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>PostgREST + HTMX To-Do List</title>
+        <!-- Tailwind for CSS styling -->
+        <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      </head>
+      <body class="bg-gray-900">
+        <div class="flex justify-center">
+          <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
+            <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
+          </div>
+        </div>
+      </body>
+      </html>
+    $html$;
+  $$ language sql;
 
 The web browser will open the web page at ``http://localhost:3000/rpc/index``.
 
@@ -77,33 +72,29 @@ Now, let's show a list of the to-dos already inserted in the database.
 
 .. code-block:: postgres
 
-  create or replace function api.html_todo(api.todos) returns text
-    language sql stable
-    as $$
-  select format($html$
-  <li class="py-3">
-    <span class="ml-2 %2$s">
-      %3$s
-    </span>
-  </li>
-  $html$,
-    $1.id,
-    case when $1.done then 'line-through text-gray-400' else '' end,
-    $1.task
-  );
-  $$;
+  create or replace function api.html_todo(api.todos) returns text as $$
+    select format($html$
+      <li class="py-3">
+        <span class="ml-2 %2$s">
+          %3$s
+        </span>
+      </li>
+      $html$,
+      $1.id,
+      case when $1.done then 'line-through text-gray-400' else '' end,
+      $1.task
+    );
+  $$ language sql stable;
 
-  create or replace function api.html_all_todos() returns text
-    language sql
-    as $$
-  select coalesce(
-    '<ul id="todo-list" role="list" class="divide-y divide-gray-700 text-gray-100">'
-      || string_agg(api.html_todo(t), '' order by t.id) ||
-    '</ul>',
-    '<p class="text-gray-100">There is nothing else to do.</p>'
-  )
-  from api.todos t;
-  $$;
+  create or replace function api.html_all_todos() returns text as $$
+    select coalesce(
+      '<ul id="todo-list" role="list" class="divide-y divide-gray-700 text-gray-100">'
+        || string_agg(api.html_todo(t), '' order by t.id) ||
+      '</ul>',
+      '<p class="text-gray-100">There is nothing else to do.</p>'
+    )
+    from api.todos t;
+  $$ language sql;
 
 These two functions are used to build the to-do list template. We won't use them as PostgREST endpoints.
 
@@ -119,56 +110,47 @@ Next, let's add an endpoint to register a to-do in the database and modify the `
 
 .. code-block:: postgres
 
-  create or replace function api.add_todo(_task text) returns text
-    language plpgsql
-  as $$
-  begin
-    perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
+  create or replace function api.add_todo(_task text) returns "text/html" as $$
     insert into api.todos(task) values (_task);
-    return api.html_all_todos();
-  end;
-  $$;
+    select api.html_all_todos();
+  $$ language sql;
 
-  create or replace function api.index() returns text
-    language plpgsql
-    as $$
-  begin
-  perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
-  return $html$
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PostgREST + HTMX To-Do List</title>
-    <!-- Tailwind for CSS styling -->
-    <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- htmx for AJAX requests -->
-    <script src="https://unpkg.com/htmx.org"></script>
-  </head>
-  <body class="bg-gray-900"
-        hx-headers='{"Accept": "text/html"}'>
-    <div class="flex justify-center">
-      <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
-        <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
-        <form hx-post="/rpc/add_todo"
-              hx-target="#todo-list-area"
-              hx-trigger="submit"
-              hx-on="htmx:afterRequest: this.reset()">
-          <input class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 mb-3 bg-gray-700 border-gray-600 placeholder-gray-400 text-white focus:ring-blue-500 focus:border-blue-500"
-                 type="text" name="_task" placeholder="Add a todo...">
-        </form>
-        <div id="todo-list-area">
-          $html$
-            || api.html_all_todos() ||
-          $html$
-        <div>
+  create or replace function api.index() returns "text/html" as $$
+  select $html$
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <title>PostgREST + HTMX To-Do List</title>
+      <!-- Tailwind for CSS styling -->
+      <link href="https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      <!-- htmx for AJAX requests -->
+      <script src="https://unpkg.com/htmx.org"></script>
+    </head>
+    <body class="bg-gray-900"
+          hx-headers='{"Accept": "text/html"}'>
+      <div class="flex justify-center">
+        <div class="max-w-lg mt-5 p-6 bg-gray-800 border border-gray-800 rounded-lg shadow-xl">
+          <h5 class="mb-3 text-2xl font-bold tracking-tight text-white">PostgREST + HTMX To-Do List</h5>
+          <form hx-post="/rpc/add_todo"
+                hx-target="#todo-list-area"
+                hx-trigger="submit"
+                hx-on="htmx:afterRequest: this.reset()">
+            <input class="bg-gray-50 border text-sm rounded-lg block w-full p-2.5 mb-3 bg-gray-700 border-gray-600 placeholder-gray-400 text-white focus:ring-blue-500 focus:border-blue-500"
+                   type="text" name="_task" placeholder="Add a todo...">
+          </form>
+          <div id="todo-list-area">
+            $html$
+              || api.html_all_todos() ||
+            $html$
+          <div>
+        </div>
       </div>
-    </div>
-  </body>
-  </html>
-  $html$;
-  end $$;
+    </body>
+    </html>
+    $html$;
+  $$ language sql;
 
 - The ``/rpc/add_todo`` endpoint allows us to add a new to-do using the ``_task`` parameter and returns an ``html`` with all the to-dos in the database.
 
@@ -197,9 +179,7 @@ Now, let's modify ``api.html_todo`` and make it more functional.
 
 .. code-block:: postgres
 
-  create or replace function api.html_todo(api.todos) returns text
-    language sql stable
-    as $$
+  create or replace function api.html_todo(api.todos) returns text as $$
   select format($html$
   <li class="py-3">
     <div class="flex justify-between items-center">
@@ -216,8 +196,8 @@ Now, let's modify ``api.html_todo`` and make it more functional.
       </div>
       <div>
         <button class="p-1.5 rounded-full hover:bg-gray-700 focus:ring-gray-800"
-                hx-get="/todos?select=html_editable_task"
-                hx-vals='{"id": "eq.%1$s"}'
+                hx-get="/rpc/html_editable_task"
+                hx-vals='{"_id": "%1$s"}'
                 hx-target="#todo-edit-area-%1$s"
                 hx-trigger="click">
           <svg class="w-4 h-4 text-blue-300" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
@@ -243,7 +223,7 @@ Now, let's modify ``api.html_todo`` and make it more functional.
     $1.task,
     (not $1.done)::text
   );
-  $$;
+  $$ language sql stable;
 
 Let's deconstruct the new htmx features added:
 
@@ -258,7 +238,7 @@ Let's deconstruct the new htmx features added:
 
 - For the first ``<button>``:
 
-  + ``hx-get="/todos?select=html_editable_task"``: it does an AJAX GET request to that endpoint.
+  + ``hx-get="/rpc/html_editable_task"``: it does an AJAX GET request to that endpoint.
     It returns an HTML with an input that will allow us to edit the task.
 
   + ``hx-target="#todo-edit-area"``: the returned HTML will replace the element with this id.
@@ -272,13 +252,11 @@ Let's deconstruct the new htmx features added:
   + ``hx-post="/rpc/delete_todo"``: this post request will delete the corresponding to-do.
 
 Clicking on the first button will enable the task editing.
-That's why we create the ``api.html_editable_task`` :ref:`computed field <computed_cols>` and use the ``api.todos`` table as an endpoint:
+That's why we create the ``api.html_editable_task`` function as an endpoint:
 
 .. code-block:: postgres
 
-  create or replace function api.html_editable_task(api.todos)
-    returns text
-    language sql as $$
+  create or replace function api.html_editable_task(_id int) returns "text/html" as $$
   select format ($html$
   <form id="edit-task-%1$s"
         hx-post="/rpc/change_todo_task"
@@ -290,47 +268,33 @@ That's why we create the ``api.html_editable_task`` :ref:`computed field <comput
            id="task-%1$s" type="text" name="_task" value="%2$s" autofocus>
   </form>
   $html$,
-    $1.id,
-    $1.task
-  );
-  $$;
+    id,
+    task
+  )
+  from api.todos
+  where id = _id;
+  $$ language sql;
 
-We could use a function too, but this demonstrates that we can build HTML components (specially for a list) directly from a table by using computed fields.
 In this example, this will return an input field that allows us to edit the corresponding to-do task.
 
 Finally, let's add the endpoints that will modify and delete the to-dos in the database.
 
 .. code-block:: postgres
 
-  create or replace function api.change_todo_state(_id int, _done boolean) returns text
-    language plpgsql
-    as $$
-  begin
-    perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
+  create or replace function api.change_todo_state(_id int, _done boolean) returns "text/html" as $$
     update api.todos set done = _done where id = _id;
-    return api.html_all_todos();
-  end;
-  $$;
+    select api.html_all_todos();
+  $$ language sql;
 
-  create or replace function api.change_todo_task(_id int, _task text) returns text
-    language plpgsql
-  as $$
-  begin
-    perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
+  create or replace function api.change_todo_task(_id int, _task text) returns "text/html" as $$
     update api.todos set task = _task where id = _id;
-    return api.html_all_todos();
-  end;
-  $$;
+    select api.html_all_todos();
+  $$ language sql;
 
-  create or replace function api.delete_todo(_id int) returns text
-    language plpgsql
-  as $$
-  begin
-    perform set_config('response.headers','[{"Content-Type": "text/html; charset=utf-8"}]', true);
+  create or replace function api.delete_todo(_id int) returns "text/html" as $$
     delete from api.todos where id = _id;
-    return api.html_all_todos();
-  end;
-  $$;
+    select api.html_all_todos();
+  $$ language sql;
 
 All of those functions return an HTML list of to-dos that will replace the outdated one:
 
