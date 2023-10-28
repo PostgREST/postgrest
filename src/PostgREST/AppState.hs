@@ -20,6 +20,7 @@ module PostgREST.AppState
   , putSchemaCache
   , putPgVersion
   , usePool
+  , usePoolReadWrite
   , loadSchemaCache
   , reReadConfig
   , connectionWorker
@@ -40,6 +41,7 @@ import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified PostgREST.Error            as Error
 import           PostgREST.Version          (prettyVersion)
+import qualified Prelude                    ((!!))
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -51,6 +53,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
 import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
                            getZonedTime)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
+import System.Random      (randomRIO)
 
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
@@ -74,7 +77,7 @@ data AuthResult = AuthResult
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool                     :: SQL.Pool
+  { statePool                     :: Pool
   -- | Database server version, will be updated by the connectionWorker
   , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
@@ -104,10 +107,18 @@ data AppState = AppState
 init :: AppConfig -> IO AppState
 init conf = do
   pool <- initPool conf
-  initWithPool pool conf
+  initWithCompletePool pool conf
+
+data Pool = Pool
+  { poolPrimary      :: SQL.Pool
+  , poolReadReplicas :: [SQL.Pool]
+  }
 
 initWithPool :: SQL.Pool -> AppConfig -> IO AppState
-initWithPool pool conf = do
+initWithPool pool = initWithCompletePool (Pool pool [])
+
+initWithCompletePool :: Pool -> AppConfig -> IO AppState
+initWithCompletePool pool conf = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -144,32 +155,57 @@ initWithPool pool conf = do
 destroy :: AppState -> IO ()
 destroy = destroyPool
 
-initPool :: AppConfig -> IO SQL.Pool
-initPool AppConfig{..} =
-  SQL.acquire
-    configDbPoolSize
-    (fromIntegral configDbPoolAcquisitionTimeout)
-    (fromIntegral configDbPoolMaxLifetime)
-    (fromIntegral configDbPoolMaxIdletime)
-    (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+initPool :: AppConfig -> IO Pool
+initPool AppConfig{..} = do
+  primary <- mkPool configDbUri
+  readReplicas <- traverse mkPool configDbUriReadReplicas
+  return $ Pool primary readReplicas
+  where
+    mkPool uri = SQL.acquire
+      configDbPoolSize
+      (fromIntegral configDbPoolAcquisitionTimeout)
+      (fromIntegral configDbPoolMaxLifetime)
+      (fromIntegral configDbPoolMaxIdletime)
+      (toUtf8 $ addFallbackAppName prettyVersion uri)
+
+releasePool :: Pool -> IO ()
+releasePool (Pool primary readReplicas) = do
+  SQL.release primary
+  mapM_ SQL.release readReplicas
 
 -- | Run an action with a database connection.
-usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{..} x = do
-  res <- SQL.use statePool x
+usePool :: AppState -> SQL.Mode -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool AppState{..} mode x = do
+  pool <- pickPool statePool mode
+  res <- SQL.use pool x
   whenLeft res (\case
     SQL.AcquisitionTimeoutUsageError -> debounceLogAcquisitionTimeout -- this can happen rapidly for many requests, so we debounce
     _                                -> pure ())
   return res
 
+-- | Run an action with a database connection.
+usePoolReadWrite :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePoolReadWrite appState = usePool appState SQL.Write
+
+pickPool :: Pool -> SQL.Mode -> IO SQL.Pool
+pickPool pool mode =
+  case mode of
+    SQL.Write -> return $ poolPrimary pool
+    SQL.Read  ->
+      case poolReadReplicas pool of
+        [] -> return $ poolPrimary pool
+        pools -> do
+          i <- randomRIO (0, length pools - 1)
+          return $ pools Prelude.!! i
+
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool AppState{..} = releasePool statePool
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = SQL.release statePool
+destroyPool AppState{..} = releasePool statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
@@ -245,7 +281,7 @@ loadSchemaCache appState = do
   conf@AppConfig{..} <- getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    usePool appState . transaction SQL.ReadCommitted SQL.Read $
+    usePool appState SQL.Read . transaction SQL.ReadCommitted SQL.Read $
       querySchemaCache conf
   case result of
     Left e -> do
@@ -342,7 +378,9 @@ establishConnection appState =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- usePool appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not be established
+      -- FIXME usePoolReadWrite in order to use the master database connection
+      -- we should probably have ConnectionStatus take into account both master and read replicas
+      pgVersion <- usePoolReadWrite appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
           logPgrstError appState e
@@ -378,7 +416,8 @@ reReadConfig startingUp appState = do
   AppConfig{..} <- getConfig appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- usePool appState $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
+      -- FIXME usePoolReadWrite to query the master database, we could also use the replica if any
+      qDbSettings <- usePoolReadWrite appState $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           logWithZTime appState
@@ -396,7 +435,7 @@ reReadConfig startingUp appState = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
-      rSettings <- usePool appState $ queryRoleSettings configDbPreparedStatements
+      rSettings <- usePoolReadWrite appState $ queryRoleSettings configDbPreparedStatements -- FIXME read-only?
       case rSettings of
         Left e -> do
           logWithZTime appState "An error ocurred when trying to query the role settings"

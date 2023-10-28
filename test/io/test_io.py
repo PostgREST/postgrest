@@ -1294,3 +1294,87 @@ def test_no_preflight_request_with_CORS_config_should_not_return_header(defaulte
     with run(env=env) as postgrest:
         response = postgrest.session.get("/items", headers=headers)
         assert "Access-Control-Allow-Origin" not in response.headers
+
+
+def test_plain_get(defaultenv):
+    "Should be able to get"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.get("/projects")
+        print(response.text)
+        assert response.status_code == 200
+
+
+def test_plain_insert(defaultenv):
+    "Should be able to post"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/projects", data={"id": 10})
+        print(response.text)
+        assert response.status_code == 201
+
+
+def test_readonly(dburi_replica, defaultenv):
+    "Should be able to get but not post to the read replica configured as master"
+
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {**defaultenv_without_libpq, "PGRST_DB_URI": dburi_replica.decode()}
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        print(response.text)
+        assert response.status_code == 200
+
+        response = postgrest.session.post("/projects", data={"id": 10})
+        print(response.text)
+        assert response.status_code == 400
+
+
+def test_readonly_replica(dburi, dburi_replica, defaultenv):
+    "Should be able to get and post with read-write master and read-only replica"
+
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    env = {
+        **defaultenv_without_libpq,
+        "PGRST_DB_URI": dburi.decode(),
+        "PGRST_DB_READ_REPLICAS": dburi_replica.decode(),
+    }
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        print(response.text)
+        assert response.status_code == 200
+
+        response = postgrest.session.post("/projects", data={"id": 10})
+        print(response.text)
+        assert response.status_code == 201
+
+
+def test_readonly_replica_multiple(dburi, dburi_replica, defaultenv):
+    "Can handle multiple replica URLs"
+
+    defaultenv_without_libpq = {
+        key: value
+        for key, value in defaultenv.items()
+        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+    }
+    replicas = dburi_replica.decode() + " " + dburi_replica.decode()
+    env = {
+        **defaultenv_without_libpq,
+        "PGRST_DB_URI": dburi.decode(),
+        "PGRST_DB_READ_REPLICAS": replicas,
+    }
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        print(response.text)
+        assert response.status_code == 200
+
+        response = postgrest.session.post("/projects", data={"id": 10})
+        print(response.text)
+        assert response.status_code == 201

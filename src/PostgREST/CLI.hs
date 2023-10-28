@@ -53,7 +53,7 @@ dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    AppState.usePool appState $
+    AppState.usePool appState SQL.Read $
       transaction SQL.ReadCommitted SQL.Read $
         querySchemaCache conf
   case result of

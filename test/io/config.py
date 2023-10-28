@@ -20,7 +20,18 @@ def dburi():
     dbname = os.environ["PGDATABASE"]
     host = os.environ["PGHOST"]
     user = os.environ["PGUSER"]
-    return f"postgresql://?dbname={dbname}&host={host}&user={user}".encode()
+    port = os.environ.get("PGPORT", "5432")
+    return f"postgresql://?dbname={dbname}&host={host}&port={port}&user={user}".encode()
+
+
+@pytest.fixture
+def dburi_replica():
+    "Postgres database connection URI."
+    dbname = os.environ["PGDATABASE"]
+    host = os.environ["PGHOSTREP"]
+    user = os.environ["PGUSER"]
+    port = os.environ.get("PGPORTREP", "5432")
+    return f"postgresql://?dbname={dbname}&host={host}&port={port}&user={user}".encode()
 
 
 @pytest.fixture
@@ -29,6 +40,7 @@ def baseenv():
     return {
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
+        "PGPORT": os.environ.get("PGPORT", "5432"),
         "PGUSER": os.environ["PGUSER"],
     }
 

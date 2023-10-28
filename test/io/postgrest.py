@@ -150,6 +150,7 @@ def metapostgrest():
     env = {
         "PGDATABASE": os.environ["PGDATABASE"],
         "PGHOST": os.environ["PGHOST"],
+        "PGPORT": os.environ.get("PGPORT", "5432"),
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
         "PGRST_DB_CONFIG": "true",

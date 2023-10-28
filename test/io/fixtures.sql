@@ -29,8 +29,8 @@ GRANT USAGE ON SCHEMA v1 TO postgrest_test_anonymous;
 CREATE TABLE authors_only ();
 GRANT SELECT ON authors_only TO postgrest_test_author;
 
-CREATE TABLE projects AS SELECT FROM generate_series(1,5);
-GRANT SELECT ON projects TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
+CREATE TABLE projects AS SELECT * FROM generate_series(1,5) AS id;
+GRANT SELECT, INSERT ON projects TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
 
 create function get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;

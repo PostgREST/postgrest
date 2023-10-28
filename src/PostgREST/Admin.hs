@@ -5,11 +5,12 @@ module PostgREST.Admin
   ( runAdmin
   ) where
 
-import qualified Data.Text                 as T
-import qualified Hasql.Session             as SQL
-import qualified Network.HTTP.Types.Status as HTTP
-import qualified Network.Wai               as Wai
-import qualified Network.Wai.Handler.Warp  as Warp
+import qualified Data.Text                  as T
+import qualified Hasql.Session              as SQL
+import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.HTTP.Types.Status  as HTTP
+import qualified Network.Wai                as Wai
+import qualified Network.Wai.Handler.Warp   as Warp
 
 import Control.Monad.Extra (whenJust)
 
@@ -36,10 +37,10 @@ admin :: AppState.AppState -> AppConfig -> Wai.Application
 admin appState appConfig req respond  = do
   isMainAppReachable  <- any isRight <$> reachMainApp appConfig
   isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
-  isConnectionUp      <-
+  isConnectionUp      <- -- FIXME primary / read-replicas
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
-      else isRight <$> AppState.usePool appState (SQL.sql "SELECT 1")
+      else isRight <$> AppState.usePool appState SQL.Read (SQL.sql "SELECT 1")
 
   case Wai.pathInfo req of
     ["ready"] ->
