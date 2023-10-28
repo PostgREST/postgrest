@@ -1239,6 +1239,27 @@ def test_preflight_request_with_cors_allowed_origin_config(defaultenv):
         )
 
 
+def test_preflight_request_with_empty_cors_allowed_origin_config(defaultenv):
+    "OPTIONS preflight request should allow all origins when config is present but empty"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_CORS_ALLOWED_ORIGINS": "",
+    }
+
+    headers = {
+        "Accept": "*/*",
+        "Origin": "http://anyorigin.com",
+        "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "Content-Type",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.options("/items", headers=headers)
+        assert response.headers["Access-Control-Allow-Origin"] == "*"
+        assert "POST" in response.headers["Access-Control-Allow-Methods"]
+
+
 def test_no_preflight_request_with_CORS_config_should_return_header(defaultenv):
     "GET no preflight request should return Access-Control-Allow-Origin equal to origin"
 
