@@ -14,13 +14,11 @@ module PostgREST.Query
   ) where
 
 import qualified Data.Aeson                        as JSON
-import qualified Data.Aeson.Key                    as K
 import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString                   as BS
 import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
-import qualified Data.Text.Encoding                as T
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
@@ -33,8 +31,6 @@ import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.RangeQuery         as RangeQuery
 import qualified PostgREST.SchemaCache        as SchemaCache
 
-import Data.Scientific (FPFormat (..), formatScientific, isInteger)
-
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..),
@@ -42,8 +38,7 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           shouldCount)
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.Config.PgVersion        (PgVersion (..),
-                                          pgVersion140)
+import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (CallReadPlan (..),
@@ -238,37 +233,23 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
 
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
-               ApiRequest -> PgVersion -> DbHandler ()
-setPgLocals AppConfig{..} claims role roleSettings req actualPgVersion = lift $
+               ApiRequest -> DbHandler ()
+setPgLocals AppConfig{..} claims role roleSettings req = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
-    methodSql = setConfigLocal mempty ("request.method", iMethod req)
-    pathSql = setConfigLocal mempty ("request.path", iPath req)
-    headersSql = if usesLegacyGucs
-                   then setConfigLocal "request.header." <$> iHeaders req
-                   else setConfigLocalJson "request.headers" (iHeaders req)
-    cookiesSql = if usesLegacyGucs
-                   then setConfigLocal "request.cookie." <$> iCookies req
-                   else setConfigLocalJson "request.cookies" (iCookies req)
-    claimsSql = if usesLegacyGucs
-                  then setConfigLocal "request.jwt.claim." <$> [(toUtf8 $ K.toText c, toUtf8 $ unquoted v) | (c,v) <- KM.toList claims]
-                  else [setConfigLocal mempty ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
-    roleSql = [setConfigLocal mempty ("role", role)]
-    roleSettingsSql = setConfigLocal mempty <$> roleSettings
-    appSettingsSql = setConfigLocal mempty <$> (join bimap toUtf8 <$> configAppSettings)
+    methodSql = setConfigLocal ("request.method", iMethod req)
+    pathSql = setConfigLocal ("request.path", iPath req)
+    headersSql = setConfigLocalJson "request.headers" (iHeaders req)
+    cookiesSql = setConfigLocalJson "request.cookies" (iCookies req)
+    claimsSql = [setConfigLocal ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
+    roleSql = [setConfigLocal ("role", role)]
+    roleSettingsSql = setConfigLocal <$> roleSettings
+    appSettingsSql = setConfigLocal <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
       let schemas = escapeIdentList (iSchema req : configDbExtraSearchPath) in
-      setConfigLocal mempty ("search_path", schemas)
-    usesLegacyGucs = configDbUseLegacyGucs && actualPgVersion < pgVersion140
-
-    unquoted :: JSON.Value -> Text
-    unquoted (JSON.String t) = t
-    unquoted (JSON.Number n) =
-      toS $ formatScientific Fixed (if isInteger n then Just 0 else Nothing) n
-    unquoted (JSON.Bool b) = show b
-    unquoted v = T.decodeUtf8 . LBS.toStrict $ JSON.encode v
+      setConfigLocal ("search_path", schemas)
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()

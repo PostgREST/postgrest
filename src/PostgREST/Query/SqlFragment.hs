@@ -484,14 +484,14 @@ explainF fmt opts snip =
     fmtPlanFmt PlanJSON = "FORMAT JSON"
 
 -- | Do a pg set_config(setting, value, true) call. This is equivalent to a SET LOCAL.
-setConfigLocal :: ByteString -> (ByteString, ByteString) -> SQL.Snippet
-setConfigLocal prefix (k, v) =
-  "set_config(" <> unknownEncoder (prefix <> k) <> ", " <> unknownEncoder v <> ", true)"
+setConfigLocal :: (ByteString, ByteString) -> SQL.Snippet
+setConfigLocal (k, v) =
+  "set_config(" <> unknownEncoder k <> ", " <> unknownEncoder v <> ", true)"
 
 -- | Starting from PostgreSQL v14, some characters are not allowed for config names (mostly affecting headers with "-").
 -- | A JSON format string is used to avoid this problem. See https://github.com/PostgREST/postgrest/issues/1857
 setConfigLocalJson :: ByteString -> [(ByteString, ByteString)] -> [SQL.Snippet]
-setConfigLocalJson prefix keyVals = [setConfigLocal mempty (prefix, gucJsonVal keyVals)]
+setConfigLocalJson prefix keyVals = [setConfigLocal (prefix, gucJsonVal keyVals)]
   where
     gucJsonVal :: [(ByteString, ByteString)] -> ByteString
     gucJsonVal = LBS.toStrict . JSON.encode . HM.fromList . arrayByteStringToText

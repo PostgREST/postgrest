@@ -13,8 +13,7 @@ import Text.Heredoc
 
 import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
                                    pgVersion109, pgVersion110,
-                                   pgVersion112, pgVersion114,
-                                   pgVersion140)
+                                   pgVersion112, pgVersion114)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -974,12 +973,7 @@ spec actualPgVersion =
       it "custom header is set" $
         request methodPost "/rpc/get_guc_value"
                   [("Custom-Header", "test")]
-            (
-            if actualPgVersion >= pgVersion140 then
-              [json| { "prefix": "request.headers", "name": "custom-header" } |]
-            else
-              [json| { "name": "request.header.custom-header" } |]
-            )
+            [json| { "prefix": "request.headers", "name": "custom-header" } |]
             `shouldRespondWith`
             [json|"test"|]
             { matchStatus  = 200
@@ -988,12 +982,7 @@ spec actualPgVersion =
       it "standard header is set" $
         request methodPost "/rpc/get_guc_value"
                   [("Origin", "http://example.com")]
-            (
-            if actualPgVersion >= pgVersion140 then
-              [json| { "prefix": "request.headers", "name": "origin" } |]
-            else
-              [json| { "name": "request.header.origin" } |]
-            )
+            [json| { "prefix": "request.headers", "name": "origin" } |]
             `shouldRespondWith`
             [json|"http://example.com"|]
             { matchStatus  = 200
@@ -1001,12 +990,7 @@ spec actualPgVersion =
             }
       it "current role is available as GUC claim" $
         request methodPost "/rpc/get_guc_value" []
-            (
-            if actualPgVersion >= pgVersion140 then
-              [json| { "prefix": "request.jwt.claims", "name": "role" } |]
-            else
-              [json| { "name": "request.jwt.claim.role" } |]
-            )
+            [json| { "prefix": "request.jwt.claims", "name": "role" } |]
             `shouldRespondWith`
             [json|"postgrest_test_anonymous"|]
             { matchStatus  = 200
@@ -1014,25 +998,15 @@ spec actualPgVersion =
             }
       it "single cookie ends up as claims" $
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue")]
-          (
-          if actualPgVersion >= pgVersion140 then
             [json| {"prefix": "request.cookies", "name":"acookie"} |]
-          else
-            [json| {"name":"request.cookie.acookie"} |]
-          )
             `shouldRespondWith`
             [json|"cookievalue"|]
             { matchStatus = 200
             , matchHeaders = []
             }
-      it "multiple cookies ends up as claims" $
+      it "multiple cookies end up as claims" $
         request methodPost "/rpc/get_guc_value" [("Cookie","acookie=cookievalue;secondcookie=anothervalue")]
-          (
-          if actualPgVersion >= pgVersion140 then
             [json| {"prefix": "request.cookies", "name":"secondcookie"} |]
-          else
-            [json| {"name":"request.cookie.secondcookie"} |]
-          )
             `shouldRespondWith`
             [json|"anothervalue"|]
             { matchStatus = 200
@@ -1048,12 +1022,7 @@ spec actualPgVersion =
             }
       it "gets the Authorization value" $
         request methodPost "/rpc/get_guc_value" [authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"]
-          (
-          if actualPgVersion >= pgVersion140 then
             [json| {"prefix": "request.headers", "name":"authorization"} |]
-          else
-            [json| {"name":"request.header.authorization"} |]
-          )
             `shouldRespondWith`
             [json|"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3RfYXV0aG9yIn0.Xod-F15qsGL0WhdOCr2j3DdKuTw9QJERVgoFD3vGaWA"|]
             { matchStatus = 200

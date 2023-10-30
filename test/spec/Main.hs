@@ -25,7 +25,6 @@ import qualified Feature.Auth.NoJwtSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
-import qualified Feature.LegacyGucsSpec
 import qualified Feature.NoSuperuserSpec
 import qualified Feature.ObservabilitySpec
 import qualified Feature.OpenApi.DisabledOpenApiSpec
@@ -106,7 +105,6 @@ main = do
       responseHeadersApp   = app testCfgResponseHeaders
       disallowRollbackApp  = app testCfgDisallowRollback
       forceRollbackApp     = app testCfgForceRollback
-      testCfgLegacyGucsApp = app testCfgLegacyGucs
       planEnabledApp       = app testPlanEnabledCfg
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
       obsApp               = app testObservabilityCfg
@@ -228,10 +226,6 @@ main = do
     -- this test runs with multiple schemas
     parallel $ before multipleSchemaApp $
       describe "Feature.Query.MultipleSchemaSpec" Feature.Query.MultipleSchemaSpec.spec
-
-    -- this test runs with db-uses-legacy-gucs = false
-    parallel $ before testCfgLegacyGucsApp $
-      describe "Feature.LegacyGucsSpec" Feature.LegacyGucsSpec.spec
 
     -- this test runs with db-plan-enabled = true
     parallel $ before planEnabledApp $

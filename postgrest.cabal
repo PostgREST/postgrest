@@ -192,7 +192,6 @@ test-suite spec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.ExtraSearchPathSpec
-                      Feature.LegacyGucsSpec
                       Feature.NoSuperuserSpec
                       Feature.ObservabilitySpec
                       Feature.OpenApi.DisabledOpenApiSpec

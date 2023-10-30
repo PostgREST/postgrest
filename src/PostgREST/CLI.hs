@@ -191,10 +191,6 @@ exampleConfigFile =
       |## https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING
       |db-uri = "postgresql://"
       |
-      |## Determine if GUC request settings for headers, cookies and jwt claims use the legacy names (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the new names (string without dashes, valid on all PostgreSQL versions) with json values.
-      |## For PostgreSQL v14 and up, this setting will be ignored.
-      |db-use-legacy-gucs = true
-      |
       |# jwt-aud = "your_audience_claim"
       |
       |## Jspath to the role claim key
