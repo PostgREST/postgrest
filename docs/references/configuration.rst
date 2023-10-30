@@ -774,6 +774,23 @@ raw-media-types
 
    raw-media-types="image/png, font/woff2"
 
+.. _server_cors_allowed_origins:
+
+server-cors-allowed-origins
+---------------------------
+
+  =============== ===================================
+  **Type**        String
+  **Default**     `n/a` 
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_CORS_ALLOWED_ORIGINS
+  **In-Database** `pgrst.server_cors_allowed_origins`
+  =============== ===================================
+
+  Specifies allowed CORS origins in this config. See :ref:`cors`.
+
+  When this is not set or set to :code:`""`, PostgREST **accepts** CORS requests from any domain.
+
 .. _server-host:
 
 server-host

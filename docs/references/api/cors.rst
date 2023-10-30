@@ -1,7 +1,10 @@
-CORS
-====
+.. _cors:
 
-PostgREST sets highly permissive cross origin resource sharing, that is why it accepts Ajax requests from any domain.
+CORS
+####
+
+By default, PostgREST sets highly permissive cross origin resource sharing, that is why it accepts Ajax requests from any domain. This behavior can be configured by using :ref:`server_cors_allowed_origins`.
+
 
 It also handles `preflight requests <https://developer.mozilla.org/en-US/docs/Glossary/Preflight_request>`_ done by the browser, which are cached using the returned ``Access-Control-Max-Age: 86400`` header (86400 seconds = 24 hours). This is useful to reduce the latency of the subsequent requests.
 
@@ -32,3 +35,16 @@ A ``POST`` preflight request would look like this:
   Access-Control-Allow-Methods: GET, POST, PATCH, PUT, DELETE, OPTIONS, HEAD
   Access-Control-Allow-Headers: Authorization, Content-Type, Accept, Accept-Language, Content-Language
   Access-Control-Max-Age: 86400
+
+.. _allowed_origins:
+
+Allowed Origins
+===============
+
+With the following config setting, PostgREST will accept CORS requests from domains :code:`http://example.com` and :code:`http://example2.com`.
+
+
+.. code-block::
+  
+  server-cors-allowed-origins="http://example.com, http://example2.com"
+
