@@ -11,9 +11,15 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: cachix/install-nix-action@v23
+    - uses: nixbuild/nix-quick-install-action@v26
       with:
-        install_url: https://releases.nixos.org/nix/nix-2.13.3/install
+        nix_version: '2.13.6'
+    - name: Restore and cache Nix store
+      uses: nix-community/cache-nix-action@v4
+      with:
+        key: cache-nix-${{ runner.os }}-${{ hashFiles('nix/**/*.nix') }}
+        restore-keys: |
+          cache-nix-${{ runner.os }}-
     - uses: cachix/cachix-action@v12
       with:
         name: postgrest
