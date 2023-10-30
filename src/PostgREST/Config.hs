@@ -89,7 +89,6 @@ data AppConfig = AppConfig
   , configDbTxAllowOverride        :: Bool
   , configDbTxRollbackAll          :: Bool
   , configDbUri                    :: Text
-  , configDbUseLegacyGucs          :: Bool
   , configFilePath                 :: Maybe FilePath
   , configJWKS                     :: Maybe JWKSet
   , configJwtAudience              :: Maybe StringOrURI
@@ -157,7 +156,6 @@ toText conf =
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("db-use-legacy-gucs",            T.toLower . show . configDbUseLegacyGucs)
       ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
@@ -257,7 +255,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseTxEnd "db-tx-end" snd
     <*> parseTxEnd "db-tx-end" fst
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
-    <*> (fromMaybe True <$> optBool "db-use-legacy-gucs")
     <*> pure optPath
     <*> pure Nothing
     <*> parseJwtAudience "jwt-aud"

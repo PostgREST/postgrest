@@ -116,7 +116,6 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbConfig                  = False
   , configDbPreConfig               = Nothing
   , configDbUri                     = "postgresql://"
-  , configDbUseLegacyGucs           = True
   , configFilePath                  = Nothing
   , configJWKS                      = parseSecret <$> secret
   , configJwtAudience               = Nothing
@@ -225,9 +224,6 @@ testCfgResponseHeaders = baseCfg { configDbPreRequest = Just $ QualifiedIdentifi
 
 testMultipleSchemaCfg :: AppConfig
 testMultipleSchemaCfg = baseCfg { configDbSchemas = fromList ["v1", "v2", "SPECIAL \"@/\\#~_-"] }
-
-testCfgLegacyGucs :: AppConfig
-testCfgLegacyGucs = baseCfg { configDbUseLegacyGucs = False }
 
 testPgSafeUpdateEnabledCfg :: AppConfig
 testPgSafeUpdateEnabledCfg = baseCfg { configDbPreRequest = Just $ QualifiedIdentifier "test" "load_safeupdate" }

@@ -91,10 +91,7 @@ CREATE FUNCTION set_authors_only_owner() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 begin
-  NEW.owner = case when current_setting('server_version_num')::int >= 140000
-              then current_setting('request.jwt.claims')::json->>'id'
-              else current_setting('request.jwt.claim.id')
-              end;
+  NEW.owner = current_setting('request.jwt.claims')::json->>'id';
   RETURN NEW;
 end
 $$;
@@ -377,10 +374,7 @@ CREATE OR REPLACE FUNCTION switch_role() RETURNS void
 declare
   user_id text;
 Begin
-  user_id = case when current_setting('server_version_num')::int >= 140000
-            then (current_setting('request.jwt.claims')::json->>'id')::text
-            else current_setting('request.jwt.claim.id')::text
-            end;
+  user_id = (current_setting('request.jwt.claims')::json->>'id')::text;
   if user_id = '1'::text then
     execute 'set local role postgrest_test_author';
   elseif user_id = '2'::text then
@@ -408,34 +402,15 @@ CREATE FUNCTION reveal_big_jwt() RETURNS TABLE (
       iss text, sub text, exp bigint,
       nbf bigint, iat bigint, jti text, "http://postgrest.com/foo" boolean
     )
-    LANGUAGE plpgsql SECURITY DEFINER
-    STABLE
-    AS $$
-    BEGIN
-    -- JWT claims are set in JSON format since v14
-    IF (current_setting('server_version_num')::INT >= 140000) THEN
-        RETURN QUERY
-        SELECT current_setting('request.jwt.claims')::json->>'iss' as iss,
-               current_setting('request.jwt.claims')::json->>'sub' as sub,
-               (current_setting('request.jwt.claims')::json->>'exp')::bigint as exp,
-               (current_setting('request.jwt.claims')::json->>'nbf')::bigint as nbf,
-               (current_setting('request.jwt.claims')::json->>'iat')::bigint as iat,
-               current_setting('request.jwt.claims')::json->>'jti' as jti,
-               (current_setting('request.jwt.claims')::json->>'http://postgrest.com/foo')::boolean
-                 as "http://postgrest.com/foo";
-    ELSE
-        RETURN QUERY
-        SELECT current_setting('request.jwt.claim.iss') as iss,
-               current_setting('request.jwt.claim.sub') as sub,
-               current_setting('request.jwt.claim.exp')::bigint as exp,
-               current_setting('request.jwt.claim.nbf')::bigint as nbf,
-               current_setting('request.jwt.claim.iat')::bigint as iat,
-               current_setting('request.jwt.claim.jti') as jti,
-               current_setting('request.jwt.claim.http://postgrest.com/foo')::boolean
-                 as "http://postgrest.com/foo";
-    END IF;
-END;
-$$;
+AS $$
+  SELECT current_setting('request.jwt.claims')::json->>'iss' as iss,
+         current_setting('request.jwt.claims')::json->>'sub' as sub,
+         (current_setting('request.jwt.claims')::json->>'exp')::bigint as exp,
+         (current_setting('request.jwt.claims')::json->>'nbf')::bigint as nbf,
+         (current_setting('request.jwt.claims')::json->>'iat')::bigint as iat,
+         current_setting('request.jwt.claims')::json->>'jti' as jti,
+         (current_setting('request.jwt.claims')::json->>'http://postgrest.com/foo')::boolean as "http://postgrest.com/foo";
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 
 CREATE FUNCTION assert() RETURNS void
@@ -1187,7 +1162,7 @@ create function test.get_guc_value(name text) returns text as $$
   select nullif(current_setting(name), '')::text;
 $$ language sql;
 
--- Get the GUC values for Postgres v14.0 and up
+-- Get the JSON type GUC values
 create function test.get_guc_value(prefix text, name text) returns text as $$
 select nullif(current_setting(prefix)::json->>name, '')::text;
 $$ language sql;
@@ -2093,15 +2068,9 @@ where fst_shift_activity_id is not null
 -- for a pre-request function
 create or replace function custom_headers() returns void as $$
 declare
-  user_agent text := case when current_setting('server_version_num')::int >= 140000
-                     then current_setting('request.headers', true)::json->>'user-agent'
-                     else current_setting('request.header.user-agent', true)
-                     end;
+  user_agent text := current_setting('request.headers', true)::json->>'user-agent';
   req_path   text := current_setting('request.path', true);
-  req_accept text := case when current_setting('server_version_num')::int >= 140000
-                     then current_setting('request.headers', true)::json->>'accept'
-                     else current_setting('request.header.accept', true)
-                     end;
+  req_accept text := current_setting('request.headers', true)::json->>'accept';
   req_method text := current_setting('request.method', true);
 begin
   if user_agent similar to 'MSIE (6.0|7.0)' then

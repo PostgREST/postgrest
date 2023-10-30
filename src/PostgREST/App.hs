@@ -251,7 +251,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf
     runQuery isoLvl mode query =
       runDbHandler appState isoLvl mode authenticated prepared $ do
-        Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) apiReq pgVer
+        Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) apiReq
         Query.runPreReq conf
         query
 

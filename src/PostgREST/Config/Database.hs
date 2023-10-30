@@ -53,7 +53,6 @@ dbSettingsNames =
   ,"db_root_spec"
   ,"db_schemas"
   ,"db_tx_end"
-  ,"db_use_legacy_gucs"
   ,"jwt_aud"
   ,"jwt_role_claim_key"
   ,"jwt_secret"
