@@ -15,7 +15,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2983, Add more data to `Server-Timing` header - @develop7
  - #2441, Add config `server-cors-allowed-origins` to specify CORS origins - @taimoorzaeem
  - #2825, SQL handlers for custom media types - @steve-chavez
-  - Solves #1548, #2699, #2763, #2170, #1462, #1102, #1374, #2901
+   + Solves #1548, #2699, #2763, #2170, #1462, #1102, #1374, #2901
+ - #2799, Add timezone in Prefer header - @taimoorzaeem
 
 ### Fixed
 

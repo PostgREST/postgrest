@@ -235,21 +235,22 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
                ApiRequest -> DbHandler ()
-setPgLocals AppConfig{..} claims role roleSettings req = lift $
+setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
-    methodSql = setConfigWithConstantName ("request.method", iMethod req)
-    pathSql = setConfigWithConstantName ("request.path", iPath req)
-    headersSql = setConfigWithConstantNameJSON "request.headers" (iHeaders req)
-    cookiesSql = setConfigWithConstantNameJSON "request.cookies" (iCookies req)
+    methodSql = setConfigWithConstantName ("request.method", iMethod)
+    pathSql = setConfigWithConstantName ("request.path", iPath)
+    headersSql = setConfigWithConstantNameJSON "request.headers" iHeaders
+    cookiesSql = setConfigWithConstantNameJSON "request.cookies" iCookies
     claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
     roleSql = [setConfigWithConstantName ("role", role)]
     roleSettingsSql = setConfigWithDynamicName <$> roleSettings
     appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
+    timezoneSql = maybe mempty (\tz -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
     searchPathSql =
-      let schemas = escapeIdentList (iSchema req : configDbExtraSearchPath) in
+      let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)
 
 -- | Runs the pre-request function.

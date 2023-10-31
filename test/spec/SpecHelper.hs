@@ -138,6 +138,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configAdminServerPort           = Nothing
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
+  , configTimezoneNames             = mempty
   , configInternalSCSleep           = Nothing
   }
 

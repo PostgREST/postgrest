@@ -1294,3 +1294,33 @@ def test_no_preflight_request_with_CORS_config_should_not_return_header(defaulte
     with run(env=env) as postgrest:
         response = postgrest.session.get("/items", headers=headers)
         assert "Access-Control-Allow-Origin" not in response.headers
+
+
+def test_prefer_timezone(defaultenv):
+    "timezone=America/Los_Angeles should change timezone successfully"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    headers = {
+        "Prefer": "handling=strict, timezone=America/Los_Angeles",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/timezone_values", headers=headers)
+        response_body = '[{"t":"2023-10-18T05:37:59.611-07:00"}, \n {"t":"2023-10-18T07:37:59.611-07:00"}, \n {"t":"2023-10-18T09:37:59.611-07:00"}]'
+        assert response.text == response_body
+
+
+def test_prefer_timezone_with_invalid_timezone(defaultenv):
+    "timezone=Invalid/XXX should set time to default timezone"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    headers = {
+        "Prefer": "handling=strict, timezone=Invalid/XXX",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/timezone_values", headers=headers)
+        response_body = '[{"t":"2023-10-18T12:37:59.611+00:00"}, \n {"t":"2023-10-18T14:37:59.611+00:00"}, \n {"t":"2023-10-18T16:37:59.611+00:00"}]'
+        assert response.text == response_body

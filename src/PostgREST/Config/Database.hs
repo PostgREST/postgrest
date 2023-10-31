@@ -3,10 +3,12 @@
 module PostgREST.Config.Database
   ( pgVersionStatement
   , queryDbSettings
-  , queryRoleSettings
   , queryPgVersion
+  , queryRoleSettings
+  , queryTimezones
   , RoleSettings
   , RoleIsolationLvl
+  , TimezoneNames
   , toIsolationLevel
   ) where
 
@@ -29,6 +31,7 @@ import Protolude
 
 type RoleSettings     = (HM.HashMap ByteString (HM.HashMap ByteString ByteString))
 type RoleIsolationLvl = HM.HashMap ByteString SQL.IsolationLevel
+type TimezoneNames    = [Text] -- cache timezone names for prefer timezone=
 
 toIsolationLevel :: (Eq a, IsString a) => a -> SQL.IsolationLevel
 toIsolationLevel a = case a of
@@ -172,6 +175,15 @@ queryRoleSettings prepared =
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
     rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+
+queryTimezones :: Bool -> Session TimezoneNames
+queryTimezones prepared =
+  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams decodeTimezones prepared
+  where
+    sql = "SELECT name FROM pg_timezone_names"
+    decodeTimezones :: HD.Result [Text]
+    decodeTimezones = HD.rowList $ column HD.text
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
