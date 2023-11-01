@@ -29,6 +29,7 @@ import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.Text.Encoding         as T
+import qualified Data.Text                 as T (unpack)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
@@ -66,6 +67,8 @@ import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
+import qualified Network.Socket as Socket
+import qualified Control.Exception as E
 
 type Handler = ExceptT Error
 
@@ -96,8 +99,22 @@ run installHandlers maybeRunWithSocket appState = do
           panic "Cannot run with unix socket on non-unix platforms."
     Nothing ->
       do
-        AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
-        Warp.runSettings (serverSettings conf) app
+        maddr <- resolveAddress configServerHost configServerPort
+        case maddr of
+          Nothing -> panic ("Could not resolve address " <> show configServerHost <> " port " <> show configServerPort)
+          Just addr -> do
+            sock <- E.bracketOnError (Socket.openSocket addr) Socket.close $ \sock -> do 
+              Socket.bind sock $ Socket.addrAddress addr
+              pure sock
+            port <- Socket.socketPort sock
+            AppState.logWithZTime appState $ "Listening on port " <> show port
+            Warp.runSettingsSocket (serverSettings conf) sock app 
+  
+  where
+    resolveAddress host port = do
+      let hints = Socket.defaultHints { Socket.addrSocketType = Socket.Stream }
+      head <$> Socket.getAddrInfo (Just hints) (Just $ T.unpack host) (Just $ show port)
+      
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
