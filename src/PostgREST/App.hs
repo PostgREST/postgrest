@@ -28,8 +28,8 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
+import qualified Data.Text                  as T (unpack)
 import qualified Data.Text.Encoding         as T
-import qualified Data.Text                 as T (unpack)
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
@@ -61,14 +61,14 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.SchemaCache.Routine  (Routine (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
+import qualified Control.Exception     as E
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
+import qualified Network.Socket        as Socket
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
-import qualified Network.Socket as Socket
-import qualified Control.Exception as E
 
 type Handler = ExceptT Error
 
@@ -103,18 +103,18 @@ run installHandlers maybeRunWithSocket appState = do
         case maddr of
           Nothing -> panic ("Could not resolve address " <> show configServerHost <> " port " <> show configServerPort)
           Just addr -> do
-            sock <- E.bracketOnError (Socket.openSocket addr) Socket.close $ \sock -> do 
+            sock <- E.bracketOnError (Socket.openSocket addr) Socket.close $ \sock -> do
               Socket.bind sock $ Socket.addrAddress addr
               pure sock
             port <- Socket.socketPort sock
             AppState.logWithZTime appState $ "Listening on port " <> show port
-            Warp.runSettingsSocket (serverSettings conf) sock app 
-  
+            Warp.runSettingsSocket (serverSettings conf) sock app
+
   where
     resolveAddress host port = do
       let hints = Socket.defaultHints { Socket.addrSocketType = Socket.Stream }
       head <$> Socket.getAddrInfo (Just hints) (Just $ T.unpack host) (Just $ show port)
-      
+
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
