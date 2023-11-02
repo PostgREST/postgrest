@@ -47,8 +47,9 @@ import PostgREST.Plan                    (CallReadPlan (..),
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           intercalateSnippet,
-                                          setConfigLocal,
-                                          setConfigLocalJson)
+                                          setConfigWithConstantName,
+                                          setConfigWithConstantNameJSON,
+                                          setConfigWithDynamicName)
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
@@ -239,17 +240,17 @@ setPgLocals AppConfig{..} claims role roleSettings req = lift $
     ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
-    methodSql = setConfigLocal ("request.method", iMethod req)
-    pathSql = setConfigLocal ("request.path", iPath req)
-    headersSql = setConfigLocalJson "request.headers" (iHeaders req)
-    cookiesSql = setConfigLocalJson "request.cookies" (iCookies req)
-    claimsSql = [setConfigLocal ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
-    roleSql = [setConfigLocal ("role", role)]
-    roleSettingsSql = setConfigLocal <$> roleSettings
-    appSettingsSql = setConfigLocal <$> (join bimap toUtf8 <$> configAppSettings)
+    methodSql = setConfigWithConstantName ("request.method", iMethod req)
+    pathSql = setConfigWithConstantName ("request.path", iPath req)
+    headersSql = setConfigWithConstantNameJSON "request.headers" (iHeaders req)
+    cookiesSql = setConfigWithConstantNameJSON "request.cookies" (iCookies req)
+    claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
+    roleSql = [setConfigWithConstantName ("role", role)]
+    roleSettingsSql = setConfigWithDynamicName <$> roleSettings
+    appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
     searchPathSql =
       let schemas = escapeIdentList (iSchema req : configDbExtraSearchPath) in
-      setConfigLocal ("search_path", schemas)
+      setConfigWithConstantName ("search_path", schemas)
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()
