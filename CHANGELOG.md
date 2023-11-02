@@ -23,6 +23,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1070, Fix HTTP status responses for upserts - @taimoorzaeem
    + `PUT` returns `201` instead of `200` when rows are inserted
    + `POST` with `Prefer: resolution=merge-duplicates` returns `200` instead of `201` when no rows are inserted
+ - #3019, Transaction-Scoped Settings are now shown clearly in the Postgres logs - @laurenceisla
+   + Shows `set_config('pgrst.setting_name', $1)` instead of `setconfig($1, $2)`
+   + Does not apply to role settings and `app.settings.*`
 
 ### Changed
 
