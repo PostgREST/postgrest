@@ -14,6 +14,8 @@ module PostgREST.AppState
   , getRetryNextIn
   , getTime
   , getJwtCache
+  , getSocketREST
+  , getSocketAdmin
   , init
   , initWithPool
   , logWithZTime
@@ -32,12 +34,14 @@ import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
+import qualified Data.Text                  as T (unpack)
 import qualified Data.Text.Encoding         as T
 import           Hasql.Connection           (acquire)
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.Socket             as NS
 import qualified PostgREST.Error            as Error
 import           PostgREST.Version          (prettyVersion)
 
@@ -64,8 +68,11 @@ import PostgREST.SchemaCache             (SchemaCache,
                                           querySchemaCache)
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 
+import Data.Streaming.Network (bindPath, bindPortTCP,
+                               bindRandomPortTCP)
+import Data.String            (IsString (..))
 import Protolude
-
+import System.Posix.Files     (setFileMode)
 
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
@@ -99,15 +106,23 @@ data AppState = AppState
   , debounceLogAcquisitionTimeout :: IO ()
   -- | JWT Cache
   , jwtCache                      :: C.Cache ByteString AuthResult
+  -- | Network socket for REST API
+  , stateSocketREST               :: NS.Socket
+  -- | Network socket for the admin UI
+  , stateSocketAdmin              :: Maybe NS.Socket
   }
+
+type AppSockets = (NS.Socket, Maybe NS.Socket)
 
 init :: AppConfig -> IO AppState
 init conf = do
   pool <- initPool conf
-  initWithPool pool conf
+  (sock, adminSock) <- initSockets conf
+  state' <- initWithPool (sock, adminSock) pool conf
+  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock }
 
-initWithPool :: SQL.Pool -> AppConfig -> IO AppState
-initWithPool pool conf = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> IO AppState
+initWithPool (sock, adminSock) pool conf = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -121,6 +136,8 @@ initWithPool pool conf = do
     <*> newIORef 0
     <*> pure (pure ())
     <*> C.newCache Nothing
+    <*> pure sock
+    <*> pure adminSock
 
 
   debLogTimeout <-
@@ -143,6 +160,37 @@ initWithPool pool conf = do
 
 destroy :: AppState -> IO ()
 destroy = destroyPool
+
+initSockets :: AppConfig -> IO AppSockets
+initSockets AppConfig{..} = do
+  let
+    cfg'usp = configServerUnixSocket
+    cfg'uspm = configServerUnixSocketMode
+    cfg'host = configServerHost
+    cfg'port = configServerPort
+    cfg'adminport = configAdminServerPort
+
+  (_port, sock) <- case cfg'usp of
+    Just usp -> do
+      sock <- bindPath usp
+      setFileMode (toS usp) cfg'uspm
+      pure (Nothing, sock)
+    Nothing -> do
+      (port, sock) <- if cfg'port /= 0 then do
+                          sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
+                          pure (cfg'port, sock)
+                        else do
+                          (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
+                          pure (num, sock)
+      pure (Just port, sock)
+
+  adminSock <- case cfg'adminport of
+    Just adminPort -> do
+      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'host)
+      pure $ Just adminSock
+    Nothing -> pure Nothing
+
+  pure (sock, adminSock)
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
@@ -203,6 +251,12 @@ getTime = stateGetTime
 
 getJwtCache :: AppState -> C.Cache ByteString AuthResult
 getJwtCache = jwtCache
+
+getSocketREST :: AppState -> NS.Socket
+getSocketREST = stateSocketREST
+
+getSocketAdmin :: AppState -> Maybe NS.Socket
+getSocketAdmin = stateSocketAdmin
 
 -- | Log to stderr with local time
 logWithZTime :: AppState -> Text -> IO ()

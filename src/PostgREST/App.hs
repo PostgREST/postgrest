@@ -66,6 +66,7 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
+import qualified Network.Socket        as NS
 import qualified Network.Socket        as Socket
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
@@ -88,33 +89,14 @@ run installHandlers maybeRunWithSocket appState = do
 
   let app = postgrest conf appState (AppState.connectionWorker appState)
 
-  case configServerUnixSocket of
-    Just socket ->
-      -- run the postgrest application with user defined socket. Only for UNIX systems
-      case maybeRunWithSocket of
-        Just runWithSocket -> do
-          AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
-          runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
-        Nothing ->
-          panic "Cannot run with unix socket on non-unix platforms."
-    Nothing ->
-      do
-        maddr <- resolveAddress configServerHost configServerPort
-        case maddr of
-          Nothing -> panic ("Could not resolve address " <> show configServerHost <> " port " <> show configServerPort)
-          Just addr -> do
-            sock <- E.bracketOnError (Socket.openSocket addr) Socket.close $ \sock -> do
-              Socket.bind sock $ Socket.addrAddress addr
-              pure sock
-            port <- Socket.socketPort sock
-            AppState.logWithZTime appState $ "Listening on port " <> show port
-            Warp.runSettingsSocket (serverSettings conf) sock app
+  what <- case configServerUnixSocket of
+    Just path -> pure $ "unix socket " <> show path
+    Nothing   -> do
+      port <- NS.socketPort $ AppState.getSocketREST appState
+      pure $ "port " <> show port
+  AppState.logWithZTime appState $ "Listening on " <> what
 
-  where
-    resolveAddress host port = do
-      let hints = Socket.defaultHints { Socket.addrSocketType = Socket.Stream }
-      head <$> Socket.getAddrInfo (Just hints) (Just $ T.unpack host) (Just $ show port)
-
+  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
