@@ -17,20 +17,13 @@ main :: IO ()
 main = do
   setBuffering
   opts <- CLI.readCLIShowHelp
-  CLI.main installSignalHandlers runAppInSocket opts
+  CLI.main installSignalHandlers opts
 
 installSignalHandlers :: App.SignalHandlerInstaller
 #ifndef mingw32_HOST_OS
 installSignalHandlers = Unix.installSignalHandlers
 #else
 installSignalHandlers _ = pass
-#endif
-
-runAppInSocket :: Maybe App.SocketRunner
-#ifndef mingw32_HOST_OS
-runAppInSocket = Just Unix.runAppWithSocket
-#else
-runAppInSocket = Nothing
 #endif
 
 setBuffering :: IO ()

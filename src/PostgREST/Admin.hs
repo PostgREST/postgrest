@@ -1,11 +1,9 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module PostgREST.Admin
   ( runAdmin
   ) where
 
-import qualified Data.Text                 as T
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
@@ -27,7 +25,7 @@ import Protolude.Partial (fromJust)
 runAdmin :: AppConfig -> AppState -> Warp.Settings -> IO ()
 runAdmin conf@AppConfig{configAdminServerPort} appState settings =
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
-    AppState.logWithZTime appState $ "Admin server listening on port " <> show (fromIntegral $ fromJust configAdminServerPort)
+    AppState.logWithZTime appState $ "Admin server listening on port " <> show (fromIntegral (fromJust configAdminServerPort) :: Integer)
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
     adminApp = admin appState conf
@@ -35,7 +33,7 @@ runAdmin conf@AppConfig{configAdminServerPort} appState settings =
 -- | PostgREST admin application
 admin :: AppState.AppState -> AppConfig -> Wai.Application
 admin appState appConfig req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp appConfig (AppState.getSocketREST appState)
+  isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
   isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
@@ -54,8 +52,8 @@ admin appState appConfig req respond  = do
 -- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
 -- The code for resolving the "*4", "!4", "*6", "!6", "*" special values is taken from
 -- https://hackage.haskell.org/package/streaming-commons-0.2.2.4/docs/src/Data.Streaming.Network.html#bindPortGenEx
-reachMainApp :: AppConfig -> Socket -> IO (Either IOException ())
-reachMainApp AppConfig{..} appSock = try $ do
+reachMainApp :: Socket -> IO (Either IOException ())
+reachMainApp appSock = try $ do
   withSocketsDo $ bracket (pure appSock) close sendEmpty
   where
     sendEmpty sock = void $ send sock mempty

@@ -28,7 +28,6 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
-import qualified Data.Text                  as T (unpack)
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
@@ -61,13 +60,11 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.SchemaCache.Routine  (Routine (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Control.Exception     as E
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
 import qualified Network.Socket        as NS
-import qualified Network.Socket        as Socket
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
 
@@ -77,8 +74,8 @@ type SignalHandlerInstaller = AppState -> IO()
 
 type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
 
-run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
-run installHandlers maybeRunWithSocket appState = do
+run :: SignalHandlerInstaller -> AppState -> IO ()
+run installHandlers appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
   installHandlers appState
