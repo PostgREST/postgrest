@@ -3625,3 +3625,5 @@ create aggregate test.bom_csv_agg (test.lines) (
 , sfunc = bom_csv_trans
 , finalfunc = bom_csv_final
 );
+
+create table empty_string as select 1 as id, ''::text as string;
