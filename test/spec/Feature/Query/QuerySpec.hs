@@ -1397,3 +1397,13 @@ spec actualPgVersion = do
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }
+
+  context "searching for an empty string" $ do
+    it "works with an empty eq filter" $
+      get "/empty_string?string=eq.&select=id,string" `shouldRespondWith`
+        [json|
+          [{"id":1,"string":""}]
+        |]
+        { matchStatus  = 200
+        , matchHeaders = [matchContentTypeJson]
+        }
