@@ -23,9 +23,7 @@ module PostgREST.ApiRequest.Preferences
   ) where
 
 import qualified Data.ByteString.Char8     as BS
-import qualified Data.List                 as L
 import qualified Data.Map                  as Map
-import qualified Data.Text.Encoding        as T
 import qualified Network.HTTP.Types.Header as HTTP
 
 import PostgREST.Config (AppConfig (..))
@@ -156,7 +154,7 @@ fromHeaders AppConfig{..} headers =
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
     hasTimezone p = BS.take 9 p == "timezone="
     getTimezoneFromPrefs = fromMaybe mempty $ listToMaybe [ BS.drop 9 p | p <- prefs, hasTimezone p]
-    timezonePref tz = T.encodeUtf8 <$> L.find (== T.decodeUtf8 tz) configTimezoneNames
+    timezonePref tz = encodeUtf8 <$> find (== decodeUtf8 tz) configTimezoneNames
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
