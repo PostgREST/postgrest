@@ -43,6 +43,11 @@ write from scratch.
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.png">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/neon.jpg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
