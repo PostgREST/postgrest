@@ -19,17 +19,17 @@ from config import *
 
 def sleep_until_postgrest_scache_reload():
     "Sleep until schema cache reload"
-    time.sleep(0.2)
+    time.sleep(0.3)
 
 
 def sleep_until_postgrest_config_reload():
     "Sleep until config reload"
-    time.sleep(0.1)
+    time.sleep(0.2)
 
 
 def sleep_until_postgrest_full_reload():
     "Sleep until schema cache plus config reload"
-    time.sleep(0.2)
+    time.sleep(0.3)
 
 
 class PostgrestTimedOut(Exception):
