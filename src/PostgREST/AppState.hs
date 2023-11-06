@@ -17,6 +17,7 @@ module PostgREST.AppState
   , getSocketREST
   , getSocketAdmin
   , init
+  , initSockets
   , initWithPool
   , logWithZTime
   , putSchemaCache

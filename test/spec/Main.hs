@@ -73,11 +73,12 @@ main = do
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSchemaCache pool testCfg
+  sockets <- AppState.initSockets testCfg
 
   let
     -- For tests that run with the same refSchemaCache
     app config = do
-      appState <- AppState.initWithPool pool config
+      appState <- AppState.initWithPool sockets pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
       return ((), postgrest config appState $ pure ())
@@ -85,7 +86,7 @@ main = do
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSchemaCache pool config
-      appState <- AppState.initWithPool pool config
+      appState <- AppState.initWithPool sockets pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
       return ((), postgrest config appState $ pure ())
