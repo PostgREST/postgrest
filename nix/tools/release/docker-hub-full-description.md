@@ -12,17 +12,12 @@ write from scratch.
 
 ## Sponsors
 
-<table>
+<table align="center">
   <tbody>
     <tr>
       <td align="center" valign="middle">
         <a href="https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest" target="_blank">
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/cybertec-new.png">
-        </a>
-      </td>
-      <td align="center" valign="middle">
-        <a href="https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/2ndquadrant.png">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -34,18 +29,13 @@ write from scratch.
     <tr></tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/oblivious.jpg">
-        </a>
-      </td>
-      <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.png">
         </a>
       </td>
       <td align="center" valign="middle">
         <a href="https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/neon.jpg">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/neon.jpg">
         </a>
       </td>
     </tr>
