@@ -38,17 +38,11 @@ Sponsors
     :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
     :width:  13em
 
-  .. image:: _static/2ndquadrant.png
-    :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
-    :width:  13em
-
   .. image:: _static/gnuhost.png
     :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
-  .. image:: _static/oblivious.jpg
-    :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
-    :width:  13em
+  |
 
   .. image:: _static/supabase.png
     :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
