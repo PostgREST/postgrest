@@ -91,7 +91,7 @@ Some additional modules like `memory`, `docker` and `release`
 have large dependencies that would need to be built before the shell becomes
 available, which could take an especially long time if the cachix binary cache
 is not used. You can activate those by passing a flag to `nix-shell` with
-`nix-shell --arg <module> true`. This will make the respective utilites available:
+`nix-shell --arg <module> true`. This will make the respective utilities available:
 
 ```bash
 $ nix-shell --arg memory true
@@ -113,7 +113,7 @@ postgrest-test-memory
 Note that `postgrest-test-memory` is now also available.
 
 To run one-off commands, you can also use `nix-shell --run <command>`, which
-will lauch the Nix shell, run that one command and exit. Note that the tab
+will launch the Nix shell, run that one command and exit. Note that the tab
 completion will not work with `nix-shell --run`, as Nix has yet to evaluate
 our Nix expressions to see which utilities are available.
 
@@ -246,7 +246,7 @@ $ nix-shell --run postgrest-style
 ```
 
 There is also `postgrest-style-check` that exits with a non-zero exit code if
-the check resulted in any uncommited changes. It's mostly useful for CI.
+the check resulted in any uncommitted changes. It's mostly useful for CI.
 
 ## General development tools
 
@@ -309,7 +309,7 @@ version.
 ### `shell.nix`
 
 [`shell.nix`](../shell.nix) defines an environment in which PostgREST can be
-built and developed. It extends the build enviroment from our `postgrest`
+built and developed. It extends the build environment from our `postgrest`
 attribute with useful utilities that will be put on the PATH in `nix-shell`.
 
 ### `nix/overlays`
