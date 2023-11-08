@@ -74,7 +74,7 @@ required to avoid build timeouts in CI.
 
 You'll need to set the `CACHIX_SIGNING_KEY` before proceeding, e.g. by creating
 a file containing `export CACHIX_SIGNING_KEY=...` and sourcing that file, which
-avoids having the secret in you shell history.
+avoids having the secret in your shell history.
 
 To push all new artifacts to Cachix, run:
 
