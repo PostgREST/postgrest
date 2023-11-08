@@ -48,13 +48,13 @@ To learn how to use this container, see the [PostgREST Docker
 documentation](https://postgrest.org/en/stable/install.html#docker).
 
 You can configure the PostgREST image by setting
-[enviroment variables](https://postgrest.org/en/stable/configuration.html).
+[environment variables](https://postgrest.org/en/stable/configuration.html).
 
 # How this image is built
 
 The image is built from scratch using
 [Nix](https://nixos.org/nixpkgs/manual/#sec-pkgs-dockerTools) instead of a
-`Dockerfile`, which yields a higly secure and optimized image. This is also why
+`Dockerfile`, which yields a highly secure and optimized image. This is also why
 no commands are listed in the image history. See the [PostgREST
 respository](https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker) for
 details on the build process and how to inspect the image.
