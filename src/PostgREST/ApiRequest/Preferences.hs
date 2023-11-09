@@ -136,25 +136,25 @@ fromHeaders AppConfig{..} headers =
     , preferTransaction    = if configDbTxAllowOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
-    , preferTimezone       = timezonePref getTimezoneFromPrefs
-    , invalidPrefs         = filter (not . hasTimezone) $ filter (`notElem` acceptedPrefs) prefs
+    , preferTimezone       = getTimezoneFromPrefs
+    , invalidPrefs         = filter (`notElem` acceptedPrefs) prefs
     }
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
     mapToHeadVal = map toHeaderValue
+    timezonePrefs = map ((<>) "timezone=" . encodeUtf8) configTimezoneNames
     acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
                     mapToHeadVal [Full, None, HeadersOnly] ++
                     mapToHeadVal [SingleObject] ++
                     mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
                     mapToHeadVal [Commit, Rollback] ++
                     mapToHeadVal [ApplyDefaults, ApplyNulls] ++
-                    mapToHeadVal [Strict, Lenient]
+                    mapToHeadVal [Strict, Lenient] ++ timezonePrefs
 
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
     hasTimezone p = BS.take 9 p == "timezone="
-    getTimezoneFromPrefs = fromMaybe mempty $ listToMaybe [ BS.drop 9 p | p <- prefs, hasTimezone p]
-    timezonePref tz = encodeUtf8 <$> find (== decodeUtf8 tz) configTimezoneNames
+    getTimezoneFromPrefs = listToMaybe [ BS.drop 9 p | p <- prefs, hasTimezone p && elem p timezonePrefs]
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =

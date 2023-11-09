@@ -179,12 +179,12 @@ create function terminate_pgrst() returns setof record as $$
 select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%postgrest%';
 $$ language sql security definer;
 
-create table timezone_values (
+create table timestamps (
   t timestamp with time zone
 );
-grant all on timezone_values to postgrest_test_anonymous;
+grant all on timestamps to postgrest_test_anonymous;
 
-truncate table timezone_values cascade;
-insert into timezone_values values ('2023-10-18 12:37:59.611000+0000');
-insert into timezone_values values ('2023-10-18 14:37:59.611000+0000');
-insert into timezone_values values ('2023-10-18 16:37:59.611000+0000');
+truncate table timestamps cascade;
+insert into timestamps values ('2023-10-18 12:37:59.611000+0000');
+insert into timestamps values ('2023-10-18 14:37:59.611000+0000');
+insert into timestamps values ('2023-10-18 16:37:59.611000+0000');

@@ -1306,13 +1306,13 @@ def test_prefer_timezone(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/timezone_values", headers=headers)
+        response = postgrest.session.get("/timestamps", headers=headers)
         response_body = '[{"t":"2023-10-18T05:37:59.611-07:00"}, \n {"t":"2023-10-18T07:37:59.611-07:00"}, \n {"t":"2023-10-18T09:37:59.611-07:00"}]'
         assert response.text == response_body
 
 
-def test_prefer_timezone_with_invalid_timezone(defaultenv):
-    "timezone=Invalid/XXX should set time to default timezone"
+def test_prefer_timezone_with_invalid_timezone_and_strict_handling(defaultenv):
+    "timezone=Invalid/XXX should set time to return 400 error"
 
     env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
 
@@ -1321,6 +1321,36 @@ def test_prefer_timezone_with_invalid_timezone(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/timezone_values", headers=headers)
+        response = postgrest.session.get("/timestamps", headers=headers)
+        response_body = '{"code":"PGRST122","details":"Invalid preferences: timezone=Invalid/XXX","hint":null,"message":"Invalid preferences given with handling=strict"}'
+        assert response.status_code == 400 and response.text == response_body
+
+
+def test_prefer_timezone_with_invalid_timezone_and_lenient_handling(defaultenv):
+    "timezone=Invalid/XXX should set time to default timezone when handling=lenient"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    headers = {
+        "Prefer": "handling=lenient, timezone=Invalid/XXX",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/timestamps", headers=headers)
+        response_body = '[{"t":"2023-10-18T12:37:59.611+00:00"}, \n {"t":"2023-10-18T14:37:59.611+00:00"}, \n {"t":"2023-10-18T16:37:59.611+00:00"}]'
+        assert response.text == response_body
+
+
+def test_prefer_timezone_with_invalid_timezone_and_no_handling_prefer(defaultenv):
+    "timezone=Invalid/XXX should set time to default timezone when no handling prefer is given"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    headers = {
+        "Prefer": "timezone=Invalid/XXX",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/timestamps", headers=headers)
         response_body = '[{"t":"2023-10-18T12:37:59.611+00:00"}, \n {"t":"2023-10-18T14:37:59.611+00:00"}, \n {"t":"2023-10-18T16:37:59.611+00:00"}]'
         assert response.text == response_body
