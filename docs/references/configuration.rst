@@ -825,7 +825,7 @@ server-port
   **In-Database** `n/a`
   =============== =================================
 
-  The TCP port to bind the web server.
+  The TCP port to bind the web server. Use ``0`` to automatically assign a port.
 
 .. _server-trace-header:
 
