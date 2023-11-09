@@ -61,7 +61,7 @@ reachMainApp appSock = do
     withSocketsDo $ bracket (pure sock) close sendEmpty
   where
     sendEmpty sock = void $ send sock mempty
-    addrFamily (SockAddrInet _ _)      = AF_INET
-    addrFamily (SockAddrInet6 _ _ _ _) = AF_INET6
-    addrFamily (SockAddrUnix _)        = AF_UNIX
+    addrFamily (SockAddrInet _ _) = AF_INET
+    addrFamily (SockAddrInet6 {}) = AF_INET6
+    addrFamily (SockAddrUnix _)   = AF_UNIX
 
