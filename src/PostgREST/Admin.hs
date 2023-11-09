@@ -53,7 +53,15 @@ admin appState appConfig req respond  = do
 -- The code for resolving the "*4", "!4", "*6", "!6", "*" special values is taken from
 -- https://hackage.haskell.org/package/streaming-commons-0.2.2.4/docs/src/Data.Streaming.Network.html#bindPortGenEx
 reachMainApp :: Socket -> IO (Either IOException ())
-reachMainApp appSock = try $ do
-  withSocketsDo $ bracket (pure appSock) close sendEmpty
+reachMainApp appSock = do
+  sockAddr <- getSocketName appSock
+  sock <- socket (addrFamily sockAddr) Stream defaultProtocol
+  try $ do
+    connect sock sockAddr
+    withSocketsDo $ bracket (pure sock) close sendEmpty
   where
     sendEmpty sock = void $ send sock mempty
+    addrFamily (SockAddrInet _ _) = AF_INET
+    addrFamily (SockAddrInet6 _ _ _ _) = AF_INET6
+    addrFamily (SockAddrUnix _) = AF_UNIX
+
