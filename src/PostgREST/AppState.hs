@@ -74,6 +74,9 @@ import Data.Streaming.Network (bindPath, bindPortTCP,
 import Data.String            (IsString (..))
 import Protolude
 import System.Posix.Files     (setFileMode)
+import Network.Socket (isUnixDomainSocketAvailable)
+import System.Directory (removeFile)
+import System.IO.Error (isDoesNotExistError)
 
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
@@ -171,19 +174,21 @@ initSockets AppConfig{..} = do
     cfg'port = configServerPort
     cfg'adminport = configAdminServerPort
 
-  (_port, sock) <- case cfg'usp of
-    Just usp -> do
-      sock <- bindPath usp
-      setFileMode (toS usp) cfg'uspm
-      pure (Nothing, sock)
+  sock <- case cfg'usp of
+    Just path -> do
+      unless isUnixDomainSocketAvailable $ 
+        panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
+      createAndBindSocket path cfg'uspm
     Nothing -> do
-      (port, sock) <- if cfg'port /= 0 then do
-                          sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
-                          pure (cfg'port, sock)
-                        else do
-                          (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
-                          pure (num, sock)
-      pure (Just port, sock)
+      (_, sock) <-
+        if cfg'port /= 0
+          then do
+            sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
+            pure (cfg'port, sock)
+          else do
+            (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
+            pure (num, sock)
+      pure sock
 
   adminSock <- case cfg'adminport of
     Just adminPort -> do
@@ -192,6 +197,19 @@ initSockets AppConfig{..} = do
     Nothing -> pure Nothing
 
   pure (sock, adminSock)
+
+  where
+    createAndBindSocket path mode = do
+      deleteSocketFileIfExist path
+      sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
+      NS.bind sock $ NS.SockAddrUnix path
+      setFileMode path mode
+      return sock
+    deleteSocketFileIfExist path =
+      removeFile path `catch` handleDoesNotExist
+    handleDoesNotExist e
+      | isDoesNotExistError e = return ()
+      | otherwise = throwIO e
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =
