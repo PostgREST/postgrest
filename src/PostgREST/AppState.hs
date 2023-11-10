@@ -69,14 +69,13 @@ import PostgREST.SchemaCache             (SchemaCache,
                                           querySchemaCache)
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 
-import Data.Streaming.Network (bindPath, bindPortTCP,
-                               bindRandomPortTCP)
+import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+import Network.Socket         (isUnixDomainSocketAvailable)
 import Protolude
+import System.Directory       (removeFile)
+import System.IO.Error        (isDoesNotExistError)
 import System.Posix.Files     (setFileMode)
-import Network.Socket (isUnixDomainSocketAvailable)
-import System.Directory (removeFile)
-import System.IO.Error (isDoesNotExistError)
 
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
@@ -176,7 +175,7 @@ initSockets AppConfig{..} = do
 
   sock <- case cfg'usp of
     Just path -> do
-      unless isUnixDomainSocketAvailable $ 
+      unless isUnixDomainSocketAvailable $
         panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
       createAndBindSocket path cfg'uspm
     Nothing -> do
