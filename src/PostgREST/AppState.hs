@@ -57,8 +57,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
-                                          queryRoleSettings,
-                                          queryTimezones)
+                                          queryRoleSettings)
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           minimumPgVersion)
 import PostgREST.SchemaCache             (SchemaCache,
@@ -406,18 +405,7 @@ reReadConfig startingUp appState = do
         Right x -> pure x
     else
       pure mempty
-  timezoneNames <-
-    if configDbConfig then do
-      names <- usePool appState $ queryTimezones configDbPreparedStatements
-      case names of
-        Left e -> do
-          logWithZTime appState "An error ocurred when trying to query the timezones"
-          logPgrstError appState e
-          pure mempty
-        Right x -> pure x
-    else
-      pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl timezoneNames >>= \case
+  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up

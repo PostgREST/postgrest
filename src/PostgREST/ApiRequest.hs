@@ -55,6 +55,7 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
                                           rangeRequested)
+import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
@@ -134,8 +135,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Request -> RequestBody -> Either ApiRequestError ApiRequest
-userApiRequest conf req reqBody = do
+userApiRequest :: AppConfig -> Request -> RequestBody -> SchemaCache -> Either ApiRequestError ApiRequest
+userApiRequest conf req reqBody sCache = do
   pInfo@PathInfo{..} <- getPathInfo conf $ pathInfo req
   act <- getAction pInfo method
   qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
@@ -150,7 +151,7 @@ userApiRequest conf req reqBody = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders conf hdrs
+  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) (dbTimezones sCache) hdrs
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs

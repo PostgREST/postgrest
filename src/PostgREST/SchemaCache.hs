@@ -43,7 +43,8 @@ import Contravariant.Extras          (contrazip2)
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config                      (AppConfig (..))
-import PostgREST.Config.Database             (pgVersionStatement,
+import PostgREST.Config.Database             (TimezoneNames,
+                                              pgVersionStatement,
                                               toIsolationLevel)
 import PostgREST.Config.PgVersion            (PgVersion, pgVersion100,
                                               pgVersion110,
@@ -80,14 +81,17 @@ data SchemaCache = SchemaCache
   , dbRoutines        :: RoutineMap
   , dbRepresentations :: RepresentationsMap
   , dbMediaHandlers   :: MediaHandlerMap
+  , dbTimezones       :: TimezoneNames
   }
+
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps _) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps _ _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
     , "dbRepresentations" .= JSON.toJSON reps
     , "dbMediaHandlers"   .= JSON.emptyArray
+    , "dbTimezones"       .= JSON.emptyArray
     ]
 
 -- | A view foreign key or primary key dependency detected on its source table
@@ -140,6 +144,7 @@ querySchemaCache AppConfig{..} = do
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement schemas $ dataRepresentations prepared
   mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
+  tzones  <- SQL.statement mempty $ timezones prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
     whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
@@ -153,6 +158,7 @@ querySchemaCache AppConfig{..} = do
     , dbRoutines = funcs
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
+    , dbTimezones = tzones
     }
   where
     schemas = toList configDbSchemas
@@ -188,6 +194,7 @@ removeInternal schemas dbStruct =
     , dbRoutines        = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
     , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
     , dbMediaHandlers   = dbMediaHandlers dbStruct
+    , dbTimezones       = dbTimezones dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -1177,6 +1184,13 @@ decodeMediaHandlers =
               <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
               <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
+
+timezones :: Bool -> SQL.Statement () TimezoneNames
+timezones = SQL.Statement sql HE.noParams decodeTimezones
+  where
+    sql = "SELECT name FROM pg_timezone_names"
+    decodeTimezones :: HD.Result TimezoneNames
+    decodeTimezones = HD.rowList $ column HD.text
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable

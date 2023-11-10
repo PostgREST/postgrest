@@ -6,8 +6,7 @@
 --
 -- [1] https://datatracker.ietf.org/doc/html/rfc7240
 --
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
@@ -26,7 +25,7 @@ import qualified Data.ByteString.Char8     as BS
 import qualified Data.Map                  as Map
 import qualified Network.HTTP.Types.Header as HTTP
 
-import PostgREST.Config (AppConfig (..))
+import PostgREST.Config.Database (TimezoneNames)
 
 import Protolude
 
@@ -59,15 +58,10 @@ data Preferences
 -- |
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
 --
--- >>> :{
---  let conf = AppConfig{
---        configDbTxAllowOverride=True,
---        configTimezoneNames=["America/Los_Angeles"]
---      }
--- :}
+-- >>> let sc = ["America/Los_Angeles"]
 --
 -- One header with comma-separated values can be used to set multiple preferences:
--- >>> pPrint $ fromHeaders conf [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -82,7 +76,7 @@ data Preferences
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders conf [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -97,13 +91,13 @@ data Preferences
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders conf [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders True sc [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders conf $
+--   preferResolution . fromHeaders True sc $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -113,7 +107,7 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders conf [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
+-- >>> pPrint $ fromHeaders True sc [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -126,14 +120,14 @@ data Preferences
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
-fromHeaders :: AppConfig -> [HTTP.Header] -> Preferences
-fromHeaders AppConfig{..} headers =
+fromHeaders :: Bool -> TimezoneNames -> [HTTP.Header] -> Preferences
+fromHeaders allowTxDbOverride tzNames headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
     , preferParameters     = parsePrefs [SingleObject]
     , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction    = if configDbTxAllowOverride then parsePrefs [Commit, Rollback] else Nothing
+    , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
     , preferTimezone       = getTimezoneFromPrefs
@@ -142,7 +136,7 @@ fromHeaders AppConfig{..} headers =
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
     mapToHeadVal = map toHeaderValue
-    timezonePrefs = map ((<>) "timezone=" . encodeUtf8) configTimezoneNames
+    timezonePrefs = map ((<>) "timezone=" . encodeUtf8) tzNames
     acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
                     mapToHeadVal [Full, None, HeadersOnly] ++
                     mapToHeadVal [SingleObject] ++
@@ -164,7 +158,7 @@ fromHeaders AppConfig{..} headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -178,6 +172,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferCount
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
+      , ("timezone=" <>) <$> preferTimezone
       ]
 
 -- |

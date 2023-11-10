@@ -56,7 +56,7 @@ import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.Database         (RoleIsolationLvl,
-                                          RoleSettings, TimezoneNames)
+                                          RoleSettings)
 import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
                                           dumpJSPath, pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
@@ -109,7 +109,6 @@ data AppConfig = AppConfig
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
-  , configTimezoneNames            :: TimezoneNames
   , configInternalSCSleep          :: Maybe Int32
   }
 
@@ -206,13 +205,13 @@ instance JustIfMaybe a (Maybe a) where
 
 -- | Reads and parses the config and overrides its parameters from env vars,
 -- files or db settings.
-readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> TimezoneNames -> IO (Either Text AppConfig)
-readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl timezoneNames = do
+readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> IO (Either Text AppConfig)
+readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
   env <- readPGRSTEnvironment
   -- if no filename provided, start with an empty map to read config from environment
   conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl timezoneNames) =<< mapLeft show conf of
+  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
@@ -227,8 +226,8 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl timezon
       decodeJWKS <$>
         (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
 
-parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> TimezoneNames -> C.Parser C.Config AppConfig
-parser optPath env dbSettings roleSettings roleIsolationLvl timezoneNames =
+parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
+parser optPath env dbSettings roleSettings roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
@@ -278,7 +277,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl timezoneNames =
     <*> optInt "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
-    <*> pure timezoneNames
     <*> optInt "internal-schema-cache-sleep"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]

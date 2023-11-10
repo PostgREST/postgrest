@@ -3627,3 +3627,7 @@ create aggregate test.bom_csv_agg (test.lines) (
 );
 
 create table empty_string as select 1 as id, ''::text as string;
+
+create table timestamps (
+  t timestamp with time zone
+);
