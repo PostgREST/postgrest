@@ -33,6 +33,7 @@ import qualified PostgREST.SchemaCache        as SchemaCache
 
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferTimezone (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
@@ -248,7 +249,7 @@ setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} = lift $
     roleSql = [setConfigWithConstantName ("role", role)]
     roleSettingsSql = setConfigWithDynamicName <$> roleSettings
     appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
-    timezoneSql = maybe mempty (\tz -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
+    timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)

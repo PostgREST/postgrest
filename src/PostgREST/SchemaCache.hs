@@ -1190,7 +1190,7 @@ timezones = SQL.Statement sql HE.noParams decodeTimezones
   where
     sql = "SELECT name FROM pg_timezone_names"
     decodeTimezones :: HD.Result TimezoneNames
-    decodeTimezones = HD.rowList $ column HD.text
+    decodeTimezones = S.fromList . map encodeUtf8 <$> HD.rowList (column HD.text)
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable

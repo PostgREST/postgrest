@@ -16,6 +16,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferRepresentation(..)
   , PreferResolution(..)
   , PreferTransaction(..)
+  , PreferTimezone(..)
   , fromHeaders
   , shouldCount
   , prefAppliedHeader
@@ -23,6 +24,7 @@ module PostgREST.ApiRequest.Preferences
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.Map                  as Map
+import qualified Data.Set                  as S
 import qualified Network.HTTP.Types.Header as HTTP
 
 import PostgREST.Config.Database (TimezoneNames)
@@ -39,6 +41,7 @@ import Protolude
 -- >>> deriving instance Show PreferTransaction
 -- >>> deriving instance Show PreferMissing
 -- >>> deriving instance Show PreferHandling
+-- >>> deriving instance Show PreferTimezone
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -51,14 +54,14 @@ data Preferences
     , preferTransaction    :: Maybe PreferTransaction
     , preferMissing        :: Maybe PreferMissing
     , preferHandling       :: Maybe PreferHandling
-    , preferTimezone       :: Maybe ByteString
+    , preferTimezone       :: Maybe PreferTimezone
     , invalidPrefs         :: [ByteString]
     }
 
 -- |
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
 --
--- >>> let sc = ["America/Los_Angeles"]
+-- >>> let sc = S.fromList ["America/Los_Angeles"]
 --
 -- One header with comma-separated values can be used to set multiple preferences:
 -- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles")]
@@ -70,7 +73,8 @@ data Preferences
 --     , preferTransaction = Nothing
 --     , preferMissing = Nothing
 --     , preferHandling = Nothing
---     , preferTimezone = Just "America/Los_Angeles"
+--     , preferTimezone = Just
+--         ( PreferTimezone "America/Los_Angeles" )
 --     , invalidPrefs = []
 --     }
 --
@@ -121,7 +125,7 @@ data Preferences
 --     }
 --
 fromHeaders :: Bool -> TimezoneNames -> [HTTP.Header] -> Preferences
-fromHeaders allowTxDbOverride tzNames headers =
+fromHeaders allowTxDbOverride acceptedTzNames headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
@@ -131,24 +135,25 @@ fromHeaders allowTxDbOverride tzNames headers =
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
     , preferTimezone       = getTimezoneFromPrefs
-    , invalidPrefs         = filter (`notElem` acceptedPrefs) prefs
+    , invalidPrefs         = filter checkPrefs prefs
     }
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
     mapToHeadVal = map toHeaderValue
-    timezonePrefs = map ((<>) "timezone=" . encodeUtf8) tzNames
     acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
                     mapToHeadVal [Full, None, HeadersOnly] ++
                     mapToHeadVal [SingleObject] ++
                     mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
                     mapToHeadVal [Commit, Rollback] ++
                     mapToHeadVal [ApplyDefaults, ApplyNulls] ++
-                    mapToHeadVal [Strict, Lenient] ++ timezonePrefs
+                    mapToHeadVal [Strict, Lenient]
 
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
+
     hasTimezone p = BS.take 9 p == "timezone="
-    getTimezoneFromPrefs = listToMaybe [ BS.drop 9 p | p <- prefs, hasTimezone p && elem p timezonePrefs]
+    getTimezoneFromPrefs = listToMaybe [ PreferTimezone (BS.drop 9 p) | p <- prefs, hasTimezone p && S.member (BS.drop 9 p) acceptedTzNames]
+    checkPrefs p = p `notElem` acceptedPrefs && BS.drop 9 p `S.notMember` acceptedTzNames
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
@@ -172,7 +177,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferCount
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
-      , ("timezone=" <>) <$> preferTimezone
+      , toHeaderValue <$> preferTimezone
       ]
 
 -- |
@@ -265,3 +270,10 @@ data PreferHandling
 instance ToHeaderValue PreferHandling where
   toHeaderValue Strict  = "handling=strict"
   toHeaderValue Lenient = "handling=lenient"
+
+-- |
+-- Change timezone
+newtype PreferTimezone = PreferTimezone ByteString
+
+instance ToHeaderValue PreferTimezone where
+  toHeaderValue (PreferTimezone tz) = "timezone=" <> tz
