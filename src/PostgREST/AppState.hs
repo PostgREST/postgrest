@@ -202,6 +202,7 @@ initSockets AppConfig{..} = do
       deleteSocketFileIfExist path
       sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
       NS.bind sock $ NS.SockAddrUnix path
+      NS.listen sock (max 2048 NS.maxListenQueue)
       setFileMode path mode
       return sock
     deleteSocketFileIfExist path =
