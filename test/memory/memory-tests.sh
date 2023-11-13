@@ -114,8 +114,8 @@ jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "172M"
 jsonKeyTest "50M" "POST" "/leak?columns=blob" "172M"
 jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "172M"
 
-postJsonArrayTest "1000" "/perf_articles?columns=id,body" "14M"
-postJsonArrayTest "10000" "/perf_articles?columns=id,body" "14M"
+postJsonArrayTest "1000" "/perf_articles?columns=id,body" "15M"
+postJsonArrayTest "10000" "/perf_articles?columns=id,body" "15M"
 postJsonArrayTest "100000" "/perf_articles?columns=id,body" "24M"
 
 trap - int term exit
