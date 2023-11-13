@@ -134,7 +134,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
-    , preferTimezone       = getTimezoneFromPrefs
+    , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
     , invalidPrefs         = filter checkPrefs prefs
     }
   where
@@ -151,9 +151,10 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
 
-    hasTimezone p = BS.take 9 p == "timezone="
-    getTimezoneFromPrefs = listToMaybe [ PreferTimezone (BS.drop 9 p) | p <- prefs, hasTimezone p && S.member (BS.drop 9 p) acceptedTzNames]
-    checkPrefs p = p `notElem` acceptedPrefs && BS.drop 9 p `S.notMember` acceptedTzNames
+    timezonePref = listToMaybe $ mapMaybe (BS.stripPrefix "timezone=") prefs
+    isTimezonePrefAccepted = (S.member <$> timezonePref <*> pure acceptedTzNames) == Just True
+
+    checkPrefs p = p `notElem` acceptedPrefs && not isTimezonePrefAccepted
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
