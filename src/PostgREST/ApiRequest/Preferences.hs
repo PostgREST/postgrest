@@ -10,12 +10,13 @@
 module PostgREST.ApiRequest.Preferences
   ( Preferences(..)
   , PreferCount(..)
+  , PreferHandling(..)
   , PreferMissing(..)
   , PreferParameters(..)
   , PreferRepresentation(..)
   , PreferResolution(..)
   , PreferTransaction(..)
-  , PreferHandling(..)
+  , PreferTimezone(..)
   , fromHeaders
   , shouldCount
   , prefAppliedHeader
@@ -23,7 +24,10 @@ module PostgREST.ApiRequest.Preferences
 
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.Map                  as Map
+import qualified Data.Set                  as S
 import qualified Network.HTTP.Types.Header as HTTP
+
+import PostgREST.Config.Database (TimezoneNames)
 
 import Protolude
 
@@ -37,6 +41,7 @@ import Protolude
 -- >>> deriving instance Show PreferTransaction
 -- >>> deriving instance Show PreferMissing
 -- >>> deriving instance Show PreferHandling
+-- >>> deriving instance Show PreferTimezone
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -49,15 +54,17 @@ data Preferences
     , preferTransaction    :: Maybe PreferTransaction
     , preferMissing        :: Maybe PreferMissing
     , preferHandling       :: Maybe PreferHandling
+    , preferTimezone       :: Maybe PreferTimezone
     , invalidPrefs         :: [ByteString]
     }
 
 -- |
 -- Parse HTTP headers based on RFC7240[1] to identify preferences.
 --
--- One header with comma-separated values can be used to set multiple preferences:
+-- >>> let sc = S.fromList ["America/Los_Angeles"]
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates, count=exact")]
+-- One header with comma-separated values can be used to set multiple preferences:
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -66,12 +73,14 @@ data Preferences
 --     , preferTransaction = Nothing
 --     , preferMissing = Nothing
 --     , preferHandling = Nothing
+--     , preferTimezone = Just
+--         ( PreferTimezone "America/Los_Angeles" )
 --     , invalidPrefs = []
 --     }
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -80,18 +89,19 @@ data Preferences
 --     , preferTransaction = Nothing
 --     , preferMissing = Just ApplyNulls
 --     , preferHandling = Just Lenient
+--     , preferTimezone = Nothing
 --     , invalidPrefs = [ "invalid" ]
 --     }
 --
 -- If a preference is set more than once, only the first is used:
 --
--- >>> preferTransaction $ fromHeaders True [("Prefer", "tx=commit, tx=rollback")]
+-- >>> preferTransaction $ fromHeaders True sc [("Prefer", "tx=commit, tx=rollback")]
 -- Just Commit
 --
 -- This is also the case across multiple headers:
 --
 -- >>> :{
---   preferResolution . fromHeaders True $
+--   preferResolution . fromHeaders True sc $
 --     [ ("Prefer", "resolution=ignore-duplicates")
 --     , ("Prefer", "resolution=merge-duplicates")
 --     ]
@@ -101,7 +111,7 @@ data Preferences
 --
 -- Preferences can be separated by arbitrary amounts of space, lower-case header is also recognized:
 --
--- >>> pPrint $ fromHeaders True [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
+-- >>> pPrint $ fromHeaders True sc [("prefer", "count=exact,    tx=commit   ,return=representation , missing=default, handling=strict, anything")]
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
@@ -110,20 +120,22 @@ data Preferences
 --     , preferTransaction = Just Commit
 --     , preferMissing = Just ApplyDefaults
 --     , preferHandling = Just Strict
+--     , preferTimezone = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
-fromHeaders :: Bool -> [HTTP.Header] -> Preferences
-fromHeaders allowTxEndOverride headers =
+fromHeaders :: Bool -> TimezoneNames -> [HTTP.Header] -> Preferences
+fromHeaders allowTxDbOverride acceptedTzNames headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
     , preferParameters     = parsePrefs [SingleObject]
     , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
-    , preferTransaction    = if allowTxEndOverride then parsePrefs [Commit, Rollback] else Nothing
+    , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
-    , invalidPrefs         = filter (`notElem` acceptedPrefs) prefs
+    , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
+    , invalidPrefs         = filter checkPrefs prefs
     }
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
@@ -139,6 +151,11 @@ fromHeaders allowTxEndOverride headers =
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
 
+    timezonePref = listToMaybe $ mapMaybe (BS.stripPrefix "timezone=") prefs
+    isTimezonePrefAccepted = (S.member <$> timezonePref <*> pure acceptedTzNames) == Just True
+
+    checkPrefs p = p `notElem` acceptedPrefs && not isTimezonePrefAccepted
+
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
       head $ mapMaybe (flip Map.lookup $ prefMap vals) prefs
@@ -147,7 +164,7 @@ fromHeaders allowTxEndOverride headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -161,6 +178,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferCount
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
+      , toHeaderValue <$> preferTimezone
       ]
 
 -- |
@@ -253,3 +271,10 @@ data PreferHandling
 instance ToHeaderValue PreferHandling where
   toHeaderValue Strict  = "handling=strict"
   toHeaderValue Lenient = "handling=lenient"
+
+-- |
+-- Change timezone
+newtype PreferTimezone = PreferTimezone ByteString
+
+instance ToHeaderValue PreferTimezone where
+  toHeaderValue (PreferTimezone tz) = "timezone=" <> tz

@@ -72,7 +72,7 @@ let
         # We try to make the database cluster as independent as possible from the host
         # by specifying the timezone, locale and encoding.
         # initdb -U creates a superuser(man initdb)
-        PGTZ=UTC initdb --no-locale --encoding=UTF8 --nosync -U "${superuserRole}" --auth=trust \
+        TZ=$PGTZ initdb --no-locale --encoding=UTF8 --nosync -U "${superuserRole}" --auth=trust \
           >> "$setuplog"
 
         log "Starting the database cluster..."

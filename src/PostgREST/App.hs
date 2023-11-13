@@ -157,7 +157,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   apiRequest <-
     liftEither . mapLeft Error.ApiRequestError $
-      ApiRequest.userApiRequest conf req body
+      ApiRequest.userApiRequest conf req body sCache
 
   let jwtTiming = (SMJwt, if configDbPlanEnabled then Auth.getJwtDur req else Nothing)
   handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTiming

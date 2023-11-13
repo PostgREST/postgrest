@@ -861,3 +861,8 @@ INSERT INTO table_b(table_a_id, name) VALUES (1, 'Test 1'), (2, 'Test 2'), (null
 
 TRUNCATE TABLE lines CASCADE;
 insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::extensions.geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::extensions.geometry);
+
+TRUNCATE TABLE timestamps CASCADE;
+INSERT INTO timestamps VALUES ('2023-10-18 12:37:59.611000+0000');
+INSERT INTO timestamps VALUES ('2023-10-18 14:37:59.611000+0000');
+INSERT INTO timestamps VALUES ('2023-10-18 16:37:59.611000+0000');
