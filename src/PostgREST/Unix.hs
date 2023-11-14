@@ -10,8 +10,7 @@ import           System.PosixCompat.Files (setFileMode)
 import           Data.String      (String)
 import qualified Network.Socket   as NS
 import           Protolude
-import           System.Directory (Permissions, removeFile,
-                                   setOwnerReadable, setPermissions)
+import           System.Directory (removeFile)
 import           System.IO.Error  (isDoesNotExistError)
 
 -- | Set signal handlers, only for systems with signals
@@ -35,8 +34,8 @@ createAndBindSocket path mode = do
   setFileMode path mode
   return sock
   where
-    deleteSocketFileIfExist path =
-      removeFile path `catch` handleDoesNotExist
+    deleteSocketFileIfExist path' =
+      removeFile path' `catch` handleDoesNotExist
     handleDoesNotExist e
       | isDoesNotExistError e = return ()
       | otherwise = throwIO e
