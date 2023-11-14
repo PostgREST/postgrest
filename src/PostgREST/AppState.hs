@@ -68,14 +68,12 @@ import PostgREST.Config.PgVersion        (PgVersion (..),
 import PostgREST.SchemaCache             (SchemaCache,
                                           querySchemaCache)
 import PostgREST.SchemaCache.Identifiers (dumpQi)
+import PostgREST.Unix                    (createAndBindSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
 import Network.Socket         (isUnixDomainSocketAvailable)
 import Protolude
-import System.Directory       (removeFile)
-import System.IO.Error        (isDoesNotExistError)
-import System.Posix.Files     (setFileMode)
 
 data AuthResult = AuthResult
   { authClaims :: KM.KeyMap JSON.Value
@@ -196,20 +194,6 @@ initSockets AppConfig{..} = do
     Nothing -> pure Nothing
 
   pure (sock, adminSock)
-
-  where
-    createAndBindSocket path mode = do
-      deleteSocketFileIfExist path
-      sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
-      NS.bind sock $ NS.SockAddrUnix path
-      NS.listen sock (max 2048 NS.maxListenQueue)
-      setFileMode path mode
-      return sock
-    deleteSocketFileIfExist path =
-      removeFile path `catch` handleDoesNotExist
-    handleDoesNotExist e
-      | isDoesNotExistError e = return ()
-      | otherwise = throwIO e
 
 initPool :: AppConfig -> IO SQL.Pool
 initPool AppConfig{..} =

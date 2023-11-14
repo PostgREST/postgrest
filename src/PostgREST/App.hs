@@ -70,7 +70,7 @@ import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 
-type SignalHandlerInstaller = AppState -> IO()
+type SignalHandlerInstaller = ThreadId -> IO () -> IO ()-> IO()
 
 type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
 
@@ -78,7 +78,7 @@ run :: SignalHandlerInstaller -> AppState -> IO ()
 run installHandlers appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  installHandlers appState
+  installHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
   AppState.runListener conf appState
 
