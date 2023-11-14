@@ -41,16 +41,15 @@ Let's create a password and provide it to PostgREST. Think of a nice long one, o
     export LC_CTYPE=C
 
     # read random bytes and keep only alphanumerics
-    < /dev/urandom tr -dc A-Za-z0-9 | head -c32
+    echo "jwt-secret = \"$(< /dev/urandom tr -dc A-Za-z0-9 | head -c32)\"" >> tutorial.conf
 
-Open the :code:`tutorial.conf` (created in the previous tutorial) and add a line with the password:
+
+check the :code:`tutorial.conf` (created in the previous tutorial) the line with the password:
 
 .. code-block:: ini
 
   # PASSWORD MUST BE AT LEAST 32 CHARS LONG
-  # add this line to tutorial.conf:
-
-  jwt-secret = "<the password you made>"
+  cat tutorial.conf
 
 If the PostgREST server is still running from the previous tutorial, restart it to load the updated configuration file.
 
