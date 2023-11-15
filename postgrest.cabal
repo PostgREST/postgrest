@@ -64,6 +64,7 @@ library
                       PostgREST.Plan.ReadPlan
                       PostgREST.Plan.Types
                       PostgREST.RangeQuery
+                      PostgREST.Unix
                       PostgREST.ApiRequest
                       PostgREST.ApiRequest.Preferences
                       PostgREST.ApiRequest.QueryParams
@@ -120,6 +121,7 @@ library
                     , time                      >= 1.6 && < 1.12
                     , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
+                    -- pinning unix-compat to match one's version in warp
                     , unix-compat               == 0.5.4
                     , vault                     >= 0.3.1.5 && < 0.4
                     , vector                    >= 0.11 && < 0.14
@@ -151,8 +153,6 @@ library
     build-depends:
       unix
       , directory >= 1.2.6 && < 1.4
-    exposed-modules:
-      PostgREST.Unix
 
 executable postgrest
   default-language:   Haskell2010
@@ -162,6 +162,7 @@ executable postgrest
   main-is:            Main.hs
   build-depends:      base                >= 4.9 && < 4.17
                     , containers          >= 0.5.7 && < 0.7
+                    , network                   >= 2.6 && < 3.2
                     , postgrest
                     , protolude           >= 0.3.1 && < 0.4
   ghc-options:        -threaded -rtsopts "-with-rtsopts=-N -I0 -qg"
