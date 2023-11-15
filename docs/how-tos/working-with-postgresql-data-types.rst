@@ -62,7 +62,7 @@ Someone located in Cairo can retrieve the data using their local time, too:
     }
   ]
 
-The response has the date in the time zone configured by the server: ``UTC -05:00``.
+The response has the date in the time zone configured by the server: ``UTC -05:00`` (see :ref:`prefer_timezone`).
 
 You can use other comparative filters and also all the `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_ as illustrated in this example:
 
