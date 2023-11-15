@@ -68,7 +68,7 @@ import PostgREST.Config.PgVersion        (PgVersion (..),
 import PostgREST.SchemaCache             (SchemaCache,
                                           querySchemaCache)
 import PostgREST.SchemaCache.Identifiers (dumpQi)
-import PostgREST.Unix                    (createAndBindSocket)
+import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
@@ -175,7 +175,7 @@ initSockets AppConfig{..} = do
     Just path -> do
       unless isUnixDomainSocketAvailable $
         panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
-      createAndBindSocket path cfg'uspm
+      createAndBindDomainSocket path cfg'uspm
     Nothing -> do
       (_, sock) <-
         if cfg'port /= 0

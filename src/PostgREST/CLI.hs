@@ -29,8 +29,8 @@ import qualified PostgREST.Config   as Config
 import Protolude hiding (hPutStrLn)
 
 
-main :: App.SignalHandlerInstaller -> CLI -> IO ()
-main installSignalHandlers CLI{cliCommand, cliPath} = do
+main :: CLI -> IO ()
+main CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
 
@@ -45,7 +45,7 @@ main installSignalHandlers CLI{cliCommand, cliPath} = do
         when configDbConfig $ AppState.reReadConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
-      CmdRun -> App.run installSignalHandlers appState)
+      CmdRun -> App.run appState)
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString

@@ -1,6 +1,8 @@
+{-# LANGUAGE CPP #-}
+
 module PostgREST.Unix
   ( installSignalHandlers
-  , createAndBindSocket
+  , createAndBindDomainSocket
   ) where
 
 import qualified System.Posix.Signals     as Signals
@@ -15,6 +17,7 @@ import           System.IO.Error  (isDoesNotExistError)
 
 -- | Set signal handlers, only for systems with signals
 installSignalHandlers :: ThreadId -> IO () -> IO () -> IO ()
+#ifndef mingw32_HOST_OS
 installSignalHandlers tid usr1 usr2 = do
   let interrupt = throwTo tid UserInterrupt
   install Signals.sigINT interrupt
@@ -24,9 +27,12 @@ installSignalHandlers tid usr1 usr2 = do
   where
     install signal handler =
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
+#else
+installSignalHandlers _ = pass
+#endif
 
-createAndBindSocket :: String -> FileMode -> IO NS.Socket
-createAndBindSocket path mode = do
+createAndBindDomainSocket :: String -> FileMode -> IO NS.Socket
+createAndBindDomainSocket path mode = do
   deleteSocketFileIfExist path
   sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
   NS.bind sock $ NS.SockAddrUnix path

@@ -12,9 +12,7 @@ Some of its functionality includes:
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
-  ( SignalHandlerInstaller
-  , SocketRunner
-  , postgrest
+  ( postgrest
   , run
   ) where
 
@@ -25,7 +23,6 @@ import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
-import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.Text.Encoding         as T
@@ -44,6 +41,7 @@ import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Plan             as Plan
 import qualified PostgREST.Query            as Query
 import qualified PostgREST.Response         as Response
+import qualified PostgREST.Unix             as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
                                        Mutation (..), Target (..))
@@ -70,15 +68,11 @@ import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 
-type SignalHandlerInstaller = ThreadId -> IO () -> IO ()-> IO()
-
-type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
-
-run :: SignalHandlerInstaller -> AppState -> IO ()
-run installHandlers appState = do
+run :: AppState -> IO ()
+run appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  installHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
   AppState.runListener conf appState
 
