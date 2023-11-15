@@ -90,6 +90,7 @@ library
                     , containers                >= 0.5.7 && < 0.7
                     , contravariant-extras      >= 0.3.3 && < 0.4
                     , cookie                    >= 0.4.2 && < 0.5
+                    , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
                     , fuzzyset                  >= 0.2.3
@@ -152,7 +153,6 @@ library
   if !os(windows)
     build-depends:
       unix
-      , directory >= 1.2.6 && < 1.4
 
 executable postgrest
   default-language:   Haskell2010

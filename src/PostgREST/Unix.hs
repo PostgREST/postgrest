@@ -5,9 +5,11 @@ module PostgREST.Unix
   , createAndBindDomainSocket
   ) where
 
-import qualified System.Posix.Signals     as Signals
-import           System.Posix.Types       (FileMode)
-import           System.PosixCompat.Files (setFileMode)
+#ifndef mingw32_HOST_OS
+import qualified System.Posix.Signals as Signals
+#endif
+import System.Posix.Types       (FileMode)
+import System.PosixCompat.Files (setFileMode)
 
 import           Data.String      (String)
 import qualified Network.Socket   as NS
