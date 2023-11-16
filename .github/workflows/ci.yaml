@@ -309,7 +309,7 @@ jobs:
 
   Prepare-Release:
     name: Prepare release
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     needs:
       - Lint-Style
@@ -320,9 +320,12 @@ jobs:
       - Build-Stack
       #- Get-FreeBSD-CirrusCI
       - Build-Cabal-Arm
+    # env:
+      # GITHUB_COMMIT_MSG = ${{ github.event.head_commit.message }}
     outputs:
       version: ${{ steps.Identify-Version.outputs.version }}
       isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
+      isnightly: ${{ steps.Identify-Version.outputs.isnightly }}
     steps:
       - uses: actions/checkout@v4
       - id: Identify-Version
@@ -331,7 +334,17 @@ jobs:
           tag_version="${GITHUB_REF##*/}"
           cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
 
-          if [ "$tag_version" != "v$cabal_version" ]; then
+          # Maybe isnightly only when commit message has "fix:", "feat:", "perf:"?
+          # prefix="$(awk -F ':' '{print $1}' <<< $GITHUB_COMMIT_MSG)"
+          # if [[ $GITHUB_REF == "refs/heads/main" && "fix feat perf" =~ $prefix ]];
+          # it should go in the job's "if" I think
+          if [ $GITHUB_REF == "refs/heads/main" ]; then
+            echo "isnightly=1" >> "$GITHUB_OUTPUT"
+          fi
+
+          if [ -n "$isnightly" ]; then
+            echo "version=nightly-$(date +%Y-%m-%d-%H-%M)" >> "$GITHUB_OUTPUT"
+          elif [ "$tag_version" != "v$cabal_version" ]; then
             echo "Tagged version ($tag_version) does not match the one in postgrest.cabal (v$cabal_version). Aborting release..."
             exit 1
           else
@@ -339,7 +352,8 @@ jobs:
             echo "version=$cabal_version" >> "$GITHUB_OUTPUT"
           fi
 
-          if [[ "$cabal_version" != *.*.*.* ]]; then
+          # Will pre-release be kept? Doesn't seem to have a purpose now that nightly is a thing.
+          elif [[ "$cabal_version" != *.*.*.* ]]; then
             echo "Version is for a full release (version does not have four components)"
           else
             echo "Version is for a pre-release (version has four components, e.g., 1.1.1.1)"
@@ -442,6 +456,7 @@ jobs:
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
+      ISNIGHTLY: ${{ needs.Prepare-Release.outputs.isnightly }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
@@ -457,17 +472,27 @@ jobs:
           docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
           docker load -i postgrest-docker.tar.gz
 
-          docker tag postgrest:latest "$DOCKER_REPO/postgrest:v$VERSION"
-          docker push "$DOCKER_REPO/postgrest:v$VERSION"
+          if [[ -z "$ISNIGHTLY" ]]; then
+            tag="latest"
+            ver="v$VERSION"
+          else
+            tag="nightly"
+            ver="$VERSION"
+          fi
+
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:$ver"
+          docker push "$DOCKER_REPO/postgrest:$ver"
 
           # Only tag 'latest' for full releases
-          if [[ -z "$ISPRERELEASE" ]]; then
-            echo "Pushing to 'latest' tag for full release of v$VERSION ..."
-            docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-            docker push "$DOCKER_REPO"/postgrest:latest
+          # Assuming that pre release is not used anymore
+          if [[ -z "$ISNIGHTLY" ]]; then
+            echo "Pushing to 'latest' tag for full release of $ver ..."
           else
-            echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
+            echo "Pushing to 'nightly' tag for $ver ..."
           fi
+
+          docker tag postgrest:latest "$DOCKER_REPO"/postgrest:$tag
+          docker push "$DOCKER_REPO"/postgrest:$tag
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
 #      - name: Update descriptions on Docker Hub
@@ -494,7 +519,7 @@ jobs:
       DOCKER_USER: stevechavez
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
-      ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
+      ISNIGHTLY: ${{ needs.Prepare-Release.outputs.isnightly }}
     steps:
       - uses: actions/checkout@v4
       - name: Publish images for ARM builds on Docker Hub
@@ -507,8 +532,8 @@ jobs:
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
-          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
+          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISNIGHTLY
+          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISNIGHTLY"
 
   Clean-Arm-Server:
     name: Remove copied files from server

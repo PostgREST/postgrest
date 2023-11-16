@@ -14,10 +14,12 @@ DOCKER_REPO="$2"
 DOCKER_USER="$3"
 DOCKER_PASS="$4"
 SCRIPT_DIR="$5"
-PGRST_VERSION="v$6"
-IS_PRERELEASE="$7"
+# assuming that prerelease is nightly for now
+IS_NIGHTLY="$7"
+PGRST_VERSION=$([ -z "$IS_NIGHTLY" ] && echo "v$6" || echo "$6")
 
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
+DOCKER_TAG=$([ -z "$IS_NIGHTLY" ] && echo "latest" || echo "nightly")
 
 clean_env()
 {
@@ -45,6 +47,6 @@ sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
 # NOTE: This assumes that there already is a `postgrest:<version>` image
 #       for the amd64 architecture pushed to Docker Hub
 sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:$PGRST_VERSION $DOCKER_REPO/postgrest:$PGRST_VERSION-arm
-[ -z $IS_PRERELEASE ] && sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:latest $DOCKER_REPO/postgrest:$PGRST_VERSION-arm
+sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:$DOCKER_TAG $DOCKER_REPO/postgrest:$PGRST_VERSION-arm
 
 sudo docker logout
