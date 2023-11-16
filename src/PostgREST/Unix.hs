@@ -30,7 +30,7 @@ installSignalHandlers tid usr1 usr2 = do
     install signal handler =
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
 #else
-installSignalHandlers _ = pass
+installSignalHandlers _ _ _ = pass
 #endif
 
 createAndBindDomainSocket :: String -> FileMode -> IO NS.Socket
