@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3019, Transaction-Scoped Settings are now shown clearly in the Postgres logs - @laurenceisla
    + Shows `set_config('pgrst.setting_name', $1)` instead of `setconfig($1, $2)`
    + Does not apply to role settings and `app.settings.*`
+ - #3027
 
 ### Changed
 

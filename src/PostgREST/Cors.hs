@@ -34,7 +34,7 @@ corsPolicy corsAllowedOrigins req = case lookup "origin" headers of
     , Wai.corsMaxAge = Just $ 60*60*24
     , Wai.corsVaryOrigin = False
     , Wai.corsRequireOrigin = False
-    , Wai.corsIgnoreFailures = True
+    , Wai.corsIgnoreFailures = ignoreFailures
     }
   Nothing -> Nothing
   where
@@ -44,3 +44,7 @@ corsPolicy corsAllowedOrigins req = case lookup "origin" headers of
        -- Impossible case, Middleware.Cors will not evaluate this when
        -- the Access-Control-Request-Headers header is not set.
       Nothing   -> []
+    -- The library makes "OPTIONS" requests fail when the "Origin" header is present
+    -- and when "Access-Control-Request-Method" is not. We want to pass this through
+    isOptions = Wai.requestMethod req == "OPTIONS"
+    ignoreFailures = isOptions && isNothing (lookup "access-control-request-method" headers)
