@@ -235,10 +235,10 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
 
 -- | Runs local (transaction scoped) GUCs for every request.
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
-               ApiRequest -> DbHandler ()
-setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} = lift $
+               ApiRequest -> Maybe Text -> DbHandler ()
+setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} tout = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ appSettingsSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ timeoutSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -250,6 +250,7 @@ setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} = lift $
     roleSettingsSql = setConfigWithDynamicName <$> roleSettings
     appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
+    timeoutSql = maybe mempty ((\t -> [setConfigWithConstantName ("statement_timeout", t)]) . encodeUtf8) tout
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)

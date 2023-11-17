@@ -1294,3 +1294,25 @@ def test_no_preflight_request_with_CORS_config_should_not_return_header(defaulte
     with run(env=env) as postgrest:
         response = postgrest.session.get("/items", headers=headers)
         assert "Access-Control-Allow-Origin" not in response.headers
+
+
+def test_fail_with_3_sec_statement_and_1_sec_statement_timeout(defaultenv):
+    "statement that takes three seconds to execute should fail with one second timeout"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/one_sec_timeout")
+
+        assert response.status_code == 500
+        assert (
+            response.text
+            == '{"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"}'
+        )
+
+
+def test_passes_with_3_sec_statement_and_4_sec_statement_timeout(defaultenv):
+    "statement that takes three seconds to execute should succeed with four second timeout"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/four_sec_timeout")
+
+        assert response.status_code == 204
