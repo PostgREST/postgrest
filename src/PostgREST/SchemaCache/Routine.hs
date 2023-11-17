@@ -57,11 +57,12 @@ data Routine = Function
   , pdVolatility  :: FuncVolatility
   , pdHasVariadic :: Bool
   , pdIsoLvl      :: Maybe SQL.IsolationLevel
+  , pdTimeout     :: Maybe Text
   }
   deriving (Eq, Show, Generic)
 -- need to define JSON manually bc SQL.IsolationLevel doesn't have a JSON instance(and we can't define one for that type without getting a compiler error)
 instance JSON.ToJSON Routine where
-  toJSON (Function sch nam desc params ret vol hasVar _) = JSON.object
+  toJSON (Function sch nam desc params ret vol hasVar _ tout) = JSON.object
     [
       "pdSchema"      .= sch
     , "pdName"        .= nam
@@ -70,6 +71,7 @@ instance JSON.ToJSON Routine where
     , "pdReturnType"  .= JSON.toJSON ret
     , "pdVolatility"  .= JSON.toJSON vol
     , "pdHasVariadic" .= JSON.toJSON hasVar
+    , "pdTimeout"     .= tout
     ]
 
 data RoutineParam = RoutineParam
@@ -83,10 +85,10 @@ data RoutineParam = RoutineParam
 
 -- Order by least number of params in the case of overloaded functions
 instance Ord Routine where
-  Function schema1 name1 des1 prms1 rt1 vol1 hasVar1 iso1 `compare` Function schema2 name2 des2 prms2 rt2 vol2 hasVar2 iso2
+  Function schema1 name1 des1 prms1 rt1 vol1 hasVar1 iso1 tout1 `compare` Function schema2 name2 des2 prms2 rt2 vol2 hasVar2 iso2 tout2
     | schema1 == schema2 && name1 == name2 && length prms1 < length prms2  = LT
     | schema2 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
-    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1, iso1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2, iso2)
+    | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1, iso1, tout1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2, iso2, tout2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one Routine).
 -- | It uses a HashMap for a faster lookup.

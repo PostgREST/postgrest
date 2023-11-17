@@ -178,3 +178,11 @@ $$;
 create function terminate_pgrst() returns setof record as $$
 select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%postgrest%';
 $$ language sql security definer;
+
+create or replace function one_sec_timeout() returns void as $$
+  select pg_sleep(3);
+$$ language sql set statement_timeout = '1s';
+
+create or replace function four_sec_timeout() returns void as $$
+  select pg_sleep(3);
+$$ language sql set statement_timeout = '4s';
