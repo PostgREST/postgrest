@@ -33,8 +33,12 @@ installSignalHandlers tid usr1 usr2 = do
 installSignalHandlers _ _ _ = pass
 #endif
 
+-- | Create a unix domain socket and bind it to the given path.
+-- | The socket file will be deleted if it already exists.
 createAndBindDomainSocket :: String -> FileMode -> IO NS.Socket
 createAndBindDomainSocket path mode = do
+  unless NS.isUnixDomainSocketAvailable $
+    panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
   deleteSocketFileIfExist path
   sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
   NS.bind sock $ NS.SockAddrUnix path

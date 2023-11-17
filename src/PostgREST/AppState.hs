@@ -72,7 +72,6 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
-import Network.Socket         (isUnixDomainSocketAvailable)
 import Protolude
 
 data AuthResult = AuthResult
@@ -172,10 +171,9 @@ initSockets AppConfig{..} = do
     cfg'adminport = configAdminServerPort
 
   sock <- case cfg'usp of
-    Just path -> do
-      unless isUnixDomainSocketAvailable $
-        panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
-      createAndBindDomainSocket path cfg'uspm
+    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows, 
+    -- but we need to have runtime error if we try to use it in Windows, not compile time error
+    Just path -> createAndBindDomainSocket path cfg'uspm
     Nothing -> do
       (_, sock) <-
         if cfg'port /= 0
@@ -183,6 +181,7 @@ initSockets AppConfig{..} = do
             sock <- bindPortTCP cfg'port (fromString $ T.unpack cfg'host)
             pure (cfg'port, sock)
           else do
+            -- explicitly bind to a random port, returning bound port number
             (num, sock) <- bindRandomPortTCP (fromString $ T.unpack cfg'host)
             pure (num, sock)
       pure sock
