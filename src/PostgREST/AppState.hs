@@ -171,7 +171,7 @@ initSockets AppConfig{..} = do
     cfg'adminport = configAdminServerPort
 
   sock <- case cfg'usp of
-    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows, 
+    -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
     -- but we need to have runtime error if we try to use it in Windows, not compile time error
     Just path -> createAndBindDomainSocket path cfg'uspm
     Nothing -> do
