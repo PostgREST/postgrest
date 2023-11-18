@@ -39,24 +39,6 @@ The picture below shows how the server handles authentication. If auth succeeds,
 
 This role switching mechanism is called **user impersonation**. In PostgreSQL it's done with the ``SET ROLE`` statement.
 
-.. _impersonated_settings:
-
-Impersonated Role Settings
---------------------------
-
-The impersonated role has its settings applied. For example, if you do:
-
-.. code-block:: postgresql
-
-  ALTER ROLE webuser SET statement_timeout TO '5s';
-
-Every ``webuser`` :ref:`transaction <transactions>` gets its queries executed with a ``statement_timeout`` of 5 seconds.
-
-.. note::
-
-   Settings that have a high privilege context (like ``superuser``) won't be applied, only settings that have a ``user`` context will be. This is so we don't cause permission errors.
-   For more details see `Understanding Postgres Parameter Context <https://www.enterprisedb.com/blog/understanding-postgres-parameter-context>`_.
-
 .. _jwt_impersonation:
 
 JWT-Based User Impersonation

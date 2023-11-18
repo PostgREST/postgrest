@@ -91,6 +91,13 @@ Access Mode on Functions
   - The volatility marker is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  But, because of the READ ONLY transaction the function will fail under PostgREST.
   - The :ref:`options_requests` method doesn't start a transaction, so it's not relevant here.
 
+.. _impersonated_settings:
+
+Impersonated Role Settings
+--------------------------
+
+The impersonated role has its settings applied. For example see :ref:`isolation_lvl` and :ref:`statement_timeout` below.
+
 .. _isolation_lvl:
 
 Isolation Level
@@ -98,11 +105,11 @@ Isolation Level
 
 Every transaction uses the PostgreSQL default isolation level: READ COMMITTED. Unless you modify `default_transaction_isolation <https://www.postgresql.org/docs/15/runtime-config-client.html#GUC-DEFAULT-TRANSACTION-ISOLATION>`_  for an impersonated role or function.
 
-Using :ref:`impersonated_settings`, change the isolation level for all the role's requests with:
-
 .. code-block:: postgresql
 
   ALTER ROLE webuser SET default_transaction_isolation TO 'repeatable read';
+
+Every ``webuser`` gets its queries executed with ``default_transaction_isolation`` set to REPEATABLE READ.
 
 Or to change the isolation level per function call.
 
@@ -114,6 +121,35 @@ Or to change the isolation level per function call.
   $$
   LANGUAGE SQL
   SET default_transaction_isolation TO 'serializable';
+
+.. _statement_timeout:
+
+Statement Timeout
+-----------------
+
+It allows you to abort any statement that takes more than a specified time. It is disabled by default. You can set `statement_timeout <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT>`__ for an impersonated role or function.
+
+.. code-block:: postgresql
+
+  ALTER ROLE webuser SET statement_timeout TO '5s';
+
+Every ``webuser`` gets its queries executed with a ``statement_timeout`` of 5 seconds.
+
+Or to set the statement timeout per function call.
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION myfunc()
+  RETURNS void as $$
+    SELECT pg_sleep(3);
+  $$
+  LANGUAGE SQL
+  SET statement_timeout TO '1s';
+
+.. note::
+
+   Settings that have a high privilege context (like ``superuser``) won't be applied, only settings that have a ``user`` context will be. This is so we don't cause permission errors.
+   For more details see `Understanding Postgres Parameter Context <https://www.enterprisedb.com/blog/understanding-postgres-parameter-context>`_.
 
 .. _tx_settings:
 
