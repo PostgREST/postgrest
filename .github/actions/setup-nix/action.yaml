@@ -20,9 +20,10 @@ runs:
     - name: Restore and cache Nix store
       uses: nix-community/cache-nix-action@v4
       with:
-        key: cache-nix-${{ runner.os }}-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
+        key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
         restore-keys: |
-          cache-nix-${{ runner.os }}-
+          cache-nix-${{ runner.os }}-common-
+        restore-key-hit: true
     - uses: cachix/cachix-action@v12
       with:
         name: postgrest

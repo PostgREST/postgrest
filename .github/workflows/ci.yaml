@@ -150,9 +150,14 @@ jobs:
       - name: Restore and cache Nix store
         uses: nix-community/cache-nix-action@v4
         with:
-          key: cache-nix-${{ runner.os }}-${{ matrix.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
+          key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
           extra-restore-keys: |
-            cache-nix-${{ runner.os }}-
+            cache-nix-${{ runner.os }}-id-
+          purge: true
+          purge-keys: |
+            cache-nix-${{ runner.os }}-id-
+            cache-nix-${{ runner.os }}-common-
+          purge-created-max-age: 0
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
