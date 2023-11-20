@@ -7,6 +7,9 @@ inputs:
     description: Token to pass to cachix
   tools:
     description: Tools to install with nix-env -iA <tools>
+  cache-id:
+    description: Cache id to use for cache-nix-action
+    default: "default"
 
 runs:
   using: composite
@@ -17,7 +20,7 @@ runs:
     - name: Restore and cache Nix store
       uses: nix-community/cache-nix-action@v4
       with:
-        key: cache-nix-${{ runner.os }}-${{ hashFiles('nix/**/*.nix') }}
+        key: cache-nix-${{ runner.os }}-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
         restore-keys: |
           cache-nix-${{ runner.os }}-
     - uses: cachix/cachix-action@v12

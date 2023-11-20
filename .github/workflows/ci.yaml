@@ -22,6 +22,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: style
+          cache-id: style
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
@@ -42,6 +43,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests
+          cache-id: test-pgdefault
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
@@ -77,6 +79,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
+          cache-id: test-pg${{ matrix.pgVersion }}
 
       - name: Run spec tests
         if: always()
@@ -96,6 +99,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: memory
+          cache-id: test-memory
       - name: Run memory tests
         run: postgrest-test-memory
 
@@ -109,6 +113,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests
+          cache-id: static-nix
 
       - name: Build static executable
         run: nix-build -A postgrestStatic
