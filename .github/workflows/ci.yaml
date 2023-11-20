@@ -79,7 +79,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
-          cache-id: test-pg
+          # It seems like they are installing the same set of derivations, so we can assign them the same cache id. 
+          # This would decrease the amount of caches dowloaded on merge cache step and will prevent disk space issues.
+          cache-id: test-pg 
 
       - name: Run spec tests
         if: always()
@@ -153,10 +155,10 @@ jobs:
         with:
           key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
           extra-restore-keys: |
-            cache-nix-${{ runner.os }}-id-
+            cache-nix-${{ runner.os }}-cid-
           purge: true
           purge-keys: |
-            cache-nix-${{ runner.os }}-id-
+            cache-nix-${{ runner.os }}-cid-
             cache-nix-${{ runner.os }}-common-
           purge-created-max-age: 0
 
