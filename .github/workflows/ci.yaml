@@ -137,30 +137,32 @@ jobs:
           path: postgrest-docker.tar.gz
           if-no-files-found: error
 
-  merge-nix-caches-linux:
-    name: "Merge Nix caches (Linux)"
-    needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
-    runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 1
-      matrix:
-        cache-id: ['static-nix', 'test-pg', 'style', 'test-memory']
-    steps:
-      - uses: actions/checkout@v4
-      - uses: nixbuild/nix-quick-install-action@v26
-        with:
-          nix_version: '2.13.6'
-      - name: Restore and cache Nix store
-        uses: nix-community/cache-nix-action@v4
-        with:
-          key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
-          extra-restore-keys: |
-            cache-nix-${{ runner.os }}-cid-
-          purge: true
-          purge-keys: |
-            cache-nix-${{ runner.os }}-cid-
-            cache-nix-${{ runner.os }}-common-
-          purge-created-max-age: 0
+  # TODO: Enable this again in a PR by PostgREST admins, because regular users don't have permission to delete cache entries, which this job does.
+  #
+  # merge-nix-caches-linux:
+  #   name: "Merge Nix caches (Linux)"
+  #   needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     max-parallel: 1
+  #     matrix:
+  #       cache-id: ['static-nix', 'test-pg', 'style', 'test-memory']
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: nixbuild/nix-quick-install-action@v26
+  #       with:
+  #         nix_version: '2.13.6'
+  #     - name: Restore and cache Nix store
+  #       uses: nix-community/cache-nix-action@v4
+  #       with:
+  #         key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
+  #         extra-restore-keys: |
+  #           cache-nix-${{ runner.os }}-cid-
+  #         purge: true
+  #         purge-keys: |
+  #           cache-nix-${{ runner.os }}-cid-
+  #           cache-nix-${{ runner.os }}-common-
+  #         purge-created-max-age: 0
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
