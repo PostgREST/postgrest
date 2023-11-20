@@ -43,7 +43,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests
-          cache-id: test-pgdefault
+          cache-id: test-pg
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
@@ -79,7 +79,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
-          cache-id: test-pg${{ matrix.pgVersion }}
+          cache-id: test-pg
 
       - name: Run spec tests
         if: always()
@@ -140,8 +140,9 @@ jobs:
     needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
     runs-on: ubuntu-latest
     strategy:
-      matrix: 
-        cache-id: ['static-nix', 'test-pgdefault', 'test-pg9.6', 'test-pg10', 'test-pg11', 'test-pg12', 'test-pg13', 'test-pg14', 'test-pg15', 'test-pg16', 'style', 'test-memory']
+      max-parallel: 1
+      matrix:
+        cache-id: ['static-nix', 'test-pg', 'style', 'test-memory']
     steps:
       - uses: actions/checkout@v4
       - uses: nixbuild/nix-quick-install-action@v26
