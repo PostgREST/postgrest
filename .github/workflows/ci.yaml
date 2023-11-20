@@ -135,6 +135,24 @@ jobs:
           path: postgrest-docker.tar.gz
           if-no-files-found: error
 
+  merge-nix-caches-linux:
+    name: "Merge Nix caches (Linux)"
+    needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: 
+        cache-id: ['static-nix', 'test-pgdefault', 'test-pg9.6', 'test-pg10', 'test-pg11', 'test-pg12', 'test-pg13', 'test-pg14', 'test-pg15', 'test-pg16', 'style', 'test-memory']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v26
+        with:
+          nix_version: '2.13.6'
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v4
+        with:
+          key: cache-nix-${{ runner.os }}-${{ matrix.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
+          extra-restore-keys: |
+            cache-nix-${{ runner.os }}-
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
