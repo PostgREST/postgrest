@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Solves #1548, #2699, #2763, #2170, #1462, #1102, #1374, #2901
  - #2799, Add timezone in Prefer header - @taimoorzaeem
  - #3001, Add `statement_timeout` set on functions - @taimoorzaeem
+ - #3045, Apply superuser settings on impersonated roles if they have PostgreSQL 15 `GRANT SET ON PARAMETER` privilege - @steve-chavez
 
 ### Fixed
 

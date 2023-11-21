@@ -1,6 +1,7 @@
 -- \ir big_schema.sql big schema test currently skipped, see test_io.py
 \ir db_config.sql
 
+set check_function_bodies = false; -- to allow conditionals based on the pg version
 set search_path to public;
 
 CREATE ROLE postgrest_test_anonymous;
@@ -17,6 +18,13 @@ alter role postgrest_test_repeatable_read set default_transaction_isolation = 'R
 CREATE ROLE postgrest_test_w_superuser_settings;
 alter role postgrest_test_w_superuser_settings set log_min_duration_statement = 1;
 alter role postgrest_test_w_superuser_settings set log_min_messages = 'fatal';
+
+DO $do$BEGIN
+  IF (SELECT current_setting('server_version_num')::INT >= 150000) THEN
+    ALTER ROLE postgrest_test_w_superuser_settings SET log_min_duration_sample = 12345;
+    GRANT SET ON PARAMETER log_min_duration_sample to postgrest_test_authenticator;
+  END IF;
+END$do$;
 
 GRANT
   postgrest_test_anonymous, postgrest_test_author,
@@ -186,3 +194,7 @@ $$ language sql set statement_timeout = '1s';
 create or replace function four_sec_timeout() returns void as $$
   select pg_sleep(3);
 $$ language sql set statement_timeout = '4s';
+
+create function get_postgres_version() returns int as $$
+  select current_setting('server_version_num')::int;
+$$ language sql;

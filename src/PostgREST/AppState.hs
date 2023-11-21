@@ -376,6 +376,7 @@ establishConnection appState =
 reReadConfig :: Bool -> AppState -> IO ()
 reReadConfig startingUp appState = do
   AppConfig{..} <- getConfig appState
+  pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig then do
       qDbSettings <- usePool appState $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
@@ -396,7 +397,7 @@ reReadConfig startingUp appState = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
-      rSettings <- usePool appState $ queryRoleSettings configDbPreparedStatements
+      rSettings <- usePool appState $ queryRoleSettings pgVer configDbPreparedStatements
       case rSettings of
         Left e -> do
           logWithZTime appState "An error ocurred when trying to query the role settings"
