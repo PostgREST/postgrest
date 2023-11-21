@@ -1065,6 +1065,24 @@ def test_succeed_w_role_having_superuser_settings(defaultenv):
         assert response.status_code == 200
 
 
+def test_get_granted_superuser_setting(defaultenv):
+    "Should succeed when the impersonated role has granted superuser settings"
+
+    env = {**defaultenv, "PGRST_DB_CONFIG": "true", "PGRST_JWT_SECRET": SECRET}
+
+    with run(stdin=SECRET.encode(), env=env) as postgrest:
+        response_ver = postgrest.session.get("/rpc/get_postgres_version")
+        pg_ver = eval(response_ver.text)
+        if pg_ver >= 150000:
+            headers = jwtauthheader(
+                {"role": "postgrest_test_w_superuser_settings"}, SECRET
+            )
+            response = postgrest.session.get(
+                "/rpc/get_guc_value?name=log_min_duration_sample", headers=headers
+            )
+            assert response.text == '"12345ms"'
+
+
 def test_fail_with_invalid_dbname_and_automatic_recovery_disabled(defaultenv):
     "Should fail without retries when automatic recovery is disabled and dbname is invalid"
     dbname = "INVALID"

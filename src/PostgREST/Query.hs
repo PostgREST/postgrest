@@ -233,12 +233,14 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
     shouldRollback =
       preferTransaction == Just Rollback
 
--- | Runs local (transaction scoped) GUCs for every request.
+-- | Set transaction scoped settings
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
                ApiRequest -> Maybe Text -> DbHandler ()
 setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} tout = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSql ++ roleSettingsSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ timeoutSql ++ appSettingsSql))
+    -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
+    -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ timeoutSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)

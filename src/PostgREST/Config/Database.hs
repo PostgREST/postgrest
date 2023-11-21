@@ -13,7 +13,7 @@ module PostgREST.Config.Database
 
 import Control.Arrow ((***))
 
-import PostgREST.Config.PgVersion (PgVersion (..))
+import PostgREST.Config.PgVersion (PgVersion (..), pgVersion150)
 
 import qualified Data.HashMap.Strict as HM
 
@@ -127,8 +127,8 @@ queryDbSettings preConfFunc prepared =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: Bool -> Session (RoleSettings, RoleIsolationLvl)
-queryRoleSettings prepared =
+queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
+queryRoleSettings pgVer prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
   where
@@ -157,7 +157,10 @@ queryRoleSettings prepared =
         i.value as iso_lvl,
         coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings
       from kv_settings kv
-      join pg_settings ps on ps.name = kv.key and ps.context = 'user'
+      join pg_settings ps on ps.name = kv.key |] <>
+      (if pgVer >= pgVersion150
+        then "and (ps.context = 'user' or has_parameter_privilege(current_user::regrole::oid, ps.name, 'set')) "
+        else "and ps.context = 'user' ") <> [q|
       left join iso_setting i on i.rolname = kv.rolname
       group by kv.rolname, i.value;
     |]
