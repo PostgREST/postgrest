@@ -22,6 +22,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: style
+          cache-id: style
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
@@ -42,6 +43,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests
+          cache-id: test-pg
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
@@ -77,6 +79,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
+          # It seems like they are installing the same set of derivations, so we can assign them the same cache id. 
+          # This would decrease the amount of caches dowloaded on merge cache step and will prevent disk space issues.
+          cache-id: test-pg 
 
       - name: Run spec tests
         if: always()
@@ -96,6 +101,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: memory
+          cache-id: test-memory
       - name: Run memory tests
         run: postgrest-test-memory
 
@@ -109,6 +115,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests
+          cache-id: static-nix
 
       - name: Build static executable
         run: nix-build -A postgrestStatic
@@ -130,6 +137,32 @@ jobs:
           path: postgrest-docker.tar.gz
           if-no-files-found: error
 
+  # TODO: Enable this again in a PR by PostgREST admins, because regular users don't have permission to delete cache entries, which this job does.
+  #
+  # merge-nix-caches-linux:
+  #   name: "Merge Nix caches (Linux)"
+  #   needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     max-parallel: 1
+  #     matrix:
+  #       cache-id: ['static-nix', 'test-pg', 'style', 'test-memory']
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: nixbuild/nix-quick-install-action@v26
+  #       with:
+  #         nix_version: '2.13.6'
+  #     - name: Restore and cache Nix store
+  #       uses: nix-community/cache-nix-action@v4
+  #       with:
+  #         key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
+  #         extra-restore-keys: |
+  #           cache-nix-${{ runner.os }}-cid-
+  #         purge: true
+  #         purge-keys: |
+  #           cache-nix-${{ runner.os }}-cid-
+  #           cache-nix-${{ runner.os }}-common-
+  #         purge-created-max-age: 0
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
@@ -180,7 +213,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ${{ matrix.cache }}
-          key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
+          key: cache-stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
       - name: Install dependencies
         if: ${{ matrix.deps }}
         run: ${{ matrix.deps }}
@@ -236,9 +269,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cabal
-          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
           restore-keys: |
-            ${{ runner.os }}-${{ matrix.ghc }}-
+            cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-
       - name: Install dependencies
         run: |
           cabal update
