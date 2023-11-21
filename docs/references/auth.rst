@@ -39,6 +39,10 @@ The picture below shows how the server handles authentication. If auth succeeds,
 
 This role switching mechanism is called **user impersonation**. In PostgreSQL it's done with the ``SET ROLE`` statement.
 
+.. note::
+
+  The impersonated roles will have their settings applied. See :ref:`impersonated_settings`.
+
 .. _jwt_impersonation:
 
 JWT-Based User Impersonation

@@ -91,13 +91,6 @@ Access Mode on Functions
   - The volatility marker is a promise about the behavior of the function.  PostgreSQL will let you mark a function that modifies the database as ``IMMUTABLE`` or ``STABLE`` without failure.  But, because of the READ ONLY transaction the function will fail under PostgREST.
   - The :ref:`options_requests` method doesn't start a transaction, so it's not relevant here.
 
-.. _impersonated_settings:
-
-Impersonated Role Settings
---------------------------
-
-The impersonated role has its settings applied. For example see :ref:`isolation_lvl` and :ref:`statement_timeout` below.
-
 .. _isolation_lvl:
 
 Isolation Level
@@ -121,35 +114,6 @@ Or to change the isolation level per function call.
   $$
   LANGUAGE SQL
   SET default_transaction_isolation TO 'serializable';
-
-.. _statement_timeout:
-
-Statement Timeout
------------------
-
-It allows you to abort any statement that takes more than a specified time. It is disabled by default. You can set `statement_timeout <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT>`__ for an impersonated role or function.
-
-.. code-block:: postgresql
-
-  ALTER ROLE webuser SET statement_timeout TO '5s';
-
-Every ``webuser`` gets its queries executed with a ``statement_timeout`` of 5 seconds.
-
-Or to set the statement timeout per function call.
-
-.. code-block:: postgresql
-
-  CREATE OR REPLACE FUNCTION myfunc()
-  RETURNS void as $$
-    SELECT pg_sleep(3);
-  $$
-  LANGUAGE SQL
-  SET statement_timeout TO '1s';
-
-.. note::
-
-   Settings that have a high privilege context (like ``superuser``) won't be applied, only settings that have a ``user`` context will be. This is so we don't cause permission errors.
-   For more details see `Understanding Postgres Parameter Context <https://www.enterprisedb.com/blog/understanding-postgres-parameter-context>`_.
 
 .. _tx_settings:
 
@@ -309,6 +273,56 @@ You can set the ``response.status`` to override the default status code PostgRES
   }
 
 If the status code is standard, PostgREST will complete the status message(**I'm a teapot** in this example).
+
+.. _impersonated_settings:
+
+Impersonated Role Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgreSQL applies the connection role (:ref:`authenticator <roles>`) settings. Additionally, PostgREST applies the :ref:`impersonated roles <user_impersonation>` settings as transaction-scoped settings.
+This allows finer-grained control over actions made by a role.
+
+For example, consider `statement_timeout <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT>`__. It allows you to abort any statement that takes more than a specified time. It is disabled by default.
+
+.. code-block:: postgresql
+
+  ALTER ROLE authenticator SET statement_timeout TO '10s';
+  ALTER ROLE anonymous SET statement_timeout TO '1s';
+
+With the above settings, all users get a global statement timeout of 10 seconds and :ref:`anonymous <roles>` users get a timeout of 1 second.
+
+Settings with privileged context
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Settings that have a context which requires privileges won't be applied by default. This is so we don't cause permission errors.
+For more details see `Understanding Postgres Parameter Context <https://www.enterprisedb.com/blog/understanding-postgres-parameter-context>`_.
+
+However, starting from PostgreSQL 15, you can grant privileges for these settings with:
+
+.. code-block:: postgresql
+
+  GRANT SET ON PARAMETER <setting> TO <authenticator>;
+
+Function Settings
+~~~~~~~~~~~~~~~~~
+
+In addition to :ref:`impersonated_settings`, PostgREST will also apply function settings as transaction-scoped settings. This allows functions settings to override
+the impersonated and connection role settings.
+
+.. code-block:: postgresql
+
+  CREATE OR REPLACE FUNCTION myfunc()
+  RETURNS void as $$
+    SELECT pg_sleep(3); -- simulating some long-running process
+  $$
+  LANGUAGE SQL
+  SET statement_timeout TO '4s';
+
+When calling the above function (see :ref:`s_procs`), the statement timeout will be 4 seconds.
+
+.. note::
+
+   Currently, only ``statement_timeout`` is applied for functions.
 
 .. _main_query:
 
