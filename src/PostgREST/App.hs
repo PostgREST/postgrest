@@ -159,7 +159,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
     liftEither . mapLeft Error.ApiRequestError $
       ApiRequest.userApiRequest conf req body sCache
 
-  let jwtTiming = (SMJwt, if configDbPlanEnabled then Auth.getJwtDur req else Nothing)
+  let jwtTiming = (SMJwt, if configServerTimingEnabled then Auth.getJwtDur req else Nothing)
   handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTiming
 
 runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
@@ -256,9 +256,9 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
         query
 
     pgrstResponse :: ServerTimingData -> Response.PgrstResponse -> Wai.Response
-    pgrstResponse timings (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([renderServerTimingHeader timings | configDbPlanEnabled conf])) bod
+    pgrstResponse timings (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([renderServerTimingHeader timings | configServerTimingEnabled conf])) bod
 
-    withTiming f = if configDbPlanEnabled conf
+    withTiming f = if configServerTimingEnabled conf
         then do
           (t, r) <- timeItT f
           pure (Just t, r)

@@ -104,6 +104,7 @@ data AppConfig = AppConfig
   , configServerHost               :: Text
   , configServerPort               :: Int
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
+  , configServerTimingEnabled      :: Bool
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
@@ -169,6 +170,7 @@ toText conf =
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
+      ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
@@ -272,6 +274,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
+    <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> optInt "admin-server-port"

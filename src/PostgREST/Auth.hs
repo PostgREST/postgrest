@@ -109,7 +109,7 @@ middleware appState app req respond = do
 
 -- If DbPlanEnabled       -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result
-  req' <- case (configDbPlanEnabled conf, configJwtCacheMaxLifetime conf) of
+  req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
     (True, 0)            -> do
           (dur, authResult) <- timeItT parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
