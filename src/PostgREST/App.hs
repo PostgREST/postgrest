@@ -258,7 +258,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     pgrstResponse :: ServerTimingData -> Response.PgrstResponse -> Wai.Response
     pgrstResponse timings (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([renderServerTimingHeader timings | configDbPlanEnabled conf])) bod
 
-    withTiming f = if configDbPlanEnabled conf
+    withTiming f = if configServerTiming conf
         then do
           (t, r) <- timeItT f
           pure (Just t, r)

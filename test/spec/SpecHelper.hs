@@ -139,6 +139,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
   , configInternalSCSleep           = Nothing
+  , configServerTiming              = True
   }
 
 testCfg :: AppConfig
