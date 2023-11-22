@@ -104,7 +104,7 @@ data AppConfig = AppConfig
   , configServerHost               :: Text
   , configServerPort               :: Int
   , configServerTraceHeader        :: Maybe (CI.CI BS.ByteString)
-  , configServerTiming             :: Bool
+  , configServerTimingEnabled      :: Bool
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
@@ -170,6 +170,7 @@ toText conf =
       ,("server-host",               q . configServerHost)
       ,("server-port",                   show . configServerPort)
       ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
+      ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)

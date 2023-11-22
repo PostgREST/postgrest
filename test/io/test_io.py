@@ -1158,7 +1158,7 @@ def test_jwt_caching_works_with_db_plan_disabled(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_DB_PLAN_ENABLED": "false",
+        "PGRST_SERVER_TIMING_ENABLED": "true",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
         "PGRST_JWT_SECRET": "@/dev/stdin",
         "PGRST_DB_CONFIG": "false",
