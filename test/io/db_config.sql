@@ -19,6 +19,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public, ext
 ALTER ROLE db_config_authenticator SET pgrst.not_existing = 'should be ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_cors_allowed_origins = 'http://example.com';
 ALTER ROLE db_config_authenticator SET pgrst.server_trace_header = 'CF-Ray';
+ALTER ROLE db_config_authenticator SET pgrst.server_timing_enabled = 'true';
 
 -- override with database specific setting
 ALTER ROLE db_config_authenticator IN DATABASE :DBNAME SET pgrst.jwt_secret = 'OVERRIDE=REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
@@ -64,6 +65,7 @@ ALTER ROLE other_authenticator SET pgrst.openapi_security_active = 'false';
 ALTER ROLE other_authenticator SET pgrst.server_cors_allowed_origins = 'http://example.com';
 ALTER ROLE other_authenticator SET pgrst.server_trace_header = 'traceparent';
 ALTER ROLE other_authenticator SET pgrst.db_pre_config = 'postgrest.pre_config';
+ALTER ROLE other_authenticator SET pgrst.server_timing_enabled = 'true';
 
 create schema postgrest;
 grant usage on schema postgrest to db_config_authenticator;

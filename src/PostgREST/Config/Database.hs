@@ -64,6 +64,7 @@ dbSettingsNames =
   ,"openapi_server_proxy_uri"
   ,"raw_media_types"
   ,"server_trace_header"
+  ,"server_timing_enabled"
   ]
 
 queryPgVersion :: Bool -> Session PgVersion
