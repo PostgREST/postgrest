@@ -196,11 +196,13 @@ def test_flush_pool_no_interrupt(defaultenv):
 
         t.join()
 
+
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
     with run(env=defaultenv, port="0") as postgrest:
-        assert True # liveness check is done by run(), so we just need to check that it doesn't fail
+        assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
+
 
 def test_app_settings_reload(tmp_path, defaultenv):
     "App settings should be reloaded from file when PostgREST is sent SIGUSR2."
