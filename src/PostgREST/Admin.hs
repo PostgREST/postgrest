@@ -50,8 +50,6 @@ admin appState appConfig req respond  = do
 
 -- Try to connect to the main app socket
 -- Note that it doesn't even send a valid HTTP request, we just want to check that the main app is accepting connections
--- The code for resolving the "*4", "!4", "*6", "!6", "*" special values is taken from
--- https://hackage.haskell.org/package/streaming-commons-0.2.2.4/docs/src/Data.Streaming.Network.html#bindPortGenEx
 reachMainApp :: Socket -> IO (Either IOException ())
 reachMainApp appSock = do
   sockAddr <- getSocketName appSock
