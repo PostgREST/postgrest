@@ -31,8 +31,8 @@ import Data.Tree                     (Tree (..))
 import Text.Parsec.Error             (errorMessages,
                                       showErrorMessages)
 import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
-                                      anyChar, between, char, digit,
-                                      eof, errorPos, letter,
+                                      anyChar, between, char, choice,
+                                      digit, eof, errorPos, letter,
                                       lookAhead, many1, noneOf,
                                       notFollowedBy, oneOf,
                                       optionMaybe, sepBy, sepBy1,
@@ -43,7 +43,8 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeOffset, restrictRange)
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
-import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
+import PostgREST.ApiRequest.Types (AggregateFunction (..),
+                                   EmbedParam (..), EmbedPath, Field,
                                    Filter (..), FtsOperator (..),
                                    Hint, JoinType (..),
                                    JsonOperand (..),
@@ -58,7 +59,7 @@ import PostgREST.ApiRequest.Types (EmbedParam (..), EmbedPath, Field,
                                    SimpleOperator (..), SingleVal,
                                    TrileanVal (..))
 
-import Protolude hiding (try)
+import Protolude hiding (Sum, try)
 
 data QueryParams =
   QueryParams
@@ -99,7 +100,7 @@ data QueryParams =
 -- 'select' is a reserved parameter that selects the fields to be returned:
 --
 -- >>> qsSelect <$> parse False "select=name,location"
--- Right [Node {rootLabel = SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectField {selField = ("location",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
+-- Right [Node {rootLabel = SelectField {selField = ("name",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectField {selField = ("location",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- Filters are parameters whose value contains an operator, separated by a '.' from its value:
 --
@@ -282,16 +283,16 @@ pTreePath = do
 -- Parse select= into a Forest of SelectItems
 --
 -- >>> P.parse pFieldForest "" "id"
--- Right [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]
+-- Right [Node {rootLabel = SelectField {selField = ("id",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]
 --
 -- >>> P.parse pFieldForest "" "client(id)"
--- Right [Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("id",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+-- Right [Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("id",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
 -- >>> P.parse pFieldForest "" "*,client(*,nested(*))"
--- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 --
 -- >>> P.parse pFieldForest "" "*,...client(*),other(*)"
--- Right [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
 -- >>> P.parse pFieldForest "" ""
 -- Right []
@@ -299,7 +300,7 @@ pTreePath = do
 -- >>> P.parse pFieldForest "" "id,clients(name[])"
 -- Left (line 1, column 16):
 -- unexpected '['
--- expecting letter, digit, "-", "->>", "->", "::", ")", "," or end of input
+-- expecting letter, digit, "-", "->>", "->", "::", ".", ")", "," or end of input
 --
 -- >>> P.parse pFieldForest "" "data->>-78xy"
 -- Left (line 1, column 11):
@@ -452,35 +453,37 @@ pRelationSelect :: Parser SelectItem
 pRelationSelect = lexeme $ do
     alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
     name <- pFieldName
+    guard (name /= "count")
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SelectRelation name alias hint jType
+
 
 -- |
 -- Parse regular fields in select
 --
 -- >>> P.parse pFieldSelect "" "name"
--- Right (SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Nothing})
+-- Right (SelectField {selField = ("name",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing})
 --
 -- >>> P.parse pFieldSelect "" "name->jsonpath"
--- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selCast = Nothing, selAlias = Nothing})
+-- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing})
 --
 -- >>> P.parse pFieldSelect "" "name::cast"
--- Right (SelectField {selField = ("name",[]), selCast = Just "cast", selAlias = Nothing})
+-- Right (SelectField {selField = ("name",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Just "cast", selAlias = Nothing})
 --
 -- >>> P.parse pFieldSelect "" "alias:name"
--- Right (SelectField {selField = ("name",[]), selCast = Nothing, selAlias = Just "alias"})
+-- Right (SelectField {selField = ("name",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Just "alias"})
 --
 -- >>> P.parse pFieldSelect "" "alias:name->jsonpath::cast"
--- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selCast = Just "cast", selAlias = Just "alias"})
+-- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Just "cast", selAlias = Just "alias"})
 --
 -- >>> P.parse pFieldSelect "" "*"
--- Right (SelectField {selField = ("*",[]), selCast = Nothing, selAlias = Nothing})
+-- Right (SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing})
 --
 -- >>> P.parse pFieldSelect "" "name!hint"
 -- Left (line 1, column 5):
 -- unexpected '!'
--- expecting letter, digit, "-", "->>", "->", "::", ")", "," or end of input
+-- expecting letter, digit, "-", "->>", "->", "::", ".", ")", "," or end of input
 --
 -- >>> P.parse pFieldSelect "" "*!hint"
 -- Left (line 1, column 2):
@@ -495,18 +498,36 @@ pFieldSelect :: Parser SelectItem
 pFieldSelect = lexeme $ try (do
     s <- pStar
     pEnd
-    return $ SelectField (s, []) Nothing Nothing)
-  <|> do
-    alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
-    fld <- pField
-    cast' <- optionMaybe (string "::" *> pIdentifier)
+    return $ SelectField (s, []) Nothing Nothing Nothing Nothing)
+  <|> try (do
+    alias    <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+    _        <- string "count()"
+    aggCast' <- optionMaybe (string "::" *> pIdentifier)
     pEnd
-    return $ SelectField fld (toS <$> cast') alias
+    return $ SelectField ("*", []) (Just Count) (toS <$> aggCast') Nothing alias)
+  <|> do
+    alias    <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+    fld      <- pField
+    cast'    <- optionMaybe (string "::" *> pIdentifier)
+    agg      <- optionMaybe (try (char '.' *> pAggregation <* string "()"))
+    aggCast' <- optionMaybe (string "::" *> pIdentifier)
+    pEnd
+    return $ SelectField fld agg (toS <$> aggCast') (toS <$> cast') alias
   where
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
            try eof
     pStar = string "*" $> "*"
+    pAggregation = choice
+      [ string "sum"   $> Sum
+      , string "avg"   $> Avg
+      , string "count" $> Count
+      -- Using 'try' for "min" and "max" to allow backtracking.
+      -- This is necessary because both start with the same character 'm',
+      -- and without 'try', a partial match on "max" would prevent "min" from being tried.
+      , try (string "max") $> Max
+      , try (string "min") $> Min
+      ]
 
 
 -- |

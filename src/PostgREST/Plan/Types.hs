@@ -1,13 +1,18 @@
 module PostgREST.Plan.Types
   ( CoercibleField(..)
+  , CoercibleSelectField(..)
   , unknownField
   , CoercibleLogicTree(..)
   , CoercibleFilter(..)
   , TransformerProc
   , CoercibleOrderTerm(..)
+  , RelSelectField(..)
+  , RelJsonEmbedMode(..)
+  , SpreadSelectField(..)
   ) where
 
-import PostgREST.ApiRequest.Types (Field, JsonPath, LogicOperator,
+import PostgREST.ApiRequest.Types (AggregateFunction, Alias, Cast,
+                                   Field, JsonPath, LogicOperator,
                                    OpExpr, OrderDirection, OrderNulls)
 
 import PostgREST.SchemaCache.Identifiers (FieldName)
@@ -64,4 +69,38 @@ data CoercibleOrderTerm
     , coDirection :: Maybe OrderDirection
     , coNullOrder :: Maybe OrderNulls
     }
+  deriving (Eq, Show)
+
+data CoercibleSelectField = CoercibleSelectField
+  { csField       :: CoercibleField
+  , csAggFunction :: Maybe AggregateFunction
+  , csAggCast     :: Maybe Cast
+  , csCast        :: Maybe Cast
+  , csAlias       :: Maybe Alias
+  }
+  deriving (Eq, Show)
+
+data RelJsonEmbedMode = JsonObject | JsonArray
+  deriving (Show, Eq)
+
+data RelSelectField
+  = JsonEmbed
+      { rsSelName    :: FieldName
+      , rsAggAlias   :: Alias
+      , rsEmbedMode  :: RelJsonEmbedMode
+      , rsEmptyEmbed :: Bool
+      }
+  | Spread
+      { rsSpreadSel :: [SpreadSelectField]
+      , rsAggAlias  :: Alias
+      }
+  deriving (Eq, Show)
+
+data SpreadSelectField =
+  SpreadSelectField
+  { ssSelName        :: FieldName
+  , ssSelAggFunction :: Maybe AggregateFunction
+  , ssSelAggCast     :: Maybe Cast
+  , ssSelAlias       :: Maybe Alias
+  }
   deriving (Eq, Show)

@@ -34,7 +34,7 @@ import qualified Data.Set                      as S
 import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Either.Combinators (mapLeft, mapRight)
-import Data.List               (delete)
+import Data.List               (delete, lookup)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (Action (..),
@@ -296,18 +296,21 @@ resolveQueryInputField ctx field = withTextParse ctx $ resolveTypeOrUnknown ctx 
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
 readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
+readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
   let
     -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
     ctx = ResolverContext dbTables dbRepresentations qi "json"
   in
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
+    validateAggFunctions configDbAggregates =<<
+    hoistSpreadAggFunctions =<<
+    addRelSelects =<<
     addNullEmbedFilters =<<
     validateSpreadEmbeds =<<
     addRelatedOrders =<<
-    addDataRepresentationAliases =<<
-    expandStarsForDataRepresentations ctx =<<
+    addAliases =<<
+    expandStars ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
@@ -320,7 +323,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -336,49 +339,86 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
             (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
             fldForest:rForest
         SelectField{..} ->
-          Node q{select=(resolveOutputField ctx{qi=from q} selField, selCast, selAlias):select q} rForest
+          Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
 
--- | Preserve the original field name if data representation is used to coerce the value.
-addDataRepresentationAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addDataRepresentationAliases rPlanTree = Right $ fmap (\rPlan@ReadPlan{select=sel} -> rPlan{select=map aliasSelectItem sel}) rPlanTree
+-- If an alias is explicitly specified, it is always respected. However, an alias may be
+-- determined automatically in the case of a select term with a JSON path, or in the case
+-- of domain representations.
+addAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addAliases = Right . fmap addAliasToPlan
   where
-    aliasSelectItem :: (CoercibleField, Maybe Cast, Maybe Alias) -> (CoercibleField, Maybe Cast, Maybe Alias)
-    -- If there already is an alias, don't overwrite it.
-    aliasSelectItem (fld@(CoercibleField{cfName=fieldName, cfTransform=(Just _)}), Nothing, Nothing) = (fld, Nothing, Just fieldName)
-    aliasSelectItem fld = fld
+    addAliasToPlan rp@ReadPlan{select=sel} = rp{select=map aliasSelectField sel}
+
+    aliasSelectField :: CoercibleSelectField -> CoercibleSelectField
+    aliasSelectField field@CoercibleSelectField{csField=fieldDetails, csAggFunction=aggFun, csAlias=alias}
+      | isJust alias || isJust aggFun = field
+      | isJsonKeyPath fieldDetails, Just key <- lastJsonKey fieldDetails = field { csAlias = Just key }
+      | isTransformPath fieldDetails = field { csAlias = Just (cfName fieldDetails) }
+      | otherwise = field
+
+    isJsonKeyPath CoercibleField{cfJsonPath=(_: _)} = True
+    isJsonKeyPath _                                 = False
+
+    isTransformPath CoercibleField{cfTransform=(Just _), cfName=_} = True
+    isTransformPath _ = False
+
+    lastJsonKey CoercibleField{cfName=fieldName, cfJsonPath=jsonPath} =
+      case jOp <$> lastMay jsonPath of
+            Just (JKey key) -> Just key
+            Just (JIdx _)   -> Just $ fromMaybe fieldName lastKey
+              -- We get the lastKey because on:
+              -- `select=data->1->mycol->>2`, we need to show the result as [ {"mycol": ..}, {"mycol": ..} ]
+              -- `select=data->3`, we need to show the result as [ {"data": ..}, {"data": ..} ]
+              where lastKey = jVal <$> find (\case JKey{} -> True; _ -> False) (jOp <$> reverse jsonPath)
+            Nothing -> Nothing
 
 knownColumnsInContext :: ResolverContext -> [Column]
 knownColumnsInContext ResolverContext{..} =
   fromMaybe [] $ HM.lookup qi tables >>=
   Just . tableColumnsList
 
--- | Expand "select *" into explicit field names of the table, if necessary to apply data representations.
-expandStarsForDataRepresentations :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-expandStarsForDataRepresentations ctx@ResolverContext{qi} rPlanTree = Right $ fmap expandStars rPlanTree
+-- | Expand "select *" into explicit field names of the table in the following situations:
+-- * When there are data representations present.
+-- * When there is an aggregate function in a given ReadPlan or its parent.
+expandStars :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
   where
-    expandStars :: ReadPlan -> ReadPlan
+    expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
+    expandStarsForReadPlan hasAgg (Node rp@ReadPlan{select, from=fromQI, fromAlias=alias} children) =
+      let
+        newHasAgg = hasAgg || any (isJust . csAggFunction) select
+        newCtx = adjustContext ctx fromQI alias
+        newRPlan = expandStarsForTable newCtx newHasAgg rp
+      in Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
+
+    -- Choose the appropriate context based on whether we're dealing with "pgrst_source"
+    adjustContext :: ResolverContext -> QualifiedIdentifier -> Maybe Text -> ResolverContext
     -- When the schema is "" and the table is the source CTE, we assume the true source table is given in the from
     -- alias and belongs to the request schema. See the bit in `addRels` with `newFrom = ...`.
-    expandStars rPlan@ReadPlan{from=(QualifiedIdentifier "" "pgrst_source"), fromAlias=(Just tblAlias)} =
-      expandStarsForTable ctx{qi=qi{qiName=tblAlias}} rPlan
-    expandStars rPlan@ReadPlan{from=fromTable} =
-      expandStarsForTable ctx{qi=fromTable} rPlan
+    adjustContext context@ResolverContext{qi=ctxQI} (QualifiedIdentifier "" "pgrst_source") (Just a) = context{qi=ctxQI{qiName=a}}
+    adjustContext context fromQI _ = context{qi=fromQI}
 
-expandStarsForTable :: ResolverContext -> ReadPlan -> ReadPlan
-expandStarsForTable ctx@ResolverContext{representations, outputType} rplan@ReadPlan{select=selectItems} =
-  -- If we have a '*' select AND the target table has at least one data representation, expand.
-  if ("*" `elem` map (\(field, _, _) -> cfName field) selectItems) && any hasOutputRep knownColumns
-    then rplan{select=concatMap (expandStarSelectItem knownColumns) selectItems}
-    else rplan
+expandStarsForTable :: ResolverContext -> Bool -> ReadPlan -> ReadPlan
+expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields}
+  -- We expand if either of the below are true:
+  -- * We have a '*' select AND there is an aggregate function in this ReadPlan's sub-tree.
+  -- * We have a '*' select AND the target table has at least one data representation.
+  -- We ignore any '*' selects that have an aggregate function attached (i.e for COUNT(*)).
+  | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField knownColumns) selectFields}
+  | otherwise = rp
   where
+    hasStarSelect = "*" `elem` map (cfName . csField) filteredSelectFields
+    filteredSelectFields = filter (isNothing . csAggFunction) selectFields
+    hasDataRepresentation = any hasOutputRep knownColumns
     knownColumns = knownColumnsInContext ctx
 
     hasOutputRep :: Column -> Bool
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
 
-    expandStarSelectItem :: [Column] -> (CoercibleField, Maybe Cast, Maybe Alias) -> [(CoercibleField, Maybe Cast, Maybe Alias)]
-    expandStarSelectItem columns (CoercibleField{cfName="*", cfJsonPath=[]}, b, c) = map (\col -> (withOutputFormat ctx $ resolveColumnField col, b, c)) columns
-    expandStarSelectItem _ selectItem = [selectItem]
+    expandStarSelectField :: [Column] -> CoercibleSelectField -> [CoercibleSelectField]
+    expandStarSelectField columns sel@CoercibleSelectField{csField=CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Nothing} =
+      map (\col -> sel { csField = withOutputFormat ctx $ resolveColumnField col }) columns
+    expandStarSelectField _ selectField = [selectField]
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -535,6 +575,123 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
+
+addRelSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRelSelects node@(Node rp forest)
+  | null forest = Right node
+  | otherwise   =
+    let newForest     = rights $ addRelSelects <$> forest
+        newRelSelects = mapMaybe generateRelSelectField newForest
+    in Right $ Node rp { relSelect = newRelSelects } newForest
+
+generateRelSelectField :: ReadPlanTree -> Maybe RelSelectField
+generateRelSelectField (Node rp@ReadPlan{relToParent=Just _, relAggAlias, relIsSpread = True} _) =
+  Just $ Spread { rsSpreadSel = generateSpreadSelectFields rp, rsAggAlias = relAggAlias }
+generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, relAlias, relAggAlias, relIsSpread = False} forest) =
+  Just $ JsonEmbed { rsEmbedMode, rsSelName, rsAggAlias = relAggAlias, rsEmptyEmbed }
+  where
+    rsSelName = fromMaybe relName relAlias
+    rsEmbedMode = if relIsToOne rel then JsonObject else JsonArray
+    rsEmptyEmbed = null select && null forest
+generateRelSelectField _ = Nothing
+
+generateSpreadSelectFields :: ReadPlan -> [SpreadSelectField]
+generateSpreadSelectFields ReadPlan{select, relSelect} =
+  -- We combine the select and relSelect fields into a single list of SpreadSelectField.
+  selectSpread ++ relSelectSpread
+  where
+    selectSpread = map selectToSpread select
+    selectToSpread :: CoercibleSelectField -> SpreadSelectField
+    selectToSpread CoercibleSelectField{csField = CoercibleField{cfName}, csAlias} =
+      SpreadSelectField { ssSelName = fromMaybe cfName csAlias, ssSelAggFunction = Nothing, ssSelAggCast = Nothing, ssSelAlias = Nothing }
+
+    relSelectSpread = concatMap relSelectToSpread relSelect
+    relSelectToSpread :: RelSelectField -> [SpreadSelectField]
+    relSelectToSpread (JsonEmbed{rsSelName}) =
+      [SpreadSelectField { ssSelName = rsSelName, ssSelAggFunction = Nothing, ssSelAggCast = Nothing, ssSelAlias = Nothing }]
+    relSelectToSpread (Spread{rsSpreadSel}) =
+      rsSpreadSel
+
+-- When aggregates are present in a ReadPlan that will be spread, we "hoist"
+-- to the highest level possible so that their semantics make sense. For instance,
+-- imagine the user performs the following request:
+-- `GET /projects?select=client_id,...project_invoices(invoice_total.sum())`
+--
+-- In this case, it is sensible that we would expect to receive the sum of the
+-- `invoice_total`, grouped by the `client_id`. Without hoisting, the sum would
+-- be performed in the sub-query for the joined table `project_invoices`, thus
+-- making it essentially a no-op. With hoisting, we hoist the aggregate function
+-- so that the aggregate function is performed in a more sensible context.
+--
+-- We will try to hoist the aggregate function to the highest possible level,
+-- which means that we hoist until we reach the root node, or until we reach a
+-- ReadPlan that will be embedded a JSON object or JSON array.
+
+-- This type alias represents an aggregate that is to be hoisted to the next
+-- level up. The first tuple of `Alias` and `FieldName` contain the alias for
+-- the joined table and the original field name for the hoisted field.
+--
+-- The second tuple contains the aggregate function to be applied, the cast, and
+-- the alias, if it was supplied by the user or otherwise determined.
+type HoistedAgg = ((Alias, FieldName), (AggregateFunction, Maybe Cast, Maybe Alias))
+
+hoistSpreadAggFunctions :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+hoistSpreadAggFunctions tree = Right $ fst $ applySpreadAggHoistingToNode tree
+
+applySpreadAggHoistingToNode :: ReadPlanTree -> (ReadPlanTree, [HoistedAgg])
+applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsSpread} children) =
+  let (newChildren, childAggLists) = unzip $ map applySpreadAggHoistingToNode children
+      allChildAggLists = concat childAggLists
+      (newSelects, aggList) = if depth rp == 0 || (isJust relToParent && not relIsSpread)
+                                then (select rp, [])
+                                else hoistFromSelectFields relAggAlias (select rp)
+
+      newRelSelects = if null children
+                      then relSelect rp
+                      else map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
+  in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, aggList)
+
+-- Hoist aggregate functions from the select list of a ReadPlan, and return the
+-- updated select list and the list of hoisted aggregates.
+hoistFromSelectFields :: Alias -> [CoercibleSelectField] -> ([CoercibleSelectField], [HoistedAgg])
+hoistFromSelectFields aggAlias fields =
+    let (newFields, maybeAggs) = foldr processField ([], []) fields
+    in (newFields, catMaybes maybeAggs)
+  where
+    processField field (newFields, aggList) =
+      let (modifiedField, maybeAgg) = modifyField field
+      in (modifiedField : newFields, maybeAgg : aggList)
+
+    modifyField field =
+      case csAggFunction field of
+        Just aggFunc ->
+          ( field { csAggFunction = Nothing, csAggCast = Nothing },
+            Just ((aggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
+        Nothing -> (field, Nothing)
+
+    determineFieldName field = fromMaybe (cfName $ csField field) (csAlias field)
+
+-- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
+-- and any applicable casts or aliases.
+hoistIntoRelSelectFields :: [HoistedAgg] -> RelSelectField -> RelSelectField
+hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = aggAlias}) =
+    r { rsSpreadSel = map updateSelect spreadSelects }
+  where
+    updateSelect s =
+        case lookup (aggAlias, ssSelName s) aggList of
+            Just (aggFunc, aggCast, fldAlias) ->
+                s { ssSelAggFunction = Just aggFunc,
+                    ssSelAggCast     = aggCast,
+                    ssSelAlias       = fldAlias }
+            Nothing -> s
+hoistIntoRelSelectFields _ r = r
+
+validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
+  | aggFunctionsAllowed = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
+  | any (isJust . csAggFunction) select = Left AggregatesNotAllowed
+  | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
+
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addFilters ctx ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
@@ -608,7 +765,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         relName = "projects",
 --         relToParent = Nothing,
 --         relJoinConds = [],
---         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relIsSpread = False, depth = 1
+--         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relIsSpread = False, depth = 1,
+--         relSelect = []
 --       },
 --       subForest = []
 --     }
@@ -633,7 +791,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         )
 --       ],
 --       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
---       relJoinType = Nothing, relIsSpread = False, depth = 0
+--       relJoinType = Nothing, relIsSpread = False, depth = 0,
+--       relSelect = []
 --     },
 --     subForest = subForst
 --   }
@@ -789,7 +948,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   | "*" `elem` fldNames = ["*"]
   | otherwise           = returnings
   where
-    fldNames = cfName . (\(f, _, _) -> f) <$> select
+    fldNames = cfName . csField <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding

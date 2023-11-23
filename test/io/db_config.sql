@@ -6,6 +6,7 @@ ALTER ROLE db_config_authenticator SET pgrst.openapi_server_proxy_uri = 'https:/
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '."a"."role"';
+ALTER ROLE db_config_authenticator SET pgrst.db_aggregates = 'true';
 ALTER ROLE db_config_authenticator SET pgrst.db_anon_role = 'anonymous';
 ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit-allow-override';
 ALTER ROLE db_config_authenticator SET pgrst.db_pre_config = 'postgrest.preconf';
@@ -53,6 +54,7 @@ ALTER ROLE other_authenticator SET pgrst.jwt_aud = 'https://otherexample.org';
 ALTER ROLE other_authenticator SET pgrst.openapi_server_proxy_uri = 'https://otherexample.org/api';
 ALTER ROLE other_authenticator SET pgrst.jwt_secret = 'ODERREALLYREALLYREALLYREALLYVERYSAFE';
 ALTER ROLE other_authenticator SET pgrst.jwt_secret_is_base64 = 'true';
+ALTER ROLE other_authenticator SET pgrst.db_aggregates = 'true';
 ALTER ROLE other_authenticator SET pgrst.db_schemas = 'test, other_tenant1, other_tenant2';
 ALTER ROLE other_authenticator SET pgrst.db_root_spec = 'other_root';
 ALTER ROLE other_authenticator SET pgrst.db_plan_enabled = 'true';

@@ -61,6 +61,7 @@ class (JSON.ToJSON a) => PgrstError a where
     responseLBS (status err) (baseHeader : headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
+  status AggregatesNotAllowed{}  = HTTP.status400
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
   status BinaryFieldError{}      = HTTP.status406
@@ -197,6 +198,9 @@ instance JSON.ToJSON ApiRequestError where
     "Invalid preferences given with handling=strict"
     (Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs))
     Nothing
+
+  toJSON AggregatesNotAllowed = toJsonPgrstError
+    ApiRequestErrorCode23 "Use of aggregate functions is not allowed" Nothing Nothing
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
     SchemaCacheErrorCode00
@@ -604,6 +608,7 @@ data ErrorCode
   | ApiRequestErrorCode20
   | ApiRequestErrorCode21
   | ApiRequestErrorCode22
+  | ApiRequestErrorCode23
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -652,6 +657,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode20  -> "120"
   ApiRequestErrorCode21  -> "121"
   ApiRequestErrorCode22  -> "122"
+  ApiRequestErrorCode23  -> "123"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"

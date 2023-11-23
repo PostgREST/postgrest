@@ -201,6 +201,7 @@ test-suite spec
                       Feature.OpenApi.RootSpec
                       Feature.OpenApi.SecurityOpenApiSpec
                       Feature.OptionsSpec
+                      Feature.Query.AggregateFunctionsSpec
                       Feature.Query.AndOrParamsSpec
                       Feature.Query.ComputedRelsSpec
                       Feature.Query.CustomMediaSpec
