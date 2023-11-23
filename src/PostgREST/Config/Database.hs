@@ -45,7 +45,8 @@ prefix = "pgrst."
 dbSettingsNames :: [Text]
 dbSettingsNames =
   (prefix <>) <$>
-  ["db_anon_role"
+  ["db_aggregates_enabled"
+  ,"db_anon_role"
   ,"db_pre_config"
   ,"db_extra_search_path"
   ,"db_max_rows"

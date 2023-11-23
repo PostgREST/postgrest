@@ -139,7 +139,7 @@ toText conf =
   where
     -- apply conf to all pgrst settings
     pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-aggregates",                 T.toLower . show . configDbAggregates)
+      [("db-aggregates-enabled",         T.toLower . show . configDbAggregates)
       ,("db-anon-role",              q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
@@ -234,7 +234,7 @@ parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> Rol
 parser optPath env dbSettings roleSettings roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
-    <*> (fromMaybe False <$> optBool "db-aggregates")
+    <*> (fromMaybe False <$> optBool "db-aggregates-enabled")
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
