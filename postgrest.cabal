@@ -64,6 +64,7 @@ library
                       PostgREST.Plan.ReadPlan
                       PostgREST.Plan.Types
                       PostgREST.RangeQuery
+                      PostgREST.Unix
                       PostgREST.ApiRequest
                       PostgREST.ApiRequest.Preferences
                       PostgREST.ApiRequest.QueryParams
@@ -89,6 +90,7 @@ library
                     , containers                >= 0.5.7 && < 0.7
                     , contravariant-extras      >= 0.3.3 && < 0.4
                     , cookie                    >= 0.4.2 && < 0.5
+                    , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
                     , fuzzyset                  >= 0.2.3
@@ -114,11 +116,13 @@ library
                     , regex-tdfa                >= 1.2.2 && < 1.4
                     , retry                     >= 0.7.4 && < 0.10
                     , scientific                >= 0.3.4 && < 0.4
+                    , streaming-commons         >= 0.1.1 && < 0.3
                     , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 1.3
                     , time                      >= 1.6 && < 1.12
                     , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
+                    , unix-compat               >= 0.5.4 && < 0.6
                     , vault                     >= 0.3.1.5 && < 0.4
                     , vector                    >= 0.11 && < 0.14
                     , wai                       >= 3.2.1 && < 3.3
@@ -148,9 +152,6 @@ library
   if !os(windows)
     build-depends:
       unix
-      , directory >= 1.2.6 && < 1.4
-    exposed-modules:
-      PostgREST.Unix
 
 executable postgrest
   default-language:   Haskell2010

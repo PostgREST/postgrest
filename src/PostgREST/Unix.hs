@@ -1,57 +1,53 @@
+{-# LANGUAGE CPP #-}
+
 module PostgREST.Unix
-  ( runAppWithSocket
-  , installSignalHandlers
+  ( installSignalHandlers
+  , createAndBindDomainSocket
   ) where
 
-import qualified Network.Socket           as Socket
-import qualified Network.Wai.Handler.Warp as Warp
-import qualified System.Posix.Signals     as Signals
+#ifndef mingw32_HOST_OS
+import qualified System.Posix.Signals as Signals
+#endif
+import System.Posix.Types       (FileMode)
+import System.PosixCompat.Files (setFileMode)
 
-import Network.Wai        (Application)
-import System.Directory   (removeFile)
-import System.IO.Error    (isDoesNotExistError)
-import System.Posix.Files (setFileMode)
-import System.Posix.Types (FileMode)
-
-import qualified PostgREST.AppState as AppState
-
-import Protolude
-
-
--- | Run the PostgREST application with user defined socket.
-runAppWithSocket :: Warp.Settings -> Application -> FileMode -> FilePath -> IO ()
-runAppWithSocket settings app socketFileMode socketFilePath =
-  bracket createAndBindSocket Socket.close $ \socket -> do
-    Socket.listen socket Socket.maxListenQueue
-    Warp.runSettingsSocket settings socket app
-  where
-    createAndBindSocket = do
-      deleteSocketFileIfExist socketFilePath
-      sock <- Socket.socket Socket.AF_UNIX Socket.Stream Socket.defaultProtocol
-      Socket.bind sock $ Socket.SockAddrUnix socketFilePath
-      setFileMode socketFilePath socketFileMode
-      return sock
-
-    deleteSocketFileIfExist path =
-      removeFile path `catch` handleDoesNotExist
-
-    handleDoesNotExist e
-      | isDoesNotExistError e = return ()
-      | otherwise = throwIO e
+import           Data.String      (String)
+import qualified Network.Socket   as NS
+import           Protolude
+import           System.Directory (removeFile)
+import           System.IO.Error  (isDoesNotExistError)
 
 -- | Set signal handlers, only for systems with signals
-installSignalHandlers :: AppState.AppState -> IO ()
-installSignalHandlers appState = do
-  let interrupt = throwTo (AppState.getMainThreadId appState) UserInterrupt
+installSignalHandlers :: ThreadId -> IO () -> IO () -> IO ()
+#ifndef mingw32_HOST_OS
+installSignalHandlers tid usr1 usr2 = do
+  let interrupt = throwTo tid UserInterrupt
   install Signals.sigINT interrupt
   install Signals.sigTERM interrupt
-
-  -- The SIGUSR1 signal updates the internal 'SchemaCache' by running
-  -- 'connectionWorker' exactly as before.
-  install Signals.sigUSR1 $ AppState.connectionWorker appState
-
-  -- Re-read the config on SIGUSR2
-  install Signals.sigUSR2 $ AppState.reReadConfig False appState
+  install Signals.sigUSR1 usr1
+  install Signals.sigUSR2 usr2
   where
     install signal handler =
       void $ Signals.installHandler signal (Signals.Catch handler) Nothing
+#else
+installSignalHandlers _ _ _ = pass
+#endif
+
+-- | Create a unix domain socket and bind it to the given path.
+-- | The socket file will be deleted if it already exists.
+createAndBindDomainSocket :: String -> FileMode -> IO NS.Socket
+createAndBindDomainSocket path mode = do
+  unless NS.isUnixDomainSocketAvailable $
+    panic "Cannot run with unix socket on non-unix platforms. Consider deleting the `server-unix-socket` config entry in order to continue."
+  deleteSocketFileIfExist path
+  sock <- NS.socket NS.AF_UNIX NS.Stream NS.defaultProtocol
+  NS.bind sock $ NS.SockAddrUnix path
+  NS.listen sock (max 2048 NS.maxListenQueue)
+  setFileMode path mode
+  return sock
+  where
+    deleteSocketFileIfExist path' =
+      removeFile path' `catch` handleDoesNotExist
+    handleDoesNotExist e
+      | isDoesNotExistError e = return ()
+      | otherwise = throwIO e

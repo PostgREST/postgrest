@@ -12,9 +12,7 @@ Some of its functionality includes:
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
-  ( SignalHandlerInstaller
-  , SocketRunner
-  , postgrest
+  ( postgrest
   , run
   ) where
 
@@ -25,7 +23,6 @@ import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
-import System.Posix.Types       (FileMode)
 
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.Text.Encoding         as T
@@ -44,6 +41,7 @@ import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Plan             as Plan
 import qualified PostgREST.Query            as Query
 import qualified PostgREST.Response         as Response
+import qualified PostgREST.Unix             as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
                                        Mutation (..), Target (..))
@@ -64,20 +62,17 @@ import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
+import qualified Network.Socket        as NS
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 
-type SignalHandlerInstaller = AppState -> IO()
-
-type SocketRunner = Warp.Settings -> Wai.Application -> FileMode -> FilePath -> IO()
-
-run :: SignalHandlerInstaller -> Maybe SocketRunner -> AppState -> IO ()
-run installHandlers maybeRunWithSocket appState = do
+run :: AppState -> IO ()
+run appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  installHandlers appState
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
   AppState.runListener conf appState
 
@@ -85,19 +80,14 @@ run installHandlers maybeRunWithSocket appState = do
 
   let app = postgrest conf appState (AppState.connectionWorker appState)
 
-  case configServerUnixSocket of
-    Just socket ->
-      -- run the postgrest application with user defined socket. Only for UNIX systems
-      case maybeRunWithSocket of
-        Just runWithSocket -> do
-          AppState.logWithZTime appState $ "Listening on unix socket " <> show socket
-          runWithSocket (serverSettings conf) app configServerUnixSocketMode socket
-        Nothing ->
-          panic "Cannot run with unix socket on non-unix platforms."
-    Nothing ->
-      do
-        AppState.logWithZTime appState $ "Listening on port " <> show configServerPort
-        Warp.runSettings (serverSettings conf) app
+  what <- case configServerUnixSocket of
+    Just path -> pure $ "unix socket " <> show path
+    Nothing   -> do
+      port <- NS.socketPort $ AppState.getSocketREST appState
+      pure $ "port " <> show port
+  AppState.logWithZTime appState $ "Listening on " <> what
+
+  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =

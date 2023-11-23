@@ -1,37 +1,16 @@
-{-# LANGUAGE CPP #-}
-
 module Main (main) where
 
 import System.IO (BufferMode (..), hSetBuffering)
 
-import qualified PostgREST.App as App
 import qualified PostgREST.CLI as CLI
 
 import Protolude
-
-#ifndef mingw32_HOST_OS
-import qualified PostgREST.Unix as Unix
-#endif
 
 main :: IO ()
 main = do
   setBuffering
   opts <- CLI.readCLIShowHelp
-  CLI.main installSignalHandlers runAppInSocket opts
-
-installSignalHandlers :: App.SignalHandlerInstaller
-#ifndef mingw32_HOST_OS
-installSignalHandlers = Unix.installSignalHandlers
-#else
-installSignalHandlers _ = pass
-#endif
-
-runAppInSocket :: Maybe App.SocketRunner
-#ifndef mingw32_HOST_OS
-runAppInSocket = Just Unix.runAppWithSocket
-#else
-runAppInSocket = Nothing
-#endif
+  CLI.main opts
 
 setBuffering :: IO ()
 setBuffering = do
