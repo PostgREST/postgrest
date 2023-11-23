@@ -34,6 +34,7 @@ import qualified Feature.OpenApi.ProxySpec
 import qualified Feature.OpenApi.RootSpec
 import qualified Feature.OpenApi.SecurityOpenApiSpec
 import qualified Feature.OptionsSpec
+import qualified Feature.Query.AggregateFunctionsSpec
 import qualified Feature.Query.AndOrParamsSpec
 import qualified Feature.Query.ComputedRelsSpec
 import qualified Feature.Query.CustomMediaSpec
@@ -109,6 +110,7 @@ main = do
       pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
       obsApp               = app testObservabilityCfg
       serverTiming         = app testCfgServerTiming
+      aggregatesEnabled    = app testCfgAggregatesEnabled
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -241,6 +243,12 @@ main = do
 
     parallel $ before serverTiming $
       describe "Feature.Query.ServerTimingSpec.spec" Feature.Query.ServerTimingSpec.spec
+
+    parallel $ before aggregatesEnabled $
+      describe "Feature.Query.AggregateFunctionsSpec" Feature.Query.AggregateFunctionsSpec.allowed
+
+    parallel $ before withApp $
+      describe "Feature.Query.AggregateFunctionsDisallowedSpec." Feature.Query.AggregateFunctionsSpec.disallowed
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

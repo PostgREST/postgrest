@@ -3631,3 +3631,22 @@ create table empty_string as select 1 as id, ''::text as string;
 create table timestamps (
   t timestamp with time zone
 );
+
+create table project_invoices (
+  id int primary key
+, invoice_total numeric
+, project_id integer references projects(id)
+);
+
+create table budget_categories (
+  id int primary key
+, category_name text
+, budget_owner text
+, budget_amount numeric
+);
+
+create table budget_expenses (
+  id int primary key
+, expense_amount numeric
+, budget_category_id integer references budget_categories(id)
+);

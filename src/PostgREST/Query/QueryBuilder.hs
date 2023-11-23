@@ -19,7 +19,8 @@ module PostgREST.Query.QueryBuilder
 import qualified Data.ByteString.Char8           as BS
 import qualified Hasql.DynamicStatements.Snippet as SQL
 
-import Data.Tree (Tree (..))
+import Data.Maybe (fromJust)
+import Data.Tree  (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
 import PostgREST.Config.PgVersion         (PgVersion, pgVersion110,
@@ -27,8 +28,7 @@ import PostgREST.Config.PgVersion         (PgVersion, pgVersion110,
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
-                                           Relationship (..),
-                                           relIsToOne)
+                                           Relationship (..))
 import PostgREST.SchemaCache.Routine      (RoutineParam (..))
 
 import PostgREST.ApiRequest.Types
@@ -42,45 +42,70 @@ import PostgREST.RangeQuery        (allRange)
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery (Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds} forest) =
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ selects) <> " " <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null relJoinConds
     then mempty
     else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
+  groupF qi select relSelect <> " " <>
   orderF qi order <> " " <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
-    defSelect = [(unknownField "*" [], Nothing, Nothing)] -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
-    (selects, joins) = foldr getSelectsJoins ([],[]) forest
+    -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
+    defSelect = [CoercibleSelectField (unknownField "*" []) Nothing Nothing Nothing Nothing]
+    joins = getJoins node
+    joinsSelects = getJoinSelects node
 
-getSelectsJoins :: ReadPlanTree -> ([SQL.Snippet], [SQL.Snippet]) -> ([SQL.Snippet], [SQL.Snippet])
-getSelectsJoins (Node ReadPlan{relToParent=Nothing} _) _ = ([], [])
-getSelectsJoins rr@(Node ReadPlan{select, relName, relToParent=Just rel, relAggAlias, relAlias, relJoinType, relIsSpread} forest) (selects,joins) =
+getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
+getJoinSelects (Node ReadPlan{relSelect} _) =
+  mapMaybe relSelectToSnippet relSelect
+  where
+    relSelectToSnippet :: RelSelectField -> Maybe SQL.Snippet
+    relSelectToSnippet fld =
+      let aggAlias = pgFmtIdent $ rsAggAlias fld
+      in
+        case fld of
+          JsonEmbed{rsEmptyEmbed = True} ->
+            Nothing
+          JsonEmbed{rsSelName, rsEmbedMode = JsonObject} ->
+            Just $ "row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> pgFmtIdent rsSelName
+          JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
+            Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
+          Spread{rsSpreadSel, rsAggAlias} ->
+            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
+
+getJoins :: ReadPlanTree -> [SQL.Snippet]
+getJoins (Node _ []) = []
+getJoins (Node ReadPlan{relSelect} forest) =
+  map (\fld ->
+         let alias = rsAggAlias fld
+             matchingNode = fromJust $ find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
+         in getJoin fld matchingNode
+      ) relSelect
+
+getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
+getJoin fld node@(Node ReadPlan{relJoinType} _) =
   let
-    subquery = readPlanToQuery rr
-    aliasOrName = pgFmtIdent $ fromMaybe relName relAlias
-    aggAlias = pgFmtIdent relAggAlias
     correlatedSubquery sub al cond =
       (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
-    (sel, joi) = if relIsToOne rel
-      then
-        ( if relIsSpread
-            then aggAlias <> ".*"
-            else "row_to_json(" <> aggAlias <> ".*) AS " <> aliasOrName
-        , correlatedSubquery subquery aggAlias "TRUE")
-      else
-        ( "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> aliasOrName
-        , correlatedSubquery (
-            "SELECT json_agg(" <> aggAlias <> ") AS " <> aggAlias <>
-            "FROM (" <> subquery <> " ) AS " <> aggAlias
-          ) aggAlias $ if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE")
+    subquery = readPlanToQuery node
+    aggAlias = pgFmtIdent $ rsAggAlias fld
   in
-  (if null select && null forest then selects else sel:selects, joi:joins)
+    case fld of
+      JsonEmbed{rsEmbedMode = JsonObject} ->
+        correlatedSubquery subquery aggAlias "TRUE"
+      Spread{} ->
+        correlatedSubquery subquery aggAlias "TRUE"
+      JsonEmbed{rsEmbedMode = JsonArray} ->
+        let
+          subq = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias <> " FROM (" <> subquery <> " ) AS " <> aggAlias
+          condition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
+        in correlatedSubquery subq aggAlias condition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflct putConditions returnings _ applyDefaults) =

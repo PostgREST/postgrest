@@ -20,6 +20,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3001, Add `statement_timeout` set on functions - @taimoorzaeem
  - #3045, Apply superuser settings on impersonated roles if they have PostgreSQL 15 `GRANT SET ON PARAMETER` privilege - @steve-chavez
  - #3062, Add config for enabling the `Server-Timing` header - @develop7
+ - #915, Add support for aggregate functions - @timabdulla
+    + The aggregate functions SUM(), MAX(), MIN(), AVG(), and COUNT() are now supported.
+    + It's disabled by default, you can enable it with `db-aggregates-enabled`.
 
 ### Fixed
 

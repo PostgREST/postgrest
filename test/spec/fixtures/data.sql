@@ -866,3 +866,27 @@ TRUNCATE TABLE timestamps CASCADE;
 INSERT INTO timestamps VALUES ('2023-10-18 12:37:59.611000+0000');
 INSERT INTO timestamps VALUES ('2023-10-18 14:37:59.611000+0000');
 INSERT INTO timestamps VALUES ('2023-10-18 16:37:59.611000+0000');
+
+TRUNCATE TABLE project_invoices CASCADE;
+INSERT INTO project_invoices VALUES (1, 100, 1);
+INSERT INTO project_invoices VALUES (2, 200, 1);
+INSERT INTO project_invoices VALUES (3, 500, 2);
+INSERT INTO project_invoices VALUES (4, 700, 2);
+INSERT INTO project_invoices VALUES (5, 1200, 3);
+INSERT INTO project_invoices VALUES (6, 2000, 3);
+INSERT INTO project_invoices VALUES (7, 100, 4);
+INSERT INTO project_invoices VALUES (8, 4000, 4);
+
+TRUNCATE TABLE budget_categories CASCADE;
+INSERT INTO budget_categories VALUES (1, 'Beanie Babies', 'Brian Smith', 1000.31);
+INSERT INTO budget_categories VALUES (2, 'DVDs', 'Jane Clarkson', 2000.12);
+INSERT INTO budget_categories VALUES (3, 'Pizza', 'Brian Smith', 1000.11);
+INSERT INTO budget_categories VALUES (4, 'Opera Tickets', 'Jane Clarkson', 7000.41);
+INSERT INTO budget_categories VALUES (5, 'Nuclear Fusion Research', 'Sally Hughes', 500.23);
+INSERT INTO budget_categories VALUES (6, 'T-5hirts', 'Dana de Groot', 500.33);
+
+TRUNCATE TABLE budget_expenses CASCADE;
+INSERT INTO budget_expenses VALUES (1, 200.26, 1);
+INSERT INTO budget_expenses VALUES (2, 400.26, 3);
+INSERT INTO budget_expenses VALUES (3, 100.22, 4);
+INSERT INTO budget_expenses VALUES (5, 900.27, 5);

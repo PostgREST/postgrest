@@ -98,6 +98,7 @@ baseCfg :: AppConfig
 baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
     configAppSettings               = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
+  , configDbAggregates              = False
   , configDbAnonRole                = Just "postgrest_test_anonymous"
   , configDbChannel                 = mempty
   , configDbChannelEnabled          = True
@@ -234,6 +235,9 @@ testObservabilityCfg = baseCfg { configServerTraceHeader = Just $ mk "X-Request-
 
 testCfgServerTiming :: AppConfig
 testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
+
+testCfgAggregatesEnabled :: AppConfig
+testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
 
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =

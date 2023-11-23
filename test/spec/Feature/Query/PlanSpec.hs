@@ -348,12 +348,12 @@ spec actualPgVersion = do
         r1 <- request methodGet "/users?select=*,tasks!inner(*)&tasks.id=eq.1"
                [planHdr] ""
 
-        liftIO $ planCost r1 `shouldSatisfy` (< 20876.14)
+        liftIO $ planCost r1 `shouldSatisfy` (< 20888.83)
 
         r2 <- request methodGet "/users?select=*,tasks(*)&tasks.id=eq.1&tasks=not.is.null"
                [planHdr] ""
 
-        liftIO $ planCost r2 `shouldSatisfy` (< 20876.14)
+        liftIO $ planCost r2 `shouldSatisfy` (< 20888.83)
 
   describe "function call costs" $ do
     it "should not exceed cost when calling setof composite proc" $ do
