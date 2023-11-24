@@ -143,6 +143,33 @@ You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Spec
   HTTP/1.1 200 OK
   X-Request-Id: 123
 
+.. _server-timing_header:
+
+`Server-Timing` Header
+----------------------
+
+You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` on. 
+This header provides timing information about the different phases of the request-response cycle.
+
+.. code:: bash
+
+  server-timing-header = "on"
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /users HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/users"
+  
+.. code::
+
+  HTTP/1.1 200 OK
+  Server-Timing: jwt;dur=16.0, render;dur=8.8, plan;dur=16956.1, query;dur=763.5
+
 .. _explain_plan:
 
 Execution plan
