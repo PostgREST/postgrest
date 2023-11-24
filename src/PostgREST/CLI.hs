@@ -220,6 +220,9 @@ exampleConfigFile =
       |server-host = "!4"
       |server-port = 3000
       |
+      |## Allow getting the request-response timing information through the `Server-Timing` header
+      |server-timing-enabled = false
+      |
       |## Unix socket location
       |## if specified it takes precedence over server-port
       |# server-unix-socket = "/tmp/pgrst.sock"
