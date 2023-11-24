@@ -12,6 +12,7 @@ import           Protolude
 
 data ServerMetric =
     SMJwt
+  | SMParse
   | SMRender
   | SMPlan
   | SMTransaction
@@ -32,3 +33,4 @@ renderTiming (metric, time) = maybe "" (\x -> BS.concat [renderMetric metric, BS
     renderMetric SMTransaction = "transaction"
     renderMetric SMRender      = "render"
     renderMetric SMJwt         = "jwt"
+    renderMetric SMParse       = "parse"
