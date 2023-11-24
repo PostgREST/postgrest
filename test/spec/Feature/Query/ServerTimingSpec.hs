@@ -22,7 +22,7 @@ spec =
           `shouldRespondWith`
           [json|[{"id":6,"name":"Oscorp","referee":3,"auditor":4,"manager_id":6}]|]
           { matchStatus  = 200
-          , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+          , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
           }
 
       it "works with post request" $
@@ -32,7 +32,7 @@ spec =
           `shouldRespondWith`
           [json|[{"id":7,"name":"John","referee":null,"auditor":null,"manager_id":6}]|]
           { matchStatus  = 201
-          , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+          , matchHeaders = matchContentTypeJson : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
           }
 
       it "works with patch request" $
@@ -41,7 +41,7 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
             }
 
       it "works with put request" $
@@ -51,7 +51,7 @@ spec =
           `shouldRespondWith`
             [json| [ { "name": "Python", "rank": 19 } ]|]
             { matchStatus  = 200
-            , matchHeaders = map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+            , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
             }
 
       it "works with delete request" $
@@ -61,7 +61,7 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus  = 204
-            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+            , matchHeaders = matchHeaderAbsent hContentType : map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
             }
 
       it "works with rpc call" $
@@ -71,5 +71,5 @@ spec =
           `shouldRespondWith`
           [json|{"x": 1, "y": 2}|]
           { matchStatus  = 200
-          , matchHeaders = map matchServerTimingHasTiming ["jwt", "plan", "transaction", "render"]
+          , matchHeaders = map matchServerTimingHasTiming ["jwt", "parse", "plan", "transaction", "render"]
           }
