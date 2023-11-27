@@ -1341,3 +1341,25 @@ def test_passes_with_3_sec_statement_and_4_sec_statement_timeout(defaultenv):
         response = postgrest.session.post("/rpc/four_sec_timeout")
 
         assert response.status_code == 204
+
+
+def test_db_error_logging_to_stderr(defaultenv, metapostgrest):
+    "verify that DB errors are logged to stderr"
+
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 1000)
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=1.5")
+        assert response.status_code == 500
+
+        # ensure the message appears on the logs
+        output = sorted(postgrest.read_stdout(nlines=2))
+        assert " 500 " in output[0]
+        assert "canceling statement due to statement timeout" in output[1]

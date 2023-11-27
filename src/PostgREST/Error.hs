@@ -11,6 +11,7 @@ module PostgREST.Error
   , PgError(..)
   , Error(..)
   , errorPayload
+  , status
   ) where
 
 import qualified Data.Aeson                as JSON

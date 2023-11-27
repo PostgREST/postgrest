@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #915, Add support for aggregate functions - @timabdulla
     + The aggregate functions SUM(), MAX(), MIN(), AVG(), and COUNT() are now supported.
     + It's disabled by default, you can enable it with `db-aggregates-enabled`.
+ - #3057, Log all internal database errors to stderr - @laurenceisla
 
 ### Fixed
 

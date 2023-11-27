@@ -42,6 +42,7 @@ import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
 import qualified PostgREST.Error            as Error
 import           PostgREST.Version          (prettyVersion)
@@ -205,11 +206,16 @@ initPool AppConfig{..} =
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{..} x = do
+usePool appState@AppState{..} x = do
   res <- SQL.use statePool x
+
   whenLeft res (\case
     SQL.AcquisitionTimeoutUsageError -> debounceLogAcquisitionTimeout -- this can happen rapidly for many requests, so we debounce
-    _                                -> pure ())
+    error
+      -- TODO We're using the 500 HTTP status for getting all internal db errors but there's no response here. We need a new intermediate type to not rely on the HTTP status.
+      | Error.status (Error.PgError False error) >= HTTP.status500 -> logPgrstError appState error
+      | otherwise -> pure ())
+
   return res
 
 -- | Flush the connection pool so that any future use of the pool will
