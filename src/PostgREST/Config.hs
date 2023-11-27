@@ -115,6 +115,7 @@ data AppConfig = AppConfig
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
+  deriving (Eq, Ord)
 
 dumpLogLevel :: LogLevel -> Text
 dumpLogLevel = \case

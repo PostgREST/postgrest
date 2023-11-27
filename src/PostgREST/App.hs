@@ -157,11 +157,11 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtAndParseTiming
 
-runDbHandler :: AppState.AppState -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
-runDbHandler appState isoLvl mode authenticated prepared handler = do
+runDbHandler :: AppState.AppState -> AppConfig -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
+runDbHandler appState config isoLvl mode authenticated prepared handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState . transaction isoLvl mode $ runExceptT handler
+    AppState.usePool appState config . transaction isoLvl mode $ runExceptT handler
 
   resp <-
     liftEither . mapLeft Error.PgErr $
@@ -245,7 +245,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     roleSettings = fromMaybe mempty (HM.lookup authRole $ configRoleSettings conf)
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf
     runQuery isoLvl timeout mode query =
-      runDbHandler appState isoLvl mode authenticated prepared $ do
+      runDbHandler appState conf isoLvl mode authenticated prepared $ do
         Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) apiReq timeout
         Query.runPreReq conf
         query

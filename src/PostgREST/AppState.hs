@@ -59,6 +59,7 @@ import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                  (AppConfig (..),
+                                          LogLevel (..),
                                           addFallbackAppName,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
@@ -205,16 +206,17 @@ initPool AppConfig{..} =
     (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
 
 -- | Run an action with a database connection.
-usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool appState@AppState{..} x = do
+usePool :: AppState -> AppConfig -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool appState@AppState{..} AppConfig{configLogLevel} x = do
   res <- SQL.use statePool x
 
-  whenLeft res (\case
-    SQL.AcquisitionTimeoutUsageError -> debounceLogAcquisitionTimeout -- this can happen rapidly for many requests, so we debounce
-    error
-      -- TODO We're using the 500 HTTP status for getting all internal db errors but there's no response here. We need a new intermediate type to not rely on the HTTP status.
-      | Error.status (Error.PgError False error) >= HTTP.status500 -> logPgrstError appState error
-      | otherwise -> pure ())
+  when (configLogLevel > LogCrit) $ do
+    whenLeft res (\case
+      SQL.AcquisitionTimeoutUsageError -> debounceLogAcquisitionTimeout -- this can happen rapidly for many requests, so we debounce
+      error
+        -- TODO We're using the 500 HTTP status for getting all internal db errors but there's no response here. We need a new intermediate type to not rely on the HTTP status.
+        | Error.status (Error.PgError False error) >= HTTP.status500 -> logPgrstError appState error
+        | otherwise -> pure ())
 
   return res
 
@@ -307,7 +309,7 @@ loadSchemaCache appState = do
   conf@AppConfig{..} <- getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    usePool appState . transaction SQL.ReadCommitted SQL.Read $
+    usePool appState conf . transaction SQL.ReadCommitted SQL.Read $
       querySchemaCache conf
   case result of
     Left e -> do
@@ -350,10 +352,10 @@ internalConnectionWorker :: AppState -> IO ()
 internalConnectionWorker appState = work
   where
     work = do
-      AppConfig{..} <- getConfig appState
+      config@AppConfig{..} <- getConfig appState
       logWithZTime appState $ "Starting PostgREST " <> T.decodeUtf8 prettyVersion <> "..."
       logWithZTime appState "Attempting to connect to the database..."
-      connected <- establishConnection appState
+      connected <- establishConnection appState config
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
@@ -393,8 +395,8 @@ internalConnectionWorker appState = work
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
-establishConnection :: AppState -> IO ConnectionStatus
-establishConnection appState =
+establishConnection :: AppState -> AppConfig -> IO ConnectionStatus
+establishConnection appState config =
   retrying retrySettings shouldRetry $
     const $ flushPool appState >> getConnectionStatus
   where
@@ -404,7 +406,7 @@ establishConnection appState =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- usePool appState $ queryPgVersion False -- No need to prepare the query here, as the connection might not be established
+      pgVersion <- usePool appState config $ queryPgVersion False -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
           logPgrstError appState e
@@ -437,11 +439,11 @@ establishConnection appState =
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()
 reReadConfig startingUp appState = do
-  AppConfig{..} <- getConfig appState
+  config@AppConfig{..} <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- usePool appState $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
+      qDbSettings <- usePool appState config $ queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements
       case qDbSettings of
         Left e -> do
           logWithZTime appState
@@ -459,7 +461,7 @@ reReadConfig startingUp appState = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
-      rSettings <- usePool appState $ queryRoleSettings pgVer configDbPreparedStatements
+      rSettings <- usePool appState config $ queryRoleSettings pgVer configDbPreparedStatements
       case rSettings of
         Left e -> do
           logWithZTime appState "An error ocurred when trying to query the role settings"
