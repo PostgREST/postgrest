@@ -555,13 +555,15 @@ def test_pool_size(defaultenv, metapostgrest):
         assert delta > 1 and delta < 1.5
 
 
-def test_pool_acquisition_timeout(defaultenv, metapostgrest):
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
     "Verify that PGRST_DB_POOL_ACQUISITION_TIMEOUT times out when the pool is empty"
 
     env = {
         **defaultenv,
         "PGRST_DB_POOL": "1",
         "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "1",  # 1 second
+        "PGRST_LOG_LEVEL": level,
     }
 
     with run(env=env, no_pool_connection_available=True) as postgrest:
@@ -572,8 +574,12 @@ def test_pool_acquisition_timeout(defaultenv, metapostgrest):
 
         # ensure the message appears on the logs as well
         output = sorted(postgrest.read_stdout(nlines=2))
-        assert " 504 " in output[0]
-        assert "Timed out acquiring connection from connection pool." in output[1]
+
+        if level == "crit":
+            assert len(output) == 0
+        else:
+            assert " 504 " in output[0]
+            assert "Timed out acquiring connection from connection pool." in output[1]
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -1343,23 +1349,29 @@ def test_passes_with_3_sec_statement_and_4_sec_statement_timeout(defaultenv):
         assert response.status_code == 204
 
 
-def test_db_error_logging_to_stderr(defaultenv, metapostgrest):
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
     "verify that DB errors are logged to stderr"
 
     role = "timeout_authenticator"
-    set_statement_timeout(metapostgrest, role, 1000)
+    set_statement_timeout(metapostgrest, role, 500)
 
     env = {
         **defaultenv,
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
+        "PGRST_LOG_LEVEL": level,
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/rpc/sleep?seconds=1.5")
+        response = postgrest.session.get("/rpc/sleep?seconds=1")
         assert response.status_code == 500
 
         # ensure the message appears on the logs
         output = sorted(postgrest.read_stdout(nlines=2))
-        assert " 500 " in output[0]
-        assert "canceling statement due to statement timeout" in output[1]
+
+        if level == "crit":
+            assert len(output) == 0
+        else:
+            assert " 500 " in output[0]
+            assert "canceling statement due to statement timeout" in output[1]

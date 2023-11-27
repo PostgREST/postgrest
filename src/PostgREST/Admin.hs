@@ -38,7 +38,7 @@ admin appState appConfig req respond  = do
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
-      else isRight <$> AppState.usePool appState (SQL.sql "SELECT 1")
+      else isRight <$> AppState.usePool appState appConfig (SQL.sql "SELECT 1")
 
   case Wai.pathInfo req of
     ["ready"] ->
@@ -62,4 +62,3 @@ reachMainApp appSock = do
     addrFamily (SockAddrInet _ _) = AF_INET
     addrFamily (SockAddrInet6 {}) = AF_INET6
     addrFamily (SockAddrUnix _)   = AF_UNIX
-

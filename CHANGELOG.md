@@ -35,6 +35,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Shows `set_config('pgrst.setting_name', $1)` instead of `setconfig($1, $2)`
    + Does not apply to role settings and `app.settings.*`
  - #2420, Fix bogus message when listening on port 0 - @develop7
+ - #3067, Fix Acquision Timeout errors logging to stderr when `log-level=crit` - @laurenceisla
 
 ### Changed
 
