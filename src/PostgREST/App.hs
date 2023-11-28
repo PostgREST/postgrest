@@ -51,16 +51,14 @@ import PostgREST.Config               (AppConfig (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Query                (DbHandler)
-import PostgREST.Response.Performance (ServerMetric (..),
-                                       ServerTimingData,
-                                       renderServerTimingHeader)
+import PostgREST.Response.Performance (ServerTiming (..),
+                                       serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.SchemaCache.Routine  (Routine (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
-import qualified Data.Map              as Map (fromList)
 import qualified Network.HTTP.Types    as HTTP
 import qualified Network.Socket        as NS
 import           Protolude             hiding (Handler)
@@ -150,12 +148,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
       liftEither . mapLeft Error.ApiRequestError $
         ApiRequest.userApiRequest conf req body sCache
 
-  let
-    jwtAndParseTiming =
-      [(SMJwt, if configServerTimingEnabled then Auth.getJwtDur req else Nothing)
-      ,(SMParse, parseTime)]
-
-  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtAndParseTiming
+  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
+  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTime parseTime
 
 runDbHandler :: AppState.AppState -> AppConfig -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
 runDbHandler appState config isoLvl mode authenticated prepared handler = do
@@ -169,73 +163,63 @@ runDbHandler appState config isoLvl mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> [(ServerMetric, Maybe Double)] -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtAndParseTime =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Maybe Double -> Maybe Double -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       (planTime', wrPlan) <- withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
       (respTime', pgrst) <- withTiming $ liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.createResponse identifier mrPlan apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.updateResponse mrPlan apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.deleteResponse mrPlan apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
       (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       (txTime', resultSet) <- withTiming $ runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan)) (pdTimeout $ Plan.crProc cPlan) (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
       (respTime', pgrst) <- withTiming $ liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
       (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl Nothing (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
       (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMTransaction, txTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInfo, TargetIdent identifier) -> do
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoIdentResponse identifier sCache
-      let metrics = Map.fromList $ (SMResp, respTime'):jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
     (ActionInfo, TargetProc identifier _) -> do
       (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
-      let metrics = Map.fromList $ [(SMPlan, planTime'), (SMResp, respTime')] ++ jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
 
     (ActionInfo, TargetDefaultSpec _) -> do
       (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
-      let metrics = Map.fromList $ (SMResp, respTime'):jwtAndParseTime
-      return $ pgrstResponse metrics  pgrst
+      return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
     _ ->
       -- This is unreachable as the ApiRequest.hs rejects it before
@@ -250,8 +234,8 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
         Query.runPreReq conf
         query
 
-    pgrstResponse :: ServerTimingData -> Response.PgrstResponse -> Wai.Response
-    pgrstResponse timings (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([renderServerTimingHeader timings | configServerTimingEnabled conf])) bod
+    pgrstResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
+    pgrstResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled conf])) bod
 
     withTiming = calcTiming $ configServerTimingEnabled conf
 
