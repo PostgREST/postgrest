@@ -140,17 +140,16 @@ jobs:
   # NOTE: Regular users don't have permission to delete cache entries, which this job tries to do (see `purge: true` below).
   merge-nix-caches-linux:
     name: "Merge Nix caches (Linux)"
-    # needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style] # Honestly, we don't really care of the order of cache merge job. Let's see how this works.
+    needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style] # Honestly, we don't really care of the order of cache merge job. Let's see how this works.
     runs-on: ubuntu-latest
-    strategy:
-      max-parallel: 1 # This hopefully prevents reserving cache entries by a single job, which would cause other jobs to fail to store "common" cache.
-      matrix:
-        cache-id: ['static-nix', 'test-pg', 'style', 'test-memory', 'loadtest']
     steps:
       - uses: actions/checkout@v4
       - uses: nixbuild/nix-quick-install-action@v26
         with:
           nix_version: '2.13.6'
+      - uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          android: false # Free up 14-ish GB of disk space by removing Android SDK
       - name: Restore and cache Nix store
         uses: nix-community/cache-nix-action@v4
         with:
@@ -162,11 +161,11 @@ jobs:
           # Specifying single per-job-type cache key effectively restores only 2 caches: the "common" cache and the cache for the current job type.
           # They are restored over one another, so resulting cache has all the nix store entries merged. 
           extra-restore-keys: |
-            cache-nix-${{ runner.os }}-id-${{ matrix.cache-id }}-
+            cache-nix-${{ runner.os }}-id-
           purge: true
           # This purges current_job_type cache and the "common" cache older than 1 day, to save cache space.
           purge-keys: |
-            cache-nix-${{ runner.os }}-id-${{ matrix.cache-id }}-
+            cache-nix-${{ runner.os }}-id-
             cache-nix-${{ runner.os }}-common-
           purge-created-max-age: 86400 # 1 day
           # TODO: enable garbage collection
