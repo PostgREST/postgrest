@@ -269,8 +269,11 @@ jobs:
       - name: Cache
         uses: actions/cache@v3
         with:
-          path: ~/.cabal
-          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project') }}
           restore-keys: |
             cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-
       - name: Install dependencies
