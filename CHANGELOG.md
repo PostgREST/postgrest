@@ -9,17 +9,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #1614, Add `db-pool-automatic-recovery` configuration to disable connection retrying - @taimoorzaeem
  - #2492, Allow full response control when raising exceptions - @taimoorzaeem, @laurenceisla
- - #2771, Add `Server-Timing` header with JWT duration - @taimoorzaeem
+ - #2771, #2983, #3062, #3055 Add `Server-Timing` response header - @taimoorzaeem, @develop7, @laurenceisla
  - #2698, Add config `jwt-cache-max-lifetime` and implement JWT caching - @taimoorzaeem
  - #2943, Add `handling=strict/lenient` for Prefer header - @taimoorzaeem
- - #2983, Add more data to `Server-Timing` header - @develop7
  - #2441, Add config `server-cors-allowed-origins` to specify CORS origins - @taimoorzaeem
  - #2825, SQL handlers for custom media types - @steve-chavez
    + Solves #1548, #2699, #2763, #2170, #1462, #1102, #1374, #2901
  - #2799, Add timezone in Prefer header - @taimoorzaeem
  - #3001, Add `statement_timeout` set on functions - @taimoorzaeem
  - #3045, Apply superuser settings on impersonated roles if they have PostgreSQL 15 `GRANT SET ON PARAMETER` privilege - @steve-chavez
- - #3062, Add config for enabling the `Server-Timing` header - @develop7
  - #915, Add support for aggregate functions - @timabdulla
     + The aggregate functions SUM(), MAX(), MIN(), AVG(), and COUNT() are now supported.
     + It's disabled by default, you can enable it with `db-aggregates-enabled`.
