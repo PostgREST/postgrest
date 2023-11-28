@@ -86,13 +86,10 @@ Getting Support
 
 The project has a friendly and growing community. For discussions, use the Github `discussions page <https://github.com/PostgREST/postgrest/discussions>`_ or join our `chat room <https://gitter.im/begriffs/postgrest>`_. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
 
-.. toctree::
-   :glob:
-   :caption: Release Notes
-   :reversed:
-   :maxdepth: 1
+Release Notes
+-------------
 
-   releases/*
+The release notes are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_.
 
 Tutorials
 ---------

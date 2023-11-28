@@ -1,4 +1,0 @@
-11.2.1
-======
-
-v11.2.1 is a maintenance release that addresses bugs introduced in v11.2.0. Also PostgreSQL 16 is now tested and confirmed to work. For more details, see https://github.com/PostgREST/postgrest/releases/tag/v11.2.1.
