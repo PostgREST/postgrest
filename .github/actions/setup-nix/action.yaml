@@ -23,7 +23,6 @@ runs:
         key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix') }}
         restore-keys: |
           cache-nix-${{ runner.os }}-common-
-        restore-key-hit: true
     - uses: cachix/cachix-action@v12
       with:
         name: postgrest

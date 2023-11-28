@@ -169,6 +169,7 @@ jobs:
             cache-nix-${{ runner.os }}-id-${{ matrix.cache-id }}-
             cache-nix-${{ runner.os }}-common-
           purge-created-max-age: 86400 # 1 day
+          # TODO: enable garbage collection
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
