@@ -65,7 +65,6 @@ instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}  = HTTP.status400
   status AmbiguousRelBetween{}   = HTTP.status300
   status AmbiguousRpc{}          = HTTP.status300
-  status BinaryFieldError{}      = HTTP.status406
   status MediaTypeError{}        = HTTP.status415
   status InvalidBody{}           = HTTP.status400
   status InvalidFilters          = HTTP.status405
@@ -154,9 +153,6 @@ instance JSON.ToJSON ApiRequestError where
 
   toJSON GucStatusError = toJsonPgrstError
     ApiRequestErrorCode12 "response.status guc must be a valid status code" Nothing Nothing
-
-  toJSON (BinaryFieldError ct) = toJsonPgrstError
-    ApiRequestErrorCode13 (T.decodeUtf8 (MediaType.toMime ct) <> " requested but more than one column was selected") Nothing Nothing
 
   toJSON PutLimitNotAllowedError = toJsonPgrstError
     ApiRequestErrorCode14 "limit/offset querystring parameters are not allowed for PUT" Nothing Nothing
@@ -590,7 +586,7 @@ data ErrorCode
   | ApiRequestErrorCode01
   | ApiRequestErrorCode02
   | ApiRequestErrorCode03
-  | ApiRequestErrorCode04 -- no longer used (used to be mapped to ParseRequestError)
+  -- | ApiRequestErrorCode04 -- no longer used (used to be mapped to ParseRequestError)
   | ApiRequestErrorCode05
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
@@ -598,8 +594,8 @@ data ErrorCode
   | ApiRequestErrorCode09
   | ApiRequestErrorCode10
   | ApiRequestErrorCode11
+  -- | ApiRequestErrorCode13 -- no longer used (used to be mapped to BinaryFieldError)
   | ApiRequestErrorCode12
-  | ApiRequestErrorCode13
   | ApiRequestErrorCode14
   | ApiRequestErrorCode15
   | ApiRequestErrorCode16
@@ -639,7 +635,6 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode01  -> "101"
   ApiRequestErrorCode02  -> "102"
   ApiRequestErrorCode03  -> "103"
-  ApiRequestErrorCode04  -> "104"
   ApiRequestErrorCode05  -> "105"
   ApiRequestErrorCode06  -> "106"
   ApiRequestErrorCode07  -> "107"
@@ -648,7 +643,6 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode10  -> "110"
   ApiRequestErrorCode11  -> "111"
   ApiRequestErrorCode12  -> "112"
-  ApiRequestErrorCode13  -> "113"
   ApiRequestErrorCode14  -> "114"
   ApiRequestErrorCode15  -> "115"
   ApiRequestErrorCode16  -> "116"

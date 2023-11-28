@@ -71,7 +71,6 @@ data ApiRequestError
   = AggregatesNotAllowed
   | AmbiguousRelBetween Text Text [Relationship]
   | AmbiguousRpc [Routine]
-  | BinaryFieldError MediaType
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
