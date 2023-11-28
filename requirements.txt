@@ -2,5 +2,5 @@ docutils==0.16
 sphinx>=4.3.0
 sphinx-copybutton
 sphinx-rtd-theme>=0.5.1
-sphinx-tabs
+sphinx-tabs==3.2.0
 urllib3==2.0.7
