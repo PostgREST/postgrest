@@ -1147,7 +1147,7 @@ mediaHandlers pgVer =
           JOIN pg_type b ON t.typbasetype = b.oid
           WHERE
             t.typbasetype <> 0 and
-            t.typname ~* '^[A-Za-z0-9.-]+/[A-Za-z0-9.\+-]+$'
+            (t.typname ~* '^[A-Za-z0-9.-]+/[A-Za-z0-9.\+-]+$' or t.typname = '*/*')
       )
       select
         proc_schema.nspname           as handler_schema,

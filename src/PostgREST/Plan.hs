@@ -62,6 +62,7 @@ import PostgREST.SchemaCache.Relationship    (Cardinality (..),
 import PostgREST.SchemaCache.Representations (DataRepresentation (..),
                                               RepresentationsMap)
 import PostgREST.SchemaCache.Routine         (MediaHandler (..),
+                                              MediaHandlerMap,
                                               Routine (..),
                                               RoutineMap,
                                               RoutineParam (..),
@@ -991,10 +992,9 @@ addFilterToLogicForest :: CoercibleFilter -> [CoercibleLogicTree] -> [CoercibleL
 addFilterToLogicForest flt lf = CoercibleStmnt flt : lf
 
 -- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
-negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] ->
-                    HM.HashMap (RelIdentifier, MediaType) MediaHandler -> Either ApiRequestError (MediaHandler, MediaType)
+negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] -> MediaHandlerMap -> Either ApiRequestError (MediaHandler, MediaType)
 negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces =
-  mtAnyToJSON $ case (act, firstAcceptedPick) of
+  defaultMTAnyToMTJSON $ case (act, firstAcceptedPick) of
     (_, Nothing)                         -> Left . MediaTypeError $ map MediaType.toMime accepts
     (ActionMutate _, Just (x, mt))       -> Right (if rep == Just Full then x else NoAgg, mt)
     -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
@@ -1003,21 +1003,23 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
     (ActionInvoke InvHead, Just (_, mt)) -> Right (NoAgg, mt)
     (_, Just (x, mt))                    -> Right (x, mt)
   where
-    -- TODO initial */* is not overridable
-    -- initial handlers in the schema cache have a */* to BuiltinAggJson but they don't preserve the media type (application/json)
-    -- for now we just convert the resultant */* to application/json here
-    mtAnyToJSON = mapRight (\(x, y) -> (x, if y == MTAny then MTApplicationJSON else y))
-    -- if there are multiple accepted media types, pick the first
-    firstAcceptedPick = listToMaybe $ mapMaybe searchMT accepts
-    lookupIdent mt = -- first search for an aggregate that applies to the particular relation, then for one that applies to anyelement
-      HM.lookup (RelId identifier, mt) produces <|> HM.lookup (RelAnyElement, mt) produces
-    searchMT mt = case mt of
+    -- the initial handler in the schema cache has a */* to BuiltinAggJson but it doesn't preserve the media type (application/json)
+    -- we just convert the default */* to application/json here
+    -- TODO resolving to "application/json" for "*/*" is not correct when using a "*/*" custom handler media type.
+    -- We should return "application/octet-stream" as the generic type instead.
+    defaultMTAnyToMTJSON = mapRight (\(x, y) -> (x, if y == MTAny then MTApplicationJSON else y))
+    firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.
+    matchMT mt = case mt of
       -- all the vendored media types have special handling as they have media type parameters, they cannot be overridden
       m@(MTVndSingularJSON strip)                 -> Just (BuiltinAggSingleJson strip, m)
       m@MTVndArrayJSONStrip                       -> Just (BuiltinAggArrayJsonStrip, m)
       m@(MTVndPlan (MTVndSingularJSON strip) _ _) -> mtPlanToNothing $ Just (BuiltinAggSingleJson strip, m)
       m@(MTVndPlan MTVndArrayJSONStrip _ _)       -> mtPlanToNothing $ Just (BuiltinAggArrayJsonStrip, m)
       -- all the other media types can be overridden
-      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ (,) <$> lookupIdent mType <*> pure m
-      x                                           -> (,) <$> lookupIdent x <*> pure x
+      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ (,) <$> lookupHandler mType <*> pure m
+      x                                           -> (,) <$> lookupHandler x <*> pure x
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed
+    lookupHandler mt =
+      HM.lookup (RelId identifier, MTAny) produces <|> -- lookup handler that applies to `*/*` and identifier
+      HM.lookup (RelId identifier, mt) produces <|>    -- lookup handler that applies to a particular media type and identifier
+      HM.lookup (RelAnyElement, mt) produces           -- lookup handler that applies to a particular media type and anyelement

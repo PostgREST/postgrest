@@ -130,6 +130,7 @@ create domain "application/json" as json;
 create domain "application/vnd.pgrst.object" as json;
 create domain "text/tab-separated-values" as text;
 create domain "text/csv" as text;
+create domain "*/*" as bytea;
 
 CREATE TABLE items (
     id bigserial primary key
@@ -3593,7 +3594,6 @@ $$ language sql;
 
 create or replace function test.tsv_final (data "text/tab-separated-values")
 returns "text/tab-separated-values" as $$
-  select set_config('response.headers', '[{"Cache-Control": "public"}, {"Cache-Control": "max-age=259200"}]', true);
   select (E'id\tname\tclient_id\n' || data)::"text/tab-separated-values";
 $$ language sql;
 
@@ -3649,4 +3649,59 @@ create table budget_expenses (
   id int primary key
 , expense_amount numeric
 , budget_category_id integer references budget_categories(id)
+);
+
+create or replace function ret_any_mt ()
+returns "*/*" as $$
+  select 'any'::"*/*";
+$$ language sql;
+
+create or replace function ret_some_mt ()
+returns "*/*" as $$
+declare
+  req_accept text := current_setting('request.headers', true)::json->>'accept';
+  resp bytea;
+begin
+  case req_accept
+    when 'app/chico'   then resp := 'chico';
+    when 'app/harpo'   then resp := 'harpo';
+    when '*/*'         then
+      perform set_config('response.headers', '[{"Content-Type": "app/groucho"}]', true);
+      resp := 'groucho';
+    else
+      raise sqlstate 'PT415' using message = 'Unsupported Media Type';
+  end case;
+  return resp;
+end; $$ language plpgsql;
+
+create table some_numbers as select x::int as val from generate_series(1,10) x;
+
+create or replace function some_trans (state "*/*", next some_numbers)
+returns "*/*" as $$
+  select (state || E'\n' || next.val::text::bytea)::"*/*";
+$$ language sql;
+
+create or replace function some_final (data "*/*")
+returns "*/*" as $$
+declare
+  req_accept text := current_setting('request.headers', true)::json->>'accept';
+  prefix bytea;
+begin
+  case req_accept
+    when 'magic/number' then
+      prefix := 'magic';
+    when 'crazy/bingo'  then
+      prefix := 'crazy';
+    else
+      prefix := 'anything';
+  end case;
+  return (prefix || data)::"*/*";
+end; $$ language plpgsql;
+
+drop aggregate if exists some_agg (some_numbers);
+create aggregate test.some_agg (some_numbers) (
+  initcond = ''
+, stype = "*/*"
+, sfunc = some_trans
+, finalfunc = some_final
 );

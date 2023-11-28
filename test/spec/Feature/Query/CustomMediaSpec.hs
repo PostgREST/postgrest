@@ -222,3 +222,81 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "lines.csv"
         simpleHeaders r `shouldContain` [("Content-Type", "text/csv; charset=utf-8")]
         simpleHeaders r `shouldContain` [("Content-Disposition", "attachment; filename=\"lines.csv\"")]
+
+  context "any media type" $ do
+    context "on functions" $ do
+      -- TODO not correct, it should return the generic "application/octet-stream"
+      it "returns application/json for */* if not explicitly set" $ do
+        request methodGet "/rpc/ret_any_mt" (acceptHdrs "*/*") ""
+          `shouldRespondWith` "any"
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "accepts any media type and sets it as a header" $ do
+        request methodGet "/rpc/ret_any_mt" (acceptHdrs "app/bingo") ""
+          `shouldRespondWith` "any"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "app/bingo"]
+          }
+
+        request methodGet "/rpc/ret_any_mt" (acceptHdrs "text/bango") ""
+          `shouldRespondWith` "any"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "text/bango"]
+          }
+
+        request methodGet "/rpc/ret_any_mt" (acceptHdrs "image/boingo") ""
+          `shouldRespondWith` "any"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "image/boingo"]
+          }
+
+      it "returns custom media type for */* if explicitly set" $ do
+        request methodGet "/rpc/ret_some_mt" (acceptHdrs "*/*") ""
+          `shouldRespondWith` "groucho"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "app/groucho"]
+          }
+
+      it "accepts some media types if there's conditional logic" $ do
+        request methodGet "/rpc/ret_some_mt" (acceptHdrs "app/chico") ""
+          `shouldRespondWith` "chico"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "app/chico"]
+          }
+
+        request methodGet "/rpc/ret_some_mt" (acceptHdrs "app/harpo") ""
+          `shouldRespondWith` "harpo"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "app/harpo"]
+          }
+
+        request methodGet "/rpc/ret_some_mt" (acceptHdrs "text/csv") ""
+          `shouldRespondWith` 415
+
+    context "on tables" $ do
+      -- TODO not correct, it should return the generic "application/octet-stream"
+      it "returns application/json for */* if not explicitly set" $ do
+        request methodGet "/some_numbers?val=eq.1" (acceptHdrs "*/*") ""
+          `shouldRespondWith` "anything\n1"
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "accepts any media type and sets it as a header" $ do
+        request methodGet "/some_numbers?val=eq.2" (acceptHdrs "magic/number") ""
+          `shouldRespondWith` "magic\n2"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "magic/number"]
+          }
+        request methodGet "/some_numbers?val=eq.3" (acceptHdrs "crazy/bingo") ""
+          `shouldRespondWith` "crazy\n3"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "crazy/bingo"]
+          }
+        request methodGet "/some_numbers?val=eq.4" (acceptHdrs "unknown/unknown") ""
+          `shouldRespondWith` "anything\n4"
+          { matchStatus  = 200
+          , matchHeaders = ["Content-Type" <:> "unknown/unknown"]
+          }
