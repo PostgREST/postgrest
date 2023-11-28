@@ -137,32 +137,38 @@ jobs:
           path: postgrest-docker.tar.gz
           if-no-files-found: error
 
-  # TODO: Enable this again in a PR by PostgREST admins, because regular users don't have permission to delete cache entries, which this job does.
-  #
-  # merge-nix-caches-linux:
-  #   name: "Merge Nix caches (Linux)"
-  #   needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style]
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     max-parallel: 1
-  #     matrix:
-  #       cache-id: ['static-nix', 'test-pg', 'style', 'test-memory']
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: nixbuild/nix-quick-install-action@v26
-  #       with:
-  #         nix_version: '2.13.6'
-  #     - name: Restore and cache Nix store
-  #       uses: nix-community/cache-nix-action@v4
-  #       with:
-  #         key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
-  #         extra-restore-keys: |
-  #           cache-nix-${{ runner.os }}-cid-
-  #         purge: true
-  #         purge-keys: |
-  #           cache-nix-${{ runner.os }}-cid-
-  #           cache-nix-${{ runner.os }}-common-
-  #         purge-created-max-age: 0
+  # NOTE: Regular users don't have permission to delete cache entries, which this job tries to do (see `purge: true` below).
+  merge-nix-caches-linux:
+    name: "Merge Nix caches (Linux)"
+    # needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style] # Honestly, we don't really care of the order of cache merge job. Let's see how this works.
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1 # This hopefully prevents reserving cache entries by a single job, which would cause other jobs to fail to store "common" cache.
+      matrix:
+        cache-id: ['static-nix', 'test-pg', 'style', 'test-memory', 'loadtest']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: nixbuild/nix-quick-install-action@v26
+        with:
+          nix_version: '2.13.6'
+      - name: Restore and cache Nix store
+        uses: nix-community/cache-nix-action@v4
+        with:
+          # That's the cache key the action will look for, restore and store back.
+          key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
+          # Below are cache keys (or prefixes thereof, to be exact) the action will try restore too. 
+          # The previous approach was to restore all the per-job-type caches in a single run, but it drained the disk space real quick and hit the runner's disk space limit in no time. 
+          # It appears that downloaded cache archives are not deleted until the end of the job, and there's no way to delete them manually.
+          # Specifying single per-job-type cache key effectively restores only 2 caches: the "common" cache and the cache for the current job type.
+          # They are restored over one another, so resulting cache has all the nix store entries merged. 
+          extra-restore-keys: |
+            cache-nix-${{ runner.os }}-id-${{ matrix.cache-id }}-
+          purge: true
+          # This purges current_job_type cache and the "common" cache older than 1 day, to save cache space.
+          purge-keys: |
+            cache-nix-${{ runner.os }}-id-${{ matrix.cache-id }}-
+            cache-nix-${{ runner.os }}-common-
+          purge-created-max-age: 86400 # 1 day
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
