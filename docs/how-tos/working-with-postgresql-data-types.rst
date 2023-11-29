@@ -506,33 +506,26 @@ Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: 
       -X POST -H "Content-Type: application/octet-stream" \
       --data-binary "@postgrest-logo.png"
 
-To get the image from the database, set the ``Accept: application/octet-stream`` header and select only the
-``bytea`` type column.
+To get the image from the database, use :ref:`custom_media` like so:
+
+.. code-block:: postgres
+
+  create domain "image/png" as bytea;
+
+  create or replace get_image(id int) returns "image/png" as $$
+    select file from files where id = $1;
+  $$ language sql;
 
 .. tabs::
 
   .. code-tab:: http
 
-    GET /files?select=file&id=eq.1 HTTP/1.1
-    Accept: application/octet-stream
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/files?select=file&id=eq.1" \
-      -H "Accept: application/octet-stream"
-
-Use more accurate headers according to the type of the files by using the :ref:`raw-media-types` configuration. For example, adding the ``raw-media-types="image/png"`` setting to the configuration file will allow you to use the ``Accept: image/png`` header:
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /files?select=file&id=eq.1 HTTP/1.1
+    GET /get_image?id=1 HTTP/1.1
     Accept: image/png
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/files?select=file&id=eq.1" \
+    curl "http://localhost:3000/get_image?id=1" \
       -H "Accept: image/png"
 
 See :ref:`providing_img` for a step-by-step example on how to handle images in HTML.

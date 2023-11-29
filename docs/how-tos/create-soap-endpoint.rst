@@ -5,22 +5,20 @@ Create a SOAP endpoint
 
 :author: `fjf2002 <https://github.com/fjf2002>`_
 
-PostgREST now has XML support. With a bit of work, SOAP endpoints become possible.
-
-Please note that PostgREST supports just ``text/xml`` MIME type in request/response headers ``Content-Type`` and ``Accept``.
-If you have to use other MIME types such as ``application/soap+xml``, you could manipulate the headers in your reverse proxy.
-
-
+PostgREST supports :ref:`custom_media`. With a bit of work, SOAP endpoints become possible.
 
 Minimal Example
 ---------------
+
 This example will simply return the request body, inside a tag ``therequestbodywas``.
 
 Add the following function to your PostgreSQL database:
 
 .. code-block:: postgres
 
-   CREATE OR REPLACE FUNCTION my_soap_endpoint(xml) RETURNS xml AS $$
+   create domain "text/xml" as pg_catalog.xml;
+
+   CREATE OR REPLACE FUNCTION my_soap_endpoint(xml) RETURNS "text/xml" AS $$
    DECLARE
      nsarray CONSTANT text[][] := ARRAY[
        ARRAY['soapenv', 'http://schemas.xmlsoap.org/soap/envelope/']
@@ -121,7 +119,7 @@ potentially disclosing internals to the client, but instead handle the errors di
        xmlelement(NAME "soapenv:Body", body)
      );
    $function$;
-   
+
    -- helper function
    CREATE OR REPLACE FUNCTION _soap_exception(
      faultcode text,
@@ -137,9 +135,9 @@ potentially disclosing internals to the client, but instead handle the errors di
        )
      );
    $function$;
-   
+
    CREATE OR REPLACE FUNCTION fraction_to_decimal(xml)
-    RETURNS xml
+    RETURNS "text/xml"
     LANGUAGE plpgsql
    AS $function$
    DECLARE
@@ -207,14 +205,14 @@ The output should roughly look like:
      </soapenv:Body>
    </soapenv:Envelope>
 
-
 References
 ----------
+
 For more information concerning PostgREST, cf.
 
 - :ref:`s_proc_single_unnamed`
-- :ref:`scalar_return_formats`
-- :ref:`Nginx reverse proxy <admin>`
+- :ref:`custom_media`. See :ref:`any_handler`, if you need to support an ``application/soap+xml`` media type.
+- :ref:`Nginx reverse proxy <nginx>`
 
 For SOAP reference, visit
 

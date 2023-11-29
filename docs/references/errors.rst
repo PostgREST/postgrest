@@ -217,10 +217,6 @@ Related to the HTTP request elements.
 |               |             | See :ref:`guc_resp_status`.                                 |
 | PGRST112      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst113: | 406         | More than one column was returned for a scalar result.      |
-|               |             | See :ref:`scalar_return_formats`.                           |
-| PGRST113      |             |                                                             |
-+---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst114: | 400         | For an :ref:`UPSERT using PUT <upsert_put>`, when           |
 |               |             | :ref:`limits and offsets <limits>` are used.                |
 | PGRST114      |             |                                                             |

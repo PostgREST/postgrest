@@ -23,15 +23,44 @@ Use the Accept request header to specify the acceptable format (or formats) for 
     curl "http://localhost:3000/people" \
       -H "Accept: application/json"
 
-For tables and views the current possibilities are:
+.. _builtin_media:
 
-* ``*/*``
-* ``text/csv``
-* ``application/json``
-* ``application/openapi+json``
-* ``application/geo+json``
+Builtin Media Type Handlers
+===========================
 
-The server will default to JSON for API endpoints and OpenAPI on the root.
+Builtin handlers are offered for common standard media types.
+
+* ``text/csv`` and ``application/json``, for all API endpoints. See :ref:`tables_views` and :ref:`s_procs`.
+* ``application/openapi+json``, for the root endpoint. See :ref:`open-api`.
+* ``application/geo+json``, see :ref:`ww_postgis`.
+* ``*/*``, resolves to ``application/json`` for API endpoints and to ``application/openapi+json`` for the root endpoint.
+
+The following vendor media types handlers are also supported.
+
+* ``application/vnd.pgrst.plan``, see :ref:`explain_plan`.
+* ``application/vnd.pgrst.object`` and ``application/vnd.pgrst.array``, see :ref:`singular_plural` and :ref:`stripped_nulls`.
+
+Any unrecognized media type will throw an error.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people HTTP/1.1
+    Accept: unknown/unknown
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people" \
+      -H "Accept: unknown/unknown"
+
+.. code-block:: http
+
+  HTTP/1.1 415 Unsupported Media Type
+
+  {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: unknown/unknown"}
+
+To extend the accepted media types, you can use :ref:`custom_media`.
 
 .. _singular_plural:
 
@@ -85,6 +114,8 @@ When a singular response is requested but no entries are found, the server respo
 
   Admittedly PostgREST could detect when there is an equality condition holding on all columns constituting the primary key and automatically convert to singular. However this could lead to a surprising change of format that breaks unwary client code just by filtering on an extra column. Instead we allow manually specifying singular vs plural to decouple that choice from the URL format.
 
+.. _stripped_nulls:
+
 Stripped Nulls
 --------------
 
@@ -121,72 +152,6 @@ This returns
     { "id": 12, "name": "ProjectX" },
     { "id": 13, "name": "Y"}
   ]
-
-.. _scalar_return_formats:
-
-Scalar Function Response Format
--------------------------------
-
-In the special case of a :ref:`scalar_functions` there are three additional formats:
-
-* ``application/octet-stream``
-* ``text/plain``
-* ``text/xml``
-
-Example 1: If you want to return raw binary data from a :code:`bytea` column, you must specify :code:`application/octet-stream` as part of the :code:`Accept` header
-and select a single column :code:`?select=bin_data`.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /items?select=bin_data&id=eq.1 HTTP/1.1
-    Accept: application/octet-stream
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/items?select=bin_data&id=eq.1" \
-      -H "Accept: application/octet-stream"
-
-Example 2: You can request XML output when having a scalar function that returns a type of ``text/xml``. You are not forced to use select for this case.
-
-.. code-block:: postgres
-
-  CREATE FUNCTION generate_xml_content(..) RETURNS xml ..
-
-.. tabs::
-
-  .. code-tab:: http
-
-    POST /rpc/generate_xml_content HTTP/1.1
-    Accept: text/xml
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/generate_xml_content" \
-      -X POST -H "Accept: text/xml"
-
-Example 3: If the stored procedure returns non-scalar values, you need to do a :code:`select` in the same way as for GET binary output.
-
-.. code-block:: sql
-
-  CREATE FUNCTION get_descriptions(..) RETURNS SETOF TABLE(id int, description text) ..
-
-.. tabs::
-
-  .. code-tab:: http
-
-    POST /rpc/get_descriptions?select=description HTTP/1.1
-    Accept: text/plain
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/get_descriptions?select=description" \
-      -X POST -H "Accept: text/plain"
-
-.. note::
-
-  If more than one row would be returned the binary/plain-text/xml results will be concatenated with no delimiter.
 
 .. _req_body:
 

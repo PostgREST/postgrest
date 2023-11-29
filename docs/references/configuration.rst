@@ -732,30 +732,6 @@ openapi-server-proxy-uri
       ]
     }
 
-.. _raw-media-types:
-
-raw-media-types
----------------
-
-  =============== =================================
-  **Type**        String
-  **Default**     `n/a`
-  **Reloadable**  Y
-  **Environment** PGRST_RAW_MEDIA_TYPES
-  **In-Database** pgrst.raw_media_types
-  =============== =================================
-
- This serves to extend the `Media Types <https://en.wikipedia.org/wiki/Media_type>`_ that PostgREST currently accepts through an ``Accept`` header.
-
- These media types can be requested by following the same rules as the ones defined in :ref:`scalar_return_formats`.
-
- As an example, the below config would allow you to request an **image** and a **XML** file by doing a request with ``Accept: image/png``
- or ``Accept: font/woff2``, respectively.
-
- .. code:: bash
-
-   raw-media-types="image/png, font/woff2"
-
 .. _server_cors_allowed_origins:
 
 server-cors-allowed-origins

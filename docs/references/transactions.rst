@@ -227,7 +227,7 @@ Notice that the ``response.headers`` should be set to an *array* of single-key o
 
 .. note::
 
-  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way. Note that irrespective of overridden ``Content-Type`` response header, the content will still be converted to JSON, unless you also set :ref:`raw-media-types` to something like ``text/html``.
+  PostgREST provided headers such as ``Content-Type``, ``Location``, etc. can be overriden this way. Note that irrespective of overridden ``Content-Type`` response header, the content will still be converted to JSON, unless you use :ref:`custom_media`.
 
 .. _guc_resp_status:
 

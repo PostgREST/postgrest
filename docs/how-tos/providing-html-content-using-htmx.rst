@@ -23,7 +23,7 @@ To simplify things, we won't be using authentication, so grant all permissions o
   grant all on api.todos to web_anon;
   grant usage, select on sequence api.todos_id_seq to web_anon;
 
-Next, add the ``text/html`` media type as a DOMAIN. With this, PostgREST can identify the request made by your web browser (with the ``Accept: text/html`` header)
+Next, add the ``text/html`` as a :ref:`custom_media`. With this, PostgREST can identify the request made by your web browser (with the ``Accept: text/html`` header)
 and return a raw HTML document file.
 
 .. code-block:: postgres

@@ -26,18 +26,42 @@ First, we need a public table for storing the files.
    , blob bytea
    );
 
-Let's assume this table contains an image of two cute kittens with id 42.
-We can retrieve this image in binary format from our PostgREST API by requesting :code:`/files?select=blob&id=eq.42` with the :code:`Accept: application/octet-stream` header.
-Unfortunately, putting the URL into the :code:`src` of an :code:`<img>` tag will not work.
-That's because browsers do not send the required :code:`Accept: application/octet-stream` header.
+Let's assume this table contains an image of two cute kittens with id 42. We can retrieve this image in binary format from our PostgREST API by using :ref:`custom_media`:
 
-Luckily we can specify the accepted media types in the :ref:`raw-media-types` configuration variable.
-In this case, the :code:`Accept: image/webp` header is sent by many web browsers by default, so let's add it to the configuration variable, like this: :code:`raw-media-types="image/webp"`.
+.. code-block:: postgres
+
+   create domain "application/octet-stream" as bytea;
+
+   create or replace function file(id int) returns "application/octet-stream" as $$
+     select blob from files where id = file.id;
+   $$ language sql;
+
+Now we can request the RPC endpoint :code:`/rpc/file?id=42` with the :code:`Accept: application/octet-stream` header.
+
+
+.. code-block:: bash
+
+   curl "localhost:3000/rpc/file?id=42" -H "Accept: application/octet-stream"
+
+
+Unfortunately, putting the URL into the :code:`src` of an :code:`<img>` tag will not work. That's because browsers do not send the required :code:`Accept: application/octet-stream` header.
+Instead, the :code:`Accept: image/webp` header is sent by many web browsers by default.
+
+Luckily we can change the accepted media type in the function like so:
+
+.. code-block:: postgres
+
+   create domain "image/webp" as bytea;
+
+   create or replace function file(id int) returns "image/webp" as $$
+     select blob from files where id = file.id;
+   $$ language sql;
+
 Now, the image will be displayed in the HTML page:
 
 .. code-block:: html
 
-   <img src="http://localhost:3000/files?select=blob&id=eq.42" alt="Cute Kittens"/>
+   <img src="http://localhost:3000/file?id=42" alt="Cute Kittens"/>
 
 Improved Version
 ----------------
@@ -60,13 +84,15 @@ First, in addition to the minimal example, we need to store the media types and 
      add column type text,
      add column name text;
 
-Next, we set up an RPC endpoint that sets the content type and filename.
+Next, we set modify the function to set the content type and filename.
 We use this opportunity to configure some basic, client-side caching.
 For production, you probably want to configure additional caches, e.g. on the :ref:`reverse proxy <admin>`.
 
 .. code-block:: postgres
 
-   create function file(id int) returns bytea as
+   create domain "*/*" as bytea;
+
+   create function file(id int) returns "*/*" as
    $$
      declare headers text;
      declare blob bytea;
@@ -79,7 +105,7 @@ For production, you probably want to configure additional caches, e.g. on the :r
        from files where files.id = file.id into headers;
        perform set_config('response.headers', headers, true);
        select files.blob from files where files.id = file.id into blob;
-       if found
+       if FOUND -- special var, see https://www.postgresql.org/docs/current/plpgsql-statements.html#PLPGSQL-STATEMENTS-DIAGNOSTICS
        then return(blob);
        else raise sqlstate 'PT404' using
          message = 'NOT FOUND',

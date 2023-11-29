@@ -311,7 +311,9 @@ Repeating also works in POST requests with ``Content-Type: application/x-www-for
       -X POST -H "Content-Type: application/x-www-form-urlencoded" \
       -d 'v=1&v=2&v=3&v=4'
 
-Table-Valued functions
+.. _table_functions:
+
+Table-Valued Functions
 ----------------------
 
 A function that returns a table type can be filtered using the same filters as :ref:`tables and views <tables_views>`. They can also use :ref:`Resource Embedding <s_proc_embed>`.
@@ -418,7 +420,7 @@ PostgREST will detect if the function is scalar or table-valued and will shape t
     { "title": "Blade Runner 2049", "rating": 8.1}
   ]
 
-To manually choose a return format such as binary, plain text or XML, see the section :ref:`scalar_return_formats`.
+To manually choose a return format such as binary, see :ref:`custom_media`.
 
 .. _untyped_functions:
 

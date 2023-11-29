@@ -10,7 +10,6 @@ authenticator
 backoff
 balancer
 booleans
-Builtins
 buildpack
 Bytea
 Cardano
@@ -175,7 +174,6 @@ url
 urlencoded
 urls
 variadic
-vendored
 verifier
 versioning
 Vondra
