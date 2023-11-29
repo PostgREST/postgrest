@@ -532,24 +532,6 @@ External config file
 
   Choosing a value for this parameter beginning with the at sign such as ``@filename`` (e.g. ``@./configs/my-config``) loads the connection string out of an external file.
 
-
-.. _db-use-legacy-gucs:
-
-db-use-legacy-gucs
-------------------
-
-  =============== =================================
-  **Type**        Boolean
-  **Default**     True
-  **Reloadable**  Y
-  **Environment** PGRST_DB_USE_LEGACY_GUCS
-  **In-Database** pgrst.db_use_legacy_gucs
-  =============== =================================
-
-  Determine if GUC request settings for headers, cookies and jwt claims use the `legacy names <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ (string with dashes, invalid starting from PostgreSQL v14) with text values instead of the :ref:`new names <guc_req_headers_cookies_claims>` (string without dashes, valid on all PostgreSQL versions) with json values.
-
-  On PostgreSQL versions 14 and above, this parameter is ignored.
-
 .. _jwt-aud:
 
 jwt-aud
