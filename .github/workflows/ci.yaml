@@ -79,9 +79,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
-          # It seems like they are installing the same set of derivations, so we can assign them the same cache id. 
+          # It seems like they are installing the same set of derivations, so we can assign them the same cache id.
           # This would decrease the amount of caches dowloaded on merge cache step and will prevent disk space issues.
-          cache-id: test-pg 
+          cache-id: test-pg
 
       - name: Run spec tests
         if: always()
@@ -141,6 +141,8 @@ jobs:
   merge-nix-caches-linux:
     name: "Merge Nix caches (Linux)"
     needs: [Test-Nix, Test-Pg-Nix, Test-Memory-Nix, Build-Static-Nix, Lint-Style] # Honestly, we don't really care of the order of cache merge job. Let's see how this works.
+    permissions:
+      actions: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,11 +157,11 @@ jobs:
         with:
           # That's the cache key the action will look for, restore and store back.
           key: cache-nix-${{ runner.os }}-common-${{ hashFiles('nix/**/*.nix') }}
-          # Below are cache keys (or prefixes thereof, to be exact) the action will try restore too. 
-          # The previous approach was to restore all the per-job-type caches in a single run, but it drained the disk space real quick and hit the runner's disk space limit in no time. 
+          # Below are cache keys (or prefixes thereof, to be exact) the action will try restore too.
+          # The previous approach was to restore all the per-job-type caches in a single run, but it drained the disk space real quick and hit the runner's disk space limit in no time.
           # It appears that downloaded cache archives are not deleted until the end of the job, and there's no way to delete them manually.
           # Specifying single per-job-type cache key effectively restores only 2 caches: the "common" cache and the cache for the current job type.
-          # They are restored over one another, so resulting cache has all the nix store entries merged. 
+          # They are restored over one another, so resulting cache has all the nix store entries merged.
           extra-restore-keys: |
             cache-nix-${{ runner.os }}-id-
           purge: true
