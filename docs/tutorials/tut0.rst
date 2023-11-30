@@ -38,7 +38,25 @@ This will run the Docker instance as a daemon and expose port 5433 to the host s
 Step 3. Install PostgREST
 -------------------------
 
-PostgREST is distributed as a single binary, with versions compiled for major distributions of Linux/BSD/Windows. Visit the `latest release <https://github.com/PostgREST/postgrest/releases/latest>`_ for a list of downloads. In the event that your platform is not among those already pre-built, see :ref:`build_source` for instructions how to build it yourself. Also let us know to add your platform in the next release.
+Using a Package Manager
+~~~~~~~~~~~~~~~~~~~~~~~
+
+You can use your OS package manager to install PostgREST.
+
+.. include:: ../shared/installation.rst
+
+Then, try running it with:
+
+.. code-block:: bash
+
+  postgrest -h
+
+It should print the help page with its version and the available options.
+
+Downloading a Pre-Built Binary
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgREST is also distributed as a single binary, with versions compiled for major distributions of macOS, Windows, Linux and FreeBSD. Visit the `latest release <https://github.com/PostgREST/postgrest/releases/latest>`_ for a list of downloads. In the event that your platform is not among those already pre-built, see :ref:`build_source` for instructions how to build it yourself. Also let us know to add your platform in the next release.
 
 The pre-built binaries for download are :code:`.tar.xz` compressed files (except Windows which is a zip file). To extract the binary, go into the terminal and run
 
@@ -76,7 +94,7 @@ If everything is working correctly it will print out its version and the availab
       </div></div>
     </details>
     <details>
-      <summary>OS X</summary>
+      <summary>macOS</summary>
       <div class="highlight-bash"><div class="highlight">
         <pre>brew install postgresql</pre>
       </div></div>
@@ -172,6 +190,10 @@ Now run the server:
 
 .. code-block:: bash
 
+  # Running postgrest installed from a package manager
+  postgrest tutorial.conf
+
+  # Running postgrest binary
   ./postgrest tutorial.conf
 
 You should see

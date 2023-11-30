@@ -3,58 +3,12 @@
 Installation
 ############
 
-The release page has `pre-compiled binaries for Mac OS X, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_ .
+The release page has `pre-compiled binaries for macOS, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_ .
 The Linux binary is a static executable that can be run on any Linux distribution.
 
 You can also use your OS package manager.
 
-.. tabs::
-
-  .. group-tab:: Mac OSX
-
-    You can install PostgREST from the `Homebrew official repo <https://formulae.brew.sh/formula/postgrest>`_.
-
-    .. code:: bash
-
-      brew install postgrest
-
-  .. group-tab:: FreeBSD
-
-    You can install PostgREST from the `official ports <https://www.freshports.org/www/hs-postgrest>`_.
-
-    .. code:: bash
-
-      pkg install hs-postgrest
-
-  .. group-tab:: Linux
-
-    .. tabs::
-
-      .. tab:: Arch Linux
-
-        You can install PostgREST from the `community repo <https://archlinux.org/packages/extra/x86_64/postgrest/>`_.
-
-        .. code:: bash
-
-          pacman -S postgrest
-
-      .. tab:: Nix
-
-        You can install PostgREST from nixpkgs.
-
-        .. code:: bash
-
-          nix-env -i haskellPackages.postgrest
-
-  .. group-tab:: Windows
-
-    You can install PostgREST using `Chocolatey <https://community.chocolatey.org/packages/postgrest>`_ or `Scoop <https://github.com/ScoopInstaller/Scoop>`_.
-
-    .. code:: bash
-
-      choco install postgrest
-      scoop install postgrest
-
+.. include:: ../shared/installation.rst
 
 .. _pg-dependency:
 
@@ -242,7 +196,7 @@ You can build PostgREST from source with `Stack <https://github.com/commercialha
   Ubuntu/Debian          libpq-dev, libgmp-dev, zlib1g-dev
   CentOS/Fedora/Red Hat  postgresql-devel, zlib-devel, gmp-devel
   BSD                    postgresql12-client
-  OS X                   libpq, gmp
+  macOS                  libpq, gmp
   =====================  =======================================
 
 * Build and install binary
