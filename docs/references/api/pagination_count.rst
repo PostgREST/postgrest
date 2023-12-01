@@ -58,6 +58,8 @@ The other way to request a limit or offset is with query parameters. For example
 
 This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
 
+.. _prefer_count:
+
 Counting
 --------
 

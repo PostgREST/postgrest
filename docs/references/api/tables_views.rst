@@ -555,70 +555,7 @@ To create a row in a database table post a JSON object whose keys are the names 
 
   HTTP/1.1 201 Created
 
-No request body will be returned by default.
-
-.. note::
-
-   You can use the ``Prefer: return=minimal`` header to get the same behavior. This is only provided for completeness because it's basically a no-op.
-
-Prefer: return=headers-only
----------------------------
-
-If the table has a primary key, the response can contain a :code:`Location` header describing where to find the new object by including the header :code:`Prefer: return=headers-only` in the request. Make sure that the table is not write-only, otherwise constructing the :code:`Location` header will cause a permissions error.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    POST /projects HTTP/1.1
-    Prefer: return=headers-only
-
-    {"id":33, "name": "x"}
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/projects" \
-      -X POST -H "Content-Type: application/json" -H "Prefer: return=headers-only" \
-      -d '{"id":33, "name": "x"}'
-
-.. code-block:: http
-
-  HTTP/1.1 201 Created
-  Location: /projects?id=eq.34
-  Preference-Applied: return=headers-only
-
-Prefer: return=representation
------------------------------
-
-On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
-
-.. tabs::
-
-  .. code-tab:: http
-
-    POST /projects HTTP/1.1
-    Content-Type: application/json; charset=utf-8
-    Prefer: return=representation
-
-    {"id":33, "name": "x"}
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/projects" \
-      -X POST -H "Content-Type: application/json" -H "Prefer: return=representation" \
-      -d '{"id":33, "name": "x"}'
-
-.. code::
-
-  HTTP/1.1 201 Created
-  Preference-Applied: return=representation
-
-  [
-      {
-          "id": 33,
-          "name": "x"
-      }
-  ]
+No response body will be returned by default but you can use :ref:`prefer_return` to get the affected resource.
 
 x-www-form-urlencoded
 ---------------------
@@ -849,11 +786,13 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
       -X PATCH -H "Content-Type: application/json" \
       -d '{ "category": "child" }'
 
-Updates also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+Updates also support :ref:`prefer_return` plus :ref:`v_filter`.
 
 .. warning::
 
   Beware of accidentally updating every row in a table. To learn to prevent that see :ref:`block_fulltable`.
+
+.. _prefer_resolution:
 
 .. _upsert:
 
@@ -966,7 +905,7 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 
     curl "http://localhost:3000/user?active=is.false" -X DELETE
 
-Deletions also support :code:`Prefer: return=representation` plus :ref:`v_filter`.
+Deletions also support :ref:`prefer_return` plus :ref:`v_filter`.
 
 .. tabs::
 
@@ -1039,6 +978,8 @@ Using ``offset`` to target a different subset of rows is also possible.
       '#exact-count': 'pagination_count.html#exact-count',
       '#planned-count': 'pagination_count.html#planned-count',
       '#estimated-count': 'pagination_count.html#estimated-count',
+      '#prefer-return-headers-only': 'preferences.html#headers-only',
+      '#prefer-return-representation': 'preferences.html#full',
     };
 
     let willRedirectTo = redirects[hash];
