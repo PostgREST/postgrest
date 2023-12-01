@@ -273,6 +273,8 @@ When certain columns are wide (such as those holding binary data), it is more ef
 
 The default is ``*``, meaning all columns. This value will become more important below in :ref:`resource_embedding`.
 
+.. _renaming_columns:
+
 Renaming Columns
 ~~~~~~~~~~~~~~~~
 

@@ -178,6 +178,28 @@ app.settings.*
 
   Arbitrary settings that can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to postgresql functions as :code:`current_setting('app.settings.jwt_secret')`.
 
+.. _db-aggregates-enabled:
+
+db-aggregates-enabled
+---------------------
+
+  =============== =======================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_DB_AGGREGATES_ENABLED
+  **In-Database** pgrst.db_aggregates_enabled
+  =============== =======================
+
+
+  When this is set to :code:`true`, the use of :ref:`aggregate_functions` is allowed.
+
+  It is recommended that this be set to ``false`` unless proper safeguards are in place to prevent potential performance problems from arising. For example, it is possible that a user may request the ``max()`` of an unindexed column in a table with millions of rows. At best, this would result in a slow query, and at worst, it could be abused to prevent other users from accessing your API (i.e. a form of denial-of-service attack.)
+
+  Proper safeguards could include:
+    - Use of a statement timeout. See :ref:`impersonated_settings`.
+    - Use of the `pg_plan_filter extension <https://github.com/pgexperts/pg_plan_filter>`_ to block excessively expensive queries.
+
 .. _db-anon-role:
 
 db-anon-role
