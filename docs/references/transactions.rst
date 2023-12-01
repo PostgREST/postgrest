@@ -7,7 +7,7 @@ After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` r
 
 .. code-block:: postgresql
 
-  BEGIN; -- <Access Mode> <Isolation Level>
+  START TRANSACTION; -- <Access Mode> <Isolation Level>
   -- <Transaction-scoped settings>
   -- <Main Query>
   END; -- <Transaction End>
