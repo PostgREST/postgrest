@@ -182,6 +182,17 @@ Now use the transition and final function as part of the new aggregate.
   , finalfunc = bom_csv_final
   );
 
+.. code-block:: psql
+
+  select bom_csv_agg(l) from lines l;
+                                               bom_csv_agg
+  -----------------------------------------------------------------------------------------------------
+   ﻿id,name,geom                                                                                      +
+   1,line-1,0102000020E610000002000000000000000000F03F000000000000F03F00000000000014400000000000001440+
+   2,line-2,0102000020E6100000020000000000000000000040000000000000004000000000000018400000000000001840+
+
+  (1 row)
+
 And request it like:
 
 .. code-block:: bash
@@ -269,11 +280,15 @@ And it will accept only XML media types.
   HTTP/1.1 200 OK
   Content-Type: text/xml
 
+.. code-block:: bash
+
   curl 'localhost:3000/lines.xml' -i  \
     -H "Accept: application/xml"
 
   HTTP/1.1 200 OK
   Content-Type: text/xml
+
+.. code-block:: bash
 
   curl 'localhost:3000/lines.xml' -i \
     -H "Accept: unknown/media"
