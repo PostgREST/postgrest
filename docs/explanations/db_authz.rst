@@ -92,19 +92,10 @@ You can mix the group and individual role policies. For instance we could still 
   -- allow authenticator to switch into user000 role
   -- (the role itself has nologin)
 
-.. _schema_isolation:
-
 Schemas
 =======
 
-A PostgREST instance exposes all the tables, views, and stored procedures of the schemas configured in :ref:`db-schemas`. This means private data or implementation details can go inside private schemas and be invisible to HTTP clients.
-
-It is recommended that you don't expose tables on the schemas you expose, instead expose views and stored procedures which insulate the internal details from the outside world.
-This allows you to change the internals of your schema and maintain backwards compatibility. It also keeps your code easier to refactor, and provides a natural way to do API versioning.
-
-.. image:: ../_static/db.png
-
-You must explicitly allow roles to access the exposed schemas:
+You must explicitly allow roles to access the exposed schemas in :ref:`db-schemas`.
 
 .. code-block:: postgres
 
