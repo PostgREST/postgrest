@@ -36,7 +36,7 @@ As an example, let's obtain the `TWKB <https://postgis.net/docs/ST_AsTWKB.html>`
   , geom geometry(LINESTRING, 4326)
   );
 
-  insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::extensions.geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::extensions.geometry);
+  insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::geometry);
 
 For this you can create a vendor media type and use it as a return type on a function.
 
@@ -57,7 +57,8 @@ Now you can request the ``TWKB`` output like so:
 
 .. code-block:: bash
 
-  curl 'localhost:3000/rpc/get_line?id=1' -H "Accept: application/vnd.twkb" -i
+  curl 'localhost:3000/rpc/get_line?id=1' -i \
+    -H "Accept: application/vnd.twkb"
 
   HTTP/1.1 200 OK
   Content-Type: application/vnd.twkb
@@ -73,11 +74,13 @@ To benefit from a compressed format like ``TWKB``, it makes more sense to obtain
 
 .. code-block:: postgres
 
+  -- let's add the vendor type as return of the transition function
   create or replace function twkb_handler_transition (state bytea, next lines)
   returns "application/vnd.twkb" as $$
     select state || st_astwkb(next.geom);
   $$ language sql;
 
+  -- use the transition function on the aggregate
   create or replace aggregate twkb_agg (lines) (
     initcond = ''
   , stype = "application/vnd.twkb"
@@ -95,7 +98,8 @@ Now you can request the table endpoint with the ``twkb`` media type:
 
 .. code-block:: bash
 
-  curl 'localhost:3000/lines' -H "Accept: application/vnd.twkb" -i
+  curl 'localhost:3000/lines' -i \
+    -H "Accept: application/vnd.twkb"
 
   HTTP/1.1 200 OK
   Content-Type: application/vnd.twkb
@@ -113,7 +117,8 @@ If you have a table-valued function returning the same table type, the handler c
 
 .. code-block:: bash
 
-  curl 'localhost:3000/get_lines' -H "Accept: application/vnd.twkb" -i
+  curl 'localhost:3000/get_lines' -i \
+    -H "Accept: application/vnd.twkb"
 
   HTTP/1.1 200 OK
   Content-Type: application/vnd.twkb
@@ -146,8 +151,7 @@ It'll include a `Byte order mark <https://en.wikipedia.org/wiki/Byte_order_mark>
       (E'id,name,geom\n' || data);
   $$ language sql;
 
-  drop aggregate if exists bom_csv_agg(lines);
-  create aggregate bom_csv_agg (lines) (
+  create or replace aggregate bom_csv_agg (lines) (
     initcond = ''
   , stype = "text/csv"
   , sfunc = bom_csv_trans
@@ -158,7 +162,8 @@ You can now request it like:
 
 .. code-block:: bash
 
-  curl 'localhost:3000/lines' -H "Accept: text/csv" -i
+  curl 'localhost:3000/lines' -i \
+    -H "Accept: text/csv"
 
   HTTP/1.1 200 OK
   Content-Type: text/csv
@@ -183,6 +188,7 @@ Let's define an any handler for a view that will always respond with ``XML`` out
 
   create domain "*/*" as pg_catalog.xml;
 
+  -- we'll use an .xml suffix for the view to be clear it's output is always XML
   create view "lines.xml" as
   select * from lines;
 
@@ -194,9 +200,10 @@ Let's define an any handler for a view that will always respond with ``XML`` out
   create or replace function lines_xml_final (data "*/*")
   returns "*/*" as $$
   declare
+    -- get the Accept header
     req_accept text := current_setting('request.headers', true)::json->>'accept';
   begin
-    -- when receiving */*, we need to set the Content-Type. PostgREST won't set it.
+    -- when receiving */*, we need to set the Content-Type, otherwise PostgREST will set a default one.
     if req_accept = '*/*'
       then perform set_config('response.headers', '[{"Content-Type": "text/xml"}]', true);
     -- we'll reject other non XML media types, we need to reject manually since */* will command PostgREST to accept all media types
@@ -207,8 +214,7 @@ Let's define an any handler for a view that will always respond with ``XML`` out
     return data;
   end; $$ language plpgsql;
 
-  drop aggregate if exists lines_xml_agg ("lines.xml");
-  create aggregate test.lines_xml_agg ("lines.xml") (
+  create or replace aggregate testlines_xml_agg ("lines.xml") (
     stype = "*/*"
   , sfunc = lines_xml_trans
   , finalfunc = lines_xml_final
@@ -230,16 +236,19 @@ And it will accept only XML media types.
 
 .. code-block:: bash
 
-  curl 'localhost:3000/lines.xml' -i  -H "Accept: text/xml"
+  curl 'localhost:3000/lines.xml' -i \
+    -H "Accept: text/xml"
 
   HTTP/1.1 200 OK
   Content-Type: text/xml
 
-  curl 'localhost:3000/lines.xml' -i  -H "Accept: application/xml"
+  curl 'localhost:3000/lines.xml' -i  \
+    -H "Accept: application/xml"
 
   HTTP/1.1 200 OK
   Content-Type: text/xml
 
-  curl 'localhost:3000/lines.xml' -i  -H "Accept: unknown/media"
+  curl 'localhost:3000/lines.xml' -i \
+    -H "Accept: unknown/media"
 
   HTTP/1.1 415 Unsupported Media Type
