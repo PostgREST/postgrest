@@ -14,6 +14,7 @@ PostgREST exposes three database objects of a schema as resources: tables, views
    api/schemas.rst
    api/computed_fields.rst
    api/domain_representations.rst
+   api/pagination_count.rst
    api/resource_embedding.rst
    api/resource_representation.rst
    api/media_type_handlers.rst

@@ -66,7 +66,7 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
   Preference-Applied: timezone=America/Los_Angeles
 
 .. code-block:: json
-  
+
   [
     {"t":"2023-10-18T05:37:59.611-07:00"},
     {"t":"2023-10-18T07:37:59.611-07:00"},
@@ -86,7 +86,7 @@ For an invalid timezone, PostgREST returns values with the default timezone (con
   Content-Type: application/json; charset=utf-8
 
 .. code-block:: json
-  
+
   [
     {"t":"2023-10-18T12:37:59.611+00:00"},
     {"t":"2023-10-18T14:37:59.611+00:00"},
@@ -101,7 +101,7 @@ However, with ``handling=strict``, an invalid timezone preference will throw an 
 
   GET /timestamps HTTP/1.1
   Prefer: handling=strict, timezone=Jupiter/Red_Spot
-  
+
 .. code-block:: http
 
   HTTP/1.1 400 Bad Request
