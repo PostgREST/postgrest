@@ -3,7 +3,7 @@
 Media Type Handlers
 ###################
 
-Media Type Handlers allows PostgREST to deliver custom media types. These handlers extend the :ref:`builtin ones <builtin_media>` and can also override them.
+Media Type Handlers allow PostgREST to deliver custom media types. These handlers extend the :ref:`builtin ones <builtin_media>` and can also override them.
 
 Media types are expressed as type aliases using `domains <https://www.postgresql.org/docs/current/sql-createdomain.html>`_ and their name must comply to `RFC 6838 requirements <https://datatracker.ietf.org/doc/html/rfc6838#section-4.2>`_.
 
@@ -11,11 +11,7 @@ Media types are expressed as type aliases using `domains <https://www.postgresql
 
    CREATE DOMAIN "application/json" AS json;
 
-By using these domains as return types:
-
-- Of :ref:`Functions <s_procs>`, these will turn into handlers.
-
-- Of `Aggregates <https://www.postgresql.org/docs/current/sql-createaggregate.html>`_ transition or final functions, these will serve as handlers for :ref:`tables_views` and :ref:`table_functions`.
+Using these domains, :ref:`functions <s_procs>` can become handlers and `user-defined aggregates <https://www.postgresql.org/docs/current/xaggr.html>`_ can serve as handlers for :ref:`tables_views` and :ref:`table_functions`.
 
 .. note::
 
@@ -38,11 +34,15 @@ As an example, let's obtain the `TWKB <https://postgis.net/docs/ST_AsTWKB.html>`
 
   insert into lines values (1, 'line-1', 'LINESTRING(1 1,5 5)'::geometry), (2, 'line-2', 'LINESTRING(2 2,6 6)'::geometry);
 
-For this you can create a vendor media type and use it as a return type on a function.
+For this you can create a vendor media type.
 
 .. code-block:: postgres
 
   create domain "application/vnd.twkb" as bytea;
+
+And use it as a return type on a function, to make it a handler.
+
+.. code-block:: postgres
 
   create or replace function get_line (id int)
   returns "application/vnd.twkb" as $$
@@ -70,29 +70,39 @@ Note that PostgREST will automatically set the  ``Content-Type`` to ``applicatio
 Handlers for Tables/Views
 =========================
 
-To benefit from a compressed format like ``TWKB``, it makes more sense to obtain many rows instead of one. Let's allow that by adding a handler for the table. You'll need an aggregate:
+To benefit from a compressed format like ``TWKB``, it makes more sense to obtain many rows instead of one. Let's allow that by adding a handler for the table.
+
+User-defined aggregates can be turned into handlers by using domain media types as the return type of their transition or final functions.
+
+Let's create a transition function for this example.
 
 .. code-block:: postgres
 
-  -- let's add the vendor type as return of the transition function
   create or replace function twkb_handler_transition (state bytea, next lines)
   returns "application/vnd.twkb" as $$
     select state || st_astwkb(next.geom);
   $$ language sql;
 
-  -- use the transition function on the aggregate
+Now we'll use it on a new aggregate defined for the ``lines`` table.
+
+.. code-block:: postgres
+
   create or replace aggregate twkb_agg (lines) (
     initcond = ''
   , stype = "application/vnd.twkb"
   , sfunc = twkb_handler_transition
   );
 
-  -- quick test
-  -- SELECT twkb_agg(l) from lines l;
-  --                            twkb_agg
-  ------------------------------------------------------------------
-  -- \xa20002c09a0cc09a0c80ea3080ea30a2000280b51880b51880ea3080ea30
-  --(1 row)
+Make a quick test on SQL to see it working.
+
+.. code-block:: psql
+
+  SELECT twkb_agg(l) from lines l;
+
+                             twkb_agg
+  ---------------------------------------------------------------
+  \xa20002c09a0cc09a0c80ea3080ea30a2000280b51880b51880ea3080ea30
+  (1 row)
 
 Now you can request the table endpoint with the ``twkb`` media type:
 
@@ -129,16 +139,26 @@ Overriding a Builtin Handler
 ============================
 
 Let's override the existing ``text/csv`` handler for the table to provide a more complex CSV output.
-It'll include a `Byte order mark <https://en.wikipedia.org/wiki/Byte_order_mark>`_ plus a ``Content-Disposition`` header to set a name for the downloaded file.
+It'll include a `Byte order mark (BOM) <https://en.wikipedia.org/wiki/Byte_order_mark>`_ plus a ``Content-Disposition`` header to set a name for the downloaded file.
+
+Create a domain for the standard ``text/csv`` media type.
 
 .. code-block:: postgres
 
   create domain "text/csv" as text;
 
+And a transition function that returns the domain.
+
+.. code-block:: postgres
+
   create or replace function bom_csv_trans (state text, next lines)
   returns "text/csv" as $$
     select state || next.id::text || ',' || next.name || ',' || next.geom::text || E'\n';
   $$ language sql;
+
+This time we'll add a final function. This will add the CSV header, the BOM and the ``Content-Disposition`` header.
+
+.. code-block:: postgres
 
   create or replace function bom_csv_final (data "text/csv")
   returns "text/csv" as $$
@@ -151,6 +171,10 @@ It'll include a `Byte order mark <https://en.wikipedia.org/wiki/Byte_order_mark>
       (E'id,name,geom\n' || data);
   $$ language sql;
 
+Now use the transition and final function as part of the new aggregate.
+
+.. code-block:: postgres
+
   create or replace aggregate bom_csv_agg (lines) (
     initcond = ''
   , stype = "text/csv"
@@ -158,7 +182,7 @@ It'll include a `Byte order mark <https://en.wikipedia.org/wiki/Byte_order_mark>
   , finalfunc = bom_csv_final
   );
 
-You can now request it like:
+And request it like:
 
 .. code-block:: bash
 
@@ -188,15 +212,17 @@ Let's define an any handler for a view that will always respond with ``XML`` out
 
   create domain "*/*" as pg_catalog.xml;
 
-  -- we'll use an .xml suffix for the view to be clear it's output is always XML
+  -- we'll use an .xml suffix for the view to be clear its output is always XML
   create view "lines.xml" as
   select * from lines;
 
+  -- transition function
   create or replace function lines_xml_trans (state "*/*", next "lines.xml")
   returns "*/*" as $$
     select xmlconcat(state, xmlelement(name line, xmlattributes(next.id as id, next.name as name), next.geom));
   $$ language sql;
 
+  -- final function
   create or replace function lines_xml_final (data "*/*")
   returns "*/*" as $$
   declare
@@ -214,7 +240,8 @@ Let's define an any handler for a view that will always respond with ``XML`` out
     return data;
   end; $$ language plpgsql;
 
-  create or replace aggregate testlines_xml_agg ("lines.xml") (
+  -- new aggregate
+  create or replace aggregate lines_xml_agg ("lines.xml") (
     stype = "*/*"
   , sfunc = lines_xml_trans
   , finalfunc = lines_xml_final
