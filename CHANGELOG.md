@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.0.0] - 2023-12-01
+
 ### Added
 
  - #1614, Add `db-pool-automatic-recovery` configuration to disable connection retrying - @taimoorzaeem
