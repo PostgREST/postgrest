@@ -109,6 +109,10 @@ PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid th
 
 To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results. The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
 
+.. note::
+
+  You can use the :ref:`server-timing_header` to see the effect of JWT caching.
+
 Symmetric Keys
 ~~~~~~~~~~~~~~
 

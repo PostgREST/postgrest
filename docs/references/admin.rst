@@ -145,15 +145,11 @@ You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Spec
 
 .. _server-timing_header:
 
-`Server-Timing` Header
-----------------------
+Server-Timing Header
+--------------------
 
-You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` on. 
-This header provides timing information about the different phases of the request-response cycle.
-
-.. code:: bash
-
-  server-timing-header = "on"
+You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` on.
+This header communicates metrics of the different phases in the request-response cycle.
 
 .. tabs::
 
@@ -163,12 +159,24 @@ This header provides timing information about the different phases of the reques
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/users"
-  
+    curl "http://localhost:3000/users" -i
+
 .. code::
 
   HTTP/1.1 200 OK
-  Server-Timing: jwt;dur=16.0, render;dur=8.8, plan;dur=16956.1, query;dur=763.5
+
+  Server-Timing: jwt;dur=14.9, parse;dur=71.1, plan;dur=109.0, transaction;dur=353.2, response;dur=4.4
+
+- All the durations (``dur``) are in milliseconds.
+- The ``jwt`` stage is when :ref:`jwt_impersonation` is done. This duration can be lowered with :ref:`jwt_caching`.
+- On the ``parse`` stage, the :ref:`url_grammar` is parsed.
+- On the ``plan`` stage, the :ref:`schema_cache` is used to generate the :ref:`main_query` of the transaction.
+- The ``transaction`` stage corresponds to the database transaction. See :ref:`transactions`.
+- The ``response`` stage is where the response status and headers are computed.
+
+.. note::
+
+  We're working on lowering the duration of the ``parse`` and ``plan`` stages on https://github.com/PostgREST/postgrest/issues/2816.
 
 .. _explain_plan:
 
