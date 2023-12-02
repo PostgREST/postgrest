@@ -221,7 +221,7 @@ Let's define an any handler for a view that will always respond with ``XML`` out
 
 .. code-block:: postgres
 
-  create domain "*/*" as pg_catalog.xml;
+  create domain "*/*" as bytea;
 
   -- we'll use an .xml suffix for the view to be clear its output is always XML
   create view "lines.xml" as
@@ -230,7 +230,7 @@ Let's define an any handler for a view that will always respond with ``XML`` out
   -- transition function
   create or replace function lines_xml_trans (state "*/*", next "lines.xml")
   returns "*/*" as $$
-    select xmlconcat(state, xmlelement(name line, xmlattributes(next.id as id, next.name as name), next.geom));
+    select state || xmlelement(name line, xmlattributes(next.id as id, next.name as name), next.geom)::text::bytea || E'\n' ;
   $$ language sql;
 
   -- final function
@@ -257,6 +257,16 @@ Let's define an any handler for a view that will always respond with ``XML`` out
   , sfunc = lines_xml_trans
   , finalfunc = lines_xml_final
   );
+
+Test it on SQL:
+
+.. code-block:: psql
+
+  select (encode(lines_xml_agg(x), 'escape'))::xml from "lines.xml" x;
+                                                              encode
+  ------------------------------------------------------------------------------------------------------------------------------
+   <line id="1" name="line-1">0102000020E610000002000000000000000000F03F000000000000F03F00000000000014400000000000001440</line>+
+   <line id="2" name="line-2">0102000020E6100000020000000000000000000040000000000000004000000000000018400000000000001840</line>+
 
 Now we can omit the ``Accept`` header and it will respond with XML.
 
