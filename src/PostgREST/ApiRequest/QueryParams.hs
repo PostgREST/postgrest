@@ -364,11 +364,17 @@ pFieldName =
 -- >>> P.parse pJsonPath "" "->text"
 -- Right [JArrow {jOp = JKey {jVal = "text"}}]
 --
+-- >>> P.parse pJsonPath "" "->!@#$%^&*_a"
+-- Right [JArrow {jOp = JKey {jVal = "!@#$%^&*_a"}}]
+--
 -- >>> P.parse pJsonPath "" "->1"
 -- Right [JArrow {jOp = JIdx {jVal = "+1"}}]
 --
 -- >>> P.parse pJsonPath "" "->>text"
 -- Right [J2Arrow {jOp = JKey {jVal = "text"}}]
+--
+-- >>> P.parse pJsonPath "" "->>!@#$%^&*_a"
+-- Right [J2Arrow {jOp = JKey {jVal = "!@#$%^&*_a"}}]
 --
 -- >>> P.parse pJsonPath "" "->>1"
 -- Right [J2Arrow {jOp = JIdx {jVal = "+1"}}]
@@ -406,7 +412,7 @@ pJsonPath = many pJsonOperation
       try (string "->" $> JArrow)
 
     pJsonOperand =
-      let pJKey = JKey . toS <$> pFieldName
+      let pJKey = JKey . toS <$> pFieldNameJson
           pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
           pEnd = try (void $ lookAhead (string "->")) <|>
                  try (void $ lookAhead (string "::")) <|>
@@ -414,6 +420,20 @@ pJsonPath = many pJsonOperation
                  try (void $ lookAhead (string ",")) <|>
                  try eof in
       try pJIdx <|> try pJKey
+
+pFieldNameJson :: Parser Text
+pFieldNameJson =
+  pQuotedValue <|>
+  T.intercalate "-" . map toS <$> (pIdentifierJson `sepBy1` dash) <?>
+  "a value different from (-:.,>)"
+  where
+    isDash :: GenParser Char st ()
+    isDash = try ( char '-' >> notFollowedBy (char '>') )
+    dash :: Parser Char
+    dash = isDash $> '-'
+
+pIdentifierJson :: Parser Text
+pIdentifierJson = T.strip . toS <$> many1 (noneOf "(-:.,>)")
 
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> P.option [] pJsonPath
@@ -476,6 +496,9 @@ pRelationSelect = lexeme $ do
 --
 -- >>> P.parse pFieldSelect "" "alias:name->jsonpath::cast"
 -- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "jsonpath"}}]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Just "cast", selAlias = Just "alias"})
+--
+-- >>> P.parse pFieldSelect "" "alias:name->!@#$%^&*_a::cast"
+-- Right (SelectField {selField = ("name",[JArrow {jOp = JKey {jVal = "!@#$%^&*_a"}}]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Just "cast", selAlias = Just "alias"})
 --
 -- >>> P.parse pFieldSelect "" "*"
 -- Right (SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing})
@@ -678,8 +701,14 @@ pDelimiter = char '.' <?> "delimiter (.)"
 -- >>> P.parse pOrder "" "json_col->key.asc.nullslast"
 -- Right [OrderTerm {otTerm = ("json_col",[JArrow {jOp = JKey {jVal = "key"}}]), otDirection = Just OrderAsc, otNullOrder = Just OrderNullsLast}]
 --
+-- >>> P.parse pOrder "" "json_col->!@#$%^&*_a.asc.nullslast"
+-- Right [OrderTerm {otTerm = ("json_col",[JArrow {jOp = JKey {jVal = "!@#$%^&*_a"}}]), otDirection = Just OrderAsc, otNullOrder = Just OrderNullsLast}]
+--
 -- >>> P.parse pOrder "" "clients(json_col->key).desc.nullsfirst"
 -- Right [OrderRelationTerm {otRelation = "clients", otRelTerm = ("json_col",[JArrow {jOp = JKey {jVal = "key"}}]), otDirection = Just OrderDesc, otNullOrder = Just OrderNullsFirst}]
+--
+-- >>> P.parse pOrder "" "clients(json_col->!@#$%^&*_a).desc.nullsfirst"
+-- Right [OrderRelationTerm {otRelation = "clients", otRelTerm = ("json_col",[JArrow {jOp = JKey {jVal = "!@#$%^&*_a"}}]), otDirection = Just OrderDesc, otNullOrder = Just OrderNullsFirst}]
 --
 -- >>> P.parse pOrder "" "clients(name,id)"
 -- Left (line 1, column 8):
