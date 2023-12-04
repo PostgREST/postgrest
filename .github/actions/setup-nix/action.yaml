@@ -24,7 +24,7 @@ runs:
         restore-keys: |
           cache-nix-${{ runner.os }}-common-
         restore-key-hit: true
-    - uses: cachix/cachix-action@v12
+    - uses: cachix/cachix-action@v13
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
