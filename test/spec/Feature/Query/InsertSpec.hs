@@ -287,7 +287,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" "}{ x = 2"
         `shouldRespondWith`
-        [json|{"message":"Error in $: Failed reading: not a valid json value at '}{x=2'","code":"PGRST102","details":null,"hint":null}|]
+        [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
@@ -296,7 +296,7 @@ spec actualPgVersion = do
       it "fails with 400 and error" $
         post "/simple_pk" ""
         `shouldRespondWith`
-        [json|{"message":"Error in $: not enough input","code":"PGRST102","details":null,"hint":null}|]
+        [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
