@@ -86,7 +86,7 @@ First, in addition to the minimal example, we need to store the media types and 
 
 Next, we set modify the function to set the content type and filename.
 We use this opportunity to configure some basic, client-side caching.
-For production, you probably want to configure additional caches, e.g. on the :ref:`reverse proxy <admin>`.
+For production, you probably want to configure additional caches, e.g. on the :ref:`reverse proxy <nginx>`.
 
 .. code-block:: postgres
 

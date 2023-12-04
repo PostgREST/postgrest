@@ -123,7 +123,8 @@ Technical references for PostgREST's functionality.
    references/schema_cache.rst
    references/errors.rst
    references/configuration.rst
-   references/*
+   references/observability.rst
+   references/health_check.rst
 
 Explanations
 ------------
