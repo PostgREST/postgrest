@@ -129,11 +129,11 @@ library
                     , utf8-string               >= 1.0.2 && < 1.1
                     , vault                     >= 0.3.1.5 && < 0.4
                     , vector                    >= 0.11 && < 0.14
-                    , x509                      >= 1.7.7 && 2.0
+                    , x509                      >= 1.7.7 && < 2.0
                     , wai                       >= 3.2.1 && < 3.3
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.1.8 && < 3.2
-                    , wai-saml2                 >= 0.5 && 0.7
+                    , wai-saml2                 >= 0.5 && < 0.7
                     -- We already depend on wai-logger >= 2.3.7 indirectly via wai-extra,
                     -- but we want to depend on 2.4.0 which fixes 'unknownSocket' log output
                     -- for unix sockets; this is tested in test/io/test_io.py. See
