@@ -35,6 +35,7 @@ import qualified PostgREST.ApiRequest       as ApiRequest
 import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
 import qualified PostgREST.AppState         as AppState
 import qualified PostgREST.Auth             as Auth
+import qualified PostgREST.AuthSAML         as AuthSAML
 import qualified PostgREST.Cors             as Cors
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
@@ -99,6 +100,7 @@ postgrest :: AppConfig -> AppState.AppState -> IO () -> Wai.Application
 postgrest conf appState connWorker =
   traceHeaderMiddleware conf .
   Cors.middleware (configServerCorsAllowedOrigins conf) .
+  AuthSAML.middleware appState .
   Auth.middleware appState .
   Logger.middleware (configLogLevel conf) $
     -- fromJust can be used, because the auth middleware will **always** add
