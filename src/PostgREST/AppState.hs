@@ -4,7 +4,9 @@
 
 module PostgREST.AppState
   ( AppState
+  , SAML2State(..)
   , AuthResult(..)
+  , stateSAML2
   , destroy
   , getConfig
   , getSchemaCache
@@ -49,6 +51,8 @@ import           PostgREST.Version          (prettyVersion)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
+
+import Crypto.PubKey.RSA.Types (PublicKey (..))
 import Control.Debounce
 import Control.Retry      (RetryStatus, capDelay, exponentialBackoff,
                            retrying, rsPreviousDelay)
@@ -57,6 +61,8 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
 import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
                            getZonedTime)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
+
+import Network.Wai.SAML2  (SAML2Config (..), saml2ConfigNoEncryption)
 
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
@@ -112,9 +118,36 @@ data AppState = AppState
   , stateSocketREST               :: NS.Socket
   -- | Network socket for the admin UI
   , stateSocketAdmin              :: Maybe NS.Socket
+  -- | Options for the SAML authentication middleware
+  , stateSAML2                    :: Maybe SAML2State
   }
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
+
+data SAML2State = SAML2State
+  { saml2StateAppConfig :: SAML2Config
+  -- | Known assertion IDs, so we can avoid 'replay' attacks.
+  , saml2KnownIds       :: C.Cache Text ()
+  -- | PostgREST endpoint that points to a Postgres function that generates JWT tokens.
+  , saml2JwtEndpoint    :: Text
+  }
+
+-- | The default SAML2 parameters.
+standardSAML2State :: IO SAML2State
+standardSAML2State = do
+  knownIds <- C.newCache Nothing :: IO (C.Cache Text ())
+  pure $ SAML2State
+    { saml2StateAppConfig = (saml2ConfigNoEncryption pubKey)
+      { saml2DisableTimeValidation = True }
+    , saml2KnownIds    = knownIds
+    , saml2JwtEndpoint = "/rpc/login"
+    }
+  where
+    pubKey = PublicKey
+      { public_size = 256
+      , public_n = 22422774418294161467689281605893099697695348238043024221462308433077554631939140778208843872196057459666733781706329732318701515820436112779102460560259099305916255329626929877997549586841451270776743862120602357029558305888132098945391819549132185888975931559389043395881630665509783899290824553207915569312623093600583991101104654520228295494031084631981134094819019941584685926482312779995332766353128642954180559563564860075114471257488173038109753857397617663192161051780809557088509925550614979729987724491937739323735648092627388826541432994389317410204416927290400855649211463115203541531238127283730363993681
+      , public_e = 65537
+      }
 
 init :: AppConfig -> IO AppState
 init conf = do
@@ -140,6 +173,7 @@ initWithPool (sock, adminSock) pool conf = do
     <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
+    <*> (Just <$> standardSAML2State)
 
 
   debLogTimeout <-
