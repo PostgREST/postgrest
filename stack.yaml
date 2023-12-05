@@ -14,3 +14,5 @@ extra-deps:
     commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
   - hasql-notifications-0.2.0.6
   - hasql-pool-0.10
+  - cryptostore-0.3.0.1
+  - wai-saml2-0.4

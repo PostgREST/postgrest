@@ -29,6 +29,20 @@ packages:
       size: 346
   original:
     hackage: hasql-pool-0.10
+- completed:
+    hackage: cryptostore-0.3.0.1@sha256:9031c0b8c05d34bd7331a24c5ebc7704aea00d6c1b0978ae25d79501c4d7c6cf,4219
+    pantry-tree:
+      sha256: 8175f2cfbfb905f2515d54b8f836af19c1773012fe9c75c69fa306efbb1686bb
+      size: 8675
+  original:
+    hackage: cryptostore-0.3.0.1
+- completed:
+    hackage: wai-saml2-0.4@sha256:a0ddd5c02c0042bae85bae478a80b9adb9b7be0da6381d29f1b9d8adc759ae13,3083
+    pantry-tree:
+      sha256: 5a84dad93e53c1538a3223005c3762fb03aa2f4d7961a20a2f74e9e8d35a49a7
+      size: 1776
+  original:
+    hackage: wai-saml2-0.4
 snapshots:
 - completed:
     sha256: 4905c93319aa94aa53da8f41d614d7bacdbfe6c63a8c6132d32e6e62f24a9af4
