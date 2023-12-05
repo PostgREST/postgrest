@@ -56,6 +56,11 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
         { matchHeaders = [matchContentTypeJson] }
 
+    it "accepts special characters in the key's name" $
+      get "/json_arr?id=eq.10&select=data->!@#$%^%26*_d->>!@#$%^%26*_e::integer" `shouldRespondWith`
+        [json| [{"!@#$%^&*_e":3}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
     -- TODO the status code for the error is 404, this is because 42883 represents undefined function
     -- this works fine for /rpc/unexistent requests, but for this case a 500 seems more appropriate
     it "fails when a double arrow ->> is followed with a single arrow ->" $ do
@@ -177,6 +182,11 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
     it "can be filtered with and/or" $
       get "/grandchild_entities?or=(jsonb_col->a->>b.eq.foo, jsonb_col->>b.eq.bar)&select=id" `shouldRespondWith`
         [json|[{id: 4}, {id: 5}]|] { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
+
+    it "can filter when the key's name has special characters" $
+      get "/json_arr?select=data->!@#$%^%26*_d&data->!@#$%^%26*_d->>!@#$%^%26*_e=eq.3" `shouldRespondWith`
+        [json| [{"!@#$%^&*_d": {"!@#$%^&*_e": 3}}] |]
+        { matchHeaders = [matchContentTypeJson] }
 
     it "can filter by array indexes" $ do
       get "/json_arr?select=data&data->>0=eq.1" `shouldRespondWith`
