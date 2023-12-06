@@ -56,10 +56,20 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
         [json| [{"myInt":1}] |] -- the value in the db is an int, but here we expect a string for now
         { matchHeaders = [matchContentTypeJson] }
 
-    it "accepts special characters in the key's name" $
+    it "accepts non reserved special characters in the key's name" $
       get "/json_arr?id=eq.10&select=data->!@#$%^%26*_d->>!@#$%^%26*_e::integer" `shouldRespondWith`
         [json| [{"!@#$%^&*_e":3}] |]
         { matchHeaders = [matchContentTypeJson] }
+
+    it "fails when there is a reserved special character in the key's name" $
+      get "/json_arr?id=eq.10&select=data->(!@#$%^%26*_d->>!@#$%^%26*_e::integer" `shouldRespondWith`
+        [json| {
+          "code":"PGRST100",
+          "details":"unexpected \"(\" expecting \"-\", digit or any non reserved character different from: .,>()",
+          "hint":null,
+          "message":"\"failed to parse select parameter (data->(!@#$%^&*_d->>!@#$%^&*_e::integer)\" (line 1, column 7)"}
+        |]
+        { matchStatus  = 400 , matchHeaders = [] }
 
     -- TODO the status code for the error is 404, this is because 42883 represents undefined function
     -- this works fine for /rpc/unexistent requests, but for this case a 500 seems more appropriate
@@ -183,7 +193,7 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
       get "/grandchild_entities?or=(jsonb_col->a->>b.eq.foo, jsonb_col->>b.eq.bar)&select=id" `shouldRespondWith`
         [json|[{id: 4}, {id: 5}]|] { matchStatus = 200, matchHeaders = [matchContentTypeJson] }
 
-    it "can filter when the key's name has special characters" $
+    it "can filter when the key's name has non reserved special characters" $
       get "/json_arr?select=data->!@#$%^%26*_d&data->!@#$%^%26*_d->>!@#$%^%26*_e=eq.3" `shouldRespondWith`
         [json| [{"!@#$%^&*_d": {"!@#$%^&*_e": 3}}] |]
         { matchHeaders = [matchContentTypeJson] }

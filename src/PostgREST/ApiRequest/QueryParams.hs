@@ -350,8 +350,12 @@ pFieldForest = pFieldTree `sepBy` lexeme (char ',')
 pFieldName :: Parser Text
 pFieldName =
   pQuotedValue <|>
-  T.intercalate "-" . map toS <$> (pIdentifier `sepBy1` dash) <?>
+  sepByDash pIdentifier <?>
   "field name (* or [a..z0..9_$])"
+
+sepByDash :: Parser Text -> Parser Text
+sepByDash fieldIdent =
+  T.intercalate "-" . map toS <$> (fieldIdent `sepBy1` dash)
   where
     isDash :: GenParser Char st ()
     isDash = try ( char '-' >> notFollowedBy (char '>') )
@@ -412,7 +416,7 @@ pJsonPath = many pJsonOperation
       try (string "->" $> JArrow)
 
     pJsonOperand =
-      let pJKey = JKey . toS <$> pFieldNameJson
+      let pJKey = JKey . toS <$> pJsonKeyName
           pJIdx = JIdx . toS <$> ((:) <$> P.option '+' (char '-') <*> many1 digit) <* pEnd
           pEnd = try (void $ lookAhead (string "->")) <|>
                  try (void $ lookAhead (string "::")) <|>
@@ -421,19 +425,14 @@ pJsonPath = many pJsonOperation
                  try eof in
       try pJIdx <|> try pJKey
 
-pFieldNameJson :: Parser Text
-pFieldNameJson =
+pJsonKeyName :: Parser Text
+pJsonKeyName =
   pQuotedValue <|>
-  T.intercalate "-" . map toS <$> (pIdentifierJson `sepBy1` dash) <?>
-  "a value different from (-:.,>)"
-  where
-    isDash :: GenParser Char st ()
-    isDash = try ( char '-' >> notFollowedBy (char '>') )
-    dash :: Parser Char
-    dash = isDash $> '-'
+  sepByDash pJsonKeyIdentifier <?>
+  "any non reserved character different from: .,>()"
 
-pIdentifierJson :: Parser Text
-pIdentifierJson = T.strip . toS <$> many1 (noneOf "(-:.,>)")
+pJsonKeyIdentifier :: Parser Text
+pJsonKeyIdentifier = T.strip . toS <$> many1 (noneOf "(-:.,>)")
 
 pField :: Parser Field
 pField = lexeme $ (,) <$> pFieldName <*> P.option [] pJsonPath
