@@ -36,6 +36,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Does not apply to role settings and `app.settings.*`
  - #2420, Fix bogus message when listening on port 0 - @develop7
  - #3067, Fix Acquision Timeout errors logging to stderr when `log-level=crit` - @laurenceisla
+ - #3054, Fix not allowing special characters in JSON keys - @laurenceisla
 
 ### Changed
 
