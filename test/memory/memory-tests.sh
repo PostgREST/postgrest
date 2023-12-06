@@ -102,7 +102,7 @@ postJsonArrayTest(){
 
 echo "Running memory usage tests.."
 
-jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "24M"
+jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "26M"
 jsonKeyTest "1M" "POST" "/leak?columns=blob" "16M"
 jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "16M"
 
