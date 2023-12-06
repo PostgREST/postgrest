@@ -23,10 +23,17 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 
 ``handling=strict`` will throw an error if you specify invalid preferences. For instance:
 
-.. code-block:: http
+.. tabs::
 
-  GET /projects HTTP/1.1
-  Prefer: handling=strict, foo, bar
+  .. code-tab:: http
+
+    GET /projects HTTP/1.1
+    Prefer: handling=strict, foo, bar
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/projects" \
+      -H "Prefer: handling=strict, foo, bar"
 
 .. code-block:: http
 
@@ -45,10 +52,17 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 
 ``handling=lenient`` ignores invalid preferences.
 
-.. code-block:: http
+.. tabs::
 
-  GET /projects HTTP/1.1
-  Prefer: handling=lenient, foo, bar
+  .. code-tab:: http
+
+    GET /projects HTTP/1.1
+    Prefer: handling=lenient, foo, bar
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/projects" \
+      -H "Prefer: handling=lenient, foo, bar"
 
 .. code-block:: http
 
@@ -63,10 +77,17 @@ Timezone
 The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all timezones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
 
 
-.. code-block:: http
+.. tabs::
 
-  GET /timestamps HTTP/1.1
-  Prefer: timezone=America/Los_Angeles
+  .. code-tab:: http
+
+    GET /timestamps HTTP/1.1
+    Prefer: timezone=America/Los_Angeles
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/timestamps" \
+      -H "Prefer: timezone=America/Los_Angeles"
 
 .. code-block:: http
 
@@ -84,10 +105,17 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
 
 For an invalid timezone, PostgREST returns values with the default timezone (configured on ``postgresql.conf`` or as a setting on the :ref:`authenticator <roles>`).
 
-.. code-block:: http
+.. tabs::
 
-  GET /timestamps HTTP/1.1
-  Prefer: timezone=Jupiter/Red_Spot
+  .. code-tab:: http
+
+    GET /timestamps HTTP/1.1
+    Prefer: timezone=Jupiter/Red_Spot
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/timestamps" \
+      -H "Prefer: timezone=Jupiter/Red_Spot"
 
 .. code-block:: http
 
@@ -106,10 +134,17 @@ Note that there's no ``Preference-Applied`` in the response.
 
 However, with ``handling=strict``, an invalid timezone preference will throw an :ref:`error <pgrst122>`.
 
-.. code-block:: http
+.. tabs::
 
-  GET /timestamps HTTP/1.1
-  Prefer: handling=strict, timezone=Jupiter/Red_Spot
+  .. code-tab:: http
+
+    GET /timestamps HTTP/1.1
+    Prefer: handling=strict, timezone=Jupiter/Red_Spot
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/timestamps" \
+      -H "Prefer: handling=strict, timezone=Jupiter/Red_Spot"
 
 .. code-block:: http
 
@@ -144,8 +179,9 @@ If the table has a primary key, the response can contain a :code:`Location` head
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/projects" \
-      -X POST -H "Content-Type: application/json" -H "Prefer: return=headers-only" \
+    curl -i "http://localhost:3000/projects" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Prefer: return=headers-only" \
       -d '{"id":33, "name": "x"}'
 
 .. code-block:: http
@@ -171,8 +207,9 @@ On the other end of the spectrum you can get the full created object back in the
 
   .. code-tab:: bash Curl
 
-    curl "http://localhost:3000/projects" \
-      -X POST -H "Content-Type: application/json" -H "Prefer: return=representation" \
+    curl -i "http://localhost:3000/projects" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Prefer: return=representation" \
       -d '{"id":33, "name": "x"}'
 
 .. code::
