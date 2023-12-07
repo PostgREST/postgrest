@@ -52,7 +52,7 @@ import           PostgREST.Version          (prettyVersion)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 
-import Crypto.PubKey.RSA.Types (PublicKey (..))
+--import Crypto.PubKey.RSA.Types (PublicKey (..))
 import Control.Debounce
 import Control.Retry      (RetryStatus, capDelay, exponentialBackoff,
                            retrying, rsPreviousDelay)
@@ -140,14 +140,10 @@ standardSAML2State = do
     { saml2StateAppConfig = (saml2ConfigNoEncryption pubKey)
       { saml2DisableTimeValidation = True }
     , saml2KnownIds    = knownIds
-    , saml2JwtEndpoint = "/rpc/login"
+    , saml2JwtEndpoint = "/rpc/validate"
     }
   where
-    pubKey = PublicKey
-      { public_size = 256
-      , public_n = 22422774418294161467689281605893099697695348238043024221462308433077554631939140778208843872196057459666733781706329732318701515820436112779102460560259099305916255329626929877997549586841451270776743862120602357029558305888132098945391819549132185888975931559389043395881630665509783899290824553207915569312623093600583991101104654520228295494031084631981134094819019941584685926482312779995332766353128642954180559563564860075114471257488173038109753857397617663192161051780809557088509925550614979729987724491937739323735648092627388826541432994389317410204416927290400855649211463115203541531238127283730363993681
-      , public_e = 65537
-      }
+    pubKey = Nothing
 
 init :: AppConfig -> IO AppState
 init conf = do

@@ -12,8 +12,7 @@ module PostgREST.AuthSAML
   ( middleware
   ) where
 
-import Crypto.PubKey.RSA.Types (PublicKey (..))
-
+import qualified Crypto.Hash           as H
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy  as BL
 import           Data.ByteString.UTF8  as BSU
@@ -22,9 +21,9 @@ import           Data.IORef            (newIORef, atomicModifyIORef)
 import qualified Data.Map              as Map
 import qualified Data.Text             as T
 import           Data.String           (String)
+
 import           Network.Wai.SAML2
-import qualified Crypto.Store.X509     as X509
-import qualified Data.X509             as X509
+import           Network.Wai.SAML2.Response
 
 import qualified Network.Wai           as Wai
 import           Network.HTTP.Types    (status401)
@@ -32,6 +31,7 @@ import           Network.HTTP.Types    (status401)
 import           PostgREST.AppState    (AppState (..), SAML2State (..))
 
 import           Protolude
+import           Network.Wai.SAML2.KeyInfo (KeyInfo(keyInfoCertificate))
 
 -- | Middleware for the SAML2 authentication.
 -- TODO: Here we need to block access to the /rpc/login endpoint.
@@ -59,8 +59,8 @@ handleSamlError err = do
 
 -- | Converts the original request to a request to the login endpoint.
 -- NOTE: Is this a good idea?
-redirectToLogin :: Wai.Request -> Text -> String -> IO Wai.Request
-redirectToLogin req login_endpoint username = do
+redirectToLogin :: Wai.Request -> Text -> Text -> IO Wai.Request
+redirectToLogin req login_endpoint issuer = do
 
   newBody <- generateBody
 
@@ -76,8 +76,7 @@ redirectToLogin req login_endpoint username = do
     }
   where
     new_headers = [("Content-Type", "application/x-www-form-urlencoded")]
-    form_data = Map.fromList [ ("email", username)
-                             , ("pass", "123")
+    form_data = Map.fromList [ ("issuer", T.unpack issuer)
                              ]
     rendered_form_data = renderFormData form_data
     generateBody = do
@@ -103,13 +102,34 @@ handleSAML2Result samlState result' _app req respond =
       then respond =<< handleSamlError "Replay attack detected."
       else do
           -- NOTE: SAML Authentication success!
-          let _ = readSignedCertificate ("" :: String)
           let user = fromMaybe "anon" $ extractUserName $ assertion result
+
           putStrLn $ "SAML login for username: " ++ user
-          req' <- redirectToLogin req (saml2JwtEndpoint samlState) user
-          storeAssertion samlState (assertionId (assertion result))
-          _app req' respond
+
+          case signatureKeyInfo $ responseSignature $ response result of
+            Nothing -> respond =<< handleSamlError "No certificate found in SAML Response, aborting..."
+            Just keyInfo -> do
+              let certificate = encodeCertificate $ keyInfoCertificate keyInfo
+
+              putStrLn $ "SAML login with certificate: " ++ T.unpack certificate
+
+              req' <- redirectToLogin req (saml2JwtEndpoint samlState) certificate
+              storeAssertion samlState (assertionId (assertion result))
+              _app req' respond
     Left err -> respond =<< handleSamlError (show err)
+
+-- | Encode a certificate to be used as a JWT parameter.
+-- Here we encode it as SHA256 because passing the raw certificate
+-- over requests will hit encoding issues.
+encodeCertificate :: BSU.ByteString -> Text
+encodeCertificate = T.pack
+                  . show
+                  . H.hashWith H.SHA256
+                  . BSU.fromString
+                  . T.unpack
+                  . T.replace "\n" ""
+                  . T.pack
+                  . BSU.toString
 
 -- | Extracts the username from the assertion.
 extractUserName :: Assertion -> Maybe String
@@ -128,16 +148,3 @@ tryRetrieveAssertion samlState t = do
 -- | Store a known assertion ID in the cache.
 storeAssertion :: SAML2State -> Text -> IO ()
 storeAssertion samlState t = C.insert (saml2KnownIds samlState) t ()
-
--- | Read a signed certificate from a PEM string and extract its public key.
-readSignedCertificate :: String -> Either String PublicKey
-readSignedCertificate input =
-  case (X509.readSignedObjectFromMemory $ BSU.fromString $ ensurePemFrame input) :: [X509.SignedCertificate] of
-    [] -> Left "Invalid certificate."
-    (x:_) -> case X509.signedObject $ X509.getSigned x of
-      X509.Certificate _ _ _ _ _ _ (X509.PubKeyRSA pubKey) _ -> Right pubKey
-      _ -> Left $ "Wrong type of certificate." ++ show x
-  where
-    ensurePemFrame x = case head x of
-      Just '-' -> x
-      _        -> "-----BEGIN CERTIFICATE-----\n" ++ x ++ "\n-----END CERTIFICATE-----"
