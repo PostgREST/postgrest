@@ -259,7 +259,9 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
           else note "All object keys must match" . payloadAttributes reqBody
                  =<< if LBS.null reqBody && pathIsProc
                        then Right emptyObject
-                       else first BS.pack $ JSON.eitherDecode reqBody
+                       else first BS.pack $
+                          -- Drop parsing error message in favor of generic one (https://github.com/PostgREST/postgrest/issues/2344)
+                          maybe (Left "Empty or invalid json") Right $ JSON.decode reqBody
       (MTTextCSV, _) -> do
         json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
