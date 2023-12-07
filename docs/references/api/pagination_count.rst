@@ -18,7 +18,28 @@ PostgREST uses HTTP range headers to describe the size of results. Every respons
 
 Here items zero through fourteen are returned. This information is available in every response and can help you render pagination controls on the client. This is an RFC7233-compliant solution that keeps the response JSON cleaner.
 
-There are two ways to apply a limit and offset rows: through request headers or query parameters. When using headers you specify the range of rows desired. This request gets the first twenty people.
+Query Parameters
+~~~~~~~~~~~~~~~~
+
+One way to request limits and offsets is by using query parameters. For example:
+
+.. tabs::
+
+  .. code-tab:: http
+
+    GET /people?limit=15&offset=30 HTTP/1.1
+
+  .. code-tab:: bash Curl
+
+    curl "http://localhost:3000/people?limit=15&offset=30"
+
+This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
+
+Range Header
+~~~~~~~~~~~~
+
+You can use headers to specify the range of rows desired.
+This request gets the first twenty people:
 
 .. tabs::
 
@@ -43,20 +64,6 @@ Note that the server may respond with fewer if unable to meet your request:
   Content-Range: 0-17/*
 
 You may also request open-ended ranges for an offset with no limit, e.g. :code:`Range: 10-`.
-
-The other way to request a limit or offset is with query parameters. For example
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?limit=15&offset=30 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?limit=15&offset=30"
-
-This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
 
 .. _prefer_count:
 
@@ -179,4 +186,3 @@ If we make a similar request on ``bigtable``, which has 3573458 rows, we would g
 
   HTTP/1.1 206 Partial Content
   Content-Range: 0-24/3572000
-
