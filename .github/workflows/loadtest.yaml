@@ -15,6 +15,9 @@ jobs:
     name: Loadtest PR (Nix)
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
         with:
