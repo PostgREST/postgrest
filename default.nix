@@ -1,9 +1,9 @@
 let
   # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion = {
-    date = "2021-06-02";
-    rev = "84aa23742f6c72501f9cc209f29c438766f5352d";
-    tarballHash = "0h7xl6q0yjrbl9vm3h6lkxw692nm8bg3wy65gm95a2mivhrdjpxp";
+    date = "2023-03-25";
+    rev = "dbf5322e93bcc6cfc52268367a8ad21c09d76fea";
+    tarballHash = "0lwk4v9dkvd28xpqch0b0jrac4xl9lwm6snrnzx8k5lby72kmkng";
   };
 
   # Nix files that describe the Nixpkgs repository. We evaluate the expression
@@ -15,10 +15,7 @@ let
     })
     { };
 
-  sphinxTabsPkg = ps: ps.callPackage ./extensions/sphinx-tabs.nix {};
-  sphinxCopybuttonPkg = ps: ps.callPackage ./extensions/sphinx-copybutton.nix {};
-
-  python = pkgs.python3.withPackages (ps: [ ps.sphinx ps.sphinx_rtd_theme ps.livereload (sphinxTabsPkg ps) (sphinxCopybuttonPkg ps) ]);
+  python = pkgs.python3.withPackages (ps: [ ps.sphinx ps.sphinx_rtd_theme ps.livereload ps.sphinx-tabs ps.sphinx-copybutton ps.sphinxext-opengraph ]);
 in
 rec {
   inherit pkgs;
