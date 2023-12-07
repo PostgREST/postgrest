@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #3054, Fix not allowing special characters in JSON keys - @laurenceisla
+ - #3090, Replace JSON parser error with generic message - @develop7
+   + Fixes #2344
 
 ## [12.0.0] - 2023-12-01
 
