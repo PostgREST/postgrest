@@ -11,6 +11,11 @@ on:
     branches:
       - main
       - rel-*
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  
+  # Terminate all previous runs of the same workflow and branch/tag, except for main and release branches/tags
+  cancel-in-progress: "${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}"
 
 jobs:
   Prepopulate-Nix-Cache-Linux:
