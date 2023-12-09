@@ -33,6 +33,8 @@ import qualified PostgREST.SchemaCache        as SchemaCache
 
 import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
+                                          PreferHandling (..),
+                                          PreferMaxAffected (..),
                                           PreferTimezone (..),
                                           PreferTransaction (..),
                                           Preferences (..),
@@ -114,9 +116,10 @@ createQuery mrPlan@MutateReadPlan{mrMedia} apiReq conf = do
   pure resultSet
 
 updateQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-updateQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{..} conf = do
+updateQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf = do
   resultSet <- writeQuery mrPlan apiReq conf
   failNotSingular mrMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure resultSet
@@ -141,9 +144,10 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
     throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
 
 deleteQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-deleteQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{..} conf = do
+deleteQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf = do
   resultSet <- writeQuery mrPlan apiReq conf
   failNotSingular mrMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure resultSet
@@ -165,6 +169,7 @@ invokeQuery rout CallReadPlan{..} apiReq@ApiRequest{iPreferences=Preferences{..}
 
   optionalRollback conf apiReq
   failNotSingular crMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure resultSet
 
 openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
@@ -212,6 +217,13 @@ failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
   when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError . ApiRequestTypes.SingularityError $ toInteger queryTotal
+
+failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
+failExceedsMaxAffectedPref (Nothing,_) _ = pure ()
+failExceedsMaxAffectedPref _ RSPlan{} = pure ()
+failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
+  lift SQL.condemn
+  throwError $ Error.ApiRequestError . ApiRequestTypes.MaxAffectedViolationError $ toInteger queryTotal
 
 failsChangesOffLimits :: Maybe Integer -> ResultSet -> DbHandler ()
 failsChangesOffLimits _ RSPlan{} = pure ()

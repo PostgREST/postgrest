@@ -96,6 +96,7 @@ data ApiRequestError
   | PutMatchingPkError
   | SingularityError Integer
   | PGRSTParseError
+  | MaxAffectedViolationError Integer
   deriving Show
 
 data QPError = QPError Text Text

@@ -119,3 +119,75 @@ spec =
           { matchStatus = 200
           , matchHeaders = [matchContentTypeJson
                            , "Preference-Applied" <:> "handling=lenient"]}
+
+    context "test Prefer: max-affected with handling=strict" $ do
+      it "should fail if items deleted more than 10" $
+        request methodDelete "/items?id=lt.15"
+          [("Prefer", "handling=strict, max-affected=10")]
+          ""
+          `shouldRespondWith`
+          [json|{"code":"PGRST124","details":"The query affects 14 rows","hint":null,"message":"Query result exceeds max-affected preference constraint"}|]
+          { matchStatus = 400 }
+
+      it "should succeed if items deleted less than 10" $
+        request methodDelete "/items?id=lt.10"
+          [("Prefer", "handling=strict, max-affected=10")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=10"]}
+
+      it "should fail if items updated more than 0" $
+        request methodPatch "/tiobe_pls?name=eq.Java"
+          [("Prefer", "handling=strict, max-affected=0")]
+          [json| [{"name":"Java", "rank":19}] |]
+          `shouldRespondWith`
+          [json|{"code":"PGRST124","details":"The query affects 1 rows","hint":null,"message":"Query result exceeds max-affected preference constraint"}|]
+          { matchStatus = 400 }
+
+      it "should succeed if items updated equal 1" $
+        request methodDelete "/tiobe_pls?name=eq.Java"
+          [("Prefer", "handling=strict, max-affected=1")]
+          [json| [{"name":"Java", "rank":19}] |]
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=strict, max-affected=1"]}
+
+    context "test Prefer: max-affected with handling=lenient" $ do
+      it "should not fail" $
+        request methodDelete "/items?id=lt.15"
+          [("Prefer", "handling=lenient, max-affected=10")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]}
+
+      it "should succeed if items deleted less than 10" $
+        request methodDelete "/items?id=lt.10"
+          [("Prefer", "handling=lenient, max-affected=10")]
+          ""
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]}
+
+      it "should not fail" $
+        request methodPatch "/tiobe_pls?name=eq.Java"
+          [("Prefer", "handling=lenient, max-affected=0")]
+          [json| [{"name":"Java", "rank":19}] |]
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]}
+
+      it "should succeed if items updated equal 1" $
+        request methodDelete "/tiobe_pls?name=eq.Java"
+          [("Prefer", "handling=lenient, max-affected=1")]
+          [json| [{"name":"Java", "rank":19}] |]
+          `shouldRespondWith`
+          ""
+          { matchStatus = 204
+          , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]}
