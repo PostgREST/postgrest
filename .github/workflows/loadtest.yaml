@@ -26,7 +26,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: loadtest
-          cache-id: test-loadtest
+          cache-id: common
       - uses: actions-ecosystem/action-get-latest-tag@v1
         id: get-latest-tag
         with:
@@ -58,7 +58,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: loadtest
-          cache-id: test-loadtest
+          cache-id: common
       - name: Run loadtest
         run: |
           postgrest-loadtest-against ${{ steps.get-latest-tag.outputs.tag }}
