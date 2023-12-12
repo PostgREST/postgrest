@@ -5,14 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Added
-
- - #3100, Add `jwt_cache_max_lifetime` to the in-database configuration options - @laurenceisla
-
 ### Fixed
 
  - #3054, Fix not allowing special characters in JSON keys - @laurenceisla
  - #2344, Replace JSON parser error with a clearer generic message - @develop7
+ - #3100, Add missing in-database configuration option for `jwt-cache-max-lifetime` - @laurenceisla
 
 ## [12.0.0] - 2023-12-01
 
