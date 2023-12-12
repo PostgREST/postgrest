@@ -642,7 +642,7 @@ jwt-cache-max-lifetime
   **Default**     0
   **Reloadable**  Y
   **Environment** PGRST_JWT_CACHE_MAX_LIFETIME
-  **In-Database** `n/a`
+  **In-Database** pgrst.jwt_cache_max_lifetime
   =============== =================================
 
   Maximum number of seconds of lifetime for cached entries. The default :code:`0` disables caching. See :ref:`jwt_caching`.
