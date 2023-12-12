@@ -13,9 +13,11 @@ Media types are expressed as type aliases using `domains <https://www.postgresql
 
 Using these domains, :ref:`functions <s_procs>` can become handlers and `user-defined aggregates <https://www.postgresql.org/docs/current/xaggr.html>`_ can serve as handlers for :ref:`tables_views` and :ref:`table_functions`.
 
-.. note::
+.. important::
 
-  PostgREST vendor media types (``application/vnd.pgrst.plan``, ``application/vnd.pgrst.object`` and ``application/vnd.pgrst.array``) cannot be overriden in this way.
+  - PostgREST vendor media types (``application/vnd.pgrst.plan``, ``application/vnd.pgrst.object`` and ``application/vnd.pgrst.array``) cannot be overriden.
+  - Long media types like ``application/vnd.openxmlformats-officedocument.wordprocessingml.document`` cannot be expressed as domains since they surpass `PostgreSQL identifier length <https://www.postgresql.org/docs/current/limits.html#LIMITS-TABLE>`_.
+    For these you can use the :ref:`any_handler`.
 
 Handler Function
 ================
@@ -213,9 +215,11 @@ And request it like:
 The "Any" Handler
 =================
 
-For more flexibility, you can also define a catch-all handler by using a domain named ``*/*`` (any media type). This will respond to all media types and even to requests that don't include an ``Accept`` header.
+For more flexibility, you can also define a catch-all handler by using a domain named ``*/*`` (any media type). This obeys to the following rules:
 
-Note that this will take priority over all other handlers (builtin or custom), so it's better to do it for an isolated function or view.
+- Responds to all media types and even to requests that don't include an ``Accept`` header.
+- Sets the ``Content-Type`` header to ``application/octet-stream`` by default, but this can be overridden inside the function with :ref:`guc_resp_hdrs`.
+- This overrides all other handlers (:ref:`builtin <builtin_media>` or custom), so it's better to do it for an isolated function or view.
 
 Let's define an any handler for a view that will always respond with ``XML`` output. It will accept ``text/xml``, ``application/xml``, ``*/*`` and reject other media types.
 
@@ -240,12 +244,14 @@ Let's define an any handler for a view that will always respond with ``XML`` out
     -- get the Accept header
     req_accept text := current_setting('request.headers', true)::json->>'accept';
   begin
-    -- when receiving */*, we need to set the Content-Type, otherwise PostgREST will set a default one.
-    if req_accept = '*/*'
-      then perform set_config('response.headers', '[{"Content-Type": "text/xml"}]', true);
-    -- we'll reject other non XML media types, we need to reject manually since */* will command PostgREST to accept all media types
-    elsif req_accept NOT IN ('application/xml', 'text/xml')
-      then raise sqlstate 'PT415' using message = 'Unsupported Media Type';
+    -- when we need to override the default Content-Type (application/octet-stream) set by PostgREST
+    if req_accept = '*/*' then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', 'text/xml'))::text, true);
+    elsif req_accept IN ('application/xml', 'text/xml') then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', req_accept))::text, true);
+    else
+      -- we'll reject other non XML media types, we need to reject manually since */* will command PostgREST to accept all media types
+      raise sqlstate 'PT415' using message = 'Unsupported Media Type';
     end if;
 
     return data;
