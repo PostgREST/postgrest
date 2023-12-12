@@ -832,7 +832,7 @@ server-timing-enabled
   **Default**     False
   **Reloadable**  Y
   **Environment** PGRST_SERVER_TIMING_ENABLED
-  **In-Database** `n/a`
+  **In-Database** pgrst.server_timing_enabled
   =============== =================================
 
   Enables the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header.
