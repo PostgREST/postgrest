@@ -3663,10 +3663,14 @@ declare
   resp bytea;
 begin
   case req_accept
-    when 'app/chico'   then resp := 'chico';
-    when 'app/harpo'   then resp := 'harpo';
+    when 'app/chico'   then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', req_accept))::text, true);
+      resp := 'chico';
+    when 'app/harpo'   then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', req_accept))::text, true);
+      resp := 'harpo';
     when '*/*'         then
-      perform set_config('response.headers', '[{"Content-Type": "app/groucho"}]', true);
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', 'app/groucho'))::text, true);
       resp := 'groucho';
     else
       raise sqlstate 'PT415' using message = 'Unsupported Media Type';
@@ -3689,8 +3693,10 @@ declare
 begin
   case req_accept
     when 'magic/number' then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', req_accept))::text, true);
       prefix := 'magic';
     when 'crazy/bingo'  then
+      perform set_config('response.headers', json_build_array(json_build_object('Content-Type', req_accept))::text, true);
       prefix := 'crazy';
     else
       prefix := 'anything';

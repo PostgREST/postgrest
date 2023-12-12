@@ -16,6 +16,7 @@ module PostgREST.SchemaCache.Routine
   , funcReturnsCompositeAlias
   , funcReturnsSingle
   , MediaHandlerMap
+  , ResolvedHandler
   , MediaHandler(..)
   ) where
 
@@ -145,4 +146,6 @@ funcTableName proc = case pdReturnType proc of
   Single (Composite qi _) -> Just $ qiName qi
   _                       -> Nothing
 
-type MediaHandlerMap = HM.HashMap (RelIdentifier, MediaType.MediaType) MediaHandler
+-- the resolved handler also carries the media type because MTAny (*/*) is resolved to a different media type
+type ResolvedHandler = (MediaHandler, MediaType.MediaType)
+type MediaHandlerMap = HM.HashMap (RelIdentifier, MediaType.MediaType) ResolvedHandler
