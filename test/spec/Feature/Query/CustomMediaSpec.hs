@@ -225,31 +225,30 @@ spec = describe "custom media types" $ do
 
   context "any media type" $ do
     context "on functions" $ do
-      -- TODO not correct, it should return the generic "application/octet-stream"
       it "returns application/json for */* if not explicitly set" $ do
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "*/*") ""
           `shouldRespondWith` "any"
           { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
 
-      it "accepts any media type and sets it as a header" $ do
+      it "accepts any media type and sets the generic octet-stream as content type" $ do
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "app/bingo") ""
           `shouldRespondWith` "any"
           { matchStatus  = 200
-          , matchHeaders = ["Content-Type" <:> "app/bingo"]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
 
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "text/bango") ""
           `shouldRespondWith` "any"
           { matchStatus  = 200
-          , matchHeaders = ["Content-Type" <:> "text/bango"]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
 
         request methodGet "/rpc/ret_any_mt" (acceptHdrs "image/boingo") ""
           `shouldRespondWith` "any"
           { matchStatus  = 200
-          , matchHeaders = ["Content-Type" <:> "image/boingo"]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
 
       it "returns custom media type for */* if explicitly set" $ do
@@ -276,12 +275,11 @@ spec = describe "custom media types" $ do
           `shouldRespondWith` 415
 
     context "on tables" $ do
-      -- TODO not correct, it should return the generic "application/octet-stream"
       it "returns application/json for */* if not explicitly set" $ do
         request methodGet "/some_numbers?val=eq.1" (acceptHdrs "*/*") ""
           `shouldRespondWith` "anything\n1"
           { matchStatus  = 200
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
 
       it "accepts any media type and sets it as a header" $ do
@@ -298,5 +296,5 @@ spec = describe "custom media types" $ do
         request methodGet "/some_numbers?val=eq.4" (acceptHdrs "unknown/unknown") ""
           `shouldRespondWith` "anything\n4"
           { matchStatus  = 200
-          , matchHeaders = ["Content-Type" <:> "unknown/unknown"]
+          , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
