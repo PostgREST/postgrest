@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.0.1] - 2023-12-12
+
 ### Fixed
 
  - #3054, Fix not allowing special characters in JSON keys - @laurenceisla
