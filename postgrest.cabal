@@ -75,7 +75,7 @@ library
                       PostgREST.Response.Performance
                       PostgREST.Version
   other-modules:      Paths_postgrest
-  build-depends:      base                      >= 4.9 && < 4.17
+  build-depends:      base                      >= 4.9 && < 4.18
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 2.0.3 && < 2.2
