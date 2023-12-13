@@ -1,0 +1,97 @@
+{
+  "nodes": {
+    "flake-parts": {
+      "inputs": {
+        "nixpkgs-lib": "nixpkgs-lib"
+      },
+      "locked": {
+        "lastModified": 1701473968,
+        "narHash": "sha256-YcVE5emp1qQ8ieHUnxt1wCZCC3ZfAS+SRRWZ2TMda7E=",
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "rev": "34fed993f1674c8d06d58b37ce1e0fe5eebcb9f5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "hercules-ci",
+        "repo": "flake-parts",
+        "type": "github"
+      }
+    },
+    "haskell-flake": {
+      "locked": {
+        "lastModified": 1701214938,
+        "narHash": "sha256-25PiqJK6iSX0CPZghcUCGCEvU9uMSNbCJ772NComipY=",
+        "owner": "srid",
+        "repo": "haskell-flake",
+        "rev": "abea026d35df050c27163f5193f96ef3a8b4ea6a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "srid",
+        "repo": "haskell-flake",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1679734080,
+        "narHash": "sha256-z846xfGLlon6t9lqUzlNtBOmsgQLQIZvR6Lt2dImk1M=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "dbf5322e93bcc6cfc52268367a8ad21c09d76fea",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "dbf5322e93bcc6cfc52268367a8ad21c09d76fea",
+        "type": "github"
+      }
+    },
+    "nixpkgs-lib": {
+      "locked": {
+        "dir": "lib",
+        "lastModified": 1701253981,
+        "narHash": "sha256-ztaDIyZ7HrTAfEEUt9AtTDNoCYxUdSd6NrRHaYOIxtk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e92039b55bcd58469325ded85d4f58dd5a4eaf58",
+        "type": "github"
+      },
+      "original": {
+        "dir": "lib",
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "postgresql-libpq": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1672392728,
+        "narHash": "sha256-oDnnbUl/Hle2O3VpjKDVxXU881Tkhgs58iRMMBuFvvI=",
+        "owner": "postgrest",
+        "repo": "postgresql-libpq",
+        "rev": "890a0a16cf57dd401420fdc6c7d576fb696003bc",
+        "type": "github"
+      },
+      "original": {
+        "owner": "postgrest",
+        "repo": "postgresql-libpq",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-parts": "flake-parts",
+        "haskell-flake": "haskell-flake",
+        "nixpkgs": "nixpkgs",
+        "postgresql-libpq": "postgresql-libpq"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
