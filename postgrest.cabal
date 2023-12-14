@@ -75,7 +75,7 @@ library
                       PostgREST.Response.Performance
                       PostgREST.Version
   other-modules:      Paths_postgrest
-  build-depends:      base                      >= 4.9 && < 4.17
+  build-depends:      base                      >= 4.9 && < 5.0
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 2.0.3 && < 2.2
@@ -159,7 +159,7 @@ executable postgrest
                       NoImplicitPrelude
   hs-source-dirs:     main
   main-is:            Main.hs
-  build-depends:      base                >= 4.9 && < 4.17
+  build-depends:      base                >= 4.9 && < 5.0
                     , containers          >= 0.5.7 && < 0.7
                     , postgrest
                     , protolude           >= 0.3.1 && < 0.4
@@ -233,7 +233,7 @@ test-suite spec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
                       SpecHelper
-  build-depends:      base              >= 4.9 && < 4.17
+  build-depends:      base              >= 4.9 && < 5.0
                     , aeson             >= 2.0.3 && < 2.2
                     , aeson-qq          >= 0.8.1 && < 0.9
                     , async             >= 2.1.1 && < 2.3
@@ -275,7 +275,7 @@ test-suite doctests
                       NoImplicitPrelude
   hs-source-dirs:     test/doc
   main-is:            Main.hs
-  build-depends:      base              >= 4.9 && < 4.17
+  build-depends:      base              >= 4.9 && < 5.0
                     , doctest           >= 0.8
                     , postgrest
                     , pretty-simple

@@ -13,7 +13,7 @@ on:
       - rel-*
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  
+
   # Terminate all previous runs of the same workflow and branch/tag, except for main and release branches/tags
   cancel-in-progress: "${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}"
 
@@ -32,7 +32,7 @@ jobs:
           # shellcheck disable=SC2046
           nix-store -v --realize $( nix-instantiate default.nix )
         shell: bash
-    
+
   Lint-Style:
     name: Lint & check code style
     runs-on: ubuntu-latest
@@ -102,9 +102,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
-          # It seems like they are installing the same set of derivations, so we can assign them the same cache id. 
+          # It seems like they are installing the same set of derivations, so we can assign them the same cache id.
           # This would decrease the amount of caches dowloaded on merge cache step and will prevent disk space issues.
-          cache-id: common 
+          cache-id: common
 
       - name: Run spec tests
         if: always()
@@ -247,7 +247,7 @@ jobs:
   Build-Cabal:
     strategy:
       matrix:
-        ghc: ['9.0.2', '9.2.4']
+        ghc: ['9.0.2', '9.2.4', '9.4.4']
       fail-fast: false
     name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
     runs-on: ubuntu-latest
