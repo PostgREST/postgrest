@@ -15,4 +15,4 @@ extra-deps:
   - hasql-pool-0.10
   - cryptostore-0.3.0.1
   - git: https://github.com/Gab0/wai-saml2.git
-    commit: 9761c41b1589359411c0968002dd701648450e37
+    commit: 469fb93789bc014a94579588e113af75576fdb2c
