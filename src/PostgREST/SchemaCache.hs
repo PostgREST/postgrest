@@ -1115,10 +1115,10 @@ allViewsKeyDependencies =
 
 initialMediaHandlers :: MediaHandlerMap
 initialMediaHandlers =
-  HM.insert (RelAnyElement, MediaType.MTAny            ) BuiltinOvAggJson $
-  HM.insert (RelAnyElement, MediaType.MTApplicationJSON) BuiltinOvAggJson $
-  HM.insert (RelAnyElement, MediaType.MTTextCSV        ) BuiltinOvAggCsv $
-  HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) BuiltinOvAggGeoJson
+  HM.insert (RelAnyElement, MediaType.MTAny            ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
+  HM.insert (RelAnyElement, MediaType.MTApplicationJSON) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
+  HM.insert (RelAnyElement, MediaType.MTTextCSV        ) (BuiltinOvAggCsv,     MediaType.MTTextCSV) $
+  HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
 mediaHandlers :: PgVersion -> Bool -> SQL.Statement [Schema] MediaHandlerMap
@@ -1142,7 +1142,11 @@ mediaHandlers pgVer =
             lower(t.typname) as typname,
             b.oid as base_oid,
             b.typname AS basetypname,
-            t.typnamespace
+            t.typnamespace,
+            case t.typname
+              when '*/*' then 'application/octet-stream'
+              else t.typname
+            end as resolved_media_type
           FROM pg_type t
           JOIN pg_type b ON t.typbasetype = b.oid
           WHERE
@@ -1154,7 +1158,8 @@ mediaHandlers pgVer =
         proc.proname                  as handler_name,
         arg_schema.nspname::text      as target_schema,
         arg_name.typname::text        as target_name,
-        media_types.typname           as media_type
+        media_types.typname           as media_type,
+        media_types.resolved_media_type
       from media_types
         join pg_proc      proc         on proc.prorettype = media_types.oid
         join pg_namespace proc_schema  on proc_schema.oid = proc.pronamespace
@@ -1162,7 +1167,7 @@ mediaHandlers pgVer =
         join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
         join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
       where
-        proc_schema.nspname = ANY($1) and
+        proc_schema.nspname = ANY('{test}') and
         proc.pronargs = 1 and
         arg_name.oid in (select reltype from all_relations)
       union
@@ -1171,7 +1176,8 @@ mediaHandlers pgVer =
           mtype.typname   as handler_name,
           pro_sch.nspname as target_schema,
           proname         as target_name,
-          mtype.typname   as media_type
+          mtype.typname   as media_type,
+          mtype.resolved_media_type
       from pg_proc proc
         join pg_namespace pro_sch on pro_sch.oid = proc.pronamespace
         join media_types mtype on proc.prorettype = mtype.oid
@@ -1181,11 +1187,12 @@ mediaHandlers pgVer =
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap
 decodeMediaHandlers =
-  HM.fromList . fmap (\(x, y, z) -> ((if isAnyElement y then RelAnyElement else RelId y, z), CustomFunc x) ) <$> HD.rowList caggRow
+  HM.fromList . fmap (\(x, y, z, w) -> ((if isAnyElement y then RelAnyElement else RelId y, z), (CustomFunc x, w)) ) <$> HD.rowList caggRow
   where
-    caggRow = (,,)
+    caggRow = (,,,)
               <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
               <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+              <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
 
 timezones :: Bool -> SQL.Statement () TimezoneNames

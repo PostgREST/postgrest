@@ -5,6 +5,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.0.1] - 2023-12-12
+
+### Fixed
+
+ - #3054, Fix not allowing special characters in JSON keys - @laurenceisla
+ - #2344, Replace JSON parser error with a clearer generic message - @develop7
+ - #3100, Add missing in-database configuration option for `jwt-cache-max-lifetime` - @laurenceisla
+ - #3089, The any media type handler now sets `Content-Type: application/octet-stream` by default instead of `Content-Type: application/json` - @steve-chavez
+
 ## [12.0.0] - 2023-12-01
 
 ### Added
