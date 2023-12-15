@@ -97,14 +97,14 @@ handleSAML2Result :: SAML2State -> Either SAML2Error Result -> Wai.Middleware
 handleSAML2Result samlState result' _app req respond =
   case result' of
     Right result -> do
-      known_assertion <- tryRetrieveAssertion samlState (assertionId (assertion result))
+      known_assertion <- tryRetrieveAssertionID samlState (assertionId (assertion result))
       if known_assertion
       then respond =<< handleSamlError "Replay attack detected."
       else do
           -- NOTE: SAML Authentication success!
-          let user = fromMaybe "anon" $ extractUserName $ assertion result
+          let user = fromMaybe "anon" $ Map.lookup "email" $ extractAttributes $ assertion result
 
-          putStrLn $ "SAML login for username: " ++ user
+          putStrLn $ "SAML login for username: " ++ T.unpack user
 
           case signatureKeyInfo $ responseSignature $ response result of
             Nothing -> respond =<< handleSamlError "No certificate found in SAML Response, aborting..."
@@ -114,7 +114,7 @@ handleSAML2Result samlState result' _app req respond =
               putStrLn $ "SAML login with certificate: " ++ T.unpack certificate
 
               req' <- redirectToLogin req (saml2JwtEndpoint samlState) certificate
-              storeAssertion samlState (assertionId (assertion result))
+              storeAssertionID samlState (assertionId (assertion result))
               _app req' respond
     Left err -> respond =<< handleSamlError (show err)
 
@@ -132,19 +132,19 @@ encodeCertificate = T.pack
                   . BSU.toString
 
 -- | Extracts the username from the assertion.
-extractUserName :: Assertion -> Maybe String
-extractUserName a =
-  case find isWanted $ assertionAttributeStatement a of
-    Just attr -> Just $ T.unpack $ attributeValue attr
-    Nothing -> Nothing
+extractAttributes :: Assertion -> Map Text Text
+extractAttributes = Map.fromList
+                  . map simplifyAttribute
+                  . assertionAttributeStatement
   where
-    isWanted attr = attributeName attr == "email"
+    simplifyAttribute :: AssertionAttribute -> (Text, Text)
+    simplifyAttribute attr = (attributeName attr, attributeValue attr)
 
 -- | Checks if a given assertion ID is already known.
-tryRetrieveAssertion :: SAML2State -> Text -> IO Bool
-tryRetrieveAssertion samlState t = do
+tryRetrieveAssertionID :: SAML2State -> Text -> IO Bool
+tryRetrieveAssertionID samlState t = do
   isJust <$> C.lookup (saml2KnownIds samlState) t
 
 -- | Store a known assertion ID in the cache.
-storeAssertion :: SAML2State -> Text -> IO ()
-storeAssertion samlState t = C.insert (saml2KnownIds samlState) t ()
+storeAssertionID :: SAML2State -> Text -> IO ()
+storeAssertionID samlState t = C.insert (saml2KnownIds samlState) t ()

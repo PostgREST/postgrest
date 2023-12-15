@@ -63,6 +63,7 @@ import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import Network.Wai.SAML2  (SAML2Config (..), saml2ConfigNoEncryption)
+import Network.Wai.SAML2.Validation      (readSignedCertificate)
 
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
@@ -80,6 +81,9 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+
+import System.Environment                (lookupEnv)
+
 import Protolude
 
 data AuthResult = AuthResult
@@ -136,14 +140,17 @@ data SAML2State = SAML2State
 standardSAML2State :: IO SAML2State
 standardSAML2State = do
   knownIds <- C.newCache Nothing :: IO (C.Cache Text ())
+
+  rawKeyFromEnv <- lookupEnv "POSTGREST_SAML_CERTIFICATE"
+
+  let pubKey = rightToMaybe . readSignedCertificate =<< rawKeyFromEnv
+
   pure $ SAML2State
     { saml2StateAppConfig = (saml2ConfigNoEncryption pubKey)
-      { saml2DisableTimeValidation = True }
+      { saml2DisableTimeValidation = False }
     , saml2KnownIds    = knownIds
     , saml2JwtEndpoint = "/rpc/validate"
     }
-  where
-    pubKey = Nothing
 
 init :: AppConfig -> IO AppState
 init conf = do
