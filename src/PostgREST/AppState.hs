@@ -31,13 +31,15 @@ module PostgREST.AppState
   , runListener
   ) where
 
+import           Crypto.PubKey.RSA.Types    (PublicKey)
 import qualified Data.Aeson                 as JSON
 import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
-import qualified Data.Text                  as T (unpack)
+import qualified Data.List                  as L
+import qualified Data.Text                  as T (splitOn, pack, unpack)
 import qualified Data.Text.Encoding         as T
 import           Hasql.Connection           (acquire)
 import qualified Hasql.Notifications        as SQL
@@ -52,7 +54,6 @@ import           PostgREST.Version          (prettyVersion)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 
---import Crypto.PubKey.RSA.Types (PublicKey (..))
 import Control.Debounce
 import Control.Retry      (RetryStatus, capDelay, exponentialBackoff,
                            retrying, rsPreviousDelay)
@@ -64,6 +65,8 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import Network.Wai.SAML2  (SAML2Config (..), saml2ConfigNoEncryption)
 import Network.Wai.SAML2.Validation      (readSignedCertificate)
+
+import System.IO.Error                   (IOError)
 
 import PostgREST.Config                  (AppConfig (..),
                                           LogLevel (..),
@@ -80,7 +83,7 @@ import PostgREST.SchemaCache.Identifiers (dumpQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
-import Data.String            (IsString (..))
+import Data.String            (IsString (..), String)
 
 import System.Environment                (lookupEnv)
 
@@ -141,9 +144,7 @@ standardSAML2State :: IO SAML2State
 standardSAML2State = do
   knownIds <- C.newCache Nothing :: IO (C.Cache Text ())
 
-  rawKeyFromEnv <- lookupEnv "POSTGREST_SAML_CERTIFICATE"
-
-  let pubKey = rightToMaybe . readSignedCertificate =<< rawKeyFromEnv
+  pubKey <- loadPublicKey =<< lookupEnv "POSTGREST_SAML_CERTIFICATE"
 
   pure $ SAML2State
     { saml2StateAppConfig = (saml2ConfigNoEncryption pubKey)
@@ -151,6 +152,32 @@ standardSAML2State = do
     , saml2KnownIds    = knownIds
     , saml2JwtEndpoint = "/rpc/validate"
     }
+
+-- | Read and process the certificate loaded from the environment variable
+-- into a PublicKey.
+-- This env var can be provided as a path to a '.pem' file containing the certificate
+-- or given as raw certificate data.
+loadPublicKey :: Maybe String -> IO (Maybe PublicKey)
+loadPublicKey Nothing = pure Nothing
+loadPublicKey (Just rawKeyFromEnv) = do
+
+  keyFromEnv <- interpreteEnv rawKeyFromEnv
+
+  case keyFromEnv of
+    Left _ -> pure Nothing
+    Right key -> do
+      -- Load the public key from the loaded certificate data.
+      putStrLn ("Reading the SAML certificate from the environment." :: String)
+      pure $ rightToMaybe $ readSignedCertificate $ T.unpack key
+  where
+    getExtension :: String -> Text
+    getExtension = L.last . T.splitOn "." . T.pack
+
+    interpreteEnv :: String -> IO (Either IOError Text)
+    interpreteEnv raw =
+      case getExtension raw of
+        "pem" -> try $ readFile raw
+        _     -> pure $ Right $ T.pack raw
 
 init :: AppConfig -> IO AppState
 init conf = do
