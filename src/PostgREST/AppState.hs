@@ -167,8 +167,10 @@ loadPublicKey (Just rawKeyFromEnv) = do
     Left _ -> pure Nothing
     Right key -> do
       -- Load the public key from the loaded certificate data.
-      putStrLn ("Reading the SAML certificate from the environment." :: String)
-      pure $ rightToMaybe $ readSignedCertificate $ T.unpack key
+      putStrLn ("Reading the SAML certificate from the environment... " ++ show key :: String)
+      let publicKey = rightToMaybe $ readSignedCertificate $ T.unpack key
+      putStrLn ("Loaded a public key: " ++ show publicKey :: String)
+      pure publicKey
   where
     getExtension :: String -> Text
     getExtension = L.last . T.splitOn "." . T.pack
