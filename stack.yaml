@@ -14,5 +14,6 @@ extra-deps:
   - hasql-notifications-0.2.0.6
   - hasql-pool-0.10
   - cryptostore-0.3.0.1
+  #- wai-saml2 # to load this module from the local filesystem;
   - git: https://github.com/Gab0/wai-saml2.git
     commit: 469fb93789bc014a94579588e113af75576fdb2c
