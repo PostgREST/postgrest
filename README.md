@@ -46,7 +46,11 @@ API than you are likely to write from scratch.
           <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.png">
         </a>
       </td>
-      <td></td>
+      <td align="center" valign="middle">
+        <a href="https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/tembo.png">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
