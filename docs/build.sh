@@ -8,7 +8,7 @@ function build() {
   sphinx-build --color -W -a -n . -b "$@"
 }
 
-if [ $# -eq 0 ]; then
+if [ "${1:-}" == "" ]; then
   # clean previous build, otherwise some errors might be supressed
   rm -rf "_build/html/default"
 

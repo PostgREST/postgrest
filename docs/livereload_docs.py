@@ -3,7 +3,7 @@ import sys
 from livereload import Server, shell
 from subprocess import call
 
-if len(sys.argv) == 1:
+if len(sys.argv) == 1 or sys.argv[1] == "":
     locale = "default"
     build = "./build.sh"
 else:
