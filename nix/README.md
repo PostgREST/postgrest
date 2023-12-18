@@ -248,6 +248,27 @@ $ nix-shell --run postgrest-style
 There is also `postgrest-style-check` that exits with a non-zero exit code if
 the check resulted in any uncommitted changes. It's mostly useful for CI.
 
+## Documentation
+
+The following commands can help you when working on the PostgREST docs:
+
+```bash
+# Build the docs
+[nix-shell]$ postgrest-docs-build
+
+# Build the docs and start a livereload server on `http://localhost:5500`
+[nix-shell]$ postgrest-docs-serve
+
+# Run aspell, to verify spelling mistakes
+[nix-shell]$ postgrest-docs-spellcheck
+
+# Detect obsolete entries in postgrest.dict
+[nix-shell]$ postgrest-docs-dictcheck
+
+# Build and run all the validation scripts
+[nix-shell]$ postgrest-docs-check
+```
+
 ## General development tools
 
 Tools like `postgrest-build`, `postgrest-run`, `postgrest-repl` etc. are simple wrappers around
