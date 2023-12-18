@@ -62,35 +62,36 @@ class (JSON.ToJSON a) => PgrstError a where
     responseLBS (status err) (baseHeader : headers err) $ errorPayload err
 
 instance PgrstError ApiRequestError where
-  status AggregatesNotAllowed{}  = HTTP.status400
-  status AmbiguousRelBetween{}   = HTTP.status300
-  status AmbiguousRpc{}          = HTTP.status300
-  status MediaTypeError{}        = HTTP.status415
-  status InvalidBody{}           = HTTP.status400
-  status InvalidFilters          = HTTP.status405
-  status InvalidPreferences{}    = HTTP.status400
-  status InvalidRpcMethod{}      = HTTP.status405
-  status InvalidRange{}          = HTTP.status416
-  status NotFound                = HTTP.status404
+  status AggregatesNotAllowed{}      = HTTP.status400
+  status AmbiguousRelBetween{}       = HTTP.status300
+  status AmbiguousRpc{}              = HTTP.status300
+  status MediaTypeError{}            = HTTP.status415
+  status InvalidBody{}               = HTTP.status400
+  status InvalidFilters              = HTTP.status405
+  status InvalidPreferences{}        = HTTP.status400
+  status InvalidRpcMethod{}          = HTTP.status405
+  status InvalidRange{}              = HTTP.status416
+  status NotFound                    = HTTP.status404
 
-  status NoRelBetween{}          = HTTP.status400
-  status NoRpc{}                 = HTTP.status404
-  status NotEmbedded{}           = HTTP.status400
-  status PutLimitNotAllowedError = HTTP.status400
-  status QueryParamError{}       = HTTP.status400
-  status RelatedOrderNotToOne{}  = HTTP.status400
-  status SpreadNotToOne{}        = HTTP.status400
-  status UnacceptableFilter{}    = HTTP.status400
-  status UnacceptableSchema{}    = HTTP.status406
-  status UnsupportedMethod{}     = HTTP.status405
-  status LimitNoOrderError       = HTTP.status400
-  status ColumnNotFound{}        = HTTP.status400
-  status GucHeadersError         = HTTP.status500
-  status GucStatusError          = HTTP.status500
-  status OffLimitsChangesError{} = HTTP.status400
-  status PutMatchingPkError      = HTTP.status400
-  status SingularityError{}      = HTTP.status406
-  status PGRSTParseError         = HTTP.status500
+  status NoRelBetween{}              = HTTP.status400
+  status NoRpc{}                     = HTTP.status404
+  status NotEmbedded{}               = HTTP.status400
+  status PutLimitNotAllowedError     = HTTP.status400
+  status QueryParamError{}           = HTTP.status400
+  status RelatedOrderNotToOne{}      = HTTP.status400
+  status SpreadNotToOne{}            = HTTP.status400
+  status UnacceptableFilter{}        = HTTP.status400
+  status UnacceptableSchema{}        = HTTP.status406
+  status UnsupportedMethod{}         = HTTP.status405
+  status LimitNoOrderError           = HTTP.status400
+  status ColumnNotFound{}            = HTTP.status400
+  status GucHeadersError             = HTTP.status500
+  status GucStatusError              = HTTP.status500
+  status OffLimitsChangesError{}     = HTTP.status400
+  status PutMatchingPkError          = HTTP.status400
+  status SingularityError{}          = HTTP.status406
+  status PGRSTParseError             = HTTP.status500
+  status MaxAffectedViolationError{} = HTTP.status400
 
   headers SingularityError{}     = [MediaType.toContentType $ MTVndSingularJSON False]
   headers _ = mempty
@@ -198,6 +199,12 @@ instance JSON.ToJSON ApiRequestError where
 
   toJSON AggregatesNotAllowed = toJsonPgrstError
     ApiRequestErrorCode23 "Use of aggregate functions is not allowed" Nothing Nothing
+
+  toJSON (MaxAffectedViolationError n) = toJsonPgrstError
+    ApiRequestErrorCode24
+    "Query result exceeds max-affected preference constraint"
+    (Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"])
+    Nothing
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
     SchemaCacheErrorCode00
@@ -606,6 +613,7 @@ data ErrorCode
   | ApiRequestErrorCode21
   | ApiRequestErrorCode22
   | ApiRequestErrorCode23
+  | ApiRequestErrorCode24
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -653,6 +661,7 @@ buildErrorCode code = "PGRST" <> case code of
   ApiRequestErrorCode21  -> "121"
   ApiRequestErrorCode22  -> "122"
   ApiRequestErrorCode23  -> "123"
+  ApiRequestErrorCode24  -> "124"
 
   SchemaCacheErrorCode00 -> "200"
   SchemaCacheErrorCode01 -> "201"
