@@ -150,6 +150,20 @@ spec =
             matchStatus = 406
           }
 
+      it "succeeds in calling handler with a domain on another schema" $
+        request methodGet "/another_table" [("Accept-Profile", "v2"), (hAccept, "text/plain")] ""
+          `shouldRespondWith` "plain"
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
+          }
+
+      it "succeeds in calling handler with a domain on an exposed schema" $
+        request methodGet "/another_table" [("Accept-Profile", "v2"), (hAccept, "text/special")] ""
+          `shouldRespondWith` "special"
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
+          }
+
     context "calling procs on different schemas" $ do
       it "succeeds in calling the default schema proc" $
         request methodGet "/rpc/get_parents_below?id=6" [] ""
@@ -192,6 +206,20 @@ spec =
           {
             matchStatus = 200
           , matchHeaders = [matchContentTypeJson, "Content-Profile" <:> "v2"]
+          }
+
+      it "succeeds in calling handler with a domain on another schema" $
+        request methodGet "/rpc/get_plain_text" [("Accept-Profile", "v2"), (hAccept, "text/plain")] ""
+          `shouldRespondWith` "plain"
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8", "Content-Profile" <:> "v2"]
+          }
+
+      it "succeeds in calling handler with a domain on an exposed schema" $
+        request methodGet "/rpc/get_special_text" [("Accept-Profile", "v2"), (hAccept, "text/special")] ""
+          `shouldRespondWith` "special"
+          { matchStatus = 200
+          , matchHeaders = ["Content-Type" <:> "text/special", "Content-Profile" <:> "v2"]
           }
 
     context "Modifying tables on different schemas" $ do
