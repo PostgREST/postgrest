@@ -11,6 +11,11 @@ Htmx expects an HTML response and uses it to replace an element inside the DOM (
 
 .. image:: ../_static/how-tos/htmx-demo.gif
 
+.. warning::
+
+  This is a proof of concept showing what can be achieved using both technologies.
+  We are working on `plmustache <https://github.com/PostgREST/plmustache>`_ which will further improve the HTML aspect of this how-to.
+
 Preparatory Configuration
 -------------------------
 
@@ -69,8 +74,13 @@ Listing and Creating To-Dos
 ---------------------------
 
 Now, let's show a list of the to-dos already inserted in the database.
+For that, we'll also need a function to help us sanitize the HTML content that may be present in the task.
 
 .. code-block:: postgres
+
+  create or replace function api.sanitize_html(text) returns text as $$
+    select replace(replace(replace(replace(replace($1, '&', '&amp;'), '"', '&quot;'),'>', '&gt;'),'<', '&lt;'), '''', '&apos;')
+  $$ language sql;
 
   create or replace function api.html_todo(api.todos) returns text as $$
     select format($html$
@@ -82,7 +92,7 @@ Now, let's show a list of the to-dos already inserted in the database.
       $html$,
       $1.id,
       case when $1.done then 'line-through text-gray-400' else '' end,
-      $1.task
+      api.sanitize_html($1.task)
     );
   $$ language sql stable;
 
@@ -220,7 +230,7 @@ Now, let's modify ``api.html_todo`` and make it more functional.
   $html$,
     $1.id,
     case when $1.done then 'line-through text-gray-400' else '' end,
-    $1.task,
+    api.sanitize_html($1.task),
     (not $1.done)::text
   );
   $$ language sql stable;
@@ -269,7 +279,7 @@ That's why we create the ``api.html_editable_task`` function as an endpoint:
   </form>
   $html$,
     id,
-    task
+    api.sanitize_html(task)
   )
   from api.todos
   where id = _id;
