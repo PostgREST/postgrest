@@ -3517,6 +3517,11 @@ returns setof test.lines as $$
   select * from lines;
 $$ language sql;
 
+create or replace function test.get_line (id int)
+returns "application/vnd.twkb" as $$
+  select extensions.st_astwkb(geom)::"application/vnd.twkb" from lines where id = get_line.id;
+$$ language sql;
+
 create or replace function test.get_shop_bles ()
 returns setof test.shop_bles as $$
   select * from shop_bles;

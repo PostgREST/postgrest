@@ -119,6 +119,13 @@ spec = describe "custom media types" $ do
         , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }
 
+    it "should not fail when the function doesn't return a row" $ do
+      request methodGet "/rpc/get_line?id=777" (acceptHdrs "application/vnd.twkb") ""
+        `shouldRespondWith` ""
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/vnd.twkb"]
+        }
+
   context "Proc that returns scalar based on a table" $ do
     it "can get an image with Accept: image/png" $ do
       r <- request methodGet "/rpc/ret_image" (acceptHdrs "image/png") ""
