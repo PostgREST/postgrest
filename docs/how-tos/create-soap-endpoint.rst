@@ -77,25 +77,6 @@ and should roughly look like:
       </soapenv:Body>
     </soapenv:Envelope>
 
-Unfortunately the ``Accept: text/xml`` header is currently mandatory concerning PostgREST, otherwise it will respond
-with a ``Content-Type: application/json`` header and enclose the response with quotes.
-(You can check the returned headers by adding ``-v`` to the curl call.)
-
-If your SOAP clients do not send the ``Accept: text/xml`` header, you can fix that in your nginx reverse proxy
-by adding something like ...
-
-.. code-block:: nginx
-
-    set $accept $http_accept;
-    if ($contentType ~ "^text/xml($|;)") {
-        set $accept "text/xml";
-    }
-    proxy_set_header Accept $accept;
-
-to your ``location`` nginx configuration.
-(The given example sets the ``Accept`` header for each request of Content-Type ``text/xml``.)
-
-
 A more elaborate example
 ------------------------
 
@@ -211,7 +192,7 @@ References
 For more information concerning PostgREST, cf.
 
 - :ref:`s_proc_single_unnamed`
-- :ref:`custom_media`. See :ref:`any_handler`, if you need to support an ``application/soap+xml`` media type.
+- :ref:`custom_media`. See :ref:`any_handler`, if you need to support an ``application/soap+xml`` media type or if you want to respond with XML without sending a media type.
 - :ref:`Nginx reverse proxy <nginx>`
 
 For SOAP reference, visit
