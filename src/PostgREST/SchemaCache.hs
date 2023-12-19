@@ -1167,7 +1167,7 @@ mediaHandlers pgVer =
         join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
         join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
       where
-        proc_schema.nspname = ANY('{test}') and
+        proc_schema.nspname = ANY($1) and
         proc.pronargs = 1 and
         arg_name.oid in (select reltype from all_relations)
       union
@@ -1182,7 +1182,8 @@ mediaHandlers pgVer =
         join pg_namespace pro_sch on pro_sch.oid = proc.pronamespace
         join media_types mtype on proc.prorettype = mtype.oid
         join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
-      where NOT proretset
+      where
+        pro_sch.nspname = ANY($1) and NOT proretset
       |] <> (if pgVer >= pgVersion110 then " AND prokind = 'f'" else " AND NOT (proisagg OR proiswindow)")
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap

@@ -5,7 +5,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
  - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
+
+### Fixed
+
+  - #3124, Fix table's media type handlers not working for all schemas - @steve-chavez
 
 ## [12.0.1] - 2023-12-12
 
