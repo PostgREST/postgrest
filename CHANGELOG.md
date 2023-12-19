@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
   - #3124, Fix table's media type handlers not working for all schemas - @steve-chavez
+  - #3126, Fix empty row on media type handler function - @steve-chavez
 
 ## [12.0.1] - 2023-12-12
 
