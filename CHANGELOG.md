@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.0.2] - 2023-12-20
+
 ### Fixed
 
   - #3124, Fix table's media type handlers not working for all schemas - @steve-chavez
