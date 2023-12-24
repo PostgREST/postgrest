@@ -13,6 +13,7 @@ The following preferences are supported.
 - ``Prefer: count``. See :ref:`prefer_count`.
 - ``Prefer: resolution``. See :ref:`prefer_resolution`.
 - ``Prefer: missing``. See :ref:`bulk_insert_default`.
+- ``Prefer: max-affected``, See :ref:`prefer_max_affected`.
 
 .. _prefer_handling:
 
@@ -212,10 +213,12 @@ On the other end of the spectrum you can get the full created object back in the
       -H "Prefer: return=representation" \
       -d '{"id":33, "name": "x"}'
 
-.. code::
+.. code-block:: http
 
   HTTP/1.1 201 Created
   Preference-Applied: return=representation
+
+.. code-block:: json
 
   [
       {
@@ -223,3 +226,39 @@ On the other end of the spectrum you can get the full created object back in the
           "name": "x"
       }
   ]
+
+.. _prefer_max_affected:
+
+Max Affected
+============
+
+You can set a limit to the amount of resources affected in a request by sending ``max-affected`` preference. This feature works in combination with ``handling=strict`` preference. ``max-affected`` would be ignored with lenient handling. The "affected resources" are the number of rows returned by ``DELETE`` and ``PATCH`` requests. This is also supported through ``RPC`` calls.
+
+To illustrate the use of this preference, consider the following scenario where the ``items`` table contains 14 rows.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    DELETE /items?id=lt.15 HTTP/1.1
+    Content-Type: application/json; charset=utf-8
+    Prefer: handling=strict, max-affected=10
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/items?id=lt.15 -X DELETE \
+      -H "Content-Type: application/json" \
+      -H "Prefer: handling=strict, max-affected=10"
+
+.. code-block:: http
+
+  HTTP/1.1 400 Bad Request
+
+.. code-block:: json
+
+  {
+      "code": "PGRST124",
+      "message": "Query result exceeds max-affected preference constraint",
+      "details": "The query affects 14 rows",
+      "hint": null
+  }
