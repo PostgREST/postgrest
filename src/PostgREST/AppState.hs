@@ -34,6 +34,7 @@ module PostgREST.AppState
 import           Crypto.PubKey.RSA.Types    (PublicKey)
 import qualified Data.Aeson                 as JSON
 import qualified Data.Aeson.KeyMap          as KM
+import qualified Data.ByteString            (readFile)
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Cache                 as C
@@ -41,6 +42,7 @@ import           Data.Either.Combinators    (whenLeft)
 import qualified Data.List                  as L
 import qualified Data.Text                  as T (splitOn, pack, unpack)
 import qualified Data.Text.Encoding         as T
+import qualified Data.ByteString.UTF8       as UTF8
 import           Hasql.Connection           (acquire)
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
@@ -64,7 +66,7 @@ import Data.Time          (ZonedTime, defaultTimeLocale, formatTime,
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import Network.Wai.SAML2  (SAML2Config (..), saml2ConfigNoEncryption)
-import Network.Wai.SAML2.Validation      (readSignedCertificate)
+import Network.Wai.SAML2.Validation      (readSignedCertificate, readPKCS12Certificate)
 
 import System.IO.Error                   (IOError)
 
@@ -162,24 +164,35 @@ loadPublicKey Nothing = pure Nothing
 loadPublicKey (Just rawKeyFromEnv) = do
 
   keyFromEnv <- interpreteEnv rawKeyFromEnv
+  password <- lookupEnv "POSTGREST_SAML_CERTIFICATE_PASSWORD"
 
   case keyFromEnv of
-    Left _ -> pure Nothing
+    Left err -> do
+      putStrLn ("Failure to read the SAML certificate. " ++ show err :: String)
+      pure Nothing
     Right key -> do
       -- Load the public key from the loaded certificate data.
-      putStrLn ("Reading the SAML certificate from the environment... " ++ show key :: String)
-      let publicKey = rightToMaybe $ readSignedCertificate $ T.unpack key
+      putStrLn ("Reading the SAML certificate from the environment... " ++ (take 10 $ show key) :: String)
+
+      let (err, publicKeys) = partitionEithers [
+              readSignedCertificate $ UTF8.toString key,
+              readPKCS12Certificate key (UTF8.fromString <$> password)
+            ]
+
+      putStrLn (show err :: String)
+      let publicKey = listToMaybe publicKeys
       putStrLn ("Loaded a public key: " ++ show publicKey :: String)
+
       pure publicKey
   where
     getExtension :: String -> Text
     getExtension = L.last . T.splitOn "." . T.pack
 
-    interpreteEnv :: String -> IO (Either IOError Text)
+    interpreteEnv :: String -> IO (Either IOError ByteString)
     interpreteEnv raw =
       case getExtension raw of
-        "pem" -> try $ readFile raw
-        _     -> pure $ Right $ T.pack raw
+        "pem" -> try $ Data.ByteString.readFile raw
+        _     -> pure $ Right $ UTF8.fromString raw
 
 init :: AppConfig -> IO AppState
 init conf = do
