@@ -37,15 +37,15 @@ packages:
   original:
     hackage: cryptostore-0.3.0.1
 - completed:
-    commit: 469fb93789bc014a94579588e113af75576fdb2c
+    commit: 4a7c9f6258687dc8cc9abf5735b90372b0bc75d7
     git: https://github.com/Gab0/wai-saml2.git
     name: wai-saml2
     pantry-tree:
-      sha256: a343db3179d0c5b291055536ec46526c07394dd033c8e300512d082227ffc685
-      size: 3655
+      sha256: 0a757e039994004c574779b83c7e1bba769413b792a859386612c07e7af98728
+      size: 3788
     version: '0.5'
   original:
-    commit: 469fb93789bc014a94579588e113af75576fdb2c
+    commit: 4a7c9f6258687dc8cc9abf5735b90372b0bc75d7
     git: https://github.com/Gab0/wai-saml2.git
 snapshots:
 - completed:

@@ -16,4 +16,4 @@ extra-deps:
   - cryptostore-0.3.0.1
   #- wai-saml2 # to load this module from the local filesystem;
   - git: https://github.com/Gab0/wai-saml2.git
-    commit: 469fb93789bc014a94579588e113af75576fdb2c
+    commit: 4a7c9f6258687dc8cc9abf5735b90372b0bc75d7
