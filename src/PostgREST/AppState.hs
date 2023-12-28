@@ -152,7 +152,7 @@ standardSAML2State = do
     { saml2StateAppConfig = (saml2ConfigNoEncryption pubKey)
       { saml2DisableTimeValidation = False }
     , saml2KnownIds    = knownIds
-    , saml2JwtEndpoint = "/rpc/validate"
+    , saml2JwtEndpoint = "/rpc/validate_saml_role"
     }
 
 -- | Read and process the certificate loaded from the environment variable

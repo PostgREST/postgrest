@@ -34,7 +34,8 @@ import           Protolude
 import           Network.Wai.SAML2.KeyInfo (KeyInfo(keyInfoCertificate))
 
 -- | Middleware for the SAML2 authentication.
--- TODO: Here we need to block access to the /rpc/login endpoint.
+-- TODO: Here we could block access to the /rpc/login endpoint,
+-- but function privileges can protect the function from being called directly.
 middleware :: AppState -> Wai.Middleware
 middleware appState app =
   case stateSAML2 appState of
@@ -57,10 +58,10 @@ handleSamlError err = do
   putStrLn $ ("SAML2 Error: " :: String) ++ show err
   pure $ respondError "SAML authentication error. Check the server logs."
 
--- | Converts the original request to a request to the login endpoint.
+-- | Converts the original request into a request to the login endpoint.
 -- NOTE: Is this a good idea?
-redirectToLogin :: Wai.Request -> Text -> Text -> IO Wai.Request
-redirectToLogin req login_endpoint issuer = do
+redirectToLoginEndpoint :: Wai.Request -> Text -> Text -> IO Wai.Request
+redirectToLoginEndpoint req login_endpoint role = do
 
   newBody <- generateBody
 
@@ -76,7 +77,7 @@ redirectToLogin req login_endpoint issuer = do
     }
   where
     new_headers = [("Content-Type", "application/x-www-form-urlencoded")]
-    form_data = Map.fromList [ ("issuer", T.unpack issuer)
+    form_data = Map.fromList [ ("target_role", T.unpack role)
                              ]
     rendered_form_data = renderFormData form_data
     generateBody = do
@@ -96,27 +97,28 @@ renderFormData d = S8.pack $ intercalate "&" $ map renderPair $ Map.toList d
 handleSAML2Result :: SAML2State -> Either SAML2Error Result -> Wai.Middleware
 handleSAML2Result samlState result' _app req respond =
   case result' of
+    Left err -> respond =<< handleSamlError (show err)
     Right result -> do
       known_assertion <- tryRetrieveAssertionID samlState (assertionId (assertion result))
       if known_assertion
       then respond =<< handleSamlError "Replay attack detected."
       else do
           -- NOTE: SAML Authentication success!
-          let user = fromMaybe "anon" $ Map.lookup "email" $ extractAttributes $ assertion result
+          let
+            attributes = extractAttributes $ assertion result
+            user = fromMaybe "tester" $ Map.lookup "role" attributes
 
+          putStrLn ("SAML parameters: " ++ show (Map.toList attributes) :: String)
           putStrLn $ "SAML login for username: " ++ T.unpack user
 
-          case signatureKeyInfo $ responseSignature $ response result of
-            Nothing -> respond =<< handleSamlError "No certificate found in SAML Response, aborting..."
-            Just keyInfo -> do
-              let certificate = encodeCertificate $ keyInfoCertificate keyInfo
-
-              putStrLn $ "SAML login with certificate: " ++ T.unpack certificate
-
-              req' <- redirectToLogin req (saml2JwtEndpoint samlState) certificate
-              storeAssertionID samlState (assertionId (assertion result))
-              _app req' respond
-    Left err -> respond =<< handleSamlError (show err)
+          req' <- redirectToLoginEndpoint req (saml2JwtEndpoint samlState) user
+          storeAssertionID samlState (assertionId (assertion result))
+          _app req' respond
+  where
+    _readCertificateFromSignature :: Result -> Maybe Text
+    _readCertificateFromSignature result = do
+      keyInfo <- signatureKeyInfo $ responseSignature $ response result
+      return $ encodeCertificate $ keyInfoCertificate keyInfo
 
 -- | Encode a certificate to be used as a JWT parameter.
 -- Here we encode it as SHA256 because passing the raw certificate
@@ -131,18 +133,24 @@ encodeCertificate = T.pack
                   . T.pack
                   . BSU.toString
 
--- | Extracts the username from the assertion.
+-- | Extracts all relevant atrtibutes from the assertion.
+-- This includes all assertion attribute statements along with the name id.
 extractAttributes :: Assertion -> Map Text Text
-extractAttributes = Map.fromList
-                  . map simplifyAttribute
-                  . assertionAttributeStatement
+extractAttributes assertion' = Map.insert "name_id" name_id attributes
   where
     simplifyAttribute :: AssertionAttribute -> (Text, Text)
     simplifyAttribute attr = (attributeName attr, attributeValue attr)
 
+    attributes = Map.fromList
+               $ map simplifyAttribute
+               $ assertionAttributeStatement assertion'
+
+    name_id = nameIDValue $ subjectNameID $ assertionSubject assertion'
+
+
 -- | Checks if a given assertion ID is already known.
 tryRetrieveAssertionID :: SAML2State -> Text -> IO Bool
-tryRetrieveAssertionID samlState t = do
+tryRetrieveAssertionID samlState t =
   isJust <$> C.lookup (saml2KnownIds samlState) t
 
 -- | Store a known assertion ID in the cache.
