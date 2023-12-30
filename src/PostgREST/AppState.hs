@@ -83,7 +83,7 @@ data AuthResult = AuthResult
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool                     :: SQL.Pool
+  { statePool                     :: IORef SQL.Pool
   -- | Database server version, will be updated by the connectionWorker
   , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
@@ -125,8 +125,9 @@ init conf = do
 
 initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> IO AppState
 initWithPool (sock, adminSock) pool conf = do
-  appState <- AppState pool
-    <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
+  appState <- AppState
+    <$> newIORef pool
+    <*> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> pure (pure ())
     <*> newEmptyMVar
@@ -208,7 +209,8 @@ initPool AppConfig{..} =
 -- | Run an action with a database connection.
 usePool :: AppState -> AppConfig -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool appState@AppState{..} AppConfig{configLogLevel} x = do
-  res <- SQL.use statePool x
+  pool <- getPool appState
+  res <- SQL.use pool x
 
   when (configLogLevel > LogCrit) $ do
     whenLeft res (\case
@@ -223,11 +225,17 @@ usePool appState@AppState{..} AppConfig{configLogLevel} x = do
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool appState = SQL.release =<< getPool appState
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = SQL.release statePool
+destroyPool appState = SQL.release =<< getPool appState
+
+getPool :: AppState -> IO SQL.Pool
+getPool = readIORef . statePool
+
+putPool :: AppState -> SQL.Pool -> IO ()
+putPool = atomicWriteIORef . statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
@@ -478,6 +486,7 @@ reReadConfig startingUp appState = do
         logWithZTime appState $ "Failed reloading config: " <> err
     Right newConf -> do
       putConfig appState newConf
+      putPool appState =<< initPool newConf
       if startingUp then
         pass
       else
