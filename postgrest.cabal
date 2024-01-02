@@ -74,6 +74,7 @@ library
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
                       PostgREST.Query.Statements
+                      PostgREST.OpenTelemetry
                       PostgREST.Plan
                       PostgREST.Plan.CallPlan
                       PostgREST.Plan.MutatePlan
@@ -115,6 +116,12 @@ library
                     , hasql-transaction         >= 1.0.1 && < 1.2
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
+                    , hs-opentelemetry-sdk      >= 0.1.0.0 && < 0.2.0.0
+                    , hs-opentelemetry-instrumentation-wai
+                    , hs-opentelemetry-api
+                    -- ^ this is due to hs-otel-sdk is not reexporting getTracerTracerProvider
+                    -- needed to initialize OpenTelemetry.middleware
+                    , hs-opentelemetry-utils-exceptions
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , iproute                   >= 1.7.0 && < 1.8
                     , jose-jwt                  >= 0.9.6 && < 0.11
@@ -261,6 +268,8 @@ test-suite spec
                     , hasql-pool        >= 1.0.1 && < 1.1
                     , hasql-transaction >= 1.0.1 && < 1.2
                     , heredoc           >= 0.2 && < 0.3
+                    , hs-opentelemetry-sdk      >= 0.1.0.0 && < 0.2.0.0
+                    , hs-opentelemetry-instrumentation-hspec
                     , hspec             >= 2.3 && < 2.12
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
