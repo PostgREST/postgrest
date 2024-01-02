@@ -13,11 +13,12 @@ import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
 
-import PostgREST.AppState    (AppState)
-import PostgREST.Config      (AppConfig (..))
-import PostgREST.Observation (Observation (..))
-import PostgREST.SchemaCache (querySchemaCache)
-import PostgREST.Version     (prettyVersion)
+import PostgREST.AppState      (AppState)
+import PostgREST.Config        (AppConfig (..))
+import PostgREST.Observation   (Observation (..))
+import PostgREST.OpenTelemetry (Tracer, withTracer)
+import PostgREST.SchemaCache   (querySchemaCache)
+import PostgREST.Version       (prettyVersion)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
@@ -26,27 +27,31 @@ import qualified PostgREST.Config   as Config
 
 import Protolude
 
+main :: HasCallStack => CLI -> IO ()
+main CLI{cliCommand, cliPath} = withTracer $ \tracer -> do
 
-main :: CLI -> IO ()
-main CLI{cliCommand, cliPath} = do
   conf <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
+  let tracer' = if configServerOtelEnabled conf
+                    then Just tracer
+                    else Nothing
+
   case cliCommand of
     Client adminCmd -> runClientCommand conf adminCmd
-    Run runCmd      -> runAppCommand conf runCmd
+    Run runCmd      -> runAppCommand tracer' conf runCmd
 
 -- | Run command using http-client to communicate with an already running postgrest
 runClientCommand :: AppConfig -> ClientCommand -> IO ()
 runClientCommand conf CmdReady = Client.ready conf
 
 -- | Run postgrest with command
-runAppCommand :: AppConfig -> RunCommand -> IO ()
-runAppCommand conf@AppConfig{..} runCmd = do
+runAppCommand :: Maybe Tracer -> AppConfig -> RunCommand -> IO ()
+runAppCommand tracer conf@AppConfig{..} runCmd = do
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf)
+    (AppState.init conf tracer)
     AppState.destroy
     (\appState -> case runCmd of
       CmdDumpConfig -> do
