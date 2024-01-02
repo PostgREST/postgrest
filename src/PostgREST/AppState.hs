@@ -16,6 +16,7 @@ module PostgREST.AppState
   , getJwtCache
   , getSocketREST
   , getSocketAdmin
+  , getOTelTracer
   , init
   , initSockets
   , initWithPool
@@ -76,6 +77,7 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+import OpenTelemetry.Trace    (Tracer)
 import Protolude
 
 data AuthResult = AuthResult
@@ -116,6 +118,8 @@ data AppState = AppState
   , stateObserver          :: ObservationHandler
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
+    -- | OpenTelemetry tracer
+  , oTelTracer             :: Tracer
   }
 
 -- | Schema cache status
@@ -126,8 +130,8 @@ data SchemaCacheStatus
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
-init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init :: AppConfig -> Tracer -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} tracer = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -136,11 +140,11 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
+  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState tracer observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
+initWithPool :: AppSockets -> SQL.Pool ->  AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> Tracer -> ObservationHandler -> IO AppState
+initWithPool (sock, adminSock) pool conf loggerState metricsState tracer observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -159,6 +163,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> pure observer
     <*> pure loggerState
     <*> pure metricsState
+    <*> pure tracer
 
   deb <-
     let decisecond = 100000 in
@@ -324,6 +329,9 @@ getSocketREST = stateSocketREST
 
 getSocketAdmin :: AppState -> Maybe NS.Socket
 getSocketAdmin = stateSocketAdmin
+
+getOTelTracer :: AppState -> Tracer
+getOTelTracer = oTelTracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
