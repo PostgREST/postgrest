@@ -70,6 +70,86 @@ let
           }
           { };
 
+      hs-opentelemetry-api =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-api"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=api"
+          { };
+
+      hs-opentelemetry-instrumentation-hspec =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-instrumentation-hspec"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=instrumentation/hspec"
+          { };
+
+      hs-opentelemetry-exporter-otlp =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-exporter-otlp"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=exporters/otlp"
+          { };
+
+      hs-opentelemetry-instrumentation-wai =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-instrumentation-wai"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=instrumentation/wai"
+          { };
+
+      hs-opentelemetry-propagator-b3 =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-propagator-b3"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=propagators/b3"
+          { };
+
+      hs-opentelemetry-propagator-datadog =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-propagator-datadog"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=propagators/datadog"
+          { };
+
+      hs-opentelemetry-propagator-w3c =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-propagator-w3c"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=propagators/w3c"
+          { };
+
+      hs-opentelemetry-sdk =
+        prev.callCabal2nixWithOptions "hs-opentelemetry-sdk"
+          (super.fetchFromGitHub {
+            owner = "iand675";
+            repo = "hs-opentelemetry";
+            rev = "adc464b0a45e56a983fa1441be6e432b50c29e0e";
+            sha256 = "sha256-WG/i8jt8u9olC2bAdbKRamhqyBzYYJ7q/nrGsVUMmEE=";
+          }) "--subpath=sdk"
+          { };
+
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
