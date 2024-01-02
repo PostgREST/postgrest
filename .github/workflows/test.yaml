@@ -114,6 +114,7 @@ jobs:
     strategy:
       matrix:
         kind: ['mixed', 'jwt']
+        oTel: ['always_on', 'always_off']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
@@ -130,6 +131,8 @@ jobs:
         with:
           prefix: v
       - name: Run loadtest
+        env:
+          OTEL_TRACES_SAMPLER: "${{ matrix.oTel }}"
         run: |
           postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
