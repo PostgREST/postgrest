@@ -16,7 +16,24 @@ extra-deps:
   - http2-5.4.0
   - warp-3.4.13
 
+  - hs-opentelemetry-api-0.3.1.0@sha256:54ab25b0764464733be287ced1b6aab70c12d99c7ec933b7415a59914d531dc5,4199
+  - hs-opentelemetry-exporter-otlp-0.1.1.0@sha256:9d39bae1151afa0bcfca23db8076e3b9c4a4e0737d29c91512ecefac6af65189,1564
+  - hs-opentelemetry-instrumentation-hspec-0.0.1.2@sha256:cba36dc9a8fed4288a1b9d071b869f5b3382451fe37821e369628e2761834fb4,1191
+  - hs-opentelemetry-instrumentation-wai-0.1.1.0@sha256:d97b4cb3870217e64e95da3f51db814eca62eb57484ee0a6f747366da5940bc2,1371
+  - hs-opentelemetry-otlp-0.2.0.0@sha256:d7a52c77fc9ab1aa4d1f730e459df9d3accf0de9420eb0bd3dc7f2fdf83a11d3,2991
+  - hs-opentelemetry-propagator-b3-0.0.1.3@sha256:effc04fcb6c8176cedf1bfa6c088f9d930bca42262589bab25a61238305b25a0,1340
+  - hs-opentelemetry-propagator-datadog-0.0.1.1@sha256:eea1d919c3dde97d6ae4c72b978719758ba1b58facb6b7efd32b81c3815d4bf8,2950
+  - hs-opentelemetry-propagator-w3c-0.1.0.0@sha256:2d8d324e61e15953d6fa405eee2f674746b5ea35a74ff9113388f0dca21e9f23,2012
+  - hs-opentelemetry-sdk-0.1.0.1@sha256:54c92cc73e4f52730f38b8c5e5dfc0f29faadc90fa1c5d60529770b882ab08f0,4059
+  - hs-opentelemetry-utils-exceptions-0.2.0.1@sha256:b32c3109b896dbab67c74c28e8ffcfe6e7f86aa29454fc6a31c06a671246e78b,1477
+  - thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+  - thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+
 allow-newer: true
 allow-newer-deps:
   - fuzzyset
   - hasql
+  # Until https://github.com/iand675/hs-opentelemetry/issues/203 is solved:
+  - hs-opentelemetry-instrumentation-wai
+  - hs-opentelemetry-utils-exceptions
+  - hs-opentelemetry-instrumentation-hspec

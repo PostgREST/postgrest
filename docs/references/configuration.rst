@@ -840,6 +840,21 @@ openapi-server-proxy-uri
       ]
     }
 
+.. _otel-enabled:
+
+otel-enabled
+-------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  N
+  **Environment** PGRST_OTEL_ENABLED
+  **In-Database** `n/a`
+  =============== =================================
+
+  When this is set to :code:`true`, OpenTelemetry tracing is enabled. See :ref:`opentelemetry` for details and settings.
+
 .. _server_cors_allowed_origins:
 
 server-cors-allowed-origins

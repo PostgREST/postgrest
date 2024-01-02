@@ -105,6 +105,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configOpenApiMode               = OAFollowPriv
   , configOpenApiSecurityActive     = False
   , configOpenApiServerProxyUri     = Nothing
+  , configOTelEnabled               = False
   , configServerCorsAllowedOrigins  = Nothing
   , configServerHost                = "localhost"
   , configServerPort                = 3000
@@ -133,6 +134,9 @@ testCfgJwtCache =
   , configJWKS = rightToMaybe $ parseSecret generateSecret
   , configJwtCacheMaxEntries = 2
   }
+
+testCfgOTel :: AppConfig
+testCfgOTel = baseCfg { configOTelEnabled = True }
 
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
