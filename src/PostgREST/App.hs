@@ -35,21 +35,22 @@ import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 import qualified Network.Wai.Header       as WaiHeader
 
-import qualified PostgREST.Admin      as Admin
-import qualified PostgREST.ApiRequest as ApiRequest
-import qualified PostgREST.AppState   as AppState
-import qualified PostgREST.Auth       as Auth
-import qualified PostgREST.Cors       as Cors
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.MainTx     as MainTx
-import qualified PostgREST.Plan       as Plan
-import qualified PostgREST.Query      as Query
-import qualified PostgREST.Response   as Response
-import qualified PostgREST.Unix       as Unix (installSignalHandlers)
+import qualified PostgREST.Admin         as Admin
+import qualified PostgREST.ApiRequest    as ApiRequest
+import qualified PostgREST.AppState      as AppState
+import qualified PostgREST.Auth          as Auth
+import qualified PostgREST.Cors          as Cors
+import qualified PostgREST.Error         as Error
+import qualified PostgREST.Listener      as Listener
+import qualified PostgREST.MainTx        as MainTx
+import qualified PostgREST.OpenTelemetry as OTel
+import qualified PostgREST.Plan          as Plan
+import qualified PostgREST.Query         as Query
+import qualified PostgREST.Response      as Response
+import qualified PostgREST.Unix          as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
+import PostgREST.AppState             (AppState, getOTelMaybeTracer)
 import PostgREST.Auth.Types           (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
@@ -71,7 +72,7 @@ import qualified Network.Socket            as NS
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           Protolude                 hiding (Handler)
 
-run :: AppState -> IO ()
+run :: HasCallStack => AppState -> IO ()
 run appState = do
   conf <- AppState.getConfig appState
 
@@ -119,43 +120,46 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: AppState.AppState -> IO () -> Wai.Application
+postgrest :: HasCallStack => AppState.AppState -> IO () -> Wai.Application
 postgrest appState connWorker =
+  OTel.oTelMiddlewareDynamic (getOTelMaybeTracer appState) .
   traceHeaderMiddleware appState .
   Cors.middleware appState $
     \req respond -> do
-      appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
-      maybeSchemaCache <- AppState.getSchemaCache appState
+      currentTracer <- getOTelMaybeTracer appState
+      OTel.inSpanMDefault currentTracer "request" $ do
+        appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
+        maybeSchemaCache <- AppState.getSchemaCache appState
 
-      let observer = AppState.getObserver appState
-          bearerAuth = ApiRequest.userBearerAuth req
+        let observer = AppState.getObserver appState
+            bearerAuth = ApiRequest.userBearerAuth req
 
-      response <- do
-        authResultE <- runExceptT $ withTiming appConf $
-            liftIO (Auth.getAuthResult appState bearerAuth) >>= liftEither
+        response <- do
+          authResultE <- runExceptT $ withTiming appConf $
+              liftIO (Auth.getAuthResult appState bearerAuth) >>= liftEither
 
-        case authResultE of
-          Left err -> do
-            let resp = Error.errorResponseFor configClientErrorVerbosity err
-            observer $ genResponseObs Nothing req resp
-            pure resp
+          case authResultE of
+            Left err -> do
+              let resp = Error.errorResponseFor configClientErrorVerbosity err
+              observer $ genResponseObs Nothing req resp
+              pure resp
 
-          Right (jwtTime, authResult@AuthResult{..}) -> do
-            resp <- either (Error.errorResponseFor configClientErrorVerbosity) identity <$>
-              runExceptT (postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req)
-            observer $ genResponseObs (Just authRole) req resp
-            pure resp
+            Right (jwtTime, authResult@AuthResult{..}) -> do
+              resp <- either (Error.errorResponseFor configClientErrorVerbosity) identity <$>
+                runExceptT (postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req)
+              observer $ genResponseObs (Just authRole) req resp
+              pure resp
 
-      -- Launch the connWorker when the connection is down. The postgrest
-      -- function can respond successfully (with a stale schema cache) before
-      -- the connWorker is done. However, when there's an empty schema cache
-      -- postgrest responds with the error `PGRST002`; this means that the schema
-      -- cache is still loading, so we don't launch the connWorker here because
-      -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
-      -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
-      when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
-      delay <- AppState.getNextDelay appState
-      respond $ addRetryHint delay response
+        -- Launch the connWorker when the connection is down. The postgrest
+        -- function can respond successfully (with a stale schema cache) before
+        -- the connWorker is done. However, when there's an empty schema cache
+        -- postgrest responds with the error `PGRST002`; this means that the schema
+        -- cache is still loading, so we don't launch the connWorker here because
+        -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
+        -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
+        when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
+        delay <- AppState.getNextDelay appState
+        respond $ addRetryHint delay response
   where
     -- TODO WaiHeader.contentLength does a lookup everytime, see: https://hackage.haskell.org/package/wai-extra-3.1.17/docs/src/Network.Wai.Header.html#contentLength
     -- It might be possible to gain some perf by returning the response length from `postgrestResponse`. We calculate the length manually on Response.hs.
@@ -164,7 +168,8 @@ postgrest appState connWorker =
       ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
 postgrestResponse
-  :: AppState.AppState
+  :: HasCallStack
+  => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
   -> Maybe Double
@@ -186,14 +191,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
   body <- lift $ Wai.strictRequestBody req
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withRequestPhase "parse" $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (planTime, plan)                   <- withRequestPhase "plan" $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming conf $ do
+  (txTime, txResult) <- withRequestPhase "query" $ do
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx{..} -> do
@@ -206,7 +211,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
         lift $ whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
-  (respTime, resp) <- withTiming conf $ do
+  (respTime, resp) <- withRequestPhase "response" $ do
     let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
         status' = either Error.status Response.pgrstStatus response
 
@@ -229,6 +234,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
 
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
+
+    withOTel :: HasCallStack => Text -> ExceptT e IO a -> ExceptT e  IO a
+    withOTel label action = do
+      currentTracer <- liftIO $ getOTelMaybeTracer appState
+      OTel.inSpanMDefault currentTracer label action
+
+    withRequestPhase :: HasCallStack => Text -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
+    withRequestPhase label = withOTel label . withTiming conf
 
 withTiming :: AppConfig -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
 withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled

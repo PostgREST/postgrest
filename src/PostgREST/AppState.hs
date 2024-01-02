@@ -5,6 +5,8 @@
 
 module PostgREST.AppState
   ( AppState
+  , TracerState(..)
+  , emptyTracerState
   , destroy
   , getConfig
   , getSchemaCache
@@ -14,10 +16,13 @@ module PostgREST.AppState
   , getNextListenerDelay
   , getTime
   , getJwtCacheState
+  , getOTelTracer
+  , getOTelMaybeTracer
   , init
   , initWithPool
   , putConfig -- For tests TODO refactoring
   , putNextListenerDelay
+  , putOTelTracer
   , putSchemaCache
   , putPgVersion
   , putIsListenerOn
@@ -41,6 +46,7 @@ import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
 import           PostgREST.Observation
+import           PostgREST.OpenTelemetry    (Tracer)
 import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
 
@@ -50,7 +56,7 @@ import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
                            exponentialBackoff, retrying,
                            rsPreviousDelay)
 import Data.IORef         (IORef, atomicWriteIORef, newIORef,
-                           readIORef)
+                           readIORef, writeIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
@@ -99,7 +105,14 @@ data AppState = AppState
   , stateJwtCache          :: JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
+  -- | OpenTelemetry tracer state
+  , stateOTelTracer        :: IORef (Maybe Tracer)
   }
+
+newtype TracerState = TracerState {ts'otelTracer :: Maybe Tracer} deriving (Show)
+
+emptyTracerState :: TracerState
+emptyTracerState = TracerState Nothing
 
 -- | Schema cache status.
 -- Empty means pending and full means loaded.
@@ -107,8 +120,8 @@ newtype SchemaCacheStatus = SchemaCacheStatus
   { getSCStatusMVar :: MVar ()
   }
 
-init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init :: AppConfig -> Maybe Tracer -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} tracer = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -116,10 +129,10 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer
+  initWithPool pool conf loggerState metricsState tracer observer
 
-initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool pool conf loggerState metricsState observer = mdo
+initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> Maybe Tracer -> ObservationHandler -> IO AppState
+initWithPool pool conf loggerState metricsState tracer observer = mdo
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -136,6 +149,7 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> JwtCache.init conf observer
     <*> pure loggerState
     <*> pure metricsState
+    <*> newIORef tracer
 
   return appState
 
@@ -265,6 +279,15 @@ getTime = stateGetTime
 
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
+
+getOTelTracer :: AppState -> IO (Maybe Tracer)
+getOTelTracer = readIORef . stateOTelTracer
+
+getOTelMaybeTracer :: AppState -> IO (Maybe Tracer)
+getOTelMaybeTracer = getOTelTracer
+
+putOTelTracer :: AppState -> Maybe Tracer -> IO ()
+putOTelTracer appState tracer = writeIORef (stateOTelTracer appState) tracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
@@ -429,6 +452,11 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       -- if it has changed, it is important to invalidate the jwt cache
       -- entries, because they were cached using the old secret
       update (getJwtCacheState appState) newConf
+      -- Update OpenTelemetry tracer state if configuration changed
+      oldConf <- getConfig appState
+      when (configOTelEnabled oldConf && not (configOTelEnabled newConf)) $ do
+        -- Going from enabled to disabled: set tracer to Nothing to disable OTel
+        putOTelTracer appState Nothing
 
       if startingUp then
         pass
