@@ -47,6 +47,90 @@ packages:
   original:
     hackage: streaming-commons-0.2.3.1
 - completed:
+    hackage: hs-opentelemetry-sdk-0.1.0.0@sha256:2642851866f11a494c99f15202d4bd9e75d4a5e1a7f3f172742a0676a33c664f,4059
+    pantry-tree:
+      sha256: c0868a6eb3d6add84df1ad32cdb0ebdbebe41205897e16ae8b30e96f205a8fe0
+      size: 1934
+  original:
+    hackage: hs-opentelemetry-sdk-0.1.0.0@sha256:2642851866f11a494c99f15202d4bd9e75d4a5e1a7f3f172742a0676a33c664f,4059
+- completed:
+    hackage: hs-opentelemetry-api-0.2.0.0@sha256:bbdbe7e212e99f17a7e68d09b94c1a6613e50ce88b3cb1b68979bbb0221291ae,4051
+    pantry-tree:
+      sha256: fcb11b19fa633afb8c34e002e6b8e8927d20fc2332d4234cc10a0b6e3dbe6022
+      size: 4396
+  original:
+    hackage: hs-opentelemetry-api-0.2.0.0@sha256:bbdbe7e212e99f17a7e68d09b94c1a6613e50ce88b3cb1b68979bbb0221291ae,4051
+- completed:
+    hackage: hs-opentelemetry-exporter-otlp-0.1.0.0@sha256:4c908a7e2e5053879687b7a7ee6e40a8eb22868e1a0808cd0cfd6ac9905057b8,1526
+    pantry-tree:
+      sha256: dd22c915f65b1ca76c6130cfb39ce666376d4813c267e12dd59be61a914bb264
+      size: 511
+  original:
+    hackage: hs-opentelemetry-exporter-otlp-0.1.0.0@sha256:4c908a7e2e5053879687b7a7ee6e40a8eb22868e1a0808cd0cfd6ac9905057b8,1526
+- completed:
+    hackage: hs-opentelemetry-instrumentation-wai-0.1.1.0@sha256:d97b4cb3870217e64e95da3f51db814eca62eb57484ee0a6f747366da5940bc2,1371
+    pantry-tree:
+      sha256: 23bbd4e58ba48b0ec3541a494d02e08e6b934d7173523be8aab04c6b2c7bb98b
+      size: 360
+  original:
+    hackage: hs-opentelemetry-instrumentation-wai-0.1.1.0@sha256:d97b4cb3870217e64e95da3f51db814eca62eb57484ee0a6f747366da5940bc2,1371
+- completed:
+    hackage: hs-opentelemetry-propagator-b3-0.0.1.2@sha256:8815dd74f27a908b5be0729cc09a3bf9f3049481c982252bbd6c3f6b908ecfcd,1340
+    pantry-tree:
+      sha256: fc71f8b7dc25625af6b81c1b3c1c5d808b682e2a7c1daf8e23f2af45ab9dc123
+      size: 431
+  original:
+    hackage: hs-opentelemetry-propagator-b3-0.0.1.2@sha256:8815dd74f27a908b5be0729cc09a3bf9f3049481c982252bbd6c3f6b908ecfcd,1340
+- completed:
+    hackage: hs-opentelemetry-propagator-datadog-0.0.1.0@sha256:c85de95e3c33b3ffcf980f560166e960cab0888e0741315f487288b3653c007c,2950
+    pantry-tree:
+      sha256: 04c10d8901e506c8c7662c8ce549a152118303fd2d0354a887bede4e73f0a8ee
+      size: 730
+  original:
+    hackage: hs-opentelemetry-propagator-datadog-0.0.1.0@sha256:c85de95e3c33b3ffcf980f560166e960cab0888e0741315f487288b3653c007c,2950
+- completed:
+    hackage: hs-opentelemetry-propagator-w3c-0.0.1.4@sha256:251428754454fbaf71d9b6acbbea473014b1ab50bdcda8bc8fe1532e63193374,1382
+    pantry-tree:
+      sha256: 5f7ff3fd37b7f720064193f02c84e8af6b554f8a7a2b7702a4bcd34fe576f721
+      size: 445
+  original:
+    hackage: hs-opentelemetry-propagator-w3c-0.0.1.4@sha256:251428754454fbaf71d9b6acbbea473014b1ab50bdcda8bc8fe1532e63193374,1382
+- completed:
+    hackage: hs-opentelemetry-utils-exceptions-0.2.0.1@sha256:b32c3109b896dbab67c74c28e8ffcfe6e7f86aa29454fc6a31c06a671246e78b,1477
+    pantry-tree:
+      sha256: 7829e2f06282a2ca913ab46ac98a3dd5b0b89b1189d5eb071f250b641115e548
+      size: 406
+  original:
+    hackage: hs-opentelemetry-utils-exceptions-0.2.0.1@sha256:b32c3109b896dbab67c74c28e8ffcfe6e7f86aa29454fc6a31c06a671246e78b,1477
+- completed:
+    hackage: hs-opentelemetry-otlp-0.1.0.0@sha256:5cd096b15f26f51ffae4c18f6a26794daef801acc9e13033db8b21a7606336d4,2533
+    pantry-tree:
+      sha256: 618a513764a7ae9995fc4f8b8ee5cec731a8759ac8c5df8e9553171abd3ff97d
+      size: 2585
+  original:
+    hackage: hs-opentelemetry-otlp-0.1.0.0@sha256:5cd096b15f26f51ffae4c18f6a26794daef801acc9e13033db8b21a7606336d4,2533
+- completed:
+    hackage: hs-opentelemetry-instrumentation-hspec-0.0.1.2@sha256:cba36dc9a8fed4288a1b9d071b869f5b3382451fe37821e369628e2761834fb4,1191
+    pantry-tree:
+      sha256: 04ca1dab12e22a1a43f491568674470e49ad29a4d2796af87c41a6e354c49293
+      size: 365
+  original:
+    hackage: hs-opentelemetry-instrumentation-hspec-0.0.1.2@sha256:cba36dc9a8fed4288a1b9d071b869f5b3382451fe37821e369628e2761834fb4,1191
+- completed:
+    hackage: thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+    pantry-tree:
+      sha256: 57d909a991b5e0b4c7a28121cb52ee9c2db6c09e0419b89af6c82fae52be88d4
+      size: 397
+  original:
+    hackage: thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+- completed:
+    hackage: thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+    pantry-tree:
+      sha256: 8c2c2e2e22c20bf3696ee6f30b50b3a9eeae187a22beb536441eefb0a3f9c549
+      size: 400
+  original:
+    hackage: thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+- completed:
     hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
     pantry-tree:
       sha256: 65107f0c970351b971ea1f676a5e00b61e37c298a4c83c867d937f2a774501eb
