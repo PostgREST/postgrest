@@ -5,6 +5,8 @@
 
 module PostgREST.AppState
   ( AppState
+  , TracerState(..)
+  , emptyTracerState
   , destroy
   , getConfig
   , getSchemaCache
@@ -14,6 +16,7 @@ module PostgREST.AppState
   , getNextListenerDelay
   , getTime
   , getJwtCacheState
+  , getOTelTracer
   , init
   , initWithPool
   , putConfig -- For tests TODO refactoring
@@ -41,6 +44,7 @@ import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
 import           PostgREST.Observation
+import           PostgREST.OpenTelemetry    (Tracer)
 import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
 
@@ -99,7 +103,14 @@ data AppState = AppState
   , stateJwtCache          :: JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
+  -- | OpenTelemetry tracer state
+  , stateOTelTracer        :: TracerState
   }
+
+data TracerState = TracerState {ts'enabled :: Bool, ts'otelTracer :: Maybe Tracer} deriving (Show)
+
+emptyTracerState :: TracerState
+emptyTracerState = TracerState {ts'enabled = False, ts'otelTracer = Nothing }
 
 -- | Schema cache status.
 -- Empty means pending and full means loaded.
@@ -107,8 +118,8 @@ newtype SchemaCacheStatus = SchemaCacheStatus
   { getSCStatusMVar :: MVar ()
   }
 
-init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init :: AppConfig -> TracerState -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} tracerState = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -116,10 +127,10 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer
+  initWithPool pool conf loggerState metricsState tracerState observer
 
-initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool pool conf loggerState metricsState observer = mdo
+initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> TracerState -> ObservationHandler -> IO AppState
+initWithPool pool conf loggerState metricsState tracerState observer = mdo
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -136,6 +147,7 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> JwtCache.init conf observer
     <*> pure loggerState
     <*> pure metricsState
+    <*> pure tracerState
 
   return appState
 
@@ -265,6 +277,9 @@ getTime = stateGetTime
 
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
+
+getOTelTracer :: AppState -> TracerState
+getOTelTracer = stateOTelTracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId

@@ -61,6 +61,7 @@ data Observation
   | JwtCacheEviction
   | TerminationUnixSignalObs Text
   | WarpServerObs Text
+  | OTelNoConfigSupplied
   deriving (Generic)
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
