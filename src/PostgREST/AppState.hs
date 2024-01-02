@@ -14,6 +14,7 @@ module PostgREST.AppState
   , getNextListenerDelay
   , getTime
   , getJwtCacheState
+  , getOTelTracer
   , init
   , initWithPool
   , putConfig -- For tests TODO refactoring
@@ -36,6 +37,7 @@ import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
+import           OpenTelemetry.Trace        (Tracer)
 import qualified PostgREST.Auth.JwtCache    as JwtCache
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
@@ -99,6 +101,10 @@ data AppState = AppState
   , stateJwtCache          :: JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
+  -- | OpenTelemetry tracer. @Nothing@ represents disabled OTel SDK.
+  -- It's a workaround for now, as @hs-opentelemetry-api@ doesn't have @Tracer.tracerIsEnabled@ released yet.
+  -- Tracking issue: https://github.com/iand675/hs-opentelemetry/issues/212
+  , stateOTelTracer        :: Maybe Tracer
   }
 
 -- | Schema cache status.
@@ -107,8 +113,8 @@ newtype SchemaCacheStatus = SchemaCacheStatus
   { getSCStatusMVar :: MVar ()
   }
 
-init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init :: AppConfig -> Maybe Tracer -> IO AppState
+init conf@AppConfig{configLogLevel, configDbPoolSize} tracer = do
   loggerState  <- Logger.init
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
@@ -116,10 +122,10 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   observer $ AppStartObs prettyVersion
 
   pool <- initPool conf observer
-  initWithPool pool conf loggerState metricsState observer
+  initWithPool pool conf loggerState metricsState tracer observer
 
-initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool pool conf loggerState metricsState observer = mdo
+initWithPool :: SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> Maybe Tracer -> ObservationHandler -> IO AppState
+initWithPool pool conf loggerState metricsState tracer observer = mdo
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -136,6 +142,7 @@ initWithPool pool conf loggerState metricsState observer = mdo
     <*> JwtCache.init conf observer
     <*> pure loggerState
     <*> pure metricsState
+    <*> pure tracer
 
   return appState
 
@@ -265,6 +272,9 @@ getTime = stateGetTime
 
 getJwtCacheState :: AppState -> JwtCacheState
 getJwtCacheState = stateJwtCache
+
+getOTelTracer :: AppState -> Maybe Tracer
+getOTelTracer = stateOTelTracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId

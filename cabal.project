@@ -1,4 +1,8 @@
 packages: postgrest.cabal
 tests: true
 allow-newer:
-  hasql:postgresql-libpq
+    hasql:postgresql-libpq
+  -- Until https://github.com/iand675/hs-opentelemetry/issues/203 is solved:
+  , hs-opentelemetry-instrumentation-hspec:hs-opentelemetry-api
+  , hs-opentelemetry-instrumentation-wai:hs-opentelemetry-api
+  , hs-opentelemetry-utils-exceptions:hs-opentelemetry-api
