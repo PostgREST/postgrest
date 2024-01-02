@@ -13,23 +13,27 @@ In order for produced spans to have correct code locations, all the functions ac
 `inSpanM` call must have `HasCallStack` constraint, because
 [GHC is never inferring it](https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/exts/callstack.html) for us.
 -}
-module PostgREST.OpenTelemetry (Tracer, withTracer, inSpanM, inSpanMDefault, oTelMiddleware) where
+module PostgREST.OpenTelemetry (Tracer, withTracer, inSpanM, inSpanMDefault, oTelMiddleware, renderTraceContext) where
 
-import Control.Monad.Catch               (MonadMask)
-import Network.Wai                       (Middleware)
-import OpenTelemetry.Attributes          (emptyAttributes)
-import OpenTelemetry.Instrumentation.Wai (newOpenTelemetryWaiMiddleware')
-import OpenTelemetry.Trace               (InstrumentationLibrary (..),
-                                          SpanArguments, Tracer,
-                                          defaultSpanArguments,
-                                          initializeGlobalTracerProvider,
-                                          makeTracer,
-                                          shutdownTracerProvider,
-                                          tracerOptions)
-import OpenTelemetry.Trace.Core          (getTracerTracerProvider)
-import OpenTelemetry.Utils.Exceptions    (inSpanM'')
-import PostgREST.Version                 (prettyVersion)
-import Protolude
+import           Control.Monad.Catch                      (MonadMask)
+import           Network.Wai                              (Middleware)
+import           OpenTelemetry.Attributes                 (emptyAttributes)
+import qualified OpenTelemetry.Context                    as Context
+import           OpenTelemetry.Context.ThreadLocal        (getContext)
+import           OpenTelemetry.Instrumentation.Wai        (newOpenTelemetryWaiMiddleware')
+import           OpenTelemetry.Propagator.W3CTraceContext (encodeSpanContext)
+import           OpenTelemetry.Trace                      (InstrumentationLibrary (..),
+                                                           SpanArguments,
+                                                           Tracer,
+                                                           defaultSpanArguments,
+                                                           initializeGlobalTracerProvider,
+                                                           makeTracer,
+                                                           shutdownTracerProvider,
+                                                           tracerOptions)
+import           OpenTelemetry.Trace.Core                 (getTracerTracerProvider)
+import           OpenTelemetry.Utils.Exceptions           (inSpanM'')
+import           PostgREST.Version                        (prettyVersion)
+import           Protolude
 
 -- | Wrap user's code with OpenTelemetry Tracer, initializing it with sensible defaults
 withTracer :: (Tracer -> IO c) -> IO c
@@ -69,3 +73,16 @@ oTelMiddleware Nothing  = identity
 
 inSpanMDefault :: (MonadIO m, MonadMask m, HasCallStack) => Maybe Tracer -> Text -> m a -> m a
 inSpanMDefault t name = inSpanM t name defaultSpanArguments
+renderTraceContext :: IO (Maybe ByteString)
+renderTraceContext  = do
+  -- Render TraceContext in W3C Trace Context format
+  -- https://www.w3.org/TR/trace-context/#traceparent-header
+  -- https://www.w3.org/TR/trace-context/#tracestate-header
+  --
+  ctx <- getContext
+  case Context.lookupSpan ctx of
+    Nothing -> pure Nothing
+    Just span -> do
+      (tParent, _tState) <- encodeSpanContext span
+      let traceContext = "traceparent='" <> tParent <> "'"
+      pure $ Just traceContext
