@@ -45,11 +45,11 @@ import qualified PostgREST.Unix             as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
                                        Mutation (..), Target (..))
-import PostgREST.AppState             (AppState)
+import PostgREST.AppState             (AppState, getOTelTracer)
 import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
-import PostgREST.Error                (Error)
+import PostgREST.Error                (Error (..))
 import PostgREST.Observation          (Observation (..))
 import PostgREST.Query                (DbHandler)
 import PostgREST.Response.Performance (ServerTiming (..),
@@ -58,12 +58,15 @@ import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.SchemaCache.Routine  (Routine (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.List             as L
-import qualified Network.HTTP.Types    as HTTP
-import qualified Network.Socket        as NS
-import           Protolude             hiding (Handler)
-import           System.TimeIt         (timeItT)
+import qualified Data.ByteString.Char8             as BS
+import qualified Data.List                         as L
+import qualified Network.HTTP.Types                as HTTP
+import qualified Network.Socket                    as NS
+import           OpenTelemetry.Instrumentation.Wai (newOpenTelemetryWaiMiddleware)
+import           OpenTelemetry.Trace               (defaultSpanArguments)
+import           OpenTelemetry.Utils.Exceptions    (inSpanM)
+import           Protolude                         hiding (Handler)
+import           System.TimeIt                     (timeItT)
 
 type Handler = ExceptT Error
 
@@ -88,7 +91,9 @@ run appState observer = do
       port <- NS.socketPort $ AppState.getSocketREST appState
       observer $ AppServerPortObs port
 
-  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
+  oTelMWare <- newOpenTelemetryWaiMiddleware
+
+  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) (oTelMWare app)
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
@@ -106,27 +111,28 @@ postgrest conf appState connWorker observer =
   Logger.middleware (configLogLevel conf) $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
-    \req respond -> case fromJust $ Auth.getResult req of
-      Left err -> respond $ Error.errorResponseFor err
-      Right authResult -> do
-        appConf <- AppState.getConfig appState -- the config must be read again because it can reload
-        maybeSchemaCache <- AppState.getSchemaCache appState
-        pgVer <- AppState.getPgVersion appState
+    \req respond -> inSpanM (getOTelTracer appState) "respond" defaultSpanArguments $
+      case fromJust $ Auth.getResult req of
+        Left err -> respond $ Error.errorResponseFor err
+        Right authResult -> do
+          appConf <- AppState.getConfig appState -- the config must be read again because it can reload
+          maybeSchemaCache <- AppState.getSchemaCache appState
+          pgVer <- AppState.getPgVersion appState
 
-        let
-          eitherResponse :: IO (Either Error Wai.Response)
-          eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req observer
+          let
+            eitherResponse :: IO (Either Error Wai.Response)
+            eitherResponse = inSpanM (getOTelTracer appState) "eitherResponse" defaultSpanArguments $
+              runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req observer
 
-        response <- either Error.errorResponseFor identity <$> eitherResponse
-        -- Launch the connWorker when the connection is down.  The postgrest
-        -- function can respond successfully (with a stale schema cache) before
-        -- the connWorker is done.
-        when (isServiceUnavailable response) connWorker
-        resp <- do
-          delay <- AppState.getRetryNextIn appState
-          return $ addRetryHint delay response
-        respond resp
+          response <- either Error.errorResponseFor identity <$> eitherResponse
+          -- Launch the connWorker when the connection is down.  The postgrest
+          -- function can respond successfully (with a stale schema cache) before
+          -- the connWorker is done.
+          when (isServiceUnavailable response) connWorker
+          resp <- do
+            delay <- AppState.getRetryNextIn appState
+            return $ addRetryHint delay response
+          respond resp
 
 postgrestResponse
   :: AppState.AppState
@@ -172,58 +178,58 @@ handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool ->
 handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime observer =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
-      (planTime', wrPlan) <- withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
+      (planTime', wrPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationCreate, TargetIdent identifier) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.createResponse identifier mrPlan apiReq resultSet
+      (planTime', mrPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.createResponse identifier mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationUpdate, TargetIdent identifier) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.updateResponse mrPlan apiReq resultSet
+      (planTime', mrPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.updateResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet
+      (planTime', mrPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionMutate MutationDelete, TargetIdent identifier) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.deleteResponse mrPlan apiReq resultSet
+      (planTime', mrPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.deleteResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInvoke invMethod, TargetProc identifier _) -> do
-      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
-      (txTime', resultSet) <- withTiming $ runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan)) (pdFuncSettings $ Plan.crProc cPlan) (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
+      (planTime', cPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
+      (txTime', resultSet) <- withOTel "query" $ withTiming $ runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan)) (pdFuncSettings $ Plan.crProc cPlan) (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
-      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
-      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
+      (planTime', iPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.inspectPlan apiReq
+      (txTime', oaiResult) <- withOTel "query" $ withTiming $ runQuery roleIsoLvl [] (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
+      (respTime', pgrst) <- withOTel "response" $ withTiming  $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     (ActionInfo, TargetIdent identifier) -> do
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.infoIdentResponse identifier sCache
+      (respTime', pgrst) <- withOTel "response" $ withTiming  $ liftEither $ Response.infoIdentResponse identifier sCache
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
     (ActionInfo, TargetProc identifier _) -> do
-      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
+      (planTime', cPlan) <- withOTel "plan" $ withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
 
     (ActionInfo, TargetDefaultSpec _) -> do
-      (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
+      (respTime', pgrst) <- withOTel "response" $ withTiming $ liftEither Response.infoRootResponse
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
     _ ->
@@ -243,6 +249,8 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     pgrstResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled conf])) bod
 
     withTiming = calcTiming $ configServerTimingEnabled conf
+
+    withOTel label = inSpanM (getOTelTracer appState) label defaultSpanArguments
 
 calcTiming :: Bool -> Handler IO a -> Handler IO (Maybe Double, a)
 calcTiming timingEnabled f = if timingEnabled

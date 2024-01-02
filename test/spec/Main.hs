@@ -10,6 +10,7 @@ import Test.Hspec
 import PostgREST.App             (postgrest)
 import PostgREST.Config          (AppConfig (..))
 import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.OpenTelemetry   (withTracer)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
@@ -79,16 +80,16 @@ main = do
   let
     noObs = const $ pure ()
     -- For tests that run with the same refSchemaCache
-    app config = do
-      appState <- AppState.initWithPool sockets pool config noObs
+    app config = withTracer "PostgREST.Spec" $ \tracer -> do
+      appState <- AppState.initWithPool sockets pool tracer config noObs
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
       return ((), postgrest config appState (pure ()) noObs)
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
-    appDbs config = do
+    appDbs config = withTracer "PostgREST.Spec" $ \tracer -> do
       customSchemaCache <- loadSCache pool config
-      appState <- AppState.initWithPool sockets pool config noObs
+      appState <- AppState.initWithPool sockets pool tracer config noObs
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
       return ((), postgrest config appState (pure ()) noObs)
