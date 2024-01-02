@@ -16,5 +16,18 @@ extra-deps:
   - postgresql-libpq-0.10.1.0
   - streaming-commons-0.2.3.1
 
+  - hs-opentelemetry-sdk-0.1.0.0@sha256:2642851866f11a494c99f15202d4bd9e75d4a5e1a7f3f172742a0676a33c664f,4059
+  - hs-opentelemetry-api-0.2.0.0@sha256:bbdbe7e212e99f17a7e68d09b94c1a6613e50ce88b3cb1b68979bbb0221291ae,4051
+  - hs-opentelemetry-exporter-otlp-0.1.0.0@sha256:4c908a7e2e5053879687b7a7ee6e40a8eb22868e1a0808cd0cfd6ac9905057b8,1526
+  - hs-opentelemetry-instrumentation-wai-0.1.1.0@sha256:d97b4cb3870217e64e95da3f51db814eca62eb57484ee0a6f747366da5940bc2,1371
+  - hs-opentelemetry-propagator-b3-0.0.1.2@sha256:8815dd74f27a908b5be0729cc09a3bf9f3049481c982252bbd6c3f6b908ecfcd,1340
+  - hs-opentelemetry-propagator-datadog-0.0.1.0@sha256:c85de95e3c33b3ffcf980f560166e960cab0888e0741315f487288b3653c007c,2950
+  - hs-opentelemetry-propagator-w3c-0.0.1.4@sha256:251428754454fbaf71d9b6acbbea473014b1ab50bdcda8bc8fe1532e63193374,1382
+  - hs-opentelemetry-utils-exceptions-0.2.0.1@sha256:b32c3109b896dbab67c74c28e8ffcfe6e7f86aa29454fc6a31c06a671246e78b,1477
+  - hs-opentelemetry-otlp-0.1.0.0@sha256:5cd096b15f26f51ffae4c18f6a26794daef801acc9e13033db8b21a7606336d4,2533
+  - hs-opentelemetry-instrumentation-hspec-0.0.1.2@sha256:cba36dc9a8fed4288a1b9d071b869f5b3382451fe37821e369628e2761834fb4,1191
+  - thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
+  - thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
+
   # fix build with GCC 15-ish; https://github.com/gregorycollins/hashtables/issues/98 for details
   - hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
