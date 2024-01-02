@@ -935,6 +935,21 @@ server-timing-enabled
   Enables the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Server-Timing>`_ header.
   See :ref:`server-timing_header`.
 
+.. _server-otel-enabled:
+
+server-otel-enabled
+-------------------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  N
+  **Environment** PGRST_SERVER_OTEL_ENABLED
+  **In-Database** `n/a`
+  =============== =================================
+
+  When this is set to :code:`true`, OpenTelemetry tracing is enabled. See :ref:`opentelemetry` for details and settings.
+
 .. _server-unix-socket:
 
 server-unix-socket
