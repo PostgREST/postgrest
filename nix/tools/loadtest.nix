@@ -68,6 +68,8 @@ let
         # TODO clean once PGRST_JWT_CACHE_MAX_ENTRIES merged and released
         export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
 
+        export OTEL_SDK_DISABLED="true"
+
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
 
