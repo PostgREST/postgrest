@@ -16,11 +16,12 @@ import qualified Options.Applicative        as O
 
 import Text.Heredoc (str)
 
-import PostgREST.AppState    (AppState)
-import PostgREST.Config      (AppConfig (..))
+import PostgREST.AppState      (AppState)
+import PostgREST.Config        (AppConfig (..))
+import PostgREST.OpenTelemetry (withTracer)
 import PostgREST.Observation (Observation (..))
-import PostgREST.SchemaCache (querySchemaCache)
-import PostgREST.Version     (prettyVersion)
+import PostgREST.SchemaCache   (querySchemaCache)
+import PostgREST.Version       (prettyVersion)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
@@ -28,9 +29,8 @@ import qualified PostgREST.Config   as Config
 
 import Protolude
 
-
 main :: CLI -> IO ()
-main CLI{cliCommand, cliPath} = do
+main CLI{cliCommand, cliPath} = withTracer "PostgREST" $ \tracer -> do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
 
@@ -38,7 +38,7 @@ main CLI{cliCommand, cliPath} = do
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf)
+    (AppState.init conf tracer $ Logger.logObservation loggerState)
     AppState.destroy
     (\appState -> case cliCommand of
       CmdDumpConfig -> do
