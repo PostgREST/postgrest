@@ -130,6 +130,8 @@ jobs:
         with:
           prefix: v
       - name: Run loadtest
+        env:
+          OTEL_TRACES_SAMPLER: "always_off"
         run: |
           postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
