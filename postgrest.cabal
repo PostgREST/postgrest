@@ -129,6 +129,7 @@ library
                     -- ^ this is due to hs-otel-sdk is not reexporting getTracerTracerProvider
                     -- needed to initialize OpenTelemetry.middleware
                     , hs-opentelemetry-utils-exceptions
+                    , hs-opentelemetry-propagator-w3c
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , jose-jwt                  >= 0.9.6 && < 0.11
                     , lens                      >= 4.14 && < 5.4

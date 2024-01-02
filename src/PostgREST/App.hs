@@ -176,7 +176,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
   (parseTime, apiReq@ApiRequest{..}) <-  withOTel "parse" $ withTiming $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <-  withOTel "plan" $ withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
+  traceContext <- lift OTel.renderTraceContext
+
+  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest traceContext
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
