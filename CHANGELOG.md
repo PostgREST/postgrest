@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file. From versio
 - Log host, port and pg version of listener database connection by @mkleczek in #4617 #4618
 - Optimize requests with `Prefer: count=exact` that do not use ranges or `db-max-rows` by @laurenceisla in #3957
   + Removed unnecessary double count when building the `Content-Range`.
+- Introduced producing OpenTelemetry traces by @develop7 in #3140
+  + Requires a new `server-otel-enabled` config parameter to be enabled first.
 
 ### Fixed
 
