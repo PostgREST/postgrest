@@ -127,6 +127,8 @@ jobs:
         with:
           prefix: v
       - name: Run loadtest (mixed)
+        env:
+          OTEL_TRACES_SAMPLER: "always_off"
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
