@@ -54,7 +54,7 @@ main = do
       -- duplicate poolChan as a starting point
       obsChan <- dupChan poolChan
       stateObsChan <- newObsChan obsChan
-      appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
+      appState <- AppState.initWithPool pool config loggerState metricsState Nothing (Metrics.observationMetrics metricsState <> writeChan obsChan)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return (SpecState appState metricsState stateObsChan, postgrest (configLogLevel config) appState (pure ()))

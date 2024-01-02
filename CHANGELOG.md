@@ -27,6 +27,8 @@ All notable changes to this project will be documented in this file. From versio
 ### Added
 
 - Log when the pool is released during schema cache reload on `log-level=debug` by @mkleczek in #4668
+- Introduced producing OpenTelemetry traces by @develop7 in #3140
+  + Requires a new `server-otel-enabled` config parameter to be enabled first.
 
 ### Fixed
 
