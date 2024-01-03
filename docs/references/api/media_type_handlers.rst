@@ -95,16 +95,18 @@ Now we'll use it on a new aggregate defined for the ``lines`` table.
   , sfunc = twkb_handler_transition
   );
 
-Make a quick test on SQL to see it working.
+.. note::
 
-.. code-block:: psql
+  You can test see this aggregate working with:
 
-  SELECT twkb_agg(l) from lines l;
+  .. code-block:: psql
 
-                             twkb_agg
-  ---------------------------------------------------------------
-  \xa20002c09a0cc09a0c80ea3080ea30a2000280b51880b51880ea3080ea30
-  (1 row)
+    SELECT twkb_agg(l) from lines l;
+
+                               twkb_agg
+    ---------------------------------------------------------------
+    \xa20002c09a0cc09a0c80ea3080ea30a2000280b51880b51880ea3080ea30
+    (1 row)
 
 Now you can request the table endpoint with the ``twkb`` media type:
 
@@ -184,16 +186,20 @@ Now use the transition and final function as part of the new aggregate.
   , finalfunc = bom_csv_final
   );
 
-.. code-block:: psql
+.. note::
 
-  select bom_csv_agg(l) from lines l;
-                                               bom_csv_agg
-  -----------------------------------------------------------------------------------------------------
-   ﻿id,name,geom                                                                                      +
-   1,line-1,0102000020E610000002000000000000000000F03F000000000000F03F00000000000014400000000000001440+
-   2,line-2,0102000020E6100000020000000000000000000040000000000000004000000000000018400000000000001840+
+  You can test this with:
 
-  (1 row)
+  .. code-block:: psql
+
+    select bom_csv_agg(l) from lines l;
+                                                 bom_csv_agg
+    -----------------------------------------------------------------------------------------------------
+     ﻿id,name,geom                                                                                      +
+     1,line-1,0102000020E610000002000000000000000000F03F000000000000F03F00000000000014400000000000001440+
+     2,line-2,0102000020E6100000020000000000000000000040000000000000004000000000000018400000000000001840+
+
+    (1 row)
 
 And request it like:
 
@@ -215,11 +221,11 @@ And request it like:
 The "Any" Handler
 =================
 
-For more flexibility, you can also define a catch-all handler by using a domain named ``*/*`` (any media type). This obeys to the following rules:
+For more flexibility, you can also define a catch-all handler by using a domain named ``*/*`` (any media type). This handler obeys the following rules:
 
-- Responds to all media types and even to requests that don't include an ``Accept`` header.
-- Sets the ``Content-Type`` header to ``application/octet-stream`` by default, but this can be overridden inside the function with :ref:`guc_resp_hdrs`.
-- This overrides all other handlers (:ref:`builtin <builtin_media>` or custom), so it's better to do it for an isolated function or view.
+- It responds to all media types and even to requests that don't include an ``Accept`` header.
+- It sets the ``Content-Type`` header to ``application/octet-stream`` by default, but this can be overridden inside the function with :ref:`guc_resp_hdrs`.
+- It overrides all other handlers (:ref:`builtin <builtin_media>` or custom), so it's better to do it for an isolated function or view.
 
 Let's define an any handler for a view that will always respond with ``XML`` output. It will accept ``text/xml``, ``application/xml``, ``*/*`` and reject other media types.
 
