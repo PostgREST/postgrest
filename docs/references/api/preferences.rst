@@ -13,6 +13,7 @@ The following preferences are supported.
 - ``Prefer: count``. See :ref:`prefer_count`.
 - ``Prefer: resolution``. See :ref:`prefer_resolution`.
 - ``Prefer: missing``. See :ref:`bulk_insert_default`.
+- ``Prefer: tx``. See :ref:`prefer_tx`.
 - ``Prefer: max-affected``, See :ref:`prefer_max_affected`.
 
 .. _prefer_handling:
@@ -226,6 +227,38 @@ On the other end of the spectrum you can get the full created object back in the
           "name": "x"
       }
   ]
+
+.. _prefer_tx:
+
+Transaction End Preference
+==========================
+
+The ``tx`` preference can be set to specify if the :ref:`transaction <transactions>` will end in a COMMIT or ROLLBACK. This preference is not enabled by default but can be activated with :ref:`db-tx-end`.
+
+.. tabs::
+
+  .. code-tab:: http
+
+    POST /projects HTTP/1.1
+    Content-Type: application/json
+    Prefer: tx=rollback, return=representation
+
+    {"name": "Project X"}
+
+  .. code-tab:: bash Curl
+
+    curl -i "http://localhost:3000/projects" -X POST \
+      -H "Content-Type: application/json" \
+      -H "Prefer: tx=rollback, return=representation" \
+      -d '{"name": "Project X"}'
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Preference-Applied: tx=rollback, return=representation
+
+  {"id": 35, "name": "Project X"}
+
 
 .. _prefer_max_affected:
 
