@@ -232,6 +232,7 @@ instance ToHeaderValue PreferRepresentation where
   toHeaderValue HeadersOnly = "return=headers-only"
 
 -- | How to pass parameters to stored procedures.
+-- TODO: deprecated. Remove on next major version.
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure.
   deriving Eq
