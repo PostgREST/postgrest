@@ -81,45 +81,11 @@ The function parameter names match the JSON object keys in the POST case, for th
 
 .. _s_proc_single_json:
 
-Functions with a single JSON parameter
---------------------------------------
+Functions with a single unnamed JSON parameter
+----------------------------------------------
 
-You can also call a function that takes a single parameter of type JSON by sending the header :code:`Prefer: params=single-object` with your request. That way the JSON request body will be used as the single argument.
-
-.. code-block:: plpgsql
-
-  CREATE FUNCTION mult_them(param json) RETURNS int AS $$
-    SELECT (param->>'x')::int * (param->>'y')::int
-  $$ LANGUAGE SQL;
-
-.. tabs::
-
-  .. code-tab:: http
-
-    POST /rpc/mult_them HTTP/1.1
-    Prefer: params=single-object
-
-    { "x": 4, "y": 2 }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/mult_them" \
-      -X POST -H "Content-Type: application/json" \
-      -H "Prefer: params=single-object" \
-      -d '{ "x": 4, "y": 2 }'
-
-.. code-block:: json
-
-  8
-
-.. _s_proc_single_unnamed:
-
-Functions with a single unnamed parameter
------------------------------------------
-
-You can make a POST request to a function with a single unnamed parameter to send raw ``json/jsonb``, ``bytea``, ``text`` or ``xml`` data.
-
-To send raw JSON, the function must have a single unnamed ``json`` or ``jsonb`` parameter and the header ``Content-Type: application/json`` must be included in the request.
+If you want the JSON request body to be sent as a single argument, you can create a function with a single unnamed ``json`` or ``jsonb`` parameter.
+For this the ``Content-Type: application/json`` header must be included in the request.
 
 .. code-block:: plpgsql
 
@@ -148,7 +114,18 @@ To send raw JSON, the function must have a single unnamed ``json`` or ``jsonb`` 
 
 .. note::
 
-  If an overloaded function has a single ``json`` or ``jsonb`` unnamed parameter, PostgREST will call this function as a fallback provided that no other overloaded function is found with the parameters sent in the POST request.
+ If an overloaded function has a single ``json`` or ``jsonb`` unnamed parameter, PostgREST will call this function as a fallback provided that no other overloaded function is found with the parameters sent in the POST request.
+
+.. warning::
+
+ Sending the JSON request body as a single argument is also possible with :ref:`Prefer: params=single-object <prefer_params>` but this method is **deprecated**.
+
+.. _s_proc_single_unnamed:
+
+Functions with a single unnamed parameter
+-----------------------------------------
+
+You can make a POST request to a function with a single unnamed parameter to send raw ``bytea``, ``text`` or ``xml`` data.
 
 To send raw XML, the parameter type must be ``xml`` and the header ``Content-Type: text/xml`` must be included in the request.
 
