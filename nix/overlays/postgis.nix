@@ -6,6 +6,7 @@ let
       url = "https://download.osgeo.org/postgis/source/postgis-${version}.tar.gz";
       sha256 = "sha256-G02LXHVuWrpZ77wYM7Iu/k1lYneO7KVvpJf+susTZow=";
     };
+    meta.broken = false;
   };
 in
 {

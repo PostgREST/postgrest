@@ -17,7 +17,6 @@ module Main (main) where
 import qualified Data.Aeson                              as JSON
 import qualified Data.ByteString.Lazy.Char8              as LBS8
 import qualified Data.Csv                                as Csv
-import qualified Data.List                               as List
 import qualified Data.Map                                as Map
 import qualified Data.Set                                as Set
 import qualified Data.Text                               as T
@@ -34,12 +33,13 @@ import Data.Function              ((&))
 import Data.List                  (intercalate)
 import Data.Maybe                 (catMaybes, mapMaybe)
 import Data.Text                  (Text)
-import GHC.Data.Bag               (bagToList)
 import GHC.Generics               (Generic)
 import GHC.Hs.Extension           (GhcPs)
+import GHC.Types.Error            (getMessages)
 import GHC.Types.Name.Occurrence  (occNameString)
 import GHC.Types.Name.Reader      (rdrNameOcc)
 import GHC.Unit.Module.Name       (moduleNameString)
+import GHC.Utils.Error            (pprMsgEnvelopeBagWithLoc)
 import System.Directory.Recursive (getFilesRecursive)
 import System.Exit                (exitFailure)
 
@@ -206,7 +206,7 @@ parseModule filepath = do
       return $ GHC.unLoc hsmod
     Left errs ->
       fail $ "Errors with " <> show filepath <> ":\n    "
-        <> List.intercalate "\n    " (show <$> bagToList errs)
+        <> show (pprMsgEnvelopeBagWithLoc $ getMessages errs)
 
 -- | Symbols imported in an import declaration.
 --
@@ -250,8 +250,7 @@ dump OutputJson = encodePretty
 -- | Find modules that are imported under different aliases
 inconsistentAliases :: [ImportedSymbol] -> ModuleAliases
 inconsistentAliases symbols =
-  fmap moduleAlias symbols
-    & foldr insertSetMapMap Map.empty
+  foldr (insertSetMapMap . moduleAlias) Map.empty symbols
     & Map.map (aliases . Map.toList)
     & Map.filter ((<) 1 . length)
     & Map.toList

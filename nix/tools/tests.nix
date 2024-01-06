@@ -132,7 +132,7 @@ let
 
           (
             trap 'echo Found dead code: Check file list above.' ERR ;
-            ${weeder}/bin/weeder --config=./test/weeder.dhall
+            ${weeder}/bin/weeder --config=./test/weeder.toml
           )
 
           # collect all tests

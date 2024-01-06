@@ -5,7 +5,7 @@ let
     "postgrest";
 
   compiler =
-    "ghc924";
+    "ghc948";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as litte as possible, as the files
@@ -36,10 +36,10 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
-      allOverlays.postgis
       (allOverlays.postgresql-default { inherit patches; })
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
+      allOverlays.postgis
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
@@ -50,19 +50,7 @@ let
 
   postgresqlVersions =
     [
-      {
-        name = "postgresql-16";
-        postgresql = pkgs.postgresql_16.withPackages (p: [
-          p.postgis
-          (p.pg_safeupdate.overrideAttrs (old: {
-            installPhase = ''
-              mkdir -p $out/bin
-              cp safeupdate.dylib safeupdate.so || true
-              install -D safeupdate.so -t $out/lib
-            '';
-          }))
-        ]);
-      }
+      { name = "postgresql-16"; postgresql = pkgs.postgresql_16.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-15"; postgresql = pkgs.postgresql_15.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-14"; postgresql = pkgs.postgresql_14.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
