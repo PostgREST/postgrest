@@ -5,7 +5,7 @@
 , jq
 , nix
 }:
-# Utility script for pinning the latest unstable version of Nixpkgs.
+# Utility script for pinning the latest stable version of Nixpkgs.
 
 # Instead of pinning Nixpkgs based on the huge Git repository, we reference a
 # specific tarball that only contains the source of the revision that we want
@@ -15,7 +15,7 @@ let
     "postgrest-nixpkgs-upgrade";
 
   refUrl =
-    "https://api.github.com/repos/nixos/nixpkgs/git/ref/heads/nixpkgs-unstable";
+    "https://api.github.com/repos/nixos/nixpkgs/git/matching-refs/heads/nixpkgs-";
 
   githubV3Header =
     "Accept: application/vnd.github.v3+json";
@@ -27,11 +27,12 @@ let
     checkedShellScript
       {
         inherit name;
-        docs = "Pin the newest unstable version of Nixpkgs.";
+        docs = "Pin the newest stable version of Nixpkgs.";
         inRootDir = true;
       }
       ''
-        commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r .object.sha)"
+        # The list of refs is sorted. The first result will be nixpkgs-unstable, the second the latest stable branch.
+        commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r 'sort_by(.ref) | reverse | .[1].object.sha')"
         tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
         tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
         currentDate="$(${coreutils}/bin/date --iso)"
