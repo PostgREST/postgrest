@@ -5,6 +5,13 @@
 
 packages:
 - completed:
+    hackage: configurator-pg-0.2.7@sha256:7327ce30c3b6bc50930efa73e2e215c8f62857564483edbbe5a75920057ef764,2849
+    pantry-tree:
+      sha256: 023bd4835a7ac2624c44d3bbb26e99000994ce953d11d853c0f194278983d4dc
+      size: 2463
+  original:
+    hackage: configurator-pg-0.2.7
+- completed:
     commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
     git: https://github.com/PostgREST/postgresql-libpq.git
     name: postgresql-libpq
@@ -29,9 +36,23 @@ packages:
       size: 346
   original:
     hackage: hasql-pool-0.10
+- completed:
+    hackage: fuzzyset-0.3.1@sha256:344e16deedb43da5cabae558450e5710843cff7ac2f3073be9db453c6f3a3fb7,2373
+    pantry-tree:
+      sha256: 89e22c2ce70a7c7c4b599ffe2546cda5699e4f8f15410eac49f39af8c4c381c8
+      size: 643
+  original:
+    hackage: fuzzyset-0.3.1
+- completed:
+    hackage: megaparsec-9.2.2@sha256:c306a135ec25d91d252032c6128f03598a00e87ea12fcf5fc4878fdffc75c768,3219
+    pantry-tree:
+      sha256: db9715d6910e64d3bbfce69895042a66fcdcd64a54805563834bf0821562b74f
+      size: 1518
+  original:
+    hackage: megaparsec-9.2.2
 snapshots:
 - completed:
-    sha256: 4905c93319aa94aa53da8f41d614d7bacdbfe6c63a8c6132d32e6e62f24a9af4
-    size: 649315
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/6.yaml
-  original: lts-20.6
+    sha256: 23bb9bb355bfdb1635252e120a29b712f0d5e8a6c6a65c5ab5bd6692f46c438e
+    size: 640457
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/21/7.yaml
+  original: lts-21.7

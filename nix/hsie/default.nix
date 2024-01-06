@@ -11,6 +11,7 @@ let
     ps.dir-traverse
     ps.dot
     ps.ghc-exactprint
+    ps.ghc-paths
     ps.optparse-applicative
   ];
   ghc = ghcWithPackages modules;

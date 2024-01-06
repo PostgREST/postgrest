@@ -29,6 +29,18 @@ let
       # To fill in the sha256:
       #   update-nix-fetchgit nix/overlays/haskell-packages.nix
 
+      configurator-pg =
+        prev.callHackageDirect
+          {
+            pkg = "configurator-pg";
+            ver = "0.2.9";
+            sha256 = "sha256-UqFiOgPlksbIdHBVO0wYhCnboB+mxKJcXVhY9C1V7Hg=";
+          }
+          { };
+
+      # Marked as broken (?)
+      fuzzyset = lib.markUnbroken prev.fuzzyset;
+
       postgresql-libpq = lib.dontCheck
         (prev.callCabal2nix "postgresql-libpq"
           (super.fetchFromGitHub {
@@ -39,23 +51,8 @@ let
           })
           { });
 
-      hasql-notifications = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql-notifications";
-            ver = "0.2.0.6";
-            sha256 = "sha256-7PyFlB2B70njudOjaX6tk1m77ol9vnF5fI0LF86kVAI=";
-          }
-          { });
+      hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
 
-      hasql-pool = lib.dontCheck
-        (prev.callHackageDirect
-          {
-            pkg = "hasql-pool";
-            ver = "0.10";
-            sha256 = "sha256-kHzoqtNV9BFWnn1h560JRqMooQRwxokVKgDRBexamNI=";
-          }
-          { });
     } // extraOverrides final prev;
 in
 {

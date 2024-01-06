@@ -172,7 +172,7 @@ let
       }
       ''
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
-          | ${jq}/bin/jq '[leaf_paths as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
+          | ${jq}/bin/jq '[paths(scalars) as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
           | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
           | ${toMarkdown}
       '';
