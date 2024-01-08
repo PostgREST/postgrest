@@ -5,6 +5,21 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
+
+### Deprecated
+
+ - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez
+
+## [12.0.2] - 2023-12-20
+
+### Fixed
+
+  - #3124, Fix table's media type handlers not working for all schemas - @steve-chavez
+  - #3126, Fix empty row on media type handler function - @steve-chavez
+
 ## [12.0.1] - 2023-12-12
 
 ### Fixed

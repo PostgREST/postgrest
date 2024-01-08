@@ -2169,6 +2169,42 @@ returns setof v2.parents as $$
   select * from v2.parents where id < $1;
 $$ language sql;
 
+create function v2.get_plain_text()
+returns test."text/plain" as $$
+  select 'plain'::test."text/plain";
+$$ language sql;
+
+create domain v2."text/special" as text;
+
+create function v2.get_special_text()
+returns v2."text/special" as $$
+  select 'special'::v2."text/special";
+$$ language sql;
+
+create or replace function v2.special_trans (state v2."text/special", next v2.another_table)
+returns v2."text/special" as $$
+  select 'special'::v2."text/special";
+$$ language sql;
+
+drop aggregate if exists v2.special_agg(v2.another_table);
+create aggregate v2.special_agg (v2.another_table) (
+  initcond = ''
+, stype = v2."text/special"
+, sfunc = v2.special_trans
+);
+
+create or replace function v2.plain_trans (state test."text/plain", next v2.another_table)
+returns test."text/plain" as $$
+  select 'plain'::test."text/plain";
+$$ language sql;
+
+drop aggregate if exists v2.plain_agg(v2.another_table);
+create aggregate v2.plain_agg (v2.another_table) (
+  initcond = ''
+, stype = test."text/plain"
+, sfunc = v2.plain_trans
+);
+
 create table private.screens (
   id serial primary key,
   name text not null default 'new screen'
@@ -3479,6 +3515,11 @@ create table test.lines (
 create or replace function test.get_lines ()
 returns setof test.lines as $$
   select * from lines;
+$$ language sql;
+
+create or replace function test.get_line (id int)
+returns "application/vnd.twkb" as $$
+  select extensions.st_astwkb(geom)::"application/vnd.twkb" from lines where id = get_line.id;
 $$ language sql;
 
 create or replace function test.get_shop_bles ()

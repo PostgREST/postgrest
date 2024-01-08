@@ -17,6 +17,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferResolution(..)
   , PreferTransaction(..)
   , PreferTimezone(..)
+  , PreferMaxAffected(..)
   , fromHeaders
   , shouldCount
   , prefAppliedHeader
@@ -42,6 +43,7 @@ import Protolude
 -- >>> deriving instance Show PreferMissing
 -- >>> deriving instance Show PreferHandling
 -- >>> deriving instance Show PreferTimezone
+-- >>> deriving instance Show PreferMaxAffected
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -55,6 +57,7 @@ data Preferences
     , preferMissing        :: Maybe PreferMissing
     , preferHandling       :: Maybe PreferHandling
     , preferTimezone       :: Maybe PreferTimezone
+    , preferMaxAffected    :: Maybe PreferMaxAffected
     , invalidPrefs         :: [ByteString]
     }
 
@@ -64,7 +67,7 @@ data Preferences
 -- >>> let sc = S.fromList ["America/Los_Angeles"]
 --
 -- One header with comma-separated values can be used to set multiple preferences:
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -75,12 +78,14 @@ data Preferences
 --     , preferHandling = Nothing
 --     , preferTimezone = Just
 --         ( PreferTimezone "America/Los_Angeles" )
+--     , preferMaxAffected = Just
+--         ( PreferMaxAffected 100 )
 --     , invalidPrefs = []
 --     }
 --
 -- Multiple headers can also be used:
 --
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates"), ("Prefer", "count=exact"), ("Prefer", "missing=null"), ("Prefer", "handling=lenient"), ("Prefer", "invalid"), ("Prefer", "max-affected=5999")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -90,6 +95,8 @@ data Preferences
 --     , preferMissing = Just ApplyNulls
 --     , preferHandling = Just Lenient
 --     , preferTimezone = Nothing
+--     , preferMaxAffected = Just
+--         ( PreferMaxAffected 5999 )
 --     , invalidPrefs = [ "invalid" ]
 --     }
 --
@@ -121,6 +128,7 @@ data Preferences
 --     , preferMissing = Just ApplyDefaults
 --     , preferHandling = Just Strict
 --     , preferTimezone = Nothing
+--     , preferMaxAffected = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
@@ -135,7 +143,8 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
     , preferHandling       = parsePrefs [Strict, Lenient]
     , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
-    , invalidPrefs         = filter checkPrefs prefs
+    , preferMaxAffected    = PreferMaxAffected <$> maxAffectedPref
+    , invalidPrefs         = filter isUnacceptable prefs
     }
   where
     mapToHeadVal :: ToHeaderValue a => [a] -> [ByteString]
@@ -151,10 +160,16 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
 
-    timezonePref = listToMaybe $ mapMaybe (BS.stripPrefix "timezone=") prefs
+    listStripPrefix prefix prefList = listToMaybe $ mapMaybe (BS.stripPrefix prefix) prefList
+
+    timezonePref = listStripPrefix "timezone=" prefs
     isTimezonePrefAccepted = (S.member <$> timezonePref <*> pure acceptedTzNames) == Just True
 
-    checkPrefs p = p `notElem` acceptedPrefs && not isTimezonePrefAccepted
+    maxAffectedPref = listStripPrefix "max-affected=" prefs >>= readMaybe . BS.unpack
+
+    isUnacceptable p = p `notElem` acceptedPrefs &&
+                       (isNothing (BS.stripPrefix "timezone=" p) ||  not isTimezonePrefAccepted) &&
+                       isNothing (BS.stripPrefix "max-affected=" p)
 
     parsePrefs :: ToHeaderValue a => [a] -> Maybe a
     parsePrefs vals =
@@ -164,7 +179,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -179,6 +194,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
       , toHeaderValue <$> preferTimezone
+      , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
       ]
 
 -- |
@@ -216,6 +232,7 @@ instance ToHeaderValue PreferRepresentation where
   toHeaderValue HeadersOnly = "return=headers-only"
 
 -- | How to pass parameters to stored procedures.
+-- TODO: deprecated. Remove on next major version.
 data PreferParameters
   = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure.
   deriving Eq
@@ -278,3 +295,10 @@ newtype PreferTimezone = PreferTimezone ByteString
 
 instance ToHeaderValue PreferTimezone where
   toHeaderValue (PreferTimezone tz) = "timezone=" <> tz
+
+-- |
+-- Limit Affected Resources
+newtype PreferMaxAffected = PreferMaxAffected Int64
+
+instance ToHeaderValue PreferMaxAffected where
+  toHeaderValue (PreferMaxAffected n) = "max-affected=" <> show n

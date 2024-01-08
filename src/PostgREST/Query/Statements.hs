@@ -157,7 +157,8 @@ preparePlanRows countQuery =
 standardRow :: Bool -> HD.Row ResultSet
 standardRow noLocation =
   RSStandard <$> nullableColumn HD.int8 <*> column HD.int8
-             <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea) <*> column HD.bytea
+             <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea)
+             <*> (fromMaybe mempty <$> nullableColumn HD.bytea)
              <*> nullableColumn HD.bytea
              <*> nullableColumn HD.text
              <*> nullableColumn HD.int8
