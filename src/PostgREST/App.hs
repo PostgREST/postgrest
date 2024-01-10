@@ -68,6 +68,8 @@ type Handler = ExceptT Error
 
 run :: AppState -> IO ()
 run appState = do
+  AppState.logWithZTime appState $ "Starting PostgREST " <> T.decodeUtf8 prettyVersion <> "..."
+
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
