@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
+
 ## [12.0.2] - 2023-12-20
 
 ### Fixed
