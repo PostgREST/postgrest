@@ -8,9 +8,7 @@ Auth
 auth
 authenticator
 backoff
-balancer
 booleans
-buildpack
 BOM
 Bytea
 Cardano
@@ -47,7 +45,6 @@ Greenplum
 gte
 GUC
 Haskell
-Heroku
 HMAC
 htmx
 Htmx
