@@ -75,13 +75,13 @@ library
                       PostgREST.Response.Performance
                       PostgREST.Version
   other-modules:      Paths_postgrest
-  build-depends:      base                      >= 4.9 && < 4.19
+  build-depends:      base                      >= 4.9 && < 4.20
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
-                    , aeson                     >= 2.0.3 && < 2.2
+                    , aeson                     >= 2.0.3 && < 2.3
                     , auto-update               >= 0.1.4 && < 0.2
                     , base64-bytestring         >= 1 && < 1.3
-                    , bytestring                >= 0.10.8 && < 0.12
+                    , bytestring                >= 0.10.8 && < 0.13
                     , cache                     >= 0.1.3 && < 0.2.0
                     , case-insensitive          >= 1.2 && < 1.3
                     , cassava                   >= 0.4.5 && < 0.6
@@ -104,7 +104,7 @@ library
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , interpolatedstring-perl6  >= 1 && < 1.1
-                    , jose                      >= 0.8.5.1 && < 0.11
+                    , jose                      >= 0.8.5.1 && < 0.12
                     , lens                      >= 4.14 && < 5.3
                     , lens-aeson                >= 1.0.1 && < 1.3
                     , mtl                       >= 2.2.2 && < 2.4
@@ -119,7 +119,7 @@ library
                     , scientific                >= 0.3.4 && < 0.4
                     , streaming-commons         >= 0.1.1 && < 0.3
                     , swagger2                  >= 2.4 && < 2.9
-                    , text                      >= 1.2.2 && < 2.1
+                    , text                      >= 1.2.2 && < 2.2
                     , time                      >= 1.6 && < 1.13
                     , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
@@ -160,7 +160,7 @@ executable postgrest
                       NoImplicitPrelude
   hs-source-dirs:     main
   main-is:            Main.hs
-  build-depends:      base                >= 4.9 && < 4.19
+  build-depends:      base                >= 4.9 && < 4.20
                     , containers          >= 0.5.7 && < 0.7
                     , postgrest
                     , protolude           >= 0.3.1 && < 0.4
@@ -234,19 +234,19 @@ test-suite spec
                       Feature.RollbackSpec
                       Feature.RpcPreRequestGucsSpec
                       SpecHelper
-  build-depends:      base              >= 4.9 && < 4.19
-                    , aeson             >= 2.0.3 && < 2.2
+  build-depends:      base              >= 4.9 && < 4.20
+                    , aeson             >= 2.0.3 && < 2.3
                     , aeson-qq          >= 0.8.1 && < 0.9
                     , async             >= 2.1.1 && < 2.3
                     , auto-update       >= 0.1.4 && < 0.2
                     , base64-bytestring >= 1 && < 1.3
-                    , bytestring        >= 0.10.8 && < 0.12
+                    , bytestring        >= 0.10.8 && < 0.13
                     , case-insensitive  >= 1.2 && < 1.3
                     , containers        >= 0.5.7 && < 0.7
                     , hasql-pool        >= 0.10 && < 0.11
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
-                    , hspec             >= 2.3 && < 2.11
+                    , hspec             >= 2.3 && < 2.12
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
@@ -258,7 +258,7 @@ test-suite spec
                     , protolude         >= 0.3.1 && < 0.4
                     , regex-tdfa        >= 1.2.2 && < 1.4
                     , scientific        >= 0.3.4 && < 0.4
-                    , text              >= 1.2.2 && < 2.1
+                    , text              >= 1.2.2 && < 2.2
                     , transformers-base >= 0.4.4 && < 0.5
                     , wai               >= 3.2.1 && < 3.3
                     , wai-extra         >= 3.0.19 && < 3.2
@@ -276,7 +276,7 @@ test-suite doctests
                       NoImplicitPrelude
   hs-source-dirs:     test/doc
   main-is:            Main.hs
-  build-depends:      base              >= 4.9 && < 4.19
+  build-depends:      base              >= 4.9 && < 4.20
                     , doctest           >= 0.8
                     , postgrest
                     , pretty-simple
