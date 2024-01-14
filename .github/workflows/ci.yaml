@@ -243,7 +243,7 @@ jobs:
   Build-Cabal:
     strategy:
       matrix:
-        ghc: ['9.4.8']
+        ghc: ['9.4.8', '9.6.4']
       fail-fast: false
     name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
     runs-on: ubuntu-latest
