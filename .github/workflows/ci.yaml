@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v24
+    - uses: cachix/install-nix-action@v25
     - run: nix-env -f default.nix -iA build
     - run: postgrest-docs-build
 
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v24
+    - uses: cachix/install-nix-action@v25
     - run: nix-env -f default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
 
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: cachix/install-nix-action@v24
+      - uses: cachix/install-nix-action@v25
       - run: nix-env -f default.nix -iA dictcheck
       - run: postgrest-docs-dictcheck
 
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v24
+    - uses: cachix/install-nix-action@v25
     - run: nix-env -f default.nix -iA linkcheck
     - run: postgrest-docs-linkcheck
     
