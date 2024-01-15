@@ -27,7 +27,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
     <tr>
       <td align="center" valign="middle">
         <a href="https://code.build/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/code-build.png">
+          <img width="296px" src="static/code-build.webp">
         </a>
       </td>
       <td align="center" valign="middle">
