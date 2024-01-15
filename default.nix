@@ -36,7 +36,7 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
-      (allOverlays.postgresql-default { inherit patches; })
+      allOverlays.postgresql-default
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
       allOverlays.postgis
@@ -60,23 +60,11 @@ let
       { name = "postgresql-9.6"; postgresql = pkgs.postgresql_9_6.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
     ];
 
-  patches =
-    pkgs.callPackage nix/patches { };
-
   # Dynamic derivation for PostgREST
   postgrest =
     pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
 
-  # Functionality that derives a fully static Haskell package based on
-  # nh2/static-haskell-nix
-  staticHaskellPackage =
-    import nix/static-haskell-package.nix { inherit nixpkgs system compiler patches allOverlays; };
-
-  # Static executable.
-  postgrestStatic =
-    lib.justStaticExecutables (lib.dontCheck (staticHaskellPackage name src).package);
-
-  packagesStatic = (staticHaskellPackage name src).survey;
+  staticHaskellPackage = import nix/static.nix { inherit compiler name pkgs src; };
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
@@ -160,8 +148,8 @@ rec {
     };
 } // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux rec {
   # Static executable.
-  inherit postgrestStatic;
-  inherit packagesStatic;
+  inherit (staticHaskellPackage) postgrestStatic;
+  inherit (staticHaskellPackage) packagesStatic;
 
   # Docker images and loading script.
   docker =
