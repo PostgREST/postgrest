@@ -23,7 +23,7 @@ runs:
         key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
         restore-keys: |
           cache-nix-${{ runner.os }}-common-
-    - uses: cachix/cachix-action@v13
+    - uses: cachix/cachix-action@v14
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
