@@ -34,7 +34,7 @@ Since the ``callcounter`` view modifies the sequence, calling it with GET or HEA
 
   .. code-tab:: http
 
-    GET /callounter HTTP/1.1
+    GET /callcounter HTTP/1.1
 
   .. code-tab:: bash Curl
 
