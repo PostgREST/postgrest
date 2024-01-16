@@ -60,8 +60,8 @@ handleSamlError err = do
 
 -- | Converts the original request into a request to the login endpoint.
 -- NOTE: Is this a good idea?
-redirectToLoginEndpoint :: Wai.Request -> Text -> Text -> IO Wai.Request
-redirectToLoginEndpoint req login_endpoint role = do
+redirectToLoginEndpoint :: Wai.Request -> Text -> Map.Map Text Text -> IO Wai.Request
+redirectToLoginEndpoint req login_endpoint login_parameters = do
 
   newBody <- generateBody
 
@@ -77,9 +77,12 @@ redirectToLoginEndpoint req login_endpoint role = do
     }
   where
     new_headers = [("Content-Type", "application/x-www-form-urlencoded")]
-    form_data = Map.fromList [ ("target_role", T.unpack role)
-                             ]
-    rendered_form_data = renderFormData form_data
+
+    convert_parameters :: Map.Map Text Text -> Map.Map String String
+    convert_parameters = Map.mapKeys T.unpack . Map.map T.unpack
+
+    rendered_form_data = renderFormData $ convert_parameters login_parameters
+
     generateBody = do
       ichunks <- newIORef [rendered_form_data]
       let rbody = atomicModifyIORef ichunks $ \case
@@ -104,14 +107,13 @@ handleSAML2Result samlState result' _app req respond =
       then respond =<< handleSamlError "Replay attack detected."
       else do
           -- NOTE: SAML Authentication success!
+          -- Now we pass all the SAML parameters to the JWT endpoint.
           let
             attributes = extractAttributes $ assertion result
-            user = fromMaybe "tester" $ Map.lookup "role" attributes
 
           putStrLn ("SAML parameters: " ++ show (Map.toList attributes) :: String)
-          putStrLn $ "SAML login for username: " ++ T.unpack user
 
-          req' <- redirectToLoginEndpoint req (saml2JwtEndpoint samlState) user
+          req' <- redirectToLoginEndpoint req (saml2JwtEndpoint samlState) attributes
           storeAssertionID samlState (assertionId (assertion result))
           _app req' respond
   where
