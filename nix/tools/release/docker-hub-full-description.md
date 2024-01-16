@@ -35,7 +35,7 @@ write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://code.build/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/code-build.png">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/code-build.webp">
         </a>
       </td>
       <td align="center" valign="middle">
