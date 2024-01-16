@@ -48,7 +48,7 @@ Sponsors
 
   |
 
-  .. image:: _static/code-build.png
+  .. image:: _static/code-build.webp
     :target: https://code.build/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
