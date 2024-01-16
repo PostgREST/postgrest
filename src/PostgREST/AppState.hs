@@ -146,6 +146,7 @@ standardSAML2State :: IO SAML2State
 standardSAML2State = do
   knownIds <- C.newCache Nothing :: IO (C.Cache Text ())
 
+  putStrLn ("Trying to locate a SAML certificate in the environment." :: String)
   pubKey <- loadPublicKey =<< lookupEnv "POSTGREST_SAML_CERTIFICATE"
 
   pure $ SAML2State
@@ -160,19 +161,20 @@ standardSAML2State = do
 -- This env var can be provided as a path to a '.pem' file containing the certificate
 -- or given as raw certificate data.
 loadPublicKey :: Maybe String -> IO (Maybe PublicKey)
-loadPublicKey Nothing = pure Nothing
+loadPublicKey Nothing = do
+  putStrLn ("No SAML certificate provided." :: String)
+  pure Nothing
 loadPublicKey (Just rawKeyFromEnv) = do
 
   keyFromEnv <- interpreteEnv rawKeyFromEnv
   password <- lookupEnv "POSTGREST_SAML_CERTIFICATE_PASSWORD"
-
   case keyFromEnv of
     Left err -> do
       putStrLn ("Failure to read the SAML certificate. " ++ show err :: String)
       pure Nothing
     Right key -> do
       -- Load the public key from the loaded certificate data.
-      putStrLn ("Reading the SAML certificate from the environment... " ++ (take 10 $ show key) :: String)
+      putStrLn ("Reading the SAML certificate from the environment... " ++ take 10 (show key) :: String)
 
       let (err, publicKeys) = partitionEithers [
               readSignedCertificate $ UTF8.toString key,
