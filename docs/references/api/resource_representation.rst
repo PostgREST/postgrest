@@ -11,17 +11,10 @@ Response Format
 
 Use the Accept request header to specify the acceptable format (or formats) for the response:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-    Accept: application/json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" \
-      -H "Accept: application/json"
+  curl "http://localhost:3000/people" \
+    -H "Accept: application/json"
 
 .. _builtin_media:
 
@@ -42,17 +35,10 @@ The following vendor media types handlers are also supported.
 
 Any unrecognized media type will throw an error.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-    Accept: unknown/unknown
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" \
-      -H "Accept: unknown/unknown"
+  curl "http://localhost:3000/people" \
+    -H "Accept: unknown/unknown"
 
 .. code-block:: http
 
@@ -77,17 +63,10 @@ By default PostgREST returns all JSON results in an array, even when there is on
 
 This can be inconvenient for client code. To return the first result as an object unenclosed by an array, specify :code:`vnd.pgrst.object` as part of the :code:`Accept` header
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /items?id=eq.1 HTTP/1.1
-    Accept: application/vnd.pgrst.object+json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/items?id=eq.1" \
-      -H "Accept: application/vnd.pgrst.object+json"
+  curl "http://localhost:3000/items?id=eq.1" \
+    -H "Accept: application/vnd.pgrst.object+json"
 
 This returns
 
@@ -131,17 +110,10 @@ By default PostgREST returns all JSON null values. For example, requesting ``/pr
 
 On large result sets, the unused keys with ``null`` values can waste bandwith unnecessarily. To remove them, specify ``nulls=stripped`` as a parameter of ``application/vnd.pgrst.array``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /projects?id=gt.10 HTTP/1.1
-    Accept: application/vnd.pgrst.array+json;nulls=stripped
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/projects?id=gt.10" \
-      -H "Accept: application/vnd.pgrst.array+json;nulls=stripped"
+  curl "http://localhost:3000/projects?id=gt.10" \
+    -H "Accept: application/vnd.pgrst.array+json;nulls=stripped"
 
 This returns
 

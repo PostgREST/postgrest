@@ -91,15 +91,9 @@ Many-to-one relationships
 
 Since ``films`` has a **foreign key** to ``directors``, this establishes a many-to-one relationship. This enables us to request all the films and the director for each film.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,directors(id,last_name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,directors(id,last_name)"
+  curl "http://localhost:3000/films?select=title,directors(id,last_name)"
 
 .. code-block:: json
 
@@ -128,15 +122,9 @@ Note that the embedded ``directors`` is returned as a JSON object because of the
 
 Since the table name is plural, we can be more accurate by making it singular with an alias.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,director:directors(id,last_name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,director:directors(id,last_name)"
+  curl "http://localhost:3000/films?select=title,director:directors(id,last_name)"
 
 .. code-block:: json
 
@@ -157,15 +145,9 @@ One-to-many relationships
 
 The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the “to-many” end.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /directors?select=last_name,films(title) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/directors?select=last_name,films(title)"
+  curl "http://localhost:3000/directors?select=last_name,films(title)"
 
 .. code-block:: json
 
@@ -206,15 +188,9 @@ The join table is also detected if the composite key has additional columns.
   , primary key(id, film_id, actor_id)
   );
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /actors?select=first_name,last_name,films(title) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/actors?select=first_name,last_name,films(title)"
+  curl "http://localhost:3000/actors?select=first_name,last_name,films(title)"
 
 .. code-block:: json
 
@@ -247,15 +223,9 @@ One-to-one relationships are detected in two ways.
       sound TEXT
     );
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,technical_specs(camera) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,technical_specs(camera)"
+  curl "http://localhost:3000/films?select=title,technical_specs(camera)"
 
 .. code-block:: json
 
@@ -292,15 +262,9 @@ Assuming there's a foreign table ``premieres`` that we want to relate to ``films
 The above function defines a relationship between ``premieres`` (the parameter) and ``films`` (the return type). Since there's a ``rows 1``, this defines a many-to-one relationship.
 The name of the function ``film`` is arbitrary and can be used to do the embedding:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /premieres?select=location,film(name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/premieres?select=location,film(name)"
+  curl "http://localhost:3000/premieres?select=location,film(name)"
 
 .. code-block:: json
 
@@ -323,15 +287,9 @@ Now let's define the opposite one-to-many relationship.
 In this case there's an implicit ``ROWS 1000`` defined by PostgreSQL(`search "result_rows" on this PostgreSQL doc <https://www.postgresql.org/docs/current/sql-createfunction.html>`_).
 We consider any value greater than 1 as "many" so this defines a one-to-many relationship.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=name,premieres(name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=name,premieres(name)"
+  curl "http://localhost:3000/films?select=name,premieres(name)"
 
 .. code-block:: json
 
@@ -417,15 +375,9 @@ For example, suppose you have the following ``orders`` and ``addresses`` tables:
 
 Since the ``orders`` table has two foreign keys to the ``addresses`` table, a foreign key join is ambiguous and PostgREST will respond with an error:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=*,addresses(*) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=*,addresses(*)" -i
+  curl "http://localhost:3000/orders?select=*,addresses(*)" -i
 
 
 .. code-block:: http
@@ -455,15 +407,9 @@ Since the ``orders`` table has two foreign keys to the ``addresses`` table, a fo
 To successfully join ``orders`` with ``addresses``, we can follow the error ``hint`` which tells us to add the foreign key name as ``!billing`` or ``!shipping``.
 Note that the foreign keys have been named explicitly in the :ref:`SQL definition above <multiple_m2o>`. To make the result clearer we'll also alias the tables:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
+  curl "http://localhost:3000/orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
 
 .. code-block:: json
 
@@ -486,15 +432,9 @@ Multiple One-To-Many
 
 Let's take the tables from :ref:`multiple_m2o`. To get the opposite one-to-many relationship, we can also specify the foreign key name:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1"
+  curl "http://localhost:3000/addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1"
 
 .. code-block:: json
 
@@ -550,15 +490,9 @@ To get either side of the Recursive One-To-One relationship, create the function
 
 Now, to query a president with their predecessor and successor:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /presidents?select=last_name,predecessor(last_name),successor(last_name)&id=eq.2 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/presidents?select=last_name,predecessor(last_name),successor(last_name)&id=eq.2"
+  curl "http://localhost:3000/presidents?select=last_name,predecessor(last_name),successor(last_name)&id=eq.2"
 
 .. code-block:: json
 
@@ -604,15 +538,9 @@ To get the One-To-Many embedding, that is, the supervisors with their supervisee
 
 Now, the query would be:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /employees?select=last_name,supervisees(last_name)&id=eq.1 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/employees?select=last_name,supervisees(last_name)&id=eq.1"
+  curl "http://localhost:3000/employees?select=last_name,supervisees(last_name)&id=eq.1"
 
 .. code-block:: json
 
@@ -642,15 +570,9 @@ To get the Many-To-One relationship, that is, the employees with their respectiv
 
 Then, the query would be:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /employees?select=last_name,supervisor(last_name)&id=eq.3 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/employees?select=last_name,supervisor(last_name)&id=eq.3"
+  curl "http://localhost:3000/employees?select=last_name,supervisor(last_name)&id=eq.3"
 
 .. code-block:: json
 
@@ -712,15 +634,9 @@ To get all the subscribers of a user as well as the ones they're following, defi
 
 Then, the request would be:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /users?select=username,subscribers(username),following(username)&id=eq.4 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/users?select=username,subscribers(username),following(username)&id=eq.4"
+  curl "http://localhost:3000/users?select=username,subscribers(username),following(username)&id=eq.4"
 
 .. code-block:: json
 
@@ -773,15 +689,9 @@ For example, let's create the ``box_office`` partitioned table that has the gros
 
 Since it contains the ``films_id`` foreign key, it is possible to join ``box_office`` and ``films``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
+  curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
 
 .. note::
 
@@ -814,15 +724,9 @@ For instance, the following view has ``nominations``, ``films`` and ``competitio
 
 Since this view contains ``nominations.film_id``, which has a **foreign key** relationship to ``films``, then we can join the ``films`` table. Similarly, because the view contains ``films.id``, then we can also join the ``roles`` and the ``actors`` tables (the last one in a many-to-many relationship):
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
+  curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
 
 It's also possible to foreign key join `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
 
@@ -860,15 +764,9 @@ Here's a sample function (notice the ``RETURNS SETOF films``).
 
 A request with ``directors`` embedded:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers* HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
+   curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
 
 .. code-block:: json
 
@@ -890,36 +788,20 @@ You can join related database objects after doing :ref:`insert`, :ref:`update` o
 
 Say you want to insert a **film** and then get some of its attributes plus join its **director**.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     POST /films?select=title,year,director:directors(first_name,last_name) HTTP/1.1
-     Prefer: return=representation
-
-     {
+  curl "http://localhost:3000/films?select=title,year,director:directors(first_name,last_name)" \
+    -H "Prefer: return=representation" \
+    -d @- << EOF
+    {
       "id": 100,
       "director_id": 40,
       "title": "127 hours",
       "year": 2010,
       "rating": 7.6,
       "language": "english"
-     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,year,director:directors(first_name,last_name)" \
-      -H "Prefer: return=representation" \
-      -d @- << EOF
-      {
-        "id": 100,
-        "director_id": 40,
-        "title": "127 hours",
-        "year": 2010,
-        "rating": 7.6,
-        "language": "english"
-      }
-    EOF
+    }
+  EOF
 
 Response:
 
@@ -941,15 +823,9 @@ Nested Embedding
 
 If you want to embed through join tables but need more control on the intermediate resources, you can do nested embedding. For instance, you can request the Actors, their Roles and the Films for those Roles:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /actors?select=roles(character,films(title,year)) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/actors?select=roles(character,films(title,year))"
+  curl "http://localhost:3000/actors?select=roles(character,films(title,year))"
 
 .. _embed_filters:
 
@@ -958,77 +834,41 @@ Embedded Filters
 
 Embedded resources can be shaped similarly to their top-level counterparts. To do so, prefix the query parameters with the name of the embedded resource. For instance, to order the actors in each film:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,actors(*)&actors.order=last_name,first_name HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,actors(*)&actors.order=last_name,first_name"
+  curl "http://localhost:3000/films?select=*,actors(*)&actors.order=last_name,first_name"
 
 This sorts the list of actors in each film but does *not* change the order of the films themselves. To filter the roles returned with each film:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho)"
+  curl "http://localhost:3000/films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho)"
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
 An ``or`` filter  can be used for a similar operation:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
+  curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
 
 Limit and offset operations are possible:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,actors(*)&actors.limit=10&actors.offset=2 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,actors(*)&actors.limit=10&actors.offset=2"
+  curl "http://localhost:3000/films?select=*,actors(*)&actors.limit=10&actors.offset=2"
 
 Embedded resources can be aliased and filters can be applied on these aliases:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991"
+  curl "http://localhost:3000/films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991"
 
 Filters can also be applied on nested embedded resources:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=*,roles(*,actors(*))&roles.actors.order=last_name&roles.actors.first_name=like.*Tom* HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=*,roles(*,actors(*))&roles.actors.order=last_name&roles.actors.first_name=like.*Tom*"
+  curl "http://localhost:3000/films?select=*,roles(*,actors(*))&roles.actors.order=last_name&roles.actors.first_name=like.*Tom*"
 
 The result will show the nested actors named Tom and order them by last name. Aliases can also be used instead of the resource names to filter the nested tables.
 
@@ -1039,15 +879,9 @@ Top-level Filtering
 
 By default, :ref:`embed_filters` don't change the top-level resource(``films``) rows at all:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne
+  curl "http://localhost:3000/films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne
 
 .. code-block:: json
 
@@ -1073,15 +907,9 @@ By default, :ref:`embed_filters` don't change the top-level resource(``films``) 
 
 In order to filter the top level rows you need to add ``!inner`` to the embedded resource. For instance, to get **only** the films that have an actor named ``Jehanne``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne"
+  curl "http://localhost:3000/films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne"
 
 .. code-block:: json
 
@@ -1106,40 +934,22 @@ Null filtering on the embedded resources can behave the same as ``!inner``. Whil
 
 For example, doing ``actors=not.is.null`` returns the same result as ``actors!inner(*)``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,actors(*)&actors=not.is.null HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,actors(*)&actors=not.is.null"
+  curl "http://localhost:3000/films?select=title,actors(*)&actors=not.is.null"
 
 The ``is.null`` filter can be used in embedded resources to perform an anti-join. To get all the films that do not have any nominations:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,nominations()&nominations=is.null HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
+  curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
 
 
 Both ``is.null`` and ``not.is.null`` can be included inside the `or` operator. For instance, to get the films that have no actors **or** directors registered yet:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
+  curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
 
 .. _empty_embed:
 
@@ -1150,15 +960,9 @@ You can leave an embedded resource empty, this helps with filtering in some case
 
 To filter the films by actors but not include them:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null"
+  curl "http://localhost:3000/films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null"
 
 .. code-block:: json
 
@@ -1177,15 +981,9 @@ On :ref:`Many-to-One <many-to-one>` and :ref:`One-to-One <one-to-one>` relations
 
 For example, to arrange the films in descending order using the director's last name.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /films?select=title,directors(last_name)&order=directors(last_name).desc HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
+  curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
 
 .. _spread_embed:
 
@@ -1194,15 +992,9 @@ Spread embedded resource
 
 On many-to-one and one-to-one relationships, you can "spread" the embedded resource. That is, remove the surrounding JSON object for the embedded resource columns.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /films?select=title,...directors(director_last_name:last_name)&title=like.*Workers* HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
+   curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
 
 .. code-block:: json
 
@@ -1217,15 +1009,9 @@ Note that there is no ``"directors"`` object. Also the embed columns can be alia
 
 You can use this to get the columns of a join table in a many-to-many relationship. For instance, to get films and its actors, but including the ``character`` column from the roles table:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse* HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
+   curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
 
 .. code-block:: json
 
@@ -1245,4 +1031,3 @@ You can use this to get the columns of a join table in a many-to-many relationsh
 .. note::
 
   The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
-

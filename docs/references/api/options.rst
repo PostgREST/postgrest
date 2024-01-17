@@ -7,15 +7,9 @@ You can verify which HTTP methods are allowed on endpoints for tables and views 
 
 For a table named ``people``, OPTIONS would show:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    OPTIONS /people HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" -X OPTIONS -i
+  curl "http://localhost:3000/people" -X OPTIONS -i
 
 .. code-block:: http
 

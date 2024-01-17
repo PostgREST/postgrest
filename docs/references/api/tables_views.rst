@@ -12,15 +12,9 @@ Read
 
 For instance the full contents of a table `people` is returned at
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people"
+  curl "http://localhost:3000/people"
 
 There are no deeply/nested/routes. Each route provides OPTIONS, GET, HEAD, POST, PATCH, and DELETE verbs depending entirely on database permissions.
 
@@ -36,27 +30,15 @@ Horizontal Filtering
 
 You can filter result rows by adding conditions on columns. For instance, to return people aged under 13 years old:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?age=lt.13 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?age=lt.13"
+  curl "http://localhost:3000/people?age=lt.13"
 
 You can evaluate multiple conditions on columns by adding more query string parameters. For instance, to return people who are 18 or older **and** are students:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?age=gte.18&student=is.true HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?age=gte.18&student=is.true"
+  curl "http://localhost:3000/people?age=gte.18&student=is.true"
 
 .. _operators:
 
@@ -117,15 +99,9 @@ For more complicated filters you will have to create a new view in the database,
 
 The view will provide a new endpoint:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /fresh_stories HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/fresh_stories"
+  curl "http://localhost:3000/fresh_stories"
 
 .. _logical_operators:
 
@@ -134,29 +110,17 @@ Logical operators
 
 Multiple conditions on columns are evaluated using ``AND`` by default, but you can combine them using ``OR`` with the ``or`` operator. For example, to return people under 18 **or** over 21:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?or=(age.lt.18,age.gt.21) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?or=(age.lt.18,age.gt.21)"
+  curl "http://localhost:3000/people?or=(age.lt.18,age.gt.21)"
 
 To **negate** any operator, you can prefix it with :code:`not` like :code:`?a=not.eq.2` or :code:`?not.and=(a.gte.0,a.lte.100)` .
 
 You can also apply complex logic to the conditions:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17)) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
+  curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
 
 .. _modifiers:
 
@@ -167,27 +131,15 @@ You may further simplify the logic using the ``any/all`` modifiers of ``eq,like,
 
 For instance, to avoid repeating the same column for ``or``, use ``any`` to get people with last names that start with O or P:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?last_name=like(any).{O*,P*} HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?last_name=like(any).{O*,P*}"
+  curl "http://localhost:3000/people?last_name=like(any).{O*,P*}"
 
 In a similar way, you can use ``all`` to avoid repeating the same column for ``and``. To get the people with last names that start with O and end with n:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?last_name=like(all).{O*,*n} HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?last_name=like(all).{O*,*n}"
+  curl "http://localhost:3000/people?last_name=like(all).{O*,*n}"
 
 .. _pattern_matching:
 
@@ -205,45 +157,21 @@ Full-Text Search
 
 The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/datatype-textsearch.html>`_. The following examples illustrate the possibilities.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl "http://localhost:3000/tsearch?my_tsv=fts(french).amusant"
 
-    GET /tsearch?my_tsv=fts(french).amusant HTTP/1.1
+.. code-block:: bash
 
-  .. code-tab:: bash Curl
+  curl "http://localhost:3000/tsearch?my_tsv=plfts.The%20Fat%20Cats"
 
-    curl "http://localhost:3000/tsearch?my_tsv=fts(french).amusant"
+.. code-block:: bash
 
-.. tabs::
+  curl "http://localhost:3000/tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats"
 
-  .. code-tab:: http
+.. code-block:: bash
 
-    GET /tsearch?my_tsv=plfts.The%20Fat%20Cats HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/tsearch?my_tsv=plfts.The%20Fat%20Cats"
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats"
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /tsearch?my_tsv=not.wfts(french).amusant HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
+  curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
 
 Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and will raise an error in earlier versions of the database.
 
@@ -254,15 +182,9 @@ Vertical Filtering
 
 When certain columns are wide (such as those holding binary data), it is more efficient for the server to withhold them in a response. The client can specify which columns are required using the :code:`select` parameter.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=first_name,age HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=first_name,age"
+  curl "http://localhost:3000/people?select=first_name,age"
 
 .. code-block:: json
 
@@ -280,15 +202,9 @@ Renaming Columns
 
 You can rename the columns by prefixing them with an alias followed by the colon ``:`` operator.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=fullName:full_name,birthDate:birth_date HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=fullName:full_name,birthDate:birth_date"
+  curl "http://localhost:3000/people?select=fullName:full_name,birthDate:birth_date"
 
 .. code-block:: json
 
@@ -304,15 +220,9 @@ Casting Columns
 
 Casting the columns is possible by suffixing them with the double colon ``::`` plus the desired type.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=full_name,salary::text HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=full_name,salary::text"
+  curl "http://localhost:3000/people?select=full_name,salary::text"
 
 .. code-block:: json
 
@@ -335,15 +245,9 @@ You can specify a path for a ``json`` or ``jsonb`` column using the arrow operat
     json_data json
   );
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=id,json_data->>blood_type,json_data->phones HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=id,json_data->>blood_type,json_data->phones"
+  curl "http://localhost:3000/people?select=id,json_data->>blood_type,json_data->phones"
 
 .. code-block:: json
 
@@ -352,15 +256,9 @@ You can specify a path for a ``json`` or ``jsonb`` column using the arrow operat
     { "id": 2, "blood_type": "O+", "phones": [{"country_code": "43", "number": "512-446-4988"}, {"country_code": "43", "number": "213-891-5979"}] }
   ]
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=id,json_data->phones->0->>number HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=id,json_data->phones->0->>number"
+  curl "http://localhost:3000/people?select=id,json_data->phones->0->>number"
 
 .. code-block:: json
 
@@ -371,15 +269,9 @@ You can specify a path for a ``json`` or ``jsonb`` column using the arrow operat
 
 This also works with filters:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=id,json_data->blood_type&json_data->>blood_type=eq.A- HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=id,json_data->blood_type&json_data->>blood_type=eq.A-"
+  curl "http://localhost:3000/people?select=id,json_data->blood_type&json_data->>blood_type=eq.A-"
 
 .. code-block:: json
 
@@ -391,15 +283,9 @@ This also works with filters:
 
 Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with an integer value use ``->``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=id,json_data->age&json_data->age=gt.20 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=id,json_data->age&json_data->age=gt.20"
+  curl "http://localhost:3000/people?select=id,json_data->age&json_data->age=gt.20"
 
 .. code-block:: json
 
@@ -428,15 +314,9 @@ The arrow operators(``->``, ``->>``) can also be used for accessing composite fi
     languages text[]
   );
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19"
+  curl "http://localhost:3000/countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19"
 
 .. code-block:: json
 
@@ -464,61 +344,31 @@ Ordering
 
 The reserved word ``order`` reorders the response rows. It uses a comma-separated list of columns and directions:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?order=age.desc,height.asc HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?order=age.desc,height.asc"
+  curl "http://localhost:3000/people?order=age.desc,height.asc"
 
 If no direction is specified it defaults to ascending order:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?order=age HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?order=age"
+  curl "http://localhost:3000/people?order=age"
 
 If you care where nulls are sorted, add ``nullsfirst`` or ``nullslast``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl "http://localhost:3000/people?order=age.nullsfirst"
 
-    GET /people?order=age.nullsfirst HTTP/1.1
+.. code-block:: bash
 
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?order=age.nullsfirst"
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /people?order=age.desc.nullslast HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?order=age.desc.nullslast"
+  curl "http://localhost:3000/people?order=age.desc.nullslast"
 
 You can also sort on fields of :ref:`composite_array_columns` or :ref:`json_columns`.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /countries?order=location->>lat HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/countries?order=location->>lat"
+  curl "http://localhost:3000/countries?order=location->>lat"
 
 .. _head_req:
 
@@ -537,19 +387,11 @@ All tables and `auto-updatable views <https://www.postgresql.org/docs/current/sq
 
 To create a row in a database table post a JSON object whose keys are the names of the columns you would like to create. Missing properties will be set to default values when applicable.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /table_name HTTP/1.1
-
-    { "col1": "value1", "col2": "value2" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/table_name" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{ "col1": "value1", "col2": "value2" }'
+  curl "http://localhost:3000/table_name" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "col1": "value1", "col2": "value2" }'
 
 .. code::
 
@@ -562,20 +404,11 @@ x-www-form-urlencoded
 
 URL encoded payloads can be posted with ``Content-Type: application/x-www-form-urlencoded``.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /people HTTP/1.1
-    Content-Type: application/x-www-form-urlencoded
-
-    name=John+Doe&age=50&weight=80
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" \
-      -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-      -d "name=John+Doe&age=50&weight=80"
+  curl "http://localhost:3000/people" \
+    -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+    -d "name=John+Doe&age=50&weight=80"
 
 .. note::
 
@@ -607,53 +440,30 @@ Bulk insert works exactly like single row insert except that you provide either 
 
 To bulk insert CSV simply post to a table route with :code:`Content-Type: text/csv` and include the names of the columns as the first row. For instance
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /people HTTP/1.1
-    Content-Type: text/csv
-
-    name,age,height
-    J Doe,62,70
-    Jonas,10,55
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" \
-      -X POST -H "Content-Type: text/csv" \
-      --data-binary @- << EOF
-    name,age,height
-    J Doe,62,70
-    Jonas,10,55
-    EOF
+  curl "http://localhost:3000/people" \
+    -X POST -H "Content-Type: text/csv" \
+    --data-binary @- << EOF
+  name,age,height
+  J Doe,62,70
+  Jonas,10,55
+  EOF
 
 An empty field (:code:`,,`) is coerced to an empty string and the reserved word :code:`NULL` is mapped to the SQL null value. Note that there should be no spaces between the column names and commas.
 
 To bulk insert JSON post an array of objects having all-matching keys
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /people HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/people" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     [
       { "name": "J Doe", "age": 62, "height": 70 },
       { "name": "Janus", "age": 10, "height": 55 }
     ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      [
-        { "name": "J Doe", "age": 62, "height": 70 },
-        { "name": "Janus", "age": 10, "height": 55 }
-      ]
-    EOF
+  EOF
 
 .. _bulk_insert_default:
 
@@ -674,50 +484,25 @@ Having:
 
 A request:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /foo?columns=id,bar,baz HTTP/1.1
-    Content-Type: application/json
-    Prefer: missing=default, return=representation
-
-    [
-      { "bar": "val1"
-      }
-    , { "bar": "val2"
-      , "baz": 15
-      }
-    ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/foo?columns=id,bar,baz" \
-      -H "Content-Type: application/json" \
-      -H "Prefer: missing=default, return=representation" \
-      -d @- << EOF
-        [
-          { "bar": "val1"
-          }
-        , { "bar": "val2"
-          , "baz": 15
-          }
-        ]
-     EOF
+  curl "http://localhost:3000/foo?columns=id,bar,baz" \
+    -H "Content-Type: application/json" \
+    -H "Prefer: missing=default, return=representation" \
+    -d @- << EOF
+      [
+        { "bar": "val1" },
+        { "bar": "val2", "baz": 15 }
+      ]
+  EOF
 
 Will result in:
 
 .. code-block:: json
 
   [
-    { "id":  1
-    , "bar": "val1"
-    , "baz": 100
-    }
-  , { "id":  2
-    , "bar": "val2"
-    , "baz": 15
-    }
+    { "id":  1, "bar": "val1", "baz": 100 },
+    { "id":  2, "bar": "val2", "baz": 15 }
   ]
 
 .. _specify_columns:
@@ -727,38 +512,21 @@ Specifying Columns
 
 By using the :code:`columns` query parameter it's possible to specify the payload keys that will be inserted and ignore the rest of the payload.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     POST /datasets?columns=source,publication_date,figure HTTP/1.1
-     Content-Type: application/json
-
-     {
-       "source": "Natural Disaster Prevention and Control",
-       "publication_date": "2015-09-11",
-       "figure": 1100,
-       "location": "...",
-       "comment": "...",
-       "extra": "...",
-       "stuff": "..."
-     }
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/datasets?columns=source,publication_date,figure" \
-       -X POST -H "Content-Type: application/json" \
-       -d @- << EOF
-       {
-         "source": "Natural Disaster Prevention and Control",
-         "publication_date": "2015-09-11",
-         "figure": 1100,
-         "location": "...",
-         "comment": "...",
-         "extra": "...",
-         "stuff": "..."
-       }
-     EOF
+  curl "http://localhost:3000/datasets?columns=source,publication_date,figure" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
+    {
+      "source": "Natural Disaster Prevention and Control",
+      "publication_date": "2015-09-11",
+      "figure": 1100,
+      "location": "...",
+      "comment": "...",
+      "extra": "...",
+      "stuff": "..."
+    }
+  EOF
 
 In this case, only **source**, **publication_date** and **figure** will be inserted. The rest of the JSON keys will be ignored.
 
@@ -772,19 +540,11 @@ Update
 
 To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to specify which record(s) to update. Here is an example query setting the :code:`category` column to child for all people below a certain age.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    PATCH /people?age=lt.13 HTTP/1.1
-
-    { "category": "child" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?age=lt.13" \
-      -X PATCH -H "Content-Type: application/json" \
-      -d '{ "category": "child" }'
+  curl "http://localhost:3000/people?age=lt.13" \
+    -X PATCH -H "Content-Type: application/json" \
+    -d '{ "category": "child" }'
 
 Updates also support :ref:`prefer_return` plus :ref:`v_filter`.
 
@@ -801,31 +561,18 @@ Upsert
 
 You can make an upsert with :code:`POST` and the :code:`Prefer: resolution=merge-duplicates` header:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /employees HTTP/1.1
-    Prefer: resolution=merge-duplicates
-
+  curl "http://localhost:3000/employees" \
+    -X POST -H "Content-Type: application/json" \
+    -H "Prefer: resolution=merge-duplicates" \
+    -d @- << EOF
     [
       { "id": 1, "name": "Old employee 1", "salary": 30000 },
       { "id": 2, "name": "Old employee 2", "salary": 42000 },
       { "id": 3, "name": "New employee 3", "salary": 50000 }
     ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/employees" \
-      -X POST -H "Content-Type: application/json" \
-      -H "Prefer: resolution=merge-duplicates" \
-      -d @- << EOF
-      [
-        { "id": 1, "name": "Old employee 1", "salary": 30000 },
-        { "id": 2, "name": "Old employee 2", "salary": 42000 },
-        { "id": 3, "name": "New employee 3", "salary": 50000 }
-      ]
-    EOF
+  EOF
 
 By default, upsert operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
 
@@ -839,31 +586,18 @@ On Conflict
 
 By specifying the ``on_conflict`` query parameter, you can make upsert work on a column(s) that has a UNIQUE constraint.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /employees?on_conflict=name HTTP/1.1
-    Prefer: resolution=merge-duplicates
-
+  curl "http://localhost:3000/employees?on_conflict=name" \
+    -X POST -H "Content-Type: application/json" \
+    -H "Prefer: resolution=merge-duplicates" \
+    -d @- << EOF
     [
       { "name": "Old employee 1", "salary": 40000 },
       { "name": "Old employee 2", "salary": 52000 },
       { "name": "New employee 3", "salary": 60000 }
     ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/employees?on_conflict=name" \
-      -X POST -H "Content-Type: application/json" \
-      -H "Prefer: resolution=merge-duplicates" \
-      -d @- << EOF
-      [
-        { "name": "Old employee 1", "salary": 40000 },
-        { "name": "Old employee 2", "salary": 52000 },
-        { "name": "New employee 3", "salary": 60000 }
-      ]
-    EOF
+  EOF
 
 .. _upsert_put:
 
@@ -872,19 +606,11 @@ PUT
 
 A single row upsert can be done by using :code:`PUT` and filtering the primary key columns with :code:`eq`:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    PUT /employees?id=eq.4 HTTP/1.1
-
-    { "id": 4, "name": "Sara B.", "salary": 60000 }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost/employees?id=eq.4" \
-      -X PUT -H "Content-Type: application/json" \
-      -d '{ "id": 4, "name": "Sara B.", "salary": 60000 }'
+  curl "http://localhost/employees?id=eq.4" \
+    -X PUT -H "Content-Type: application/json" \
+    -d '{ "id": 4, "name": "Sara B.", "salary": 60000 }'
 
 All the columns must be specified in the request body, including the primary key columns.
 
@@ -895,29 +621,16 @@ Delete
 
 To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instance deleting inactive users:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    DELETE /user?active=is.false HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/user?active=is.false" -X DELETE
+  curl "http://localhost:3000/user?active=is.false" -X DELETE
 
 Deletions also support :ref:`prefer_return` plus :ref:`v_filter`.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    DELETE /user?id=eq.1 HTTP/1.1
-    Prefer: return=representation
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/user?id=eq.1" -X DELETE \
-      -H "Prefer: return=representation"
+  curl "http://localhost:3000/user?id=eq.1" -X DELETE \
+    -H "Prefer: return=representation"
 
 .. code-block:: json
 
@@ -934,29 +647,15 @@ Limited Update/Delete
 
 You can limit the amount of affected rows by :ref:`update` or :ref:`delete` with the ``limit`` query parameter. For this, you must add an explicit ``order`` on a unique column(s).
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl -X PATCH "/users?limit=10&order=id&last_login=lt.2020-01-01" \
+    -H "Content-Type: application/json" \
+    -d '{ "status": "inactive" }'
 
-    PATCH /users?limit=10&order=id&last_login=lt.2017-01-01 HTTP/1.1
+.. code-block:: bash
 
-    { "status": "inactive" }
-
-  .. code-tab:: bash Curl
-
-    curl -X PATCH "/users?limit=10&order=id&last_login=lt.2020-01-01" \
-      -H "Content-Type: application/json" \
-      -d '{ "status": "inactive" }'
-
-.. tabs::
-
-  .. code-tab:: http
-
-    DELETE /users?limit=10&order=id&status=eq.inactive HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl -X DELETE "http://localhost:3000/users?limit=10&order=id&status=eq.inactive"
+  curl -X DELETE "http://localhost:3000/users?limit=10&order=id&status=eq.inactive"
 
 If your table has no unique columns, you can use the `ctid <https://www.postgresql.org/docs/current/ddl-system-columns.html>`_ system column.
 

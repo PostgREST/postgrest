@@ -12,15 +12,9 @@ PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``
 
 To use an aggregate function, you append the function to a value in the ``select`` parameter, like so:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=amount.sum() HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=amount.sum()"
+  curl "http://localhost:3000/orders?select=amount.sum()"
 
 With the above query, PostgREST will return a single row with a single column named ``sum`` that contains the sum of all the values in the ``amount`` column:
 
@@ -36,15 +30,9 @@ You can use multiple aggregate functions by just adding more columns with aggreg
 
 To group by other columns, you simply add those columns to the ``select`` parameter. For instance:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=amount.sum(),amount.avg(),order_date HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=amount.sum(),amount.avg(),order_date"
+  curl "http://localhost:3000/orders?select=amount.sum(),amount.avg(),order_date"
 
 This will return a row for each unique value in the ``order_date`` column, with the sum and average of the ``amount`` column for all rows that share the same ``order_date``:
 
@@ -75,15 +63,9 @@ The Case of ``count()``
 
 ``count()`` is treated specially, as it can be used without an associated column. Take for example the following query:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=count(),order_date HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=count(),order_date"
+  curl "http://localhost:3000/orders?select=count(),order_date"
 
 This would return a row for each unique value in the ``order_date`` column, with the count of all rows that share the same ``order_date``:
 
@@ -124,15 +106,9 @@ For instance, imagine that the ``orders`` table has a JSON column, ``order_detai
 
 Therefore, you will need to first cast the input value to a type that is compatible with ``sum()`` (e.g. ``numeric``). Casting the input value is done in exactly the same way as casting any other value:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=order_details->tax_amount::numeric.sum() HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=order_details->tax_amount::numeric.sum()"
+  curl "http://localhost:3000/orders?select=order_details->tax_amount::numeric.sum()"
 
 With this, you will receive the sum of the casted ``tax_amount`` value:
 
@@ -149,15 +125,9 @@ Casting the Value of the Output
 
 Now let's return to an example involving the ``amount`` column of the ``orders`` table. Imagine that we want to get the rounded average of the ``amount`` column. One way to do this is to use the ``avg()`` aggregate function and then to cast the output value of the function to ``int``. To cast the value of the output of the function, we simply place the cast *after* the aggregate function:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=amount.avg()::int HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=amount.avg()::int"
+  curl "http://localhost:3000/orders?select=amount.avg()::int"
 
 You will then receive the rounded average as the result:
 
@@ -184,15 +154,9 @@ Using an embedded resource as a grouping column allows you to use data from an a
 
 For example, imagine that the ``orders`` table from the examples above is related to a ``customers`` table. If you want to get the sum of the ``amount`` column grouped by the ``name`` column from the ``customers`` table, you can include the customer name, using the standard :ref:`resource_embedding` syntax, and perform a sum on the ``amount`` column.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=amount.sum(),customers(name) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=amount.sum(),customers(name)"
+  curl "http://localhost:3000/orders?select=amount.sum(),customers(name)"
 
 You will then get the summed amount, along with the embedded customer resource:
 
@@ -223,15 +187,9 @@ When embedding a resource, you can apply aggregate functions to columns from the
 
 Continuing with the example relationship between ``orders`` and ``customers`` from the previous section, imagine that you want to fetch the ``name``, ``city``, and ``state`` for each customer, along with the sum of amount of the customer's orders, grouped by the order date. This can be done in the following way:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /customers?select=name,city,state,orders(amount.sum(),order_date) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/customers?select=name,city,state,orders(amount.sum(),order_date)"
+  curl "http://localhost:3000/customers?select=name,city,state,orders(amount.sum(),order_date)"
 
 .. code-block:: json
 
@@ -280,15 +238,9 @@ Grouping with Columns from a Spreaded Resource
 
 For instance, assume you want to sum the ``amount`` column from the ``orders`` table, using the ``city`` and ``state`` columns from the ``customers`` table as grouping columns. To achieve this, you may select these two columns from the ``customers`` table and spread them; they will then be used as grouping columns:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=amount.sum(),...customers(city,state) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=amount.sum(),...customers(city,state)
+  curl "http://localhost:3000/orders?select=amount.sum(),...customers(city,state)
 
 The result will be the same as if ``city`` and ``state`` were columns from the ``orders`` table:
 
@@ -312,15 +264,9 @@ Aggregate Functions with Columns from a Spreaded Resource
 
 Now imagine that the ``customers`` table has a ``joined_date`` column that represents the date that the customer joined. You want to get both the most recent and the oldest ``joined_date`` for customers that placed an order on every distinct order date. This can be expressed as follows:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /orders?select=order_date,...customers(joined_date.max(),joined_date.min()) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/orders?select=order_date,...customers(joined_date.max(),joined_date.min())
+  curl "http://localhost:3000/orders?select=order_date,...customers(joined_date.max(),joined_date.min())
 
 As columns from a spreaded resource are treated as if they were columns from the top-level resource, the ``max()`` and ``min()`` are applied *within* the context of the top-level, rather than within the context of the embedded resource, as in the previous section.
 

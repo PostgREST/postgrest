@@ -26,17 +26,10 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 
 ``handling=strict`` will throw an error if you specify invalid preferences. For instance:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /projects HTTP/1.1
-    Prefer: handling=strict, foo, bar
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/projects" \
-      -H "Prefer: handling=strict, foo, bar"
+  curl -i "http://localhost:3000/projects" \
+    -H "Prefer: handling=strict, foo, bar"
 
 .. code-block:: http
 
@@ -55,17 +48,10 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 
 ``handling=lenient`` ignores invalid preferences.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /projects HTTP/1.1
-    Prefer: handling=lenient, foo, bar
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/projects" \
-      -H "Prefer: handling=lenient, foo, bar"
+  curl -i "http://localhost:3000/projects" \
+    -H "Prefer: handling=lenient, foo, bar"
 
 .. code-block:: http
 
@@ -80,17 +66,10 @@ Timezone
 The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all timezones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
 
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /timestamps HTTP/1.1
-    Prefer: timezone=America/Los_Angeles
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/timestamps" \
-      -H "Prefer: timezone=America/Los_Angeles"
+  curl -i "http://localhost:3000/timestamps" \
+    -H "Prefer: timezone=America/Los_Angeles"
 
 .. code-block:: http
 
@@ -108,17 +87,10 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
 
 For an invalid timezone, PostgREST returns values with the default timezone (configured on ``postgresql.conf`` or as a setting on the :ref:`authenticator <roles>`).
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /timestamps HTTP/1.1
-    Prefer: timezone=Jupiter/Red_Spot
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/timestamps" \
-      -H "Prefer: timezone=Jupiter/Red_Spot"
+  curl -i "http://localhost:3000/timestamps" \
+    -H "Prefer: timezone=Jupiter/Red_Spot"
 
 .. code-block:: http
 
@@ -137,17 +109,10 @@ Note that there's no ``Preference-Applied`` in the response.
 
 However, with ``handling=strict``, an invalid timezone preference will throw an :ref:`error <pgrst122>`.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /timestamps HTTP/1.1
-    Prefer: handling=strict, timezone=Jupiter/Red_Spot
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/timestamps" \
-      -H "Prefer: handling=strict, timezone=Jupiter/Red_Spot"
+  curl -i "http://localhost:3000/timestamps" \
+    -H "Prefer: handling=strict, timezone=Jupiter/Red_Spot"
 
 .. code-block:: http
 
@@ -171,21 +136,12 @@ Headers Only
 
 If the table has a primary key, the response can contain a :code:`Location` header describing where to find the new object by including the header :code:`Prefer: return=headers-only` in the request. Make sure that the table is not write-only, otherwise constructing the :code:`Location` header will cause a permissions error.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /projects HTTP/1.1
-    Prefer: return=headers-only
-
-    {"id":33, "name": "x"}
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/projects" -X POST \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=headers-only" \
-      -d '{"id":33, "name": "x"}'
+  curl -i "http://localhost:3000/projects" -X POST \
+    -H "Content-Type: application/json" \
+    -H "Prefer: return=headers-only" \
+    -d '{"id":33, "name": "x"}'
 
 .. code-block:: http
 
@@ -198,22 +154,12 @@ Full
 
 On the other end of the spectrum you can get the full created object back in the response to your request by including the header :code:`Prefer: return=representation`. That way you won't have to make another HTTP call to discover properties that may have been filled in on the server side. You can also apply the standard :ref:`v_filter` to these results.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /projects HTTP/1.1
-    Content-Type: application/json; charset=utf-8
-    Prefer: return=representation
-
-    {"id":33, "name": "x"}
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/projects" -X POST \
-      -H "Content-Type: application/json" \
-      -H "Prefer: return=representation" \
-      -d '{"id":33, "name": "x"}'
+  curl -i "http://localhost:3000/projects" -X POST \
+    -H "Content-Type: application/json" \
+    -H "Prefer: return=representation" \
+    -d '{"id":33, "name": "x"}'
 
 .. code-block:: http
 
@@ -236,22 +182,12 @@ Transaction End Preference
 
 The ``tx`` preference can be set to specify if the :ref:`transaction <transactions>` will end in a COMMIT or ROLLBACK. This preference is not enabled by default but can be activated with :ref:`db-tx-end`.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /projects HTTP/1.1
-    Content-Type: application/json
-    Prefer: tx=rollback, return=representation
-
-    {"name": "Project X"}
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/projects" -X POST \
-      -H "Content-Type: application/json" \
-      -H "Prefer: tx=rollback, return=representation" \
-      -d '{"name": "Project X"}'
+  curl -i "http://localhost:3000/projects" -X POST \
+    -H "Content-Type: application/json" \
+    -H "Prefer: tx=rollback, return=representation" \
+    -d '{"name": "Project X"}'
 
 .. code-block:: http
 
@@ -270,19 +206,11 @@ You can set a limit to the amount of resources affected in a request by sending 
 
 To illustrate the use of this preference, consider the following scenario where the ``items`` table contains 14 rows.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    DELETE /items?id=lt.15 HTTP/1.1
-    Content-Type: application/json; charset=utf-8
-    Prefer: handling=strict, max-affected=10
-
-  .. code-tab:: bash Curl
-
-    curl -i "http://localhost:3000/items?id=lt.15 -X DELETE \
-      -H "Content-Type: application/json" \
-      -H "Prefer: handling=strict, max-affected=10"
+  curl -i "http://localhost:3000/items?id=lt.15 -X DELETE \
+    -H "Content-Type: application/json" \
+    -H "Prefer: handling=strict, max-affected=10"
 
 .. code-block:: http
 
@@ -314,21 +242,12 @@ Single JSON object as Function Parameter
     SELECT (param->>'x')::int * (param->>'y')::int
   $$ LANGUAGE SQL;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/mult_them HTTP/1.1
-    Prefer: params=single-object
-
-    { "x": 4, "y": 2 }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/mult_them" \
-      -X POST -H "Content-Type: application/json" \
-      -H "Prefer: params=single-object" \
-      -d '{ "x": 4, "y": 2 }'
+  curl "http://localhost:3000/rpc/mult_them" \
+    -X POST -H "Content-Type: application/json" \
+    -H "Prefer: params=single-object" \
+    -d '{ "x": 4, "y": 2 }'
 
 .. code-block:: json
 

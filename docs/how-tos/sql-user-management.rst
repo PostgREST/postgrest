@@ -199,19 +199,11 @@ the anonymous user :code:`anon` doesn't need permission to read the :code:`basic
 
 An API request to call this function would look like:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/login HTTP/1.1
-
-    { "email": "foo@bar.com", "pass": "foobar" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/login" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{ "email": "foo@bar.com", "pass": "foobar" }'
+  curl "http://localhost:3000/rpc/login" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "email": "foo@bar.com", "pass": "foobar" }'
 
 The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`reallyreallyreallyreallyverysafe` as specified in the SQL code above. You'll want to change this secret in your app!)
 

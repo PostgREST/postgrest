@@ -36,19 +36,11 @@ For instance, assume we have created this function in the database.
 
 The client can call it by posting an object like
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/add_them HTTP/1.1
-
-    { "a": 1, "b": 2 }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/add_them" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{ "a": 1, "b": 2 }'
+  curl "http://localhost:3000/rpc/add_them" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "a": 1, "b": 2 }'
 
 .. code-block:: json
 
@@ -67,15 +59,9 @@ Calling with GET
 
 If the function doesn't modify the database, it will also run under the GET method (see :ref:`access_mode`).
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/add_them?a=1&b=2 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/add_them?a=1&b=2"
+  curl "http://localhost:3000/rpc/add_them?a=1&b=2"
 
 The function parameter names match the JSON object keys in the POST case, for the GET case they match the query parameters ``?a=1&b=2``.
 
@@ -93,20 +79,11 @@ For this the ``Content-Type: application/json`` header must be included in the r
     SELECT ($1->>'x')::int * ($1->>'y')::int
   $$ LANGUAGE SQL;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/mult_them HTTP/1.1
-    Content-Type: application/json
-
-    { "x": 4, "y": 2 }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/mult_them" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{ "x": 4, "y": 2 }'
+  curl "http://localhost:3000/rpc/mult_them" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "x": 4, "y": 2 }'
 
 .. code-block:: json
 
@@ -139,20 +116,11 @@ To send raw binary, the parameter type must be ``bytea`` and the header ``Conten
     INSERT INTO files(blob) VALUES ($1);
   $$ LANGUAGE SQL;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/upload_binary HTTP/1.1
-    Content-Type: application/octet-stream
-
-    file_name.ext
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/upload_binary" \
-      -X POST -H "Content-Type: application/octet-stream" \
-      --data-binary "@file_name.ext"
+  curl "http://localhost:3000/rpc/upload_binary" \
+    -X POST -H "Content-Type: application/octet-stream" \
+    --data-binary "@file_name.ext"
 
 .. code-block:: http
 
@@ -175,20 +143,11 @@ You can call a function that takes an array parameter:
       SELECT array_agg(n + 1) FROM unnest($1) AS n;
    $$ language sql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     POST /rpc/plus_one HTTP/1.1
-     Content-Type: application/json
-
-     {"arr": [1,2,3,4]}
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/rpc/plus_one" \
-       -X POST -H "Content-Type: application/json" \
-       -d '{"arr": [1,2,3,4]}'
+   curl "http://localhost:3000/rpc/plus_one" \
+     -X POST -H "Content-Type: application/json" \
+     -d '{"arr": [1,2,3,4]}'
 
 .. code-block:: json
 
@@ -197,33 +156,19 @@ You can call a function that takes an array parameter:
 For calling the function with GET, you can pass the array as an `array literal <https://www.postgresql.org/docs/current/arrays.html#ARRAYS-INPUT>`_,
 as in ``{1,2,3,4}``. Note that the curly brackets have to be urlencoded(``{`` is ``%7B`` and ``}`` is ``%7D``).
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/plus_one?arr=%7B1,2,3,4%7D' HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/plus_one?arr=%7B1,2,3,4%7D'"
+  curl "http://localhost:3000/rpc/plus_one?arr=%7B1,2,3,4%7D'"
 
 .. note::
 
    For versions prior to PostgreSQL 10, to pass a PostgreSQL native array on a POST payload, you need to quote it and use an array literal:
 
-   .. tabs::
+   .. code-block:: bash
 
-     .. code-tab:: http
-
-       POST /rpc/plus_one HTTP/1.1
-
-       { "arr": "{1,2,3,4}" }
-
-     .. code-tab:: bash Curl
-
-       curl "http://localhost:3000/rpc/plus_one" \
-         -X POST -H "Content-Type: application/json" \
-         -d '{ "arr": "{1,2,3,4}" }'
+     curl "http://localhost:3000/rpc/plus_one" \
+       -X POST -H "Content-Type: application/json" \
+       -d '{ "arr": "{1,2,3,4}" }'
 
    In these versions we recommend using function parameters of type JSON to accept arrays from the client.
 
@@ -240,20 +185,11 @@ You can call a variadic function by passing a JSON array in a POST request:
       SELECT array_agg(n + 1) FROM unnest($1) AS n;
    $$ language sql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/plus_one HTTP/1.1
-    Content-Type: application/json
-
-    {"v": [1,2,3,4]}
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/plus_one" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{"v": [1,2,3,4]}'
+  curl "http://localhost:3000/rpc/plus_one" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{"v": [1,2,3,4]}'
 
 .. code-block:: json
 
@@ -261,32 +197,17 @@ You can call a variadic function by passing a JSON array in a POST request:
 
 In a GET request, you can repeat the same parameter name:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /rpc/plus_one?v=1&v=2&v=3&v=4 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/rpc/plus_one?v=1&v=2&v=3&v=4"
+  curl "http://localhost:3000/rpc/plus_one?v=1&v=2&v=3&v=4"
 
 Repeating also works in POST requests with ``Content-Type: application/x-www-form-urlencoded``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/plus_one HTTP/1.1
-    Content-Type: application/x-www-form-urlencoded
-
-    v=1&v=2&v=3&v=4
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/plus_one" \
-      -X POST -H "Content-Type: application/x-www-form-urlencoded" \
-      -d 'v=1&v=2&v=3&v=4'
+  curl "http://localhost:3000/rpc/plus_one" \
+    -X POST -H "Content-Type: application/x-www-form-urlencoded" \
+    -d 'v=1&v=2&v=3&v=4'
 
 .. _table_functions:
 
@@ -299,25 +220,13 @@ A function that returns a table type can be filtered using the same filters as :
 
   CREATE FUNCTION best_films_2017() RETURNS SETOF films ..
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl "http://localhost:3000/rpc/best_films_2017?select=title,director:directors(*)"
 
-    GET /rpc/best_films_2017?select=title,director:directors(*) HTTP/1.1
+.. code-block:: bash
 
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/best_films_2017?select=title,director:directors(*)"
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /rpc/best_films_2017?rating=gt.8&order=title.desc HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/best_films_2017?rating=gt.8&order=title.desc"
+  curl "http://localhost:3000/rpc/best_films_2017?rating=gt.8&order=title.desc"
 
 .. _function_inlining:
 
@@ -338,17 +247,10 @@ For example, for the following function:
 
 Let's get its :ref:`explain_plan` when calling it with filters applied:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/getallprojects?id=eq.1 HTTP/1.1
-    Accept: application/vnd.pgrst.plan
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/getallprojects?id=eq.1" \
-      -H "Accept: application/vnd.pgrst.plan"
+  curl "http://localhost:3000/rpc/getallprojects?id=eq.1" \
+    -H "Accept: application/vnd.pgrst.plan"
 
 .. code-block:: psql
 
@@ -365,29 +267,17 @@ Scalar functions
 
 PostgREST will detect if the function is scalar or table-valued and will shape the response format accordingly:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/add_them?a=1&b=2 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/add_them?a=1&b=2"
+  curl "http://localhost:3000/rpc/add_them?a=1&b=2"
 
 .. code-block:: json
 
   3
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/best_films_2017 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/best_films_2017"
+  curl "http://localhost:3000/rpc/best_films_2017"
 
 .. code-block:: json
 
@@ -412,15 +302,9 @@ Functions that return ``record`` or ``SETOF record`` are supported:
     select * from projects;
   $$ language sql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/projects_setof_record HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/projects_setof_record"
+  curl "http://localhost:3000/rpc/projects_setof_record"
 
 .. code-block:: json
 
@@ -443,25 +327,13 @@ You can call overloaded functions with different number of arguments.
 
   CREATE FUNCTION rental_duration(customer_id integer, from_date date) ..
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl "http://localhost:3000/rpc/rental_duration?customer_id=232"
 
-    GET /rpc/rental_duration?customer_id=232 HTTP/1.1
+.. code-block:: bash
 
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/rental_duration?customer_id=232"
-
-.. tabs::
-
-  .. code-tab:: http
-
-    GET /rpc/rental_duration?customer_id=232&from_date=2018-07-01 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/rental_duration?customer_id=232&from_date=2018-07-01"
+  curl "http://localhost:3000/rpc/rental_duration?customer_id=232&from_date=2018-07-01"
 
 .. important::
 

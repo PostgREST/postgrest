@@ -25,33 +25,17 @@ You can use the **time zone** to filter or send data if needed.
 
 Suppose you are located in Sydney and want create a report with the date in the local time zone. Your request should look like this:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /reports HTTP/1.1
-    Content-Type: application/json
-
-    [{ "id": 1, "due_date": "2022-02-24 11:10:15 Australia/Sydney" },
-     { "id": 2, "due_date": "2022-02-27 22:00:00 Australia/Sydney" }]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/reports" \
-      -X POST -H "Content-Type: application/json" \
-      -d '[{ "id": 1, "due_date": "2022-02-24 11:10:15 Australia/Sydney" },{ "id": 2, "due_date": "2022-02-27 22:00:00 Australia/Sydney" }]'
+  curl "http://localhost:3000/reports" \
+    -X POST -H "Content-Type: application/json" \
+    -d '[{ "id": 1, "due_date": "2022-02-24 11:10:15 Australia/Sydney" },{ "id": 2, "due_date": "2022-02-27 22:00:00 Australia/Sydney" }]'
 
 Someone located in Cairo can retrieve the data using their local time, too:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /reports?due_date=eq.2022-02-24+02:10:15+Africa/Cairo HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/reports?due_date=eq.2022-02-24+02:10:15+Africa/Cairo"
+  curl "http://localhost:3000/reports?due_date=eq.2022-02-24+02:10:15+Africa/Cairo"
 
 .. code-block:: json
 
@@ -66,15 +50,9 @@ The response has the date in the time zone configured by the server: ``UTC -05:0
 
 You can use other comparative filters and also all the `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_ as illustrated in this example:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch)) HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch))"
+  curl "http://localhost:3000/reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch))"
 
 .. code-block:: json
 
@@ -100,13 +78,11 @@ To work with a ``json`` type column, you can handle the value as a JSON object.
 
 You can insert a new product using a JSON object for the ``extra_info`` column:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /products HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/products" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     {
       "id": 1,
       "name": "Canned fish",
@@ -115,21 +91,7 @@ You can insert a new product using a JSON object for the ``extra_info`` column:
         "exportable": true
       }
     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/products" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "id": 1,
-        "name": "Canned fish",
-        "extra_info": {
-          "expiry_date": "2025-12-31",
-          "exportable": true
-        }
-      }
-    EOF
+  EOF
 
 To query and filter the data see :ref:`json_columns` for a complete reference.
 
@@ -149,61 +111,33 @@ To handle `array types <https://www.postgresql.org/docs/current/arrays.html>`_ y
 
 You can insert a new value using string representation.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /movies HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/movies" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     {
       "id": 1,
       "title": "Paddington",
       "tags": "{family,comedy,not streamable}",
       "performance_times": "{12:40,15:00,20:00}"
     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/movies" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "id": 1,
-        "title": "Paddington",
-        "tags": "{family,comedy,not streamable}",
-        "performance_times": "{12:40,15:00,20:00}"
-      }
-    EOF
+  EOF
 
 Or you could send the same data using JSON array format:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /movies HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/movies" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     {
       "id": 1,
       "title": "Paddington",
       "tags": ["family", "comedy", "not streamable"],
       "performance_times": ["12:40", "15:00", "20:00"]
     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/movies" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "id": 1,
-        "title": "Paddington",
-        "tags": ["family", "comedy", "not streamable"],
-        "performance_times": ["12:40", "15:00", "20:00"]
-      }
-    EOF
+  EOF
 
 To query the data you can use arrow operators. See :ref:`composite_array_columns`.
 
@@ -220,38 +154,21 @@ Similarly to one-dimensional arrays, both the string representation and JSON arr
 
 You can now update the item using JSON array format:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    PATCH /movies?id=eq.1 HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/movies?id=eq.1" \
+    -X PATCH -H "Content-Type: application/json" \
+    -d @- << EOF
     {
       "cinema_floor_auditorium": [ [ [1,2], [6,7] ], [ [3,5], [8,9] ] ]
     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/movies?id=eq.1" \
-      -X PATCH -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "cinema_floor_auditorium": [ [ [1,2], [6,7] ], [ [3,5], [8,9] ] ]
-      }
-    EOF
+  EOF
 
 Then, for example, to query the auditoriums that are located in the first cinema (position 0 in the array) and on the second floor (position 1 in the next inner array), we can use the arrow operators this way:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /movies?select=title,auditorium:cinema_floor_auditorium->0->1&id=eq.1 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/movies?select=title,auditorium:cinema_floor_auditorium->0->1&id=eq.1"
+  curl "http://localhost:3000/movies?select=title,auditorium:cinema_floor_auditorium->0->1&id=eq.1"
 
 .. code-block:: json
 
@@ -286,57 +203,31 @@ With PostgREST, you have two options to handle `composite type columns <https://
 
 On one hand you can insert values using string representation.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /products HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/products" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     { "id": 2, "size": "(0.7,0.5,1.8,\"m\")" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/products" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      { "id": 2, "size": "(0.7,0.5,1.8,\"m\")" }
-    EOF
+  EOF
 
 Or you could insert the same data in JSON format.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /products HTTP/1.1
-    Content-Type: application/json
-
-      {
-        "id": 2,
-        "size": {
-          "length": 0.7,
-          "width": 0.5,
-          "height": 1.8,
-          "unit": "m"
-        }
+  curl "http://localhost:3000/products" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
+    {
+      "id": 2,
+      "size": {
+        "length": 0.7,
+        "width": 0.5,
+        "height": 1.8,
+        "unit": "m"
       }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/products" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "id": 2,
-        "size": {
-          "length": 0.7,
-          "width": 0.5,
-          "height": 1.8,
-          "unit": "m"
-        }
-      }
-    EOF
+    }
+  EOF
 
 You can also query the data using arrow operators. See :ref:`composite_array_columns`.
 
@@ -355,42 +246,23 @@ PostgREST allows you to handle `ranges <https://www.postgresql.org/docs/current/
 
 To insert a new event, specify the ``duration`` value as a string representation of the ``tsrange`` type:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /events HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/events" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     {
       "id": 1,
       "name": "New Year's Party",
       "duration": "['2022-12-31 11:00','2023-01-01 06:00']"
     }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/events" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      {
-        "id": 1,
-        "name": "New Year's Party",
-        "duration": "['2022-12-31 11:00','2023-01-01 06:00']"
-      }
-    EOF
+  EOF
 
 You can use range :ref:`operators <operators>` to filter the data. But, in this case, requesting a filter like ``events?duration=cs.2023-01-01`` will return an error, because PostgreSQL needs an explicit cast from string to timestamp. A workaround is to use a range starting and ending in the same date:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /events?duration=cs.[2023-01-01,2023-01-01] HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/events?duration=cs.\[2023-01-01,2023-01-01\]"
+  curl "http://localhost:3000/events?duration=cs.\[2023-01-01,2023-01-01\]"
 
 .. code-block:: json
 
@@ -428,15 +300,9 @@ Then, create the cast using this function:
 
 Finally, do the request :ref:`casting the range column <casting_columns>`:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /events?select=id,name,duration::json HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/events?select=id,name,duration::json"
+  curl "http://localhost:3000/events?select=id,name,duration::json"
 
 .. code-block:: json
 
@@ -491,20 +357,11 @@ Let's download the PostgREST logo for our test.
 
 Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: application/octet-stream`` header in the request:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/upload_binary HTTP/1.1
-    Content-Type: application/octet-stream
-
-    postgrest-logo.png
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/upload_binary" \
-      -X POST -H "Content-Type: application/octet-stream" \
-      --data-binary "@postgrest-logo.png"
+  curl "http://localhost:3000/rpc/upload_binary" \
+    -X POST -H "Content-Type: application/octet-stream" \
+    --data-binary "@postgrest-logo.png"
 
 To get the image from the database, use :ref:`custom_media` like so:
 
@@ -516,17 +373,10 @@ To get the image from the database, use :ref:`custom_media` like so:
     select file from files where id = $1;
   $$ language sql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /get_image?id=1 HTTP/1.1
-    Accept: image/png
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/get_image?id=1" \
-      -H "Accept: image/png"
+  curl "http://localhost:3000/get_image?id=1" \
+    -H "Accept: image/png"
 
 See :ref:`providing_img` for a step-by-step example on how to handle images in HTML.
 
@@ -551,42 +401,24 @@ You can work with data types belonging to additional supplied modules such as `h
 
 The ``name`` column will have the name of the country in different formats. You can insert values using the string representation for that data type:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /countries HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/countries" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     [
       { "id": 1, "name": "common => Egypt, official => \"Arab Republic of Egypt\", native => مصر" },
       { "id": 2, "name": "common => Germany, official => \"Federal Republic of Germany\", native => Deutschland" }
     ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/countries" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      [
-        { "id": 1, "name": "common => Egypt, official => \"Arab Republic of Egypt\", native => مصر" },
-        { "id": 2, "name": "common => Germany, official => \"Federal Republic of Germany\", native => Deutschland" }
-      ]
-    EOF
+  EOF
 
 Notice that the use of ``"`` in the value of the ``name`` column needs to be escaped using a backslash ``\``.
 
 You can also query and filter the value of a ``hstore`` column using the arrow operators, as you would do for a :ref:`JSON column<json_columns>`. For example, if you want to get the native name of Egypt:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /countries?select=name->>native&name->>common=like.Egypt HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/countries?select=name->>native&name->>common=like.Egypt"
+  curl "http://localhost:3000/countries?select=name->>native&name->>common=like.Egypt"
 
 .. code-block:: json
 
@@ -612,42 +444,23 @@ You can use the string representation for `PostGIS <https://postgis.net/>`_ data
 
 To add areas in polygon format, you can use string representation:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /coverage HTTP/1.1
-    Content-Type: application/json
-
+  curl "http://localhost:3000/coverage" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
     [
       { "id": 1, "name": "small", "area": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))" },
       { "id": 2, "name": "big", "area": "SRID=4326;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))" }
     ]
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/coverage" \
-      -X POST -H "Content-Type: application/json" \
-      -d @- << EOF
-      [
-        { "id": 1, "name": "small", "area": "SRID=4326;POLYGON((0 0, 1 0, 1 1, 0 1, 0 0))" },
-        { "id": 2, "name": "big", "area": "SRID=4326;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0))" }
-      ]
-    EOF
+  EOF
 
 Now, when you request the information, PostgREST will automatically cast the ``area`` column into a ``Polygon`` geometry type. Although this is useful, you may need the whole output to be in `GeoJSON <https://geojson.org/>`_ format out of the box, which can be done by including the ``Accept: application/geo+json`` in the request. This will work for PostGIS versions 3.0.0 and up and will return the output as a `FeatureCollection Object <https://www.rfc-editor.org/rfc/rfc7946#section-3.3>`_:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /coverage HTTP/1.1
-    Accept: application/geo+json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/coverage" \
-      -H "Accept: application/geo+json"
+  curl "http://localhost:3000/coverage" \
+    -H "Accept: application/geo+json"
 
 .. code-block:: json
 
@@ -711,15 +524,9 @@ In the case that you are using older PostGIS versions, then creating a function 
 
 Now this query will return the same results:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/coverage_geo_collection HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/coverage_geo_collection"
+  curl "http://localhost:3000/rpc/coverage_geo_collection"
 
 .. code-block:: json
 

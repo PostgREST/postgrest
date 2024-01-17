@@ -8,27 +8,15 @@ Block Full-Table Operations
 
 If the :ref:`active role <user_impersonation>` can delete table rows then the DELETE verb is allowed for clients. Here's an API request to delete old rows from a hypothetical logs table:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    DELETE /logs?time=lt.1991-08-06 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/logs?time=lt.1991-08-06" -X DELETE
+  curl "http://localhost:3000/logs?time=lt.1991-08-06" -X DELETE
 
 Note that it's very easy to delete the **entire table** by omitting the query parameter!
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    DELETE /logs HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/logs" -X DELETE
+  curl "http://localhost:3000/logs" -X DELETE
 
 This can happen accidentally such as by switching a request from a GET to a DELETE. To protect against accidental operations use the `pg-safeupdate <https://github.com/eradman/pg-safeupdate>`_ PostgreSQL extension. It raises an error if UPDATE or DELETE are executed without specifying conditions. To install it you can use the `PGXN <https://pgxn.org/>`_ network:
 

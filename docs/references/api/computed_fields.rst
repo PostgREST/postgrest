@@ -30,15 +30,9 @@ Horizontal Filtering on Computed Fields
   CREATE INDEX people_full_name_idx ON people
     USING GIN (to_tsvector('english', full_name(people)));
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?full_name=fts.Beckett HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?full_name=fts.Beckett"
+  curl "http://localhost:3000/people?full_name=fts.Beckett"
 
 .. code-block:: json
 
@@ -51,15 +45,9 @@ Vertical Filtering on Computed Fields
 
 Computed fields won't appear on the response by default but you can use :ref:`v_filter` to include them:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?select=full_name,job HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?select=full_name,job"
+  curl "http://localhost:3000/people?select=full_name,job"
 
 .. code-block:: json
 
@@ -72,15 +60,9 @@ Ordering on Computed Fields
 
 :ref:`ordering` on computed fields is also possible:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?order=full_name.desc HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?order=full_name.desc"
+  curl "http://localhost:3000/people?order=full_name.desc"
 
 .. important::
 

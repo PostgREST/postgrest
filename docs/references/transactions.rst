@@ -30,15 +30,9 @@ Modifying the database inside READ ONLY transactions is not possible. PostgREST 
 
 Since the ``callcounter`` view modifies the sequence, calling it with GET or HEAD will result in an error:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /callcounter HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/callcounter"
+  curl "http://localhost:3000/callcounter"
 
 .. code-block:: http
 
@@ -246,15 +240,9 @@ You can set the ``response.status`` to override the default status code PostgRES
    end;
    $$ language plpgsql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /rpc/teapot HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/teapot" -i
+  curl "http://localhost:3000/rpc/teapot" -i
 
 .. code-block:: http
 
@@ -370,14 +358,7 @@ As an example, let's add some cache headers for all requests that come from an I
 
 Now when you make a GET request to a table or view, you'll get the cache headers.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-    User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" -i \
-     -H "User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)"
+  curl "http://localhost:3000/people" -i \
+   -H "User-Agent: Mozilla/4.01 (compatible; MSIE 6.0; Windows NT 5.1)"

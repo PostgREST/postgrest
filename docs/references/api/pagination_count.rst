@@ -23,15 +23,9 @@ Query Parameters
 
 One way to request limits and offsets is by using query parameters. For example:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?limit=15&offset=30 HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?limit=15&offset=30"
+  curl "http://localhost:3000/people?limit=15&offset=30"
 
 This method is also useful for embedded resources, which we will cover in another section. The server always responds with range headers even if you use query parameters to limit the query.
 
@@ -41,19 +35,11 @@ Range Header
 You can use headers to specify the range of rows desired.
 This request gets the first twenty people:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people HTTP/1.1
-    Range-Unit: items
-    Range: 0-19
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people" -i \
-      -H "Range-Unit: items" \
-      -H "Range: 0-19"
+  curl "http://localhost:3000/people" -i \
+    -H "Range-Unit: items" \
+    -H "Range: 0-19"
 
 Note that the server may respond with fewer if unable to meet your request:
 
@@ -82,21 +68,12 @@ Exact Count
 
 To get the exact count, use ``Prefer: count=exact``.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    HEAD /bigtable HTTP/1.1
-    Range-Unit: items
-    Range: 0-24
-    Prefer: count=exact
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/bigtable" -I \
-      -H "Range-Unit: items" \
-      -H "Range: 0-24" \
-      -H "Prefer: count=exact"
+  curl "http://localhost:3000/bigtable" -I \
+    -H "Range-Unit: items" \
+    -H "Range: 0-24" \
+    -H "Prefer: count=exact"
 
 Note that the larger the table the slower this query runs in the database. The server will respond with the selected range and total
 
@@ -114,17 +91,10 @@ Planned Count
 To avoid the shortcomings of :ref:`exact count <exact_count>`, PostgREST can leverage PostgreSQL statistics and get a fairly accurate and fast count.
 To do this, specify the ``Prefer: count=planned`` header.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    HEAD /bigtable?limit=25 HTTP/1.1
-    Prefer: count=planned
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/bigtable?limit=25" -I \
-      -H "Prefer: count=planned"
+  curl "http://localhost:3000/bigtable?limit=25" -I \
+    -H "Prefer: count=planned"
 
 .. code-block:: http
 
@@ -151,17 +121,10 @@ defined by :ref:`db-max-rows`.
 
 Here's an example. Suppose we set ``db-max-rows=1000`` and ``smalltable`` has 321 rows, then we'll get the exact count:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    HEAD /smalltable?limit=25 HTTP/1.1
-    Prefer: count=estimated
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/smalltable?limit=25" -I \
-      -H "Prefer: count=estimated"
+  curl "http://localhost:3000/smalltable?limit=25" -I \
+    -H "Prefer: count=estimated"
 
 .. code-block:: http
 
@@ -170,17 +133,10 @@ Here's an example. Suppose we set ``db-max-rows=1000`` and ``smalltable`` has 32
 
 If we make a similar request on ``bigtable``, which has 3573458 rows, we would get the planned count:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    HEAD /bigtable?limit=25 HTTP/1.1
-    Prefer: count=estimated
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/bigtable?limit=25" -I \
-      -H "Prefer: count=estimated"
+  curl "http://localhost:3000/bigtable?limit=25" -I \
+    -H "Prefer: count=estimated"
 
 .. code-block:: http
 

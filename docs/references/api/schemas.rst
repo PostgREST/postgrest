@@ -42,38 +42,22 @@ GET/HEAD
 
 For GET or HEAD, select the schema with ``Accept-Profile``.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /items HTTP/1.1
-     Accept-Profile: tenant2
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/items" \
-       -H "Accept-Profile: tenant2"
+  curl "http://localhost:3000/items" \
+    -H "Accept-Profile: tenant2"
 
 Other methods
 ~~~~~~~~~~~~~
 
 For POST, PATCH, PUT and DELETE, select the schema with ``Content-Profile``.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     POST /items HTTP/1.1
-     Content-Profile: tenant2
-
-     {...}
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/items" \
-       -X POST -H "Content-Type: application/json" \
-       -H "Content-Profile: tenant2" \
-       -d '{...}'
+  curl "http://localhost:3000/items" \
+    -X POST -H "Content-Type: application/json" \
+    -H "Content-Profile: tenant2" \
+    -d '{...}'
 
 You can also select the schema for :ref:`s_procs` and :ref:`open-api`.
 
@@ -82,19 +66,10 @@ Restricted schemas
 
 You can only switch to a schema included in :ref:`db-schemas`. Using another schema will result in an error:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     GET /items HTTP/1.1
-     Accept-Profile: tenant3
-
-     {...}
-
-  .. code-tab:: bash Curl
-
-     curl "http://localhost:3000/items" \
-       -H "Accept-Profile: tenant3"
+  curl "http://localhost:3000/items" \
+    -H "Accept-Profile: tenant3"
 
 .. code-block::
 

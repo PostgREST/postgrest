@@ -10,22 +10,13 @@ It also handles `preflight requests <https://developer.mozilla.org/en-US/docs/Gl
 
 A ``POST`` preflight request would look like this:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-     OPTIONS /items HTTP/1.1
-     Origin: http://example.com
-     Access-Control-Allow-Method: POST
-     Access-Control-Allow-Headers: Content-Type
-
-  .. code-tab:: bash Curl
-
-     curl -i "http://localhost:3000/items" \
-       -X OPTIONS \
-       -H "Origin: http://example.com" \
-       -H "Access-Control-Request-Method: POST" \
-       -H "Access-Control-Request-Headers: Content-Type"
+  curl -i "http://localhost:3000/items" \
+    -X OPTIONS \
+    -H "Origin: http://example.com" \
+    -H "Access-Control-Request-Method: POST" \
+    -H "Access-Control-Request-Headers: Content-Type"
 
 .. code-block:: http
 
@@ -47,4 +38,3 @@ With the following config setting, PostgREST will accept CORS requests from doma
 .. code-block::
   
   server-cors-allowed-origins="http://example.com, http://example2.com"
-

@@ -73,17 +73,10 @@ Alternate URL Structure
 
 As discussed in :ref:`singular_plural`, there are no special URL forms for singular resources in PostgREST, only operators for filtering. Thus there are no URLs like :code:`/people/1`. It would be specified instead as
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /people?id=eq.1 HTTP/1.1
-    Accept: application/vnd.pgrst.object+json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/people?id=eq.1" \
-      -H "Accept: application/vnd.pgrst.object+json"
+  curl "http://localhost:3000/people?id=eq.1" \
+    -H "Accept: application/vnd.pgrst.object+json"
 
 This allows compound primary keys and makes the intent for singular response independent of a URL convention.
 

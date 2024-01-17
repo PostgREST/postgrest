@@ -259,19 +259,11 @@ Test at the REST level
 ~~~~~~~~~~~~~~~~~~~~~~
 An API request to call this function would look like:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    POST /rpc/login HTTP/1.1
-
-    { "username": "foo", "password": "bar" }
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/rpc/login" \
-      -X POST -H "Content-Type: application/json" \
-      -d '{ "username": "foo", "password": "bar" }'
+  curl "http://localhost:3000/rpc/login" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "username": "foo", "password": "bar" }'
 
 The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`reallyreallyreallyreallyverysafe` as specified in the SQL code above. You'll want to change this secret in your app!)
 
@@ -296,31 +288,18 @@ Let's add a table, intended for the :code:`foo` user:
 
 Now try to get the table's contents with:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /foobar HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/foobar"
+  curl "http://localhost:3000/foobar"
 
 
 This should fail --- of course, we haven't specified the user, thus PostgREST falls back to the :code:`anon` user and denies access.
 Add an :code:`Authorization` header. Please use the token value from the login function call above instead of the one provided below.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /foobar HTTP/1.1
-    Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZm9vIiwiZXhwIjoxNjY4MTkyMjAyfQ.zzdHCBjfkqDQLQ8D7CHO3cIALF6KBCsfPTWgwhCiHCY
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/foobar" \
-      -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZm9vIiwiZXhwIjoxNjY4MTkyMjAyfQ.zzdHCBjfkqDQLQ8D7CHO3cIALF6KBCsfPTWgwhCiHCY"
+  curl "http://localhost:3000/foobar" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiZm9vIiwiZXhwIjoxNjY4MTkyMjAyfQ.zzdHCBjfkqDQLQ8D7CHO3cIALF6KBCsfPTWgwhCiHCY"
 
 
 This will fail again --- we get :code:`Permission denied to set role`. We forgot to allow the authenticator role to switch into this user by executing:

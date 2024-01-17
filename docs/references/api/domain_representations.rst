@@ -58,17 +58,10 @@ Then create a CAST to tell PostgREST to convert it automatically whenever a JSON
 
 With this you can obtain the data in the shortened format.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /profiles HTTP/1.1
-    Accept: application/json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/profiles" \
-      -H "Accept: application/json"
+  curl "http://localhost:3000/profiles" \
+    -H "Accept: application/json"
 
 .. code-block:: json
 
@@ -102,17 +95,10 @@ PostgREST considers the URL query string to be, in the most generic sense, ``tex
 
 Now you can filter as usual.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /profiles?id=eq.hGxP/ZLOTeeNEY4pkp9OxA== HTTP/1.1
-    Accept: application/json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/profiles?id=eq.ZLOTeeNEY4pkp9OxA==" \
-      -H "Accept: application/json"
+  curl "http://localhost:3000/profiles?id=eq.ZLOTeeNEY4pkp9OxA==" \
+    -H "Accept: application/json"
 
 .. code-block:: json
 
@@ -139,26 +125,16 @@ To accept the shortened format in a JSON request body, for example when creating
 
 Now we can :ref:`insert` (or :ref:`update`) as usual.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
+  curl "http://localhost:3000/profiles" \
+    -H "Prefer: return=representation" \
+    -H "Content-Type: application/json" \
+    -d @- <<JSON
 
-    POST /profiles HTTP/1.1
-    Content-Type: application/json
-    Prefer: return=representation
+  {"id":"zH7HbFJUTfy/GZpwuirpuQ==","name":"Jane Doe"}
 
-    {"id":"zH7HbFJUTfy/GZpwuirpuQ==","name":"Jane Doe"}
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/profiles" \
-      -H "Prefer: return=representation" \
-      -H "Content-Type: application/json" \
-      -d @- <<JSON
-
-    {"id":"zH7HbFJUTfy/GZpwuirpuQ==","name":"Jane Doe"}
-
-    JSON
+  JSON
 
 The response:
 

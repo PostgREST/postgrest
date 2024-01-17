@@ -13,15 +13,9 @@ The ``ready`` endpoint also checks the state of both the Database Connection and
 
 For instance, to verify if PostgREST is running at ``localhost:3000`` while the ``admin-server-port`` is set to ``3001``:
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET localhost:3001/live HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl -I "http://localhost:3001/live"
+  curl -I "http://localhost:3001/live"
 
 .. code-block:: http
 

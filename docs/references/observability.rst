@@ -125,18 +125,10 @@ You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Spec
 
   server-trace-header = "X-Request-Id"
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /users HTTP/1.1
-
-    X-Request-Id: 123
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/users" \
-      -H "X-Request-Id: 123"
+  curl "http://localhost:3000/users" \
+    -H "X-Request-Id: 123"
 
 .. code::
 
@@ -151,15 +143,9 @@ Server-Timing Header
 You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` on.
 This header communicates metrics of the different phases in the request-response cycle.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /users HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/users" -i
+  curl "http://localhost:3000/users" -i
 
 .. code::
 
@@ -186,17 +172,10 @@ Execution plan
 You can get the `EXPLAIN execution plan <https://www.postgresql.org/docs/current/sql-explain.html>`_ of a request by adding the ``Accept: application/vnd.pgrst.plan`` header.
 This is enabled by :ref:`db-plan-enabled` (false by default).
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /users?select=name&order=id HTTP/1.1
-    Accept: application/vnd.pgrst.plan
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/users?select=name&order=id" \
-      -H "Accept: application/vnd.pgrst.plan"
+  curl "http://localhost:3000/users?select=name&order=id" \
+    -H "Accept: application/vnd.pgrst.plan"
 
 .. code-block:: psql
 
@@ -205,17 +184,10 @@ This is enabled by :ref:`db-plan-enabled` (false by default).
 
 The output of the plan is generated in ``text`` format by default but you can change it to JSON by using the ``+json`` suffix.
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET /users?select=name&order=id HTTP/1.1
-    Accept: application/vnd.pgrst.plan+json
-
-  .. code-tab:: bash Curl
-
-    curl "http://localhost:3000/users?select=name&order=id" \
-      -H "Accept: application/vnd.pgrst.plan+json"
+  curl "http://localhost:3000/users?select=name&order=id" \
+    -H "Accept: application/vnd.pgrst.plan+json"
 
 .. code-block:: json
 

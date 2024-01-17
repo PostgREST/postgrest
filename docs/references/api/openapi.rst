@@ -81,15 +81,9 @@ You can override the whole default response with a function result. To do this, 
   end
   $_$ language plpgsql;
 
-.. tabs::
+.. code-block:: bash
 
-  .. code-tab:: http
-
-    GET / HTTP/1.1
-
-  .. code-tab:: bash Curl
-
-    curl http://localhost:3000
+  curl http://localhost:3000
 
 .. code-block:: http
 
