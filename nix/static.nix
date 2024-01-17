@@ -36,8 +36,11 @@ let
           # static libs for libpq.
           nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgs.pkgsStatic.pkg-config ];
 
-          buildInputs = [
-            pkgsStatic.openssl
+          buildInputs = prevAttrs.buildInputs ++ [
+            (pkgsStatic.libkrb5.overrideAttrs (finalAttrs: prevAttrs: {
+              # disable keyutils dependency, to avoid linking errors
+              configureFlags = prevAttrs.configureFlags ++ [ "--without-keyutils" ];
+            }))
           ];
         });
       });
