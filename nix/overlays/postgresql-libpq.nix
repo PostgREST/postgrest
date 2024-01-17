@@ -1,6 +1,6 @@
 self: super:
 {
   libpq = super.callPackage ../libpq.nix {
-    postgresql = super.postgresql_15;
+    postgresql = super.postgresql_16;
   };
 }

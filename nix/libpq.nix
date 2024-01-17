@@ -23,6 +23,7 @@ stdenv.mkDerivation {
 
   configureFlags = [
     "--without-gssapi"
+    "--without-icu"
     "--without-readline"
     "--with-openssl"
     "--with-system-tzdata=${tzdata}/share/zoneinfo"
