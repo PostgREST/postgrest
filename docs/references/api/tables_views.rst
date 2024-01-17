@@ -133,13 +133,13 @@ For instance, to avoid repeating the same column for ``or``, use ``any`` to get 
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/people?last_name=like(any).{O*,P*}"
+  curl -g "http://localhost:3000/people?last_name=like(any).{O*,P*}"
 
 In a similar way, you can use ``all`` to avoid repeating the same column for ``and``. To get the people with last names that start with O and end with n:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/people?last_name=like(all).{O*,*n}"
+  curl -g "http://localhost:3000/people?last_name=like(all).{O*,*n}"
 
 .. _pattern_matching:
 
