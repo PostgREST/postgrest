@@ -27,28 +27,28 @@ The previous tutorial created a :code:`web_anon` role in the database with which
 Step 2. Make a Secret
 ---------------------
 
-Clients authenticate with the API using JSON Web Tokens. These are JSON objects which are cryptographically signed using a password known to only us and the server. Because clients do not know the password, they cannot tamper with the contents of their tokens. PostgREST will detect counterfeit tokens and will reject them.
+Clients authenticate with the API using JSON Web Tokens. These are JSON objects which are cryptographically signed using a secret known to only us and the server. Because clients do not know this secret, they cannot tamper with the contents of their tokens. PostgREST will detect counterfeit tokens and will reject them.
 
-Let's create a password and provide it to PostgREST. Think of a nice long one, or use a tool to generate it. **Your password must be at least 32 characters long.**
+Let's create a secret and provide it to PostgREST. Think of a nice long one, or use a tool to generate it. **Your secret must be at least 32 characters long.**
 
 .. note::
 
-  Unix tools can generate a nice password for you:
+  Unix tools can generate a nice secret for you:
 
   .. code-block:: bash
 
     # Allow "tr" to process non-utf8 byte sequences
     export LC_CTYPE=C
 
-    # read random bytes and keep only alphanumerics
+    # Read random bytes keeping only alphanumerics and add the secret to the configuration file
     echo "jwt-secret = \"$(< /dev/urandom tr -dc A-Za-z0-9 | head -c32)\"" >> tutorial.conf
 
 
-check the :code:`tutorial.conf` (created in the previous tutorial) the line with the password:
+Check that the :code:`tutorial.conf` (created in the previous tutorial) has the secret set in :code:`jwt-secret`:
 
-.. code-block:: ini
+.. code-block:: bash
 
-  # PASSWORD MUST BE AT LEAST 32 CHARS LONG
+  # THE SECRET MUST BE AT LEAST 32 CHARS LONG
   cat tutorial.conf
 
 If the PostgREST server is still running from the previous tutorial, restart it to load the updated configuration file.
@@ -63,7 +63,7 @@ Ordinarily your own code in the database or in another server will create and si
 
    How to create a token at https://jwt.io
 
-**Remember to fill in the password you generated rather than the word "secret".** After you have filled in the password and payload, the encoded data on the left will update. Copy the encoded token.
+**Remember to fill in the secret you generated rather than the word "secret".** After you have filled in the secret and payload, the encoded data on the left will update. Copy the encoded token.
 
 .. note::
 
@@ -124,7 +124,7 @@ A request for the todos shows three of them, and all completed.
 Step 5. Add Expiration
 ----------------------
 
-Currently our authentication token is valid for all eternity. The server, as long as it continues using the same JWT password, will honor the token.
+Currently our authentication token is valid for all eternity. The server, as long as it continues using the same JWT secret, will honor the token.
 
 It's better policy to include an expiration timestamp for tokens using the :code:`exp` claim. This is one of two JWT claims that PostgREST treats specially.
 
