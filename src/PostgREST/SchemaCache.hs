@@ -40,8 +40,8 @@ import qualified Hasql.Encoders             as HE
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
 
-import Data.Functor.Contravariant    ((>$<))
-import Text.InterpolatedString.Perl6 (q)
+import Data.Functor.Contravariant ((>$<))
+import NeatInterpolation          (trimming)
 
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
@@ -339,7 +339,7 @@ decodeRepresentations =
 dataRepresentations :: Bool -> SQL.Statement AppConfig RepresentationsMap
 dataRepresentations = SQL.Statement sql mempty decodeRepresentations
   where
-    sql = [q|
+    sql = encodeUtf8 [trimming|
     SELECT
       c.castsource::regtype::text,
       c.casttarget::regtype::text,
@@ -376,7 +376,7 @@ accessibleFuncs = SQL.Statement sql params decodeFuncs
     sql = funcsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
 funcsSqlQuery :: SqlQuery
-funcsSqlQuery = [q|
+funcsSqlQuery = encodeUtf8 [trimming|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -461,7 +461,7 @@ funcsSqlQuery = [q|
         substr(setting, strpos(setting, '=') + 1)
       )) as kvs
     FROM unnest(proconfig) setting
-    WHERE setting ~ ANY($2)
+    WHERE setting ~ ANY($$2)
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
   AND prokind = 'f'|]
@@ -470,20 +470,20 @@ schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
     SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
   where
-    sql = [q|
+    sql = encodeUtf8 [trimming|
       select
         description
       from
         pg_namespace n
         left join pg_description d on d.objoid = n.oid
       where
-        n.nspname = $1 |]
+        n.nspname = $$1 |]
 
 accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables =
   SQL.Statement sql (arrayParam HE.text) decodeAccessibleIdentifiers
  where
-  sql = [q|
+  sql = encodeUtf8 [trimming|
     SELECT
       n.nspname AS table_schema,
       c.relname AS table_name
@@ -491,7 +491,7 @@ accessibleTables =
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('v','r','m','f','p')
     AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-    AND n.nspname = ANY($1)
+    AND n.nspname = ANY($$1)
     AND (
       pg_has_role(c.relowner, 'USAGE')
       or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -619,7 +619,7 @@ tablesSqlQuery =
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
   -- on the "columns" CTE, left joining on pg_depend and pg_class is used to obtain the sequence name as a column default in case there are GENERATED .. AS IDENTITY,
   -- generated columns are only available from pg >= 10 but the query is agnostic to versions. dep.deptype = 'i' is done because there are other 'a' dependencies on PKs
-  [q|
+  encodeUtf8 [trimming|
   WITH
   columns AS (
       SELECT
@@ -678,7 +678,7 @@ tablesSqlQuery =
           AND a.attnum > 0
           AND NOT a.attisdropped
           AND c.relkind in ('r', 'v', 'f', 'm', 'p')
-          AND nc.nspname = ANY($1)
+          AND nc.nspname = ANY($$1)
   ),
   columns_agg AS (
     SELECT DISTINCT
@@ -826,7 +826,7 @@ allM2OandO2ORels =
   SQL.Statement sql HE.noParams decodeRels
  where
   -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
-  sql = [q|
+  sql = encodeUtf8 [trimming|
     WITH
     pks_uniques_cols AS (
       SELECT
@@ -875,7 +875,7 @@ allComputedRels :: Bool -> SQL.Statement () [Relationship]
 allComputedRels =
   SQL.Statement sql HE.noParams (HD.rowList cRelRow)
  where
-  sql = [q|
+  sql = encodeUtf8 [trimming|
     with
     all_relations as (
       select reltype
@@ -927,7 +927,7 @@ allViewsKeyDependencies =
     params =
       (toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbExtraSearchPath >$< arrayParam HE.text)
-    sql = [q|
+    sql = encodeUtf8 [trimming|
       with recursive
       pks_fks as (
         -- pk + fk referencing col
@@ -963,7 +963,7 @@ allViewsKeyDependencies =
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where c.relkind in ('v', 'm') and n.nspname = ANY($1 || $2)
+        where c.relkind in ('v', 'm') and n.nspname = ANY($$1 || $$2)
       ),
       transform_json as (
         select
@@ -1067,7 +1067,7 @@ allViewsKeyDependencies =
           false,
           ARRAY[resorigtbl]
         from results r
-        where view_schema = ANY ($1)
+        where view_schema = ANY ($$1)
         union all
         select
           view.view_id,
@@ -1130,7 +1130,7 @@ mediaHandlers =
   SQL.Statement sql params decodeMediaHandlers
   where
     params = toList . configDbSchemas >$< arrayParam HE.text
-    sql = [q|
+    sql = encodeUtf8 [trimming|
       with
       all_relations as (
         select reltype
@@ -1156,7 +1156,7 @@ mediaHandlers =
           JOIN pg_type b ON t.typbasetype = b.oid
           WHERE
             t.typbasetype <> 0 and
-            (t.typname ~* '^[A-Za-z0-9.-]+/[A-Za-z0-9.\+-]+$' or t.typname = '*/*')
+            (t.typname ~* '^[A-Za-z0-9.-]+/[A-Za-z0-9.\+-]+$$' or t.typname = '*/*')
       )
       select
         proc_schema.nspname           as handler_schema,
@@ -1172,7 +1172,7 @@ mediaHandlers =
         join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
         join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
       where
-        proc_schema.nspname = ANY($1) and
+        proc_schema.nspname = ANY($$1) and
         proc.pronargs = 1 and
         arg_name.oid in (select reltype from all_relations)
       union
@@ -1188,7 +1188,7 @@ mediaHandlers =
         join media_types mtype on proc.prorettype = mtype.oid
         join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
       where
-        pro_sch.nspname = ANY($1) and NOT proretset
+        pro_sch.nspname = ANY($$1) and NOT proretset
         and prokind = 'f'|]
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap
