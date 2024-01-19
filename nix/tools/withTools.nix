@@ -324,6 +324,31 @@ let
         done
       '';
 
+  parallelCurl =
+    checkedShellScript
+      {
+        name = "parallel-curl";
+        docs = "wrapper for using <num> parallel curl requests on the same <host>";
+        args = [
+          "ARG_POSITIONAL_SINGLE([num], [number of parallel requests])"
+          "ARG_POSITIONAL_SINGLE([host], [host])"
+          "ARG_LEFTOVERS([extra arguments for curl])"
+        ];
+      }
+      ''
+        curl_command="${curl}/bin/curl --parallel --parallel-immediate "
+        curl_command+="''${_arg_leftovers[*]} "
+
+        x=1
+        while [ $x -le "$1" ]
+        do
+          curl_command+="$_arg_host "
+          x=$((x + 1))
+        done
+
+        eval "$curl_command"
+      '';
+
   withPgrst =
     checkedShellScript
       {
@@ -381,7 +406,7 @@ in
 buildToolbox
 {
   name = "postgrest-with";
-  tools = [ withPgAll withGit withPgrst withSlowPg withSlowPgrst ] ++ withPgVersions;
+  tools = [ withPgAll withGit withPgrst withSlowPg withSlowPgrst parallelCurl ] ++ withPgVersions;
   # make withTools available for other nix files
   extra = { inherit withGit withPg withPgAll withPgrst withSlowPg withSlowPgrst; };
 }
