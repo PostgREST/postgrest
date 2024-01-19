@@ -30,7 +30,9 @@ jobs:
       - name: Put all tools to store to be cached afterwards
         run: |
           # shellcheck disable=SC2046
-          nix-store -v --realize $( nix-instantiate default.nix )
+          nix-store -v --realize $( nix-instantiate default.nix \
+            -A style -A withTools -A memory -A tests -A release \
+          )
         shell: bash
     
   Lint-Style:
