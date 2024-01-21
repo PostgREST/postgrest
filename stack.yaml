@@ -11,9 +11,8 @@ nix:
 
 extra-deps:
   - configurator-pg-0.2.7
-  - git: https://github.com/PostgREST/postgresql-libpq.git
-    commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
+  - fuzzyset-0.3.1
   - hasql-notifications-0.2.0.6
   - hasql-pool-0.10
-  - fuzzyset-0.3.1
   - megaparsec-9.2.2
+  - postgresql-libpq-0.10.0.0
