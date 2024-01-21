@@ -41,15 +41,7 @@ let
       # Marked as broken (?)
       fuzzyset = lib.markUnbroken prev.fuzzyset;
 
-      postgresql-libpq = lib.dontCheck
-        (prev.callCabal2nix "postgresql-libpq"
-          (super.fetchFromGitHub {
-            owner = "PostgREST";
-            repo = "postgresql-libpq";
-            rev = "890a0a16cf57dd401420fdc6c7d576fb696003bc"; # master
-            sha256 = "1wmyhldk0k14y8whp1p4akrkqxf5snh8qsbm7fv5f7kz95nyffd0";
-          })
-          { });
+      postgresql-libpq = lib.dontCheck prev.postgresql-libpq_0_10_0_0;
 
       hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
 
