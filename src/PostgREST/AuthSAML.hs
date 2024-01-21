@@ -15,15 +15,25 @@ module PostgREST.AuthSAML
 import qualified Crypto.Hash           as H
 import qualified Data.ByteString.Char8 as S8
 import qualified Data.ByteString.Lazy  as BL
-import           Data.ByteString.UTF8  as BSU
+import Data.ByteString.UTF8 as BSU
+    ( toString, fromString, ByteString )
 import qualified Data.Cache            as C
 import           Data.IORef            (newIORef, atomicModifyIORef)
 import qualified Data.Map              as Map
 import qualified Data.Text             as T
 import           Data.String           (String)
 
-import           Network.Wai.SAML2
-import           Network.Wai.SAML2.Response
+import Network.Wai.SAML2
+    ( saml2Callback,
+      Subject(subjectNameID),
+      NameID(nameIDValue),
+      AssertionAttribute(attributeValue, attributeName),
+      Assertion(assertionSubject, assertionId,
+                assertionAttributeStatement),
+      Result(assertion, response),
+      SAML2Error )
+import Network.Wai.SAML2.Response
+    ( Response(responseSignature), Signature(signatureKeyInfo) )
 
 import qualified Network.Wai           as Wai
 import           Network.HTTP.Types    (status401)
@@ -34,14 +44,20 @@ import           Protolude
 import           Network.Wai.SAML2.KeyInfo (KeyInfo(keyInfoCertificate))
 
 -- | Middleware for the SAML2 authentication.
--- TODO: Here we could block access to the /rpc/login endpoint,
--- but function privileges can protect the function from being called directly.
+-- NOTE: Here we block access to Postgres' login endpoint,
+-- could function privileges protect the function from being called directly?
 middleware :: AppState -> Wai.Middleware
-middleware appState app =
+middleware appState app req respond = do
   case stateSAML2 appState of
-    Nothing -> app
-    Just samlState ->
-      saml2Callback samlConfig (handleSAML2Result samlState) app
+    Nothing -> app req respond
+    Just samlState -> do
+      let blockedEndpoint = BSU.fromString $ T.unpack
+                          $ saml2JwtEndpoint samlState
+      -- If the user is acessing the login function,
+      -- we need to block this request
+      if Wai.rawPathInfo req == blockedEndpoint
+      then respond $ respondError "Unauthorized."
+      else saml2Callback samlConfig (handleSAML2Result samlState) app req respond
       where
         samlConfig = saml2StateAppConfig samlState
 
@@ -148,7 +164,6 @@ extractAttributes assertion' = Map.insert "name_id" name_id attributes
                $ assertionAttributeStatement assertion'
 
     name_id = nameIDValue $ subjectNameID $ assertionSubject assertion'
-
 
 -- | Checks if a given assertion ID is already known.
 tryRetrieveAssertionID :: SAML2State -> Text -> IO Bool
