@@ -208,7 +208,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Stack working files cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ${{ matrix.cache }}
           key: cache-stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
@@ -265,7 +265,7 @@ jobs:
           mkdir ~/.cabal
           cp cabal.project.non-nix cabal.project
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cabal/packages
