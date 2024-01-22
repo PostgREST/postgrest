@@ -27,13 +27,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           cache-id: common
-      - name: Put all tools to store to be cached afterwards
-        run: |
-          # shellcheck disable=SC2046
-          nix-store -v --realize $( nix-instantiate default.nix \
-            -A style -A withTools -A memory -A tests -A release \
-          )
-        shell: bash
+          tools: style withTools memory tests release
     
   Lint-Style:
     name: Lint & check code style
