@@ -20,8 +20,8 @@ runs:
     - name: Restore and cache Nix store
       uses: nix-community/cache-nix-action@v5.0.1
       with:
-        key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
-        restore-keys: |
+        primary-key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
+        restore-prefixes-first-match: |
           cache-nix-${{ runner.os }}-common-
     - uses: cachix/cachix-action@v14
       with:
