@@ -1,5 +1,5 @@
 freebsd_instance:
-  image_family: freebsd-13-1
+  image_family: freebsd-14-0
 
 build_task:
   name: Build FreeBSD (Stack)
