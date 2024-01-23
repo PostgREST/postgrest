@@ -82,8 +82,8 @@ adj           :code:`-|-`               is adjacent to, e.g. :code:`?range=adj.(
 not           :code:`NOT`               negates another operator, see :ref:`logical_operators`
 or            :code:`OR`                logical :code:`OR`, see :ref:`logical_operators`
 and           :code:`AND`               logical :code:`AND`, see :ref:`logical_operators`
-all           :code:`ALL`               comparison matches all the values in the list, see :ref:`logical_operators`
-any           :code:`ANY`               comparison matches any value in the list, see :ref:`logical_operators`
+all           :code:`ALL`               comparison matches all the values in the list, see :ref:`modifiers`
+any           :code:`ANY`               comparison matches any value in the list, see :ref:`modifiers`
 ============  ========================  ==================================================================================
 
 For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
