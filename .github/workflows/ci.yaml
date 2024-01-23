@@ -74,6 +74,8 @@ jobs:
         with:
           files: ./coverage/codecov.json
 
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.17
       - name: Run doctests
         if: always()
         run: nix-shell --run postgrest-test-doctests
