@@ -98,8 +98,6 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: tests withTools
-          # It seems like they are installing the same set of derivations, so we can assign them the same cache id. 
-          # This would decrease the amount of caches dowloaded on merge cache step and will prevent disk space issues.
           cache-id: common 
 
       - name: Run spec tests
@@ -202,6 +200,8 @@ jobs:
         with:
           path: ${{ matrix.cache }}
           key: cache-stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            cache-stack-${{ runner.os }}-
       - name: Install dependencies
         if: ${{ matrix.deps }}
         run: ${{ matrix.deps }}

@@ -22,7 +22,9 @@ runs:
       with:
         key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
         restore-keys: |
-          cache-nix-${{ runner.os }}-common-
+          cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-
+          cache-nix-${{ runner.os }}-id-common-
+          cache-nix-${{ runner.os }}-
     - uses: cachix/cachix-action@v14
       with:
         name: postgrest
