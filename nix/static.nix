@@ -12,21 +12,6 @@ let
   inherit (pkgsCross) pkgsStatic;
   inherit (pkgsStatic.haskell) lib;
 
-  # postgresql doesn't build in the fully static overlay - but the default
-  # derivation is built with static libraries anyway.
-  libpq = (pkgsCross.postgresql.override {
-    # disable server-side only stuff to improve compilation times
-    enableSystemd = false;
-    jitSupport = false;
-
-    # disable gssapi support, because it leads to linking errors
-    gssSupport = false;
-  }).overrideAttrs (finalAttrs: prevAttrs: {
-    dontDisableStatic = true;
-    # Tests fail for initdb and other server-side code which we don't care about
-    doCheck = false;
-  });
-
   packagesStatic =
     pkgsStatic.haskell.packages."${compiler}".override (old: {
       ghc = pkgsStatic.pkgsBuildHost.haskell.compiler."${compiler}".override {
@@ -40,7 +25,9 @@ let
 
       overrides = pkgs.lib.composeExtensions old.overrides (final: prev: {
         postgresql-libpq = (prev.postgresql-libpq.override {
-          postgresql = libpq;
+          # postgresql doesn't build in the fully static overlay - but the default
+          # derivation is built with static libraries anyway.
+          postgresql = pkgsCross.libpq;
         }).overrideAttrs (finalAttrs: prevAttrs: {
           # Using use-pkg-config flag, because pg_config won't work when cross-compiling
           configureFlags = prevAttrs.configureFlags ++ [ "-fuse-pkg-config" ];
