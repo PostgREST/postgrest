@@ -1,4 +1,4 @@
-{ compiler, extraOverrides ? (final: prev: { }) }:
+{ compiler }:
 
 self: super:
 let
@@ -41,11 +41,14 @@ let
       # Marked as broken (?)
       fuzzyset = lib.markUnbroken prev.fuzzyset;
 
-      postgresql-libpq = lib.dontCheck prev.postgresql-libpq_0_10_0_0;
+      postgresql-libpq = lib.dontCheck
+        (prev.postgresql-libpq_0_10_0_0.override {
+          postgresql = super.libpq;
+        });
 
       hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
 
-    } // extraOverrides final prev;
+    };
 in
 {
   haskell =
