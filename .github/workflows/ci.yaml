@@ -27,7 +27,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           cache-id: common
-          tools: style withTools memory tests release
+          tools: style withTools memory tests release postgrestPackage
     
   Lint-Style:
     name: Lint & check code style
@@ -129,7 +129,6 @@ jobs:
   Build-Static-Nix:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
-    needs: [Prepopulate-Nix-Cache-Linux]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
