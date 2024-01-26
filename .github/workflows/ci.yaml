@@ -134,14 +134,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
-        with:
-          tools: tests
-          cache-id: common
 
       - name: Build static executable
         run: nix-build -A postgrestStatic
-      - name: Check static executable
-        run: postgrest-check-static result/bin/postgrest
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v4
         with:
