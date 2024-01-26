@@ -46,9 +46,21 @@ let
       });
     });
 
-  makeExecutableStatic = drv:
-    lib.justStaticExecutables
-      (lib.appendConfigureFlag drv "--enable-executable-static");
+  makeExecutableStatic = drv: pkgs.lib.pipe drv [
+    (lib.compose.appendConfigureFlags [ "--enable-executable-static" ])
+    lib.compose.justStaticExecutables
+    (lib.compose.overrideCabal (drv: {
+      postInstall = ''
+        exe="$out/bin/postgrest"
+        if ! (file "$exe" | grep 'statically linked') then
+          echo "not a static executable, ldd output:"
+          ldd "$exe"
+          exit 1
+        fi
+        "$exe" --help
+      '';
+    }))
+  ];
 
 in
 {

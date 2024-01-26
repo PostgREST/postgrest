@@ -192,26 +192,6 @@ let
         sed -i 's|^module \(.*\):|module \1/|g' test/coverage.overlay
       '';
 
-  checkStatic =
-    checkedShellScript
-      {
-        name = "postgrest-check-static";
-        docs = "Verify that the argument is a static executable.";
-        args = [ "ARG_POSITIONAL_SINGLE([executable], [Executable])" ];
-        inRootDir = true;
-        withEnv = postgrest.env;
-      }
-      ''
-        exe="$_arg_executable"
-        ldd_output=$(ldd "$exe" 2>&1 || true)
-        if ! grep -q "not a dynamic executable" <<< "$ldd_output"; then
-          echo "not a static executable, ldd output:"
-          echo "$ldd_output"
-          exit 1
-        fi
-        "$exe" --help
-      '';
-
 in
 buildToolbox
 {
@@ -225,6 +205,5 @@ buildToolbox
       dumpSchema
       coverage
       coverageDraftOverlay
-      checkStatic
     ];
 }
