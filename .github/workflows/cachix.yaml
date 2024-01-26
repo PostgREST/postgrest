@@ -55,13 +55,11 @@ jobs:
           postgrest-push-cachix
 
       - name: Seed static toolchain
-        if: matrix.os == 'Linux'
         run: |
           nix-build -A packagesStatic.hello
           postgrest-push-cachix
 
       - name: Seed static postgrest build
-        if: matrix.os == 'Linux'
         run: |
           nix-build -A postgrestStatic
           postgrest-push-cachix

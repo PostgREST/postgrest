@@ -127,8 +127,22 @@ jobs:
 
 
   Build-Static-Nix:
-    name: Build Linux static (Nix)
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runs-on: ubuntu-latest
+            artifact: postgrest-linux-static-x64
+            docker: postgrest-linux-docker-x64
+
+          - name: MacOS
+            runs-on: macos-latest
+            artifact: postgrest-macos-static-x64
+            docker: postgrest-macos-docker-x64
+
+    name: Build ${{ matrix.name }} static (Nix)
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
@@ -139,7 +153,7 @@ jobs:
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: postgrest-linux-static-x64
+          name: ${{ matrix.artifact }}
           path: result/bin/postgrest
           if-no-files-found: error
 
@@ -148,21 +162,9 @@ jobs:
       - name: Save built Docker image as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: postgrest-docker-x64
+          name: ${{ matrix.docker }}
           path: postgrest-docker.tar.gz
           if-no-files-found: error
-
-  Build-Macos-Nix:
-    name: Build MacOS (Nix)
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
-
-      - name: Build everything
-        run: |
-          nix-build
 
 
   Build-Stack:
@@ -476,7 +478,7 @@ jobs:
       - name: Download Docker image
         uses: actions/download-artifact@v4
         with:
-          name: postgrest-docker-x64
+          name: postgrest-linux-docker-x64
       - name: Publish images on Docker Hub
         run: |
           docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
