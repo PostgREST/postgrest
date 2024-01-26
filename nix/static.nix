@@ -8,8 +8,8 @@ let
   # pkgsStatic is based on musl, so is a kind of cross-compilation.
   # We still make this explicit here via pkgsCross, because we need
   # to get postgresql/libpq for musl, too.
-  pkgsCross = pkgs.pkgsCross.musl64;
-  inherit (pkgsCross) pkgsStatic;
+  #pkgsCross = pkgs.pkgsCross.musl64;
+  inherit (pkgs) pkgsStatic;
   inherit (pkgsStatic.haskell) lib;
 
   packagesStatic =
@@ -27,7 +27,7 @@ let
         postgresql-libpq = (prev.postgresql-libpq.override {
           # postgresql doesn't build in the fully static overlay - but the default
           # derivation is built with static libraries anyway.
-          postgresql = pkgsCross.libpq;
+          postgresql = pkgsStatic.libpq;
         }).overrideAttrs (finalAttrs: prevAttrs: {
           # Using use-pkg-config flag, because pg_config won't work when cross-compiling
           configureFlags = prevAttrs.configureFlags ++ [ "-fuse-pkg-config" ];
