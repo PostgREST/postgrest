@@ -18,10 +18,10 @@ runs:
       with:
         nix_version: '2.13.6'
     - name: Restore and cache Nix store
-      uses: nix-community/cache-nix-action@v5.0.1
+      uses: nix-community/cache-nix-action@v4.0.3
       with:
-        primary-key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
-        restore-prefixes-first-match: |
+        key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
+        restore-keys: |
           cache-nix-${{ runner.os }}-common-
     - uses: cachix/cachix-action@v14
       with:
