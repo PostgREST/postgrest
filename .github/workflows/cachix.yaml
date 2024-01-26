@@ -57,13 +57,7 @@ jobs:
       - name: Seed static toolchain
         if: matrix.os == 'Linux'
         run: |
-          nix-build -A packagesStatic.haskellPackages.hello
-          postgrest-push-cachix
-
-      - name: Seed static postgresql build (for libpq)
-        if: matrix.os == 'Linux'
-        run: |
-          nix-build -A packagesStatic.pkgs.postgresql
+          nix-build -A packagesStatic.hello
           postgrest-push-cachix
 
       - name: Seed static postgrest build
