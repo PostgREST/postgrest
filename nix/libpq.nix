@@ -28,6 +28,7 @@ stdenv.mkDerivation {
     "--with-gssapi"
     "--with-openssl"
     "--with-system-tzdata=${tzdata}/share/zoneinfo"
+    "--sysconfdir=/etc/postgresql"
   ];
 
   nativeBuildInputs = [ pkg-config tzdata ];
