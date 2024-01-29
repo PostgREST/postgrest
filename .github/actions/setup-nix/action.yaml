@@ -17,6 +17,8 @@ runs:
     - uses: nixbuild/nix-quick-install-action@v26
       with:
         nix_version: '2.13.6'
+        nix_conf: |
+          http-connections = 40
     - name: Restore and cache Nix store
       uses: nix-community/cache-nix-action@v4.0.3
       with:
