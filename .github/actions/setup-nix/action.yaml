@@ -18,7 +18,7 @@ runs:
       with:
         nix_version: '2.13.6'
         nix_conf: |
-          http-connections = 40
+          http-connections = 30
     - name: Restore and cache Nix store
       uses: nix-community/cache-nix-action@v4.0.3
       with:
