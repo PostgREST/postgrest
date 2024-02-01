@@ -38,8 +38,15 @@ let
 
           buildInputs = prevAttrs.buildInputs ++ [
             (pkgsStatic.libkrb5.overrideAttrs (finalAttrs: prevAttrs: {
-              # disable keyutils dependency, to avoid linking errors
-              configureFlags = prevAttrs.configureFlags ++ [ "--without-keyutils" ];
+              configureFlags = prevAttrs.configureFlags ++ [
+                "--sysconfdir=/etc"
+                # disable keyutils dependency, to avoid linking errors
+                "--without-keyutils"
+              ];
+
+              postInstall = prevAttrs.postInstall + ''
+                ${pkgsStatic.pkgsBuildHost.removeReferencesTo}/bin/remove-references-to -t $out $out/lib/*.a
+              '';
             }))
           ];
         });
