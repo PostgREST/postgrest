@@ -55,10 +55,14 @@ cd ~/$SCRIPT_DIR
 git clone https://github.com/PostgREST/postgrest.git
 cd postgrest
 git checkout $PGRST_GITHUB_COMMIT
+cp cabal.project.non-nix cabal.project
 cabal v2-update && cabal v2-build
 
-# Copy the built binary to the Dockerfile directory
+# Strip unused symbols from executable
 PGRST_BIN=$(cabal exec which postgrest | tail -1)
+strip $PGRST_BIN
+
+# Copy the built binary to the Dockerfile directory
 cp $PGRST_BIN ~/$DOCKER_BUILD_DIR
 
 # Move and compress the built binary

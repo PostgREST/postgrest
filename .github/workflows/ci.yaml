@@ -207,6 +207,8 @@ jobs:
         run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
+      - name: Strip Executable
+        run: strip result/postgrest*
       - name: Save built executable as artifact
         uses: actions/upload-artifact@v4
         with:

@@ -4,6 +4,9 @@
 
 packages: .
 
+package *
+  ghc-options: -split-sections
+
 -- Example of depending on a forked repository (the same dependency
 -- would be mentioned in nix/overlays/haskell-packages.nix and
 -- stack.yaml, and should refer to a main branch commit of the
