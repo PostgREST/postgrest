@@ -10,6 +10,9 @@ build_task:
     fingerprint_script: cat postgrest.cabal stack.yaml.lock
     reupload_on_changes: false
 
-  build_script: stack build -j 1 --local-bin-path . --copy-bins
+  build_script: |
+    stack build -j 1 --local-bin-path . --copy-bins
+    strip postgrest
+
   bin_artifacts:
     path: postgrest
