@@ -434,9 +434,8 @@ jobs:
           tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
 
-          # TODO: Fix timeouts for FreeBSD builds in Cirrus
-          #tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
-          #  -C artifacts/postgrest-freebsd-x64 postgrest
+          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
+            -C artifacts/postgrest-freebsd-x64 postgrest
 
           tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
