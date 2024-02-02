@@ -12,16 +12,12 @@ packages:
   original:
     hackage: configurator-pg-0.2.7
 - completed:
-    commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
-    git: https://github.com/PostgREST/postgresql-libpq.git
-    name: postgresql-libpq
+    hackage: fuzzyset-0.3.1@sha256:344e16deedb43da5cabae558450e5710843cff7ac2f3073be9db453c6f3a3fb7,2373
     pantry-tree:
-      sha256: 074668b9669b9c49f3c522c8af5c608799a1965e203c463b188b2632995beac2
-      size: 1414
-    version: 0.9.4.3
+      sha256: 89e22c2ce70a7c7c4b599ffe2546cda5699e4f8f15410eac49f39af8c4c381c8
+      size: 643
   original:
-    commit: 890a0a16cf57dd401420fdc6c7d576fb696003bc
-    git: https://github.com/PostgREST/postgresql-libpq.git
+    hackage: fuzzyset-0.3.1
 - completed:
     hackage: hasql-notifications-0.2.0.6@sha256:16d783f5cd1660fad924fd3769380889de5804e057f09b304dcdc3a3ff11eb3c,2028
     pantry-tree:
@@ -37,19 +33,19 @@ packages:
   original:
     hackage: hasql-pool-0.10
 - completed:
-    hackage: fuzzyset-0.3.1@sha256:344e16deedb43da5cabae558450e5710843cff7ac2f3073be9db453c6f3a3fb7,2373
-    pantry-tree:
-      sha256: 89e22c2ce70a7c7c4b599ffe2546cda5699e4f8f15410eac49f39af8c4c381c8
-      size: 643
-  original:
-    hackage: fuzzyset-0.3.1
-- completed:
     hackage: megaparsec-9.2.2@sha256:c306a135ec25d91d252032c6128f03598a00e87ea12fcf5fc4878fdffc75c768,3219
     pantry-tree:
       sha256: db9715d6910e64d3bbfce69895042a66fcdcd64a54805563834bf0821562b74f
       size: 1518
   original:
     hackage: megaparsec-9.2.2
+- completed:
+    hackage: postgresql-libpq-0.10.0.0@sha256:5c1cafdc2e3e5c0036b6801b10b6f14ae95b98428d6c88bc8ae560bd700d0ef7,3089
+    pantry-tree:
+      sha256: a7790b5283fc1510bde9e7c70772cdbf1ad6a3bad32ea966c6fc95e1b3c524c7
+      size: 1019
+  original:
+    hackage: postgresql-libpq-0.10.0.0
 snapshots:
 - completed:
     sha256: 23bb9bb355bfdb1635252e120a29b712f0d5e8a6c6a65c5ab5bd6692f46c438e
