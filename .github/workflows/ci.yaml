@@ -175,7 +175,7 @@ jobs:
             cache: |
               ~/.stack
               .stack-work
-            artifact: postgrest-ubuntu-x64
+            # no artifact for Linux, because we use the static build
 
           - name: MacOS
             runs-on: macos-latest
@@ -210,6 +210,7 @@ jobs:
       - name: Strip Executable
         run: strip result/postgrest*
       - name: Save built executable as artifact
+        if: ${{ matrix.artifact }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
@@ -417,11 +418,6 @@ jobs:
 
           tar cJvf "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.xz" \
             -C artifacts/postgrest-linux-static-x64 postgrest
-
-          # No need to release Ubuntu, as the static Linux binary built with Nix
-          # covers all Linux use-cases
-          #tar cfJv "release-bundle/postgrest-v$VERSION-ubuntu-x64.tar.xz" \
-          #  -C artifacts/postgrest-ubuntu-x64 postgrest
 
           tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
