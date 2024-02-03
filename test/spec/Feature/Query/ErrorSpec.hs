@@ -9,8 +9,8 @@ import Test.Hspec.Wai.JSON
 
 import Protolude hiding (get)
 
-spec :: SpecWith ((), Application)
-spec = do
+nonExistentSchema :: SpecWith ((), Application)
+nonExistentSchema = do
   describe "Non existent api schema" $ do
     it "succeeds when requesting root path" $
       get "/" `shouldRespondWith` 200
@@ -61,3 +61,9 @@ spec = do
              "code": "PGRST117",
              "message":"Unsupported HTTP method: OTHER"}|]
           { matchStatus = 405 }
+
+pgErrorCodeMapping :: SpecWith ((), Application)
+pgErrorCodeMapping = do
+  describe "PostreSQL error code mappings" $ do
+    it "should return 500 for cardinality_violation" $
+      get "/bad_subquery" `shouldRespondWith` 500

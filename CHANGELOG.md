@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
  - #2815, Build static executable with GSSAPI support - @wolfgangwalther
+ - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
 
 ### Deprecated
 

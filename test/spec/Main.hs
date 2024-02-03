@@ -152,6 +152,7 @@ main = do
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
         , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
+        , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)
         ]
 
   hspec $ do
@@ -211,7 +212,7 @@ main = do
 
     -- this test runs with a nonexistent db-schema
     parallel $ before nonexistentSchemaApp $
-      describe "Feature.Query.ErrorSpec" Feature.Query.ErrorSpec.spec
+      describe "Feature.Query.NonExistentSchemaErrorSpec" Feature.Query.ErrorSpec.nonExistentSchema
 
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $ do

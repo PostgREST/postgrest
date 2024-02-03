@@ -3752,3 +3752,6 @@ create aggregate test.some_agg (some_numbers) (
 , sfunc = some_trans
 , finalfunc = some_final
 );
+
+create view bad_subquery as
+select * from projects where id = (select id from projects);
