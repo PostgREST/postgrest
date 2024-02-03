@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
+ - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
 
 ## [12.0.2] - 2023-12-20
 
