@@ -15,6 +15,16 @@ build-type:         Simple
 extra-source-files: CHANGELOG.md
 cabal-version:      >= 1.10
 
+tested-with:
+    -- stack on FreeBSD, MacOS, Ubuntu, Windows
+    GHC == 9.4.5
+    -- nix, cabal on Ubuntu
+  , GHC == 9.4.8
+    -- cabal on Ubuntu
+  , GHC == 9.6.4
+    -- cabal on Ubuntu
+  , GHC == 9.8.2
+
 source-repository head
   type:     git
   location: git://github.com/PostgREST/postgrest.git
