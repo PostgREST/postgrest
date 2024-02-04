@@ -28,6 +28,12 @@ let
       sha256 = nixpkgsVersion.tarballHash;
     };
 
+  nixpkgs-patched = (import nixpkgs { inherit overlays system; }).applyPatches {
+    name = "nixpkgs-patched";
+    src = nixpkgs;
+    patches = [ nix/split-sections-cross.patch ];
+  };
+
   allOverlays =
     import nix/overlays;
 
@@ -46,7 +52,7 @@ let
 
   # Evaluated expression of the Nixpkgs repository.
   pkgs =
-    import nixpkgs { inherit overlays system; };
+    import nixpkgs-patched { inherit overlays system; };
 
   postgresqlVersions =
     [
@@ -82,7 +88,7 @@ let
   inherit (pkgs.haskell) lib;
 in
 rec {
-  inherit nixpkgs pkgs;
+  inherit nixpkgs-patched pkgs;
 
   # Derivation for the PostgREST Haskell package, including the executable,
   # libraries and documentation. We disable running the test suite on Nix
