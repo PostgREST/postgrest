@@ -1337,28 +1337,6 @@ def test_no_preflight_request_with_CORS_config_should_not_return_header(defaulte
         assert "Access-Control-Allow-Origin" not in response.headers
 
 
-def test_fail_with_3_sec_statement_and_1_sec_statement_timeout(defaultenv):
-    "statement that takes three seconds to execute should fail with one second timeout"
-
-    with run(env=defaultenv) as postgrest:
-        response = postgrest.session.post("/rpc/one_sec_timeout")
-
-        assert response.status_code == 500
-        assert (
-            response.text
-            == '{"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"}'
-        )
-
-
-def test_passes_with_3_sec_statement_and_4_sec_statement_timeout(defaultenv):
-    "statement that takes three seconds to execute should succeed with four second timeout"
-
-    with run(env=defaultenv) as postgrest:
-        response = postgrest.session.post("/rpc/four_sec_timeout")
-
-        assert response.status_code == 204
-
-
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
 def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
     "verify that DB errors are logged to stderr"
@@ -1385,3 +1363,43 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         else:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[1]
+
+
+def test_function_setting_statement_timeout_fails(defaultenv):
+    "statement that takes three seconds to execute should fail with one second timeout"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/one_sec_timeout")
+
+        assert response.status_code == 500
+        assert (
+            response.text
+            == '{"code":"57014","details":null,"hint":null,"message":"canceling statement due to statement timeout"}'
+        )
+
+
+def test_function_setting_statement_timeout_passes(defaultenv):
+    "statement that takes three seconds to execute should succeed with four second timeout"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/four_sec_timeout")
+
+        assert response.status_code == 204
+
+
+def test_function_setting_work_mem(defaultenv):
+    "check function setting work_mem is applied"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/work_mem_test")
+
+        assert response.text == '"6000kB"'
+
+
+def test_multiple_func_settings(defaultenv):
+    "check multiple function settings are applied"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.post("/rpc/multiple_func_settings_test")
+
+        assert response.text == '[{"work_mem":"5000kB","statement_timeout":"10s"}]'

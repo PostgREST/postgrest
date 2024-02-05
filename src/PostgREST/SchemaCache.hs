@@ -74,7 +74,6 @@ import qualified PostgREST.MediaType as MediaType
 
 import Protolude
 
-
 data SchemaCache = SchemaCache
   { dbTables          :: TablesMap
   , dbRelationships   :: RelationshipsMap
@@ -297,7 +296,7 @@ decodeFuncs =
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
               <*> nullableColumn (toIsolationLevel <$> HD.text)
-              <*> nullableColumn HD.text
+              <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
 
     addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -432,7 +431,7 @@ funcsSqlQuery pgVer = [q|
     p.provolatile,
     p.provariadic > 0 as hasvariadic,
     lower((regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1]) AS transaction_isolation_level,
-    lower((regexp_split_to_array((regexp_split_to_array(timeout_config, '='))[2], ','))[1]) AS statement_timeout
+    coalesce(func_settings.kvs, '{}') as kvs
   FROM pg_proc p
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
@@ -442,7 +441,15 @@ funcsSqlQuery pgVer = [q|
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid
   LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config like 'default_transaction_isolation%'
-  LEFT JOIN LATERAL unnest(proconfig) timeout_config ON timeout_config like 'statement_timeout%'
+  LEFT JOIN LATERAL (
+    SELECT
+      array_agg(row(
+        substr(setting, 1, strpos(setting, '=') - 1),
+        lower(substr(setting, strpos(setting, '=') + 1))
+      )) as kvs
+    FROM unnest(proconfig) setting
+    WHERE setting not LIKE 'default_transaction_isolation%'
+  ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
 

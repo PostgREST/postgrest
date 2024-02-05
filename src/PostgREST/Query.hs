@@ -247,12 +247,12 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
 
 -- | Set transaction scoped settings
 setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
-               ApiRequest -> Maybe Text -> DbHandler ()
-setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} tout = lift $
+               [(Text,Text)] -> ApiRequest -> DbHandler ()
+setPgLocals AppConfig{..} claims role roleSettings funcSettings ApiRequest{..} = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ timeoutSql ++ appSettingsSql))
+    ("select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql))
     HD.noResult configDbPreparedStatements
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -264,7 +264,7 @@ setPgLocals AppConfig{..} claims role roleSettings ApiRequest{..} tout = lift $
     roleSettingsSql = setConfigWithDynamicName <$> roleSettings
     appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
-    timeoutSql = maybe mempty ((\t -> [setConfigWithConstantName ("statement_timeout", t)]) . encodeUtf8) tout
+    funcSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> funcSettings)
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)
