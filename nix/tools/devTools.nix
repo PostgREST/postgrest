@@ -55,9 +55,7 @@ let
       }
       ''
         ${nix}/bin/nix-instantiate \
-          | while read -r drv; do
-              ${nix}/bin/nix-store -qR --include-outputs "$drv"
-            done \
+          | xargs ${nix}/bin/nix-store -qR --include-outputs \
           | ${cachix}/bin/cachix push postgrest
       '';
 
