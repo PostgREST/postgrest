@@ -198,3 +198,14 @@ $$ language sql set statement_timeout = '4s';
 create function get_postgres_version() returns int as $$
   select current_setting('server_version_num')::int;
 $$ language sql;
+
+create or replace function work_mem_test() returns text as $$
+  select current_setting('work_mem',false);
+$$ language sql set work_mem = '6000';
+
+create or replace function multiple_func_settings_test() returns setof record as $$
+  select current_setting('work_mem',false) as work_mem,
+         current_setting('statement_timeout',false) as statement_timeout;
+$$ language sql
+set work_mem = '5000'
+set statement_timeout = '10s';
