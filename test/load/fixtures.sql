@@ -13,7 +13,7 @@ INSERT INTO test.actors VALUES (1, 'John Doe');
 
 -- POST target needs generated PK
 CREATE TABLE test.films (
-  id  INT PRIMARY KEY,
+  id INT PRIMARY KEY,
   title TEXT,
   year TEXT,
   runtime TEXT,
