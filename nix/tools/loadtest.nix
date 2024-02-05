@@ -24,6 +24,7 @@ let
         : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
 
         ${vegeta}/bin/vegeta -cpus 1 attack \
+                                     -dns-ttl -1 \
                                      -unix-socket "$PGRST_SERVER_UNIX_SOCKET" \
                                      -max-workers 1 \
                                      -workers 1 \
