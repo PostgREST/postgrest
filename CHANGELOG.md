@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
  - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
+ - #3171, Add an ability to dump config via admin API - @skywriter
 
 ### Fixed
 
