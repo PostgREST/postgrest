@@ -24,19 +24,16 @@ let
       };
 
       overrides = pkgs.lib.composeExtensions old.overrides (_: prev: {
-        postgresql-libpq = (prev.postgresql-libpq.override {
+        postgresql-libpq = (lib.overrideCabal prev.postgresql-libpq {
+          # TODO: This section can be simplified when this PR has made it's way to us:
+          #  https://github.com/NixOS/nixpkgs/pull/286370
+          # Using use-pkg-config flag, because pg_config won't work when cross-compiling
+          configureFlags = [ "-fuse-pkg-config" ];
           # postgresql doesn't build in the fully static overlay - but the default
           # derivation is built with static libraries anyway.
-          postgresql = pkgsCross.libpq;
+          libraryPkgconfigDepends = [ pkgsCross.libpq ];
+          librarySystemDepends = [ ];
         }).overrideAttrs (_: prevAttrs: {
-          # Using use-pkg-config flag, because pg_config won't work when cross-compiling
-          configureFlags = prevAttrs.configureFlags ++ [
-            "-fuse-pkg-config"
-            "--with-pkg-config=${pkgsStatic.pkgsBuildHost.pkg-config}/bin/${pkgsStatic.targetPlatform.config}-pkg-config"
-          ];
-          # This needs to match where libpq is coming from above.
-          nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgsCross.pkgsBuildHost.pkg-config ];
-
           buildInputs = prevAttrs.buildInputs ++ [
             (pkgsStatic.libkrb5.overrideAttrs (_: prevAttrs: {
               configureFlags = prevAttrs.configureFlags ++ [
@@ -55,7 +52,6 @@ let
     });
 
   makeExecutableStatic = drv: pkgs.lib.pipe drv [
-    (lib.compose.appendConfigureFlags [ "--enable-executable-static" ])
     lib.compose.justStaticExecutables
 
     # To successfully compile a redistributable, fully static executable we need to:
