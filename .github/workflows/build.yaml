@@ -109,9 +109,9 @@ jobs:
         uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
         with:
           path: ${{ matrix.cache }}
-          key: cache-stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
+          key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
           restore-keys: |
-            cache-stack-${{ runner.os }}-
+            stack-${{ runner.os }}-
       - name: Install dependencies
         if: matrix.deps
         run: ${{ matrix.deps }}
@@ -175,9 +175,9 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
+          key: cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
           restore-keys: |
-            cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-
+            cabal-${{ runner.os }}-${{ matrix.ghc }}-
       - name: Install dependencies
         run: |
           cabal update
