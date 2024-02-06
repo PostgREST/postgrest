@@ -273,7 +273,7 @@ jobs:
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal', '**/cabal.project') }}
+          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
           restore-keys: |
             cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-
       - name: Install dependencies
