@@ -2,7 +2,7 @@ name: Upload Reports
 
 on:
   workflow_run:
-    workflows: ["Loadtest"]
+    workflows: ["CI"]
     types:
       - completed
 
@@ -12,7 +12,6 @@ jobs:
     permissions:
       checks: write
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Download from Artifacts
         uses: dawidd6/action-download-artifact@v3
