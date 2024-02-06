@@ -115,12 +115,11 @@ jobs:
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Stack working files cache
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: ./.github/actions/cache-on-main
         with:
           path: ${{ matrix.cache }}
-          key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
-          restore-keys: |
-            stack-${{ runner.os }}-
+          prefix: stack
+          suffix: ${{ hashFiles('stack.yaml.lock') }}
       - name: Install dependencies
         if: matrix.deps
         run: ${{ matrix.deps }}
@@ -171,15 +170,14 @@ jobs:
         run: |
           mkdir ~/.cabal
       - name: Cache
-        uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
+        uses: ./.github/actions/cache-on-main
         with:
           path: |
             ~/.cabal/packages
             ~/.cabal/store
             dist-newstyle
-          key: cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
-          restore-keys: |
-            cabal-${{ runner.os }}-${{ matrix.ghc }}-
+          prefix: cabal-${{ matrix.ghc }}
+          suffix: ${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
       - name: Install dependencies
         run: |
           cabal update
