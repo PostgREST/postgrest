@@ -11,6 +11,8 @@ import qualified Network.Wai.Handler.Warp  as Warp
 
 import Control.Monad.Extra (whenJust)
 
+import qualified Data.ByteString.Lazy as LBS
+
 import Network.Socket
 import Network.Socket.ByteString
 
@@ -18,6 +20,7 @@ import PostgREST.AppState (AppState)
 import PostgREST.Config   (AppConfig (..))
 
 import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Config   as Config
 
 import Protolude
 import Protolude.Partial (fromJust)
@@ -45,6 +48,9 @@ admin appState appConfig req respond  = do
       respond $ Wai.responseLBS (if isMainAppReachable && isConnectionUp && isSchemaCacheLoaded then HTTP.status200 else HTTP.status503) [] mempty
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+    ["config"] -> do
+      config <- AppState.getConfig appState
+      respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
 

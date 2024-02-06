@@ -632,6 +632,16 @@ def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
             t.join()
 
 
+def test_admin_config(defaultenv):
+    "Should get a success response from the admin server containing current configuration"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.admin.get("/config")
+        print(response.text)
+        assert response.status_code == 200
+        assert "admin-server-port" in response.text
+
+
 def test_admin_ready_w_channel(defaultenv):
     "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
