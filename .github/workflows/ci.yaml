@@ -11,10 +11,10 @@ on:
     branches:
       - main
       - rel-*
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  
-  # Terminate all previous runs of the same workflow and branch/tag, except for main and release branches/tags
+  # Terminate all previous runs of the same workflow and branch, except for main and release branches
   cancel-in-progress: "${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}"
 
 jobs:
