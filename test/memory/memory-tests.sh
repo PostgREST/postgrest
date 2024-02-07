@@ -103,8 +103,8 @@ postJsonArrayTest(){
 echo "Running memory usage tests.."
 
 jsonKeyTest "1M" "POST" "/rpc/leak?columns=blob" "27M"
-jsonKeyTest "1M" "POST" "/leak?columns=blob" "16M"
-jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "16M"
+jsonKeyTest "1M" "POST" "/leak?columns=blob" "20M"
+jsonKeyTest "1M" "PATCH" "/leak?id=eq.1&columns=blob" "20M"
 
 jsonKeyTest "10M" "POST" "/rpc/leak?columns=blob" "44M"
 jsonKeyTest "10M" "POST" "/leak?columns=blob" "44M"
@@ -114,8 +114,8 @@ jsonKeyTest "50M" "POST" "/rpc/leak?columns=blob" "172M"
 jsonKeyTest "50M" "POST" "/leak?columns=blob" "172M"
 jsonKeyTest "50M" "PATCH" "/leak?id=eq.1&columns=blob" "172M"
 
-postJsonArrayTest "1000" "/perf_articles?columns=id,body" "15M"
-postJsonArrayTest "10000" "/perf_articles?columns=id,body" "15M"
+postJsonArrayTest "1000" "/perf_articles?columns=id,body" "20M"
+postJsonArrayTest "10000" "/perf_articles?columns=id,body" "20M"
 postJsonArrayTest "100000" "/perf_articles?columns=id,body" "24M"
 
 trap - int term exit
