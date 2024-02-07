@@ -164,6 +164,7 @@ jobs:
           path: postgrest-docker.tar.gz
           if-no-files-found: error
 
+
   Build-Macos-Nix:
     name: Build MacOS (Nix)
     runs-on: macos-latest
@@ -235,6 +236,7 @@ jobs:
             result/postgrest.exe
           if-no-files-found: error
 
+
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-latest
@@ -252,6 +254,7 @@ jobs:
           name: postgrest-freebsd-x64
           path: postgrest
           if-no-files-found: error
+
 
   Build-Cabal:
     strategy:
@@ -286,6 +289,7 @@ jobs:
           cabal build --only-dependencies --enable-tests --enable-benchmarks
       - name: Build
         run: cabal build --enable-tests --enable-benchmarks all
+
 
   Build-Cabal-Arm:
     name: Build aarch64 (Cabal, GHC 9.4.8)
@@ -513,6 +517,7 @@ jobs:
 #            echo "Skipping updating description for pre-release..."
 #          fi
 
+
   Release-Docker-Arm:
     name: Release Arm Builds on Docker Hub
     runs-on: ubuntu-latest
@@ -541,6 +546,7 @@ jobs:
           script_stop: true
           envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
           script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
+
 
   Clean-Arm-Server:
     name: Remove copied files from server
