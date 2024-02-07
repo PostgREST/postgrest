@@ -12,8 +12,6 @@ runs:
   using: composite
   steps:
     - uses: nixbuild/nix-quick-install-action@v26
-      with:
-        nix_version: '2.13.6'
     - uses: cachix/cachix-action@v14
       with:
         name: postgrest
