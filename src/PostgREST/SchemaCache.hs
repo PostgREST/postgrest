@@ -24,6 +24,7 @@ module PostgREST.SchemaCache
   , accessibleTables
   , accessibleFuncs
   , schemaDescription
+  , showSummary
   ) where
 
 import Control.Monad.Extra (whenJust)
@@ -34,6 +35,7 @@ import qualified Data.Aeson.Types           as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
+import qualified Data.Text                  as T
 import qualified Hasql.Decoders             as HD
 import qualified Hasql.Encoders             as HE
 import qualified Hasql.Statement            as SQL
@@ -92,6 +94,16 @@ instance JSON.ToJSON SchemaCache where
     , "dbMediaHandlers"   .= JSON.emptyArray
     , "dbTimezones"       .= JSON.emptyArray
     ]
+
+showSummary :: SchemaCache -> Text
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs _) =
+  T.intercalate ", "
+  [ show (HM.size tbls)       <> " Relations"
+  , show (HM.size rels)       <> " Relationships"
+  , show (HM.size routs)      <> " Functions"
+  , show (HM.size reps)       <> " Domain Representations"
+  , show (HM.size mediaHdlrs) <> " Media Type Handlers"
+  ]
 
 -- | A view foreign key or primary key dependency detected on its source table
 -- Each column of the key could be referenced multiple times in the view, e.g.
