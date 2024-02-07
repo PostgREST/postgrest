@@ -291,18 +291,14 @@ jobs:
         run: cabal build --enable-tests --enable-benchmarks all
 
   Build-Cabal-Arm:
-    strategy:
-      matrix:
-        ghc: ['9.4.8']
-      fail-fast: false
-    name: Build aarch64 (Cabal, GHC ${{ matrix.ghc }})
+    name: Build aarch64 (Cabal, GHC 9.4.8)
     if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-') }}
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
     env:
       GITHUB_COMMIT: ${{ github.sha }}
-      GHC_VERSION: ${{ matrix.ghc }}
+      GHC_VERSION: '9.4.8'
     steps:
       - uses: actions/checkout@v4
       - id: Remote-Dir
