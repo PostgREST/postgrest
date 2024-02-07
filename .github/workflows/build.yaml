@@ -67,10 +67,19 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Install gnu sed
+        run: brew install gnu-sed
 
       - name: Build everything
         run: |
-          nix-build
+          # The --dry-run will give us a list of derivations to download from cachix and
+          # derivations to build. We only take those that would have to be built and then build
+          # those explicitly. This has the advantage that pure verification will not include
+          # a download anymore, making it much faster. If something needs to be built, only
+          # the dependencies required to do so will be downloaded, but not everything.
+          nix-build --dry-run 2>&1 \
+            | gsed -e '1,/derivations will be built:$/d' -e '/paths will be fetched/Q' \
+            | xargs nix-build
 
 
   stack:
