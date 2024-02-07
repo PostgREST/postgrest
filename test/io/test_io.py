@@ -582,6 +582,42 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
             assert "Timed out acquiring connection from connection pool." in output[1]
 
 
+def test_db_pool_configuration_reload(defaultenv):
+    "Verify that PGRST_DB_POOL setting is reloaded correctly"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "1",
+        "PGRST_DB_POOL_ACQUISITION_TIMEOUT": "1",  # 1 second
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post(
+            "/rpc/change_db_pool_config", data={"size": 2}
+        )
+        assert response.status_code == 204
+
+        sleep_until_postgrest_config_reload()
+
+        def sleep():
+            res = postgrest.session.get("/rpc/sleep?seconds=1")
+            assert res.status_code == 204
+
+        def get_projects():
+            res = postgrest.session.get("/projects")
+            assert res.status_code == 200
+
+        thread_1 = Thread(target=sleep)
+        thread_1.start()
+
+        # This would return an error if the DB_POOL is only 1
+        thread_2 = Thread(target=get_projects)
+        thread_2.start()
+
+        thread_1.join()
+        thread_2.join()
+
+
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"
 

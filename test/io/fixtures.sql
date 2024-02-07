@@ -198,3 +198,11 @@ $$ language sql set statement_timeout = '4s';
 create function get_postgres_version() returns int as $$
   select current_setting('server_version_num')::int;
 $$ language sql;
+
+create function change_db_pool_config(size int) returns void as $_$
+begin
+  execute format($$
+    alter role postgrest_test_authenticator set pgrst.db_pool = %L;
+  $$, size);
+  perform pg_notify('pgrst', 'reload config');
+end $_$ volatile security definer language plpgsql;
