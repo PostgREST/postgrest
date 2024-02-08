@@ -57,11 +57,11 @@ For example, consider a database of films and their awards:
       language text
     );
 
-    CREATE TABLE technical_specs(
-      film_id INT REFERENCES films UNIQUE,
-      runtime TIME,
-      camera TEXT,
-      sound TEXT
+    create table technical_specs(
+      film_id int references films(id) primary key,
+      runtime time,
+      camera text,
+      sound text
     );
 
     create table roles(
@@ -216,11 +216,11 @@ One-to-one relationships are detected in two ways.
 
   .. code-block:: postgresql
 
-    CREATE TABLE technical_specs(
-      film_id INT REFERENCES films UNIQUE,
-      runtime TIME,
-      camera TEXT,
-      sound TEXT
+    create table technical_specs(
+      film_id int references films(id) unique,
+      runtime time,
+      camera text,
+      sound text
     );
 
 .. code-block:: bash
