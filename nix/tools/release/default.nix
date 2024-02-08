@@ -56,31 +56,68 @@ let
         inRootDir = true;
       }
       ''
+        branch="$(git rev-parse --abbrev-ref HEAD)";
+
         trap "echo You need to be on the main branch or a release branch to proceed. Exiting ..." ERR
-        [[ "$(git rev-parse --abbrev-ref HEAD)" =~ ^main$|^rel- ]]
+        [[ "$branch" =~ ^main$|^rel- ]]
         trap "" ERR
 
         trap "echo You have uncommitted changes in postgrest.cabal. Exiting ..." ERR
         git diff --exit-code HEAD postgrest.cabal > /dev/null
         trap "" ERR
 
+        if [[ "$branch" == main ]]; then
+          echo -e "\e[33mNote: A nightly release will be done, switch to a release branch for other options.\e[0m"
+          echo
+          echo "The nightly tag in the remote repository will be replaced by the current commit and launch the nightly release."
+          echo
+
+          read -r -p 'Proceed? (y/N) ' REPLY
+          case "$REPLY" in
+            y|Y)
+              echo "Tagging ..."
+              git tag -f nightly > /dev/null
+
+              trap "echo Remote not found. Please push manually ..." ERR
+              remote="$(git remote -v | grep PostgREST/postgrest | grep push | cut -f1)"
+              trap "" ERR
+
+              tag_remove="git push $remote :refs/tags/nightly"
+              tag_push="git push $remote nightly"
+
+              echo "Deleting remote nightly tag and updating with local one ..."
+              echo
+              echo "$tag_remove"
+              echo "$tag_push"
+              echo
+
+              $tag_remove
+              $tag_push
+              ;;
+            *)
+              echo "Aborting ..."
+              ;;
+          esac
+
+          exit 0
+        fi
+
+        echo -e "\e[33mNote: If you want to release a nightly build, switch to the main branch.\e[0m"
+
         current_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
         # shellcheck disable=SC2034
-        IFS=. read -r major minor patch pre <<< "$current_version"
+        IFS=. read -r major minor patch <<< "$current_version"
         echo "Current version is $current_version"
 
-        today_date="$(date '+%Y%m%d')"
         today_date_for_changelog="$(date '+%Y-%m-%d')"
-        bump_pre="$major.$minor.$patch.$today_date"
-        bump_pre_minor="$major.$((minor+1)).0.$today_date"
         bump_patch="$major.$minor.$((patch+1))"
         bump_minor="$major.$((minor+1)).0"
         bump_major="$((major+1)).0.0"
 
         PS3="Please select the new version: "
-        select new_version in "$bump_pre" "$bump_pre_minor" "$bump_patch" "$bump_minor" "$bump_major"; do
+        select new_version in "$bump_patch" "$bump_minor" "$bump_major"; do
           case "$REPLY" in
-            1|2|3|4|5)
+            1|2|3)
               echo "Selected $new_version"
               break
               ;;
@@ -96,11 +133,9 @@ let
         echo "Committing ..."
         git add postgrest.cabal > /dev/null
 
-        if [[ "$new_version" != "$bump_pre" && "$new_version" != "$bump_pre_minor" ]]; then
-          echo "Updating CHANGELOG.md ..."
-          sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
-          git add CHANGELOG.md > /dev/null
-        fi
+        echo "Updating CHANGELOG.md ..."
+        sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
+        git add CHANGELOG.md > /dev/null
 
         git commit -m "bump version to $new_version" > /dev/null
 
