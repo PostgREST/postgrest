@@ -376,7 +376,7 @@ internalConnectionWorker appState = work
           putPgVersion appState actualPgVersion
           when configDbChannelEnabled $
             signalListener appState
-          logWithZTime appState "Connection successful"
+          logWithZTime appState $ "Successfully connected to " <> pgvFullName actualPgVersion
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
           when configDbConfig $ reReadConfig False appState
