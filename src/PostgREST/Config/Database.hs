@@ -75,8 +75,8 @@ queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
 pgVersionStatement :: Bool -> SQL.Statement () PgVersion
 pgVersionStatement = SQL.Statement sql HE.noParams versionRow
   where
-    sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version')"
-    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text
+    sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version'), version()"
+    versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text <*> column HD.text
 
 -- | Query the in-database configuration. The settings have the following priorities:
 --
