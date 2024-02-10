@@ -7,9 +7,6 @@ inputs:
     description: Token to pass to cachix
   tools:
     description: Tools to install with nix-env -iA <tools>
-  cache-id:
-    description: Cache id to use for cache-nix-action
-    default: "default"
 
 runs:
   using: composite
@@ -17,13 +14,7 @@ runs:
     - uses: nixbuild/nix-quick-install-action@v26
       with:
         nix_version: '2.13.6'
-    - name: Restore and cache Nix store
-      uses: nix-community/cache-nix-action@v4.0.3
-      with:
-        key: cache-nix-${{ runner.os }}-id-${{ inputs.cache-id }}-${{ hashFiles('nix/**/*.nix', '.github/actions/setup-nix/*') }}
-        restore-keys: |
-          cache-nix-${{ runner.os }}-common-
-    - uses: cachix/cachix-action@v13
+    - uses: cachix/cachix-action@v14
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
