@@ -7,8 +7,7 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion121)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion121)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -75,28 +74,16 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
     -- this works fine for /rpc/unexistent requests, but for this case a 500 seems more appropriate
     it "fails when a double arrow ->> is followed with a single arrow ->" $ do
       get "/json_arr?select=data->>c->1"
-        `shouldRespondWith` (
-        if actualPgVersion >= pgVersion112 then
+        `shouldRespondWith`
         [json|
           {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
            "details":null,"code":"42883","message":"operator does not exist: text -> integer"} |]
-           else
-        [json|
-          {"hint":"No operator matches the given name and argument type(s). You might need to add explicit type casts.",
-           "details":null,"code":"42883","message":"operator does not exist: text -> integer"} |]
-                            )
         { matchStatus  = 404 , matchHeaders = [] }
       get "/json_arr?select=data->>c->b"
-        `shouldRespondWith` (
-        if actualPgVersion >= pgVersion112 then
+        `shouldRespondWith`
         [json|
           {"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.",
            "details":null,"code":"42883","message":"operator does not exist: text -> unknown"} |]
-           else
-        [json|
-          {"hint":"No operator matches the given name and argument type(s). You might need to add explicit type casts.",
-           "details":null,"code":"42883","message":"operator does not exist: text -> unknown"} |]
-                            )
         { matchStatus  = 404 , matchHeaders = [] }
 
     context "with array index" $ do

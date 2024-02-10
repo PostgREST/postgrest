@@ -126,8 +126,8 @@ main = do
         analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
-        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec actualPgVersion)
+          ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec)
+        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
         , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
         , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
@@ -143,7 +143,7 @@ main = do
         , ("Feature.Query.PreferencesSpec"               , Feature.Query.PreferencesSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec actualPgVersion)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
-        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
