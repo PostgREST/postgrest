@@ -60,7 +60,7 @@ let
         abs_output="$(realpath "$_arg_output")"
 
         # shellcheck disable=SC2145
-        ${withTools.withPg} --fixtures "$_arg_testdir"/fixtures.sql \
+        ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
         ${withTools.withSlowPg} \
         ${withTools.withPgrst} \
         ${withTools.withSlowPgrst} \
