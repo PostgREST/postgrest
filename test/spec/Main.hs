@@ -142,8 +142,8 @@ main = do
         , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
         , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
         , ("Feature.NoSuperuserSpec"                     , Feature.NoSuperuserSpec.spec)
-        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
-        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec actualPgVersion)
+        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec)
+        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec)
         , ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.DeleteSpec"                    , Feature.Query.DeleteSpec.spec)
@@ -163,7 +163,7 @@ main = do
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
-        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
+        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
         ]
 
   hspec $ do

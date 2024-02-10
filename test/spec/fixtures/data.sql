@@ -685,18 +685,16 @@ INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
 INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
 INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
 
+INSERT INTO test.car_brands(name) VALUES ('DMC');
+INSERT INTO test.car_brands(name) VALUES ('Ferrari');
+INSERT INTO test.car_brands(name) VALUES ('Lamborghini');
+
+UPDATE test.car_models SET car_brand_name = 'DMC' WHERE name = 'DeLorean';
+UPDATE test.car_models SET car_brand_name = 'Ferrari' WHERE name = 'F310-B';
+UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Veneno';
+UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Murcielago';
+
 DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    INSERT INTO test.car_brands(name) VALUES ('DMC');
-    INSERT INTO test.car_brands(name) VALUES ('Ferrari');
-    INSERT INTO test.car_brands(name) VALUES ('Lamborghini');
-
-    UPDATE test.car_models SET car_brand_name = 'DMC' WHERE name = 'DeLorean';
-    UPDATE test.car_models SET car_brand_name = 'Ferrari' WHERE name = 'F310-B';
-    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Veneno';
-    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Murcielago';
-  END IF;
-
   IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
     INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-14',7,'DeLorean',1981);
     INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-15',9,'DeLorean',1981);

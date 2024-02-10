@@ -23,8 +23,7 @@ import Data.Maybe (fromJust)
 import Data.Tree  (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
-import PostgREST.Config.PgVersion         (PgVersion, pgVersion110,
-                                           pgVersion130)
+import PostgREST.Config.PgVersion         (PgVersion, pgVersion130)
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
@@ -202,9 +201,9 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
-    callIt argument | pgVer < pgVersion130 && pgVer >= pgVersion110 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
-                    | returnsScalar || returnsSetOfScalar                                    = "(SELECT " <> fromQi qi <> "(" <> argument <> ") pgrst_scalar) pgrst_call"
-                    | otherwise                                                              = fromQi qi <> "(" <> argument <> ") pgrst_call"
+    callIt argument | pgVer < pgVersion130 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
+                    | returnsScalar || returnsSetOfScalar           = "(SELECT " <> fromQi qi <> "(" <> argument <> ") pgrst_scalar) pgrst_call"
+                    | otherwise                                     = fromQi qi <> "(" <> argument <> ") pgrst_call"
 
     fmtParams :: [RoutineParam] -> SQL.Snippet
     fmtParams prms = intercalateSnippet ", "
