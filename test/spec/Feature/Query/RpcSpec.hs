@@ -11,14 +11,11 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion114)
-
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion =
+spec :: SpecWith ((), Application)
+spec =
   describe "remote procedure call" $ do
     context "a proc that returns a set" $ do
       context "returns paginated results" $ do
@@ -599,13 +596,12 @@ spec actualPgVersion =
             [json|"object"|]
             { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion114) $
-        it "parses quoted JSON arguments as JSON string (from Postgres 10.9, 11.4)" $
-          post "/rpc/json_argument"
-              [json| { "arg": "{ \"key\": 3 }" } |]
-            `shouldRespondWith`
-              [json|"string"|]
-              { matchHeaders = [matchContentTypeJson] }
+      it "parses quoted JSON arguments as JSON string (from Postgres 10.9, 11.4)" $
+        post "/rpc/json_argument"
+            [json| { "arg": "{ \"key\": 3 }" } |]
+          `shouldRespondWith`
+            [json|"string"|]
+            { matchHeaders = [matchContentTypeJson] }
 
     context "improper input" $ do
       it "rejects unknown content type even if payload is good" $ do
@@ -1019,10 +1015,9 @@ spec actualPgVersion =
         get "/rpc/get_tsearch?text_search_vector=not.fts(english).fun%7Crat" `shouldRespondWith`
           [json|[{"text_search_vector":"'amus':5 'fair':7 'impossibl':9 'peu':4"},{"text_search_vector":"'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        when (actualPgVersion >= pgVersion112) $
-            get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
-                [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
-                { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
+            [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "should work with the phraseto_tsquery function" $
         get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
