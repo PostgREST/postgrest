@@ -3,12 +3,15 @@ self: super:
 # PostgREST.
 {
   # PostgreSQL 11 was removed from Nixpkgs with
-  # https://github.com/NixOS/nixpkgs/commit/1220a4d4dd1a4590780a5e1c18d1333a121be366
-  # We pin its parent commit to get the last version that was available.
+  # https://github.com/NixOS/nixpkgs/commit/1220a4d4dd1a4590780a5e1c18d1333a121be366.
+  # However, postgis was updated to 3.4.0 five months before at
+  # https://github.com/NixOS/nixpkgs/commit/dfde9c83bce9e6c2bc903dfc1bca3bf93b3f52de.
+  # Since postgis 3.4.0 doesn't support v11 anymore, we pin the last commit with
+  # postgis 3.3.3.
   postgresql_11 =
     let
-      rev = "f5458516e42cc5cb4123cc2d93f45c240548aa18";
-      tarballHash = "1h03621sxfhw4z6ya74k6c2lyx3z7pvf2jcg4vs7i01yz2m6w3cv";
+      rev = "0b458fbc462ced7fc03c8b68cf1b1bd0d92af465";
+      tarballHash = "1vapq800crshsrvypckldrzy3ss0gzbb9mxlh3yajmdg702hcvrf";
       pinnedPkgs =
         builtins.fetchTarball {
           url = "https://github.com/nixos/nixpkgs/archive/${rev}.tar.gz";

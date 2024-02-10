@@ -45,7 +45,6 @@ let
       allOverlays.postgresql-libpq
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
-      allOverlays.postgis
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
