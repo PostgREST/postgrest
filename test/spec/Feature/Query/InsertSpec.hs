@@ -11,9 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion120, pgVersion130,
-                                   pgVersion140)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
+                                   pgVersion130, pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -710,24 +709,16 @@ spec actualPgVersion = do
 
     it "fails inserting if more columns are selected" $
       request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
-        [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
-      if actualPgVersion >= pgVersion112 then
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-         else
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                      )
+        [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith`
+        [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
         { matchStatus  = 401
         , matchHeaders = []
         }
 
     it "fails inserting if select is not specified" $
       request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
-        [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
-      if actualPgVersion >= pgVersion112 then
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-         else
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                      )
+        [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith`
+        [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
         { matchStatus  = 401
         , matchHeaders = []
         }

@@ -7,13 +7,11 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112)
-
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion =
+spec :: SpecWith ((), Application)
+spec =
   describe "and/or params used for complex boolean logic" $ do
     context "used with GET" $ do
       context "or param" $ do
@@ -96,17 +94,16 @@ spec actualPgVersion =
           get "/entities?and=(id.gte.2,arr.isdistinct.{1,2})&select=id" `shouldRespondWith`
             [json|[{ "id": 3 }, { "id": 4 }]|] { matchHeaders = [matchContentTypeJson] }
 
-        when (actualPgVersion >= pgVersion112) $
-          it "can handle wfts (websearch_to_tsquery)" $
-            get "/tsearch?or=(text_search_vector.plfts(german).Art,text_search_vector.plfts(french).amusant,text_search_vector.not.wfts(english).impossible)"
-            `shouldRespondWith`
-              [json|[
-                     {"text_search_vector": "'also':2 'fun':3 'possibl':8" },
-                     {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" },
-                     {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
-                     {"text_search_vector": "'art':4 'spass':5 'unmog':7" }
-              ]|]
-              { matchHeaders = [matchContentTypeJson] }
+        it "can handle wfts (websearch_to_tsquery)" $
+          get "/tsearch?or=(text_search_vector.plfts(german).Art,text_search_vector.plfts(french).amusant,text_search_vector.not.wfts(english).impossible)"
+          `shouldRespondWith`
+            [json|[
+                   {"text_search_vector": "'also':2 'fun':3 'possibl':8" },
+                   {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" },
+                   {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
+                   {"text_search_vector": "'art':4 'spass':5 'unmog':7" }
+            ]|]
+            { matchHeaders = [matchContentTypeJson] }
 
         it "can handle cs and cd" $
           get "/entities?or=(arr.cs.{1,2,3},arr.cd.{1})&select=id" `shouldRespondWith`

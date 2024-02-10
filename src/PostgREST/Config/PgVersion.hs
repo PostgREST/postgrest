@@ -3,8 +3,6 @@
 module PostgREST.Config.PgVersion
   ( PgVersion(..)
   , minimumPgVersion
-  , pgVersion112
-  , pgVersion114
   , pgVersion120
   , pgVersion121
   , pgVersion130
@@ -29,16 +27,14 @@ instance Ord PgVersion where
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = pgVersion110
+minimumPgVersion = pgVersion11
 
-pgVersion110 :: PgVersion
-pgVersion110 = PgVersion 110000 "11.0" "11.0"
-
-pgVersion112 :: PgVersion
-pgVersion112 = PgVersion 110002 "11.2" "11.2"
-
-pgVersion114 :: PgVersion
-pgVersion114 = PgVersion 110004 "11.4" "11.4"
+-- PostgreSQL 11 is EOL already, so we only allow the last
+-- minor release as the minimum version. Theoretically. But
+-- the version we are using from legacy nix is only 11.21,
+-- so we are happy with that.
+pgVersion11 :: PgVersion
+pgVersion11 = PgVersion 110021 "11.21" "11.21"
 
 pgVersion120 :: PgVersion
 pgVersion120 = PgVersion 120000 "12.0" "12.0"

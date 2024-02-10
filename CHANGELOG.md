@@ -44,6 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
+ - #2052, Raise minimum required PostgreSQL version to 11.21 - @wolfgangwalther
 
 ### Deprecated
 
