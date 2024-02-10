@@ -41,6 +41,7 @@ let
       allOverlays.postgresql-future
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
+      (allOverlays.minimal { inherit compiler; })
     ];
 
   # Evaluated expression of the Nixpkgs repository.
