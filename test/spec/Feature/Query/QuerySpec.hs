@@ -8,8 +8,7 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
-                                   pgVersion112, pgVersion121)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion121)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -176,28 +175,27 @@ spec actualPgVersion = do
           [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion112) $ do
-        it "finds matches with websearch_to_tsquery" $
-            get "/tsearch?text_search_vector=wfts.The%20Fat%20Rats" `shouldRespondWith`
-                [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-                { matchHeaders = [matchContentTypeJson] }
+      it "finds matches with websearch_to_tsquery" $
+          get "/tsearch?text_search_vector=wfts.The%20Fat%20Rats" `shouldRespondWith`
+              [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+              { matchHeaders = [matchContentTypeJson] }
 
-        it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
-          get "/tsearch?text_search_vector=wfts.fun%20and%20possible"
-            `shouldRespondWith`
-              [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
-              { matchHeaders = [matchContentTypeJson] }
-          get "/tsearch?text_search_vector=wfts.impossible%20or%20possible"
-            `shouldRespondWith`
-              [json| [
-                {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-                {"text_search_vector": "'also':2 'fun':3 'possibl':8"}]
-                  |]
-              { matchHeaders = [matchContentTypeJson] }
-          get "/tsearch?text_search_vector=wfts.fun%20and%20-possible"
-            `shouldRespondWith`
-              [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
-              { matchHeaders = [matchContentTypeJson] }
+      it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
+        get "/tsearch?text_search_vector=wfts.fun%20and%20possible"
+          `shouldRespondWith`
+            [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=wfts.impossible%20or%20possible"
+          `shouldRespondWith`
+            [json| [
+              {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+              {"text_search_vector": "'also':2 'fun':3 'possibl':8"}]
+                |]
+            { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=wfts.fun%20and%20-possible"
+          `shouldRespondWith`
+            [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
+            { matchHeaders = [matchContentTypeJson] }
 
       it "finds matches with different dictionaries" $ do
         get "/tsearch?text_search_vector=fts(french).amusant" `shouldRespondWith`
@@ -207,11 +205,10 @@ spec actualPgVersion = do
           [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
           { matchHeaders = [matchContentTypeJson] }
 
-        when (actualPgVersion >= pgVersion112) $
-            get "/tsearch?text_search_vector=wfts(french).amusant%20impossible"
-                `shouldRespondWith`
-                  [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
-                  { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=wfts(french).amusant%20impossible"
+            `shouldRespondWith`
+              [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+              { matchHeaders = [matchContentTypeJson] }
 
       it "can be negated with not operator" $ do
         get "/tsearch?text_search_vector=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
@@ -231,13 +228,12 @@ spec actualPgVersion = do
             {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
             {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
           { matchHeaders = [matchContentTypeJson] }
-        when (actualPgVersion >= pgVersion112) $
-            get "/tsearch?text_search_vector=not.wfts(english).impossible%20or%20fat%20or%20fun"
-                `shouldRespondWith`
-                  [json| [
-                    {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-                    {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-                  { matchHeaders = [matchContentTypeJson] }
+        get "/tsearch?text_search_vector=not.wfts(english).impossible%20or%20fat%20or%20fun"
+            `shouldRespondWith`
+              [json| [
+                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+              { matchHeaders = [matchContentTypeJson] }
 
       context "Use of the phraseto_tsquery function" $ do
         it "finds matches" $
@@ -539,107 +535,106 @@ spec actualPgVersion = do
           [json|[{"id":1,"computed_overload":true}]|]
           { matchHeaders = [matchContentTypeJson] }
 
-    when (actualPgVersion >= pgVersion110) $ do
-      describe "partitioned tables embedding" $ do
-        it "can request a table as parent from a partitioned table" $
-          get "/car_models?name=in.(DeLorean,Murcielago)&select=name,year,car_brands(name)&order=name.asc" `shouldRespondWith`
+    describe "partitioned tables embedding" $ do
+      it "can request a table as parent from a partitioned table" $
+        get "/car_models?name=in.(DeLorean,Murcielago)&select=name,year,car_brands(name)&order=name.asc" `shouldRespondWith`
+          [json|
+            [{"name":"DeLorean","year":1981,"car_brands":{"name":"DMC"}},
+             {"name":"Murcielago","year":2001,"car_brands":{"name":"Lamborghini"}}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "can request partitioned tables as children from a table" $
+        get "/car_brands?select=name,car_models(name,year)&order=name.asc&car_models.order=name.asc" `shouldRespondWith`
+          [json|
+            [{"name":"DMC","car_models":[{"name":"DeLorean","year":1981}]},
+             {"name":"Ferrari","car_models":[{"name":"F310-B","year":1997}]},
+             {"name":"Lamborghini","car_models":[{"name":"Murcielago","year":2001},{"name":"Veneno","year":2013}]}] |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      when (actualPgVersion >= pgVersion121) $ do
+        it "can request tables as children from a partitioned table" $
+          get "/car_models?name=in.(DeLorean,F310-B)&select=name,year,car_racers(name)&order=name.asc" `shouldRespondWith`
             [json|
-              [{"name":"DeLorean","year":1981,"car_brands":{"name":"DMC"}},
-               {"name":"Murcielago","year":2001,"car_brands":{"name":"Lamborghini"}}] |]
+              [{"name":"DeLorean","year":1981,"car_racers":[]},
+               {"name":"F310-B","year":1997,"car_racers":[{"name":"Michael Schumacher"}]}] |]
             { matchHeaders = [matchContentTypeJson] }
 
-        it "can request partitioned tables as children from a table" $
-          get "/car_brands?select=name,car_models(name,year)&order=name.asc&car_models.order=name.asc" `shouldRespondWith`
+        it "can request a partitioned table as parent from a table" $
+          get "/car_racers?select=name,car_models(name,year)&order=name.asc" `shouldRespondWith`
             [json|
-              [{"name":"DMC","car_models":[{"name":"DeLorean","year":1981}]},
-               {"name":"Ferrari","car_models":[{"name":"F310-B","year":1997}]},
-               {"name":"Lamborghini","car_models":[{"name":"Murcielago","year":2001},{"name":"Veneno","year":2013}]}] |]
+              [{"name":"Alain Prost","car_models":null},
+               {"name":"Michael Schumacher","car_models":{"name":"F310-B","year":1997}}] |]
             { matchHeaders = [matchContentTypeJson] }
 
-        when (actualPgVersion >= pgVersion121) $ do
-          it "can request tables as children from a partitioned table" $
-            get "/car_models?name=in.(DeLorean,F310-B)&select=name,year,car_racers(name)&order=name.asc" `shouldRespondWith`
-              [json|
-                [{"name":"DeLorean","year":1981,"car_racers":[]},
-                 {"name":"F310-B","year":1997,"car_racers":[{"name":"Michael Schumacher"}]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+        it "can request partitioned tables as children from a partitioned table" $
+          get "/car_models?name=in.(DeLorean,Murcielago,Veneno)&select=name,year,car_model_sales(date,quantity)&order=name.asc" `shouldRespondWith`
+            [json|
+              [{"name":"DeLorean","year":1981,"car_model_sales":[{"date":"2021-01-14","quantity":7},{"date":"2021-01-15","quantity":9}]},
+               {"name":"Murcielago","year":2001,"car_model_sales":[{"date":"2021-02-11","quantity":1},{"date":"2021-02-12","quantity":3}]},
+               {"name":"Veneno","year":2013,"car_model_sales":[]}] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-          it "can request a partitioned table as parent from a table" $
-            get "/car_racers?select=name,car_models(name,year)&order=name.asc" `shouldRespondWith`
-              [json|
-                [{"name":"Alain Prost","car_models":null},
-                 {"name":"Michael Schumacher","car_models":{"name":"F310-B","year":1997}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+        it "can request a partitioned table as parent from a partitioned table" $ do
+          get "/car_model_sales?date=in.(2021-01-15,2021-02-11)&select=date,quantity,car_models(name,year)&order=date.asc" `shouldRespondWith`
+            [json|
+              [{"date":"2021-01-15","quantity":9,"car_models":{"name":"DeLorean","year":1981}},
+               {"date":"2021-02-11","quantity":1,"car_models":{"name":"Murcielago","year":2001}}] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-          it "can request partitioned tables as children from a partitioned table" $
-            get "/car_models?name=in.(DeLorean,Murcielago,Veneno)&select=name,year,car_model_sales(date,quantity)&order=name.asc" `shouldRespondWith`
-              [json|
-                [{"name":"DeLorean","year":1981,"car_model_sales":[{"date":"2021-01-14","quantity":7},{"date":"2021-01-15","quantity":9}]},
-                 {"name":"Murcielago","year":2001,"car_model_sales":[{"date":"2021-02-11","quantity":1},{"date":"2021-02-12","quantity":3}]},
-                 {"name":"Veneno","year":2013,"car_model_sales":[]}] |]
-              { matchHeaders = [matchContentTypeJson] }
+        it "can request many to many relationships between partitioned tables ignoring the intermediate table partitions" $
+          get "/car_models?select=name,year,car_dealers(name,city)&order=name.asc&limit=4" `shouldRespondWith`
+            [json|
+              [{"name":"DeLorean","year":1981,"car_dealers":[{"name":"Springfield Cars S.A.","city":"Springfield"}]},
+               {"name":"F310-B","year":1997,"car_dealers":[]},
+               {"name":"Murcielago","year":2001,"car_dealers":[{"name":"The Best Deals S.A.","city":"Franklin"}]},
+               {"name":"Veneno","year":2013,"car_dealers":[]}] |]
+            { matchStatus  = 200
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-          it "can request a partitioned table as parent from a partitioned table" $ do
-            get "/car_model_sales?date=in.(2021-01-15,2021-02-11)&select=date,quantity,car_models(name,year)&order=date.asc" `shouldRespondWith`
-              [json|
-                [{"date":"2021-01-15","quantity":9,"car_models":{"name":"DeLorean","year":1981}},
-                 {"date":"2021-02-11","quantity":1,"car_models":{"name":"Murcielago","year":2001}}] |]
-              { matchHeaders = [matchContentTypeJson] }
+        it "cannot request partitions as children from a partitioned table" $
+          get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
+            [json|
+              {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
+               "details":"Searched for a foreign key relationship between 'car_models' and 'car_model_sales_202101' in the schema 'test', but no matches were found.",
+               "code":"PGRST200",
+               "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
+            { matchStatus  = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-          it "can request many to many relationships between partitioned tables ignoring the intermediate table partitions" $
-            get "/car_models?select=name,year,car_dealers(name,city)&order=name.asc&limit=4" `shouldRespondWith`
-              [json|
-                [{"name":"DeLorean","year":1981,"car_dealers":[{"name":"Springfield Cars S.A.","city":"Springfield"}]},
-                 {"name":"F310-B","year":1997,"car_dealers":[]},
-                 {"name":"Murcielago","year":2001,"car_dealers":[{"name":"The Best Deals S.A.","city":"Franklin"}]},
-                 {"name":"Veneno","year":2013,"car_dealers":[]}] |]
-              { matchStatus  = 200
-              , matchHeaders = [matchContentTypeJson]
-              }
+        it "cannot request a partitioned table as parent from a partition" $
+          get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
+            [json|
+              {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
+               "details":"Searched for a foreign key relationship between 'car_model_sales_202101' and 'car_models' in the schema 'test', but no matches were found.",
+               "code":"PGRST200",
+               "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
+            { matchStatus  = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-          it "cannot request partitions as children from a partitioned table" $
-            get "/car_models?id=in.(1,2,4)&select=id,name,car_model_sales_202101(id)&order=id.asc" `shouldRespondWith`
-              [json|
-                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
-                 "details":"Searched for a foreign key relationship between 'car_models' and 'car_model_sales_202101' in the schema 'test', but no matches were found.",
-                 "code":"PGRST200",
-                 "message":"Could not find a relationship between 'car_models' and 'car_model_sales_202101' in the schema cache"} |]
-              { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
-              }
+        it "cannot request a partition as parent from a partitioned table" $
+          get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
+            [json|
+              {"hint":"Perhaps you meant 'car_models' instead of 'car_models_default'.",
+               "details":"Searched for a foreign key relationship between 'car_model_sales' and 'car_models_default' in the schema 'test', but no matches were found.",
+               "code":"PGRST200",
+               "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
+            { matchStatus  = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
 
-          it "cannot request a partitioned table as parent from a partition" $
-            get "/car_model_sales_202101?select=id,name,car_models(id,name)&order=id.asc" `shouldRespondWith`
-              [json|
-                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_model_sales_202101'.",
-                 "details":"Searched for a foreign key relationship between 'car_model_sales_202101' and 'car_models' in the schema 'test', but no matches were found.",
-                 "code":"PGRST200",
-                 "message":"Could not find a relationship between 'car_model_sales_202101' and 'car_models' in the schema cache"} |]
-              { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
-              }
-
-          it "cannot request a partition as parent from a partitioned table" $
-            get "/car_model_sales?id=in.(1,3,4)&select=id,name,car_models_default(id,name)&order=id.asc" `shouldRespondWith`
-              [json|
-                {"hint":"Perhaps you meant 'car_models' instead of 'car_models_default'.",
-                 "details":"Searched for a foreign key relationship between 'car_model_sales' and 'car_models_default' in the schema 'test', but no matches were found.",
-                 "code":"PGRST200",
-                 "message":"Could not find a relationship between 'car_model_sales' and 'car_models_default' in the schema cache"} |]
-              { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
-              }
-
-          it "cannot request partitioned tables as children from a partition" $
-            get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
-              [json|
-                {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_models_default'.",
-                 "details":"Searched for a foreign key relationship between 'car_models_default' and 'car_model_sales' in the schema 'test', but no matches were found.",
-                 "code":"PGRST200",
-                 "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
-              { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
-              }
+        it "cannot request partitioned tables as children from a partition" $
+          get "/car_models_default?select=id,name,car_model_sales(id,name)&order=id.asc" `shouldRespondWith`
+            [json|
+              {"hint":"Perhaps you meant 'car_model_sales' instead of 'car_models_default'.",
+               "details":"Searched for a foreign key relationship between 'car_models_default' and 'car_model_sales' in the schema 'test', but no matches were found.",
+               "code":"PGRST200",
+               "message":"Could not find a relationship between 'car_models_default' and 'car_model_sales' in the schema cache"} |]
+            { matchStatus  = 400
+            , matchHeaders = [matchContentTypeJson]
+            }
 
     describe "view embedding" $ do
       it "can detect fk relations through views to tables in the public schema" $
@@ -1362,22 +1357,19 @@ spec actualPgVersion = do
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
-    -- Before PG 11, this will fail because we need arrays of domain type values. The docs should explain data reps are
-    -- not supported in this case.
-    when (actualPgVersion >= pgVersion110) $ do
-      it "uses text parser for filter with 'IN' predicates" $
-        get "/datarep_todos?select=id,due_at&label_color=in.(000100,01E240)" `shouldRespondWith`
-          [json| [
-            {"id":2, "due_at": "2018-01-03T00:00:00Z"},
-            {"id":3, "due_at": "2018-01-01T14:12:34.123456Z"}
-          ] |]
-          { matchHeaders = [matchContentTypeJson] }
-      it "uses text parser for filter with 'NOT IN' predicates" $
-        get "/datarep_todos?select=id,due_at&label_color=not.in.(000000,01E240)" `shouldRespondWith`
-          [json| [
-            {"id":2, "due_at": "2018-01-03T00:00:00Z"}
-          ] |]
-          { matchHeaders = [matchContentTypeJson] }
+    it "uses text parser for filter with 'IN' predicates" $
+      get "/datarep_todos?select=id,due_at&label_color=in.(000100,01E240)" `shouldRespondWith`
+        [json| [
+          {"id":2, "due_at": "2018-01-03T00:00:00Z"},
+          {"id":3, "due_at": "2018-01-01T14:12:34.123456Z"}
+        ] |]
+        { matchHeaders = [matchContentTypeJson] }
+    it "uses text parser for filter with 'NOT IN' predicates" $
+      get "/datarep_todos?select=id,due_at&label_color=not.in.(000000,01E240)" `shouldRespondWith`
+        [json| [
+          {"id":2, "due_at": "2018-01-03T00:00:00Z"}
+        ] |]
+        { matchHeaders = [matchContentTypeJson] }
     it "uses text parser on value for filter across relations" $
       get "/datarep_next_two_todos?select=id,name,datarep_todos!datarep_next_two_todos_first_item_id_fkey(label_color,due_at)&datarep_todos.label_color=neq.000100" `shouldRespondWith`
         [json| [{"id":1,"name":"school related","datarep_todos":null},{"id":2,"name":"do these first","datarep_todos":{"label_color":"#000000","due_at":"2018-01-02T00:00:00Z"}}] |]
@@ -1385,15 +1377,10 @@ spec actualPgVersion = do
     -- This is not supported by data reps (would be hard to make it work with high performance). So the test just
     -- verifies we don't panic or add inappropriate SQL to the filters.
     it "fails safely on user trying to use ilike operator on data reps column" $
-      get "/datarep_todos?select=id,name&label_color=ilike.#*100" `shouldRespondWith` (
-        if actualPgVersion >= pgVersion110 then
+      get "/datarep_todos?select=id,name&label_color=ilike.#*100" `shouldRespondWith`
         [json|
           {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
         |]
-        else
-        [json|
-          {"code":"42883","details":null,"hint":"No operator matches the given name and argument type(s). You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
-        |])
         { matchStatus  = 404
         , matchHeaders = [matchContentTypeJson]
         }

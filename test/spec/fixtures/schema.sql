@@ -1055,19 +1055,14 @@ CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF project
     update test.projects set name = $3 WHERE id >= $1 AND id <= $2 returning *;
 $_$;
 
--- domains on tables are only supported from pg 11 on
-DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-      CREATE DOMAIN projects_domain AS projects;
+CREATE DOMAIN projects_domain AS projects;
 
-      CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
-          LANGUAGE sql
-          STABLE
-          AS $_$
-          SELECT projects::projects_domain FROM test.projects WHERE id = $1;
-    $_$;
-  END IF;
-END$do$;
+CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
+    LANGUAGE sql
+    STABLE
+    AS $_$
+    SELECT projects::projects_domain FROM test.projects WHERE id = $1;
+$_$;
 
 create table images (
 	name text  not null,
@@ -1128,16 +1123,11 @@ create function test.ret_point_overloaded(x json) returns json as $$
   select $1;
 $$ language sql;
 
--- domains on composite types are only supported from pg 11 on
-do $do$begin
-  if (SELECT current_setting('server_version_num')::int >= 110000) then
-    create domain test.composite_domain as test.point_2d;
+create domain test.composite_domain as test.point_2d;
 
-    create function test.ret_composite_domain() returns test.composite_domain as $$
-      select row(10, 5)::test.composite_domain;
-    $$ language sql;
-  end if;
-end$do$;
+create function test.ret_composite_domain() returns test.composite_domain as $$
+  select row(10, 5)::test.composite_domain;
+$$ language sql;
 
 create type private.point_3d as (x integer, y integer, z integer);
 
@@ -2298,36 +2288,29 @@ create table private.rollen (
 );
 
 -- Tables used for testing embedding between partitioned tables
+create table test.car_models(
+  name varchar(64) not null,
+  year int not null
+) partition by list (year);
 
-do $do$begin
-    -- partitioned tables using the PARTITION syntax are supported from pg v10
-    if (select current_setting('server_version_num')::int >= 100000) then
-      create table test.car_models(
-        name varchar(64) not null,
-        year int not null
-      ) partition by list (year);
-
-      comment on table test.car_models is
-      $$A partitioned table
+comment on table test.car_models is
+$$A partitioned table
 
 A test for partitioned tables$$;
 
-      create table test.car_models_2021 partition of test.car_models
-        for values in (2021);
-      create table test.car_models_default partition of test.car_models
-        for values in (1981,1997,2001,2013);
-    end if;
+create table test.car_models_2021 partition of test.car_models
+  for values in (2021);
+create table test.car_models_default partition of test.car_models
+  for values in (1981,1997,2001,2013);
 
-    -- primary keys for partitioned tables are supported from pg v11
-    if (select current_setting('server_version_num')::int >= 110000) then
-      create table test.car_brands (
-        name varchar(64) primary key
-      );
+create table test.car_brands (
+  name varchar(64) primary key
+);
 
-      alter table test.car_models add primary key (name, year);
-      alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
-    end if;
+alter table test.car_models add primary key (name, year);
+alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
 
+do $do$begin
     -- foreign keys referencing partitioned tables are supported from pg v12
     if (select current_setting('server_version_num')::int >= 120000) then
       create table test.car_model_sales(
@@ -2501,22 +2484,15 @@ BEGIN
 END$$;
 
 -- This view is not used in any requests but just parsed by the pfkSourceColumns query.
--- XMLTABLE is only supported from PG 10 on
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 100000 THEN
-    CREATE VIEW test.xml AS
-    SELECT *
-      FROM (SELECT ''::xml AS data) _,
-           XMLTABLE(
-             ''
-             PASSING data
-             COLUMNS id int PATH '@id',
-                     premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified'
-           );
-  END IF;
-END
-$do$;
+CREATE VIEW test.xml AS
+SELECT *
+  FROM (SELECT ''::xml AS data) _,
+       XMLTABLE(
+         ''
+         PASSING data
+         COLUMNS id int PATH '@id',
+                 premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified'
+       );
 
 -- https://github.com/PostgREST/postgrest/issues/1543
 CREATE TYPE complex AS (
@@ -2538,12 +2514,8 @@ create table test.arrays (
 
 -- This procedure is to confirm that procedures don't show up in the OpenAPI output right now.
 -- Procedures are not supported, yet.
-do $do$begin
-  if (select current_setting('server_version_num')::int >= 110000) then
-    CREATE PROCEDURE test.unsupported_proc ()
-    LANGUAGE SQL AS '';
-  end if;
-end $do$;
+CREATE PROCEDURE test.unsupported_proc ()
+LANGUAGE SQL AS '';
 
 CREATE FUNCTION public.dummy(int) RETURNS int
 LANGUAGE SQL AS $$ SELECT 1 $$;
@@ -3286,17 +3258,11 @@ create table test.tbl_w_json(
   data json
 );
 
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 100000 THEN
-    CREATE TABLE test.channels (
-      id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-      data jsonb DEFAULT '{"foo": "bar"}',
-      slug text
-    );
-  END IF;
-END
-$do$;
+CREATE TABLE test.channels (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  data jsonb DEFAULT '{"foo": "bar"}',
+  slug text
+);
 
 CREATE FUNCTION test.is_superuser() RETURNS boolean
 LANGUAGE sql
