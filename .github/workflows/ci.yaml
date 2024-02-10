@@ -18,22 +18,9 @@ concurrency:
   cancel-in-progress: "${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}"
 
 jobs:
-  Prepopulate-Nix-Cache-Linux:
-    name: Prepopulate Nix cache for Linux runners
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
-        with:
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          cache-id: common
-          tools: style withTools memory tests release postgrestPackage
-    
   Lint-Style:
     name: Lint & check code style
     runs-on: ubuntu-latest
-    needs: [Prepopulate-Nix-Cache-Linux]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
@@ -41,7 +28,6 @@ jobs:
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: style
-          cache-id: common
       - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
@@ -51,7 +37,6 @@ jobs:
   Test-Nix:
     name: Test (Nix)
     runs-on: ubuntu-latest
-    needs: [Prepopulate-Nix-Cache-Linux]
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -64,7 +49,6 @@ jobs:
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests
-          cache-id: common
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
@@ -89,7 +73,6 @@ jobs:
         pgVersion: [9.6, 10, 11, 12, 13, 14, 15, 16]
     name: Test PG ${{ matrix.pgVersion }} (Nix)
     runs-on: ubuntu-latest
-    needs: [Prepopulate-Nix-Cache-Linux]
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -102,7 +85,6 @@ jobs:
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: tests withTools
-          cache-id: common 
 
       - name: Run spec tests
         if: always()
@@ -116,7 +98,6 @@ jobs:
   Test-Memory-Nix:
     name: Test memory (Nix)
     runs-on: ubuntu-latest
-    needs: [Prepopulate-Nix-Cache-Linux]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Nix Environment
@@ -124,7 +105,6 @@ jobs:
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: memory
-          cache-id: common
       - name: Run memory tests
         run: postgrest-test-memory
 
