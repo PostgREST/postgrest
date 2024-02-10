@@ -47,8 +47,7 @@ import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               pgVersionStatement,
                                               toIsolationLevel)
-import PostgREST.Config.PgVersion            (PgVersion, pgVersion110,
-                                              pgVersion120)
+import PostgREST.Config.PgVersion            (PgVersion, pgVersion120)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
@@ -148,11 +147,11 @@ querySchemaCache AppConfig{..} = do
   pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
-  m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
-  funcs   <- SQL.statement (schemas, configDbHoistedTxSettings) $ allFunctions pgVer prepared
+  m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
+  funcs   <- SQL.statement (schemas, configDbHoistedTxSettings) $ allFunctions prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement schemas $ dataRepresentations prepared
-  mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
+  mHdlers <- SQL.statement schemas $ mediaHandlers prepared
   tzones  <- SQL.statement mempty $ timezones prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
@@ -362,18 +361,18 @@ dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentatio
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: PgVersion -> Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
-allFunctions pgVer = SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeFuncs
+allFunctions :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
+allFunctions = SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeFuncs
   where
-    sql = funcsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
+    sql = funcsSqlQuery <> " AND pn.nspname = ANY($1)"
 
-accessibleFuncs :: PgVersion -> Bool -> SQL.Statement (Schema, [Text]) RoutineMap
-accessibleFuncs pgVer = SQL.Statement sql (contrazip2 (param HE.text) (arrayParam HE.text)) decodeFuncs
+accessibleFuncs :: Bool -> SQL.Statement (Schema, [Text]) RoutineMap
+accessibleFuncs = SQL.Statement sql (contrazip2 (param HE.text) (arrayParam HE.text)) decodeFuncs
   where
-    sql = funcsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = funcsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
-funcsSqlQuery :: PgVersion -> SqlQuery
-funcsSqlQuery pgVer = [q|
+funcsSqlQuery :: SqlQuery
+funcsSqlQuery = [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -461,7 +460,7 @@ funcsSqlQuery pgVer = [q|
     WHERE setting ~ ANY($2)
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
-|] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
+  AND prokind = 'f'|]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
@@ -828,8 +827,8 @@ tablesSqlQuery pgVer =
           END|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
-allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
-allM2OandO2ORels pgVer =
+allM2OandO2ORels :: Bool -> SQL.Statement () [Relationship]
+allM2OandO2ORels =
   SQL.Statement sql HE.noParams decodeRels
  where
   -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
@@ -875,11 +874,8 @@ allM2OandO2ORels pgVer =
     JOIN pg_namespace ns2 ON ns2.oid = other.relnamespace
     LEFT JOIN pks_uniques_cols pks_uqs ON pks_uqs.connamespace = traint.connamespace AND pks_uqs.conrelid = traint.conrelid
     WHERE traint.contype = 'f'
-  |] <>
-    (if pgVer >= pgVersion110
-      then " and traint.conparentid = 0 "
-      else mempty) <>
-    "ORDER BY traint.conrelid, traint.conname"
+    AND traint.conparentid = 0
+    ORDER BY traint.conrelid, traint.conname|]
 
 allComputedRels :: Bool -> SQL.Statement () [Relationship]
 allComputedRels =
@@ -1132,8 +1128,8 @@ initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
-mediaHandlers :: PgVersion -> Bool -> SQL.Statement [Schema] MediaHandlerMap
-mediaHandlers pgVer =
+mediaHandlers :: Bool -> SQL.Statement [Schema] MediaHandlerMap
+mediaHandlers =
   SQL.Statement sql (arrayParam HE.text) decodeMediaHandlers
   where
     sql = [q|
@@ -1195,7 +1191,7 @@ mediaHandlers pgVer =
         join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
       where
         pro_sch.nspname = ANY($1) and NOT proretset
-      |] <> (if pgVer >= pgVersion110 then " AND prokind = 'f'" else " AND NOT (proisagg OR proiswindow)")
+        and prokind = 'f'|]
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap
 decodeMediaHandlers =

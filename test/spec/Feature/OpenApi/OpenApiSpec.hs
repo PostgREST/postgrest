@@ -11,14 +11,12 @@ import Network.HTTP.Types
 import Test.Hspec         hiding (pendingWith)
 import Test.Hspec.Wai
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110)
-
 import PostgREST.Version (docsVersion)
 import Protolude         hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = describe "OpenAPI" $ do
+spec :: SpecWith ((), Application)
+spec = describe "OpenAPI" $ do
   it "root path returns a valid openapi spec" $ do
     validateOpenApiResponse [("Accept", "application/openapi+json")]
     request methodHead "/"
@@ -290,8 +288,7 @@ spec actualPgVersion = describe "OpenAPI" $ do
 
         getParameterYear `shouldBe` Just "#/parameters/rowFilter.car_models.year"
 
-        when (actualPgVersion >= pgVersion110) $
-          getParameterRef `shouldBe` Just "#/parameters/rowFilter.car_models.car_brand_name"
+        getParameterRef `shouldBe` Just "#/parameters/rowFilter.car_models.car_brand_name"
 
   describe "Materialized view" $
 
