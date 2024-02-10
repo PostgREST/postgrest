@@ -28,8 +28,8 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} \
-          test:spec -- "''${_arg_leftovers[@]}"
+        ${withTools.withPg} -f test/spec/fixtures/load.sql \
+          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec -- "''${_arg_leftovers[@]}"
       '';
 
   testDoctests =
@@ -59,9 +59,10 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${withTools.withPg} ${runtimeShell} -c " \
-          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec && \
-          ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec"
+        ${withTools.withPg} -f test/spec/fixtures/load.sql \
+          ${runtimeShell} -c " \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec && \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec"
       '';
 
   ioTestPython =
@@ -99,7 +100,7 @@ let
         withPath = [ jq ];
       }
       ''
-        ${withTools.withPg} \
+        ${withTools.withPg} -f test/spec/fixtures.sql \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
             | ${yq}/bin/yq -y .
@@ -137,11 +138,12 @@ let
 
           # collect all tests
           HPCTIXFILE="$tmpdir"/io.tix \
-            ${withTools.withPg} -f test/io/fixtures.sql ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- \
-            ${ioTestPython}/bin/pytest -v test/io
+            ${withTools.withPg} -f test/io/fixtures.sql \
+            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io
 
           HPCTIXFILE="$tmpdir"/spec.tix \
-            ${withTools.withPg} ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
+            ${withTools.withPg} -f test/spec/fixtures/load.sql \
+            ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec
 
           # Note: No coverage for doctests, as doctests leverage GHCi and GHCi does not support hpc
 
