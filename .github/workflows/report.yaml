@@ -12,6 +12,7 @@ jobs:
     permissions:
       checks: write
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure' }}
     steps:
       - name: Download from Artifacts
         uses: dawidd6/action-download-artifact@v3
