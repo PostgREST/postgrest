@@ -70,7 +70,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pgVersion: [10, 11, 12, 13, 14, 15, 16]
+        pgVersion: [11, 12, 13, 14, 15, 16]
     name: Test PG ${{ matrix.pgVersion }} (Nix)
     runs-on: ubuntu-latest
     defaults:
