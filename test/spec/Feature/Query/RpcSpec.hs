@@ -11,8 +11,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion109,
-                                   pgVersion110, pgVersion112,
+import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
                                    pgVersion114)
 
 import Protolude  hiding (get)
@@ -395,15 +394,14 @@ spec actualPgVersion =
           ]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      when (actualPgVersion >= pgVersion110) $
-        it "can embed if rpc returns domain of table type" $ do
-          post "/rpc/getproject_domain?select=id,name,client:clients(id),tasks(id)"
-              [json| { "id": 1} |]
-            `shouldRespondWith`
-              [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
-          get "/rpc/getproject_domain?id=1&select=id,name,client:clients(id),tasks(id)"
-            `shouldRespondWith`
-              [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+      it "can embed if rpc returns domain of table type" $ do
+        post "/rpc/getproject_domain?select=id,name,client:clients(id),tasks(id)"
+            [json| { "id": 1} |]
+          `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
+        get "/rpc/getproject_domain?id=1&select=id,name,client:clients(id),tasks(id)"
+          `shouldRespondWith`
+            [json|[{"id":1,"name":"Windows 7","client":{"id":1},"tasks":[{"id":1},{"id":2}]}]|]
 
     context "a proc that returns an empty rowset" $
       it "returns empty json array" $ do
@@ -466,12 +464,11 @@ spec actualPgVersion =
       it "cannot return composite type in hidden schema" $
         post "/rpc/ret_point_3d" [json|{}|] `shouldRespondWith` 401
 
-      when (actualPgVersion >= pgVersion110) $
-        it "returns domain of composite type" $
-          post "/rpc/ret_composite_domain"
-              [json|{}|]
-            `shouldRespondWith`
-              [json|{"x": 10, "y": 5}|]
+      it "returns domain of composite type" $
+        post "/rpc/ret_composite_domain"
+            [json|{}|]
+          `shouldRespondWith`
+            [json|{"x": 10, "y": 5}|]
 
       it "returns single row from table" $
         post "/rpc/single_article?select=id"
@@ -494,26 +491,25 @@ spec actualPgVersion =
           `shouldRespondWith`
             [json|null|]
 
-      when (actualPgVersion >= pgVersion110) $ do
-        it "returns a record type" $ do
-          post "/rpc/returns_record"
-            ""
-           `shouldRespondWith`
-            [json|{"id":1,"name":"Windows 7","client_id":1}|]
-          post "/rpc/returns_record_params"
-            [json|{"id":1, "name": "Windows%"}|]
-           `shouldRespondWith`
-            [json|{"id":1,"name":"Windows 7","client_id":1}|]
+      it "returns a record type" $ do
+        post "/rpc/returns_record"
+          ""
+         `shouldRespondWith`
+          [json|{"id":1,"name":"Windows 7","client_id":1}|]
+        post "/rpc/returns_record_params"
+          [json|{"id":1, "name": "Windows%"}|]
+         `shouldRespondWith`
+          [json|{"id":1,"name":"Windows 7","client_id":1}|]
 
-        it "returns a setof record type" $ do
-          post "/rpc/returns_setof_record"
-            ""
-           `shouldRespondWith`
-            [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
-          post "/rpc/returns_setof_record_params"
-            [json|{"id":1,"name":"Windows%"}|]
-           `shouldRespondWith`
-            [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
+      it "returns a setof record type" $ do
+        post "/rpc/returns_setof_record"
+          ""
+         `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
+        post "/rpc/returns_setof_record_params"
+          [json|{"id":1,"name":"Windows%"}|]
+         `shouldRespondWith`
+          [json|[{"id":1,"name":"Windows 7","client_id":1},{"id":2,"name":"Windows 10","client_id":1}]|]
 
       context "different types when overloaded" $ do
         it "returns composite type" $
@@ -603,8 +599,7 @@ spec actualPgVersion =
             [json|"object"|]
             { matchHeaders = [matchContentTypeJson] }
 
-      when ((actualPgVersion >= pgVersion109 && actualPgVersion < pgVersion110)
-            || actualPgVersion >= pgVersion114) $
+      when (actualPgVersion >= pgVersion114) $
         it "parses quoted JSON arguments as JSON string (from Postgres 10.9, 11.4)" $
           post "/rpc/json_argument"
               [json| { "arg": "{ \"key\": 3 }" } |]

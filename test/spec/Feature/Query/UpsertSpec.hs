@@ -7,13 +7,11 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110)
-
 import Protolude  hiding (get, put)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion =
+spec :: SpecWith ((), Application)
+spec =
   describe "UPSERT" $ do
     context "with POST" $ do
       context "when Prefer: resolution=merge-duplicates is specified" $ do
@@ -60,19 +58,18 @@ spec actualPgVersion =
             , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
             }
 
-        when (actualPgVersion >= pgVersion110) $
-          it "INSERTs and UPDATEs rows on composite pk conflict for partitioned tables" $
-            request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
-              [json| [
-                { "name": "Murcielago", "year": 2001, "car_brand_name": null},
-                { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
-              ]|] `shouldRespondWith` [json| [
-                { "name": "Murcielago", "year": 2001, "car_brand_name": null},
-                { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
-              ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
-              }
+        it "INSERTs and UPDATEs rows on composite pk conflict for partitioned tables" $
+          request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
+            [json| [
+              { "name": "Murcielago", "year": 2001, "car_brand_name": null},
+              { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
+            ]|] `shouldRespondWith` [json| [
+              { "name": "Murcielago", "year": 2001, "car_brand_name": null},
+              { "name": "Roma", "year": 2021, "car_brand_name": "Ferrari" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=merge-duplicates, return=representation", matchContentTypeJson]
+            }
 
         it "succeeds when the payload has no elements" $
           request methodPost "/articles" [("Prefer", "return=representation"), ("Prefer", "resolution=merge-duplicates")]
@@ -131,18 +128,17 @@ spec actualPgVersion =
             , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
             }
 
-        when (actualPgVersion >= pgVersion110) $
-          it "INSERTs and ignores rows on composite pk conflict for partitioned tables" $
-            request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
-              [json| [
-                { "name": "Murcielago", "year": 2001, "car_brand_name": "Ferrari" },
-                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
-              ]|] `shouldRespondWith` [json| [
-                { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
-              ]|]
-              { matchStatus = 201
-              , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
-              }
+        it "INSERTs and ignores rows on composite pk conflict for partitioned tables" $
+          request methodPost "/car_models" [("Prefer", "return=representation"), ("Prefer", "resolution=ignore-duplicates")]
+            [json| [
+              { "name": "Murcielago", "year": 2001, "car_brand_name": "Ferrari" },
+              { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
+            ]|] `shouldRespondWith` [json| [
+              { "name": "Huracán", "year": 2021, "car_brand_name": "Lamborghini" }
+            ]|]
+            { matchStatus = 201
+            , matchHeaders = ["Preference-Applied" <:> "resolution=ignore-duplicates, return=representation", matchContentTypeJson]
+            }
 
         it "INSERTs and ignores rows on single unique key conflict" $
           request methodPost "/single_unique?on_conflict=unique_key"
@@ -312,19 +308,18 @@ spec actualPgVersion =
               [json| [ { "first_name": "Susan", "last_name": "Heidt", "salary": "$48,000.00", "company": "GEX", "occupation": "Railroad engineer" } ]|]
               { matchStatus = 201 }
 
-        when (actualPgVersion >= pgVersion110) $
-          it "succeeds on a partitioned table with composite pk" $ do
-            -- assert that the next request will indeed be an insert
-            get "/car_models?name=eq.Supra&year=eq.2021"
-              `shouldRespondWith`
-                [json|[]|]
+        it "succeeds on a partitioned table with composite pk" $ do
+          -- assert that the next request will indeed be an insert
+          get "/car_models?name=eq.Supra&year=eq.2021"
+            `shouldRespondWith`
+              [json|[]|]
 
-            request methodPut "/car_models?name=eq.Supra&year=eq.2021"
-                [("Prefer", "return=representation")]
-                [json| [ { "name": "Supra", "year": 2021 } ]|]
-              `shouldRespondWith`
-                [json| [ { "name": "Supra", "year": 2021, "car_brand_name": null } ]|]
-              { matchStatus = 201 }
+          request methodPut "/car_models?name=eq.Supra&year=eq.2021"
+              [("Prefer", "return=representation")]
+              [json| [ { "name": "Supra", "year": 2021 } ]|]
+            `shouldRespondWith`
+              [json| [ { "name": "Supra", "year": 2021, "car_brand_name": null } ]|]
+            { matchStatus = 201 }
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an insert
@@ -378,18 +373,17 @@ spec actualPgVersion =
             `shouldRespondWith`
               [json| [ { "first_name": "Frances M.", "last_name": "Roe", "salary": "$60,000.00", "company": "Gamma Gas", "occupation": "Railroad engineer" } ]|]
 
-        when (actualPgVersion >= pgVersion110) $
-          it "succeeds on a partitioned table with composite pk" $ do
-            -- assert that the next request will indeed be an update
-            get "/car_models?name=eq.DeLorean&year=eq.1981"
-              `shouldRespondWith`
-                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": "DMC" } ]|]
+        it "succeeds on a partitioned table with composite pk" $ do
+          -- assert that the next request will indeed be an update
+          get "/car_models?name=eq.DeLorean&year=eq.1981"
+            `shouldRespondWith`
+              [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": "DMC" } ]|]
 
-            request methodPut "/car_models?name=eq.DeLorean&year=eq.1981"
-                [("Prefer", "return=representation")]
-                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
-              `shouldRespondWith`
-                [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
+          request methodPut "/car_models?name=eq.DeLorean&year=eq.1981"
+              [("Prefer", "return=representation")]
+              [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
+            `shouldRespondWith`
+              [json| [ { "name": "DeLorean", "year": 1981, "car_brand_name": null } ]|]
 
         it "succeeds if the table has only PK cols and no other cols" $ do
           -- assert that the next request will indeed be an update
