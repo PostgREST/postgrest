@@ -43,6 +43,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+ - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
 
 ### Deprecated
 

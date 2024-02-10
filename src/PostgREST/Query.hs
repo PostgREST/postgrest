@@ -182,13 +182,13 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure $ DbCallResult plan resultSet
 
-actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ pgVer sCache =
+actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
       tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
       MaybeDbResult plan . Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
+        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs configDbPreparedStatements)
         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       MaybeDbResult plan . Just <$> ((,,)

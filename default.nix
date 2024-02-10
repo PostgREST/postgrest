@@ -56,7 +56,6 @@ let
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-12"; postgresql = pkgs.postgresql_12.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-11"; postgresql = pkgs.postgresql_11.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
-      { name = "postgresql-10"; postgresql = pkgs.postgresql_10.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
     ];
 
   # Dynamic derivation for PostgREST

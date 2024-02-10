@@ -11,9 +11,9 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion110,
-                                   pgVersion112, pgVersion120,
-                                   pgVersion130, pgVersion140)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
+                                   pgVersion120, pgVersion130,
+                                   pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -141,19 +141,18 @@ spec actualPgVersion = do
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
-      when (actualPgVersion >= pgVersion110) $
-        it "should not throw and return location header for partitioned tables when selecting without PK" $
-          request methodPost "/car_models"
-              [("Prefer", "return=headers-only")]
-              [json|{"name":"Enzo","year":2021}|]
-            `shouldRespondWith`
-              ""
-              { matchStatus  = 201
-              , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
-                               , "Content-Range" <:> "*/*"
-                               , "Preference-Applied" <:> "return=headers-only"]
-              }
+      it "should not throw and return location header for partitioned tables when selecting without PK" $
+        request methodPost "/car_models"
+            [("Prefer", "return=headers-only")]
+            [json|{"name":"Enzo","year":2021}|]
+          `shouldRespondWith`
+            ""
+            { matchStatus  = 201
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=headers-only"]
+            }
 
     context "requesting no representation" $
       it "should not throw and return no location header when selecting without PK" $
