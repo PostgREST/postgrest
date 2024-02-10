@@ -17,15 +17,14 @@ let
     { name, postgresql }:
     let
       commandName = "postgrest-with-${name}";
-      superuserRole = "postgres";
     in
     checkedShellScript
       {
         name = commandName;
-        docs = "Run the given command in a temporary database with ${name}. If you wish to mutate the database, login with the '${superuserRole}' role.";
+        docs = "Run the given command in a temporary database with ${name}. If you wish to mutate the database, login with the postgres role.";
         args =
           [
-            "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from], [test/spec/fixtures/load.sql])"
+            "ARG_OPTIONAL_SINGLE([fixtures], [f], [SQL file to load fixtures from])"
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_USE_ENV([PGUSER], [postgrest_test_authenticator], [Authenticator PG role])"
@@ -41,63 +40,64 @@ let
         withTmpDir = true;
       }
       ''
-        # avoid starting multiple layers of withTmpDb
-        if test -v PGHOST; then
-          exec "$_arg_command" "''${_arg_leftovers[@]}"
-        fi
-
         setuplog="$tmpdir/setup.log"
 
         log () {
           echo "$1" >> "$setuplog"
         }
 
-        mkdir -p "$tmpdir"/{db,socket}
-        # remove data dir, even if we keep tmpdir - no need to upload it to artifacts
-        trap 'rm -rf $tmpdir/db' EXIT
+        # Avoid starting multiple layers of withTmpDb, but make sure to have the last invocation
+        # load fixtures. Otherwise postgrest-with-postgresql-xx postgrest-test-io would not be possible.
+        if ! test -v PGHOST; then
 
-        export PGDATA="$tmpdir/db"
-        export PGHOST="$tmpdir/socket"
-        export PGUSER
-        export PGDATABASE
-        export PGRST_DB_SCHEMAS
-        export PGTZ
-        export PGOPTIONS
+          mkdir -p "$tmpdir"/{db,socket}
+          # remove data dir, even if we keep tmpdir - no need to upload it to artifacts
+          trap 'rm -rf $tmpdir/db' EXIT
 
-        HBA_FILE="$tmpdir/pg_hba.conf"
-        echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
-        echo "local $PGDATABASE all trust" >> "$HBA_FILE"
+          export PGDATA="$tmpdir/db"
+          export PGHOST="$tmpdir/socket"
+          export PGUSER
+          export PGDATABASE
+          export PGRST_DB_SCHEMAS
+          export PGTZ
+          export PGOPTIONS
 
-        log "Initializing database cluster..."
-        # We try to make the database cluster as independent as possible from the host
-        # by specifying the timezone, locale and encoding.
-        # initdb -U creates a superuser(man initdb)
-        TZ=$PGTZ initdb --no-locale --encoding=UTF8 --nosync -U "${superuserRole}" --auth=trust \
-          >> "$setuplog"
+          HBA_FILE="$tmpdir/pg_hba.conf"
+          echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
+          echo "local $PGDATABASE all trust" >> "$HBA_FILE"
 
-        log "Starting the database cluster..."
-        # Instead of listening on a local port, we will listen on a unix domain socket.
-        pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
-          >> "$setuplog"
+          log "Initializing database cluster..."
+          # We try to make the database cluster as independent as possible from the host
+          # by specifying the timezone, locale and encoding.
+          # initdb -U creates a superuser(man initdb)
+          TZ=$PGTZ initdb --no-locale --encoding=UTF8 --nosync -U postgres --auth=trust \
+            >> "$setuplog"
 
-        # shellcheck disable=SC2317
-        stop () {
-          log "Stopping the database cluster..."
-          pg_ctl stop -m i >> "$setuplog"
-          rm -rf "$tmpdir/db"
-        }
-        trap stop EXIT
+          log "Starting the database cluster..."
+          # Instead of listening on a local port, we will listen on a unix domain socket.
+          pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
+            >> "$setuplog"
 
-        log "Creating a minimally privileged $PGUSER connection role..."
-        createuser "$PGUSER" -U "${superuserRole}" --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
+          # shellcheck disable=SC2317
+          stop () {
+            log "Stopping the database cluster..."
+            pg_ctl stop -m i >> "$setuplog"
+            rm -rf "$tmpdir/db"
+          }
+          trap stop EXIT
 
-        log "Loading fixtures under the ${superuserRole} role..."
-        psql -U "${superuserRole}" -v PGUSER="$PGUSER" -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
+          log "Creating a minimally privileged $PGUSER connection role..."
+          createuser "$PGUSER" -U postgres --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
 
-        log "Done. Running command..."
+          echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U postgres"
+          echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
+        fi
 
-        echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U ${superuserRole}"
-        echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
+        if test "$_arg_fixtures"; then
+          log "Loading fixtures under the postgres role..."
+          psql -U postgres -v PGUSER="$PGUSER" -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
+          log "Done. Running command..."
+        fi
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';
