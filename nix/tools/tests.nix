@@ -41,12 +41,6 @@ let
         withEnv = postgrest.env;
       }
       ''
-        # For unknown reasons, doctests uses the wrong GHC package database outside
-        # nix-shell and fails, so we set the package path explicitly
-        #ghcWithPackages="$(cat ${postgrest.env})"
-        #ghcVersion="$(ls "$ghcWithPackages/lib")"
-        #export GHC_PACKAGE_PATH="$ghcWithPackages/lib/$ghcVersion/package.conf.d/"
-
         ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:doctests
       '';
 
