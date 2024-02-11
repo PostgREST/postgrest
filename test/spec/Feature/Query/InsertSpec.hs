@@ -11,8 +11,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion112,
-                                   pgVersion120, pgVersion130,
+import PostgREST.Config.PgVersion (PgVersion, pgVersion130,
                                    pgVersion140)
 
 import Protolude  hiding (get)
@@ -542,28 +541,27 @@ spec actualPgVersion = do
               , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
-        when (actualPgVersion >= pgVersion120) $
-          it "fails with a good error message on generated always columns" $
-            request methodPost "/foo?columns=a,b" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
-                [json| [
-                  {"a": "val"},
-                  {"a": "val", "b": "val"}
-                ]|]
-              `shouldRespondWith`
-                (if actualPgVersion < pgVersion140
-                  then [json| {
-                    "code": "42601",
-                    "details": "Column \"b\" is a generated column.",
-                    "hint": null,
-                    "message": "cannot insert into column \"b\""
-                  }|]
-                  else [json| {
-                    "code": "428C9",
-                    "details": "Column \"b\" is a generated column.",
-                    "hint": null,
-                    "message": "cannot insert a non-DEFAULT value into column \"b\""
-                  }|])
-                { matchStatus  = 400 }
+        it "fails with a good error message on generated always columns" $
+          request methodPost "/foo?columns=a,b" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
+              [json| [
+                {"a": "val"},
+                {"a": "val", "b": "val"}
+              ]|]
+            `shouldRespondWith`
+              (if actualPgVersion < pgVersion140
+                then [json| {
+                  "code": "42601",
+                  "details": "Column \"b\" is a generated column.",
+                  "hint": null,
+                  "message": "cannot insert into column \"b\""
+                }|]
+                else [json| {
+                  "code": "428C9",
+                  "details": "Column \"b\" is a generated column.",
+                  "hint": null,
+                  "message": "cannot insert a non-DEFAULT value into column \"b\""
+                }|])
+              { matchStatus  = 400 }
 
         it "inserts a default on a DOMAIN with default" $
           request methodPost "/evil_friends?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
@@ -710,24 +708,16 @@ spec actualPgVersion = do
 
     it "fails inserting if more columns are selected" $
       request methodPost "/limited_article_stars?select=article_id,user_id,created_at" [("Prefer", "return=representation")]
-        [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith` (
-      if actualPgVersion >= pgVersion112 then
+          [json| {"article_id": 2, "user_id": 2} |] `shouldRespondWith`
       [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-         else
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                      )
         { matchStatus  = 401
         , matchHeaders = []
         }
 
     it "fails inserting if select is not specified" $
       request methodPost "/limited_article_stars" [("Prefer", "return=representation")]
-        [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith` (
-      if actualPgVersion >= pgVersion112 then
+        [json| {"article_id": 3, "user_id": 1} |] `shouldRespondWith`
       [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for view limited_article_stars"}|]
-         else
-      [json|{"hint":null,"details":null,"code":"42501","message":"permission denied for relation limited_article_stars"}|]
-                                                                      )
         { matchStatus  = 401
         , matchHeaders = []
         }
