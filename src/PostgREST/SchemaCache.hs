@@ -45,9 +45,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
-                                              pgVersionStatement,
                                               toIsolationLevel)
-import PostgREST.Config.PgVersion            (PgVersion, pgVersion120)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
@@ -144,8 +142,7 @@ type SqlQuery = ByteString
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
-  tabs    <- SQL.statement schemas $ allTables pgVer prepared
+  tabs    <- SQL.statement schemas $ allTables prepared
   keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
   funcs   <- SQL.statement (schemas, configDbHoistedTxSettings) $ allFunctions prepared
@@ -602,15 +599,13 @@ addViewPrimaryKeys tabs keyDeps =
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
 
-allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
-allTables pgVer =
-  SQL.Statement sql (arrayParam HE.text) decodeTables
-  where
-    sql = tablesSqlQuery pgVer
+allTables :: Bool -> SQL.Statement [Schema] TablesMap
+allTables =
+  SQL.Statement tablesSqlQuery (arrayParam HE.text) decodeTables
 
 -- | Gets tables with their PK cols
-tablesSqlQuery :: PgVersion -> SqlQuery
-tablesSqlQuery pgVer =
+tablesSqlQuery :: SqlQuery
+tablesSqlQuery =
   -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
   -- we cannot use those directly as they include the following privilege filter:
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
@@ -624,7 +619,13 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-  |] <> columnDefault <> [q| AS column_default,
+          -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
+          CASE
+            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
+            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+            WHEN a.attgenerated = 's' THEN null
+            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
+          END AS column_default,
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
           CASE
               WHEN t.typtype = 'd' THEN
@@ -810,21 +811,6 @@ tablesSqlQuery pgVer =
   AND n.nspname NOT IN ('pg_catalog', 'information_schema')
   AND not c.relispartition
   ORDER BY table_schema, table_name|]
-  where
-    columnDefault -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
-      | pgVer >= pgVersion120 = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-            WHEN a.attgenerated = 's' THEN null
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
-      | otherwise = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            WHEN a.attidentity = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
 allM2OandO2ORels :: Bool -> SQL.Statement () [Relationship]
