@@ -2301,61 +2301,56 @@ create table test.car_brands (
 alter table test.car_models add primary key (name, year);
 alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
 
-do $do$begin
-    -- foreign keys referencing partitioned tables are supported from pg v12
-    if (select current_setting('server_version_num')::int >= 120000) then
-      create table test.car_model_sales(
-        date varchar(64) not null,
-        quantity int not null,
-        car_model_name varchar(64),
-        car_model_year int,
-        primary key (date, car_model_name, car_model_year),
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
-      ) partition by range (date);
+create table test.car_model_sales(
+  date varchar(64) not null,
+  quantity int not null,
+  car_model_name varchar(64),
+  car_model_year int,
+  primary key (date, car_model_name, car_model_year),
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+) partition by range (date);
 
-      create table test.car_model_sales_202101 partition of test.car_model_sales
-        for values from ('2021-01-01') to ('2021-01-31');
+create table test.car_model_sales_202101 partition of test.car_model_sales
+  for values from ('2021-01-01') to ('2021-01-31');
 
-      create table test.car_model_sales_default partition of test.car_model_sales
-        default;
+create table test.car_model_sales_default partition of test.car_model_sales
+  default;
 
-      create table test.car_racers (
-        name varchar(64) not null primary key,
-        car_model_name varchar(64),
-        car_model_year int,
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
-      );
+create table test.car_racers (
+  name varchar(64) not null primary key,
+  car_model_name varchar(64),
+  car_model_year int,
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+);
 
-      create table test.car_dealers (
-        name varchar(64) not null,
-        city varchar(64) not null,
-        primary key (name, city)
-      ) partition by list (city);
+create table test.car_dealers (
+  name varchar(64) not null,
+  city varchar(64) not null,
+  primary key (name, city)
+) partition by list (city);
 
-      create table test.car_dealers_springfield partition of test.car_dealers
-        for values in ('Springfield');
+create table test.car_dealers_springfield partition of test.car_dealers
+  for values in ('Springfield');
 
-      create table test.car_dealers_default partition of test.car_dealers
-        default;
+create table test.car_dealers_default partition of test.car_dealers
+  default;
 
-      create table test.car_models_car_dealers (
-        car_model_name varchar(64) not null,
-        car_model_year int not null,
-        car_dealer_name varchar(64) not null,
-        car_dealer_city varchar(64) not null,
-        quantity int not null,
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year),
-        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city),
-        primary key (car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity)
-      ) partition by range (quantity);
+create table test.car_models_car_dealers (
+  car_model_name varchar(64) not null,
+  car_model_year int not null,
+  car_dealer_name varchar(64) not null,
+  car_dealer_city varchar(64) not null,
+  quantity int not null,
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year),
+  foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city),
+  primary key (car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity)
+) partition by range (quantity);
 
-      create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
-        for values from (10) to (20);
+create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
+  for values from (10) to (20);
 
-      create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
-        default;
-    end if;
-end$do$;
+create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
+  default;
 
 create or replace function test.unnamed_json_param(json) returns json as $$
   select $1;
@@ -3261,21 +3256,15 @@ AS $$
   select current_setting('is_superuser')::boolean;
 $$;
 
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 120000 THEN
-    CREATE TABLE test.foo (
-      a text,
-      b text GENERATED ALWAYS AS (
-          case WHEN a = 'telegram' THEN 'im'
-               WHEN a = 'proton' THEN 'email'
-               WHEN a = 'infinity' THEN 'idea'
-               ELSE 'bad idea'
-          end) stored
-    );
-  END IF;
-END
-$do$;
+CREATE TABLE test.foo (
+  a text,
+  b text GENERATED ALWAYS AS (
+      case WHEN a = 'telegram' THEN 'im'
+           WHEN a = 'proton' THEN 'email'
+           WHEN a = 'infinity' THEN 'idea'
+           ELSE 'bad idea'
+      end) stored
+);
 
 create domain devil_int as int
   default 666;

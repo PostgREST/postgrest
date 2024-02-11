@@ -39,7 +39,6 @@ let
       allOverlays.postgresql-libpq
       allOverlays.postgresql-legacy
       allOverlays.postgresql-future
-      allOverlays.postgis
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
@@ -55,7 +54,6 @@ let
       { name = "postgresql-14"; postgresql = pkgs.postgresql_14.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-12"; postgresql = pkgs.postgresql_12.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
-      { name = "postgresql-11"; postgresql = pkgs.postgresql_11.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
     ];
 
   # Dynamic derivation for PostgREST

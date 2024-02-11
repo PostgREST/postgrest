@@ -11,8 +11,8 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
-                                   pgVersion130, pgVersion140)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion130,
+                                   pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -541,28 +541,27 @@ spec actualPgVersion = do
               , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
-        when (actualPgVersion >= pgVersion120) $
-          it "fails with a good error message on generated always columns" $
-            request methodPost "/foo?columns=a,b" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
-                [json| [
-                  {"a": "val"},
-                  {"a": "val", "b": "val"}
-                ]|]
-              `shouldRespondWith`
-                (if actualPgVersion < pgVersion140
-                  then [json| {
-                    "code": "42601",
-                    "details": "Column \"b\" is a generated column.",
-                    "hint": null,
-                    "message": "cannot insert into column \"b\""
-                  }|]
-                  else [json| {
-                    "code": "428C9",
-                    "details": "Column \"b\" is a generated column.",
-                    "hint": null,
-                    "message": "cannot insert a non-DEFAULT value into column \"b\""
-                  }|])
-                { matchStatus  = 400 }
+        it "fails with a good error message on generated always columns" $
+          request methodPost "/foo?columns=a,b" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
+              [json| [
+                {"a": "val"},
+                {"a": "val", "b": "val"}
+              ]|]
+            `shouldRespondWith`
+              (if actualPgVersion < pgVersion140
+                then [json| {
+                  "code": "42601",
+                  "details": "Column \"b\" is a generated column.",
+                  "hint": null,
+                  "message": "cannot insert into column \"b\""
+                }|]
+                else [json| {
+                  "code": "428C9",
+                  "details": "Column \"b\" is a generated column.",
+                  "hint": null,
+                  "message": "cannot insert a non-DEFAULT value into column \"b\""
+                }|])
+              { matchStatus  = 400 }
 
         it "inserts a default on a DOMAIN with default" $
           request methodPost "/evil_friends?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
