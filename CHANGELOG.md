@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
  - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
  - #3224, Return status code 406 for non-accepted media type instead of code 415 - @wolfgangwalther
+ - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
 
 ## [12.0.2] - 2023-12-20
 

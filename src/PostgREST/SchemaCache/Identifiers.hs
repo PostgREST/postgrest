@@ -20,7 +20,7 @@ import qualified Data.Text  as T
 import Protolude
 
 data RelIdentifier = RelId QualifiedIdentifier | RelAnyElement
-  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey)
+  deriving (Eq, Ord, Generic, JSON.ToJSON, JSON.ToJSONKey, Show)
 instance Hashable RelIdentifier
 
 -- | Represents a pg identifier with a prepended schema name "schema.table".
