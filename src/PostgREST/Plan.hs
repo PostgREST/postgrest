@@ -97,7 +97,6 @@ data WrappedReadPlan = WrappedReadPlan {
 , wrTxMode   :: SQL.Mode
 , wrHandler  :: MediaHandler
 , wrMedia    :: MediaType
-, wrIdent    :: QualifiedIdentifier
 }
 
 data MutateReadPlan = MutateReadPlan {
@@ -106,7 +105,6 @@ data MutateReadPlan = MutateReadPlan {
 , mrTxMode     :: SQL.Mode
 , mrHandler    :: MediaHandler
 , mrMedia      :: MediaType
-, mrIdent      :: QualifiedIdentifier
 }
 
 data CallReadPlan = CallReadPlan {
@@ -116,7 +114,6 @@ data CallReadPlan = CallReadPlan {
 , crProc     :: Routine
 , crHandler  :: MediaHandler
 , crMedia    :: MediaType
-, crIdent    :: QualifiedIdentifier
 }
 
 data InspectPlan = InspectPlan {
@@ -127,17 +124,17 @@ data InspectPlan = InspectPlan {
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error WrappedReadPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} = do
   rPlan <- readPlan identifier conf sCache apiRequest
-  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache)
+  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ WrappedReadPlan rPlan SQL.Read hdler mediaType identifier
+  return $ WrappedReadPlan rPlan SQL.Read handler mediaType
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error MutateReadPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache)
-  return $ MutateReadPlan rPlan mPlan SQL.Write hdler mediaType identifier
+  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
@@ -161,11 +158,15 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
           (InvPost, Routine.Immutable) -> SQL.Read
           (InvPost, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
-  (hdler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache)
+  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ CallReadPlan rPlan cPlan txMode proc hdler mediaType relIdentifier
+  return $ CallReadPlan rPlan cPlan txMode proc handler mediaType
   where
     qsParams' = QueryParams.qsParams iQueryParams
+
+hasDefaultSelect :: ReadPlanTree -> Bool
+hasDefaultSelect (Node ReadPlan{select=[CoercibleSelectField{csField=CoercibleField{cfName}}]} []) = cfName == "*"
+hasDefaultSelect _ = False
 
 inspectPlan :: ApiRequest -> Either Error InspectPlan
 inspectPlan apiRequest = do
@@ -993,8 +994,8 @@ addFilterToLogicForest :: CoercibleFilter -> [CoercibleLogicTree] -> [CoercibleL
 addFilterToLogicForest flt lf = CoercibleStmnt flt : lf
 
 -- | Do content negotiation. i.e. choose a media type based on the intersection of accepted/produced media types.
-negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] -> MediaHandlerMap -> Either ApiRequestError ResolvedHandler
-negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces =
+negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] -> MediaHandlerMap -> Bool -> Either ApiRequestError ResolvedHandler
+negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces defaultSelect =
   case (act, firstAcceptedPick) of
     (_, Nothing)                         -> Left . MediaTypeError $ map MediaType.toMime accepts
     (ActionMutate _, Just (x, mt))       -> Right (if rep == Just Full then x else NoAgg, mt)
@@ -1017,6 +1018,9 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
       x                                           -> lookupHandler x
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed
     lookupHandler mt =
-      HM.lookup (RelId identifier, MTAny) produces <|> -- lookup for identifier and `*/*`
-      HM.lookup (RelId identifier, mt) produces <|>    -- lookup for identifier and a particular media type
-      HM.lookup (RelAnyElement, mt) produces           -- lookup for anyelement and a particular media type
+      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces) <|> -- lookup for identifier and `*/*`
+      when' defaultSelect (HM.lookup (RelId identifier, mt) produces) <|>    -- lookup for identifier and a particular media type
+      HM.lookup (RelAnyElement, mt) produces                                    -- lookup for anyelement and a particular media type
+    when' :: Bool -> Maybe a -> Maybe a
+    when' True (Just a) = Just a
+    when' _ _           = Nothing

@@ -85,7 +85,8 @@ import PostgREST.Plan.Types              (CoercibleField (..),
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..))
+                                          QualifiedIdentifier (..),
+                                          RelIdentifier (..))
 import PostgREST.SchemaCache.Routine     (MediaHandler (..),
                                           Routine (..),
                                           funcReturnsScalar,
@@ -221,10 +222,11 @@ asJsonF rout strip
 asGeoJsonF ::  SQL.Snippet
 asGeoJsonF = "json_build_object('type', 'FeatureCollection', 'features', coalesce(json_agg(ST_AsGeoJSON(_postgrest_t)::json), '[]'))"
 
-customFuncF :: Maybe Routine -> QualifiedIdentifier -> QualifiedIdentifier -> SQL.Snippet
-customFuncF rout funcQi target
+customFuncF :: Maybe Routine -> QualifiedIdentifier -> RelIdentifier -> SQL.Snippet
+customFuncF rout funcQi _
   | (funcReturnsScalar <$> rout) == Just True = fromQi funcQi <> "(_postgrest_t.pgrst_scalar)"
-  | otherwise                                 = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
+customFuncF _ funcQi RelAnyElement            = fromQi funcQi <> "(_postgrest_t)"
+customFuncF _ funcQi (RelId target)           = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
 
 locationF :: [Text] -> SQL.Snippet
 locationF pKeys = [qc|(
@@ -559,12 +561,12 @@ setConfigWithConstantNameJSON prefix keyVals = [setConfigWithConstantName (prefi
     arrayByteStringToText :: [(ByteString, ByteString)] -> [(Text,Text)]
     arrayByteStringToText keyVal = (T.decodeUtf8 *** T.decodeUtf8) <$> keyVal
 
-handlerF :: Maybe Routine -> QualifiedIdentifier -> MediaHandler -> SQL.Snippet
-handlerF rout target = \case
+handlerF :: Maybe Routine -> MediaHandler -> SQL.Snippet
+handlerF rout = \case
   BuiltinAggArrayJsonStrip   -> asJsonF rout True
   BuiltinAggSingleJson strip -> asJsonSingleF rout strip
   BuiltinOvAggJson           -> asJsonF rout False
   BuiltinOvAggGeoJson        -> asGeoJsonF
   BuiltinOvAggCsv            -> asCsvF
-  CustomFunc funcQi          -> customFuncF rout funcQi target
+  CustomFunc funcQi target   -> customFuncF rout funcQi target
   NoAgg                      -> "''::text"

@@ -25,12 +25,11 @@ import qualified Hasql.Statement                   as SQL
 import Control.Lens ((^?))
 
 import PostgREST.ApiRequest.Preferences
-import PostgREST.MediaType               (MTVndPlanFormat (..),
-                                          MediaType (..))
+import PostgREST.MediaType              (MTVndPlanFormat (..),
+                                         MediaType (..))
 import PostgREST.Query.SqlFragment
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier)
-import PostgREST.SchemaCache.Routine     (MediaHandler (..), Routine,
-                                          funcReturnsSingle)
+import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine,
+                                         funcReturnsSingle)
 
 import Protolude
 
@@ -56,9 +55,9 @@ data ResultSet
   | RSPlan BS.ByteString -- ^ the plan of the query
 
 
-prepareWrite :: QualifiedIdentifier -> SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
+prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
                 Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite qi selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys =
+prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
@@ -69,7 +68,7 @@ prepareWrite qi selectQuery mutateQuery isInsert isPut mt handler rep resolution
       "'' AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
       locF <> " AS header, " <>
-      handlerF Nothing qi handler <> " AS body, " <>
+      handlerF Nothing handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF  <> " AS response_status, " <>
       pgrstInsertedF <> " AS response_inserted " <>
@@ -94,8 +93,8 @@ prepareWrite qi selectQuery mutateQuery isInsert isPut mt handler rep resolution
     MTVndPlan{} -> planRow
     _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-prepareRead :: QualifiedIdentifier -> SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> SQL.Statement () ResultSet
-prepareRead qi selectQuery countQuery countTotal mt handler =
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> SQL.Statement () ResultSet
+prepareRead selectQuery countQuery countTotal mt handler =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
  where
   snippet =
@@ -104,7 +103,7 @@ prepareRead qi selectQuery countQuery countTotal mt handler =
     "SELECT " <>
       countResultF <> " AS total_result_set, " <>
       "pg_catalog.count(_postgrest_t) AS page_total, " <>
-      handlerF Nothing qi handler <> " AS body, " <>
+      handlerF Nothing handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status, " <>
       "''" <> " AS response_inserted " <>
@@ -117,10 +116,10 @@ prepareRead qi selectQuery countQuery countTotal mt handler =
     MTVndPlan{} -> planRow
     _           -> HD.singleRow $ standardRow True
 
-prepareCall :: QualifiedIdentifier -> Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
+prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                MediaType -> MediaHandler -> Bool ->
                SQL.Statement () ResultSet
-prepareCall qi rout callProcQuery selectQuery countQuery countTotal mt handler =
+prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler =
   SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
   where
     snippet =
@@ -131,7 +130,7 @@ prepareCall qi rout callProcQuery selectQuery countQuery countTotal mt handler =
         (if funcReturnsSingle rout
           then "1"
           else "pg_catalog.count(_postgrest_t)") <> " AS page_total, " <>
-        handlerF (Just rout) qi handler <> " AS body, " <>
+        handlerF (Just rout) handler <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
         responseStatusF <> " AS response_status, " <>
         "''" <> " AS response_inserted " <>

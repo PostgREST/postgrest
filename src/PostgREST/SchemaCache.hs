@@ -1188,7 +1188,9 @@ mediaHandlers pgVer =
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap
 decodeMediaHandlers =
-  HM.fromList . fmap (\(x, y, z, w) -> ((if isAnyElement y then RelAnyElement else RelId y, z), (CustomFunc x, w)) ) <$> HD.rowList caggRow
+  HM.fromList . fmap (\(x, y, z, w) ->
+    let rel = if isAnyElement y then RelAnyElement else RelId y
+    in ((rel, z), (CustomFunc x rel, w)) ) <$> HD.rowList caggRow
   where
     caggRow = (,,,)
               <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
