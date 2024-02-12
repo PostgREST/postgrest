@@ -656,10 +656,10 @@ spec actualPgVersion =
       it "rejects unknown content type even if payload is good" $ do
         request methodPost "/rpc/sayhello"
           (acceptHdrs "audio/mpeg3") [json| { "name": "world" } |]
-            `shouldRespondWith` 415
+            `shouldRespondWith` 406
         request methodGet "/rpc/sayhello?name=world"
           (acceptHdrs "audio/mpeg3") ""
-            `shouldRespondWith` 415
+            `shouldRespondWith` 406
       it "rejects malformed json payload" $ do
         p <- request methodPost "/rpc/sayhello"
           (acceptHdrs "application/json") "sdfsdf"

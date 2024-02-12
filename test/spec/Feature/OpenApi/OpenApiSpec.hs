@@ -30,15 +30,15 @@ spec actualPgVersion = describe "OpenAPI" $ do
         , matchHeaders = ["Content-Type" <:> "application/openapi+json; charset=utf-8"]
         }
 
-  it "should respond to openapi request on none root path with 415" $
+  it "should respond to openapi request on none root path with 406" $
     request methodGet "/items"
             (acceptHdrs "application/openapi+json") ""
-      `shouldRespondWith` 415
+      `shouldRespondWith` 406
 
-  it "should respond to openapi request with unsupported media type with 415" $
+  it "should respond to openapi request with unsupported media type with 406" $
     request methodGet "/"
             (acceptHdrs "text/csv") ""
-      `shouldRespondWith` 415
+      `shouldRespondWith` 406
 
   it "includes postgrest.org current version api docs" $ do
     r <- simpleBody <$> get "/"

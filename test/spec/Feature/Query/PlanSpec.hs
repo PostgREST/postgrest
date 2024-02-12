@@ -463,12 +463,12 @@ disabledSpec =
   it "doesn't work if db-plan-enabled=false(the default)" $ do
     request methodGet "/projects?id=in.(1,2,3)"
          (acceptHdrs "application/vnd.pgrst.plan") ""
-      `shouldRespondWith` 415
+      `shouldRespondWith` 406
 
     request methodGet "/rpc/getallprojects?id=in.(1,2,3)"
       (acceptHdrs "application/vnd.pgrst.plan") ""
-      `shouldRespondWith` 415
+      `shouldRespondWith` 406
 
     request methodDelete "/projects?id=in.(1,2,3)"
            (acceptHdrs "application/vnd.pgrst.plan") ""
-      `shouldRespondWith` 415
+      `shouldRespondWith` 406
