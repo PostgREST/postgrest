@@ -65,7 +65,7 @@ instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
   status AmbiguousRelBetween{}       = HTTP.status300
   status AmbiguousRpc{}              = HTTP.status300
-  status MediaTypeError{}            = HTTP.status415
+  status MediaTypeError{}            = HTTP.status406
   status InvalidBody{}               = HTTP.status400
   status InvalidFilters              = HTTP.status405
   status InvalidPreferences{}        = HTTP.status400

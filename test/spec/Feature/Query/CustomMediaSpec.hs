@@ -31,7 +31,7 @@ spec = describe "custom media types" $ do
       request methodGet "/lines" (acceptHdrs "text/plain") ""
         `shouldRespondWith`
         [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"} |]
-        { matchStatus  = 415
+        { matchStatus  = 406
         , matchHeaders = [matchContentTypeJson]
         }
 
@@ -115,7 +115,7 @@ spec = describe "custom media types" $ do
         [json|
           {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/xml"}
         |]
-        { matchStatus = 415
+        { matchStatus = 406
         , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
         }
 
@@ -140,7 +140,7 @@ spec = describe "custom media types" $ do
           ""
         `shouldRespondWith`
           [json|{"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"}|]
-          { matchStatus = 415
+          { matchStatus = 406
           , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
           }
 
@@ -156,7 +156,7 @@ spec = describe "custom media types" $ do
           (acceptHdrs "application/octet-stream") ""
         `shouldRespondWith`
           [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: application/octet-stream"} |]
-          { matchStatus = 415 }
+          { matchStatus = 406 }
 
     -- TODO SOH (start of heading) is being added to results
     it "works if there's an anyelement aggregate defined" $ do
@@ -279,7 +279,7 @@ spec = describe "custom media types" $ do
           }
 
         request methodGet "/rpc/ret_some_mt" (acceptHdrs "text/csv") ""
-          `shouldRespondWith` 415
+          `shouldRespondWith` 406
 
     context "on tables" $ do
       it "returns application/json for */* if not explicitly set" $ do

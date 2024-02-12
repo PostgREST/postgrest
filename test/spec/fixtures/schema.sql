@@ -3714,7 +3714,7 @@ begin
       perform set_config('response.headers', json_build_array(json_build_object('Content-Type', 'app/groucho'))::text, true);
       resp := 'groucho';
     else
-      raise sqlstate 'PT415' using message = 'Unsupported Media Type';
+      raise sqlstate 'PT406' using message = 'Not Acceptable';
   end case;
   return resp;
 end; $$ language plpgsql;
