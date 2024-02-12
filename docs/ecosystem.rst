@@ -22,6 +22,8 @@ Community Tutorials
 
 * `A poor man's API <https://blog.frankel.ch/poor-man-api>`_ - Shows how to integrate PostgREST with Apache APISIX as an alternative to Nginx.
 
+.. * `Accessing a PostgreSQL database in Godot 4 via PostgREST <https://peterkingsbury.com/2022/08/16/godot-postgresql-postgrest/>`_
+
 .. _templates:
 
 Templates
