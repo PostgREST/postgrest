@@ -108,7 +108,7 @@ data MediaHandler
    | BuiltinOvAggGeoJson
    | BuiltinOvAggCsv
    -- custom
-   | CustomFunc QualifiedIdentifier
+   | CustomFunc QualifiedIdentifier RelIdentifier
    | NoAgg
    deriving (Eq, Show)
 

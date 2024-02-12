@@ -70,7 +70,6 @@ readQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=
   resultSet <-
      lift . SQL.statement mempty $
       Statements.prepareRead
-        wrIdent
         (QueryBuilder.readPlanToQuery wrReadPlan)
         (if preferCount == Just EstimatedCount then
            -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -157,7 +156,6 @@ invokeQuery rout CallReadPlan{..} apiReq@ApiRequest{iPreferences=Preferences{..}
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
-        crIdent
         rout
         (QueryBuilder.callPlanToQuery crCallPlan pgVer)
         (QueryBuilder.readPlanToQuery crReadPlan)
@@ -196,7 +194,6 @@ writeQuery MutateReadPlan{..} ApiRequest{iPreferences=Preferences{..}} conf =
   in
   lift . SQL.statement mempty $
     Statements.prepareWrite
-      mrIdent
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
