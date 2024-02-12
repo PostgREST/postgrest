@@ -20,7 +20,7 @@ Community Tutorials
 
 * `Build data-driven applications with Workers and PostgreSQL <https://developers.cloudflare.com/workers/tutorials/postgres/>`_ - A tutorial on how to integrate with PostgREST and PostgreSQL using Cloudflare Workers.
 
-.. * `A poor man's API <https://blog.frankel.ch/poor-man-api>`_ - Shows how to integrate PostgREST with Apache APISIX as an alternative to Nginx.
+* `A poor man's API <https://blog.frankel.ch/poor-man-api>`_ - Shows how to integrate PostgREST with Apache APISIX as an alternative to Nginx.
 
 .. _templates:
 
