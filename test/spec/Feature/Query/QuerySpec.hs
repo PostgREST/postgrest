@@ -533,9 +533,15 @@ spec actualPgVersion = do
         get "/items2?id=eq.1&select=id,computed_overload" `shouldRespondWith`
           [json|[{"id":1,"computed_overload":true}]|]
           { matchHeaders = [matchContentTypeJson] }
+        get "items?id=eq.1&select=*,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
-      it "overloaded computed column on rpc" $
+      it "overloaded computed column on rpc" $ do
         get "/rpc/search?id=1&select=id,computed_overload" `shouldRespondWith`
+          [json|[{"id":1,"computed_overload":true}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/search?id=1&select=*,computed_overload" `shouldRespondWith`
           [json|[{"id":1,"computed_overload":true}]|]
           { matchHeaders = [matchContentTypeJson] }
 

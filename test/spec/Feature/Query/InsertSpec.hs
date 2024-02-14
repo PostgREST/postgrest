@@ -117,6 +117,33 @@ spec actualPgVersion = do
                            , "Preference-Applied" <:> "return=representation"]
           }
 
+      it "includes computed columns after insert" $
+        request methodPost "/projects?select=*,is_orphan"
+            [("Prefer", "return=representation")]
+            [json|{"id":10,"name":"New Project"}|]
+          `shouldRespondWith`
+            [json|[{"id":10,"name":"New Project","client_id":null,"is_orphan":true}]|]
+            { matchStatus  = 201
+            , matchHeaders = [ matchContentTypeJson
+                             , matchHeaderAbsent hLocation
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
+      -- It gave an error when selecting `*` and overloaded computed columns: https://github.com/PostgREST/postgrest/issues/3145
+      it "includes overloaded computed columns after insert" $ do
+        request methodPost "/projects?select=*,created_at"
+            [("Prefer", "return=representation")]
+            [json|{"id":10,"name":"New Project"}|]
+          `shouldRespondWith`
+            [json|[{"id":10,"name":"New Project","client_id":null,"created_at":"2024-01-01"}]|]
+            { matchStatus  = 201
+            , matchHeaders = [ matchContentTypeJson
+                             , matchHeaderAbsent hLocation
+                             , "Content-Range" <:> "*/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
       it "should not throw and return location header when selecting without PK" $
         request methodPost "/projects?select=name,client_id" [("Prefer", "return=representation")]
           [json|{"id":10,"name":"New Project","client_id":2}|] `shouldRespondWith`

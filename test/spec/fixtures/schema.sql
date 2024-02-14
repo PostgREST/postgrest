@@ -3755,3 +3755,15 @@ create aggregate test.some_agg (some_numbers) (
 
 create view bad_subquery as
 select * from projects where id = (select id from projects);
+
+CREATE FUNCTION is_orphan(test.projects) RETURNS boolean
+  LANGUAGE sql IMMUTABLE
+AS $$ SELECT $1.client_id IS NULL $$;
+
+CREATE FUNCTION created_at(test.projects) RETURNS date
+  LANGUAGE sql IMMUTABLE
+AS $$ SELECT '20240101'::date $$;
+
+CREATE FUNCTION created_at(test.articles) RETURNS date
+  LANGUAGE sql IMMUTABLE
+AS $$ SELECT '20240101'::date $$;
