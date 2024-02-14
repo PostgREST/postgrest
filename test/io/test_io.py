@@ -1170,9 +1170,9 @@ def test_server_timing_jwt_should_decrease_on_subsequent_requests(defaultenv):
         first_dur = parse_server_timings_header(first_timings)["jwt"]
         second_dur = parse_server_timings_header(second_timings)["jwt"]
 
-        # their difference should be atleast 300, implying
+        # their difference should be atleast 0.3ms, implying
         # that JWT Caching is working as expected
-        assert (first_dur - second_dur) > 300.0
+        assert (first_dur - second_dur) > 0.3
 
 
 # just added to complete code coverage
@@ -1252,9 +1252,9 @@ def test_jwt_cache_with_no_exp_claim(defaultenv):
         first_dur = parse_server_timings_header(first_timings)["jwt"]
         second_dur = parse_server_timings_header(second_timings)["jwt"]
 
-        # their difference should be atleast 300, implying
+        # their difference should be atleast 0.3ms, implying
         # that JWT Caching is working as expected
-        assert (first_dur - second_dur) > 300.0
+        assert (first_dur - second_dur) > 0.3
 
 
 def test_preflight_request_with_cors_allowed_origin_config(defaultenv):
