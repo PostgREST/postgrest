@@ -947,7 +947,7 @@ inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> [FieldName]
 inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   -- if * is part of the select, we must not add pk or fk columns manually -
   -- otherwise those would be selected and output twice
-  | "*" `elem` fldNames = ["*"]
+  | "*" `elem` fldNames = fldNames
   | otherwise           = returnings
   where
     fldNames = cfName . csField <$> select
