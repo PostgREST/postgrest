@@ -39,6 +39,7 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
+import Data.Tree                 (flatten)
 import Network.HTTP.Types.Header (RequestHeaders, hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
@@ -247,7 +248,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
   let cols = case (checkedPayload, columns) of
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
         (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
-        (Just RawJSON{}, Just cls)             -> cls
+        (Just RawJSON{}, Just cls)             -> S.fromList $ foldl (<>) [] (flatten <$> cls)
         _                                      -> S.empty
   return (checkedPayload, cols)
   where
