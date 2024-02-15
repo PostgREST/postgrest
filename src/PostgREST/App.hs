@@ -50,6 +50,7 @@ import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
+import PostgREST.Observation          (Observation (..))
 import PostgREST.Query                (DbHandler)
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
@@ -66,26 +67,26 @@ import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 
-run :: AppState -> IO ()
-run appState = do
-  AppState.logWithZTime appState $ "Starting PostgREST " <> T.decodeUtf8 prettyVersion <> "..."
+run :: AppState -> (Observation -> IO ()) -> IO ()
+run appState observer = do
+  observer $ AppStartObs prettyVersion
 
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState observer)
   -- reload schema cache + config on NOTIFY
-  AppState.runListener conf appState
+  AppState.runListener conf appState observer
 
-  Admin.runAdmin conf appState $ serverSettings conf
+  Admin.runAdmin conf appState (serverSettings conf) observer
 
-  let app = postgrest conf appState (AppState.connectionWorker appState)
+  let app = postgrest conf appState (AppState.connectionWorker appState) observer
 
-  what <- case configServerUnixSocket of
-    Just path -> pure $ "unix socket " <> show path
+  case configServerUnixSocket of
+    Just path -> do
+      observer $ AppServerUnixObs path
     Nothing   -> do
       port <- NS.socketPort $ AppState.getSocketREST appState
-      pure $ "port " <> show port
-  AppState.logWithZTime appState $ "Listening on " <> what
+      observer $ AppServerPortObs port
 
   Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 
@@ -97,8 +98,8 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: AppConfig -> AppState.AppState -> IO () -> Wai.Application
-postgrest conf appState connWorker =
+postgrest :: AppConfig -> AppState.AppState -> IO () -> (Observation -> IO ()) -> Wai.Application
+postgrest conf appState connWorker observer =
   traceHeaderMiddleware conf .
   Cors.middleware (configServerCorsAllowedOrigins conf) .
   Auth.middleware appState .
@@ -115,7 +116,7 @@ postgrest conf appState connWorker =
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req observer
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -134,8 +135,9 @@ postgrestResponse
   -> PgVersion
   -> AuthResult
   -> Wai.Request
+  -> (Observation -> IO ())
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req observer = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -151,13 +153,13 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
         ApiRequest.userApiRequest conf req body sCache
 
   let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTime parseTime
+  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTime parseTime observer
 
-runDbHandler :: AppState.AppState -> AppConfig -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> DbHandler b -> Handler IO b
-runDbHandler appState config isoLvl mode authenticated prepared handler = do
+runDbHandler :: AppState.AppState -> AppConfig -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> (Observation -> IO ()) -> DbHandler b -> Handler IO b
+runDbHandler appState config isoLvl mode authenticated prepared observer handler = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState config . transaction isoLvl mode $ runExceptT handler
+    AppState.usePool appState config (transaction isoLvl mode $ runExceptT handler) observer
 
   resp <-
     liftEither . mapLeft Error.PgErr $
@@ -165,8 +167,9 @@ runDbHandler appState config isoLvl mode authenticated prepared handler = do
 
   liftEither resp
 
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache -> Maybe Double -> Maybe Double -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime =
+handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache ->
+                Maybe Double -> Maybe Double -> (Observation -> IO ()) -> Handler IO Wai.Response
+handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime observer =
   case (iAction, iTarget) of
     (ActionRead headersOnly, TargetIdent identifier) -> do
       (planTime', wrPlan) <- withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
@@ -231,7 +234,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
     roleSettings = fromMaybe mempty (HM.lookup authRole $ configRoleSettings conf)
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf
     runQuery isoLvl funcSets mode query =
-      runDbHandler appState conf isoLvl mode authenticated prepared $ do
+      runDbHandler appState conf isoLvl mode authenticated prepared observer $ do
         Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) funcSets apiReq
         Query.runPreReq conf
         query

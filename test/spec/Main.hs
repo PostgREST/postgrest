@@ -73,24 +73,25 @@ main = do
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 
   -- cached schema cache so most tests run fast
-  baseSchemaCache <- loadSchemaCache pool testCfg
+  baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
 
   let
+    noObs = const $ pure ()
     -- For tests that run with the same refSchemaCache
     app config = do
-      appState <- AppState.initWithPool sockets pool config
+      appState <- AppState.initWithPool sockets pool config noObs
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
-      return ((), postgrest config appState $ pure ())
+      return ((), postgrest config appState (pure ()) noObs)
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
-      customSchemaCache <- loadSchemaCache pool config
-      appState <- AppState.initWithPool sockets pool config
+      customSchemaCache <- loadSCache pool config
+      appState <- AppState.initWithPool sockets pool config noObs
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
-      return ((), postgrest config appState $ pure ())
+      return ((), postgrest config appState (pure ()) noObs)
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
@@ -268,5 +269,5 @@ main = do
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
 
   where
-    loadSchemaCache pool conf =
+    loadSCache pool conf =
       either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
