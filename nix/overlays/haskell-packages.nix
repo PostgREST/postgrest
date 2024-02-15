@@ -46,7 +46,17 @@ let
           postgresql = super.libpq;
         });
 
-      hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
+      #hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
+
+      hasql-pool =
+        lib.dontCheck (prev.callCabal2nixWithOptions "hasql-pool"
+          (super.fetchFromGitHub {
+            owner = "nikita-volkov";
+            repo = "hasql-pool";
+            rev = "edc33d27adb134aefc39b7aba1fd00c07166305f";
+            sha256 = "sha256-0D4MYOZ68TgkHXWfCCn5ISR1IWcrE5DXfrJ4NcSregQ=";
+          }) "--subpath=."
+          { });
 
     };
 in

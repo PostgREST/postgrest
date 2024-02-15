@@ -208,6 +208,24 @@ initPool AppConfig{..} =
     (fromIntegral configDbPoolMaxLifetime)
     (fromIntegral configDbPoolMaxIdletime)
     (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+    logPool
+
+logPool :: SQL.Observation -> IO ()
+logPool obs = hPutStrLn stderr $ showObs obs
+
+showObs :: SQL.Observation -> ByteString
+showObs = \case
+  SQL.ConnectionEstablishedObservation uid -> "ConnectionEstablishedObservation " <> show uid
+  SQL.AttemptingToConnectObservation uid -> "AttemptingToConnectObservation " <> show uid
+  SQL.FailedToConnectObservation uid str -> "FailedToConnectObservation " <> show uid <> fromMaybe mempty str
+  SQL.ConnectionReleasedObservation uid reason -> "ConnectionReleasedObservation " <> show uid <> " " <> showReason reason
+  where
+    showReason :: SQL.ReleaseReason -> ByteString
+    showReason = \case
+      SQL.AgingReleaseReason              -> "AgingReleaseReason"
+      SQL.IdlenessReleaseReason           -> "IdlenessReleaseReason"
+      SQL.TransportErrorReleaseReason str -> "TransportErrorReleaseReason " <> fromMaybe mempty str
+      SQL.ReleaseActionCallReleaseReason  -> "ReleaseActionCallReleaseReason"
 
 -- | Run an action with a database connection.
 usePool :: AppState -> AppConfig -> SQL.Session a -> IO (Either SQL.UsageError a)
