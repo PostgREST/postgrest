@@ -297,6 +297,10 @@ def setup(app):
 # taken from https://github.com/sphinx-doc/sphinx/blob/82dad44e5bd3776ecb6fd8ded656bc8151d0e63d/sphinx/util/requests.py#L42
 user_agent = 'Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0'
 
+# TODO: stackoverflow only returns 403 right now. We might need to come back later to check whether that's
+# a permanent issue or not.
+linkcheck_ignore = [r'https://stackoverflow.com/']
+
 # sphinx-tabs configuration
 sphinx_tabs_disable_tab_closing = True
 

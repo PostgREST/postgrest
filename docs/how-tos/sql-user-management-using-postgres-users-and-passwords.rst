@@ -52,7 +52,7 @@ Concerning the `pgjwt extension <https://github.com/michelp/pgjwt>`_, please cf.
   CREATE EXTENSION IF NOT EXISTS pgjwt WITH SCHEMA ext_pgjwt;
 
 
-In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we also need the PBKDF2 key derivation function. Luckily there is `a PL/pgSQL implementation on stackoverflow <https://stackoverflow.com/q/47162200/2337147>`_:
+In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we also need the PBKDF2 key derivation function. Luckily there is `a PL/pgSQL implementation on stackoverflow <https://stackoverflow.com/a/72805848>`_:
 
 .. code-block:: plpgsql
 
