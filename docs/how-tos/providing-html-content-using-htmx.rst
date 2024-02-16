@@ -38,7 +38,7 @@ and return a raw HTML document file.
 Creating an HTML Response
 -------------------------
 
-Let's create a function that returns a basic HTML file, using `Pico CSS <https://v2.picocss.com/>`_ for styling and
+Let's create a function that returns a basic HTML file, using `Pico CSS <https://picocss.com>`_ for styling and
 `Ionicons <https://ionic.io/ionicons>`_ to show some icons later.
 
 .. code-block:: postgres

@@ -196,11 +196,11 @@ Here are some companies that use PostgREST in production.
 * `Datrium <https://www.datrium.com>`_
 * `Drip Depot <https://www.dripdepot.com>`_
 * `Image-charts <https://www.image-charts.com>`_
-* `Moat <https://www.moat.com>`_
+* `Moat <https://www.oracle.com/advertising/measurement/>`_
 * `Netwo <https://www.netwo.io>`_
-* `Nimbus <https://www.nimbusforwork.com>`_
+* `Nimbus <https://www.nimbusfacility.com/sg/home>`_
   - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
-* `OpenBooking <https://www.openbooking.ch>`_
+* `OpenBooking <https://openbooking.ch>`_
 * `Redsmin <https://www.redsmin.com>`_
 * `Sompani <https://www.sompani.com>`_
 * `Supabase <https://supabase.com>`_

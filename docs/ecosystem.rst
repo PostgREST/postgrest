@@ -51,9 +51,9 @@ DevOps
 
 * `cloudgov-demo-postgrest <https://github.com/GSA/cloudgov-demo-postgrest>`_ - demo for a federally-compliant REST API on cloud.gov
 * `cloudstark/helm-charts <https://github.com/cloudstark/helm-charts/tree/master/postgrest>`_ - helm chart to deploy PostgREST to a Kubernetes cluster via a Deployment and Service
-* `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
-* `Limezest/postgrest-cloud-run <https://github.com/Limezest/postgrest-cloud-run>`_ - expose a PostgreSQL database on Cloud SQL using Cloud Run
+* `cyril-sabourault/postgrest-cloud-run <https://github.com/cyril-sabourault/postgrest-cloud-run>`_ - expose a PostgreSQL database on Cloud SQL using Cloud Run
 * `eyberg/postgrest <https://repo.ops.city/v2/packages/eyberg/postgrest/10.1.1/x86_64/show>`_ - run PostgREST as a Nanos unikernel
+* `jbkarle/postgrest <https://github.com/jbkarle/postgrest>`_ - helm chart with a demo database for development and test purposes
 
 .. _eco_external_notification:
 
@@ -84,8 +84,8 @@ Client-Side Libraries
 ---------------------
 
 * `postgrest-csharp <https://github.com/supabase-community/postgrest-csharp>`_ - C#
-* `postgrest-dart <https://github.com/supabase-community/postgrest-dart>`_ - Dart
-* `postgrest-ex <https://github.com/J0/postgrest-ex>`_ - Elixir
+* `postgrest-dart <https://github.com/supabase/postgrest-dart>`_ - Dart
+* `postgrest-ex <https://github.com/supabase-community/postgrest-ex>`_ - Elixir
 * `postgrest-go <https://github.com/supabase-community/postgrest-go>`_ - Go
 * `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
 * `postgrest-kt <https://github.com/supabase-community/postgrest-kt>`_ - Kotlin

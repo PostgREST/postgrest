@@ -429,7 +429,7 @@ You can also query and filter the value of a ``hstore`` column using the arrow o
 PostGIS
 -------
 
-You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography`` (you need to `install PostGIS <https://postgis.net/install/>`_ first).
+You can use the string representation for `PostGIS <https://postgis.net/>`_ data types such as ``geometry`` or ``geography`` (you need to `install PostGIS <https://postgis.net/documentation/getting_started/>`_ first).
 
 .. code-block:: postgres
 
