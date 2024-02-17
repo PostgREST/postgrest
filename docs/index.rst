@@ -5,7 +5,7 @@ PostgREST Documentation
 
 .. container:: image-container
 
-  .. figure:: _static/logo.png
+  .. figure:: ../static/postgrest.png
 
 .. image:: https://img.shields.io/github/stars/postgrest/postgrest.svg?style=social
   :target: https://github.com/PostgREST/postgrest
@@ -34,29 +34,29 @@ Sponsors
 
 .. container:: image-container
 
-  .. image:: _static/cybertec-new.png
+  .. image:: ../static/cybertec-new.png
     :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
     :width:  13em
 
-  .. image:: _static/gnuhost.png
+  .. image:: ../static/gnuhost.png
     :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
-  .. image:: _static/neon.jpg
+  .. image:: ../static/neon.jpg
     :target: https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
   |
 
-  .. image:: _static/code-build.webp
+  .. image:: ../static/code-build.webp
     :target: https://code.build/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
-  .. image:: _static/supabase.png
+  .. image:: ../static/supabase.png
     :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
     :width:  13em
 
-  .. image:: _static/tembo.png
+  .. image:: ../static/tembo.png
     :target: https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
