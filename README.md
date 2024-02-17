@@ -1,4 +1,4 @@
-![Logo](static/bigger-logo.png "Logo")
+![Logo](static/postgrest.png "Logo")
 
 [![Donate](https://img.shields.io/badge/Donate-Patreon-orange.svg?colorB=F96854)](https://www.patreon.com/postgrest)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/postgrest)
@@ -43,7 +43,7 @@ API than you are likely to write from scratch.
       </td>
       <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
-          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/supabase.png">
+          <img width="296px" src="static/supabase.png">
         </a>
       </td>
       <td align="center" valign="middle">
