@@ -2,7 +2,7 @@ _build
 Pipfile.lock
 *.aux
 *.log
-diagrams/db.pdf
+_diagrams/db.pdf
 misspellings
 unuseddict
 .history
