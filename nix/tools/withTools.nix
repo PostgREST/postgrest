@@ -34,7 +34,7 @@ let
             "ARG_USE_ENV([PGOPTIONS], [-c search_path=public,test], [PG options to use])"
           ];
         positionalCompletion = "_command";
-        inRootDir = true;
+        workingDir = "/";
         redirectTixFiles = false;
         withPath = [ postgresql ];
         withTmpDir = true;
@@ -139,7 +139,7 @@ let
             "ARG_LEFTOVERS([command arguments])"
           ];
         positionalCompletion = "_command";
-        inRootDir = true;
+        workingDir = "/";
       }
       (lib.concatStringsSep "\n\n" runners);
 
@@ -161,7 +161,7 @@ let
             "ARG_USE_ENV([PGDELAY], [0ms], [extra PG latency (duration)])"
           ];
         positionalCompletion = "_command";
-        inRootDir = true;
+        workingDir = "/";
         redirectTixFiles = false;
         withTmpDir = true;
       }
@@ -199,7 +199,7 @@ let
             "ARG_USE_ENV([PGRST_DELAY], [0ms], [extra PostgREST latency (duration)])"
           ];
         positionalCompletion = "_command";
-        inRootDir = true;
+        workingDir = "/";
         redirectTixFiles = false;
         withTmpDir = true;
       }
@@ -249,7 +249,7 @@ let
               _command_offset 2
             fi
           '';
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         # not using withTmpDir here, because we don't want to keep the directory on error
@@ -360,7 +360,7 @@ let
             "ARG_LEFTOVERS([command arguments])"
           ];
         positionalCompletion = "_command";
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
         withTmpDir = true;
       }

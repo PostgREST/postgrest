@@ -11,7 +11,7 @@ let
         name = "postgrest-build";
         docs = "Build PostgREST interactively using cabal-install.";
         args = [ "ARG_LEFTOVERS([Cabal arguments])" ];
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -23,7 +23,7 @@ let
       {
         name = "postgrest-clean";
         docs = "Clean the PostgREST project, including all cabal-install artifacts.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         # clean old coverage data, too
@@ -45,7 +45,7 @@ let
             "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool size])"
             "ARG_LEFTOVERS([PostgREST arguments])"
           ];
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -63,7 +63,7 @@ let
         name = "postgrest-repl";
         docs = "Interact with PostgREST modules using the cabal repl";
         args = [ "ARG_LEFTOVERS([cabal v2-repl arguments])" ];
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''

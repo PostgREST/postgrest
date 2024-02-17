@@ -24,7 +24,7 @@ let
         name = "postgrest-test-spec";
         docs = "Run the Haskell test suite. Use --match PATTERN for running individual specs";
         args = [ "ARG_LEFTOVERS([hspec arguments])" ];
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -37,7 +37,7 @@ let
       {
         name = "postgrest-test-doctests";
         docs = "Run the Haskell doctest test suite";
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -49,7 +49,7 @@ let
       {
         name = "postgrest-test-spec-idempotence";
         docs = "Check that the Haskell tests can be run multiple times against the same db.";
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -75,7 +75,7 @@ let
         name = "postgrest-test-io";
         docs = "Run the pytest-based IO tests. Add -k to run tests that match a given expression.";
         args = [ "ARG_LEFTOVERS([pytest arguments])" ];
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
       }
       ''
@@ -89,7 +89,7 @@ let
       {
         name = "postgrest-dump-schema";
         docs = "Dump the loaded schema's SchemaCache as a yaml file.";
-        inRootDir = true;
+        workingDir = "/";
         withEnv = postgrest.env;
         withPath = [ jq ];
       }
@@ -106,7 +106,7 @@ let
         name = "postgrest-coverage";
         docs = "Run spec and io tests while collecting hpc coverage data. First runs weeder to detect dead code.";
         args = [ "ARG_LEFTOVERS([hpc report arguments])" ];
-        inRootDir = true;
+        workingDir = "/";
         redirectTixFiles = false;
         withEnv = postgrest.env;
         withTmpDir = true;
@@ -181,7 +181,7 @@ let
       {
         name = "postgrest-coverage-draft-overlay";
         docs = "Create a draft overlay from current coverage report.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         ${ghc}/bin/hpc draft --output=test/coverage.overlay coverage/postgrest.tix
