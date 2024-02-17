@@ -24,17 +24,19 @@ rec {
     pkgs.writeShellScriptBin "postgrest-docs-build"
       ''
         set -euo pipefail
+        cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)/docs"
 
         # clean previous build, otherwise some errors might be supressed
         rm -rf _build
 
-        ${python}/bin/sphinx-build --color -W -b html -a -n docs _build
+        ${python}/bin/sphinx-build --color -W -b html -a -n . _build
       '';
 
   serve =
     pkgs.writeShellScriptBin "postgrest-docs-serve"
       ''
         set -euo pipefail
+        cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)/docs"
 
         # livereload_docs.py needs to find "sphinx-build"
         PATH=${python}/bin:$PATH
@@ -46,8 +48,9 @@ rec {
     pkgs.writeShellScriptBin "postgrest-docs-spellcheck"
       ''
         set -euo pipefail
+        cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)/docs"
 
-        FILES=$(find docs -type f -iname '*.rst' | tr '\n' ' ')
+        FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         cat $FILES \
          | grep -v '^\(\.\.\|  \)' \
@@ -63,8 +66,9 @@ rec {
     pkgs.writeShellScriptBin "postgrest-docs-dictcheck"
       ''
         set -euo pipefail
+        cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)/docs"
 
-        FILES=$(find docs -type f -iname '*.rst' | tr '\n' ' ')
+        FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         cat postgrest.dict \
          | tail -n+2 \
@@ -79,8 +83,9 @@ rec {
     pkgs.writeShellScriptBin "postgrest-docs-linkcheck"
       ''
         set -euo pipefail
+        cd "$(${pkgs.git}/bin/git rev-parse --show-toplevel)/docs"
 
-        ${python}/bin/sphinx-build --color -b linkcheck docs _build
+        ${python}/bin/sphinx-build --color -b linkcheck . _build
       '';
 
   check =
