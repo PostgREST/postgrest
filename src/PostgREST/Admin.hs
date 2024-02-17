@@ -4,6 +4,7 @@ module PostgREST.Admin
   ( runAdmin
   ) where
 
+import qualified Data.Aeson                as JSON
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
@@ -51,6 +52,9 @@ admin appState appConfig req respond  = do
     ["config"] -> do
       config <- AppState.getConfig appState
       respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)
+    ["schema_cache"] -> do
+      sCache <- AppState.getSchemaCache appState
+      respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
 
