@@ -53,7 +53,7 @@ let
         name = "postgrest-release";
         docs = "Patch postgrest.cabal, CHANGELOG.md, tag and push all in one go.";
         args = [ "ARG_POSITIONAL_SINGLE([version], [Version to release], [pre])" ];
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         trap "echo You need to be on the main branch or a release branch to proceed. Exiting ..." ERR

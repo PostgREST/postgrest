@@ -34,7 +34,7 @@ let
           ];
         positionalCompletion = "_command";
         redirectTixFiles = false; # will be done by sub-command
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         while true; do
@@ -51,7 +51,7 @@ let
 
           Requires authentication with `cachix authtoken ...`.
         '';
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         ${nix}/bin/nix-instantiate \
@@ -71,7 +71,7 @@ let
             This currently excludes the memory and spec-idempotence tests,
             as those are particularly expensive.
           '';
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         ${tests}/bin/postgrest-test-spec
@@ -126,7 +126,7 @@ let
               COMPREPLY=( $(compgen -W "basic full" -- "$cur") )
             fi
           '';
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         if [ run != "$_arg_operation" ]; then
@@ -237,7 +237,7 @@ let
         name = "postgrest-dump-minimal-imports";
         docs = "Dump minimal imports into given directory.";
         args = [ "ARG_POSITIONAL_SINGLE([dumpdir], [Output directory])" ];
-        inRootDir = true;
+        workingDir = "/";
         withTmpDir = true;
       }
       ''

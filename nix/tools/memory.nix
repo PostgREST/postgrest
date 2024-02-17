@@ -13,7 +13,7 @@ let
       {
         name = "postgrest-test-memory";
         docs = "Run the memory tests.";
-        inRootDir = true;
+        workingDir = "/";
         withPath = [ postgrestProfiled curl ];
       }
       ''

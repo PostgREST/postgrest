@@ -15,12 +15,13 @@
 , docs
 , args ? [ ]
 , positionalCompletion ? ""
-, inRootDir ? false
 , redirectTixFiles ? true
 , withEnv ? null
 , withPath ? [ ]
 , withTmpDir ? false
+, workingDir ? null
 }: text:
+assert workingDir == null || lib.hasPrefix "/" workingDir;
 let
   # square brackets are a pain to escape - if even possible. just don't use them...
   escape = builtins.replaceStrings [ "\n" ] [ " \\n" ];
@@ -89,7 +90,7 @@ let
           trap 'rm -rf $hpctixdir' EXIT
         ''
 
-        + lib.optionalString inRootDir ''
+        + lib.optionalString (workingDir != null) ''
           cd "$(${git}/bin/git rev-parse --show-toplevel)"
 
           if test ! -f postgrest.cabal; then
@@ -97,6 +98,8 @@ let
                      "run this command somewhere in the PostgREST repo."
             exit 1
           fi
+
+          cd "''${PWD}${workingDir}"
         ''
 
         + lib.optionalString withTmpDir ''

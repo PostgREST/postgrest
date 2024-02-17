@@ -17,7 +17,7 @@ let
       {
         name = "postgrest-style";
         docs = "Automatically format Haskell, Nix and Python files.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         # Format Nix files
@@ -39,7 +39,7 @@ let
       {
         name = "postgrest-style-check";
         docs = "Check whether postgrest-style results in any uncommited changes.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         ${style}
@@ -54,7 +54,7 @@ let
       {
         name = "postgrest-lint";
         docs = "Lint all Haskell files, bash scripts and github workflows.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         echo "Checking consistency of import aliases in Haskell code..."

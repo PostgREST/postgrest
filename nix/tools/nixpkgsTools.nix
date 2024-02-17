@@ -28,7 +28,7 @@ let
       {
         inherit name;
         docs = "Pin the newest stable version of Nixpkgs.";
-        inRootDir = true;
+        workingDir = "/";
       }
       ''
         # The list of refs is sorted. The first result will be nixpkgs-unstable, the second the latest stable branch.
