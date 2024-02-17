@@ -13,9 +13,8 @@ on:
       - rel-*
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  
-  # Terminate all previous runs of the same workflow and branch/tag, except for main and release branches/tags
-  cancel-in-progress: "${{ !(github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}"
+  # Terminate all previous runs of the same workflow for pull requests
+  cancel-in-progress: "${{ github.event_name == 'pull_request' }}"
 
 jobs:
   Prepopulate-Nix-Cache-Linux:
@@ -287,7 +286,7 @@ jobs:
         ghc: ['9.2.4']
       fail-fast: false
     name: Build aarch64 (Cabal, GHC ${{ matrix.ghc }})
-    if: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-') }}
+    if: "${{ github.event_name == 'push' }}"
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
