@@ -57,7 +57,7 @@ let
       }
       ''
         trap "echo You need to be on the main branch or a release branch to proceed. Exiting ..." ERR
-        [[ "$(git rev-parse --abbrev-ref HEAD)" =~ ^main$|^rel- ]]
+        [[ "$(git rev-parse --abbrev-ref HEAD)" =~ ^main$|^v[0-9]+$ ]]
         trap "" ERR
 
         trap "echo You have uncommitted changes in postgrest.cabal. Exiting ..." ERR

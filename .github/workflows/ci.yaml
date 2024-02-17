@@ -4,13 +4,14 @@ on:
   push:
     branches:
       - main
-      - rel-*
+      - v[0-9]+
     tags:
       - v*
   pull_request:
     branches:
       - main
-      - rel-*
+      - v[0-9]+
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   # Terminate all previous runs of the same workflow for pull requests
