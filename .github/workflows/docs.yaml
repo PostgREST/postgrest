@@ -4,11 +4,11 @@ on:
   push:
     branches:
     - main
-    - rel-*
+    - v[0-9]+
   pull_request:
     branches:
     - main
-    - rel-*
+    - v[0-9]+
 
 jobs:
   build:
