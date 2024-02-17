@@ -3,9 +3,11 @@
 , buildToolbox
 , checkedShellScript
 , python3
+, python3Packages
+, writers
 }:
 let
-  python = python3.withPackages (ps: [
+  selectPythonPackages = ps: [
     ps.sphinx
     ps.sphinx_rtd_theme
     ps.livereload
@@ -14,7 +16,9 @@ let
     ps.sphinxext-opengraph
     # TODO: Remove override once new sphinx-intl version (> 2.1.0) is released and available in nixpkgs
     (ps.sphinx-intl.overrideAttrs (drv: { nativeBuildInputs = drv.nativeBuildInputs ++ [ ps.six ]; }))
-  ]);
+  ];
+
+  python = python3.withPackages selectPythonPackages;
 
   build =
     checkedShellScript
@@ -25,10 +29,56 @@ let
         workingDir = "/docs";
       }
       ''
-        # build.sh needs to find "sphinx-build"
-        PATH=${python}/bin:$PATH
+        function build() {
+          ${python}/bin/sphinx-build --color -W -a -n . -b "$@"
+        }
 
-        ./build.sh "$_arg_language"
+        if [ "$_arg_language" == "" ]; then
+          # clean previous build, otherwise some errors might be supressed
+          rm -rf "_build/html/default"
+
+          if [ -d languages ]; then
+            # default to updating all existing locales
+            build gettext _build/gettext
+            ${python}/bin/sphinx-intl update -p _build/gettext
+          fi
+
+          build html "_build/html/default"
+        else
+          # clean previous build, otherwise some errors might be supressed
+          rm -rf "_build/html/$_arg_language"
+
+          # update and build specific locale, can be used to create new locale
+          build gettext _build/gettext
+          ${python}/bin/sphinx-intl update -p _build/gettext -l "$_arg_language"
+
+          build html "_build/html/$_arg_language" -D "language=$_arg_language"
+        fi
+      '';
+
+  server =
+    writers.writePython3
+      "postgrest-docs-server"
+      { libraries = selectPythonPackages python3Packages; }
+      ''
+        import sys
+        from livereload import Server, shell
+        from subprocess import call
+
+        build = sys.argv[1]
+        locale = sys.argv[2]
+
+        if locale == "":
+            locale = "default"
+        else:
+            build += " " + locale
+
+        call(build, shell=True)
+
+        server = Server()
+        server.watch("**/*.rst", shell(build))
+        server.watch(f"locales/{locale}/LC_MESSAGES/*.po", shell(build))
+        server.serve(root=f"_build/html/{locale}")
       '';
 
   serve =
@@ -40,10 +90,7 @@ let
         workingDir = "/docs";
       }
       ''
-        # livereload_docs.py needs to find "sphinx-build"
-        PATH=${python}/bin:$PATH
-
-        ./livereload_docs.py "$_arg_language"
+        ${server} ${build} "$_arg_language"
       '';
 
   spellcheck =
