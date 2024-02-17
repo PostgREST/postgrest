@@ -5,7 +5,7 @@ set -euo pipefail
 export LC_ALL=${LC_ALL:-C}
 
 function build() {
-  sphinx-build --color -W -a -n docs -b "$@"
+  sphinx-build --color -W -a -n . -b "$@"
 }
 
 if [ $# -eq 0 ]; then

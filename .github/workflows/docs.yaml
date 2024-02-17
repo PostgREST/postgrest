@@ -1,14 +1,14 @@
-name: CI
+name: Docs
 
 on:
   push:
     branches:
     - main
-    - v*
+    - rel-*
   pull_request:
     branches:
     - main
-    - v*
+    - rel-*
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v25
-    - run: nix-env -f default.nix -iA build
+    - run: nix-env -f docs/default.nix -iA build
     - run: postgrest-docs-build
     - run: git diff --exit-code HEAD locales || echo "Please commit changes to the locales/ folder after running postgrest-docs-build."
 
@@ -27,7 +27,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v25
-    - run: nix-env -f default.nix -iA spellcheck
+    - run: nix-env -f docs/default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
 
   dictcheck:
@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v25
-      - run: nix-env -f default.nix -iA dictcheck
+      - run: nix-env -f docs/default.nix -iA dictcheck
       - run: postgrest-docs-dictcheck
 
   linkcheck:
@@ -46,6 +46,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: cachix/install-nix-action@v25
-    - run: nix-env -f default.nix -iA linkcheck
+    - run: nix-env -f docs/default.nix -iA linkcheck
     - run: postgrest-docs-linkcheck
     

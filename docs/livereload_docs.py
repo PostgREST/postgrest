@@ -13,6 +13,6 @@ else:
 call(build, shell=True)
 
 server = Server()
-server.watch('docs/**/*.rst', shell(build))
+server.watch('**/*.rst', shell(build))
 server.watch(f'locales/{locale}/LC_MESSAGES/*.po', shell(build))
 server.serve(root=f'_build/html/{locale}')
