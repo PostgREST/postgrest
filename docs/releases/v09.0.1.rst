@@ -1,0 +1,89 @@
+
+9.0.1
+=====
+
+This version includes important fixes for production environments and other miscellaneous fixes. You can download the pre-compiled binaries on the `GitHub release page <https://github.com/PostgREST/postgrest/releases/tag/v9.0.1>`_.
+
+Bug Fixes
+---------
+
+* Keep working when ``EMFILE (Too many open files)`` is reached. (`#2042 <https://github.com/PostgREST/postgrest/issues/2042>`_)
+
+* Disable parallel GC for better performance on higher core CPUs (`#2294 <https://github.com/PostgREST/postgrest/issues/2294>`_). Thanks to `NoRedInk for their blog post <https://blog.noredink.com/post/666654908557180928/tuning-haskell-rts-for-kubernetes-part-2>`_ that lead us to this fix.
+
+* Fix using CPU while idle. (`#1076 <https://github.com/PostgREST/postgrest/issues/1076>`_)
+
+* Fix reading database configuration properly when ``=`` is present in the value. (`#2120 <https://github.com/PostgREST/postgrest/issues/2120>`_)
+
+* Fix ``is`` not working with upper or mixed case values like ``NULL``, ``TrUe``, ``FaLsE``. (`#2077 <https://github.com/PostgREST/postgrest/issues/2077>`_)
+
+* Execute deferred constraint triggers when using ``Prefer: tx=rollback``. (`#2020 <https://github.com/PostgREST/postgrest/issues/2020>`_)
+
+* Ignore ``Content-Type`` headers for ``GET`` requests when calling RPCs. (`#2147 <https://github.com/PostgREST/postgrest/issues/2147>`_)
+
+   * Previously, ``GET`` without parameters, but with ``Content-Type: text/plain`` or ``Content-Type: application/octet-stream`` would fail with ``404 Not Found``, even if a function without arguments was available.
+
+* Fix wrong CORS header from ``Authentication`` to ``Authorization``. (`#1724 <https://github.com/PostgREST/postgrest/issues/1724>`_)
+
+* Fix ``json`` and ``jsonb`` columns showing a type in OpenAPI spec. (`#2165 <https://github.com/PostgREST/postgrest/issues/2165>`_)
+
+* Remove trigger functions from the schema cache and OpenAPI output, because they can't be called directly anyway. (`#2135 <https://github.com/PostgREST/postgrest/issues/2135>`_)
+
+* Remove aggregates, procedures and window functions from the schema cache and OpenAPI output. (`#2101 <https://github.com/PostgREST/postgrest/issues/2101>`_)
+
+* Fix schema cache loading when views with ``XMLTABLE`` and ``DEFAULT`` are present. (`#2024 <https://github.com/PostgREST/postgrest/issues/2024>`_)
+
+* Fix ``--dump-schema`` running with a wrong PG version. (`#2153 <https://github.com/PostgREST/postgrest/issues/2153>`_)
+
+* Fix misleading disambiguation error where the content of the ``relationship`` key looks like valid syntax. (`#2239 <https://github.com/PostgREST/postgrest/issues/2239>`_)
+
+Thanks
+------
+
+Big thanks from the `PostgREST team <https://github.com/orgs/PostgREST/people>`_ to our sponsors!
+
+.. container:: image-container
+
+  .. image:: ../_static/cybertec-new.png
+    :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/2ndquadrant.png
+    :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+    :width:  13em
+
+  .. image:: ../_static/retool.png
+    :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/gnuhost.png
+    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/supabase.png
+    :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :width:  13em
+
+  .. image:: ../_static/oblivious.jpg
+    :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+* Evans Fernandes
+* Jan Sommer
+* `Franz Gusenbauer <https://www.igutech.at/>`_
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+* Remo Rechkemmer
+* Severin Ibarluzea
+* Tom Saleeba
+* Pawel Tyll
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

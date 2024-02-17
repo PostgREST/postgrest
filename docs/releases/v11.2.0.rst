@@ -1,0 +1,4 @@
+11.2.0
+======
+
+Starting from this version, the release notes will be posted on PostgREST's GitHub release page. Please see https://github.com/PostgREST/postgrest/releases/tag/v11.2.0.
