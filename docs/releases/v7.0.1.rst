@@ -1,0 +1,69 @@
+.. |br| raw:: html
+
+   <br />
+
+v7.0.1
+======
+
+You can see the full changelog at `PostgREST v7.0.1 release page <https://github.com/PostgREST/postgrest/releases/tag/v7.0.1>`_.
+
+Fixed
+-----
+
+* Fix overloaded computed columns on RPC
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix POST, PATCH, DELETE with ``?select=`` and ``Prefer: return=minimal`` and PATCH with empty body
+  |br| -- `@wolfgangwalther <https://github.com/wolfgangwalther>`_
+
+* Fix missing ``openapi-server-proxy-uri`` config option
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix ``Content-Profile`` not working for POST RPC
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix PUT restriction for including all columns in payload
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Documentation improvements
+
+  + Added package managers to :ref:`install`.
+
+Changed
+-------
+
+* From this version onwards, the release page will include a single Linux static executable that can be run on any Linux distribution.
+
+Thanks
+------
+
+This release was made possible thanks to:
+
+.. image:: ../_static/cybertec.png
+  :target: https://www.cybertec-postgresql.com/en/
+  :width:  13em
+
+.. image:: ../_static/2ndquadrant.png
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+  :width:  13em
+
+.. image:: ../_static/retool.png
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Kofi Gumbs
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+
+
+If you'd like to join them, consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

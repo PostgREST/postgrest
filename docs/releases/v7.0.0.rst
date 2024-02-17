@@ -1,0 +1,106 @@
+.. |br| raw:: html
+
+   <br />
+
+v7.0.0
+======
+
+You can download this release at the `PostgREST v7.0.0 release page <https://github.com/PostgREST/postgrest/releases/tag/v7.0.0>`_.
+
+Added
+-----
+
+* Support for :ref:`Switching to a schema <multiple-schemas>` defined in :ref:`db-schemas`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@mahmoudkassem <https://github.com/mahmoudkassem>`_
+
+* Support for :ref:`planned_count` and :ref:`estimated_count`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_, `@LorenzHenk <https://github.com/LorenzHenk>`_
+
+* Support for the :ref:`on_conflict <on_conflict>` query parameter to UPSERT based on a unique constraint.
+  |br| -- `@ykst <https://github.com/ykst>`_
+
+* Support for :ref:`Resource Embedding Disambiguation <embed_disamb>`.
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Support for user defined socket permission via :ref:`server-unix-socket-mode` config option
+  |br| -- `@Dansvidania <https://github.com/Dansvidania>`_
+
+* HTTP logic improvements -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+   + Support for HTTP HEAD requests.
+   + GUCs for :ref:`guc_req_path_method`.
+   + Support for :ref:`pre_req_headers`.
+   + Allow overriding provided headers(Content-Type, Location, etc) by :ref:`guc_resp_hdrs`
+   + Access to the ``Authorization`` header value through ``request.header.authorization``
+
+* Documentation improvements
+
+  + Explanation for :doc:`Schema Structure <../schema_structure>`.
+  + Reference for :ref:`s_proc_embed`.
+  + Reference for :ref:`mutation_embed`.
+  + Reference for filters on :ref:`json_columns`.
+  + How-to for :ref:`providing_img`.
+  + Added :ref:`community_tutorials` section.
+
+Fixed
+-----
+
+* Allow embedding a view when its source table foreign key is UNIQUE
+  |br| -- `@bwbroersma <https://github.com/bwbroersma>`_
+
+* ``Accept: application/vnd.pgrst.object+json`` behavior is now enforced for POST/PATCH/DELETE regardless of ``Prefer: return=minimal``
+  |br| -- `@dwagin <https://github.com/dwagin>`_
+
+* Fix self join resource embedding on PATCH
+  |br| -- `@herulume <https://github.com/herulume>`_, `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Allow PATCH/DELETE without ``Prefer: return=minimal`` on tables with no SELECT privileges
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+* Fix many to many resource embedding for RPC/PATCH
+  |br| -- `@steve-chavez <https://github.com/steve-chavez>`_
+
+Changed
+-------
+
+* :ref:`bulk_call` should now be done by specifying a ``Prefer: params=multiple-objects`` header. This fixes a performance regression when calling stored procedures.
+
+* Resource Embedding now outputs an error when multiple relationships between two tables are found, see :ref:`embed_disamb`.
+
+* ``server-proxy-uri`` config option has been renamed to :ref:`openapi-server-proxy-uri`.
+
+* Default Unix Socket file mode from 755 to 660
+
+Thanks
+------
+
+This release was made possible thanks to:
+
+.. image:: ../_static/cybertec.png
+  :target: https://www.cybertec-postgresql.com/en/
+  :width:  13em
+
+.. image:: ../_static/2ndquadrant.png
+  :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+  :width:  13em
+
+.. image:: ../_static/retool.png
+  :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+  :width:  13em
+
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Kofi Gumbs
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

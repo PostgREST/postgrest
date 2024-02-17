@@ -1,0 +1,6 @@
+_build
+Pipfile.lock
+*.aux
+*.log
+_diagrams/db.pdf
+misspellings

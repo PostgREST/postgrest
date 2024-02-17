@@ -1,0 +1,67 @@
+.wy-nav-content {
+  max-width: initial;
+}
+
+#postgrest-documentation > h1 {
+  display: none;
+}
+
+div.wy-menu.rst-pro {
+  display: none !important;
+}
+
+div.highlight {
+  background: #fff !important;
+}
+
+div.line-block {
+  margin-bottom: 0px !important;
+}
+
+#sponsors {
+  text-align: center;
+}
+
+#sponsors h2 {
+  text-align: left;
+}
+
+#sponsors img{
+  margin: 10px;
+}
+
+#thanks{
+  text-align: center;
+}
+
+#thanks img{
+  margin: 10px;
+}
+
+#thanks h2{
+  text-align: left;
+}
+
+#thanks p{
+  text-align: left;
+}
+
+#thanks ul{
+  text-align: left;
+}
+
+.image-container {
+  max-width: 800px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 24px;
+}
+
+.wy-table-responsive table td {
+    white-space: normal !important;
+}
+
+.wy-table-responsive {
+    overflow: visible !important;
+}

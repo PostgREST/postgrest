@@ -1,0 +1,26 @@
+v5.2.0
+======
+
+* Explicit qualification introduced in ``v5.0`` is no longer necessary, this section will not be included from this version onwards.  A :ref:`db-extra-search-path` configuration parameter was introduced to avoid the need to explictly qualify database objects. If you install PostgreSQL extensions on the ``public`` schema, they'll work normally from now on.
+
+* Now you can filter :ref:`tabs-cols-w-spaces`.
+
+* Included the ability to quote columns that have :ref:`reserved-chars`.
+
+* Thanks to `Zhou Feng <https://github.com/zhoufeng1989>`_, now is possible to reference an external file in :ref:`db-uri`.
+
+* Thanks to `Russell Davies <https://github.com/russelldavies>`_, Json Web Key Sets are now accepted by :ref:`jwt-secret`.
+
+Thanks
+------
+
+This release was made possible thanks to:
+
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* `Michel Pelletier <https://github.com/michelp>`_
+* Tsingson Qin
+* Jay Hannah
+* Victor Adossi
+* Petr Beles
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.

@@ -1,0 +1,5 @@
+docutils==0.16
+sphinx>=4.3.0
+sphinx-copybutton
+sphinx-rtd-theme>=0.5.1
+sphinx-tabs

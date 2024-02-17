@@ -1,0 +1,130 @@
+
+PostgREST 9.0.0
+===============
+
+This major version is released with PostgreSQL 14 compatibility and is accompanied with new features and bug fixes. You can look at the detailed changelog and download the pre-compiled binaries on the `GitHub release page <https://github.com/PostgREST/postgrest/releases/tag/v9.0.0>`_.
+
+Features
+--------
+
+PostgreSQL 14 compatibility
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgreSQL 14 Beta 1 tightened its GUC naming scheme making it impossible to use multiple dots (``.``) and dashes (``-``) on custom GUC parameters, this caused our `old HTTP Context <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_ to fail across all requests. Thankfully, `@robertsosinski <https://github.com/robertsosinski>`_ got the PostgreSQL team to reconsider allowing multiple dots in the GUC name, allowing us to avoid a major breaking change. You can see the full discussion `here <https://www.postgresql.org/message-id/17045-6a4a9f0d1513f72b%40postgresql.org>`_.
+
+Still, dashes cannot be used on PostgreSQL 14 custom GUC parameters, so we changed our HTTP Context :ref:`to namespace using a mix of dots and JSON <guc_req_headers_cookies_claims>`. On older PostgreSQL versions we still use the :ref:`guc_legacy_names`. If you wish to use the new JSON GUCs on these versions, set the :ref:`db-use-legacy-gucs` config option to false.
+
+Resource Embedding with Top-level Filtering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Historically, Resource Embedding was always done with a query that included the equivalent of a ``LEFT JOIN``, which meant you could not
+exclude any of the top-level resource rows. You can now use :ref:`embedding_top_level_filter` to do the equivalent of an ``INNER JOIN``, thus you can filter the top-level resource rows with any of the available operators.
+
+Partitioned Tables
+~~~~~~~~~~~~~~~~~~
+
+Partitioned tables now integrate with all the feature set. You can :ref:`embed partitioned tables <embedding_partitioned_tables>`, UPSERT, INSERT(with a correctly generated Location header) and make OPTIONS requests on them. They're also included in the generated OpenAPI.
+
+Functions(RPC)
+~~~~~~~~~~~~~~
+
+* Functions with a :ref:`single unnamed parameter <s_proc_single_unnamed>` can now be used to POST raw ``bytea``, ``text`` or ``json/jsonb``.
+
+Horizontal Filtering
+~~~~~~~~~~~~~~~~~~~~
+
+* The ``unknown`` value for three-valued logic can now be used on the ``is`` :ref:`operator <operators>`.
+
+* Escaping double quotes(``"``) in double-quoted surrounded strings is now possible by using backslashes, e.g. ``?col=in.("Double\"Quote")``. Backslashes can be escaped with a preceding backslash, e.g. ``?col=in.("Back\\slash")``. See :ref:`reserved-chars`.
+
+Administration
+~~~~~~~~~~~~~~
+
+* A ``Retry-After`` header is now added when PostgREST is doing :ref:`automatic_recovery`.
+
+Error messages
+~~~~~~~~~~~~~~
+
+* :ref:`embed_disamb` now shows an improved error message that includes relevant hints for clearing out the ambiguous embedding.
+
+Documentation improvements
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Added ``curl`` snippets to the :doc:`API <../api>` page.
+
+* Added the :ref:`automatic_recovery` section.
+
+* Added the :ref:`nested_embedding` section.
+
+* Added the :ref:`logical_operators` section.
+
+* Added the :ref:`templates` and :ref:`devops` sections to the :doc:`Ecosystem </ecosystem>`.
+
+Bug fixes
+---------
+
+* Correct RPC return type handling for RETURNS TABLE with a single column (`#1930 <https://github.com/PostgREST/postgrest/issues/1930>`_).
+
+* Schema Cache query failing with ``standard_conforming_strings = off`` (`#1992 <https://github.com/PostgREST/postgrest/issues/1992>`_).
+
+* OpenAPI missing default values for String types (`#1871 <https://github.com/PostgREST/postgrest/issues/1871>`_).
+
+Breaking changes
+----------------
+
+* Dropped support for PostgreSQL 9.5 as it already reached its end-of-life according to `PostgreSQL versioning policy <https://www.postgresql.org/support/versioning/>`_.
+
+* Partitions of a `partitioned table <https://www.postgresql.org/docs/current/ddl-partitioning.html#DDL-PARTITIONING-DECLARATIVE>`_ are no longer included in the :doc:`../schema_cache`. This is so errors are not generated when doing resource embedding on partitioned tables.
+
+* Dropped support for doing :ref:`hint_disamb` using dots instead of exclamation marks, e.g. doing ``select=*,projects.client_id(*)`` instead of ``select=*,projects!client_id(*)``). Using dots was undocumented and deprecated back in `v6.0.2 <https://github.com/PostgREST/postgrest/releases/tag/v6.0.2>`_.
+
+Thanks
+------
+
+Big thanks from the `PostgREST team <https://github.com/orgs/PostgREST/people>`_ to our sponsors!
+
+.. container:: image-container
+
+  .. image:: ../_static/cybertec-new.png
+    :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/2ndquadrant.png
+    :target: https://www.2ndquadrant.com/en/?utm_campaign=External%20Websites&utm_source=PostgREST&utm_medium=Logo
+    :width:  13em
+
+  .. image:: ../_static/retool.png
+    :target: https://retool.com/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/gnuhost.png
+    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+  .. image:: ../_static/supabase.png
+    :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
+    :width:  13em
+
+  .. image:: ../_static/oblivious.jpg
+    :target: https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest
+    :width:  13em
+
+* Evans Fernandes
+* `Jan Sommer <https://github.com/nerfpops>`_
+* `Franz Gusenbauer <https://www.igutech.at/>`_
+* `Daniel Babiak <https://github.com/dbabiak>`_
+* Tsingson Qin
+* Michel Pelletier
+* Jay Hannah
+* Robert Stolarz
+* Nicholas DiBiase
+* Christopher Reid
+* Nathan Bouscal
+* Daniel Rafaj
+* David Fenko
+* Remo Rechkemmer
+* Severin Ibarluzea
+* Tom Saleeba
+* Pawel Tyll
+
+If you like to join them please consider `supporting PostgREST development <https://github.com/PostgREST/postgrest#user-content-supporting-development>`_.
