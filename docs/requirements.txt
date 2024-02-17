@@ -1,0 +1,8 @@
+docutils==0.17.1
+sphinx-copybutton
+sphinx-intl
+sphinx-rtd-theme>=0.5.1
+sphinx-tabs>=3.2.0
+sphinx>=5.0.2
+sphinxext-opengraph==0.9.0
+urllib3==2.0.7

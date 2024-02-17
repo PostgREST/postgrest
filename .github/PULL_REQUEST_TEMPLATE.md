@@ -2,7 +2,7 @@
 When submitting a new feature or fix:
 
 - Add a new entry to the CHANGELOG - https://github.com/PostgREST/postgrest/blob/main/CHANGELOG.md#unreleased
-- If relevant, update the docs     - https://github.com/PostgREST/postgrest-docs
+- If relevant, update the docs
 - Use a prefix for the PR title or commits, e.g. "fix: description of the fix".
   + `fix`, bug fixes
   + `feat`, new features added
