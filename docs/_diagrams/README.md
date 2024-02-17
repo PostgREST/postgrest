@@ -5,7 +5,7 @@ The ER diagrams were created with https://github.com/BurntSushi/erd/.
 You can go download erd from https://github.com/BurntSushi/erd/releases and then do:
 
 ```bash
-./erd_static-x86-64 -i diagrams/film.er -o docs/_static/film.png
+./erd_static-x86-64 -i film.er -o ../_static/film.png
 ```
 
 ## LaTeX
@@ -18,7 +18,7 @@ Then use this command to generate the png file.
 pdflatex --shell-escape -halt-on-error db.tex
 
 ## and move it to the static folder(it's not easy to do it in one go with the pdflatex)
-mv db.png ../docs/_static/
+mv db.png ../_static/
 ```
 
 LaTeX is used because it's a tweakable plain text format.
