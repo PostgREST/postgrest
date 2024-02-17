@@ -2,8 +2,7 @@ let
   docs =
     import ./default.nix;
 
-  pkgs =
-    docs.pkgs;
+  inherit (docs) pkgs;
 in
 pkgs.mkShell {
   name = "postgrest-docs";
