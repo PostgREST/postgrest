@@ -35,24 +35,24 @@ let
 
         if [ "$_arg_language" == "" ]; then
           # clean previous build, otherwise some errors might be supressed
-          rm -rf "_build/html/default"
+          rm -rf "../.docs-build/html/default"
 
           if [ -d languages ]; then
             # default to updating all existing locales
-            build gettext _build/gettext
-            ${python}/bin/sphinx-intl update -p _build/gettext
+            build gettext ../.docs-build/gettext
+            ${python}/bin/sphinx-intl update -p ../.docs-build/gettext
           fi
 
-          build html "_build/html/default"
+          build html "../.docs-build/html/default"
         else
           # clean previous build, otherwise some errors might be supressed
-          rm -rf "_build/html/$_arg_language"
+          rm -rf "../.docs-build/html/$_arg_language"
 
           # update and build specific locale, can be used to create new locale
-          build gettext _build/gettext
-          ${python}/bin/sphinx-intl update -p _build/gettext -l "$_arg_language"
+          build gettext ../.docs-build/gettext
+          ${python}/bin/sphinx-intl update -p ../.docs-build/gettext -l "$_arg_language"
 
-          build html "_build/html/$_arg_language" -D "language=$_arg_language"
+          build html "../.docs-build/html/$_arg_language" -D "language=$_arg_language"
         fi
       '';
 
@@ -78,7 +78,7 @@ let
         server = Server()
         server.watch("**/*.rst", shell(build))
         server.watch(f"locales/{locale}/LC_MESSAGES/*.po", shell(build))
-        server.serve(root=f"_build/html/{locale}")
+        server.serve(root=f"../.docs-build/html/{locale}")
       '';
 
   serve =
@@ -139,7 +139,7 @@ let
         workingDir = "/docs";
       }
       ''
-        ${python}/bin/sphinx-build --color -b linkcheck . _build
+        ${python}/bin/sphinx-build --color -b linkcheck . ../.docs-build
       '';
 
   check =
@@ -150,10 +150,9 @@ let
         workingDir = "/docs";
       }
       ''
-        ${build}/bin/postgrest-docs-build
-        ${dictcheck}/bin/postgrest-docs-dictcheck
-        ${linkcheck}/bin/postgrest-docs-linkcheck
-        ${spellcheck}/bin/postgrest-docs-spellcheck
+        ${build}
+        ${dictcheck}
+        ${spellcheck}
       '';
 
 in

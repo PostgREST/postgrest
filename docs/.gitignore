@@ -1,4 +1,3 @@
-_build
 Pipfile.lock
 *.aux
 *.log
