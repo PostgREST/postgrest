@@ -27,7 +27,7 @@ The previous tutorial created a :code:`web_anon` role in the database with which
 Step 2. Make a Secret
 ---------------------
 
-Clients authenticate with the API using JSON Web Tokens. These are JSON objects which are cryptographically signed using a secret known to only us and the server. Because clients do not know this secret, they cannot tamper with the contents of their tokens. PostgREST will detect counterfeit tokens and will reject them.
+Clients authenticate with the API using JSON Web Tokens. These are JSON objects which are cryptographically signed using a secret only known to the server. Because clients do not know this secret, they cannot tamper with the contents of their tokens. PostgREST will detect counterfeit tokens and will reject them.
 
 Let's create a secret and provide it to PostgREST. Think of a nice long one, or use a tool to generate it. **Your secret must be at least 32 characters long.**
 
@@ -67,7 +67,7 @@ Ordinarily your own code in the database or in another server will create and si
 
 .. note::
 
-  While the token may look well obscured, it's easy to reverse engineer the payload. The token is merely signed, not encrypted, so don't put things inside that you don't want a determined client to see.
+  While the token may look well obscured, it's easy to reverse engineer the payload. The token is merely signed, not encrypted, so don't put things inside that you don't want a determined client to see. While it is possible to read the payload of the token, it is not possible to read the secret with which it was signed.
 
 Step 4. Make a Request
 ----------------------
