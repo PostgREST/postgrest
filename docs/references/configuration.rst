@@ -569,6 +569,10 @@ jwt-aud
 
   Specifies the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_. If this claim is present in the client provided JWT then you must set this to the same value as in the JWT, otherwise verifying the JWT will fail.
 
+  .. warning::
+
+     Using this setting will only reject tokens with a different audience claim. Tokens **without** audience claim will still be accepted.
+
 .. _jwt-role-claim-key:
 
 jwt-role-claim-key
