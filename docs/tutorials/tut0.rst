@@ -30,7 +30,7 @@ If Docker is not installed, you can get it `here <https://www.docker.com/get-sta
 .. code-block:: bash
 
   sudo docker run --name tutorial -p 5433:5432 \
-                  -e POSTGRES_PASSWORD=mysecretpassword \
+                  -e POSTGRES_PASSWORD=notused \
                   -d postgres
 
 This will run the Docker instance as a daemon and expose port 5433 to the host system so that it looks like an ordinary PostgreSQL server to the rest of the system.
