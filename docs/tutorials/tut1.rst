@@ -175,9 +175,9 @@ After expiration, the API returns HTTP 401 Unauthorized:
 .. code-block:: json
 
   {
-    "hint": null,
-    "details": null,
     "code": "PGRST301",
+    "details": null,
+    "hint": null,
     "message": "JWT expired"
   }
 
@@ -255,8 +255,8 @@ The server responds with 403 Forbidden:
 .. code-block:: json
 
   {
-    "hint": "Nope, we are on to you",
-    "details": null,
     "code": "42501",
+    "details": null,
+    "hint": "Nope, we are on to you",
     "message": "insufficient_privilege"
   }

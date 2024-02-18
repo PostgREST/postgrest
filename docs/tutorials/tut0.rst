@@ -122,7 +122,7 @@ You should see the psql command prompt:
 
 ::
 
-  psql (9.6.3)
+  psql (16.2)
   Type "help" for help.
 
   postgres=#
@@ -196,13 +196,17 @@ Now run the server:
   # Running postgrest binary
   ./postgrest tutorial.conf
 
-You should see
+You should see something similar to:
 
 .. code-block:: text
 
-  Listening on port 3000
+  Starting PostgREST 12.0.2...
   Attempting to connect to the database...
   Connection successful
+  Listening on port 3000
+  Config reloaded
+  Listening for notifications on the pgrst channel
+  Schema cache loaded
 
 It's now ready to serve web requests. There are many nice graphical API exploration tools you can use, but for this tutorial we'll use :code:`curl` because it's likely to be installed on your system already. Open a new terminal (leaving the one open that PostgREST is running inside). Try doing an HTTP request for the todos.
 
@@ -242,9 +246,9 @@ Response is 401 Unauthorized:
 .. code-block:: json
 
   {
-    "hint": null,
-    "details": null,
     "code": "42501",
+    "details": null,
+    "hint": null,
     "message": "permission denied for table todos"
   }
 
