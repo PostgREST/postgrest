@@ -22,7 +22,6 @@ The previous tutorial created a :code:`web_anon` role in the database with which
 
   grant usage on schema api to todo_user;
   grant all on api.todos to todo_user;
-  grant usage, select on sequence api.todos_id_seq to todo_user;
 
 Step 2. Make a Secret
 ---------------------
