@@ -82,7 +82,7 @@ This would return a row for each unique value in the ``order_date`` column, with
     }
   ]
 
-When ``count()`` is used with an associated column, its behaviour is slightly different: It will return the count of all values that are not ``NULL``. This is due to how PostgreSQL itself implements the ``count()`` function.
+When ``count()`` is used with an associated column, its behavior is slightly different: It will return the count of all values that are not ``NULL``. This is due to how PostgreSQL itself implements the ``count()`` function.
 
 Renaming and Casting
 ====================

@@ -1,7 +1,7 @@
 systemd
 =======
 
-For Linux distributions that use **systemd** (Ubuntu, Debian, Archlinux) you can create a daemon in the following way.
+For Linux distributions that use **systemd** (Ubuntu, Debian, Arch Linux) you can create a daemon in the following way.
 
 First, create postgrest configuration in ``/etc/postgrest/config``
 

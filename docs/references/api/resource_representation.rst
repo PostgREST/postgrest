@@ -108,7 +108,7 @@ By default PostgREST returns all JSON null values. For example, requesting ``/pr
     { "id": 13, "name": "Y",        "client_id": null, "another_col": null }
   ]
 
-On large result sets, the unused keys with ``null`` values can waste bandwith unnecessarily. To remove them, specify ``nulls=stripped`` as a parameter of ``application/vnd.pgrst.array``:
+On large result sets, the unused keys with ``null`` values can waste bandwidth unnecessarily. To remove them, specify ``nulls=stripped`` as a parameter of ``application/vnd.pgrst.array``:
 
 .. code-block:: bash
 

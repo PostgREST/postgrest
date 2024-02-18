@@ -1,8 +1,8 @@
 personal_ws-1.1 en 0 utf-8
 api
 API's
+APIs
 APISIX
-Archlinux
 aud
 Auth
 auth
@@ -147,6 +147,7 @@ spreaded
 Spreaded
 SQL
 sql
+SQLSTATE
 sr
 SSL
 stateful

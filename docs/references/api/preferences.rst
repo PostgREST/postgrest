@@ -63,7 +63,7 @@ The server ignores unrecognized or unfulfillable preferences by default. You can
 Timezone
 ========
 
-The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all timezones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
+The ``timezone`` preference allows you to change the `PostgreSQL timezone <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-TIMEZONE>`_. It accepts all time zones in `pg_timezone_names <https://www.postgresql.org/docs/current/view-pg-timezone-names.html>`_.
 
 
 .. code-block:: bash
@@ -85,7 +85,7 @@ The ``timezone`` preference allows you to change the `PostgreSQL timezone <https
     {"t":"2023-10-18T09:37:59.611-07:00"}
   ]
 
-For an invalid timezone, PostgREST returns values with the default timezone (configured on ``postgresql.conf`` or as a setting on the :ref:`authenticator <roles>`).
+For an invalid time zone, PostgREST returns values with the default time zone (configured on ``postgresql.conf`` or as a setting on the :ref:`authenticator <roles>`).
 
 .. code-block:: bash
 
@@ -107,7 +107,7 @@ For an invalid timezone, PostgREST returns values with the default timezone (con
 
 Note that there's no ``Preference-Applied`` in the response.
 
-However, with ``handling=strict``, an invalid timezone preference will throw an :ref:`error <pgrst122>`.
+However, with ``handling=strict``, an invalid time zone preference will throw an :ref:`error <pgrst122>`.
 
 .. code-block:: bash
 
