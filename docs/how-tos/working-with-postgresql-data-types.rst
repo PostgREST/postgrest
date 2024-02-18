@@ -5,7 +5,7 @@ Working with PostgreSQL data types
 
 :author: `Laurence Isla <https://github.com/laurenceisla>`_
 
-PostgREST makes use of PostgreSQL string representations to work with data types. Thanks to this, you can use special values, such as ``now`` for timestamps, ``yes`` for booleans or time values including the time zones. This page describes how you can take advantage of these string representations to perform operations on different PostgreSQL data types.
+PostgREST makes use of PostgreSQL string representations to work with data types. Thanks to this, you can use special values, such as ``now`` for timestamps, ``yes`` for booleans or time values including the time zones. This page describes how you can take advantage of these string representations and some alternatives to perform operations on different PostgreSQL data types.
 
 .. contents::
   :local:
