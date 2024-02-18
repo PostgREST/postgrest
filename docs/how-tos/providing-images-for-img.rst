@@ -81,8 +81,10 @@ First, in addition to the minimal example, we need to store the media types and 
 .. code-block:: postgres
 
    alter table files
-     add column type text,
+     add column type text generated always as (byteamagic_mime(substr(blob, 0, 4100))) stored,
      add column name text;
+
+This uses the :code:`byteamagic_mime()` function from the `pg_byteamagic extension <https://github.com/nmandery/pg_byteamagic>`_ to automatically generate the type in the :code:`files` table. To guess the type of a file, it's generally enough to look at the beginning of the file, which is more efficient.
 
 Next, we set modify the function to set the content type and filename.
 We use this opportunity to configure some basic, client-side caching.
