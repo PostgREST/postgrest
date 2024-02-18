@@ -140,7 +140,7 @@ It's better policy to include an expiration timestamp for tokens using the :code
 
   Epoch time is defined as the number of seconds that have elapsed since 00:00:00 Coordinated Universal Time (UTC), January 1st 1970, minus the number of leap seconds that have taken place since then.
 
-To observe expiration in action, we'll add an :code:`exp` claim of five minutes in the future to our previous token. First find the epoch value of five minutes from now. In psql run this:
+To observe expiration in action, we'll add an :code:`exp` claim of five minutes in the future to our previous token. First find the epoch value of five minutes from now. In :code:`psql` run this:
 
 .. code-block:: postgres
 
@@ -155,7 +155,7 @@ Go back to jwt.io and change the payload to
     "exp": 123456789
   }
 
-**NOTE**: Don't forget to change the dummy epoch value :code:`123456789` in the snippet above to the epoch value returned by the psql command.
+**NOTE**: Don't forget to change the dummy epoch value :code:`123456789` in the snippet above to the epoch value returned by the :code:`psql` command.
 
 Copy the updated token as before, and save it as a new environment variable.
 

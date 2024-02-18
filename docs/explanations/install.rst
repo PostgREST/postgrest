@@ -163,14 +163,15 @@ If you want to have a visual overview of your API in your browser you can add sw
 
 .. code-block:: yaml
 
-  swagger:
-    image: swaggerapi/swagger-ui
-    ports:
-      - "8080:8080"
-    expose:
-      - "8080"
-    environment:
-      API_URL: http://localhost:3000/
+  # in services:
+    swagger:
+      image: swaggerapi/swagger-ui
+      ports:
+        - "8080:8080"
+      expose:
+        - "8080"
+      environment:
+        API_URL: http://localhost:3000/
 
 With this you can see the swagger-ui in your browser on port 8080.
 
