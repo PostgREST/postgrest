@@ -397,7 +397,7 @@ To create a row in a database table post a JSON object whose keys are the names 
 
   HTTP/1.1 201 Created
 
-No response body will be returned by default but you can use :ref:`prefer_return` to get the affected resource.
+No response body will be returned by default but you can use :ref:`prefer_return` to get the affected resource and :ref:`resource_embedding` to add related resources.
 
 x-www-form-urlencoded
 ---------------------
@@ -546,7 +546,7 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
     -X PATCH -H "Content-Type: application/json" \
     -d '{ "category": "child" }'
 
-Updates also support :ref:`prefer_return` plus :ref:`v_filter`.
+Updates also support :ref:`prefer_return`, :ref:`resource_embedding` and :ref:`v_filter`.
 
 .. warning::
 
@@ -625,7 +625,7 @@ To delete rows in a table, use the DELETE verb plus :ref:`h_filter`. For instanc
 
   curl "http://localhost:3000/user?active=is.false" -X DELETE
 
-Deletions also support :ref:`prefer_return` plus :ref:`v_filter`.
+Deletions also support :ref:`prefer_return`, :ref:`resource_embedding` and :ref:`v_filter`.
 
 .. code-block:: bash
 
