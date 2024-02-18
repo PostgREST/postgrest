@@ -294,6 +294,21 @@ Note that ``->>`` is used to compare ``blood_type`` as ``text``. To compare with
     { "id": 12, "age": 30 },
     { "id": 15, "age": 35 }
   ]
+
+Ordering is also supported:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/people?select=id,json_data->age&order=json_data->>age.desc"
+
+.. code-block:: json
+
+  [
+    { "id": 15, "age": 35 },
+    { "id": 12, "age": 30 },
+    { "id": 11, "age": 25 }
+  ]
+
 .. _composite_array_columns:
 
 Composite / Array Columns
