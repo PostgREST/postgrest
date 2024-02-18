@@ -29,11 +29,22 @@ If Docker is not installed, you can get it `here <https://www.docker.com/get-sta
 
 .. code-block:: bash
 
-  sudo docker run --name tutorial -p 5433:5432 \
+  sudo docker run --name tutorial -p 5432:5432 \
                   -e POSTGRES_PASSWORD=notused \
                   -d postgres
 
-This will run the Docker instance as a daemon and expose port 5433 to the host system so that it looks like an ordinary PostgreSQL server to the rest of the system.
+This will run the Docker instance as a daemon and expose port 5432 to the host system so that it looks like an ordinary PostgreSQL server to the rest of the system.
+
+.. note::
+
+  This only works if there is no other PostgreSQL instance running on the default port on your computer. If this port is already in use, you will receive a message similar to this:
+
+  .. code-block:: text
+
+    docker: Error response from daemon: [...]: Bind for 0.0.0.0:5432 failed: port is already allocated.
+
+  In this case, you will need to change the **first** of the two 5432 to something else, for example to :code:`5433:5432`. Remember to also adjust the port in your config file in Step 5!
+
 
 Step 3. Install PostgREST
 -------------------------
@@ -179,12 +190,16 @@ PostgREST can use a configuration file to tell it how to connect to the database
 
 .. code-block:: ini
 
-  db-uri = "postgres://authenticator:mysecretpassword@localhost:5433/postgres"
+  db-uri = "postgres://authenticator:mysecretpassword@localhost:5432/postgres"
   db-schemas = "api"
   db-anon-role = "web_anon"
 
 The configuration file has other :ref:`options <configuration>`, but this is all we need.
 If you are not using Docker, make sure that your port number is correct and replace `postgres` with the name of the database where you added the todos table.
+
+.. note::
+
+  In case you had to adjust the port in Step 2, remember to adjust the port here, too!
 
 Now run the server:
 
