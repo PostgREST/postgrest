@@ -11,90 +11,6 @@ PostgREST makes use of PostgreSQL string representations to work with data types
   :local:
   :depth: 1
 
-Timestamps
-----------
-
-You can use the **time zone** to filter or send data if needed.
-
-.. code-block:: postgres
-
-  create table reports (
-    id int primary key
-    , due_date timestamptz
-  );
-
-Suppose you are located in Sydney and want create a report with the date in the local time zone. Your request should look like this:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/reports" \
-    -X POST -H "Content-Type: application/json" \
-    -d '[{ "id": 1, "due_date": "2022-02-24 11:10:15 Australia/Sydney" },{ "id": 2, "due_date": "2022-02-27 22:00:00 Australia/Sydney" }]'
-
-Someone located in Cairo can retrieve the data using their local time, too:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/reports?due_date=eq.2022-02-24+02:10:15+Africa/Cairo"
-
-.. code-block:: json
-
-  [
-    {
-      "id": 1,
-      "due_date": "2022-02-23T19:10:15-05:00"
-    }
-  ]
-
-The response has the date in the time zone configured by the server: ``UTC -05:00`` (see :ref:`prefer_timezone`).
-
-You can use other comparative filters and also all the `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_ as illustrated in this example:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch))"
-
-.. code-block:: json
-
-  [
-    {
-      "id": 2,
-      "due_date": "2022-02-27T06:00:00-05:00"
-    }
-  ]
-
-JSON
-----
-
-To work with a ``json`` type column, you can handle the value as a JSON object.
-
-.. code-block:: postgres
-
-  create table products (
-    id int primary key,
-    name text unique,
-    extra_info json
-  );
-
-You can insert a new product using a JSON object for the ``extra_info`` column:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/products" \
-    -X POST -H "Content-Type: application/json" \
-    -d @- << EOF
-    {
-      "id": 1,
-      "name": "Canned fish",
-      "extra_info": {
-        "expiry_date": "2025-12-31",
-        "exportable": true
-      }
-    }
-  EOF
-
-To query and filter the data see :ref:`json_columns` for a complete reference.
-
 Arrays
 ------
 
@@ -179,6 +95,57 @@ Then, for example, to query the auditoriums that are located in the first cinema
     }
   ]
 
+Bytea
+-----
+
+To send raw binary to PostgREST you need a function with a single unnamed parameter of `bytea type <https://www.postgresql.org/docs/current/datatype-binary.html>`_.
+
+.. code-block:: postgres
+
+   create table files (
+     id int primary key generated always as identity,
+     file bytea
+   );
+
+   create function upload_binary(bytea) returns void as $$
+     insert into files (file) values ($1);
+   $$ language sql;
+
+Let's download the PostgREST logo for our test.
+
+.. code-block:: bash
+
+   curl "https://postgrest.org/en/latest/_images/logo.png" -o postgrest-logo.png
+
+Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: application/octet-stream`` header in the request:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/rpc/upload_binary" \
+    -X POST -H "Content-Type: application/octet-stream" \
+    --data-binary "@postgrest-logo.png"
+
+To get the image from the database, use :ref:`custom_media` like so:
+
+.. code-block:: postgres
+
+  create domain "image/png" as bytea;
+
+  create or replace get_image(id int) returns "image/png" as $$
+    select file from files where id = $1;
+  $$ language sql;
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/get_image?id=1" \
+    -H "Accept: image/png"
+
+See :ref:`providing_img` for a step-by-step example on how to handle images in HTML.
+
+.. warning::
+
+   Be careful when saving binaries in the database, having a separate storage service for these is preferable in most cases. See `Storing Binary files in the Database <https://wiki.postgresql.org/wiki/BinaryFilesInDB>`_.
+
 Composite Types
 ---------------
 
@@ -231,159 +198,6 @@ Or you could insert the same data in JSON format.
 
 You can also query the data using arrow operators. See :ref:`composite_array_columns`.
 
-Ranges
-------
-
-PostgREST allows you to handle `ranges <https://www.postgresql.org/docs/current/rangetypes.html>`_.
-
-.. code-block:: postgres
-
-   create table events (
-     id int primary key,
-     name text unique,
-     duration tsrange
-   );
-
-To insert a new event, specify the ``duration`` value as a string representation of the ``tsrange`` type:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/events" \
-    -X POST -H "Content-Type: application/json" \
-    -d @- << EOF
-    {
-      "id": 1,
-      "name": "New Year's Party",
-      "duration": "['2022-12-31 11:00','2023-01-01 06:00']"
-    }
-  EOF
-
-You can use range :ref:`operators <operators>` to filter the data. But, in this case, requesting a filter like ``events?duration=cs.2023-01-01`` will return an error, because PostgreSQL needs an explicit cast from string to timestamp. A workaround is to use a range starting and ending in the same date:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/events?duration=cs.\[2023-01-01,2023-01-01\]"
-
-.. code-block:: json
-
-  [
-    {
-      "id": 1,
-      "name": "New Year's Party",
-      "duration": "[\"2022-12-31 11:00:00\",\"2023-01-01 06:00:00\"]"
-    }
-  ]
-
-.. _casting_range_to_json:
-
-Casting a Range to a JSON Object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-As you may have noticed, the ``tsrange`` value is returned as a string literal. To return it as a JSON value, first you need to create a function that will do the conversion from a ``tsrange`` type:
-
-.. code-block:: postgres
-
-   create or replace function tsrange_to_json(tsrange) returns json as $$
-     select json_build_object(
-       'lower', lower($1)
-     , 'upper', upper($1)
-     , 'lower_inc', lower_inc($1)
-     , 'upper_inc', upper_inc($1)
-     );
-   $$ language sql;
-
-Then, create the cast using this function:
-
-.. code-block:: postgres
-
-   create cast (tsrange as json) with function tsrange_to_json(tsrange) as assignment;
-
-Finally, do the request :ref:`casting the range column <casting_columns>`:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/events?select=id,name,duration::json"
-
-.. code-block:: json
-
-  [
-    {
-      "id": 1,
-      "name": "New Year's Party",
-      "duration": {
-        "lower": "2022-12-31T11:00:00",
-        "upper": "2023-01-01T06:00:00",
-        "lower_inc": true,
-        "upper_inc": true
-      }
-    }
-  ]
-
-.. note::
-
-   If you don't want to modify casts for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_
-   for your own ``tsrange`` and add its own cast.
-
-   .. code-block:: postgres
-
-      create type mytsrange as range (subtype = timestamp, subtype_diff = tsrange_subdiff);
-
-      -- define column types and casting function analogously to the above example
-      -- ...
-
-      create cast (mytsrange as json) with function mytsrange_to_json(mytsrange) as assignment;
-
-Bytea
------
-
-To send raw binary to PostgREST you need a function with a single unnamed parameter of `bytea type <https://www.postgresql.org/docs/current/datatype-binary.html>`_.
-
-.. code-block:: postgres
-
-   create table files (
-     id int primary key generated always as identity,
-     file bytea
-   );
-
-   create function upload_binary(bytea) returns void as $$
-     insert into files (file) values ($1);
-   $$ language sql;
-
-Let's download the PostgREST logo for our test.
-
-.. code-block:: bash
-
-   curl "https://postgrest.org/en/latest/_images/logo.png" -o postgrest-logo.png
-
-Now, to send the file ``postgrest-logo.png`` we need to set the ``Content-Type: application/octet-stream`` header in the request:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/rpc/upload_binary" \
-    -X POST -H "Content-Type: application/octet-stream" \
-    --data-binary "@postgrest-logo.png"
-
-To get the image from the database, use :ref:`custom_media` like so:
-
-.. code-block:: postgres
-
-  create domain "image/png" as bytea;
-
-  create or replace get_image(id int) returns "image/png" as $$
-    select file from files where id = $1;
-  $$ language sql;
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/get_image?id=1" \
-    -H "Accept: image/png"
-
-See :ref:`providing_img` for a step-by-step example on how to handle images in HTML.
-
-.. warning::
-
-   Be careful when saving binaries in the database, having a separate storage service for these is preferable in most cases. See `Storing Binary files in the Database <https://wiki.postgresql.org/wiki/BinaryFilesInDB>`_.
-
 hstore
 ------
 
@@ -423,6 +237,38 @@ You can also query and filter the value of a ``hstore`` column using the arrow o
 .. code-block:: json
 
   [{ "native": "مصر" }]
+
+JSON
+----
+
+To work with a ``json`` type column, you can handle the value as a JSON object.
+
+.. code-block:: postgres
+
+  create table products (
+    id int primary key,
+    name text unique,
+    extra_info json
+  );
+
+You can insert a new product using a JSON object for the ``extra_info`` column:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/products" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
+    {
+      "id": 1,
+      "name": "Canned fish",
+      "extra_info": {
+        "expiry_date": "2025-12-31",
+        "exportable": true
+      }
+    }
+  EOF
+
+To query and filter the data see :ref:`json_columns` for a complete reference.
 
 .. _ww_postgis:
 
@@ -561,3 +407,157 @@ Now this query will return the same results:
       }
     ]
   }
+
+Ranges
+------
+
+PostgREST allows you to handle `ranges <https://www.postgresql.org/docs/current/rangetypes.html>`_.
+
+.. code-block:: postgres
+
+   create table events (
+     id int primary key,
+     name text unique,
+     duration tsrange
+   );
+
+To insert a new event, specify the ``duration`` value as a string representation of the ``tsrange`` type:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/events" \
+    -X POST -H "Content-Type: application/json" \
+    -d @- << EOF
+    {
+      "id": 1,
+      "name": "New Year's Party",
+      "duration": "['2022-12-31 11:00','2023-01-01 06:00']"
+    }
+  EOF
+
+You can use range :ref:`operators <operators>` to filter the data. But, in this case, requesting a filter like ``events?duration=cs.2023-01-01`` will return an error, because PostgreSQL needs an explicit cast from string to timestamp. A workaround is to use a range starting and ending in the same date:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/events?duration=cs.\[2023-01-01,2023-01-01\]"
+
+.. code-block:: json
+
+  [
+    {
+      "id": 1,
+      "name": "New Year's Party",
+      "duration": "[\"2022-12-31 11:00:00\",\"2023-01-01 06:00:00\"]"
+    }
+  ]
+
+.. _casting_range_to_json:
+
+Casting a Range to a JSON Object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As you may have noticed, the ``tsrange`` value is returned as a string literal. To return it as a JSON value, first you need to create a function that will do the conversion from a ``tsrange`` type:
+
+.. code-block:: postgres
+
+   create or replace function tsrange_to_json(tsrange) returns json as $$
+     select json_build_object(
+       'lower', lower($1)
+     , 'upper', upper($1)
+     , 'lower_inc', lower_inc($1)
+     , 'upper_inc', upper_inc($1)
+     );
+   $$ language sql;
+
+Then, create the cast using this function:
+
+.. code-block:: postgres
+
+   create cast (tsrange as json) with function tsrange_to_json(tsrange) as assignment;
+
+Finally, do the request :ref:`casting the range column <casting_columns>`:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/events?select=id,name,duration::json"
+
+.. code-block:: json
+
+  [
+    {
+      "id": 1,
+      "name": "New Year's Party",
+      "duration": {
+        "lower": "2022-12-31T11:00:00",
+        "upper": "2023-01-01T06:00:00",
+        "lower_inc": true,
+        "upper_inc": true
+      }
+    }
+  ]
+
+.. note::
+
+   If you don't want to modify casts for built-in types, an option would be to `create a custom type <https://www.postgresql.org/docs/current/sql-createtype.html>`_
+   for your own ``tsrange`` and add its own cast.
+
+   .. code-block:: postgres
+
+      create type mytsrange as range (subtype = timestamp, subtype_diff = tsrange_subdiff);
+
+      -- define column types and casting function analogously to the above example
+      -- ...
+
+      create cast (mytsrange as json) with function mytsrange_to_json(mytsrange) as assignment;
+
+Timestamps
+----------
+
+You can use the **time zone** to filter or send data if needed.
+
+.. code-block:: postgres
+
+  create table reports (
+    id int primary key
+    , due_date timestamptz
+  );
+
+Suppose you are located in Sydney and want create a report with the date in the local time zone. Your request should look like this:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/reports" \
+    -X POST -H "Content-Type: application/json" \
+    -d '[{ "id": 1, "due_date": "2022-02-24 11:10:15 Australia/Sydney" },{ "id": 2, "due_date": "2022-02-27 22:00:00 Australia/Sydney" }]'
+
+Someone located in Cairo can retrieve the data using their local time, too:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/reports?due_date=eq.2022-02-24+02:10:15+Africa/Cairo"
+
+.. code-block:: json
+
+  [
+    {
+      "id": 1,
+      "due_date": "2022-02-23T19:10:15-05:00"
+    }
+  ]
+
+The response has the date in the time zone configured by the server: ``UTC -05:00`` (see :ref:`prefer_timezone`).
+
+You can use other comparative filters and also all the `PostgreSQL special date/time input values <https://www.postgresql.org/docs/current/datatype-datetime.html#DATATYPE-DATETIME-SPECIAL-TABLE>`_ as illustrated in this example:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/reports?or=(and(due_date.gte.today,due_date.lte.tomorrow),and(due_date.gt.-infinity,due_date.lte.epoch))"
+
+.. code-block:: json
+
+  [
+    {
+      "id": 2,
+      "due_date": "2022-02-27T06:00:00-05:00"
+    }
+  ]
