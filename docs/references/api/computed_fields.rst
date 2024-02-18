@@ -66,7 +66,7 @@ Ordering on Computed Fields
 
 .. important::
 
-  Computed columns must be created in the :ref:`exposed schema <db-schemas>` or in a schema in the :ref:`extra search path <db-extra-search-path>` to be used in this way. When placing the computed column in the :ref:`exposed schema <db-schemas>` you can use an **unnamed** parameter, as in the example above, to prevent it from being exposed as an :ref:`RPC <s_procs>` under ``/rpc``.
+  Computed fields must be created in the :ref:`exposed schema <db-schemas>` or in a schema in the :ref:`extra search path <db-extra-search-path>` to be used in this way. When placing the computed field in the :ref:`exposed schema <db-schemas>` you can use an **unnamed** parameter, as in the example above, to prevent it from being exposed as an :ref:`RPC <s_procs>` under ``/rpc``.
 
 .. note::
 
