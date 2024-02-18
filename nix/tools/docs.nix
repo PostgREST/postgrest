@@ -106,7 +106,7 @@ let
         # shellcheck disable=SC2086 disable=SC2016
         cat $FILES \
          | grep -v '^\(\.\.\|  \)' \
-         | sed 's/`.*`//g' \
+         | sed -E 's/`+[^`]+`+//g' \
          | ${aspell}/bin/aspell -d ${aspellDicts.en}/lib/aspell/en_US -p ./postgrest.dict list \
          | sort -f \
          | tee misspellings
