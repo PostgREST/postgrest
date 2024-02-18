@@ -35,6 +35,9 @@ One operational problem that comes with a cache is that it can go stale. This ca
 
 You can solve this by reloading the cache manually or automatically.
 
+.. note::
+  If you are using :ref:`in_db_config`, a schema reload will always :ref:`reload the configuration<config_reloading>` as well.
+
 .. _schema_reloading:
 
 Schema Cache Reloading
