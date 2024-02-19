@@ -54,7 +54,7 @@ Concerning the `pgjwt extension <https://github.com/michelp/pgjwt>`_, please cf.
 
 In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we also need the PBKDF2 key derivation function. Luckily there is `a PL/pgSQL implementation on stackoverflow <https://stackoverflow.com/a/72805848>`_:
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION basic_auth.pbkdf2(salt bytea, pw text, count integer, desired_length integer, algorithm text) RETURNS bytea
       LANGUAGE plpgsql IMMUTABLE
@@ -120,7 +120,7 @@ In order to be able to work with postgres' SCRAM-SHA-256 password hashes, we als
 Analogous to :ref:`sql_user_management` creates the function :code:`basic_auth.user_role`, we create a helper function to check the user's password, here with another name and signature (since we want the username, not an email address).
 But contrary to :ref:`sql_user_management`, this function does not use a dedicated :code:`users` table with passwords, but instead utilizes the built-in table `pg_catalog.pg_authid <https://www.postgresql.org/docs/current/catalog-pg-authid.html>`_:
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION basic_auth.check_user_pass(username text, password text) RETURNS name
       LANGUAGE sql
@@ -160,7 +160,7 @@ Logins
 As described in :ref:`client_auth`, we'll create a JWT token inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure (at least thirty-two character) secret of your choosing.
 
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE TYPE basic_auth.jwt_token AS (
     token text

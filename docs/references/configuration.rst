@@ -80,7 +80,7 @@ You can also configure the server with database settings by using a :ref:`pre-co
 
   PGRST_DB_PRE_CONFIG = "postgrest.pre_config"
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- create a dedicated schema, hidden from the API
   create schema postgrest;

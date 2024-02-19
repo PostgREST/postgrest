@@ -178,7 +178,7 @@ The join table determines many-to-many relationships. It must contain foreign ke
 
 The join table is also detected if the composite key has additional columns.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create table roles(
     id int generated always as identity,
@@ -214,7 +214,7 @@ One-to-one relationships are detected in two ways.
 - When the foreign key is a primary key as specified in the :ref:`sample film database <erd_film>`.
 - When the foreign key has a unique constraint.
 
-  .. code-block:: postgresql
+  .. code-block:: postgres
 
     create table technical_specs(
       film_id int references films(id) unique,
@@ -246,7 +246,7 @@ You can manually define relationships by using functions. This is useful for dat
 
 Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create foreign table premieres (
     id integer,
@@ -478,7 +478,7 @@ Recursive One-To-One
 
 To get either side of the Recursive One-To-One relationship, create the functions:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function predecessor(presidents) returns setof presidents rows 1 as $$
     select * from presidents where id = $1.predecessor_id
@@ -530,7 +530,7 @@ Recursive One-To-Many
 
 To get the One-To-Many embedding, that is, the supervisors with their supervisees, create a function like this one:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function supervisees(employees) returns setof employees as $$
     select * from employees where supervisor_id = $1.id
@@ -562,7 +562,7 @@ Recursive Many-To-One
 Let's take the same ``employees`` table from :ref:`recursive_o2m_embed`.
 To get the Many-To-One relationship, that is, the employees with their respective supervisor, you need to create a function like this one:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function supervisor(employees) returns setof employees rows 1 as $$
     select * from employees where id = $1.supervisor_id
@@ -614,7 +614,7 @@ Recursive Many-To-Many
 
 To get all the subscribers of a user as well as the ones they're following, define these functions:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function subscribers(users) returns setof users as $$
     select u.*
@@ -756,7 +756,7 @@ If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you c
 
 Here's a sample function (notice the ``RETURNS SETOF films``).
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION getallfilms() RETURNS SETOF films AS $$
     SELECT * FROM films;

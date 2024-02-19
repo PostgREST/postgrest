@@ -5,7 +5,7 @@ Transactions
 
 After :ref:`user_impersonation`, every request to an :doc:`API resource <api>` runs inside a transaction. The sequence of the transaction is as follows:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   START TRANSACTION; -- <Access Mode> <Isolation Level>
   -- <Transaction-scoped settings>
@@ -21,7 +21,7 @@ The access mode determines whether the transaction can modify the database or no
 
 Modifying the database inside READ ONLY transactions is not possible. PostgREST uses this fact to enforce HTTP semantics in GET and HEAD requests. Consider the following:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   CREATE SEQUENCE callcounter_count START 1;
 
@@ -92,7 +92,7 @@ Isolation Level
 
 Every transaction uses the PostgreSQL default isolation level: READ COMMITTED. Unless you modify `default_transaction_isolation <https://www.postgresql.org/docs/15/runtime-config-client.html#GUC-DEFAULT-TRANSACTION-ISOLATION>`_  for an impersonated role or function.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   ALTER ROLE webuser SET default_transaction_isolation TO 'repeatable read';
 
@@ -100,7 +100,7 @@ Every ``webuser`` gets its queries executed with ``default_transaction_isolation
 
 Or to change the isolation level per function call.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   CREATE OR REPLACE FUNCTION myfunc()
   RETURNS text as $$
@@ -118,7 +118,7 @@ PostgREST uses settings tied to the transaction lifetime. These can be used to g
 
 You can get these with ``current_setting``
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- request settings use the ``request.`` prefix.
   SELECT
@@ -126,7 +126,7 @@ You can get these with ``current_setting``
 
 And you can set them with ``set_config``
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- response settings use the ``response.`` prefix.
   SELECT
@@ -139,7 +139,7 @@ Request Headers, Cookies and JWT claims
 
 PostgREST stores the headers, cookies and headers as JSON. To get them:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- To get all the headers sent in the request
   SELECT current_setting('request.headers', true)::json;
@@ -162,7 +162,7 @@ PostgREST stores the headers, cookies and headers as JSON. To get them:
     + This is considered expected behavior by PostgreSQL. For more details, see `this discussion <https://www.postgresql.org/message-id/flat/CAB_pDVVa84w7hXhzvyuMTb8f5kKV3bee_p9QTZZ58Rg7zYM7sw%40mail.gmail.com>`_.
     + To avoid this inconsistency, you can create a wrapper function like:
 
-    .. code-block:: postgresql
+    .. code-block:: postgres
 
       CREATE FUNCTION my_current_setting(text) RETURNS text
       LANGUAGE SQL AS $$
@@ -176,7 +176,7 @@ Request Path and Method
 
 The path and method are stored as ``text``.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   SELECT current_setting('request.path', true);
 
@@ -187,7 +187,7 @@ Request Role and Search Path
 
 Because of :ref:`user_impersonation`, PostgREST sets the standard ``role``. You can get this in different ways:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   SELECT current_role;
 
@@ -204,7 +204,7 @@ Response Headers
 
 You can set ``response.headers`` to add headers to the HTTP response. For instance, this statement would add caching headers to the response:
 
-.. code-block:: sql
+.. code-block:: postgres
 
   -- tell client to cache response for two days
 
@@ -265,7 +265,7 @@ This allows finer-grained control over actions made by a role.
 
 For example, consider `statement_timeout <https://www.postgresql.org/docs/current/runtime-config-client.html#GUC-STATEMENT-TIMEOUT>`__. It allows you to abort any statement that takes more than a specified time. It is disabled by default.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   ALTER ROLE authenticator SET statement_timeout TO '10s';
   ALTER ROLE anonymous SET statement_timeout TO '1s';
@@ -280,7 +280,7 @@ For more details see `Understanding Postgres Parameter Context <https://www.ente
 
 However, starting from PostgreSQL 15, you can grant privileges for these settings with:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   GRANT SET ON PARAMETER <setting> TO <authenticator>;
 
@@ -290,7 +290,7 @@ Function Settings
 In addition to :ref:`impersonated_settings`, PostgREST will also apply function settings as transaction-scoped settings. This allows functions settings to override
 the impersonated and connection role settings.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   CREATE OR REPLACE FUNCTION myfunc()
   RETURNS void as $$
@@ -340,7 +340,7 @@ Setting headers via pre-request
 
 As an example, let's add some cache headers for all requests that come from an Internet Explorer(6 or 7) browser.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
    create or replace function custom_headers()
    returns void as $$

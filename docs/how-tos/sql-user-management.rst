@@ -28,7 +28,7 @@ First we'll need a table to keep track of our users:
 
 We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the :code:`pg_roles` table. We'll use a trigger to manually enforce it.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   create or replace function
   basic_auth.check_role_exists() returns trigger as $$
@@ -50,7 +50,7 @@ We would like the role to be a foreign key to actual database roles, however Pos
 
 Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the :code:`users` table.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   create extension if not exists pgcrypto;
 
@@ -72,7 +72,7 @@ Next we'll use the pgcrypto extension and a trigger to keep passwords safe in th
 
 With the table in place we can make a helper to check a password against the encrypted column. It returns the database role for a user if the email and password are correct.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   create or replace function
   basic_auth.user_role(email text, pass text) returns name

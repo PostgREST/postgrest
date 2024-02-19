@@ -88,7 +88,7 @@ any           :code:`ANY`               comparison matches any value in the list
 
 For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   CREATE VIEW fresh_stories AS
   SELECT *

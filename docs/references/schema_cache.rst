@@ -68,7 +68,7 @@ Reloading with NOTIFY
 
 PostgREST also allows you to reload its schema cache through PostgreSQL `NOTIFY <https://www.postgresql.org/docs/current/sql-notify.html>`_.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   NOTIFY pgrst, 'reload schema'
 
@@ -83,7 +83,7 @@ Automatic Schema Cache Reloading
 
 You can do automatic schema cache reloading in a pure SQL way and forget about stale schema cache errors. For this use an `event trigger <https://www.postgresql.org/docs/current/event-trigger-definition.html>`_ and ``NOTIFY``.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- Create an event trigger function
   CREATE OR REPLACE FUNCTION pgrst_watch() RETURNS event_trigger
@@ -103,7 +103,7 @@ Now, whenever the ``pgrst_watch`` trigger fires, PostgREST will auto-reload the 
 
 To disable auto reloading, drop the trigger.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   DROP EVENT TRIGGER pgrst_watch
 
@@ -113,7 +113,7 @@ Finer-Grained Event Trigger
 You can refine the previous event trigger to only react to the events relevant to the schema cache. This also prevents unnecessary
 reloading when creating temporary tables inside functions.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   -- watch CREATE and ALTER
   CREATE OR REPLACE FUNCTION pgrst_ddl_watch() RETURNS event_trigger AS $$
