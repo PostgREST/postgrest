@@ -21,9 +21,19 @@ import jwt
 import pytest
 import requests
 import requests_unixsocket
+from syrupy.extensions.json import SingleFileSnapshotExtension
 import yaml
 
 from config import *
+
+
+class YamlSnapshotExtension(SingleFileSnapshotExtension):
+    _file_extension = "yaml"
+
+
+@pytest.fixture
+def snapshot_yaml(snapshot):
+    return snapshot.use_extension(YamlSnapshotExtension)
 
 
 def itemgetter(*items):
@@ -225,3 +235,12 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
         for line in dump.split("\n"):
             if line.startswith("openapi-mode"):
                 print(line)
+
+
+# If this test is failing, run pytest with --snapshot-update.
+def test_schema_cache_snapshot(baseenv, snapshot_yaml):
+    "Dump of schema cache should match snapshot."
+
+    schema_cache = yaml.load(cli(["--dump-schema"], env=baseenv), Loader=yaml.Loader)
+    formatted = yaml.dump(schema_cache, encoding="utf8", allow_unicode=True)
+    assert formatted == snapshot_yaml

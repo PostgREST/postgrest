@@ -31,7 +31,6 @@ import Control.Monad.Extra (whenJust)
 
 import           Data.Aeson                 ((.=))
 import qualified Data.Aeson                 as JSON
-import qualified Data.Aeson.Types           as JSON
 import qualified Data.HashMap.Strict        as HM
 import qualified Data.HashMap.Strict.InsOrd as HMI
 import qualified Data.Set                   as S
@@ -86,13 +85,13 @@ data SchemaCache = SchemaCache
   }
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps _ _) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps hdlers tzs) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
     , "dbRepresentations" .= JSON.toJSON reps
-    , "dbMediaHandlers"   .= JSON.emptyArray
-    , "dbTimezones"       .= JSON.emptyArray
+    , "dbMediaHandlers"   .= JSON.toJSON hdlers
+    , "dbTimezones"       .= JSON.toJSON tzs
     ]
 
 showSummary :: SchemaCache -> Text
@@ -1222,7 +1221,7 @@ timezones = SQL.Statement sql HE.noParams decodeTimezones
   where
     sql = "SELECT name FROM pg_timezone_names"
     decodeTimezones :: HD.Result TimezoneNames
-    decodeTimezones = S.fromList . map encodeUtf8 <$> HD.rowList (column HD.text)
+    decodeTimezones = S.fromList <$> HD.rowList (column HD.text)
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
