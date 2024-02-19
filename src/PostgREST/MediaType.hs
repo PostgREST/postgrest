@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
@@ -10,6 +11,7 @@ module PostgREST.MediaType
   , decodeMediaType
   ) where
 
+import qualified Data.Aeson               as JSON
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Internal as BS (c2w)
 
@@ -28,23 +30,23 @@ data MediaType
   | MTUrlEncoded
   | MTOctetStream
   | MTAny
-  | MTOther ByteString
+  | MTOther Text
   -- vendored media types
   | MTVndArrayJSONStrip
   | MTVndSingularJSON Bool
   -- TODO MTVndPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
   | MTVndPlan MediaType MTVndPlanFormat [MTVndPlanOption]
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, JSON.ToJSON)
 instance Hashable MediaType
 
 data MTVndPlanOption
   = PlanAnalyze | PlanVerbose | PlanSettings | PlanBuffers | PlanWAL
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, JSON.ToJSON)
 instance Hashable MTVndPlanOption
 
 data MTVndPlanFormat
   = PlanJSON | PlanText
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, JSON.ToJSON)
 instance Hashable MTVndPlanFormat
 
 -- | Convert MediaType to a Content-Type HTTP Header
@@ -70,7 +72,7 @@ toMime (MTVndSingularJSON False) = "application/vnd.pgrst.object+json"
 toMime MTUrlEncoded           = "application/x-www-form-urlencoded"
 toMime MTOctetStream          = "application/octet-stream"
 toMime MTAny                  = "*/*"
-toMime (MTOther ct)           = ct
+toMime (MTOther ct)           = encodeUtf8 ct
 toMime (MTVndPlan mt fmt opts)   =
   "application/vnd.pgrst.plan+" <> toMimePlanFormat fmt <>
   ("; for=\"" <> toMime mt <> "\"") <>
@@ -132,7 +134,7 @@ decodeMediaType mt =
     "application/vnd.pgrst.array+json":rest  -> checkArrayNullStrip rest
     "application/vnd.pgrst.array":rest       -> checkArrayNullStrip rest
     "*/*":_                                  -> MTAny
-    other:_                                  -> MTOther other
+    other:_                                  -> MTOther $ decodeUtf8 other
     _                                        -> MTAny
   where
     checkArrayNullStrip ["nulls=stripped"] = MTVndArrayJSONStrip

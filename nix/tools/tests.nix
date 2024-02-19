@@ -67,6 +67,7 @@ let
       ps.pyyaml
       ps.requests
       ps.requests-unixsocket
+      ps.syrupy
     ]);
 
   testIO =

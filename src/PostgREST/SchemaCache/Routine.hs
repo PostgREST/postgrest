@@ -110,7 +110,7 @@ data MediaHandler
    -- custom
    | CustomFunc QualifiedIdentifier RelIdentifier
    | NoAgg
-   deriving (Eq, Show)
+   deriving (Eq, Show, Generic, JSON.ToJSON)
 
 funcReturnsSingle :: Routine -> Bool
 funcReturnsSingle proc = case proc of
