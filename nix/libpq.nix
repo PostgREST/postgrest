@@ -19,7 +19,7 @@
 
 stdenv.mkDerivation {
   pname = "libpq";
-  inherit (postgresql) src version;
+  inherit (postgresql) src version patches;
 
   configureFlags = [
     "--without-gssapi"
