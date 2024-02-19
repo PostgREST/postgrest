@@ -96,7 +96,7 @@ When debugging a problem it's important to verify the running PostgREST version.
 
 - Query ``application_name`` on `pg_stat_activity <https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ACTIVITY-VIEW>`_.
 
-.. code-block:: psql
+.. code-block:: postgres
 
   select distinct application_name
   from pg_stat_activity
@@ -177,7 +177,7 @@ This is enabled by :ref:`db-plan-enabled` (false by default).
   curl "http://localhost:3000/users?select=name&order=id" \
     -H "Accept: application/vnd.pgrst.plan"
 
-.. code-block:: psql
+.. code-block:: postgres
 
   Aggregate  (cost=73.65..73.68 rows=1 width=112)
     ->  Index Scan using users_pkey on users  (cost=0.15..60.90 rows=850 width=36)
@@ -237,7 +237,7 @@ However, if you choose to use it in production you can add a :ref:`db-pre-reques
 
 For example, to only allow requests from an IP address to get the execution plans:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
  -- Assuming a proxy(Nginx, Cloudflare, etc) passes an "X-Forwarded-For" header(https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Forwarded-For)
  create or replace function filter_plan_requests()

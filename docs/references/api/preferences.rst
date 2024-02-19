@@ -236,7 +236,7 @@ Single JSON object as Function Parameter
 
 :code:`Prefer: params=single-object` allows sending the JSON request body as the single argument of a :ref:`function <s_procs>`.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION mult_them(param json) RETURNS int AS $$
     SELECT (param->>'x')::int * (param->>'y')::int

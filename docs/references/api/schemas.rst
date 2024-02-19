@@ -88,7 +88,7 @@ To add schemas dynamically, you can use :ref:`in_db_config` plus :ref:`config re
 
 - If the schemas' names have a pattern, like a ``tenant_`` prefix, do:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function postgrest.pre_config()
   returns void as $$
@@ -100,7 +100,7 @@ To add schemas dynamically, you can use :ref:`in_db_config` plus :ref:`config re
 
 - If there's no name pattern but they're created with a particular role (``CREATE SCHEMA mine AUTHORIZATION joe``), do:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create or replace function postgrest.pre_config()
   returns void as $$
@@ -112,7 +112,7 @@ To add schemas dynamically, you can use :ref:`in_db_config` plus :ref:`config re
 
 - Otherwise, you might need to create a table that stores the allowed schemas.
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
   create table postgrest.config (schemas text);
 
@@ -125,7 +125,7 @@ To add schemas dynamically, you can use :ref:`in_db_config` plus :ref:`config re
 
 Then each time you add an schema, do:
 
-.. code-block:: postgresql
+.. code-block:: postgres
 
    NOTIFY pgrst, 'reload config';
    NOTIFY pgrst, 'reload schema';

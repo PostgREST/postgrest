@@ -23,7 +23,7 @@ To supply arguments in an API call, include a JSON object in the request payload
 
 For instance, assume we have created this function in the database.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION add_them(a integer, b integer)
   RETURNS integer AS $$
@@ -73,7 +73,7 @@ Functions with a single unnamed JSON parameter
 If you want the JSON request body to be sent as a single argument, you can create a function with a single unnamed ``json`` or ``jsonb`` parameter.
 For this the ``Content-Type: application/json`` header must be included in the request.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE FUNCTION mult_them(json) RETURNS int AS $$
     SELECT ($1->>'x')::int * ($1->>'y')::int
@@ -108,7 +108,7 @@ To send raw XML, the parameter type must be ``xml`` and the header ``Content-Typ
 
 To send raw binary, the parameter type must be ``bytea`` and the header ``Content-Type: application/octet-stream`` must be included in the request.
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   CREATE TABLE files(blob bytea);
 
@@ -252,7 +252,7 @@ Let's get its :ref:`explain_plan` when calling it with filters applied:
   curl "http://localhost:3000/rpc/getallprojects?id=eq.1" \
     -H "Accept: application/vnd.pgrst.plan"
 
-.. code-block:: psql
+.. code-block:: postgres
 
   Aggregate  (cost=8.18..8.20 rows=1 width=112)
     ->  Index Scan using projects_pkey on projects  (cost=0.15..8.17 rows=1 width=40)

@@ -206,7 +206,7 @@ PostgREST allows us to specify a stored procedure to run during attempted authen
 
 First make a new schema and add the function:
 
-.. code-block:: plpgsql
+.. code-block:: postgres
 
   create schema auth;
   grant usage on schema auth to web_anon, todo_user;
