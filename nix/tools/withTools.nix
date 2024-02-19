@@ -89,8 +89,8 @@ let
           log "Creating a minimally privileged $PGUSER connection role..."
           createuser "$PGUSER" -U postgres --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
 
-          echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U postgres"
-          echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
+          >&2 echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U postgres"
+          >&2 echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
         fi
 
         if test "$_arg_fixtures"; then
