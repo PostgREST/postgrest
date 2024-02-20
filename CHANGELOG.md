@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3171, Add an ability to dump config via admin API - @skywriter
  - #3061, Apply all function settings as transaction-scoped settings - @taimoorzaeem
  - #3171, Log schema cache stats to stderr - @steve-chavez
+ - #3210, Dump schema cache through admin API - @taimoorzaeem
 
 ### Fixed
 

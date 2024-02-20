@@ -642,6 +642,15 @@ def test_admin_config(defaultenv):
         assert "admin-server-port" in response.text
 
 
+def test_admin_schema_cache(defaultenv):
+    "Should get a success response from the admin server containing current schema cache"
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.admin.get("/schema_cache")
+        assert response.status_code == 200
+        assert '"dbTables":[[{"qiName":"authors_only"' in response.text
+
+
 def test_admin_ready_w_channel(defaultenv):
     "Should get a success response from the admin server ready endpoint when the LISTEN channel is enabled"
 
