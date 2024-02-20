@@ -173,7 +173,7 @@ Related to the HTTP request elements.
 |               |             | See :ref:`h_filter`, :ref:`operators` and :ref:`ordering`.  |
 | PGRST100      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst101: | 405         | For :ref:`functions <s_procs>`, only ``GET`` and ``POST``   |
+| .. _pgrst101: | 405         | For :ref:`functions <functions>`, only ``GET`` and ``POST`` |
 |               |             | verbs are allowed. Any other verb will throw this error.    |
 | PGRST101      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
@@ -337,7 +337,7 @@ You can customize the errors by using the `RAISE statement <https://www.postgres
 RAISE errors with HTTP Status Codes
 -----------------------------------
 
-Custom status codes can be done by raising SQL exceptions inside :ref:`functions <s_procs>`. For instance, here's a saucy function that always responds with an error:
+Custom status codes can be done by raising SQL exceptions inside :ref:`functions <functions>`. For instance, here's a saucy function that always responds with an error:
 
 .. code-block:: postgres
 

@@ -59,7 +59,7 @@ For POST, PATCH, PUT and DELETE, select the schema with ``Content-Profile``.
     -H "Content-Profile: tenant2" \
     -d '{...}'
 
-You can also select the schema for :ref:`s_procs` and :ref:`open-api`.
+You can also select the schema for :ref:`functions` and :ref:`open-api`.
 
 Restricted schemas
 ~~~~~~~~~~~~~~~~~~

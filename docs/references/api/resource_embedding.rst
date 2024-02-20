@@ -747,12 +747,12 @@ Foreign Key Joins on Chains of Views
 
 Views can also depend on other views, which in turn depend on the actual base table. For PostgREST to pick up those chains recursively to any depth, all the views must be in the search path, so either in the exposed schema (:ref:`db-schemas`) or in one of the schemas set in :ref:`db-extra-search-path`. This does not apply to the base table, which could be in a private schema as well. See :ref:`schema_isolation` for more details.
 
-.. _s_proc_embed:
+.. _function_embed:
 
 Foreign Key Joins on Table-Valued Functions
 ===========================================
 
-If you have a :ref:`Stored Procedure <s_procs>` that returns a table type, you can do a Foreign Key join on the result.
+If you have a :ref:`Function <functions>` that returns a table type, you can do a Foreign Key join on the result.
 
 Here's a sample function (notice the ``RETURNS SETOF films``).
 

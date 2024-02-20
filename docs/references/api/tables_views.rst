@@ -86,7 +86,7 @@ all           :code:`ALL`               comparison matches all the values in the
 any           :code:`ANY`               comparison matches any value in the list, see :ref:`modifiers`
 ============  ========================  ==================================================================================
 
-For more complicated filters you will have to create a new view in the database, or use a stored procedure. For instance, here's a view to show "today's stories" including possibly older pinned stories:
+For more complicated filters you will have to create a new view in the database, or use a function. For instance, here's a view to show "today's stories" including possibly older pinned stories:
 
 .. code-block:: postgres
 
@@ -443,7 +443,7 @@ URL encoded payloads can be posted with ``Content-Type: application/x-www-form-u
 
   It's recommended that you `use triggers instead of rules <https://wiki.postgresql.org/wiki/Don%27t_Do_This#Don.27t_use_rules>`_.
   Insertion on views with complex `rules <https://www.postgresql.org/docs/current/sql-createrule.html>`_ might not work out of the box with PostgREST due to its usage of CTEs.
-  If you want to keep using rules, a workaround is to wrap the view insertion in a stored procedure and call it through the :ref:`s_procs` interface.
+  If you want to keep using rules, a workaround is to wrap the view insertion in a function and call it through the :ref:`functions` interface.
   For more details, see this `github issue <https://github.com/PostgREST/postgrest/issues/1283>`_.
 
 .. _bulk_insert:

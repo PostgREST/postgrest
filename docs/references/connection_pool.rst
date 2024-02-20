@@ -60,7 +60,7 @@ If the request reaches the timeout, it will be aborted with the following respon
 
     - Reduce write requests. Do :ref:`bulk_insert` (or :ref:`upsert`) instead of inserting rows one by one.
     - Reduce read requests. Use :ref:`resource_embedding`. Combine unrelated data into a single request using custom database views or functions.
-    - Use :ref:`s_procs` for combining read and write logic into a single request.
+    - Use :ref:`functions` for combining read and write logic into a single request.
 
   - Increase the :ref:`db-pool` size.
 

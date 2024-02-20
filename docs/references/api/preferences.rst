@@ -232,9 +232,9 @@ Single JSON object as Function Parameter
 
 .. warning::
 
-  Using this preference is **deprecated** in favor of :ref:`s_proc_single_json`.
+  Using this preference is **deprecated** in favor of :ref:`function_single_json`.
 
-:code:`Prefer: params=single-object` allows sending the JSON request body as the single argument of a :ref:`function <s_procs>`.
+:code:`Prefer: params=single-object` allows sending the JSON request body as the single argument of a :ref:`function <functions>`.
 
 .. code-block:: postgres
 

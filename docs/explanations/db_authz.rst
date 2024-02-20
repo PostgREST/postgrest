@@ -156,7 +156,7 @@ You can also grant execute on all functions in a schema to a higher privileged r
 Security definer
 ----------------
 
-A function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the procedure performs.
+A function is executed with the privileges of the user who calls it. This means that the user has to have all permissions to do the operations the function performs.
 If the function accesses private database objects, your :ref:`API roles <roles>` won't be able to successfully execute the function.
 
 Another option is to define the function with the :code:`SECURITY DEFINER` option. Then only one permission check will take place, the permission to call the function, and the operations in the function will have the authority of the user who owns the function itself.
@@ -180,7 +180,7 @@ Note the ``SECURITY DEFINER`` keywords at the end of the function. See `PostgreS
 Views
 =====
 
-Views are invoked with the privileges of the view owner, much like stored procedures with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ policies will be bypassed.
+Views are invoked with the privileges of the view owner, much like functions with the ``SECURITY DEFINER`` option. When created by a SUPERUSER role, all `row-level security <https://www.postgresql.org/docs/current/ddl-rowsecurity.html>`_ policies will be bypassed.
 
 If you're on PostgreSQL >= 15, this behavior can be changed by specifying the ``security_invoker`` option.
 

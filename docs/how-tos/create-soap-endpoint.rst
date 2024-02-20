@@ -191,7 +191,7 @@ References
 
 For more information concerning PostgREST, cf.
 
-- :ref:`s_proc_single_unnamed`
+- :ref:`function_single_unnamed`
 - :ref:`custom_media`. See :ref:`any_handler`, if you need to support an ``application/soap+xml`` media type or if you want to respond with XML without sending a media type.
 - :ref:`Nginx reverse proxy <nginx>`
 

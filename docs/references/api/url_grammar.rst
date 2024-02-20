@@ -12,7 +12,7 @@ URL Grammar
 Custom Queries
 --------------
 
-The PostgREST URL grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and stored procedures to provide richer endpoints. The most common causes for custom endpoints are
+The PostgREST URL grammar limits the kinds of queries clients can perform. It prevents arbitrary, potentially poorly constructed and slow client queries. It's good for quality of service, but means database administrators must create custom views and functions to provide richer endpoints. The most common causes for custom endpoints are
 
 * Table unions
 * More complicated joins than those provided by :ref:`resource_embedding`.
