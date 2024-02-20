@@ -69,7 +69,7 @@ type Handler = ExceptT Error
 
 run :: AppState -> (Observation -> IO ()) -> IO ()
 run appState observer = do
-  observer $ AppStartObs prettyVersion
+  observer $ AppServerStartObs prettyVersion
 
   conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
