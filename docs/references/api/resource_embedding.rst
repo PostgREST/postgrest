@@ -846,11 +846,13 @@ This sorts the list of actors in each film but does *not* change the order of th
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
-An ``or`` filter  can be used for a similar operation:
+An ``or`` filter can be used for a similar operation:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
+
+However, this only works for columns inside ``roles``. See :ref:`how to use "or" across multiple resources <or_embed_rels>`.
 
 Limit and offset operations are possible:
 
@@ -950,6 +952,18 @@ Both ``is.null`` and ``not.is.null`` can be included inside the `or` operator. F
 .. code-block:: bash
 
   curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
+
+.. _or_embed_rels:
+
+OR filtering across Embedded Resources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also use ``not.is.null`` to make an ``or`` filter across multiple resources.
+For instance, to show the films whose actors **or** directors are named John:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/films?select=title,actors(),directors()&directors.first_name=eq.John&actors.first_name=eq.John&or=(directors.not.is.null,actors.not.is.null)"
 
 .. _empty_embed:
 
