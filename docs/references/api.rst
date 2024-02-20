@@ -3,14 +3,14 @@
 API
 ###
 
-PostgREST exposes three database objects of a schema as resources: tables, views and stored procedures.
+PostgREST exposes three database objects of a schema as resources: tables, views and functions.
 
 .. toctree::
    :glob:
    :maxdepth: 1
 
    api/tables_views.rst
-   api/stored_procedures.rst
+   api/functions.rst
    api/schemas.rst
    api/computed_fields.rst
    api/domain_representations.rst
@@ -55,15 +55,15 @@ PostgREST exposes three database objects of a schema as resources: tables, views
       '#put': 'api/tables_views.html#put',
       '#deletions': 'api/tables_views.html#delete',
       '#limited-updates-deletions': 'api/tables_views.html#limited-update-delete',
-      // Stored procedures
-      '#stored-procedures': 'api/stored_procedures.html#stored-procedures',
-      '#calling-functions-with-a-single-json-parameter': 'api/stored_procedures.html#functions-with-a-single-json-parameter',
-      '#calling-functions-with-a-single-unnamed-parameter': 'api/stored_procedures.html#functions-with-a-single-unnamed-parameter',
-      '#calling-functions-with-array-parameters': 'api/stored_procedures.html#functions-with-array-parameters',
-      '#calling-variadic-functions': 'api/stored_procedures.html#variadic-functions',
-      '#scalar-functions': 'api/stored_procedures.html#scalar-functions',
-      '#function-filters': 'api/stored_procedures.html#table-valued-functions',
-      '#overloaded-functions': 'api/stored_procedures.html#overloaded-functions',
+      // Functions
+      '#stored-procedures': 'api/functions.html#functions',
+      '#calling-functions-with-a-single-json-parameter': 'api/functions.html#functions-with-a-single-json-parameter',
+      '#calling-functions-with-a-single-unnamed-parameter': 'api/functions.html#functions-with-a-single-unnamed-parameter',
+      '#calling-functions-with-array-parameters': 'api/functions.html#functions-with-array-parameters',
+      '#calling-variadic-functions': 'api/functions.html#variadic-functions',
+      '#scalar-functions': 'api/functions.html#scalar-functions',
+      '#function-filters': 'api/functions.html#table-valued-functions',
+      '#overloaded-functions': 'api/functions.html#overloaded-functions',
       // Schemas
       '#switching-schemas': 'api/schemas.html',
       // Resource Embedding
@@ -79,7 +79,7 @@ PostgREST exposes three database objects of a schema as resources: tables, views
       '#embedding-partitioned-tables': 'api/resource_embedding.html#embedding-partitioned-tables',
       '#embedding-views': 'api/resource_embedding.html#embedding-views',
       '#embedding-chains-of-views': 'api/resource_embedding.html#embedding-chains-of-views',
-      '#embedding-on-stored-procedures': 'api/resource_embedding.html#embedding-on-stored-procedures',
+      '#embedding-on-stored-procedures': 'api/resource_embedding.html#embedding-on-functions',
       '#embedding-after-insertions-updates-deletions': 'api/resource_embedding.html#embedding-after-insertions-updates-deletions',
       '#embedding-disambiguation': 'api/resource_embedding.html#embedding-disambiguation',
       '#target-disambiguation': 'api/resource_embedding.html#target-disambiguation',

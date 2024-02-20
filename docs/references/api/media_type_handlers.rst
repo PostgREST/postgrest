@@ -11,7 +11,7 @@ Media types are expressed as type aliases using `domains <https://www.postgresql
 
    CREATE DOMAIN "application/json" AS json;
 
-Using these domains, :ref:`functions <s_procs>` can become handlers and `user-defined aggregates <https://www.postgresql.org/docs/current/xaggr.html>`_ can serve as handlers for :ref:`tables_views` and :ref:`table_functions`.
+Using these domains, :ref:`functions <functions>` can become handlers and `user-defined aggregates <https://www.postgresql.org/docs/current/xaggr.html>`_ can serve as handlers for :ref:`tables_views` and :ref:`table_functions`.
 
 .. important::
 

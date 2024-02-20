@@ -9,7 +9,7 @@ Community Tutorials
 * `PostgREST + Auth0: Create REST API in mintutes, and add social login using Auth0 <https://samkhawase.com/blog/postgrest/>`_ - A step-by-step tutorial to show how to dockerize and integrate Auth0 to PostgREST service.
 
 * `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-geospatial-api-in-5-minutes/>`_ -
-  In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`s_procs` interface.
+  In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`functions` interface.
 
 * `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>`_ -
   A step-by-step tutorial for using PostgREST with KeyCloak(hosted on a managed service).
@@ -60,7 +60,7 @@ DevOps
 External Notification
 ---------------------
 
-These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows stored procedures to initiate actions outside the database such as sending emails.
+These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows functions to initiate actions outside the database such as sending emails.
 
 * `pg-notify-webhook <https://github.com/vbalasu/pg-notify-webhook>`_ - trigger webhooks from PostgreSQL's LISTEN/NOTIFY
 * `pgsql-listen-exchange <https://github.com/gmr/pgsql-listen-exchange>`_ - RabbitMQ

@@ -55,7 +55,7 @@ Nginx supports "leaky bucket" rate limiting (see `official docs <https://nginx.o
 
 This creates a shared memory zone called "login" to store a log of IP addresses that access the rate limited urls. The space reserved, 10 MB (:code:`10m`) will give us enough space to store a history of 160k requests. We have chosen to allow only allow one request per second (:code:`1r/s`).
 
-Next we apply the zone to certain routes, like a hypothetical stored procedure called :code:`login`.
+Next we apply the zone to certain routes, like a hypothetical function called :code:`login`.
 
 .. code-block:: nginx
 

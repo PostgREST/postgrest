@@ -11,7 +11,7 @@ PostgREST is a standalone web server which turns a PostgreSQL database into a RE
 
 .. image:: ../_static/tuts/tut0-request-flow.png
 
-To make an API we'll simply be building a database. All the endpoints and permissions come from database objects like tables, views, roles, and stored procedures. These tutorials will cover a number of common scenarios and how to model them in the database.
+To make an API we'll simply be building a database. All the endpoints and permissions come from database objects like tables, views, roles, and functions. These tutorials will cover a number of common scenarios and how to model them in the database.
 
 By the end of this tutorial you'll have a working database, PostgREST server, and a simple single-user todo list API.
 

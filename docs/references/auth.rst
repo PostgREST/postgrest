@@ -177,7 +177,7 @@ PostgREST uses JWT mainly for authentication and authorization purposes and enco
 Custom Validation
 -----------------
 
-PostgREST does not enforce any extra constraints besides JWT validation. An example of an extra constraint would be to immediately revoke access for a certain user. Using :ref:`db-pre-request` you can specify a stored procedure to call immediately after :ref:`user_impersonation` and before the main query itself runs.
+PostgREST does not enforce any extra constraints besides JWT validation. An example of an extra constraint would be to immediately revoke access for a certain user. Using :ref:`db-pre-request` you can specify a function to call immediately after :ref:`user_impersonation` and before the main query itself runs.
 
 .. code:: ini
 

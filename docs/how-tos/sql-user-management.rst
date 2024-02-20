@@ -115,7 +115,7 @@ JWT from SQL
 
 You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/michelp/pgjwt>`_. It's simple and requires only pgcrypto. If you're on an environment like Amazon RDS which doesn't support installing new extensions, you can still manually run the `SQL inside pgjwt <https://github.com/michelp/pgjwt/blob/master/pgjwt--0.1.1.sql>`_ (you'll need to replace ``@extschema@`` with another schema or just delete it) which creates the functions you will need.
 
-Next write a stored procedure that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
+Next write a function that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
 
 .. code-block:: postgres
 
@@ -134,7 +134,7 @@ PostgREST exposes this function to clients via a POST request to ``/rpc/jwt_test
 
 .. note::
 
-  To avoid hard-coding the secret in stored procedures, save it as a property of the database.
+  To avoid hard-coding the secret in functions, save it as a property of the database.
 
   .. code-block:: postgres
 

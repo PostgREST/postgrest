@@ -23,7 +23,7 @@ Builtin Media Type Handlers
 
 Builtin handlers are offered for common standard media types.
 
-* ``text/csv`` and ``application/json``, for all API endpoints. See :ref:`tables_views` and :ref:`s_procs`.
+* ``text/csv`` and ``application/json``, for all API endpoints. See :ref:`tables_views` and :ref:`functions`.
 * ``application/openapi+json``, for the root endpoint. See :ref:`open-api`.
 * ``application/geo+json``, see :ref:`ww_postgis`.
 * ``*/*``, resolves to ``application/json`` for API endpoints and to ``application/openapi+json`` for the root endpoint.
@@ -136,12 +136,12 @@ The server handles the following request body media types:
 * ``application/x-www-form-urlencoded``
 * ``text/csv``
 
-For :ref:`tables_views` this works on ``POST``, ``PATCH`` and ``PUT`` methods. For :ref:`s_procs`, it works on ``POST`` methods.
+For :ref:`tables_views` this works on ``POST``, ``PATCH`` and ``PUT`` methods. For :ref:`functions`, it works on ``POST`` methods.
 
-For stored procedures there are three additional types:
+For functions there are three additional types:
 
 * ``application/octet-stream``
 * ``text/plain``
 * ``text/xml``
 
-See :ref:`s_proc_single_unnamed`.
+See :ref:`function_single_unnamed`.
