@@ -300,16 +300,17 @@ loadSchemaCache appState observer = do
     Left e -> do
       case checkIsFatal e of
         Just hint -> do
-          observer $ AppSCacheFatalErrorObs e hint
+          observer $ SchemaCacheFatalErrorObs e hint
           return SCFatalFail
         Nothing -> do
           putSchemaCache appState Nothing
-          observer $ AppSCacheNormalErrorObs e
+          observer $ SchemaCacheNormalErrorObs e
           return SCOnRetry
 
     Right sCache -> do
       putSchemaCache appState $ Just sCache
-      observer $ AppSCacheLoadSuccessObs sCache resultTime
+      observer $ SchemaCacheQueriedObs resultTime
+      observer $ SchemaCacheLoadedObs sCache
       return SCLoaded
 
 -- | Current database connection status data ConnectionStatus
@@ -335,22 +336,22 @@ internalConnectionWorker appState observer = work
   where
     work = do
       config@AppConfig{..} <- getConfig appState
-      observer AppDBConnectAttemptObs
+      observer DBConnectAttemptObs
       connected <- establishConnection appState config observer
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
-          observer (AppExitFatalObs reason) >> killThread (getMainThreadId appState)
+          observer (ExitFatalObs reason) >> killThread (getMainThreadId appState)
         NotConnected ->
           -- Unreachable because establishConnection will keep trying to connect, unless disable-recovery is turned on
           unless configDbPoolAutomaticRecovery
-              $ observer AppExitDBNoRecoveryObs >> killThread (getMainThreadId appState)
+              $ observer ExitDBNoRecoveryObs >> killThread (getMainThreadId appState)
         Connected actualPgVersion -> do
           -- Procede with initialization
           putPgVersion appState actualPgVersion
           when configDbChannelEnabled $
             signalListener appState
-          observer (AppDBConnectedObs $ pgvFullName actualPgVersion)
+          observer (DBConnectedObs $ pgvFullName actualPgVersion)
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
           when configDbConfig $ reReadConfig False appState observer
@@ -523,16 +524,16 @@ checkIsFatal(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError serverEr
   = case serverError of
       -- Check for a syntax error (42601 is the pg code). This would mean the error is on our part somehow, so we treat it as fatal.
       SQL.ServerError "42601" _ _ _ _
-        -> Just "Hint: This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
+        -> Just "This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues"
       -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
       -- This would mean that a connection pooler in transaction mode is being used
       -- while prepared statements are enabled in the PostgREST configuration,
       -- both of which are incompatible with each other.
       SQL.ServerError "42P05" _ _ _ _
-        -> Just "Hint: If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
+        -> Just "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false."
       -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
       -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
       SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _
-        -> Just "Hint: Connection poolers in statement mode are not supported."
+        -> Just "Connection poolers in statement mode are not supported."
       _ -> Nothing
 checkIsFatal _ = Nothing
