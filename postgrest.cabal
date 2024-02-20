@@ -54,6 +54,7 @@ library
                       PostgREST.Error
                       PostgREST.Logger
                       PostgREST.MediaType
+                      PostgREST.Observation
                       PostgREST.Query
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment

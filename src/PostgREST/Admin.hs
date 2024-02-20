@@ -17,32 +17,32 @@ import qualified Data.ByteString.Lazy as LBS
 import Network.Socket
 import Network.Socket.ByteString
 
-import PostgREST.AppState (AppState)
-import PostgREST.Config   (AppConfig (..))
+import PostgREST.AppState    (AppState)
+import PostgREST.Config      (AppConfig (..))
+import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
 import Protolude
-import Protolude.Partial (fromJust)
 
-runAdmin :: AppConfig -> AppState -> Warp.Settings -> IO ()
-runAdmin conf@AppConfig{configAdminServerPort} appState settings =
+runAdmin :: AppConfig -> AppState -> Warp.Settings -> (Observation -> IO ()) -> IO ()
+runAdmin conf@AppConfig{configAdminServerPort} appState settings observer =
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
-    AppState.logWithZTime appState $ "Admin server listening on port " <> show (fromIntegral (fromJust configAdminServerPort) :: Integer)
+    observer $ AdminStartObs configAdminServerPort
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
-    adminApp = admin appState conf
+    adminApp = admin appState conf observer
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> AppConfig -> Wai.Application
-admin appState appConfig req respond  = do
+admin :: AppState.AppState -> AppConfig -> (Observation -> IO ()) -> Wai.Application
+admin appState appConfig observer req respond  = do
   isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
   isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
-      else isRight <$> AppState.usePool appState appConfig (SQL.sql "SELECT 1")
+      else isRight <$> AppState.usePool appState appConfig (SQL.sql "SELECT 1") observer
 
   case Wai.pathInfo req of
     ["ready"] ->

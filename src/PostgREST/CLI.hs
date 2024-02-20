@@ -25,6 +25,7 @@ import PostgREST.Version     (prettyVersion)
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
+import qualified PostgREST.Logger   as Logger
 
 import Protolude hiding (hPutStrLn)
 
@@ -34,18 +35,19 @@ main CLI{cliCommand, cliPath} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
 
+  loggerState <- Logger.init
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
-    (AppState.init conf)
+    (AppState.init conf $ Logger.logObservation loggerState)
     AppState.destroy
     (\appState -> case cliCommand of
       CmdDumpConfig -> do
-        when configDbConfig $ AppState.reReadConfig True appState
+        when configDbConfig $ AppState.reReadConfig True appState (const $ pure ())
         putStr . Config.toText =<< AppState.getConfig appState
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
-      CmdRun -> App.run appState)
+      CmdRun -> App.run appState (Logger.logObservation loggerState))
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -53,9 +55,9 @@ dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    AppState.usePool appState conf $
-      transaction SQL.ReadCommitted SQL.Read $
-        querySchemaCache conf
+    AppState.usePool appState conf
+      (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+      (const $ pure ())
   case result of
     Left e -> do
       hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
