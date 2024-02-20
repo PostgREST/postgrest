@@ -852,7 +852,7 @@ An ``or`` filter can be used for a similar operation:
 
   curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
 
-However, this filter doesn't work across multiple resources. See :ref:`null_embed` for a workaround.
+However, this only works for columns inside ``roles``. See :ref:`how to use "or" across multiple resources <or_embed_rels>`.
 
 Limit and offset operations are possible:
 
@@ -953,7 +953,12 @@ Both ``is.null`` and ``not.is.null`` can be included inside the `or` operator. F
 
   curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
 
-You can also use ``not.is.null`` as a workaround for an ``or`` filter across multiple resources.
+.. _or_embed_rels:
+
+OR filtering across Embedded Resources
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can also use ``not.is.null`` to make an ``or`` filter across multiple resources.
 For instance, to show the films whose actors **or** directors are named John:
 
 .. code-block:: bash
