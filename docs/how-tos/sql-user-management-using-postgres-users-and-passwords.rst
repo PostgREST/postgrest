@@ -162,20 +162,15 @@ As described in :ref:`client_auth`, we'll create a JWT token inside our login fu
 
 .. code-block:: postgres
 
-  CREATE TYPE basic_auth.jwt_token AS (
-    token text
-  );
-
   -- if you are not using psql, you need to replace :DBNAME with the current database's name.
   ALTER DATABASE :DBNAME SET "app.jwt_secret" to 'reallyreallyreallyreallyverysafe';
 
 
-  CREATE FUNCTION public.login(username text, password text) RETURNS basic_auth.jwt_token
+  CREATE FUNCTION public.login(username text, password text, OUT token text)
       LANGUAGE plpgsql security definer
       AS $$
   DECLARE
     _role name;
-    result basic_auth.jwt_token;
   BEGIN
     -- check email and password
     SELECT basic_auth.check_user_pass(username, password) INTO _role;
@@ -190,8 +185,7 @@ As described in :ref:`client_auth`, we'll create a JWT token inside our login fu
         SELECT login.username as role,
           extract(epoch FROM now())::integer + 60*60 AS exp
       ) r
-      INTO result;
-    RETURN result;
+      INTO token;
   END;
   $$;
 
