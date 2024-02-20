@@ -166,7 +166,7 @@ Another option is to define the function with the :code:`SECURITY DEFINER` optio
   -- login as a user wich has privileges on the private schemas
 
   -- create a sample function
-  create or replace function login(email text, pass text) returns jwt_token as $$
+  create or replace function login(email text, pass text, out token text) as $$
   begin
     -- access to a private schema called 'auth'
     select auth.user_role(email, pass) into _role;

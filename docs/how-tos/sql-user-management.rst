@@ -122,11 +122,7 @@ Next write a stored procedure that returns the token. The one below returns a to
 
 .. code-block:: postgres
 
-  CREATE TYPE jwt_token AS (
-    token text
-  );
-
-  CREATE FUNCTION jwt_test() RETURNS public.jwt_token AS $$
+  CREATE FUNCTION jwt_test(OUT token text) AS $$
     SELECT public.sign(
       row_to_json(r), 'reallyreallyreallyreallyverysafe'
     ) AS token
@@ -161,17 +157,11 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
 
 .. code-block:: postgres
 
-  -- add type
-  CREATE TYPE basic_auth.jwt_token AS (
-    token text
-  );
-
   -- login should be on your exposed schema
   create or replace function
-  login(email text, pass text) returns basic_auth.jwt_token as $$
+  login(email text, pass text, out token text) as $$
   declare
     _role name;
-    result basic_auth.jwt_token;
   begin
     -- check email and password
     select basic_auth.user_role(email, pass) into _role;
@@ -186,8 +176,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
         select _role as role, login.email as email,
            extract(epoch from now())::integer + 60*60 as exp
       ) r
-      into result;
-    return result;
+      into token;
   end;
   $$ language plpgsql security definer;
 
