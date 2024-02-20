@@ -16,6 +16,10 @@ If they return table types, functions can:
 
   Why the ``/rpc`` prefix? PostgreSQL allows a table or view to have the same name as a function. The prefix allows us to avoid routes collisions.
 
+.. warning::
+
+  `Stored Procedures <https://www.postgresql.org/docs/current/xproc.html>`_ are not supported.
+
 Calling with POST
 -----------------
 
