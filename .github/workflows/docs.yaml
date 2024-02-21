@@ -1,14 +1,7 @@
 name: Docs
 
 on:
-  push:
-    branches:
-    - main
-    - v[0-9]+
-  pull_request:
-    branches:
-    - main
-    - v[0-9]+
+  workflow_call:
 
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
@@ -17,7 +10,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build docs
+    name: Build
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -29,7 +22,7 @@ jobs:
     - run: git diff --exit-code HEAD locales || echo "Please commit changes to the locales/ folder after running postgrest-docs-build."
 
   spellcheck:
-    name: Run spellcheck
+    name: Spellcheck
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -40,7 +33,7 @@ jobs:
     - run: postgrest-docs-spellcheck
 
   dictcheck:
-    name: Run dictcheck
+    name: Dictcheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -51,7 +44,7 @@ jobs:
       - run: postgrest-docs-dictcheck
 
   linkcheck:
-    name: Run linkcheck
+    name: Linkcheck
     if: github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
