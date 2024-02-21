@@ -1,0 +1,167 @@
+name: Build
+
+on:
+  workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: false
+
+concurrency:
+  # Terminate all previous runs of the same workflow for pull requests
+  group: build-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    name: Nix - Linux static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build static executable
+        run: nix-build -A postgrestStatic
+      - name: Save built executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgrest-linux-static-x64
+          path: result/bin/postgrest
+          if-no-files-found: error
+
+      - name: Build Docker image
+        run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
+      - name: Save built Docker image as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgrest-docker-x64
+          path: postgrest-docker.tar.gz
+          if-no-files-found: error
+
+
+  macos:
+    name: Nix - MacOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+
+      - name: Build everything
+        run: |
+          nix-build
+
+
+  stack:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux
+            runs-on: ubuntu-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            # no artifact for Linux, because we use the static build
+
+          - name: MacOS
+            runs-on: macos-latest
+            cache: |
+              ~/.stack
+              .stack-work
+            artifact: postgrest-macos-x64
+
+          - name: Windows
+            runs-on: windows-latest
+            cache: |
+              ~\AppData\Roaming\stack
+              ~\AppData\Local\Programs\stack
+              .stack-work
+            deps: Add-Content $env:GITHUB_PATH $env:PGBIN
+            artifact: postgrest-windows-x64
+
+    name: Stack - ${{ matrix.name }}
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stack working files cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ matrix.cache }}
+          key: cache-stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
+          restore-keys: |
+            cache-stack-${{ runner.os }}-
+      - name: Install dependencies
+        if: matrix.deps
+        run: ${{ matrix.deps }}
+      - name: Build with Stack
+        run: stack build --lock-file error-on-write --local-bin-path result --copy-bins
+      - name: Strip Executable
+        run: strip result/postgrest*
+      - name: Save built executable as artifact
+        if: matrix.artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            result/postgrest
+            result/postgrest.exe
+          if-no-files-found: error
+
+
+  freebsd:
+    name: Stack - FreeBSD from CirrusCI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get FreeBSD executable from CirrusCI
+        env:
+          # GITHUB_SHA does weird things for pull request, so we roll our own:
+          GITHUB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: .github/get_cirrusci_freebsd
+      - name: Save executable as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgrest-freebsd-x64
+          path: postgrest
+          if-no-files-found: error
+
+
+  cabal:
+    strategy:
+      matrix:
+        ghc: ['9.4.8', '9.6.4', '9.8.1']
+      fail-fast: false
+    name: Cabal - Linux GHC ${{ matrix.ghc }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ghcup
+        run: |
+          ghcup install ghc ${{ matrix.ghc }}
+          ghcup set ghc ${{ matrix.ghc }}
+      - name: Copy cabal.project & fix caching
+        run: |
+          mkdir ~/.cabal
+          cp cabal.project.non-nix cabal.project
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
+          restore-keys: |
+            cache-cabal-${{ runner.os }}-${{ matrix.ghc }}-
+      - name: Install dependencies
+        run: |
+          cabal update
+          cabal build --only-dependencies --enable-tests --enable-benchmarks
+      - name: Build
+        run: cabal build --enable-tests --enable-benchmarks all
