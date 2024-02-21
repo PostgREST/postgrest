@@ -5,6 +5,21 @@ on:
     secrets:
       CACHIX_AUTH_TOKEN:
         required: false
+  pull_request:
+    branches:
+      - main
+      - v[0-9]+
+    paths:
+      - .github/workflows/test.yaml
+      - .github/actions/setup-nix/**
+      - default.nix
+      - nix/**
+      - .stylish-haskell.yaml
+      - cabal.project
+      - postgrest.cabal
+      - '**.hs'
+      - test/**
+      - '!**.md'
 
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
