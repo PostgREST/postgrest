@@ -17,10 +17,7 @@ The schema structure diagram is done with LaTeX. You can use a GUI like https://
 Then use this command to generate the png file.
 
 ```bash
-pdflatex --shell-escape -halt-on-error db.tex
-
-## and move it to the static folder(it's not easy to do it in one go with the pdflatex)
-mv db.png ../_static/
+postgrest-docs-render
 ```
 
 LaTeX is used because it's a tweakable plain text format.
