@@ -13,9 +13,9 @@ on:
       - v[0-9]+
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
   # Terminate all previous runs of the same workflow for pull requests
-  cancel-in-progress: "${{ github.event_name == 'pull_request' }}"
+  group: ci-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   Lint-Style:
