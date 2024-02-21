@@ -2,6 +2,17 @@ name: Docs
 
 on:
   workflow_call:
+  pull_request:
+    branches:
+      - main
+      - v[0-9]+
+    paths:
+      - .github/workflows/docs.yaml
+      - .github/actions/setup-nix/**
+      - default.nix
+      - nix/**
+      - docs/**
+      - '!**.md'
 
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests

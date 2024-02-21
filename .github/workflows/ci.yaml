@@ -7,10 +7,6 @@ on:
       - v[0-9]+
     tags:
       - v*
-  pull_request:
-    branches:
-      - main
-      - v[0-9]+
 
 concurrency:
   # Terminate all previous runs of the same workflow for pull requests
@@ -20,13 +16,11 @@ concurrency:
 jobs:
   docs:
     name: Docs
-    if: github.event_name == 'push'
     uses: ./.github/workflows/docs.yaml
 
 
   test:
     name: Test
-    if: github.event_name == 'push'
     uses: ./.github/workflows/test.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -41,7 +35,6 @@ jobs:
 
   Build-Cabal-Arm:
     name: Build aarch64 (Cabal, GHC 9.4.8)
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
