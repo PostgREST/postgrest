@@ -220,14 +220,14 @@ jobs:
           restore-keys: |
             cache-stack-${{ runner.os }}-
       - name: Install dependencies
-        if: ${{ matrix.deps }}
+        if: matrix.deps
         run: ${{ matrix.deps }}
       - name: Build with Stack
         run: stack build --lock-file error-on-write --local-bin-path result --copy-bins
       - name: Strip Executable
         run: strip result/postgrest*
       - name: Save built executable as artifact
-        if: ${{ matrix.artifact }}
+        if: matrix.artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
@@ -293,7 +293,7 @@ jobs:
 
   Build-Cabal-Arm:
     name: Build aarch64 (Cabal, GHC 9.4.8)
-    if: "${{ github.event_name == 'push' }}"
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
