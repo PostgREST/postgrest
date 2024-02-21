@@ -310,7 +310,8 @@ loadSchemaCache appState observer = do
     Right sCache -> do
       putSchemaCache appState $ Just sCache
       observer $ SchemaCacheQueriedObs resultTime
-      observer $ SchemaCacheLoadedObs sCache
+      (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs sCache
+      observer $ SchemaCacheLoadedObs t
       return SCLoaded
 
 -- | Current database connection status data ConnectionStatus

@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
  - #3171, Add an ability to dump config via admin API - @skywriter
  - #3061, Apply all function settings as transaction-scoped settings - @taimoorzaeem
- - #3171, Log schema cache stats to stderr - @steve-chavez
+ - #3171, #3046, Log schema cache stats to stderr - @steve-chavez
  - #3210, Dump schema cache through admin API - @taimoorzaeem
 
 ### Fixed

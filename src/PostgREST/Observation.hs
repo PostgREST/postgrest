@@ -31,7 +31,8 @@ data Observation
   | SchemaCacheFatalErrorObs SQL.UsageError Text
   | SchemaCacheNormalErrorObs SQL.UsageError
   | SchemaCacheQueriedObs Double
-  | SchemaCacheLoadedObs SchemaCache
+  | SchemaCacheSummaryObs SchemaCache
+  | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
   | ConnectionPgVersionErrorObs SQL.UsageError
   | DBListenerStart Text
@@ -70,8 +71,10 @@ observationMessage = \case
     "An error ocurred when loading the schema cache. " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
     "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
-  SchemaCacheLoadedObs sCache ->
+  SchemaCacheSummaryObs sCache ->
     "Schema cache loaded " <> showSummary sCache
+  SchemaCacheLoadedObs resultTime ->
+    "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
   ConnectionRetryObs delay ->
     "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
   ConnectionPgVersionErrorObs usageErr ->
