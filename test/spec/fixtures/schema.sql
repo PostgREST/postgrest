@@ -1046,19 +1046,14 @@ CREATE FUNCTION setprojects(id_l int, id_h int, name text) RETURNS SETOF project
     update test.projects set name = $3 WHERE id >= $1 AND id <= $2 returning *;
 $_$;
 
--- domains on tables are only supported from pg 11 on
-DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-      CREATE DOMAIN projects_domain AS projects;
+CREATE DOMAIN projects_domain AS projects;
 
-      CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
-          LANGUAGE sql
-          STABLE
-          AS $_$
-          SELECT projects::projects_domain FROM test.projects WHERE id = $1;
-    $_$;
-  END IF;
-END$do$;
+CREATE FUNCTION getproject_domain(id int) RETURNS SETOF projects_domain
+    LANGUAGE sql
+    STABLE
+    AS $_$
+    SELECT projects::projects_domain FROM test.projects WHERE id = $1;
+$_$;
 
 create table images (
 	name text  not null,
@@ -1119,16 +1114,11 @@ create function test.ret_point_overloaded(x json) returns json as $$
   select $1;
 $$ language sql;
 
--- domains on composite types are only supported from pg 11 on
-do $do$begin
-  if (SELECT current_setting('server_version_num')::int >= 110000) then
-    create domain test.composite_domain as test.point_2d;
+create domain test.composite_domain as test.point_2d;
 
-    create function test.ret_composite_domain() returns test.composite_domain as $$
-      select row(10, 5)::test.composite_domain;
-    $$ language sql;
-  end if;
-end$do$;
+create function test.ret_composite_domain() returns test.composite_domain as $$
+  select row(10, 5)::test.composite_domain;
+$$ language sql;
 
 create type private.point_3d as (x integer, y integer, z integer);
 
@@ -2289,90 +2279,78 @@ create table private.rollen (
 );
 
 -- Tables used for testing embedding between partitioned tables
+create table test.car_models(
+  name varchar(64) not null,
+  year int not null
+) partition by list (year);
 
-do $do$begin
-    -- partitioned tables using the PARTITION syntax are supported from pg v10
-    if (select current_setting('server_version_num')::int >= 100000) then
-      create table test.car_models(
-        name varchar(64) not null,
-        year int not null
-      ) partition by list (year);
-
-      comment on table test.car_models is
-      $$A partitioned table
+comment on table test.car_models is
+$$A partitioned table
 
 A test for partitioned tables$$;
 
-      create table test.car_models_2021 partition of test.car_models
-        for values in (2021);
-      create table test.car_models_default partition of test.car_models
-        for values in (1981,1997,2001,2013);
-    end if;
+create table test.car_models_2021 partition of test.car_models
+  for values in (2021);
+create table test.car_models_default partition of test.car_models
+  for values in (1981,1997,2001,2013);
 
-    -- primary keys for partitioned tables are supported from pg v11
-    if (select current_setting('server_version_num')::int >= 110000) then
-      create table test.car_brands (
-        name varchar(64) primary key
-      );
+create table test.car_brands (
+  name varchar(64) primary key
+);
 
-      alter table test.car_models add primary key (name, year);
-      alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
-    end if;
+alter table test.car_models add primary key (name, year);
+alter table test.car_models add column car_brand_name varchar(64) references test.car_brands(name);
 
-    -- foreign keys referencing partitioned tables are supported from pg v12
-    if (select current_setting('server_version_num')::int >= 120000) then
-      create table test.car_model_sales(
-        date varchar(64) not null,
-        quantity int not null,
-        car_model_name varchar(64),
-        car_model_year int,
-        primary key (date, car_model_name, car_model_year),
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
-      ) partition by range (date);
+create table test.car_model_sales(
+  date varchar(64) not null,
+  quantity int not null,
+  car_model_name varchar(64),
+  car_model_year int,
+  primary key (date, car_model_name, car_model_year),
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+) partition by range (date);
 
-      create table test.car_model_sales_202101 partition of test.car_model_sales
-        for values from ('2021-01-01') to ('2021-01-31');
+create table test.car_model_sales_202101 partition of test.car_model_sales
+  for values from ('2021-01-01') to ('2021-01-31');
 
-      create table test.car_model_sales_default partition of test.car_model_sales
-        default;
+create table test.car_model_sales_default partition of test.car_model_sales
+  default;
 
-      create table test.car_racers (
-        name varchar(64) not null primary key,
-        car_model_name varchar(64),
-        car_model_year int,
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year)
-      );
+create table test.car_racers (
+  name varchar(64) not null primary key,
+  car_model_name varchar(64),
+  car_model_year int,
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year)
+);
 
-      create table test.car_dealers (
-        name varchar(64) not null,
-        city varchar(64) not null,
-        primary key (name, city)
-      ) partition by list (city);
+create table test.car_dealers (
+  name varchar(64) not null,
+  city varchar(64) not null,
+  primary key (name, city)
+) partition by list (city);
 
-      create table test.car_dealers_springfield partition of test.car_dealers
-        for values in ('Springfield');
+create table test.car_dealers_springfield partition of test.car_dealers
+  for values in ('Springfield');
 
-      create table test.car_dealers_default partition of test.car_dealers
-        default;
+create table test.car_dealers_default partition of test.car_dealers
+  default;
 
-      create table test.car_models_car_dealers (
-        car_model_name varchar(64) not null,
-        car_model_year int not null,
-        car_dealer_name varchar(64) not null,
-        car_dealer_city varchar(64) not null,
-        quantity int not null,
-        foreign key (car_model_name, car_model_year) references test.car_models (name, year),
-        foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city),
-        primary key (car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity)
-      ) partition by range (quantity);
+create table test.car_models_car_dealers (
+  car_model_name varchar(64) not null,
+  car_model_year int not null,
+  car_dealer_name varchar(64) not null,
+  car_dealer_city varchar(64) not null,
+  quantity int not null,
+  foreign key (car_model_name, car_model_year) references test.car_models (name, year),
+  foreign key (car_dealer_name, car_dealer_city) references test.car_dealers (name, city),
+  primary key (car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity)
+) partition by range (quantity);
 
-      create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
-        for values from (10) to (20);
+create table test.car_models_car_dealers_10to20 partition of test.car_models_car_dealers
+  for values from (10) to (20);
 
-      create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
-        default;
-    end if;
-end$do$;
+create table test.car_models_car_dealers_default partition of test.car_models_car_dealers
+  default;
 
 create or replace function test.unnamed_json_param(json) returns json as $$
   select $1;
@@ -2492,22 +2470,15 @@ BEGIN
 END$$;
 
 -- This view is not used in any requests but just parsed by the pfkSourceColumns query.
--- XMLTABLE is only supported from PG 10 on
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 100000 THEN
-    CREATE VIEW test.xml AS
-    SELECT *
-      FROM (SELECT ''::xml AS data) _,
-           XMLTABLE(
-             ''
-             PASSING data
-             COLUMNS id int PATH '@id',
-                     premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified'
-           );
-  END IF;
-END
-$do$;
+CREATE VIEW test.xml AS
+SELECT *
+  FROM (SELECT ''::xml AS data) _,
+       XMLTABLE(
+         ''
+         PASSING data
+         COLUMNS id int PATH '@id',
+                 premier_name text PATH 'PREMIER_NAME' DEFAULT 'not specified'
+       );
 
 -- https://github.com/PostgREST/postgrest/issues/1543
 CREATE TYPE complex AS (
@@ -2529,12 +2500,8 @@ create table test.arrays (
 
 -- This procedure is to confirm that procedures don't show up in the OpenAPI output right now.
 -- Procedures are not supported, yet.
-do $do$begin
-  if (select current_setting('server_version_num')::int >= 110000) then
-    CREATE PROCEDURE test.unsupported_proc ()
-    LANGUAGE SQL AS '';
-  end if;
-end $do$;
+CREATE PROCEDURE test.unsupported_proc ()
+LANGUAGE SQL AS '';
 
 CREATE FUNCTION public.dummy(int) RETURNS int
 LANGUAGE SQL AS $$ SELECT 1 $$;
@@ -3277,17 +3244,11 @@ create table test.tbl_w_json(
   data json
 );
 
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 100000 THEN
-    CREATE TABLE test.channels (
-      id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-      data jsonb DEFAULT '{"foo": "bar"}',
-      slug text
-    );
-  END IF;
-END
-$do$;
+CREATE TABLE test.channels (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  data jsonb DEFAULT '{"foo": "bar"}',
+  slug text
+);
 
 CREATE FUNCTION test.is_superuser() RETURNS boolean
 LANGUAGE sql
@@ -3295,21 +3256,15 @@ AS $$
   select current_setting('is_superuser')::boolean;
 $$;
 
-DO $do$
-BEGIN
-  IF current_setting('server_version_num')::INT >= 120000 THEN
-    CREATE TABLE test.foo (
-      a text,
-      b text GENERATED ALWAYS AS (
-          case WHEN a = 'telegram' THEN 'im'
-               WHEN a = 'proton' THEN 'email'
-               WHEN a = 'infinity' THEN 'idea'
-               ELSE 'bad idea'
-          end) stored
-    );
-  END IF;
-END
-$do$;
+CREATE TABLE test.foo (
+  a text,
+  b text GENERATED ALWAYS AS (
+      case WHEN a = 'telegram' THEN 'im'
+           WHEN a = 'proton' THEN 'email'
+           WHEN a = 'infinity' THEN 'idea'
+           ELSE 'bad idea'
+      end) stored
+);
 
 create domain devil_int as int
   default 666;

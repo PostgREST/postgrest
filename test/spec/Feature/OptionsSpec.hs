@@ -7,14 +7,11 @@ import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100,
-                                   pgVersion110)
-
 import Protolude
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = describe "Allow header" $ do
+spec :: SpecWith ((), Application)
+spec = describe "Allow header" $ do
   context "a table" $ do
     it "includes read/write methods for writeable table" $ do
       r <- request methodOptions "/items" [] ""
@@ -25,18 +22,12 @@ spec actualPgVersion = describe "Allow header" $ do
     it "fails with 404 for an unknown table" $
       request methodOptions "/unknown" [] "" `shouldRespondWith` 404
 
-  when (actualPgVersion >= pgVersion100) $
-    context "a partitioned table" $ do
-      it "includes read/write methods for writeable partitioned tables" $ do
-        r <- request methodOptions "/car_models" [] ""
-        liftIO $
-          simpleHeaders r `shouldSatisfy`
-            matchHeader "Allow" (
-              if actualPgVersion >= pgVersion110 then
-                "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
-              else
-                "OPTIONS,GET,HEAD,POST,PATCH,DELETE"
-            )
+  context "a partitioned table" $ do
+    it "includes read/write methods for writeable partitioned tables" $ do
+      r <- request methodOptions "/car_models" [] ""
+      liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
 
   context "a view" $ do
     context "auto updatable" $ do

@@ -22,6 +22,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
 
+### Changed
+
+ - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+ - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
+ - #2052, Raise minimum required PostgreSQL version to 11.21 - @wolfgangwalther
+
 ### Deprecated
 
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez

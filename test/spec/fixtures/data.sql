@@ -680,41 +680,33 @@ INSERT INTO private.films (id, title) VALUES (12,'douze commandements'), (2001,'
 TRUNCATE TABLE private.personnages CASCADE;
 INSERT INTO private.personnages (film_id, role_id, character) VALUES (12,1,'méchant'), (2001,2,'astronaute');
 
-DO $do$BEGIN
-  IF (SELECT current_setting('server_version_num')::INT >= 100000) THEN
-    INSERT INTO test.car_models(name, year) VALUES ('DeLorean',1981);
-    INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
-    INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
-    INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
-  END IF;
+INSERT INTO test.car_models(name, year) VALUES ('DeLorean',1981);
+INSERT INTO test.car_models(name, year) VALUES ('F310-B',1997);
+INSERT INTO test.car_models(name, year) VALUES ('Veneno',2013);
+INSERT INTO test.car_models(name, year) VALUES ('Murcielago',2001);
 
-  IF (SELECT current_setting('server_version_num')::INT >= 110000) THEN
-    INSERT INTO test.car_brands(name) VALUES ('DMC');
-    INSERT INTO test.car_brands(name) VALUES ('Ferrari');
-    INSERT INTO test.car_brands(name) VALUES ('Lamborghini');
+INSERT INTO test.car_brands(name) VALUES ('DMC');
+INSERT INTO test.car_brands(name) VALUES ('Ferrari');
+INSERT INTO test.car_brands(name) VALUES ('Lamborghini');
 
-    UPDATE test.car_models SET car_brand_name = 'DMC' WHERE name = 'DeLorean';
-    UPDATE test.car_models SET car_brand_name = 'Ferrari' WHERE name = 'F310-B';
-    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Veneno';
-    UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Murcielago';
-  END IF;
+UPDATE test.car_models SET car_brand_name = 'DMC' WHERE name = 'DeLorean';
+UPDATE test.car_models SET car_brand_name = 'Ferrari' WHERE name = 'F310-B';
+UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Veneno';
+UPDATE test.car_models SET car_brand_name = 'Lamborghini' WHERE name = 'Murcielago';
 
-  IF (SELECT current_setting('server_version_num')::INT >= 120000) THEN
-    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-14',7,'DeLorean',1981);
-    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-15',9,'DeLorean',1981);
-    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-11',1,'Murcielago',2001);
-    INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-12',3,'Murcielago',2001);
+INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-14',7,'DeLorean',1981);
+INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-01-15',9,'DeLorean',1981);
+INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-11',1,'Murcielago',2001);
+INSERT INTO test.car_model_sales(date, quantity, car_model_name, car_model_year) VALUES ('2021-02-12',3,'Murcielago',2001);
 
-    INSERT INTO test.car_racers(name) VALUES ('Alain Prost');
-    INSERT INTO test.car_racers(name, car_model_name, car_model_year) VALUES ('Michael Schumacher', 'F310-B', 1997);
+INSERT INTO test.car_racers(name) VALUES ('Alain Prost');
+INSERT INTO test.car_racers(name, car_model_name, car_model_year) VALUES ('Michael Schumacher', 'F310-B', 1997);
 
-    INSERT INTO test.car_dealers(name,city) VALUES ('Springfield Cars S.A.','Springfield');
-    INSERT INTO test.car_dealers(name,city) VALUES ('The Best Deals S.A.','Franklin');
+INSERT INTO test.car_dealers(name,city) VALUES ('Springfield Cars S.A.','Springfield');
+INSERT INTO test.car_dealers(name,city) VALUES ('The Best Deals S.A.','Franklin');
 
-    INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('DeLorean',1981,'Springfield Cars S.A.','Springfield',15);
-    INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('Murcielago',2001,'The Best Deals S.A.','Franklin',2);
-  END IF;
-END$do$;
+INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('DeLorean',1981,'Springfield Cars S.A.','Springfield',15);
+INSERT INTO test.car_models_car_dealers(car_model_name, car_model_year, car_dealer_name, car_dealer_city, quantity) VALUES ('Murcielago',2001,'The Best Deals S.A.','Franklin',2);
 
 TRUNCATE TABLE test.products CASCADE;
 INSERT INTO test.products (id, name) VALUES (1,'product-1'), (2,'product-2'), (3,'product-3');

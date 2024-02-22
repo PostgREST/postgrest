@@ -170,14 +170,14 @@ invokeQuery rout CallReadPlan{..} apiReq@ApiRequest{iPreferences=Preferences{..}
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure resultSet
 
-openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
-openApiQuery sCache pgVer AppConfig{..} tSchema =
+openApiQuery :: SchemaCache -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
+openApiQuery sCache AppConfig{..} tSchema =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
-      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
+      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
       Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
+        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs configDbPreparedStatements)
         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       Just <$> ((,,)

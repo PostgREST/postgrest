@@ -209,7 +209,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
 
     (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
       (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
-      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
+      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache conf tSchema
       (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 

@@ -45,11 +45,7 @@ import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
-                                              pgVersionStatement,
                                               toIsolationLevel)
-import PostgREST.Config.PgVersion            (PgVersion, pgVersion100,
-                                              pgVersion110,
-                                              pgVersion120)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
@@ -146,14 +142,13 @@ type SqlQuery = ByteString
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
-  tabs    <- SQL.statement schemas $ allTables pgVer prepared
+  tabs    <- SQL.statement schemas $ allTables prepared
   keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
-  m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
-  funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
+  m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
+  funcs   <- SQL.statement schemas $ allFunctions prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement schemas $ dataRepresentations prepared
-  mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
+  mHdlers <- SQL.statement schemas $ mediaHandlers prepared
   tzones  <- SQL.statement mempty $ timezones prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
@@ -363,18 +358,18 @@ dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentatio
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: PgVersion -> Bool -> SQL.Statement [Schema] RoutineMap
-allFunctions pgVer = SQL.Statement sql (arrayParam HE.text) decodeFuncs
+allFunctions :: Bool -> SQL.Statement [Schema] RoutineMap
+allFunctions = SQL.Statement sql (arrayParam HE.text) decodeFuncs
   where
-    sql = funcsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
+    sql = funcsSqlQuery <> " AND pn.nspname = ANY($1)"
 
-accessibleFuncs :: PgVersion -> Bool -> SQL.Statement Schema RoutineMap
-accessibleFuncs pgVer = SQL.Statement sql (param HE.text) decodeFuncs
+accessibleFuncs :: Bool -> SQL.Statement Schema RoutineMap
+accessibleFuncs = SQL.Statement sql (param HE.text) decodeFuncs
   where
-    sql = funcsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = funcsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
-funcsSqlQuery :: PgVersion -> SqlQuery
-funcsSqlQuery pgVer = [q|
+funcsSqlQuery :: SqlQuery
+funcsSqlQuery = [q|
  -- Recursively get the base types of domains
   WITH
   base_types AS (
@@ -462,7 +457,7 @@ funcsSqlQuery pgVer = [q|
     WHERE setting not LIKE 'default_transaction_isolation%'
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
-|] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")
+  AND prokind = 'f'|]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
@@ -477,8 +472,8 @@ schemaDescription =
       where
         n.nspname = $1 |]
 
-accessibleTables :: PgVersion -> Bool -> SQL.Statement [Schema] AccessSet
-accessibleTables pgVer =
+accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
+accessibleTables =
   SQL.Statement sql (arrayParam HE.text) decodeAccessibleIdentifiers
  where
   sql = [q|
@@ -494,10 +489,9 @@ accessibleTables pgVer =
       pg_has_role(c.relowner, 'USAGE')
       or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
       or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-    ) |] <>
-    relIsPartition <>
-    "ORDER BY table_schema, table_name"
-  relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
+    )
+    AND not c.relispartition
+    ORDER BY table_schema, table_name|]
 
 {-
 Adds M2O and O2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
@@ -604,15 +598,13 @@ addViewPrimaryKeys tabs keyDeps =
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
 
-allTables :: PgVersion -> Bool -> SQL.Statement [Schema] TablesMap
-allTables pgVer =
-  SQL.Statement sql (arrayParam HE.text) decodeTables
-  where
-    sql = tablesSqlQuery pgVer
+allTables :: Bool -> SQL.Statement [Schema] TablesMap
+allTables =
+  SQL.Statement tablesSqlQuery (arrayParam HE.text) decodeTables
 
 -- | Gets tables with their PK cols
-tablesSqlQuery :: PgVersion -> SqlQuery
-tablesSqlQuery pgVer =
+tablesSqlQuery :: SqlQuery
+tablesSqlQuery =
   -- the tbl_constraints/key_col_usage CTEs are based on the standard "information_schema.table_constraints"/"information_schema.key_column_usage" views,
   -- we cannot use those directly as they include the following privilege filter:
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
@@ -626,7 +618,13 @@ tablesSqlQuery pgVer =
           c.relname::name AS table_name,
           a.attname::name AS column_name,
           d.description AS description,
-  |] <> columnDefault <> [q| AS column_default,
+          -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
+          CASE
+            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
+            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+            WHEN a.attgenerated = 's' THEN null
+            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
+          END AS column_default,
           not (a.attnotnull OR t.typtype = 'd' AND t.typnotnull) AS is_nullable,
           CASE
               WHEN t.typtype = 'd' THEN
@@ -809,34 +807,13 @@ tablesSqlQuery pgVer =
   LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
   LEFT JOIN columns_agg cols_agg ON n.nspname = cols_agg.table_schema AND c.relname = cols_agg.table_name
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema') |] <>
-  relIsPartition <>
-  "ORDER BY table_schema, table_name"
-  where
-    relIsPartition = if pgVer >= pgVersion100 then " AND not c.relispartition " else mempty
-    columnDefault -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
-      | pgVer >= pgVersion120 = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-            WHEN a.attgenerated = 's' THEN null
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
-      | pgVer >= pgVersion100 = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            WHEN a.attidentity = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
-      | otherwise  = [q|
-          CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
-          END|]
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND not c.relispartition
+  ORDER BY table_schema, table_name|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
-allM2OandO2ORels :: PgVersion -> Bool -> SQL.Statement () [Relationship]
-allM2OandO2ORels pgVer =
+allM2OandO2ORels :: Bool -> SQL.Statement () [Relationship]
+allM2OandO2ORels =
   SQL.Statement sql HE.noParams decodeRels
  where
   -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
@@ -882,11 +859,8 @@ allM2OandO2ORels pgVer =
     JOIN pg_namespace ns2 ON ns2.oid = other.relnamespace
     LEFT JOIN pks_uniques_cols pks_uqs ON pks_uqs.connamespace = traint.connamespace AND pks_uqs.conrelid = traint.conrelid
     WHERE traint.contype = 'f'
-  |] <>
-    (if pgVer >= pgVersion110
-      then " and traint.conparentid = 0 "
-      else mempty) <>
-    "ORDER BY traint.conrelid, traint.conname"
+    AND traint.conparentid = 0
+    ORDER BY traint.conrelid, traint.conname|]
 
 allComputedRels :: Bool -> SQL.Statement () [Relationship]
 allComputedRels =
@@ -1139,8 +1113,8 @@ initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
-mediaHandlers :: PgVersion -> Bool -> SQL.Statement [Schema] MediaHandlerMap
-mediaHandlers pgVer =
+mediaHandlers :: Bool -> SQL.Statement [Schema] MediaHandlerMap
+mediaHandlers =
   SQL.Statement sql (arrayParam HE.text) decodeMediaHandlers
   where
     sql = [q|
@@ -1202,7 +1176,7 @@ mediaHandlers pgVer =
         join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
       where
         pro_sch.nspname = ANY($1) and NOT proretset
-      |] <> (if pgVer >= pgVersion110 then " AND prokind = 'f'" else " AND NOT (proisagg OR proiswindow)")
+        and prokind = 'f'|]
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap
 decodeMediaHandlers =
