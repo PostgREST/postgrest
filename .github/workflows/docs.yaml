@@ -32,6 +32,7 @@ jobs:
     - run: postgrest-docs-build
     - run: git diff --exit-code HEAD locales || echo "Please commit changes to the locales/ folder after running postgrest-docs-build."
 
+
   spellcheck:
     name: Spellcheck
     runs-on: ubuntu-latest
@@ -41,18 +42,11 @@ jobs:
       uses: ./.github/actions/setup-nix
       with:
         tools: docs
-    - run: postgrest-docs-spellcheck
+    - name: Run spellcheck
+      run: postgrest-docs-spellcheck
+    - name: Run dictcheck
+      run: postgrest-docs-dictcheck
 
-  dictcheck:
-    name: Dictcheck
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
-        with:
-          tools: docs
-      - run: postgrest-docs-dictcheck
 
   linkcheck:
     name: Linkcheck
