@@ -39,7 +39,7 @@ import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
-import Data.Tree                 (flatten)
+import Data.Tree                 (Tree (..))
 import Network.HTTP.Types.Header (RequestHeaders, hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
@@ -124,7 +124,7 @@ data ApiRequest = ApiRequest {
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
   , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
   , iQueryParams         :: QueryParams.QueryParams
-  , iColumns             :: S.Set FieldName                  -- ^ parsed colums from &columns parameter and payload
+  , iColumns             :: S.Set (Tree FieldName)           -- ^ parsed colums from &columns parameter and payload
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                :: ByteString                       -- ^ Raw request path
@@ -242,13 +242,13 @@ getRanges method QueryParams{qsOrder,qsRanges} hdrs
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
 
-getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
+getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Either ApiRequestError (Maybe Payload, S.Set (Tree FieldName))
 getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathIsProc}= do
   checkedPayload <- if shouldParsePayload then payload else Right Nothing
   let cols = case (checkedPayload, columns) of
-        (Just ProcessedJSON{payKeys}, _)       -> payKeys
-        (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
-        (Just RawJSON{}, Just cls)             -> S.fromList $ foldl (<>) [] (flatten <$> cls)
+        (Just ProcessedJSON{payKeys}, _)       -> S.map (`Node` []) payKeys
+        (Just ProcessedUrlEncoded{payKeys}, _) -> S.map (`Node` []) payKeys
+        (Just RawJSON{}, Just cls)             -> S.fromList cls
         _                                      -> S.empty
   return (checkedPayload, cols)
   where

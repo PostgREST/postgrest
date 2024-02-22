@@ -863,7 +863,7 @@ pColumnName = lexeme $ do
   fld <- pFieldName
   pEnd
   return fld
-  where 
+  where
     pEnd = try (void $ lookAhead (string ")")) <|>
            try (void $ lookAhead (string ",")) <|>
            try eof
