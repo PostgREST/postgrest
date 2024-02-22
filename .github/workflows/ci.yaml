@@ -6,6 +6,7 @@ on:
       - main
       - v[0-9]+
     tags:
+      - devel
       - v*
 
 concurrency:
@@ -100,48 +101,68 @@ jobs:
           if-no-files-found: error
 
 
-  prepare:
-    name: Release / Prepare
+  tag:
+    name: Release / Tag
     if: |
-      startsWith(github.ref, 'refs/tags/v') &&
-      (success() || needs.arm.result == 'skipped')
+      startsWith(github.ref, 'refs/heads/') &&
+      needs.docs.result == 'success' &&
+      needs.test.result == 'success' &&
+      needs.build.result == 'success' &&
+      (needs.arm.result == 'skipped' || success())
+    permissions:
+      contents: write
     runs-on: ubuntu-22.04
     needs:
       - docs
       - test
       - build
       - arm
-    outputs:
-      version: ${{ steps.Identify-Version.outputs.version }}
-      isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - id: Identify-Version
-        name: Identify the version to be released
+        with:
+          ssh-key: ${{ secrets.POSTGREST_SSH_KEY }}
+      - name: Tag latest commit
         run: |
-          tag_version="${GITHUB_REF##*/}"
           cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
 
-          if [ "$tag_version" != "v$cabal_version" ]; then
-            echo "Tagged version ($tag_version) does not match the one in postgrest.cabal (v$cabal_version). Aborting release..."
-            exit 1
+          if [[ "$cabal_version" == *.*.* ]]; then
+            if [ -z "$(git tag --list "v$cabal_version")" ]; then
+              git tag "v$cabal_version"
+              git push origin "v$cabal_version"
+            fi
           else
-            echo "Version to be released is $cabal_version"
-            echo "version=$cabal_version" >> "$GITHUB_OUTPUT"
+            git tag -f "devel"
+            git push -f origin "devel"
           fi
 
-          if [[ "$cabal_version" != *.*.*.* ]]; then
-            echo "Version is for a full release (version does not have four components)"
-          else
-            echo "Version is for a pre-release (version has four components, e.g., 1.1.1.1)"
-            echo "isprerelease=1" >> "$GITHUB_OUTPUT"
+
+  prepare:
+    name: Release / Prepare
+    if: |
+      startsWith(github.ref, 'refs/tags/') &&
+      needs.docs.result == 'success' &&
+      needs.test.result == 'success' &&
+      needs.build.result == 'success' &&
+      (needs.arm.result == 'skipped' || success())
+    runs-on: ubuntu-22.04
+    needs:
+      - docs
+      - test
+      - build
+      - arm
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - name: Check the version to be released
+        run: |
+          cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+
+          if [ "${GITHUB_REF_NAME}" != "devel" ] && [ "${GITHUB_REF_NAME}" != "v$cabal_version" ]; then
+            echo "Tagged version ($GITHUB_REF_NAME) does not match the one in postgrest.cabal (v$cabal_version). Aborting release..."
+            exit 1
           fi
       - name: Identify changes from CHANGELOG.md
         run: |
-          version="${{ steps.Identify-Version.outputs.version }}"
-          isprerelease="${{ steps.Identify-Version.outputs.isprerelease }}"
-
-          if [ -n "$isprerelease" ]; then
+          if [ "${GITHUB_REF_NAME}" == "devel" ]; then
             echo "Getting unreleased changes..."
             sed -n "1,/## Unreleased/d;/## \[/q;p" CHANGELOG.md > CHANGES.md
           else
@@ -164,9 +185,9 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-22.04
-    needs: prepare
-    env:
-      VERSION: ${{ needs.prepare.outputs.version }}
+    needs:
+      - prepare
+    if: success() || needs.prepare.result == 'success'
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Download all artifacts
@@ -179,19 +200,19 @@ jobs:
 
           mkdir -p release-bundle
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-linux-static-x64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-x64.tar.xz" \
             -C artifacts/postgrest-linux-static-x64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-macos-x64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-macos-x64.tar.xz" \
             -C artifacts/postgrest-macos-x64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-freebsd-x64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-freebsd-x64.tar.xz" \
             -C artifacts/postgrest-freebsd-x64 postgrest
 
-          tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
 
-          zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
+          zip "release-bundle/postgrest-${GITHUB_REF_NAME}-windows-x64.zip" \
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
@@ -205,11 +226,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          isprerelease="${{ needs.prepare.outputs.isprerelease }}"
-          echo "Releasing version v$VERSION on GitHub (isprerelease=$isprerelease)..."
+          echo "Releasing version ${GITHUB_REF_NAME} on GitHub..."
 
-          gh release delete "v$VERSION" || true
-          gh release create "v$VERSION" \
+          if [ "${GITHUB_REF_NAME}" == "devel" ]; then
+            isprerelease=1
+          fi
+
+          gh release delete "${GITHUB_REF_NAME}" || true
+          gh release create "${GITHUB_REF_NAME}" \
             -F artifacts/release-changes/CHANGES.md \
             ${isprerelease:+"--prerelease"} \
             release-bundle/*
@@ -220,13 +244,13 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - prepare
+    if: |
+      vars.DOCKER_USER &&
+      (success() || needs.prepare.result == 'success')
     env:
-      GITHUB_COMMIT: ${{ github.sha }}
       DOCKER_REPO: postgrest
       DOCKER_USER: stevechavez
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-      VERSION: ${{ needs.prepare.outputs.version }}
-      ISPRERELEASE: ${{ needs.prepare.outputs.isprerelease }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Setup Nix Environment
@@ -243,16 +267,16 @@ jobs:
           docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
           docker load -i postgrest-docker.tar.gz
 
-          docker tag postgrest:latest "$DOCKER_REPO/postgrest:v$VERSION"
-          docker push "$DOCKER_REPO/postgrest:v$VERSION"
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
 
           # Only tag 'latest' for full releases
-          if [[ -z "$ISPRERELEASE" ]]; then
-            echo "Pushing to 'latest' tag for full release of v$VERSION ..."
+          if [ "${GITHUB_REF_NAME}" != "devel" ]; then
+            echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
             docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
             docker push "$DOCKER_REPO"/postgrest:latest
           else
-            echo "Skipping pushing to 'latest' tag for v$VERSION pre-release..."
+            echo "Skipping push to 'latest' tag for pre-release..."
           fi
 # TODO: Enable dockerhub description update again, once a solution for the permission problem is found:
 # https://github.com/docker/hub-feedback/issues/1927
@@ -273,15 +297,12 @@ jobs:
     runs-on: ubuntu-22.04
     needs:
       - arm
-      - prepare
       - docker
     env:
       GITHUB_COMMIT: ${{ github.sha }}
       DOCKER_REPO: postgrest
       DOCKER_USER: stevechavez
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-      VERSION: ${{ needs.prepare.outputs.version }}
-      ISPRERELEASE: ${{ needs.prepare.outputs.isprerelease }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Publish images for ARM builds on Docker Hub
@@ -294,8 +315,8 @@ jobs:
           key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
           script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,VERSION,ISPRERELEASE
-          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$VERSION" "$ISPRERELEASE"
+          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,GITHUB_REF_NAME
+          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$GITHUB_REF_NAME"
 
 
   clean-arm:

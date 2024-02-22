@@ -101,8 +101,15 @@ runs:
         }
         archive="$(mktemp)"
         artifacts="$(mktemp -d)"
-        curl --no-progress-meter --fail -o "${archive}" \
-          "https://api.cirrus-ci.com/v1/artifact/task/$(get_external_id)/${{ inputs.download }}.zip"
+        until curl --no-progress-meter --fail -o "${archive}" \
+                "https://api.cirrus-ci.com/v1/artifact/task/$(get_external_id)/${{ inputs.download }}.zip"
+        do
+          # This happens when a tag is pushed on the same commit. In this case the
+          # job is immediately marked as "completed" for us, so we end up here after a few
+          # seconds - but the actual Cirrus CI task is still running and didn't produce its artifact, yet.
+          echo "Artifact not found on Cirrus CI, yet. Waiting..."
+          sleep 30
+        done
         unzip "${archive}" -d "${artifacts}"
         echo "artifacts=${artifacts}" >> "$GITHUB_OUTPUT"
     - name: Save artifact to GitHub Actions
