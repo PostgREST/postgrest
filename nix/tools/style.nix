@@ -57,6 +57,14 @@ let
         workingDir = "/";
       }
       ''
+        echo "Linting bash scripts..."
+        ${shellcheck}/bin/shellcheck \
+          .github/get_cirrusci_freebsd \
+          .github/release
+
+        echo "Linting workflows..."
+        ${actionlint}/bin/actionlint
+
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases main src
 
@@ -65,14 +73,6 @@ let
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
           | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
-
-        echo "Linting bash scripts..."
-        ${shellcheck}/bin/shellcheck \
-          .github/get_cirrusci_freebsd \
-          .github/release
-
-        echo "Linting workflows..."
-        ${actionlint}/bin/actionlint
       '';
 
 in
