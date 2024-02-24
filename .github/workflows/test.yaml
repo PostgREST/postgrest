@@ -5,6 +5,8 @@ on:
     secrets:
       CACHIX_AUTH_TOKEN:
         required: false
+      CODECOV_TOKEN:
+        required: false
   pull_request:
     branches:
       - main
@@ -63,9 +65,10 @@ jobs:
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v3.1.5
+        uses: codecov/codecov-action@0cfda1dd0a4ad9efc75517f399d859cd1ea4ced1 # v4.0.2
         with:
           files: ./coverage/codecov.json
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Run doctests
         if: always()
