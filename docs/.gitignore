@@ -4,3 +4,5 @@ Pipfile.lock
 *.log
 _diagrams/db.pdf
 misspellings
+unuseddict
+*.mo
