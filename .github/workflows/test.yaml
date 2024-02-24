@@ -133,10 +133,10 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           tools: loadtest
-      - uses: actions-ecosystem/action-get-latest-tag@v1
+      - uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce # v1.4.0
         id: get-latest-tag
         with:
-          semver_only: true
+          prefix: v
       - name: Run loadtest
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
