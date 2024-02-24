@@ -1,7 +1,7 @@
 # This Dockerfile is only used as a development environment for
 # non-nix systems, i.e. Windows.
 
-FROM nixos/nix:latest
+FROM nixos/nix:latest@sha256:273671b9032d06844ec073affa9fb1e75bf7ad863975bec5143e7fa417929fb8
 
 RUN apk --no-cache add \
     wget
