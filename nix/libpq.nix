@@ -11,7 +11,6 @@
 , openssl
 , zlib
 , libkrb5
-, icu
 , postgresql
 , pkg-config
 , tzdata

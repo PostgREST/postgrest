@@ -5,7 +5,7 @@ let
   inherit (self.haskell) lib;
 
   overrides =
-    final: prev:
+    _: prev:
     rec {
       # To pin custom versions of Haskell packages:
       #   protolude =

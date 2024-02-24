@@ -23,12 +23,12 @@ let
         enableNativeBignum = true;
       };
 
-      overrides = pkgs.lib.composeExtensions old.overrides (final: prev: {
+      overrides = pkgs.lib.composeExtensions old.overrides (_: prev: {
         postgresql-libpq = (prev.postgresql-libpq.override {
           # postgresql doesn't build in the fully static overlay - but the default
           # derivation is built with static libraries anyway.
           postgresql = pkgsCross.libpq;
-        }).overrideAttrs (finalAttrs: prevAttrs: {
+        }).overrideAttrs (_: prevAttrs: {
           # Using use-pkg-config flag, because pg_config won't work when cross-compiling
           configureFlags = prevAttrs.configureFlags ++ [
             "-fuse-pkg-config"
@@ -38,7 +38,7 @@ let
           nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgsCross.pkgsBuildHost.pkg-config ];
 
           buildInputs = prevAttrs.buildInputs ++ [
-            (pkgsStatic.libkrb5.overrideAttrs (finalAttrs: prevAttrs: {
+            (pkgsStatic.libkrb5.overrideAttrs (_: prevAttrs: {
               configureFlags = prevAttrs.configureFlags ++ [
                 "--sysconfdir=/etc"
                 # disable keyutils dependency, to avoid linking errors

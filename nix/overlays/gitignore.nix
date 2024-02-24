@@ -1,4 +1,4 @@
-self: super:
+_: super:
 # Overlay that adds the `gitignoreSource` function from Hercules-CI.
 # This function is useful for filtering which files are added to the Nix store.
 # See: https://github.com/hercules-ci/gitignore.nix

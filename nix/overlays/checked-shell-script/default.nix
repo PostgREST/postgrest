@@ -1,4 +1,4 @@
-self: super:
+_: super:
 # Overlay that adds `checkedShellScript`, an enhanced version of
 # writeShellScript and writeShellScriptBin
 {

@@ -1,4 +1,4 @@
-final: prev:
+_: prev:
 {
   slocat = prev.buildGoModule {
     name = "slocat";

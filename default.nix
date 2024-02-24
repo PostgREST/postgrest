@@ -77,7 +77,7 @@ let
     "-f dev --test-show-detail=direct";
 
   profiledHaskellPackages =
-    pkgs.haskell.packages."${compiler}".extend (self: super:
+    pkgs.haskell.packages."${compiler}".extend (_: super:
       {
         mkDerivation =
           args:
@@ -118,7 +118,7 @@ rec {
     pkgs.callPackage nix/tools/cabalTools.nix { inherit devCabalOptions postgrest; };
 
   withTools =
-    pkgs.callPackage nix/tools/withTools.nix { inherit cabalTools devCabalOptions postgresqlVersions postgrest; };
+    pkgs.callPackage nix/tools/withTools.nix { inherit postgresqlVersions postgrest; };
 
   # Development tools.
   devTools =

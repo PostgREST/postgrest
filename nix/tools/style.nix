@@ -2,6 +2,7 @@
 , black
 , buildToolbox
 , checkedShellScript
+, deadnix
 , git
 , hlint
 , hsie
@@ -65,9 +66,11 @@ let
         echo "Linting workflows..."
         ${actionlint}/bin/actionlint
 
+        echo "Scanning nix files for unused code..."
+        ${deadnix}/bin/deadnix
+
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases main src
-
 
         echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753

@@ -5,9 +5,7 @@
 , devCabalOptions
 , entr
 , git
-, gnugrep
 , graphviz
-, haskellPackages
 , hsie
 , nix
 , silver-searcher

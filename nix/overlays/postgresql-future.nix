@@ -1,4 +1,4 @@
-self: super:
+_: _:
 # Overlay that adds future versions of PostgreSQL that are supported by
 # PostgREST.
 {

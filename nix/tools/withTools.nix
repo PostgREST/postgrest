@@ -1,10 +1,6 @@
-{ bash-completion
-, buildToolbox
-, cabal-install
-, cabalTools
+{ buildToolbox
 , checkedShellScript
 , curl
-, devCabalOptions
 , git
 , lib
 , postgresqlVersions
@@ -274,30 +270,6 @@ let
         db-pool="$(PGRST_DB_POOL)"
         server-unix-socket="$(PGRST_SERVER_UNIX_SOCKET)"
         log-level="$(PGRST_LOG_LEVEL)"
-      '';
-
-  waitForPgrstPid =
-    checkedShellScript
-      {
-        name = "postgrest-wait-for-pgrst-pid";
-        docs = "Wait for PostgREST to be running. Needs to be a separate command for timeout to work below.";
-        args = [
-          "ARG_USE_ENV([PGRST_SERVER_UNIX_SOCKET], [], [Unix socket to check for running PostgREST instance])"
-        ];
-      }
-      ''
-        # ARG_USE_ENV only adds defaults or docs for environment variables
-        # We manually implement a required check here
-        # See also: https://github.com/matejak/argbash/issues/80
-        : "''${PGRST_SERVER_UNIX_SOCKET:?PGRST_SERVER_UNIX_SOCKET is required}"
-
-        until [ -S "$PGRST_SERVER_UNIX_SOCKET" ]
-        do
-          sleep 0.1
-        done
-
-        # return pid of postgrest process
-        lsof -t -c '/^postgrest$/' "$PGRST_SERVER_UNIX_SOCKET"
       '';
 
   waitForPgrstReady =
