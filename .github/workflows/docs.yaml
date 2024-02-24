@@ -2,6 +2,9 @@ name: Docs
 
 on:
   workflow_call:
+    secrets:
+      CACHIX_AUTH_TOKEN:
+        required: false
   pull_request:
     branches:
       - main
@@ -28,6 +31,7 @@ jobs:
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs
     - run: postgrest-docs-build
     - run: git diff --exit-code HEAD locales || echo "Please commit changes to the locales/ folder after running postgrest-docs-build."
@@ -41,6 +45,7 @@ jobs:
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs
     - name: Run spellcheck
       run: postgrest-docs-spellcheck
@@ -57,5 +62,6 @@ jobs:
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
+        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs
     - run: postgrest-docs-linkcheck

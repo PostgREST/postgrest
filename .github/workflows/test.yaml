@@ -132,6 +132,7 @@ jobs:
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: loadtest
       - uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce # v1.4.0
         id: get-latest-tag
