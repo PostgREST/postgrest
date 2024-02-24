@@ -35,6 +35,7 @@ jobs:
 
   arm:
     name: Build / Cabal - aarch64 GHC 9.4.8
+    if: vars.SSH_ARM_ENABLED
     runs-on: ubuntu-latest
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
@@ -103,7 +104,9 @@ jobs:
 
   prepare:
     name: Release / Prepare
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: |
+      startsWith(github.ref, 'refs/tags/v') &&
+      (success() || needs.arm.result == 'skipped')
     runs-on: ubuntu-latest
     needs:
       - docs
