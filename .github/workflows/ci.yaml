@@ -116,7 +116,7 @@ jobs:
       - name: Check static executable
         run: postgrest-check-static result/bin/postgrest
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -125,7 +125,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -178,7 +178,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Stack working files cache
-        uses: actions/cache@v3
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
         with:
           path: ${{ matrix.cache }}
           key: ${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
@@ -188,7 +188,7 @@ jobs:
       - name: Build with Stack
         run: stack build --local-bin-path result --copy-bins
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -208,7 +208,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/get_cirrusci_freebsd
       - name: Save executable as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: postgrest-freebsd-x64
           path: postgrest
@@ -234,7 +234,7 @@ jobs:
         run: |
           cp cabal.project.non-nix cabal.project
       - name: Cache
-        uses: actions/cache@v3
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
         with:
           path: ~/.cabal
           key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('**/*.cabal') }}-${{ hashFiles('**/cabal.project') }}
@@ -301,7 +301,7 @@ jobs:
       - name: Extract downloaded binaries
         run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
@@ -362,7 +362,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: release-changes
           path: CHANGES.md
@@ -380,7 +380,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -410,7 +410,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: release-bundle
           path: release-bundle
@@ -449,7 +449,7 @@ jobs:
         with:
           tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
