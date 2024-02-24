@@ -19,7 +19,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
       - name: Setup Nix Environment
@@ -35,7 +35,7 @@ jobs:
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report > loadtest/loadtest.md
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: loadtest.md
           path: loadtest/loadtest.md
@@ -46,7 +46,7 @@ jobs:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
       - uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce # v1.4.0
@@ -62,7 +62,7 @@ jobs:
           postgrest-loadtest-against ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report > loadtest/loadtest.md
       - name: Upload report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: loadtest.md
           path: loadtest/loadtest.md
