@@ -30,11 +30,12 @@ let
           postgresql = pkgsCross.libpq;
         }).overrideAttrs (finalAttrs: prevAttrs: {
           # Using use-pkg-config flag, because pg_config won't work when cross-compiling
-          configureFlags = prevAttrs.configureFlags ++ [ "-fuse-pkg-config" ];
-          # Using pkg-config without pkgsCross, because "pkg-config" is hardcoded in
-          # postgresql-libpq's Setup.hs. Using pkgsStatic to make pkg-config return the
-          # static libs for libpq.
-          nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgs.pkgsStatic.pkg-config ];
+          configureFlags = prevAttrs.configureFlags ++ [
+            "-fuse-pkg-config"
+            "--with-pkg-config=${pkgsStatic.pkgsBuildHost.pkg-config}/bin/${pkgsStatic.targetPlatform.config}-pkg-config"
+          ];
+          # This needs to match where libpq is coming from above.
+          nativeBuildInputs = prevAttrs.nativeBuildInputs ++ [ pkgsCross.pkgsBuildHost.pkg-config ];
 
           buildInputs = prevAttrs.buildInputs ++ [
             (pkgsStatic.libkrb5.overrideAttrs (finalAttrs: prevAttrs: {
