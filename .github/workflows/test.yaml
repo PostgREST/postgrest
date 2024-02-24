@@ -30,22 +30,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-style:
-    name: Lint & Style
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
-        with:
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: style
-      - name: Run linter (check locally with `nix-shell --run postgrest-lint`)
-        run: postgrest-lint
-      - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
-        run: postgrest-style-check
-
-
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
