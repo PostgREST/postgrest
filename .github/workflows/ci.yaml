@@ -17,6 +17,8 @@ jobs:
   docs:
     name: Docs
     uses: ./.github/workflows/docs.yaml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 
   test:
