@@ -152,7 +152,7 @@ jobs:
   cabal:
     strategy:
       matrix:
-        ghc: ['9.4.8', '9.6.4', '9.8.1']
+        ghc: ['9.4.8', '9.6.4', '9.8.2']
       fail-fast: false
     name: Cabal - Linux GHC ${{ matrix.ghc }}
     runs-on: ubuntu-latest
@@ -160,6 +160,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: ghcup
         run: |
+          # GHC 9.8.2 is not available in regular release channel, yet.
+          ghcup config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml
           ghcup install ghc ${{ matrix.ghc }}
           ghcup set ghc ${{ matrix.ghc }}
       - name: Copy cabal.project & fix caching
