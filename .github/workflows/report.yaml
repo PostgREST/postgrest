@@ -5,6 +5,8 @@ on:
     workflows:
       - CI
       - Test
+    branches-ignore:
+      - v[0-9]+
     types:
       - completed
 
