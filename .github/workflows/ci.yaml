@@ -14,6 +14,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  check:
+    name: Check
+    uses: ./.github/workflows/check.yaml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+
   docs:
     name: Docs
     uses: ./.github/workflows/docs.yaml
