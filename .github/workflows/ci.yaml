@@ -17,7 +17,7 @@ jobs:
     name: Lint & check code style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -37,7 +37,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -73,7 +73,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -92,7 +92,7 @@ jobs:
     name: Test memory (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -105,7 +105,7 @@ jobs:
     name: Build Linux static (Nix)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -136,7 +136,7 @@ jobs:
     name: Build MacOS (Nix)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
 
@@ -176,7 +176,7 @@ jobs:
     name: Build ${{ matrix.name }} (Stack)
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Stack working files cache
         uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
         with:
@@ -200,7 +200,7 @@ jobs:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Get FreeBSD executable from CirrusCI
         env:
           # GITHUB_SHA does weird things for pull request, so we roll our own:
@@ -222,7 +222,7 @@ jobs:
     name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R "$USER" /usr/local/.ghcup
@@ -261,7 +261,7 @@ jobs:
       GITHUB_COMMIT: ${{ github.sha }}
       GHC_VERSION: ${{ matrix.ghc }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - id: Remote-Dir
         name: Unique directory name for the remote build
         run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
@@ -325,7 +325,7 @@ jobs:
       version: ${{ steps.Identify-Version.outputs.version }}
       isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - id: Identify-Version
         name: Identify the version to be released
         run: |
@@ -378,7 +378,7 @@ jobs:
     env:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Download all artifacts
         uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
@@ -443,7 +443,7 @@ jobs:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -496,7 +496,7 @@ jobs:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
       ISPRERELEASE: ${{ needs.Prepare-Release.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Publish images for ARM builds on Docker Hub
         uses: appleboy/ssh-action@master
         env:
@@ -523,7 +523,7 @@ jobs:
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Remove uploaded files from server
         uses: appleboy/ssh-action@master
         with:
