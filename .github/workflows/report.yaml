@@ -17,14 +17,14 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure'
     steps:
       - name: Download from Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
           name: loadtest.md
           path: artifacts
       - name: Upload to GitHub Checks
-        uses: LouisBrunner/checks-action@v2.0.0
+        uses: LouisBrunner/checks-action@6b626ffbad7cc56fd58627f774b9067e6118af23 # v2.0.0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           sha: ${{ github.event.workflow_run.head_sha }}

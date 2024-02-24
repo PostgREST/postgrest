@@ -11,8 +11,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: nixbuild/nix-quick-install-action@v26
-    - uses: cachix/cachix-action@v14
+    - uses: nixbuild/nix-quick-install-action@1fe9e97a7bb9eea2f717fa55360c33293d5e2524 # v26
+    - uses: cachix/cachix-action@18cf96c7c98e048e10a83abd92116114cd8504be # v14
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
