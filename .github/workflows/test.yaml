@@ -11,6 +11,7 @@ on:
       - v[0-9]+
     paths:
       - .github/workflows/test.yaml
+      - .github/workflows/report.yaml
       - .github/actions/setup-nix/**
       - default.nix
       - nix/**

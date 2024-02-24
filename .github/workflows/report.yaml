@@ -2,7 +2,9 @@ name: Upload Reports
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows:
+      - CI
+      - Test
     types:
       - completed
 
@@ -17,7 +19,8 @@ jobs:
       - name: Download from Artifacts
         uses: actions/download-artifact@v4
         with:
-          run-id: ${{github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
           name: loadtest.md
           path: artifacts
       - name: Upload to GitHub Checks
