@@ -27,6 +27,15 @@ import yaml
 from config import *
 
 
+class ExtraNewLinesDumper(yaml.SafeDumper):
+    "Dumper that inserts an extra newline after each top-level item."
+
+    def write_line_break(self, data=None):
+        super().write_line_break(data)
+        if len(self.indents) == 1:
+            super().write_line_break()
+
+
 class YamlSnapshotExtension(SingleFileSnapshotExtension):
     _file_extension = "yaml"
 
@@ -238,9 +247,25 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
 
 
 # If this test is failing, run pytest with --snapshot-update.
-def test_schema_cache_snapshot(baseenv, snapshot_yaml):
+@pytest.mark.parametrize(
+    "key",
+    [
+        "dbMediaHandlers",
+        "dbRelationships",
+        "dbRepresentations",
+        "dbRoutines",
+        "dbTables",
+        "dbTimezones",
+    ],
+)
+def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
     "Dump of schema cache should match snapshot."
 
     schema_cache = yaml.load(cli(["--dump-schema"], env=baseenv), Loader=yaml.Loader)
-    formatted = yaml.dump(schema_cache, encoding="utf8", allow_unicode=True)
+    formatted = yaml.dump(
+        schema_cache[key],
+        encoding="utf8",
+        allow_unicode=True,
+        Dumper=yaml.SafeDumper if key == "dbTimezones" else ExtraNewLinesDumper,
+    )
     assert formatted == snapshot_yaml
