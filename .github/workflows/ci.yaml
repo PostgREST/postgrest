@@ -53,7 +53,7 @@ jobs:
       GITHUB_COMMIT: ${{ github.sha }}
       GHC_VERSION: '9.4.8'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - id: Remote-Dir
         name: Unique directory name for the remote build
         run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
@@ -105,7 +105,7 @@ jobs:
       - name: Extract downloaded binaries
         run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
@@ -127,7 +127,7 @@ jobs:
       version: ${{ steps.Identify-Version.outputs.version }}
       isprerelease: ${{ steps.Identify-Version.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - id: Identify-Version
         name: Identify the version to be released
         run: |
@@ -164,7 +164,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: release-changes
           path: CHANGES.md
@@ -180,9 +180,9 @@ jobs:
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -207,7 +207,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
         with:
           name: release-bundle
           path: release-bundle
@@ -240,14 +240,14 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
       ISPRERELEASE: ${{ needs.prepare.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
@@ -295,7 +295,7 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
       ISPRERELEASE: ${{ needs.prepare.outputs.isprerelease }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Publish images for ARM builds on Docker Hub
         uses: appleboy/ssh-action@master
         env:
@@ -320,7 +320,7 @@ jobs:
     env:
       REMOTE_DIR: ${{ needs.arm.outputs.remotepath }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Remove uploaded files from server
         uses: appleboy/ssh-action@master
         with:
