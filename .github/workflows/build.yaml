@@ -164,10 +164,9 @@ jobs:
           ghcup config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml
           ghcup install ghc ${{ matrix.ghc }}
           ghcup set ghc ${{ matrix.ghc }}
-      - name: Copy cabal.project & fix caching
+      - name: Fix caching
         run: |
           mkdir ~/.cabal
-          cp cabal.project.non-nix cabal.project
       - name: Cache
         uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2 # v4
         with:
