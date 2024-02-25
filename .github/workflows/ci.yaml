@@ -205,18 +205,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - name: Get FreeBSD executable from CirrusCI
-        env:
-          # GITHUB_SHA does weird things for pull request, so we roll our own:
-          GITHUB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: .github/get_cirrusci_freebsd
-      - name: Save executable as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+      - uses: ./.github/actions/artifact-from-cirrus
         with:
-          name: postgrest-freebsd-x64
-          path: postgrest
-          if-no-files-found: error
+          token: ${{ github.token }}
+          task: Build FreeBSD (Stack)
+          download: bin
+          upload: postgrest-freebsd-x64
 
   Build-Cabal:
     strategy:

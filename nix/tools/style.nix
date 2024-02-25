@@ -68,7 +68,6 @@ let
 
         echo "Linting bash scripts..."
         ${shellcheck}/bin/shellcheck \
-          .github/get_cirrusci_freebsd \
           .github/release
 
         echo "Linting workflows..."

@@ -2,6 +2,7 @@ freebsd_instance:
   image_family: freebsd-14-0
 
 build_task:
+  # Don't change this name without adjusting .github/workflows/ci.yaml
   name: Build FreeBSD (Stack)
   install_script: pkg install -y postgresql13-client hs-stack git
 
