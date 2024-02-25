@@ -73,10 +73,11 @@ in
 buildToolbox
 {
   name = "postgrest-cabal";
-  tools = [
-    build
-    clean
-    run
-    repl
-  ];
+  tools = {
+    inherit
+      build
+      clean
+      run
+      repl;
+  };
 }

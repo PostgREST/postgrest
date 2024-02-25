@@ -81,5 +81,5 @@ in
 buildToolbox
 {
   name = "postgrest-style";
-  tools = [ style styleCheck lint ];
+  tools = { inherit style styleCheck lint; };
 }

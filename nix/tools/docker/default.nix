@@ -42,8 +42,6 @@ in
 buildToolbox
 {
   name = "postgrest-docker";
-  tools = [ load ];
-  extra = {
-    inherit image;
-  };
+  tools = { inherit load; };
+  extra = { inherit image; };
 }

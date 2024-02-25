@@ -174,14 +174,14 @@ in
 buildToolbox
 {
   name = "postgrest-docs";
-  tools =
-    [
+  tools = {
+    inherit
       build
       check
       dictcheck
       linkcheck
       render
       serve
-      spellcheck
-    ];
+      spellcheck;
+  };
 }

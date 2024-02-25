@@ -51,5 +51,5 @@ in
 buildToolbox
 {
   name = "postgrest-nixpkgs";
-  tools = [ upgrade ];
+  tools = { inherit upgrade; };
 }

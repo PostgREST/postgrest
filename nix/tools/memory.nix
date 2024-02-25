@@ -24,5 +24,5 @@ in
 buildToolbox
 {
   name = "postgrest-memory";
-  tools = [ test ];
+  tools = { inherit test; };
 }

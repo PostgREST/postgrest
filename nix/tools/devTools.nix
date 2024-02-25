@@ -316,16 +316,16 @@ in
 buildToolbox
 {
   name = "postgrest-dev";
-  tools = [
-    check
-    dumpMinimalImports
-    gitHooks
-    hsieGraphModules
-    hsieGraphSymbols
-    hsieMinimalImports
-    parallelCurl
-    pushCachix
-    watch
-  ];
-  extra = { inherit pushCachix; };
+  tools = {
+    inherit
+      check
+      dumpMinimalImports
+      gitHooks
+      hsieGraphModules
+      hsieGraphSymbols
+      hsieMinimalImports
+      parallelCurl
+      pushCachix
+      watch;
+  };
 }

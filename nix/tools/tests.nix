@@ -193,14 +193,14 @@ in
 buildToolbox
 {
   name = "postgrest-tests";
-  tools =
-    [
+  tools = {
+    inherit
       testSpec
       testDoctests
       testSpecIdempotence
       testIO
       dumpSchema
       coverage
-      coverageDraftOverlay
-    ];
+      coverageDraftOverlay;
+  };
 }

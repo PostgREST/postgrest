@@ -133,5 +133,5 @@ in
 buildToolbox
 {
   name = "postgrest-release";
-  tools = [ dockerHubDescription release ];
+  tools = { inherit dockerHubDescription release; };
 }

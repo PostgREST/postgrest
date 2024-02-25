@@ -139,10 +139,7 @@ let
       }
       (lib.concatStringsSep "\n\n" runners);
 
-  # Create a `postgrest-with-postgresql-` for each PostgreSQL version
-  withPgVersions = builtins.map withTmpDb postgresqlVersions;
-
-  withPg = builtins.head withPgVersions;
+  withPg = withTmpDb (builtins.head postgresqlVersions);
 
   withSlowPg =
     checkedShellScript
@@ -353,7 +350,17 @@ in
 buildToolbox
 {
   name = "postgrest-with";
-  tools = [ withPgAll withGit withPgrst withSlowPg withSlowPgrst ] ++ withPgVersions;
-  # make withTools available for other nix files
-  extra = { inherit withGit withPg withPgAll withPgrst withSlowPg withSlowPgrst; };
+  tools = {
+    inherit
+      withGit
+      withPgAll
+      withPgrst
+      withSlowPg
+      withSlowPgrst;
+  } // builtins.listToAttrs (
+    # Create a `postgrest-with-postgresql-` for each PostgreSQL version
+    builtins.map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
+  );
+  # make latest withPg available for other nix files
+  extra = { inherit withPg; };
 }

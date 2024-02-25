@@ -181,5 +181,5 @@ let
 in
 buildToolbox {
   name = "postgrest-loadtest";
-  tools = [ loadtest loadtestAgainst report ];
+  tools = { inherit loadtest loadtestAgainst report; };
 }
