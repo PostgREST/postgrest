@@ -182,7 +182,7 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: Download all artifacts
-        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
+        uses: actions/download-artifact@87c55149d96e628cc2ef7e6fc2aab372015aec85 # v4
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -247,7 +247,7 @@ jobs:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: release
       - name: Download Docker image
-        uses: actions/download-artifact@eaceaf801fd36c7dee90939fad912460b18a1ffe # v4
+        uses: actions/download-artifact@87c55149d96e628cc2ef7e6fc2aab372015aec85 # v4
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
