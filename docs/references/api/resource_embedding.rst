@@ -829,9 +829,8 @@ Response:
       "techinal_specs": null
      }
 
-  Since PostgREST does the insertion in a single transaction, the selection is done before the changes are made to the related table, that's why the ``technical_specs`` is empty.
-  In the future we'll implement the insertions of tables and embedded resources at the same time.
-  For now, an alternative is to use :ref:`table_functions` instead.
+  Since PostgREST does the insertion and selection in a single query, the join is done before the changes are made to the related table, that's why ``technical_specs`` is empty.
+  An alternative is to use :ref:`table_functions` instead.
 
 .. _nested_embedding:
 
