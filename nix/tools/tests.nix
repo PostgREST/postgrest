@@ -41,6 +41,8 @@ let
         withEnv = postgrest.env;
       }
       ''
+        # This makes nix-env -iA tests.doctests.bin work.
+        export NIX_GHC=${postgrest.env.NIX_GHC}
         ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:doctests
       '';
 

@@ -56,7 +56,7 @@ jobs:
 
       - name: Run doctests
         if: always()
-        run: nix-shell --run postgrest-test-doctests
+        run: postgrest-test-doctests
 
       - name: Check the spec tests for idempotence
         if: always()
