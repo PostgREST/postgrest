@@ -80,6 +80,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - Removed `application/octet-stream`, `text/plain`, `text/xml` [builtin support for scalar results](https://postgrest.org/en/v11.1/references/api/resource_representation.html#scalar-function-response-format) - @steve-chavez
  - Removed default `application/openapi+json` media type for [db-root-spec](https://postgrest.org/en/v11.1/references/configuration.html#db-root-spec) - @steve-chavez
  - Removed [db-use-legacy-gucs](https://postgrest.org/en/v11.2/references/configuration.html#db-use-legacy-gucs) - @laurenceisla
+   + All PostgreSQL versions now use GUCs in JSON format for [Headers, Cookies and JWT claims](https://postgrest.org/en/v12/references/transactions.html#request-headers-cookies-and-jwt-claims).
 
 ## [11.2.2] - 2023-10-25
 
