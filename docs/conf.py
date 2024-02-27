@@ -32,6 +32,7 @@ extensions = [
     "sphinx_tabs.tabs",
     "sphinx_copybutton",
     "sphinxext.opengraph",
+    "sphinx_rtd_dark_mode",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -300,6 +301,9 @@ linkcheck_ignore = [r"https://stackoverflow.com/"]
 
 # sphinx-tabs configuration
 sphinx_tabs_disable_tab_closing = True
+
+# sphinx_rtd_dark_mode configuration
+default_dark_mode = False
 
 # sphinxext-opengraph configuration
 
