@@ -830,7 +830,6 @@ Response:
      }
 
   Since PostgREST does the insertion and selection in a single query, the join is done before the changes are made to the related table, that's why ``technical_specs`` is empty.
-  An alternative is to use :ref:`table_functions` instead.
 
 .. _nested_embedding:
 
