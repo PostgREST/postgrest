@@ -32,6 +32,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez
 
+### Documentation
+
+ - #3289, Add dark mode. Can be toggled by a button in the bottom right corner. - @laurenceisla
+
 ## [12.0.2] - 2023-12-20
 
 ### Fixed

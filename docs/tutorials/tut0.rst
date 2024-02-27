@@ -9,7 +9,9 @@ Welcome to PostgREST! In this pre-tutorial we're going to get things running so 
 
 PostgREST is a standalone web server which turns a PostgreSQL database into a RESTful API. It serves an API that is customized based on the structure of the underlying database.
 
-.. image:: ../_static/tuts/tut0-request-flow.png
+.. container:: img-translucent
+
+  .. image:: ../_static/tuts/tut0-request-flow.png
 
 To make an API we'll simply be building a database. All the endpoints and permissions come from database objects like tables, views, roles, and functions. These tutorials will cover a number of common scenarios and how to model them in the database.
 
