@@ -5,6 +5,7 @@
 , checkedShellScript
 , curl
 , postgrestProfiled
+, postgrest
 , withTools
 }:
 let
@@ -20,9 +21,32 @@ let
         ${withTools.withPg} -f test/spec/fixtures/load.sql test/memory/memory-tests.sh
       '';
 
+  runProfiled =
+    checkedShellScript
+      {
+        name = "postgrest-profiled-run";
+        docs = "Run a profiled build of postgREST. This will generate a postgrest.prof file that can be used to do optimization.";
+        args =
+          [
+            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
+            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool size])"
+            "ARG_LEFTOVERS([PostgREST arguments])"
+          ];
+        workingDir = "/";
+        withPath = [ postgrestProfiled ];
+        withEnv = postgrest.env;
+      }
+      ''
+        export PGRST_DB_ANON_ROLE
+        export PGRST_DB_POOL
+        export PGRST_DB_POOL_ACQUISITION_TIMEOUT
+
+        postgrest +RTS -p -h -RTS "''${_arg_leftovers[@]}"
+      '';
 in
 buildToolbox
 {
   name = "postgrest-memory";
-  tools = { inherit test; };
+  tools = { inherit test runProfiled; };
 }

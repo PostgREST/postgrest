@@ -134,7 +134,7 @@ rec {
 
   # Script for running memory tests.
   memory =
-    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
+    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled postgrest withTools; };
 
   # Utility for updating the pinned version of Nixpkgs.
   nixpkgsTools =
