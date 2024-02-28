@@ -5,7 +5,6 @@
 , checkedShellScript
 , curl
 , postgrestProfiled
-, postgrest
 , withTools
 }:
 let
@@ -30,12 +29,11 @@ let
           [
             "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
             "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
-            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool size])"
+            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
             "ARG_LEFTOVERS([PostgREST arguments])"
           ];
         workingDir = "/";
         withPath = [ postgrestProfiled ];
-        withEnv = postgrest.env;
       }
       ''
         export PGRST_DB_ANON_ROLE
