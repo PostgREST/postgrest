@@ -11,6 +11,8 @@ PostgREST makes use of PostgreSQL string representations to work with data types
   :local:
   :depth: 1
 
+.. NOTE: Titles are ordered alphabetically. New entries should respect this order.
+
 Arrays
 ------
 
@@ -197,6 +199,52 @@ Or you could insert the same data in JSON format.
   EOF
 
 You can also query the data using arrow operators. See :ref:`composite_array_columns`.
+
+Enums
+-----
+
+You can handle `Enumerated Types <https://www.postgresql.org/docs/current/datatype-enum.html>`_ using string representations:
+
+.. code-block:: postgres
+
+  create type letter_size as enum ('s','m','l','xl');
+
+  create table products (
+    id int primary key generated always as identity,
+    name text,
+    size letter_size
+  );
+
+To insert or update the value use a string:
+
+.. code-block:: bash
+
+  curl -X POST "http://localhost:3000/products" \
+    -H "Content-Type: application/json" \
+    -d @- << EOF
+    { "name": "t-shirt", "size": "l" }
+  EOF
+
+You can then query and filter the enum using the compatible :ref:`operators <operators>`.
+For example, to get all the products larger than `m` and ordering them by their size:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/products?select=name,size&size=gt.m&order=size"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "t-shirt",
+      "size": "l"
+    },
+    {
+      "name": "hoodie",
+      "size": "xl"
+    }
+  ]
+
 
 hstore
 ------
