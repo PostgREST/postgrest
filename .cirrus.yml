@@ -5,6 +5,24 @@ build_task:
   name: Build FreeBSD (Stack)
   install_script: pkg install -y postgresql16-client hs-stack git
 
+  # This also includes nix and cabal related files, because the
+  # Github Actions build workflow will run on those and the
+  # "Fetch from FreeBSD" job should not fail.
+  only_if: |
+    changesInclude(
+      '.github/workflows/build.yaml',
+      '.github/actions/setup-nix/**',
+      '.github/scripts/**',
+      '.github/*',
+      '*.nix',
+      'nix/**',
+      '.cirrus.yml',
+      'cabal.project*',
+      'postgrest.cabal',
+      'stack.yaml*',
+      '**.hs'
+    )
+
   stack_cache:
     folders: /.stack
     fingerprint_script: cat postgrest.cabal stack.yaml.lock
