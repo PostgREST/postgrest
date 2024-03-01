@@ -33,7 +33,7 @@ jobs:
     name: Nix - Linux static
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -42,7 +42,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -51,7 +51,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -62,7 +62,7 @@ jobs:
     name: Nix - MacOS
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -113,9 +113,9 @@ jobs:
     name: Stack - ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Stack working files cache
-        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4
+        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1.0.1
         with:
           path: ${{ matrix.cache }}
           key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
@@ -130,7 +130,7 @@ jobs:
         run: strip result/postgrest*
       - name: Save built executable as artifact
         if: matrix.artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -143,7 +143,7 @@ jobs:
     name: Stack - FreeBSD from CirrusCI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Get FreeBSD executable from CirrusCI
         env:
           # GITHUB_SHA does weird things for pull request, so we roll our own:
@@ -151,7 +151,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .github/get_cirrusci_freebsd
       - name: Save executable as artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
         with:
           name: postgrest-freebsd-x64
           path: postgrest
@@ -166,7 +166,7 @@ jobs:
     name: Cabal - Linux GHC ${{ matrix.ghc }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: ghcup
         run: |
           # GHC 9.8.2 is not available in regular release channel, yet.
@@ -177,7 +177,7 @@ jobs:
         run: |
           mkdir ~/.cabal
       - name: Cache
-        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4
+        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1.0.1
         with:
           path: |
             ~/.cabal/packages
