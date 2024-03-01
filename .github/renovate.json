@@ -7,6 +7,7 @@
     "main",
     "/^v[0-9]+/"
   ],
+  "rebaseWhen": "conflicted",
   "packageRules": [
     {
       "matchBaseBranches": [ "/^v[0-9]+/" ],
