@@ -363,7 +363,7 @@ Casting the columns is possible by suffixing them with the double colon ``::`` p
 
 .. note::
 
-  To guarantee :ref:`index_usage`, casting on horizontal filtering is not allowed. To do this, you can use :ref:`computed_cols`.
+  To prevent invalidating :ref:`index_usage`, casting on horizontal filtering is not allowed. To do this, you can use :ref:`computed_cols`.
 
 .. _ordering:
 
