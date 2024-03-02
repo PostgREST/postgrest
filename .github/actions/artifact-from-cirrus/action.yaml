@@ -48,13 +48,14 @@ runs:
       shell: bash
       run: |
         gh api "${{ steps.check-suite.outputs.check_runs_url }}" \
-          | jq -er '.check_runs[] | select(.name == "${{ inputs.task }}")' > /dev/null
+          | jq -er '.check_runs[] | select(.name == "${{ inputs.task }}" or .name == "Build Parsing Results")' > /dev/null
     - name: Wait for Cirrus CI to complete task
+      id: completion
       shell: bash
       run: |
         get_conclusion() {
           gh api "${{ steps.check-suite.outputs.check_runs_url }}" \
-            | jq -r '.check_runs[] | select(.name == "${{ inputs.task }}" and .status == "completed") | .conclusion'
+            | jq -r '.check_runs[] | select((.name == "${{ inputs.task }}" or .name == "Build Parsing Results") and .status == "completed") | .conclusion'
         }
         while true; do
           conclusion="$(get_conclusion)"
@@ -62,14 +63,22 @@ runs:
             echo "Cirrus CI task has not completed, yet. Waiting..."
             sleep 30
           else
-            if [ "$conclusion" == "success" ]; then
-              break
-            else
-              exit 1
-            fi
+            case "$conclusion" in
+              success) # Cirrus CI job succeeded
+                break
+                ;;
+              neutral) # Cirrus CI job didn't run because of "only_if"
+                break
+                ;;
+              *)
+                exit 1
+                ;;
+            esac
           fi
         done
+        echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
     - name: Download artifact from Cirrus CI
+      if: steps.completion.outputs.conclusion == 'success'
       id: download
       shell: bash
       run: |
@@ -84,6 +93,7 @@ runs:
         unzip "${archive}" -d "${artifacts}"
         echo "artifacts=${artifacts}" >> "$GITHUB_OUTPUT"
     - name: Save artifact to GitHub Actions
+      if: steps.completion.outputs.conclusion == 'success'
       uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
       with:
         name: ${{ inputs.upload }}
