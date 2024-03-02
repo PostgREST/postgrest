@@ -3,12 +3,7 @@
 Tables and Views
 ################
 
-All views and tables of the :ref:`exposed schema <schemas>` and accessible by the :ref:`active database role <roles>` are available for querying. They are exposed in one-level deep routes.
-
-.. _read:
-
-Read
-====
+All tables and views of the :ref:`exposed schema <schemas>` and accessible by the :ref:`active database role <roles>` are available for querying. They are exposed in one-level deep routes.
 
 For instance the full contents of a table `people` is returned at
 
@@ -20,8 +15,22 @@ There are no deeply/nested/routes. Each route provides OPTIONS, GET, HEAD, POST,
 
 .. note::
 
-  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related information. It can handle one-to-many and many-to-many relationships. This is covered in the section about :ref:`resource_embedding`.
+  Why not provide nested routes? Many APIs allow nesting to retrieve related information, such as :code:`/films/1/director`. We offer a more flexible mechanism (inspired by GraphQL) to embed related resources. This is covered on :ref:`resource_embedding`.
 
+.. _read:
+
+Read
+====
+
+.. _head_req:
+
+GET and HEAD
+------------
+
+Using the GET method, you can retrieve tables and views rows. The default :ref:`res_format` is JSON.
+
+A HEAD method will behave identically to GET except that no response body will be returned (`RFC 2616 <https://datatracker.ietf.org/doc/html/rfc2616#section-9.4>`_).
+As an optimization, the generated query won't execute an aggregate (to avoid unnecessary data transfer).
 
 .. _h_filter:
 
@@ -213,30 +222,12 @@ You can rename the columns by prefixing them with an alias followed by the colon
     {"fullName": "Jane Doe", "birthDate": "01/12/1998"}
   ]
 
-.. _casting_columns:
-
-Casting Columns
-~~~~~~~~~~~~~~~
-
-Casting the columns is possible by suffixing them with the double colon ``::`` plus the desired type.
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/people?select=full_name,salary::text"
-
-.. code-block:: json
-
-  [
-    {"full_name": "John Doe", "salary": "90000.00"},
-    {"full_name": "Jane Doe", "salary": "120000.00"}
-  ]
-
 .. _json_columns:
 
 JSON Columns
-------------
+~~~~~~~~~~~~
 
-You can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`__.
+To further reduce the data transferred, you can specify a path for a ``json`` or ``jsonb`` column using the arrow operators(``->`` or ``->>``) as per the `PostgreSQL docs <https://www.postgresql.org/docs/current/functions-json.html>`__.
 
 .. code-block:: postgres
 
@@ -312,7 +303,7 @@ Ordering is also supported:
 .. _composite_array_columns:
 
 Composite / Array Columns
--------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The arrow operators(``->``, ``->>``) can also be used for accessing composite fields and array elements.
 
@@ -352,6 +343,28 @@ The arrow operators(``->``, ``->>``) can also be used for accessing composite fi
 
     CREATE INDEX ON mytable ((to_jsonb(data) -> 'identification' ->> 'registration_number'));
 
+.. _casting_columns:
+
+Casting Columns
+~~~~~~~~~~~~~~~
+
+Casting the columns is possible by suffixing them with the double colon ``::`` plus the desired type.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/people?select=full_name,salary::text"
+
+.. code-block:: json
+
+  [
+    {"full_name": "John Doe", "salary": "90000.00"},
+    {"full_name": "Jane Doe", "salary": "120000.00"}
+  ]
+
+.. note::
+
+  To prevent invalidating :ref:`index_usage`, casting on horizontal filtering is not allowed. To do this, you can use :ref:`computed_cols`.
+
 .. _ordering:
 
 Ordering
@@ -385,13 +398,30 @@ You can also sort on fields of :ref:`composite_array_columns` or :ref:`json_colu
 
   curl "http://localhost:3000/countries?order=location->>lat"
 
-.. _head_req:
+.. _index_usage:
 
-HEAD
-----
+Index Usage
+-----------
 
-A HEAD method will behave identically to GET except that no body will be returned (`RFC 2616 <https://datatracker.ietf.org/doc/html/rfc2616#section-9.4>`_) .
-As an optimization, the generated query won't execute an aggregate (to avoid unnecessary data transfer).
+Indexes work transparently when using horizontal filtering, vertical filtering and ordering. For example, when having:
+
+.. code-block:: postgresql
+
+  create index salary_idx on employees (salary);
+
+We can confirm that a filter on employees uses the index by getting the :ref:`explain_plan`.
+
+.. code-block:: bash
+
+  curl 'localhost:3000/employees?salary=eq.36000' -H "Accept: application/vnd.pgrst.plan"
+
+  Aggregate  (cost=9.52..9.54 rows=1 width=144)
+    ->  Bitmap Heap Scan on employees  (cost=4.16..9.50 rows=2 width=136)
+          Recheck Cond: (salary = '$36,000.00'::money)
+          ->  Bitmap Index Scan on salary_idx  (cost=0.00..4.16 rows=2 width=0)
+                Index Cond: (salary = '$36,000.00'::money)
+
+There we can see `"Index Cond" <https://www.pgmustard.com/docs/explain/index-cond>`_, which confirms the index is being used by the query planner.
 
 .. _insert:
 
