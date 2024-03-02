@@ -91,16 +91,19 @@ let
     checkedShellScript
       {
         name = "postgrest-dump-schema";
-        docs = "Dump the loaded schema's SchemaCache as a yaml file.";
+        docs = "Dump the loaded schema's SchemaCache in JSON or Yaml format.";
+        args = [
+          "ARG_OPTIONAL_BOOLEAN([yaml], [y], [Dump the schema cache in Yaml format])"
+        ];
         workingDir = "/";
         withEnv = postgrest.env;
         withPath = [ jq ];
       }
       ''
-        ${withTools.withPg} -f test/spec/fixtures.sql \
+        ${withTools.withPg} -f test/spec/fixtures/load.sql \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema \
-            | ${yq}/bin/yq -y .
+            | if [ "$_arg_yaml" = on ]; then ${yq}/bin/yq -y .; else cat; fi
       '';
 
   coverage =
