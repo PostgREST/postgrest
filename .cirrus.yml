@@ -6,7 +6,7 @@ build_task:
   install_script: pkg install -y postgresql16-client hs-stack git
 
   only_if: |
-    $CIRRUS_PR == '' ||
+    $CIRRUS_PR == '' &&
     changesInclude(
       '.github/workflows/build.yaml',
       '.cirrus.yml',
