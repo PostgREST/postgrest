@@ -152,7 +152,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 3.27
+        totalCost `shouldBe` 0.06
 
     it "outputs the total cost for an update" $ do
       r <- request methodPatch "/projects?id=eq.3"
@@ -165,7 +165,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 12.45
+        totalCost `shouldBe` 8.23
 
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"

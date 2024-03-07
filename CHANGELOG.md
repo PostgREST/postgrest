@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3061, Apply all function settings as transaction-scoped settings - @taimoorzaeem
  - #3171, #3046, Log schema cache stats to stderr - @steve-chavez
  - #3210, Dump schema cache through admin API - @taimoorzaeem
+ - #2677, Performance improvement on bulk json inserts, around 10% increase on requests per second by removing `json_typeof` from write queries - @steve-chavez
 
 ### Fixed
 
