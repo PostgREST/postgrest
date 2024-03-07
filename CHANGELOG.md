@@ -384,6 +384,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2312, Using `Prefer: return=representation` no longer returns a `Location` header - @laurenceisla
  - #1984, For the cases where one to one relationships are detected, json objects will be returned instead of json arrays of length 1
    + If you wish to override this behavior, you can use computed relationships to return arrays again
+   + You can get the newly detected one-to-one relationships by using the `--dump-schema` option and filtering with [jq](https://github.com/jqlang/jq).
+     ```
+     ./postgrest --dump-schema  \
+     | jq  '[.dbRelationships | .[] | .[1] | .[] | select(.relCardinality.tag == "O2O" and .relFTableIsView == false and .relTableIsView == false) | del(.relFTableIsView,.relTableIsView,.tag,.relIsSelf)]'
+     ```
 
 ## [9.0.1] - 2022-06-03
 
