@@ -58,6 +58,15 @@ spec actualPgVersion = do
             matchHeaders = [matchContentTypeJson]
           }
 
+    context "insignificant whitespace" $ do
+      it "ignores it and successfuly updates with json payload" $ do
+        request methodPatch "/items?id=eq.1"
+                     [("Prefer", "return=representation")]
+                     "\t \n \r { \"id\": 99 } \t \n \r "
+          `shouldRespondWith` [json|[{"id":99}]|]
+          { matchStatus  = 200
+          }
+
     context "in a nonempty table" $ do
       it "can update a single item" $ do
         patch "/items?id=eq.2"
