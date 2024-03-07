@@ -400,6 +400,22 @@ spec actualPgVersion = do
           `shouldRespondWith` [json|[{ id: 20 }]|]
             { matchStatus  = 201 }
 
+    context "insignificant whitespace" $ do
+      it "ignores it and successfuly inserts with json payload" $ do
+        request methodPost "/json_table"
+                     [("Prefer", "return=representation")]
+                     "\t \n \r { \"data\": { \"foo\":\"bar\" } }\t \n \r "
+          `shouldRespondWith` [json|[{"data":{"foo":"bar"}}]|]
+          { matchStatus  = 201
+          }
+
+        request methodPost "/json_table"
+                     [("Prefer", "return=representation")]
+                     "\t \n \r [{ \"data\": { \"foo\":\"bar\" } }, \t \n \r {\"data\": 34}]\t \n \r "
+          `shouldRespondWith` [json|[{"data":{"foo":"bar"}}, {"data":34}]|]
+          { matchStatus  = 201
+          }
+
     -- https://github.com/PostgREST/postgrest/issues/2861
     context "bit and char columns with length" $ do
       it "should insert to a bit column with length" $
