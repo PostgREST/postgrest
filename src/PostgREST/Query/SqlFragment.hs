@@ -300,19 +300,17 @@ fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Boo
 fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
   (if includeSelect then "SELECT " <> namedCols <> " " else mempty) <>
   "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
-  -- convert a json object into a json array, this way we can use json_to_recordset for all json payloads
-  -- Otherwise we'd have to use json_to_record for json objects and json_to_recordset for json arrays
-  -- We do this in SQL to avoid processing the JSON in application code
-  "LATERAL (SELECT CASE WHEN " <> jsonTypeofF <> "(pgrst_payload.json_data) = 'array' THEN pgrst_payload.json_data ELSE " <> jsonBuildArrayF <> "(pgrst_payload.json_data) END AS val) pgrst_uniform_json, " <>
   (if includeDefaults
-    then "LATERAL (SELECT jsonb_agg(jsonb_build_object(" <> defsJsonb <> ") || elem) AS val from jsonb_array_elements(pgrst_uniform_json.val) elem) pgrst_json_defs, "
+    then if isJsonObject
+      then "LATERAL (SELECT " <> defsJsonb <> " || pgrst_payload.json_data AS val) pgrst_json_defs, "
+      else "LATERAL (SELECT jsonb_agg(" <> defsJsonb <> " || elem) AS val from jsonb_array_elements(pgrst_payload.json_data) elem) pgrst_json_defs, "
     else mempty) <>
   "LATERAL (SELECT " <> parsedCols <> " FROM " <>
-    (if null fields
-      -- When we are inserting no columns (e.g. using default values), we can't use our ordinary `json_to_recordset`
-      -- because it can't extract records with no columns (there's no valid syntax for the `AS (colName colType,...)`
-      -- part). But we still need to ensure as many rows are created as there are array elements.
-      then SQL.sql $ jsonArrayElementsF <> "(" <> finalBodyF <> ") _ "
+    (if null fields -- when json keys are empty, e.g. when payload is `{}` or `[{}, {}]`
+      then SQL.sql $
+        if isJsonObject
+          then "(values(1)) _ "                                  -- only 1 row for an empty json object '{}'
+          else jsonArrayElementsF <> "(" <> finalBodyF <> ") _ " -- extract rows of a json array of empty objects `[{}, {}]`
       else jsonToRecordsetF <> "(" <> SQL.sql finalBodyF <> ") AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty
     ) <>
   ") pgrst_body "
@@ -320,16 +318,21 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
     namedCols = intercalateSnippet ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . cfName <$> fields
     parsedCols = intercalateSnippet ", " $ pgFmtCoerceNamed <$> fields
     typedCols = intercalateSnippet ", " $ pgFmtIdent . cfName <> const " " <> SQL.sql . encodeUtf8 . cfIRType <$> fields
-    defsJsonb = SQL.sql $ BS.intercalate "," fieldsWDefaults
+    defsJsonb = SQL.sql $ "jsonb_build_object(" <> BS.intercalate "," fieldsWDefaults <> ")"
     fieldsWDefaults = mapMaybe (\case
         CoercibleField{cfName=nam, cfDefault=Just def} -> Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
         CoercibleField{cfDefault=Nothing} -> Nothing
       ) fields
-    (finalBodyF, jsonTypeofF, jsonBuildArrayF, jsonArrayElementsF, jsonToRecordsetF) =
+    (finalBodyF, jsonArrayElementsF, jsonToRecordsetF) =
       if includeDefaults
-        then ("pgrst_json_defs.val", "jsonb_typeof", "jsonb_build_array", "jsonb_array_elements", "jsonb_to_recordset")
-        else ("pgrst_uniform_json.val", "json_typeof", "json_build_array", "json_array_elements", "json_to_recordset")
+        then ("pgrst_json_defs.val", "jsonb_array_elements", if isJsonObject then "jsonb_to_record" else "jsonb_to_recordset")
+        else ("pgrst_payload.json_data", "json_array_elements", if isJsonObject then "json_to_record" else "json_to_recordset")
     jsonPlaceHolder = SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
+    isJsonObject = -- light validation as pg's json_to_record(set) already validates that the body is valid JSON. We just need to know whether the body looks like an object or not.
+      let
+        insignificantWhitespace = [32,9,10,13] --" \t\n\r" [32,9,10,13] https://datatracker.ietf.org/doc/html/rfc8259#section-2
+      in
+      LBS.take 1 (LBS.dropWhile (`elem` insignificantWhitespace) (fromMaybe mempty body)) == "{"
 
 pgFmtOrderTerm :: QualifiedIdentifier -> CoercibleOrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
