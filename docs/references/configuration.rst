@@ -121,8 +121,8 @@ It's possible to reload PostgREST's configuration without restarting the server.
 
 .. _config_reloading_signal:
 
-Reload with signal
-------------------
+Configuration Reload with signal
+--------------------------------
 
 To reload the configuration via signal, send a SIGUSR2 signal to the server process.
 
@@ -132,8 +132,8 @@ To reload the configuration via signal, send a SIGUSR2 signal to the server proc
 
 .. _config_reloading_notify:
 
-Reload with NOTIFY
-------------------
+Configuration Reload with NOTIFY
+--------------------------------
 
 To reload the configuration from within the database, you can use a NOTIFY command.
 
@@ -230,7 +230,7 @@ db-channel
   **In-Database** `n/a`
   =============== =======================
 
-  The name of the notification channel that PostgREST uses for :ref:`schema_reloading` and configuration reloading.
+  The name of the notification channel that PostgREST uses for :ref:`schema_reloading_notify` and :ref:`config_reloading_notify`.
 
 .. _db-channel-enabled:
 

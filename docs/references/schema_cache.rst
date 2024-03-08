@@ -63,8 +63,8 @@ There’s no downtime when reloading the schema cache. The reloading will happen
 
 .. _schema_reloading_notify:
 
-Reloading with NOTIFY
-~~~~~~~~~~~~~~~~~~~~~
+Schema Cache Reloading with NOTIFY
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 PostgREST also allows you to reload its schema cache through PostgreSQL `NOTIFY <https://www.postgresql.org/docs/current/sql-notify.html>`_.
 
