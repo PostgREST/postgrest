@@ -41,7 +41,7 @@ Sponsors
 
   .. container:: img-light
 
-    .. image:: ../static/cybertec-new.png
+    .. image:: ../static/cybertec.svg
       :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
 
   .. image:: ../static/gnuhost.png
@@ -66,7 +66,7 @@ Sponsors
 
   .. container:: img-light
 
-    .. image:: ../static/code-build.webp
+    .. image:: ../static/code-build.png
       :target: https://code.build/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-dark
