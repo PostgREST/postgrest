@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3224, Return status code 406 for non-accepted media type instead of code 415 - @wolfgangwalther
  - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
+ - #3323, Don't hide error on LISTEN channel failure - @steve-chavez
 
 ### Deprecated
 

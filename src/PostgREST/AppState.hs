@@ -487,15 +487,16 @@ listener appState observer = do
         putIsListenerOn appState True
         SQL.listen db $ SQL.toPgIdentifier dbChannel
         SQL.waitForNotifications handleNotification db
-      _ ->
-        die $ "Could not listen for notifications on the " <> dbChannel <> " channel"
+      Left err -> do
+        observer $ DBListenerFail dbChannel err
+        exitFailure
   where
-    handleFinally _ False _ = do
-      observer DBListenerFailNoRecoverObs
+    handleFinally dbChannel False err = do
+      observer $ DBListenerFailNoRecoverObs dbChannel err
       killThread (getMainThreadId appState)
-    handleFinally dbChannel True _ = do
+    handleFinally dbChannel True err = do
       -- if the thread dies, we try to recover
-      observer $ DBListenerFailRecoverObs dbChannel
+      observer $ DBListenerFailRecoverObs dbChannel err
       putIsListenerOn appState False
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
