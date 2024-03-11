@@ -20,7 +20,7 @@ API than you are likely to write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/cybertec-new.png">
+          <img width="296px" src="static/cybertec.svg">
         </a>
       </td>
       <td align="center" valign="middle">
@@ -38,7 +38,7 @@ API than you are likely to write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://code.build/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/code-build.webp">
+          <img width="296px" src="static/code-build.png">
         </a>
       </td>
       <td align="center" valign="middle">
