@@ -2,3 +2,9 @@ packages: postgrest.cabal
 tests: true
 package *
   ghc-options: -split-sections
+
+source-repository-package
+    type: git
+    location: https://github.com/develop7/hs-opentelemetry.git
+    tag: ec5a87729ad3ad99c59fdcdfa754bafc87edac57
+    subdir: sdk api propagators/b3 propagators/w3c exporters/otlp utils/exceptions instrumentation/wai otlp

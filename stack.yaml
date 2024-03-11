@@ -13,13 +13,17 @@ extra-deps:
   - fuzzyset-0.2.4
   - hasql-notifications-0.2.2.0
   - hasql-pool-1.0.1
-  - hs-opentelemetry-sdk-0.0.3.6@sha256:6776705a4e0c06c6a4bfa16a9bed3ba353901f52d214ac737f57ea7f8e1ed465,3746
-  - hs-opentelemetry-api-0.1.0.0@sha256:8af01d0c81dd1af6d3293b105178fd9bfa0057c9eb88ac24d3c440bff660abe3,3705
-  - hs-opentelemetry-propagator-b3-0.0.1.1@sha256:f0e9da77a888b89f81e5f5186788d5ace2a665e8914f6b446712a1c2edf17743,1854
-  - hs-opentelemetry-propagator-w3c-0.0.1.3@sha256:5dc2dbdd6b0a4e434ca5fd949e9ebe5611a5d513ef58009b935e9e810cc85d1b,1852
-  - hs-opentelemetry-exporter-otlp-0.0.1.5@sha256:89b0a6481096a338fa6383fbdf08ccaa0eb7bb009c4cbb340894eac33e55c5de,2214
-  - hs-opentelemetry-utils-exceptions-0.2.0.0@sha256:b0fe38a18034a2e264719104e288d648eba5e27d5e0e1dd8df6583024f1e3b8c,1579
-  - hs-opentelemetry-instrumentation-wai-0.1.0.0@sha256:6019cf031b3edec6ff0ace0df4c2e41358b9e5d939e6c326e4e1df50726348ee,1852
-  - hs-opentelemetry-otlp-0.0.1.0@sha256:88bb6b68f172a336f78018b0823f47363fb7408eb19f7301489f81ad4d5c0f33,2307
+  - github: develop7/hs-opentelemetry
+    commit: ec5a87729ad3ad99c59fdcdfa754bafc87edac57
+    subdirs:
+      - sdk
+      - api
+      - propagators/b3
+      - propagators/w3c
+      - exporters/otlp
+      - utils/exceptions
+      - instrumentation/wai
+      - otlp
+  - unix-compat-0.7.1@sha256:bd5bb4e04b2ed707f3e3466470a452354310389506cf0a7a73bf10e4d533f6d1,3619
   - thread-utils-context-0.3.0.4@sha256:e763da1c6cab3b6d378fb670ca74aa9bf03c9b61b6fcf7628c56363fb0e3e71e,1671
   - thread-utils-finalizers-0.1.1.0@sha256:24944b71d9f1d01695a5908b4a3b44838fab870883114a323336d537995e0a5b,1381
