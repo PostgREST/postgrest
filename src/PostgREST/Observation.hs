@@ -10,6 +10,7 @@ module PostgREST.Observation
 
 import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.Text.Encoding    as T
+import qualified Hasql.Connection      as SQL
 import qualified Hasql.Pool            as SQL
 import qualified Network.Socket        as NS
 import           Numeric               (showFFloat)
@@ -36,8 +37,9 @@ data Observation
   | ConnectionRetryObs Int
   | ConnectionPgVersionErrorObs SQL.UsageError
   | DBListenerStart Text
-  | DBListenerFailNoRecoverObs
-  | DBListenerFailRecoverObs Text
+  | DBListenerFail Text SQL.ConnectionError
+  | DBListenerFailNoRecoverObs Text (Either SomeException ())
+  | DBListenerFailRecoverObs Text (Either SomeException ())
   | ConfigReadErrorObs
   | ConfigReadErrorFatalObs SQL.UsageError Text
   | ConfigReadErrorNotFatalObs SQL.UsageError
@@ -81,10 +83,12 @@ observationMessage = \case
     jsonMessage usageErr
   DBListenerStart channel -> do
     "Listening for notifications on the " <> channel <> " channel"
-  DBListenerFailNoRecoverObs ->
-    "Automatic recovery disabled, exiting."
-  DBListenerFailRecoverObs channel ->
-    "Retrying listening for notifications on the " <> channel <> " channel.."
+  DBListenerFail channel err -> do
+    "Could not listen for notifications on the " <> channel <> " channel. " <> show err
+  DBListenerFailNoRecoverObs channel err ->
+    showListenerError err <> ". Automatic recovery disabled on the " <> channel <> " channel"
+  DBListenerFailRecoverObs channel err ->
+    showListenerError err <> ". Retrying listening for notifications on the " <> channel <> " channel.."
   ConfigReadErrorObs ->
     "An error ocurred when trying to query database settings for the config parameters"
   ConfigReadErrorFatalObs usageErr hint ->
@@ -106,3 +110,7 @@ observationMessage = \case
     showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
+
+    showListenerError :: Either SomeException () -> Text
+    showListenerError (Left e)  = show e
+    showListenerError (Right _) = "Failed getting notifications" -- this should not happen as the listener will never finish with a Right result
