@@ -17,7 +17,7 @@ extra-deps:
   - megaparsec-9.2.2
   - postgresql-libpq-0.10.0.0
   - github: develop7/hs-opentelemetry
-    commit: ec5a87729ad3ad99c59fdcdfa754bafc87edac57
+    commit: de0bd97e018201b404717852ccbf0b06a66fc346
     subdirs:
       - sdk
       - api
