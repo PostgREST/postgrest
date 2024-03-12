@@ -9,6 +9,7 @@ module PostgREST.Observation
   ) where
 
 import qualified Data.ByteString.Lazy  as LBS
+import qualified Data.Text             as T
 import qualified Data.Text.Encoding    as T
 import qualified Hasql.Connection      as SQL
 import qualified Hasql.Pool            as SQL
@@ -38,8 +39,7 @@ data Observation
   | ConnectionPgVersionErrorObs SQL.UsageError
   | DBListenerStart Text
   | DBListenerFail Text SQL.ConnectionError
-  | DBListenerFailNoRecoverObs Text (Either SomeException ())
-  | DBListenerFailRecoverObs Text (Either SomeException ())
+  | DBListenerFailRecoverObs Bool Text (Either SomeException ())
   | ConfigReadErrorObs
   | ConfigReadErrorFatalObs SQL.UsageError Text
   | ConfigReadErrorNotFatalObs SQL.UsageError
@@ -85,10 +85,8 @@ observationMessage = \case
     "Listening for notifications on the " <> channel <> " channel"
   DBListenerFail channel err -> do
     "Could not listen for notifications on the " <> channel <> " channel. " <> show err
-  DBListenerFailNoRecoverObs channel err ->
-    showListenerError err <> ". Automatic recovery disabled on the " <> channel <> " channel"
-  DBListenerFailRecoverObs channel err ->
-    showListenerError err <> ". Retrying listening for notifications on the " <> channel <> " channel.."
+  DBListenerFailRecoverObs recover channel err ->
+    "Could not listen for notifications on the " <> channel <> " channel. " <> showListenerError err <> (if recover then " Retrying listening for notifications.." else mempty)
   ConfigReadErrorObs ->
     "An error ocurred when trying to query database settings for the config parameters"
   ConfigReadErrorFatalObs usageErr hint ->
@@ -112,5 +110,7 @@ observationMessage = \case
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
 
     showListenerError :: Either SomeException () -> Text
-    showListenerError (Left e)  = show e
-    showListenerError (Right _) = "Failed getting notifications" -- this should not happen as the listener will never finish with a Right result
+    showListenerError (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
+    showListenerError (Left e)  =
+      let showOnSingleLine txt = T.intercalate " " $ T.filter (/= '\t') <$> T.lines txt in -- the errors from hasql-notifications come intercalated with "\t\n"
+      showOnSingleLine $ show e

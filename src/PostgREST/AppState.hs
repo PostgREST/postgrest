@@ -492,11 +492,11 @@ listener appState observer = do
         exitFailure
   where
     handleFinally dbChannel False err = do
-      observer $ DBListenerFailNoRecoverObs dbChannel err
+      observer $ DBListenerFailRecoverObs False dbChannel err
       killThread (getMainThreadId appState)
     handleFinally dbChannel True err = do
       -- if the thread dies, we try to recover
-      observer $ DBListenerFailRecoverObs dbChannel err
+      observer $ DBListenerFailRecoverObs True dbChannel err
       putIsListenerOn appState False
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
