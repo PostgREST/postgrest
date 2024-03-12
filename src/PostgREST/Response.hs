@@ -252,7 +252,7 @@ invokeResponse CallReadPlan{crMedia} invMethod proc ctxApiRequest@ApiRequest{iPr
             else
               (status,
                 headers ++ contentTypeHeaders crMedia ctxApiRequest,
-                if invMethod == InvHead then mempty else rsOrErrBody)
+                if invMethod == InvRead True then mempty else rsOrErrBody)
 
     (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'
 

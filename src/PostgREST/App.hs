@@ -30,21 +30,23 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
 import qualified Network.Wai.Handler.Warp   as Warp
 
-import qualified PostgREST.Admin            as Admin
-import qualified PostgREST.ApiRequest       as ApiRequest
-import qualified PostgREST.ApiRequest.Types as ApiRequestTypes
-import qualified PostgREST.AppState         as AppState
-import qualified PostgREST.Auth             as Auth
-import qualified PostgREST.Cors             as Cors
-import qualified PostgREST.Error            as Error
-import qualified PostgREST.Logger           as Logger
-import qualified PostgREST.Plan             as Plan
-import qualified PostgREST.Query            as Query
-import qualified PostgREST.Response         as Response
-import qualified PostgREST.Unix             as Unix (installSignalHandlers)
+import qualified PostgREST.Admin      as Admin
+import qualified PostgREST.ApiRequest as ApiRequest
+import qualified PostgREST.AppState   as AppState
+import qualified PostgREST.Auth       as Auth
+import qualified PostgREST.Cors       as Cors
+import qualified PostgREST.Error      as Error
+import qualified PostgREST.Logger     as Logger
+import qualified PostgREST.Plan       as Plan
+import qualified PostgREST.Query      as Query
+import qualified PostgREST.Response   as Response
+import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
-import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
-                                       Mutation (..), Target (..))
+import PostgREST.ApiRequest           (Action (..),
+                                       ActionRelation (..),
+                                       ActionRoutine (..),
+                                       ActionSchema (..),
+                                       ApiRequest (..), Mutation (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
@@ -170,66 +172,62 @@ runDbHandler appState config isoLvl mode authenticated prepared observer handler
 handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache ->
                 Maybe Double -> Maybe Double -> (Observation -> IO ()) -> Handler IO Wai.Response
 handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime observer =
-  case (iAction, iTarget) of
-    (ActionRead headersOnly, TargetIdent identifier) -> do
+  case iAction of
+    ActRelation identifier (ActRead headersOnly) -> do
       (planTime', wrPlan) <- withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
       (respTime', pgrst) <- withTiming $ liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionMutate MutationCreate, TargetIdent identifier) -> do
+    ActRelation identifier (ActMutate MutationCreate) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.createResponse identifier mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionMutate MutationUpdate, TargetIdent identifier) -> do
+    ActRelation identifier (ActMutate MutationUpdate) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.updateResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionMutate MutationSingleUpsert, TargetIdent identifier) -> do
+    ActRelation identifier (ActMutate MutationSingleUpsert) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionMutate MutationDelete, TargetIdent identifier) -> do
+    ActRelation identifier (ActMutate MutationDelete) -> do
       (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
       (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
       (respTime', pgrst) <- withTiming $ liftEither $ Response.deleteResponse mrPlan apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionInvoke invMethod, TargetProc identifier _) -> do
+    ActRoutine identifier (ActInvoke invMethod) -> do
       (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
       (txTime', resultSet) <- withTiming $ runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan)) (pdFuncSettings $ Plan.crProc cPlan) (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
       (respTime', pgrst) <- withTiming $ liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionInspect headersOnly, TargetDefaultSpec tSchema) -> do
+    ActSchema tSchema (ActSchemaRead headersOnly) -> do
       (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
       (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
       (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    (ActionInfo, TargetIdent identifier) -> do
+    ActRelation identifier ActRelInfo -> do
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoIdentResponse identifier sCache
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
-    (ActionInfo, TargetProc identifier _) -> do
-      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq ApiRequest.InvHead
+    ActRoutine identifier ActRoutInfo -> do
+      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq $ ApiRequest.InvRead True
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
 
-    (ActionInfo, TargetDefaultSpec _) -> do
+    ActSchema _ ActSchemaInfo -> do
       (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
-    _ ->
-      -- This is unreachable as the ApiRequest.hs rejects it before
-      -- TODO Refactor the Action/Target types to remove this line
-      throwError $ Error.ApiRequestError ApiRequestTypes.NotFound
   where
     roleSettings = fromMaybe mempty (HM.lookup authRole $ configRoleSettings conf)
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf

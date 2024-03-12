@@ -2,10 +2,8 @@
 Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE NamedFieldPuns #-}
 
 module PostgREST.ApiRequest
   ( ApiRequest(..)
@@ -13,7 +11,9 @@ module PostgREST.ApiRequest
   , Mutation(..)
   , MediaType(..)
   , Action(..)
-  , Target(..)
+  , ActionRelation(..)
+  , ActionRoutine(..)
+  , ActionSchema(..)
   , Payload(..)
   , userApiRequest
   ) where
@@ -84,29 +84,31 @@ data Payload
   | RawJSON { payRaw  :: LBS.ByteString }
   | RawPay  { payRaw  :: LBS.ByteString }
 
-data InvokeMethod = InvHead | InvGet | InvPost deriving Eq
+data InvokeMethod = Inv | InvRead Bool  deriving Eq
 data Mutation = MutationCreate | MutationDelete | MutationSingleUpsert | MutationUpdate deriving Eq
 
--- | Types of things a user wants to do to tables/views/procs
+data Resource
+  = ResourceRelation Text
+  | ResourceRoutine Text
+  | ResourceSchema
+
+data ActionRelation
+  = ActRead Bool
+  | ActMutate Mutation
+  | ActRelInfo
+
+data ActionRoutine
+  = ActInvoke InvokeMethod
+  | ActRoutInfo
+
+data ActionSchema
+  = ActSchemaRead Bool
+  | ActSchemaInfo
+
 data Action
-  = ActionMutate Mutation
-  | ActionRead {isHead :: Bool}
-  | ActionInvoke InvokeMethod
-  | ActionInfo
-  | ActionInspect {isHead :: Bool}
-  deriving Eq
--- | The path info that will be mapped to a target (used to handle validations and errors before defining the Target)
-data PathInfo
-  = PathInfo
-      { pathName       :: Text
-      , pathIsProc     :: Bool
-      , pathIsDefSpec  :: Bool
-      , pathIsRootSpec :: Bool
-      }
--- | The target db object of a user action
-data Target = TargetIdent QualifiedIdentifier
-            | TargetProc{tProc :: QualifiedIdentifier, tpIsRootSpec :: Bool}
-            | TargetDefaultSpec{tdsSchema :: Schema} -- The default spec offered at root "/"
+  = ActRelation QualifiedIdentifier ActionRelation
+  | ActRoutine QualifiedIdentifier ActionRoutine
+  | ActSchema Schema ActionSchema
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -116,10 +118,9 @@ data Target = TargetIdent QualifiedIdentifier
   if it is an action we are able to perform.
 -}
 data ApiRequest = ApiRequest {
-    iAction              :: Action                           -- ^ Similar but not identical to HTTP method, e.g. Create/Invoke both POST
+    iAction              :: Action                           -- ^ Action on the resource
   , iRange               :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
   , iTopLevelRange       :: NonnegRange                      -- ^ Requested range of rows from the top level
-  , iTarget              :: Target                           -- ^ The target, be it calling a proc or accessing a table
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
   , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
   , iQueryParams         :: QueryParams.QueryParams
@@ -137,17 +138,14 @@ data ApiRequest = ApiRequest {
 -- | Examines HTTP request and translates it into user intent.
 userApiRequest :: AppConfig -> Request -> RequestBody -> SchemaCache -> Either ApiRequestError ApiRequest
 userApiRequest conf req reqBody sCache = do
-  pInfo@PathInfo{..} <- getPathInfo conf $ pathInfo req
-  act <- getAction pInfo method
-  qPrms <- first QueryParamError $ QueryParams.parse (pathIsProc && act `elem` [ActionInvoke InvGet, ActionInvoke InvHead]) $ rawQueryString req
+  resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
+  act <- getAction resource schema method
+  qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
-  (payload, columns) <- getPayload reqBody contentMediaType qPrms act pInfo
+  (payload, columns) <- getPayload reqBody contentMediaType qPrms act
   return $ ApiRequest {
     iAction = act
-  , iTarget = if | pathIsProc    -> TargetProc (QualifiedIdentifier schema pathName) pathIsRootSpec
-                 | pathIsDefSpec -> TargetDefaultSpec schema
-                 | otherwise     -> TargetIdent $ QualifiedIdentifier schema pathName
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
@@ -170,38 +168,43 @@ userApiRequest conf req reqBody sCache = do
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
+    actIsInvokeSafe x = case x of {ActRoutine _  (ActInvoke (InvRead _)) -> True; _ -> False}
 
-getPathInfo :: AppConfig -> [Text] -> Either ApiRequestError PathInfo
-getPathInfo AppConfig{configOpenApiMode, configDbRootSpec} path =
-  case path of
-    []             -> case configDbRootSpec of
-                        Just (QualifiedIdentifier _ pathName)     -> Right $ PathInfo pathName True False True
-                        Nothing | configOpenApiMode == OADisabled -> Left NotFound
-                                | otherwise                       -> Right $ PathInfo mempty False True False
-    [table]        -> Right $ PathInfo table False False False
-    ["rpc", pName] -> Right $ PathInfo pName True False False
-    _              -> Left NotFound
+getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
+getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
+  []             -> case configDbRootSpec of
+                      Just (QualifiedIdentifier _ pathName)     -> Right $ ResourceRoutine pathName
+                      Nothing | configOpenApiMode == OADisabled -> Left NotFound
+                              | otherwise                       -> Right ResourceSchema
+  [table]        -> Right $ ResourceRelation table
+  ["rpc", pName] -> Right $ ResourceRoutine pName
+  _              -> Left NotFound
 
-getAction :: PathInfo -> ByteString -> Either ApiRequestError Action
-getAction PathInfo{pathIsProc, pathIsDefSpec} method =
-  if pathIsProc && method `notElem` ["HEAD", "GET", "POST", "OPTIONS"]
-    then Left $ InvalidRpcMethod method
-    else case method of
-      -- The HEAD method is identical to GET except that the server MUST NOT return a message-body in the response
-      -- From https://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html#sec9.4
-      "HEAD"     | pathIsDefSpec -> Right $ ActionInspect{isHead=True}
-                 | pathIsProc    -> Right $ ActionInvoke InvHead
-                 | otherwise     -> Right $ ActionRead{isHead=True}
-      "GET"      | pathIsDefSpec -> Right $ ActionInspect{isHead=False}
-                 | pathIsProc    -> Right $ ActionInvoke InvGet
-                 | otherwise     -> Right $ ActionRead{isHead=False}
-      "POST"     | pathIsProc    -> Right $ ActionInvoke InvPost
-                 | otherwise     -> Right $ ActionMutate MutationCreate
-      "PATCH"                    -> Right $ ActionMutate MutationUpdate
-      "PUT"                      -> Right $ ActionMutate MutationSingleUpsert
-      "DELETE"                   -> Right $ ActionMutate MutationDelete
-      "OPTIONS"                  -> Right ActionInfo
-      _                          -> Left $ UnsupportedMethod method
+getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
+getAction resource schema method =
+  case (resource, method) of
+    (ResourceRoutine rout, "HEAD")    -> Right $ ActRoutine (qi rout) $ ActInvoke $ InvRead True
+    (ResourceRoutine rout, "GET")     -> Right $ ActRoutine (qi rout) $ ActInvoke $ InvRead False
+    (ResourceRoutine rout, "POST")    -> Right $ ActRoutine (qi rout) $ ActInvoke Inv
+    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutine (qi rout) ActRoutInfo
+    (ResourceRoutine _, _)            -> Left $ InvalidRpcMethod method
+
+    (ResourceRelation rel, "HEAD")    -> Right $ ActRelation (qi rel) $ ActRead True
+    (ResourceRelation rel, "GET")     -> Right $ ActRelation (qi rel) $ ActRead False
+    (ResourceRelation rel, "POST")    -> Right $ ActRelation (qi rel) $ ActMutate MutationCreate
+    (ResourceRelation rel, "PUT")     -> Right $ ActRelation (qi rel) $ ActMutate MutationSingleUpsert
+    (ResourceRelation rel, "PATCH")   -> Right $ ActRelation (qi rel) $ ActMutate MutationUpdate
+    (ResourceRelation rel, "DELETE")  -> Right $ ActRelation (qi rel) $ ActMutate MutationDelete
+    (ResourceRelation rel, "OPTIONS") -> Right $ ActRelation (qi rel) ActRelInfo
+
+    (ResourceSchema, "HEAD")          -> Right $ ActSchema schema $ ActSchemaRead True
+    (ResourceSchema, "GET")           -> Right $ ActSchema schema $ ActSchemaRead False
+    (ResourceSchema, "OPTIONS")       -> Right $ ActSchema schema ActSchemaInfo
+
+    _                                 -> Left $ UnsupportedMethod method
+  where
+    qi = QualifiedIdentifier schema
+
 
 getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
 getSchema AppConfig{configDbSchemas} hdrs method = do
@@ -241,8 +244,8 @@ getRanges method QueryParams{qsOrder,qsRanges} hdrs
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
 
-getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> PathInfo -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
-getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathIsProc}= do
+getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
+getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
   checkedPayload <- if shouldParsePayload then payload else Right Nothing
   let cols = case (checkedPayload, columns) of
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
@@ -252,12 +255,12 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
   return (checkedPayload, cols)
   where
     payload :: Either ApiRequestError (Maybe Payload)
-    payload = mapBoth InvalidBody Just $ case (contentMediaType, pathIsProc) of
+    payload = mapBoth InvalidBody Just $ case (contentMediaType, isProc) of
       (MTApplicationJSON, _) ->
         if isJust columns
           then Right $ RawJSON reqBody
           else note "All object keys must match" . payloadAttributes reqBody
-                 =<< if LBS.null reqBody && pathIsProc
+                 =<< if LBS.null reqBody && isProc
                        then Right emptyObject
                        else first BS.pack $
                           -- Drop parsing error message in favor of generic one (https://github.com/PostgREST/postgrest/issues/2344)
@@ -265,30 +268,32 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action PathInfo{pathI
       (MTTextCSV, _) -> do
         json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
         note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-      (MTUrlEncoded, isProc) -> do
-        let params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
-        if isProc
-          then Right $ ProcessedUrlEncoded params (S.fromList $ fst <$> params)
-          else
-            let paramsMap = HM.fromList $ (identity *** JSON.String) <$> params in
-            Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
+      (MTUrlEncoded, True) ->
+        Right $ ProcessedUrlEncoded params (S.fromList $ fst <$> params)
+      (MTUrlEncoded, False) ->
+        let paramsMap = HM.fromList $ (identity *** JSON.String) <$> params in
+        Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
       (MTTextPlain, True) -> Right $ RawPay reqBody
       (MTTextXML, True) -> Right $ RawPay reqBody
       (MTOctetStream, True) -> Right $ RawPay reqBody
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
 
-    shouldParsePayload = case (action, contentMediaType) of
-      (ActionMutate MutationCreate, _)       -> True
-      (ActionInvoke InvPost, _)              -> True
-      (ActionMutate MutationSingleUpsert, _) -> True
-      (ActionMutate MutationUpdate, _)       -> True
-      _                                      -> False
+    shouldParsePayload = case action of
+      ActRelation _ (ActMutate MutationDelete) -> False
+      ActRelation _ (ActMutate _)              -> True
+      ActRoutine _  (ActInvoke Inv)            -> True
+      _                                        -> False
 
     columns = case action of
-      ActionMutate MutationCreate -> qsColumns
-      ActionMutate MutationUpdate -> qsColumns
-      ActionInvoke InvPost        -> qsColumns
-      _                           -> Nothing
+      ActRelation _ (ActMutate MutationCreate) -> qsColumns
+      ActRelation _ (ActMutate MutationUpdate) -> qsColumns
+      ActRoutine  _ (ActInvoke Inv)            -> qsColumns
+      _                                        -> Nothing
+
+    isProc = case action of
+      ActRoutine _ _ -> True
+      _              -> False
+    params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
 
 type CsvData = V.Vector (M.Map Text LBS.ByteString)
 
