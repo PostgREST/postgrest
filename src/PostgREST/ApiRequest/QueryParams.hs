@@ -112,12 +112,12 @@ data QueryParams =
 -- >>> qsFilters <$> parse False "a.b=noop.0"
 -- Left (QPError "\"failed to parse filter (noop.0)\" (line 1, column 1)" "unexpected \"o\" expecting \"not\" or operator (eq, gt, ...)")
 parse :: Bool -> ByteString -> Either QPError QueryParams
-parse isRpcGet qs = do
+parse isRpcRead qs = do
   rOrd                      <- pRequestOrder `traverse` order
   rLogic                    <- pRequestLogicTree `traverse` logic
   rCols                     <- pRequestColumns columns
   rSel                      <- pRequestSelect select
-  (rFlts, params)           <- L.partition hasOp <$> pRequestFilter isRpcGet `traverse` filters
+  (rFlts, params)           <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
   (rFltsRoot, rFltsNotRoot) <- pure $ L.partition hasRootFilter rFlts
   rOnConflict               <- pRequestOnConflict `traverse` onConflict
 
@@ -226,11 +226,11 @@ pRequestOnConflict oncStr =
 -- >>> pRequestFilter True ("id", "val")
 -- Right ([],Filter {field = ("id",[]), opExpr = NoOpExpr "val"})
 pRequestFilter :: Bool -> (Text, Text) -> Either QPError (EmbedPath, Filter)
-pRequestFilter isRpcGet (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
+pRequestFilter isRpcRead (k, v) = mapError $ (,) <$> path <*> (Filter <$> fld <*> oper)
   where
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
     oper = P.parse parseFlt ("failed to parse filter (" ++ toS v ++ ")") $ toS v
-    parseFlt = if isRpcGet
+    parseFlt = if isRpcRead
       then pOpExpr pSingleVal <|> pure (NoOpExpr v)
       else pOpExpr pSingleVal
     path = fst <$> treePath

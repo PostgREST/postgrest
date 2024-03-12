@@ -38,6 +38,8 @@ import Data.List               (delete, lookup)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (Action (..),
+                                              ActionRelation (..),
+                                              ActionRoutine (..),
                                               ApiRequest (..),
                                               InvokeMethod (..),
                                               Mutation (..),
@@ -139,24 +141,21 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
   let paramKeys = case invMethod of
-        InvGet  -> S.fromList $ fst <$> qsParams'
-        InvHead -> S.fromList $ fst <$> qsParams'
-        InvPost -> iColumns
+        InvRead _ -> S.fromList $ fst <$> qsParams'
+        Inv       -> iColumns
   proc@Function{..} <- mapLeft ApiRequestError $
-    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) iContentMediaType (invMethod == InvPost)
+    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType) of
-        (InvGet, _)             -> jsonRpcParams proc qsParams'
-        (InvHead, _)            -> jsonRpcParams proc qsParams'
-        (InvPost, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) iPayload
-        (InvPost, _)            -> maybe mempty payRaw iPayload
+        (InvRead _, _)      -> jsonRpcParams proc qsParams'
+        (Inv, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) iPayload
+        (Inv, _)            -> maybe mempty payRaw iPayload
       txMode = case (invMethod, pdVolatility) of
-          (InvGet,  _)                 -> SQL.Read
-          (InvHead, _)                 -> SQL.Read
-          (InvPost, Routine.Stable)    -> SQL.Read
-          (InvPost, Routine.Immutable) -> SQL.Read
-          (InvPost, Routine.Volatile)  -> SQL.Write
+          (InvRead _,  _)          -> SQL.Read
+          (Inv, Routine.Stable)    -> SQL.Read
+          (Inv, Routine.Immutable) -> SQL.Read
+          (Inv, Routine.Volatile)  -> SQL.Write
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
@@ -425,7 +424,7 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@R
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-treeRestrictRange _ (ActionMutate _) request = Right request
+treeRestrictRange _ (ActRelation _ (ActMutate _)) request = Right request
 treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
@@ -462,9 +461,9 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
         newReadPlan = case action of
           -- the CTE for mutations/rpc is used as WITH sourceCTEName .. SELECT .. FROM sourceCTEName as alias,
           -- we use the table name as an alias so findRel can find the right relationship.
-          ActionMutate _ -> rPlan{from=newFrom, fromAlias=newAlias}
-          ActionInvoke _ -> rPlan{from=newFrom, fromAlias=newAlias}
-          _              -> rPlan
+          ActRelation _ (ActMutate _) -> rPlan{from=newFrom, fromAlias=newAlias}
+          ActRoutine _ _              -> rPlan{from=newFrom, fromAlias=newAlias}
+          _                           -> rPlan
       in
       Node newReadPlan <$> updateForest (Just $ Node newReadPlan forest)
   where
@@ -702,9 +701,9 @@ addFilters ctx ApiRequest{..} rReq =
     QueryParams.QueryParams{..} = iQueryParams
     flts =
       case iAction of
-        ActionInvoke _ -> qsFilters
-        ActionRead _   -> qsFilters
-        _              -> qsFiltersNotRoot
+        ActRelation _ (ActRead _) -> qsFilters
+        ActRoutine _ _            -> qsFilters
+        _                         -> qsFiltersNotRoot
 
     addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadPlanTree ->  Either ApiRequestError ReadPlanTree
     addFilterToNode =
@@ -713,8 +712,8 @@ addFilters ctx ApiRequest{..} rReq =
 addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addOrders ctx ApiRequest{..} rReq =
   case iAction of
-    ActionMutate _ -> Right rReq
-    _              -> foldr addOrderToNode (Right rReq) qsOrder
+    ActRelation _ (ActMutate _) -> Right rReq
+    _                           -> foldr addOrderToNode (Right rReq) qsOrder
   where
     QueryParams.QueryParams{..} = iQueryParams
 
@@ -834,8 +833,8 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
 addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRanges ApiRequest{..} rReq =
   case iAction of
-    ActionMutate _ -> Right rReq
-    _              -> foldr addRangeToNode (Right rReq) =<< ranges
+    ActRelation _ (ActMutate _) -> Right rReq
+    _                           -> foldr addRangeToNode (Right rReq) =<< ranges
   where
     ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
     ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` HM.toList iRange
@@ -997,13 +996,13 @@ addFilterToLogicForest flt lf = CoercibleStmnt flt : lf
 negotiateContent :: AppConfig -> ApiRequest -> QualifiedIdentifier -> [MediaType] -> MediaHandlerMap -> Bool -> Either ApiRequestError ResolvedHandler
 negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRepresentation=rep}} identifier accepts produces defaultSelect =
   case (act, firstAcceptedPick) of
-    (_, Nothing)                         -> Left . MediaTypeError $ map MediaType.toMime accepts
-    (ActionMutate _, Just (x, mt))       -> Right (if rep == Just Full then x else NoAgg, mt)
+    (_, Nothing)                                             -> Left . MediaTypeError $ map MediaType.toMime accepts
+    (ActRelation _ (ActMutate _),              Just (x, mt)) -> Right (if rep == Just Full then x else NoAgg, mt)
     -- no need for an aggregate on HEAD https://github.com/PostgREST/postgrest/issues/2849
     -- TODO: despite no aggregate, these are responding with a Content-Type, which is not correct.
-    (ActionRead True, Just (_, mt))      -> Right (NoAgg, mt)
-    (ActionInvoke InvHead, Just (_, mt)) -> Right (NoAgg, mt)
-    (_, Just (x, mt))                    -> Right (x, mt)
+    (ActRelation _ (ActRead True),             Just (_, mt)) -> Right (NoAgg, mt)
+    (ActRoutine  _ (ActInvoke (InvRead True)), Just (_, mt)) -> Right (NoAgg, mt)
+    (_, Just (x, mt))                                        -> Right (x, mt)
   where
     firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.
     matchMT mt = case mt of
