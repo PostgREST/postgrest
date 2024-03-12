@@ -6,5 +6,5 @@ package *
 source-repository-package
     type: git
     location: https://github.com/develop7/hs-opentelemetry.git
-    tag: ec5a87729ad3ad99c59fdcdfa754bafc87edac57
+    tag: de0bd97e018201b404717852ccbf0b06a66fc346
     subdir: sdk api propagators/b3 propagators/w3c exporters/otlp utils/exceptions instrumentation/wai otlp
