@@ -19,15 +19,18 @@ let
       #
       # To temporarily pin unreleased versions from GitHub:
       #   <name> =
-      #     prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
+      #     lib.dontCheck (prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
       #       owner = "<owner>";
       #       repo  = "<repo>";
       #       rev = "<commit>";
       #       sha256 = "<sha256>";
-      #    }) "--subpath=<subpath>" {};
+      #    }) "--subpath=." {});
       #
       # To fill in the sha256:
       #   update-nix-fetchgit nix/overlays/haskell-packages.nix
+      #
+      # Nowadays you can just delete the sha256 attribute above and nix will assume a fake sha.
+      # Once you build the derivation it will suggest the correct sha.
 
       configurator-pg =
         prev.callHackageDirect
@@ -47,6 +50,15 @@ let
         });
 
       hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
+
+      hasql-notifications = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hasql-notifications";
+          ver = "0.2.1.0";
+          sha256 = "sha256-MEIirDKR81KpiBOnWJbVInWevL6Kdb/XD1Qtd8e6KsQ=";
+        }
+        { }
+      );
 
     };
 in
