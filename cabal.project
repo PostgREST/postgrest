@@ -6,5 +6,11 @@ package *
 source-repository-package
     type: git
     location: https://github.com/develop7/hs-opentelemetry.git
-    tag: de0bd97e018201b404717852ccbf0b06a66fc346
+    tag: 2460ff75bf6aa3b8a4c6ce30b6cba2e4b33cbefa
     subdir: sdk api propagators/b3 propagators/w3c exporters/otlp utils/exceptions instrumentation/wai otlp
+
+source-repository-package
+  type: git
+  location: https://github.com/ylecornec/proto-lens.git
+  tag: bfde441f830091965ba3a4a41516c53375b82962
+  subdir: proto-lens proto-lens-runtime
