@@ -19,18 +19,22 @@ let
       #
       # To temporarily pin unreleased versions from GitHub:
       #   <name> =
-      #     lib.dontCheck (prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
+      #     prev.callCabal2nixWithOptions "<name>" (super.fetchFromGitHub {
       #       owner = "<owner>";
       #       repo  = "<repo>";
       #       rev = "<commit>";
       #       sha256 = "<sha256>";
-      #    }) "--subpath=." {});
+      #    }) "--subpath=<subpath>" {};
       #
       # To fill in the sha256:
       #   update-nix-fetchgit nix/overlays/haskell-packages.nix
       #
-      # Nowadays you can just delete the sha256 attribute above and nix will assume a fake sha.
+      # - Nowadays you can just delete the sha256 attribute above and nix will assume a fake sha.
       # Once you build the derivation it will suggest the correct sha.
+      # - If the library fails its test suite (usually when it runs IO tests), wrap the expression with `lib.dontCheck ()`
+      # - <subpath> is usually "."
+      # - When adding a new library version here, postgrest.cabal and stack.yaml must also be updated
+
 
       configurator-pg =
         prev.callHackageDirect
