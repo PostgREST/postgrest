@@ -849,6 +849,7 @@ def test_no_pool_connection_required_on_bad_embedding(defaultenv):
         assert response.status_code == 400
 
 
+# https://github.com/PostgREST/postgrest/issues/2620
 def test_notify_reloading_catalog_cache(defaultenv):
     "notify should reload the connection catalog cache"
 
@@ -976,25 +977,15 @@ def test_isolation_level(defaultenv):
         assert response.text == '"serializable"'
 
 
-def test_schema_cache_reloading(defaultenv):
-    "schema cache should reload successfully"
+def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
+    "schema cache should be up-to-date whenever a notification is sent while another reload is in progress, see https://github.com/PostgREST/postgrest/issues/2791"
 
-    # If DB_POOL=1, then the second request(/rpc/migrate_function) will just wait(PGRST_DB_POOL_ACQUISITION_TIMEOUT=10) for the schema cache reload to finish.
-    # This is bc the only pool connection will be busy with the PGRST_INTERNAL_SCHEMA_CACHE_SLEEP(does a pg_sleep)
-    # So this must be tested with a DB_POOL size of at least 2. That way the second request will pick the other pool connection and proceed.
+    internal_sleep = int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"])
 
-    env = {
-        **defaultenv,
-        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "1",
-        "PGRST_DB_CHANNEL_ENABLED": "true",
-        "PGRST_DB_POOL": "2",
-    }
-
-    internal_sleep = int(env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"])
-
-    with run(env=env, wait_for_readiness=False) as postgrest:
+    with run(env=slow_schema_cache_env, wait_for_readiness=False) as postgrest:
         time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
 
+        # first request, create a function and set a schema cache reload in progress
         response = postgrest.session.post("/rpc/create_function")
         assert response.status_code == 204
 
@@ -1002,13 +993,15 @@ def test_schema_cache_reloading(defaultenv):
             internal_sleep / 2
         )  # wait to be inside the schema cache reload process
 
+        # second request, change the same function and do another schema cache reload
         response = postgrest.session.post("/rpc/migrate_function")
         assert response.status_code == 204
 
         time.sleep(
             2 * internal_sleep
-        )  # wait enough time to ensure the schema cache state remains
+        )  # wait enough time to get the final schema cache state
 
+        # confirm the schema cache is up-to-date and the 2nd reload wasn't lost
         response = postgrest.session.get("/rpc/mult_them?c=3&d=4")
         assert response.text == "12"
         assert response.status_code == 200

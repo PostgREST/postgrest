@@ -45,6 +45,19 @@ def defaultenv(baseenv):
     }
 
 
+@pytest.fixture
+def slow_schema_cache_env(defaultenv):
+    "Slow schema cache load environment PostgREST."
+    return {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "1",  # this does a pg_sleep internally, it will cause the schema cache query to be slow
+        # the slow schema cache query will keep using one pool connection until it finishes
+        # to prevent requests waiting for PGRST_DB_POOL_ACQUISITION_TIMEOUT we'll increase the pool size (must be >= 2)
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+
 def hpctixfile():
     "Returns an individual filename for each test, if the HPCTIXFILE environment variable is set."
     if "HPCTIXFILE" not in os.environ:
