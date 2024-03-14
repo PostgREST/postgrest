@@ -84,7 +84,22 @@ let
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures.sql \
-          ${ioTestPython}/bin/pytest -v test/io "''${_arg_leftovers[@]}"
+          ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py -v test/io "''${_arg_leftovers[@]}"
+      '';
+
+  testBigSchema =
+    checkedShellScript
+      {
+        name = "postgrest-test-big-schema";
+        docs = "Run a pytest-based IO test on a big schema. Add -k to run tests that match a given expression.";
+        args = [ "ARG_LEFTOVERS([pytest arguments])" ];
+        workingDir = "/";
+        withEnv = postgrest.env;
+      }
+      ''
+        ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/big_schema.sql \
+          ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py "''${_arg_leftovers[@]}"
       '';
 
   dumpSchema =
@@ -135,7 +150,11 @@ let
           # collect all tests
           HPCTIXFILE="$tmpdir"/io.tix \
             ${withTools.withPg} -f test/io/fixtures.sql \
-            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io
+            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py -v test/io
+
+          HPCTIXFILE="$tmpdir"/big_schema.tix \
+            ${withTools.withPg} -f test/io/big_schema.sql \
+            ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py
 
           HPCTIXFILE="$tmpdir"/spec.tix \
             ${withTools.withPg} -f test/spec/fixtures/load.sql \
@@ -145,7 +164,7 @@ let
 
           # collect all the tix files
           ${ghc}/bin/hpc sum  --union --exclude=Paths_postgrest --output="$tmpdir"/tests.tix \
-            "$tmpdir"/io*.tix "$tmpdir"/spec.tix
+            "$tmpdir"/io*.tix "$tmpdir"/big_schema*.tix "$tmpdir"/spec.tix
 
           # prepare the overlay
           ${ghc}/bin/hpc overlay --output="$tmpdir"/overlay.tix test/coverage.overlay
@@ -200,6 +219,7 @@ buildToolbox
       testDoctests
       testSpecIdempotence
       testIO
+      testBigSchema
       dumpSchema
       coverage
       coverageDraftOverlay;

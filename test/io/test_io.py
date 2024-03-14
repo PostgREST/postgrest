@@ -1007,24 +1007,6 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         assert response.status_code == 200
 
 
-# TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
-# The stack size of 1K(-with-rtsopts=-K1K) is not enough and this fails with "stack overflow"
-# A stack size of 200K seems to be enough for succeess
-@pytest.mark.skip
-def test_openapi_in_big_schema(defaultenv):
-    "Should get a successful response from openapi on a big schema"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_SCHEMAS": "apflora",
-        "PGRST_OPENAPI_MODE": "ignore-privileges",
-    }
-
-    with run(env=env) as postgrest:
-        response = postgrest.session.get("/")
-        assert response.status_code == 200
-
-
 @pytest.mark.parametrize("dburi_type", ["no_params", "no_params_qmark", "with_params"])
 def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
