@@ -55,5 +55,5 @@ def parse_server_timings_header(header):
     for timing in header.split(","):
         name, duration_text, *_ = timing.split(";")
         _, duration = duration_text.split("=")
-        timings[name] = float(duration)
+        timings[name.strip()] = float(duration)
     return timings
