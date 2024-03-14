@@ -90,7 +90,6 @@ SET check_function_bodies = false;
 SET client_min_messages = warning;
 SET row_security = off;
 
-
 CREATE SCHEMA apflora;
 
 CREATE SCHEMA auth;
@@ -11375,3 +11374,13 @@ ALTER TABLE ONLY apflora.zielber
     ADD CONSTRAINT zielber_ziel_id_fkey FOREIGN KEY (ziel_id) REFERENCES apflora.ziel(id) ON UPDATE CASCADE ON DELETE CASCADE;
 
 ALTER TABLE apflora."user" ENABLE ROW LEVEL SECURITY;
+
+DROP ROLE IF EXISTS postgrest_test_anonymous;
+CREATE ROLE postgrest_test_anonymous;
+
+GRANT postgrest_test_anonymous TO :PGUSER;
+
+GRANT USAGE ON SCHEMA apflora TO postgrest_test_anonymous;
+
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA apflora
+TO postgrest_test_anonymous;
