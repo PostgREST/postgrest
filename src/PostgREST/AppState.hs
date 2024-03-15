@@ -16,6 +16,7 @@ module PostgREST.AppState
   , getJwtCache
   , getSocketREST
   , getSocketAdmin
+  , getSchemaCacheLoaded
   , init
   , initSockets
   , initWithPool
@@ -85,6 +86,8 @@ data AppState = AppState
   , statePgVersion                :: IORef PgVersion
   -- | No schema cache at the start. Will be filled in by the connectionWorker
   , stateSchemaCache              :: IORef (Maybe SchemaCache)
+  -- | If schema cache is loaded
+  , stateSchemaCacheLoaded        :: IORef Bool
   -- | starts the connection worker with a debounce
   , debouncedConnectionWorker     :: IO ()
   -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
@@ -123,6 +126,7 @@ initWithPool (sock, adminSock) pool conf observer = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
+    <*> newIORef False
     <*> pure (pure ())
     <*> newEmptyMVar
     <*> newIORef False
@@ -283,6 +287,12 @@ getIsListenerOn = readIORef . stateIsListenerOn
 putIsListenerOn :: AppState -> Bool -> IO ()
 putIsListenerOn = atomicWriteIORef . stateIsListenerOn
 
+getSchemaCacheLoaded :: AppState -> IO Bool
+getSchemaCacheLoaded = readIORef . stateSchemaCacheLoaded
+
+putSchemaCacheLoaded :: AppState -> Bool -> IO ()
+putSchemaCacheLoaded = atomicWriteIORef . stateSchemaCacheLoaded
+
 -- | Schema cache status
 data SCacheStatus
   = SCLoaded
@@ -305,6 +315,7 @@ loadSchemaCache appState observer = do
         Nothing -> do
           putSchemaCache appState Nothing
           observer $ SchemaCacheNormalErrorObs e
+          putSchemaCacheLoaded appState False
           return SCOnRetry
 
     Right sCache -> do
@@ -312,6 +323,7 @@ loadSchemaCache appState observer = do
       observer $ SchemaCacheQueriedObs resultTime
       (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs sCache
       observer $ SchemaCacheLoadedObs t
+      putSchemaCacheLoaded appState True
       return SCLoaded
 
 -- | Current database connection status data ConnectionStatus

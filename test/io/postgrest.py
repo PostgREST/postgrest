@@ -78,6 +78,7 @@ def run(
     port=None,
     host=None,
     wait_for_readiness=True,
+    wait_max_seconds=1,
     no_pool_connection_available=False,
     no_startup_stdout=True,
 ):
@@ -118,7 +119,7 @@ def run(
             process.stdin.close()
 
             if wait_for_readiness:
-                wait_until_ready(adminurl + "/ready")
+                wait_until_ready(adminurl + "/ready", wait_max_seconds)
 
             if no_startup_stdout:
                 process.stdout.read()
@@ -176,12 +177,11 @@ def wait_until_exit(postgrest):
         raise PostgrestTimedOut()
 
 
-def wait_until_ready(url):
+def wait_until_ready(url, max_seconds):
     "Wait for the given HTTP endpoint to return a status of 200."
     session = requests_unixsocket.Session()
 
-    response = None
-    for _ in range(10):
+    for _ in range(max_seconds * 10):
         try:
             response = session.get(url, timeout=1)
             if response.status_code == 200:

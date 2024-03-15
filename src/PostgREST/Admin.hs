@@ -38,7 +38,7 @@ runAdmin conf@AppConfig{configAdminServerPort} appState settings observer =
 admin :: AppState.AppState -> AppConfig -> (Observation -> IO ()) -> Wai.Application
 admin appState appConfig observer req respond  = do
   isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
-  isSchemaCacheLoaded <- isJust <$> AppState.getSchemaCache appState
+  isSchemaCacheLoaded <- AppState.getSchemaCacheLoaded appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
