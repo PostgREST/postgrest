@@ -16,6 +16,7 @@ module PostgREST.AppState
   , getJwtCache
   , getSocketREST
   , getSocketAdmin
+  , getOTelTracer
   , init
   , initSockets
   , initWithPool
@@ -71,6 +72,7 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+import OpenTelemetry.Trace    (Tracer)
 import Protolude
 
 data AuthResult = AuthResult
@@ -107,19 +109,21 @@ data AppState = AppState
   , stateSocketREST               :: NS.Socket
   -- | Network socket for the admin UI
   , stateSocketAdmin              :: Maybe NS.Socket
+  -- | OpenTelemetry tracer
+  , oTelTracer                    :: Tracer
   }
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
-init :: AppConfig -> (Observation -> IO ()) -> IO AppState
-init conf observer = do
+init :: AppConfig -> Tracer -> (Observation -> IO ()) -> IO AppState
+init conf tracer observer = do
   pool <- initPool conf
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf observer
-  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock }
+  state' <- initWithPool (sock, adminSock) pool tracer conf observer
+  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> (Observation -> IO() ) -> IO AppState
-initWithPool (sock, adminSock) pool conf observer = do
+initWithPool :: AppSockets -> SQL.Pool -> Tracer -> AppConfig -> (Observation -> IO() ) -> IO AppState
+initWithPool (sock, adminSock) pool tracer conf observer = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -134,6 +138,7 @@ initWithPool (sock, adminSock) pool conf observer = do
     <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
+    <*> pure tracer
 
 
   debPoolTimeout <-
@@ -262,6 +267,9 @@ getSocketREST = stateSocketREST
 
 getSocketAdmin :: AppState -> Maybe NS.Socket
 getSocketAdmin = stateSocketAdmin
+
+getOTelTracer :: AppState -> Tracer
+getOTelTracer = oTelTracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
