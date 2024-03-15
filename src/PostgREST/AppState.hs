@@ -319,10 +319,12 @@ loadSchemaCache appState observer = do
           return SCOnRetry
 
     Right sCache -> do
-      putSchemaCache appState $ Just sCache
       observer $ SchemaCacheQueriedObs resultTime
       (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs sCache
       observer $ SchemaCacheLoadedObs t
+      -- it's important to update AppState schema cache only once it has been fully evaluated before (this will be done by the observer above)
+      -- otherwise requests will wait for the schema cache to be loaded
+      putSchemaCache appState $ Just sCache
       putSchemaCacheLoaded appState True
       return SCLoaded
 
