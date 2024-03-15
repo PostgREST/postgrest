@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
  - #3323, #3324, Don't hide error on LISTEN channel failure - @steve-chavez
+ - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
 
 ### Deprecated
 
