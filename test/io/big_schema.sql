@@ -11384,3 +11384,7 @@ GRANT USAGE ON SCHEMA apflora TO postgrest_test_anonymous;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA apflora
 TO postgrest_test_anonymous;
+
+create or replace function apflora.notify_pgrst() returns void as $$
+  notify pgrst;
+$$ language sql;
