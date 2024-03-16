@@ -68,7 +68,7 @@ Big thanks to our sponsors! You can join them by supporting PostgREST on [Patreo
     ```
 ## [Documentation](http://postgrest.org)
 
-Latest documentation is at [postgrest.org](http://postgrest.org). You can contribute to the docs in [PostgREST/postgrest-docs](https://github.com/PostgREST/postgrest-docs).
+Latest documentation is at [postgrest.org](http://postgrest.org). You can contribute to the docs in [PostgREST/postgrest/docs](https://github.com/PostgREST/postgrest/tree/main/docs).
 
 ## Performance
 
