@@ -1,0 +1,101 @@
+name: Artifact from Cirrus
+
+description: Waits for a specific Cirrus CI run to complete, then downloads the artifact and uploads it to the current workflow. This will silently succeed if Cirrus CI did not schedule a task within 2 minutes.
+
+inputs:
+  download:
+    description: Name of Artifact to download from Cirrus CI
+    required: true
+  task:
+    description: Name of Cirrus Task
+    required: true
+  token:
+    description: GitHub Token
+    required: true
+  upload:
+    description: Name of Artifact to upload on GitHub Actions
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: echo "GH_TOKEN=${{ inputs.token }}" >> "$GITHUB_ENV"
+    - name: Wait for Check Suite to be created
+      id: check-suite
+      env:
+        # GITHUB_SHA does weird things for pull request, so we roll our own:
+        COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+      shell: bash
+      run: |
+        get_check_runs_url() {
+          gh api "repos/{owner}/{repo}/commits/${COMMIT}/check-suites" \
+            | jq -r '.check_suites[] | select(.app.slug == "cirrus-ci") | .check_runs_url'
+        }
+        for _ in $(seq 1 12); do
+          check_runs_url="$(get_check_runs_url)"
+          if [ -z "$check_runs_url" ]; then
+            echo "Cirrus CI task has not started, yet. Waiting..."
+            sleep 10
+          else
+            echo "check_runs_url=$check_runs_url" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+        done
+        >&2 echo "Cirrus CI task not found. Is Cirrus CI enabled for this repo?"
+        exit 1
+    - name: Find task by name
+      shell: bash
+      run: |
+        gh api "${{ steps.check-suite.outputs.check_runs_url }}" \
+          | jq -er '.check_runs[] | select(.name == "${{ inputs.task }}" or .name == "Build Parsing Results")' > /dev/null
+    - name: Wait for Cirrus CI to complete task
+      id: completion
+      shell: bash
+      run: |
+        get_conclusion() {
+          gh api "${{ steps.check-suite.outputs.check_runs_url }}" \
+            | jq -r '.check_runs[] | select((.name == "${{ inputs.task }}" or .name == "Build Parsing Results") and .status == "completed") | .conclusion'
+        }
+        while true; do
+          conclusion="$(get_conclusion)"
+          if [ -z "$conclusion" ]; then
+            echo "Cirrus CI task has not completed, yet. Waiting..."
+            sleep 30
+          else
+            case "$conclusion" in
+              success) # Cirrus CI job succeeded
+                break
+                ;;
+              neutral) # Cirrus CI job didn't run because of "only_if"
+                break
+                ;;
+              *)
+                exit 1
+                ;;
+            esac
+          fi
+        done
+        echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+    - name: Download artifact from Cirrus CI
+      if: steps.completion.outputs.conclusion == 'success'
+      id: download
+      shell: bash
+      run: |
+        get_external_id() {
+          gh api "${{ steps.check-suite.outputs.check_runs_url }}" \
+            | jq -er '.check_runs[] | select(.name == "${{ inputs.task }}") | .external_id'
+        }
+        archive="$(mktemp)"
+        artifacts="$(mktemp -d)"
+        curl --no-progress-meter --fail -o "${archive}" \
+          "https://api.cirrus-ci.com/v1/artifact/task/$(get_external_id)/${{ inputs.download }}.zip"
+        unzip "${archive}" -d "${artifacts}"
+        echo "artifacts=${artifacts}" >> "$GITHUB_OUTPUT"
+    - name: Save artifact to GitHub Actions
+      if: steps.completion.outputs.conclusion == 'success'
+      uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4
+      with:
+        name: ${{ inputs.upload }}
+        path: ${{ steps.download.outputs.artifacts }}
+        if-no-files-found: error

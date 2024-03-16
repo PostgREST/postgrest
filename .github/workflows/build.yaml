@@ -114,8 +114,9 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - name: Stack working files cache
-        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1.0.1
+      - name: Restore stack working files cache
+        uses: actions/cache/restore@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1
+        id: restore-cache
         with:
           path: ${{ matrix.cache }}
           key: stack-${{ runner.os }}-${{ hashFiles('stack.yaml.lock') }}
@@ -137,6 +138,12 @@ jobs:
             result/postgrest
             result/postgrest.exe
           if-no-files-found: error
+      - name: Save stack working files cache
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ matrix.cache }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
 
   freebsd:
@@ -144,18 +151,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - name: Get FreeBSD executable from CirrusCI
-        env:
-          # GITHUB_SHA does weird things for pull request, so we roll our own:
-          GITHUB_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: .github/get_cirrusci_freebsd
-      - name: Save executable as artifact
-        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3 # v4.3.1
+      - uses: ./.github/actions/artifact-from-cirrus
         with:
-          name: postgrest-freebsd-x64
-          path: postgrest
-          if-no-files-found: error
+          token: ${{ github.token }}
+          task: Build FreeBSD (Stack)
+          download: bin
+          upload: postgrest-freebsd-x64
 
 
   cabal:
@@ -176,8 +177,9 @@ jobs:
       - name: Fix caching
         run: |
           mkdir ~/.cabal
-      - name: Cache
-        uses: actions/cache@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1.0.1
+      - name: Restore cache
+        uses: actions/cache/restore@ab5e6d0c87105b4c9c2047343972218f562e4319 # v4.0.1
+        id: restore-cache
         with:
           path: |
             ~/.cabal/packages
@@ -192,3 +194,12 @@ jobs:
           cabal build --only-dependencies --enable-tests --enable-benchmarks
       - name: Build
         run: cabal build --enable-tests --enable-benchmarks all
+      - name: Save cache
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ~/.cabal/packages
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}

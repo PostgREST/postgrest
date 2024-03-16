@@ -7,7 +7,6 @@
 , hlint
 , hsie
 , nixpkgs-fmt
-, shellcheck
 , silver-searcher
 , statix
 , stylish-haskell
@@ -58,10 +57,6 @@ let
         workingDir = "/";
       }
       ''
-        echo "Linting bash scripts..."
-        ${shellcheck}/bin/shellcheck \
-          .github/get_cirrusci_freebsd \
-
         echo "Linting workflows..."
         ${actionlint}/bin/actionlint
 
