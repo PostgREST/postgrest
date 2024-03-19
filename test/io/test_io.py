@@ -430,6 +430,24 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
         assert response.status_code == 204
 
 
+def test_notify_do_nothing(defaultenv):
+    "NOTIFY with unknown message should do nothing"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_CONFIG": "true",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_LOG_LEVEL": "crit",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/notify_do_nothing")
+        assert response.status_code == 204
+
+        output = postgrest.read_stdout()
+        assert output == []
+
+
 def test_db_prepared_statements_enable(defaultenv):
     "Should use prepared statements when the setting is enabled."
 

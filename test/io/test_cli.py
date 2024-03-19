@@ -246,7 +246,7 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
                 print(line)
 
 
-# If this test is failing, run pytest with --snapshot-update.
+# If this test is failing, run postgrest-test-io --snapshot-update -k test_schema_cache_snapshot
 @pytest.mark.parametrize(
     "key",
     [
