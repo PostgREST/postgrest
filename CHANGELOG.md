@@ -24,7 +24,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
  - #3323, #3324, Don't hide error on LISTEN channel failure - @steve-chavez
  - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
- - #3327, Fix slow responses on schema cache reloads - @steve-chavez
+ - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
 
 ### Deprecated
 

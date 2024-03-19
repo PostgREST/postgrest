@@ -40,6 +40,8 @@ data Observation
   | DBListenerStart Text
   | DBListenerFail Text SQL.ConnectionError
   | DBListenerFailRecoverObs Bool Text (Either SomeException ())
+  | DBListenerGotSCacheMsg ByteString
+  | DBListenerGotConfigMsg ByteString
   | ConfigReadErrorObs
   | ConfigReadErrorFatalObs SQL.UsageError Text
   | ConfigReadErrorNotFatalObs SQL.UsageError
@@ -82,11 +84,15 @@ observationMessage = \case
   ConnectionPgVersionErrorObs usageErr ->
     jsonMessage usageErr
   DBListenerStart channel -> do
-    "Listening for notifications on the " <> channel <> " channel"
+    "Listening for notifications on the " <> show channel <> " channel"
   DBListenerFail channel err -> do
     "Could not listen for notifications on the " <> channel <> " channel. " <> show err
   DBListenerFailRecoverObs recover channel err ->
     "Could not listen for notifications on the " <> channel <> " channel. " <> showListenerError err <> (if recover then " Retrying listening for notifications.." else mempty)
+  DBListenerGotSCacheMsg channel ->
+    "Received a schema cache reload message on the " <> show channel <> " channel"
+  DBListenerGotConfigMsg channel ->
+    "Received a config reload message on the " <> show channel <> " channel"
   ConfigReadErrorObs ->
     "An error ocurred when trying to query database settings for the config parameters"
   ConfigReadErrorFatalObs usageErr hint ->
