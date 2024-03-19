@@ -1,4 +1,5 @@
 {-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -501,6 +502,7 @@ listener appState observer = do
         putIsListenerOn appState True
         SQL.listen db $ SQL.toPgIdentifier dbChannel
         SQL.waitForNotifications handleNotification db
+
       Left err -> do
         observer $ DBListenerFail dbChannel err
         exitFailure
@@ -517,11 +519,11 @@ listener appState observer = do
       -- retry the listener
       listener appState observer
 
-    handleNotification _ msg
-      | BS.null msg            = cacheReloader
-      | msg == "reload schema" = cacheReloader
-      | msg == "reload config" = reReadConfig False appState observer
-      | otherwise              = pure () -- Do nothing if anything else than an empty message is sent
+    handleNotification channel msg =
+      if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
+         | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
+         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> reReadConfig False appState observer
+         | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
       -- reloads the schema cache + restarts pool connections

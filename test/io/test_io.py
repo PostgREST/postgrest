@@ -422,6 +422,8 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
         postgrest.session.post("/rpc/invalid_role_claim_key_reload")
 
         output = postgrest.read_stdout()
+        assert 'Received a config reload message on the "pgrst" channel' in output[0]
+        output = postgrest.read_stdout()
         assert "failed to parse role-claim-key value" in output[0]
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
