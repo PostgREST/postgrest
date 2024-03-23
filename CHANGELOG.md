@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
  - #3327, Fix slow responses on schema cache reloads - @steve-chavez
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
+ - #3345, Fix in-database configuration values not loading for `pgrst.server_trace_header` and `pgrst.server_cors_allowed_origins` - @laurenceisla
 
 ### Deprecated
 

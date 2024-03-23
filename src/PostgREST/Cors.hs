@@ -15,10 +15,15 @@ import qualified Network.Wai.Middleware.Cors as Wai
 
 import Data.List (lookup)
 
+import PostgREST.AppState (AppState, getConfig)
+import PostgREST.Config   (AppConfig (..))
+
 import Protolude
 
-middleware :: Maybe [Text] -> Wai.Middleware
-middleware corsAllowedOrigins = Wai.cors $ corsPolicy corsAllowedOrigins
+middleware :: AppState -> Wai.Middleware
+middleware appState app req res = do
+  conf <- getConfig appState
+  Wai.cors (corsPolicy $ configServerCorsAllowedOrigins conf) app req res
 
 -- | CORS policy to be used in by Wai Cors middleware
 corsPolicy :: Maybe [Text] -> Wai.Request -> Maybe Wai.CorsResourcePolicy

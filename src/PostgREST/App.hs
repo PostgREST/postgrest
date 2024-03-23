@@ -9,7 +9,6 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( postgrest
@@ -47,7 +46,7 @@ import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
                                        Mutation (..), Target (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth                 (AuthResult (..))
-import PostgREST.Config               (AppConfig (..))
+import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Observation          (Observation (..))
@@ -79,7 +78,7 @@ run appState observer = do
 
   Admin.runAdmin conf appState (serverSettings conf) observer
 
-  let app = postgrest conf appState (AppState.connectionWorker appState) observer
+  let app = postgrest configLogLevel appState (AppState.connectionWorker appState) observer
 
   case configServerUnixSocket of
     Just path -> do
@@ -98,12 +97,12 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: AppConfig -> AppState.AppState -> IO () -> (Observation -> IO ()) -> Wai.Application
-postgrest conf appState connWorker observer =
-  traceHeaderMiddleware conf .
-  Cors.middleware (configServerCorsAllowedOrigins conf) .
+postgrest :: LogLevel -> AppState.AppState -> IO () -> (Observation -> IO ()) -> Wai.Application
+postgrest logLevel appState connWorker observer =
+  traceHeaderMiddleware appState .
+  Cors.middleware appState .
   Auth.middleware appState .
-  Logger.middleware (configLogLevel conf) $
+  Logger.middleware logLevel $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
@@ -253,9 +252,11 @@ calcTiming timingEnabled f = if timingEnabled
       r <- f
       pure (Nothing, r)
 
-traceHeaderMiddleware :: AppConfig -> Wai.Middleware
-traceHeaderMiddleware AppConfig{configServerTraceHeader} app req respond =
-  case configServerTraceHeader of
+traceHeaderMiddleware :: AppState -> Wai.Middleware
+traceHeaderMiddleware appState app req respond = do
+  conf <- AppState.getConfig appState
+
+  case configServerTraceHeader conf of
     Nothing -> app req respond
     Just hdr ->
       let hdrVal = L.lookup hdr $ Wai.requestHeaders req in
