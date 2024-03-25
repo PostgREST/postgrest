@@ -42,11 +42,8 @@ import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
-import PostgREST.ApiRequest           (Action (..),
-                                       ActionRelation (..),
-                                       ActionRoutine (..),
-                                       ActionSchema (..),
-                                       ApiRequest (..), Mutation (..))
+import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
+                                       DbAction (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..))
@@ -173,58 +170,28 @@ handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool ->
                 Maybe Double -> Maybe Double -> (Observation -> IO ()) -> Handler IO Wai.Response
 handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime observer =
   case iAction of
-    ActRelation identifier (ActRead headersOnly) -> do
-      (planTime', wrPlan) <- withTiming $ liftEither $ Plan.wrappedReadPlan identifier conf sCache apiReq
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.wrTxMode wrPlan) $ Query.readQuery wrPlan conf apiReq
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.readResponse wrPlan headersOnly identifier apiReq resultSet
+    ActDb dbAct -> do
+      (planTime', plan) <- withTiming $ liftEither $ Plan.actionPlan dbAct conf apiReq sCache
+      (txTime', resultSet) <- withTiming $ runQuery (planIsoLvl plan) (planFunSettings plan) (Plan.pTxMode plan) $ Query.actionQuery plan conf apiReq pgVer
+      (respTime', pgrst) <- withTiming $ liftEither $ Response.actionResponse plan (dbActQi dbAct) apiReq resultSet
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    ActRelation identifier (ActMutate MutationCreate) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationCreate apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.createQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.createResponse identifier mrPlan apiReq resultSet
+    ActSchemaRead tSchema headersOnly -> do
+      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq headersOnly tSchema
+      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery iPlan conf sCache pgVer
+      (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse iPlan (T.decodeUtf8 prettyVersion, docsVersion) oaiResult conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
-    ActRelation identifier (ActMutate MutationUpdate) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationUpdate apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.updateQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.updateResponse mrPlan apiReq resultSet
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActRelation identifier (ActMutate MutationSingleUpsert) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationSingleUpsert apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.singleUpsertQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.singleUpsertResponse mrPlan apiReq resultSet
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActRelation identifier (ActMutate MutationDelete) -> do
-      (planTime', mrPlan) <- withTiming $ liftEither $ Plan.mutateReadPlan MutationDelete apiReq identifier conf sCache
-      (txTime', resultSet) <- withTiming $ runQuery roleIsoLvl mempty (Plan.mrTxMode mrPlan) $ Query.deleteQuery mrPlan apiReq conf
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.deleteResponse mrPlan apiReq resultSet
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActRoutine identifier (ActInvoke invMethod) -> do
-      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq invMethod
-      (txTime', resultSet) <- withTiming $ runQuery (fromMaybe roleIsoLvl $ pdIsoLvl (Plan.crProc cPlan)) (pdFuncSettings $ Plan.crProc cPlan) (Plan.crTxMode cPlan) $ Query.invokeQuery (Plan.crProc cPlan) cPlan apiReq conf pgVer
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.invokeResponse cPlan invMethod (Plan.crProc cPlan) apiReq resultSet
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActSchema tSchema (ActSchemaRead headersOnly) -> do
-      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq
-      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery sCache pgVer conf tSchema
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse (T.decodeUtf8 prettyVersion, docsVersion) headersOnly oaiResult conf sCache iSchema iNegotiatedByProfile
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActRelation identifier ActRelInfo -> do
+    ActRelationInfo identifier -> do
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoIdentResponse identifier sCache
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
-    ActRoutine identifier ActRoutInfo -> do
+    ActRoutineInfo identifier -> do
       (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq $ ApiRequest.InvRead True
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
 
-    ActSchema _ ActSchemaInfo -> do
+    ActSchemaInfo _ -> do
       (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
@@ -236,6 +203,12 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
         Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) funcSets apiReq
         Query.runPreReq conf
         query
+
+    planIsoLvl (Plan.CallReadPlan{crProc}) = fromMaybe roleIsoLvl $ pdIsoLvl crProc
+    planIsoLvl _ = roleIsoLvl
+
+    planFunSettings (Plan.CallReadPlan{crProc}) = pdFuncSettings crProc
+    planFunSettings _ = mempty
 
     pgrstResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
     pgrstResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled conf])) bod

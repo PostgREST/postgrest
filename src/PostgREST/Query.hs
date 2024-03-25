@@ -1,13 +1,8 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Query
-  ( createQuery
-  , deleteQuery
-  , invokeQuery
-  , openApiQuery
-  , readQuery
-  , singleUpsertQuery
-  , updateQuery
+  ( openApiQuery
+  , actionQuery
   , setPgLocals
   , runPreReq
   , DbHandler
@@ -31,7 +26,8 @@ import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.RangeQuery         as RangeQuery
 import qualified PostgREST.SchemaCache        as SchemaCache
 
-import PostgREST.ApiRequest              (ApiRequest (..))
+import PostgREST.ApiRequest              (ApiRequest (..),
+                                          Mutation (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
@@ -44,10 +40,10 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (CallReadPlan (..),
-                                          MutateReadPlan (..),
-                                          WrappedReadPlan (..))
+import PostgREST.Plan                    (ActionPlan (..),
+                                          InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
+import PostgREST.Plan.ReadPlan           (ReadPlanTree)
 import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           intercalateSnippet,
                                           setConfigWithConstantName,
@@ -55,17 +51,17 @@ import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           setConfigWithDynamicName)
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
-                                          Schema)
-import PostgREST.SchemaCache.Routine     (Routine (..), RoutineMap)
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
+import PostgREST.SchemaCache.Routine     (MediaHandler, RoutineMap)
 import PostgREST.SchemaCache.Table       (TablesMap)
 
 import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-readQuery :: WrappedReadPlan -> AppConfig -> ApiRequest -> DbHandler ResultSet
-readQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} = do
+actionQuery :: ActionPlan -> AppConfig -> ApiRequest -> PgVersion -> DbHandler ResultSet
+
+actionQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -84,6 +80,100 @@ readQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=
   failNotSingular wrMedia resultSet
   optionalRollback conf apiReq
   resultSetWTotal conf apiReq resultSet countQuery
+
+actionQuery MutateReadPlan{mrMutation=MutationCreate, ..} conf apiReq _ = do
+  resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
+  failNotSingular mrMedia resultSet
+  optionalRollback conf apiReq
+  pure resultSet
+
+actionQuery MutateReadPlan{mrMutation=MutationUpdate, ..} conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
+  resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
+  failNotSingular mrMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  optionalRollback conf apiReq
+  pure resultSet
+
+actionQuery MutateReadPlan{mrMutation=MutationSingleUpsert, ..} conf apiReq _ = do
+  resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
+  failPut resultSet
+  optionalRollback conf apiReq
+  pure resultSet
+
+actionQuery MutateReadPlan{mrMutation=MutationDelete, ..} conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
+  resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
+  failNotSingular mrMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  optionalRollback conf apiReq
+  pure resultSet
+
+actionQuery CallReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer = do
+  resultSet <-
+    lift . SQL.statement mempty $
+      Statements.prepareCall
+        crProc
+        (QueryBuilder.callPlanToQuery crCallPlan pgVer)
+        (QueryBuilder.readPlanToQuery crReadPlan)
+        (QueryBuilder.readPlanToCountQuery crReadPlan)
+        (shouldCount preferCount)
+        crMedia
+        crHandler
+        configDbPreparedStatements
+
+  optionalRollback conf apiReq
+  failNotSingular crMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+  pure resultSet
+
+openApiQuery :: InspectPlan -> AppConfig -> SchemaCache -> PgVersion -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
+openApiQuery InspectPlan{ipSchema=tSchema} AppConfig{..} sCache pgVer =
+  lift $ case configOpenApiMode of
+    OAFollowPriv -> do
+      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
+      Just <$> ((,,)
+            (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
+        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
+        <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+    OAIgnorePriv ->
+      Just <$> ((,,)
+            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
+            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
+        <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+    OADisabled ->
+      pure Nothing
+
+
+writeQuery :: ReadPlanTree -> MutatePlan -> MediaType -> MediaHandler -> ApiRequest -> AppConfig  -> DbHandler ResultSet
+writeQuery readPlan mutatePlan mType mHandler ApiRequest{iPreferences=Preferences{..}} conf =
+  let
+    (isPut, isInsert, pkCols) = case mutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
+  in
+  lift . SQL.statement mempty $
+    Statements.prepareWrite
+      (QueryBuilder.readPlanToQuery readPlan)
+      (QueryBuilder.mutatePlanToQuery mutatePlan)
+      isInsert
+      isPut
+      mType
+      mHandler
+      preferRepresentation
+      preferResolution
+      pkCols
+      (configDbPreparedStatements conf)
+
+-- Makes sure the querystring pk matches the payload pk
+-- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
+-- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
+-- If this condition is not satisfied then nothing is inserted,
+-- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
+failPut :: ResultSet -> DbHandler ()
+failPut RSPlan{} = pure ()
+failPut RSStandard{rsQueryTotal=queryTotal} =
+  when (queryTotal /= 1) $ do
+    lift SQL.condemn
+    throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
 resultSetWTotal _ _ rs@RSPlan{} _ = return rs
@@ -106,104 +196,6 @@ resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStan
     explain =
       lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
         configDbPreparedStatements
-
-createQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-createQuery mrPlan@MutateReadPlan{mrMedia} apiReq conf = do
-  resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular mrMedia resultSet
-  optionalRollback conf apiReq
-  pure resultSet
-
-updateQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-updateQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf = do
-  resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular mrMedia resultSet
-  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
-  optionalRollback conf apiReq
-  pure resultSet
-
-singleUpsertQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-singleUpsertQuery mrPlan apiReq conf = do
-  resultSet <- writeQuery mrPlan apiReq conf
-  failPut resultSet
-  optionalRollback conf apiReq
-  pure resultSet
-
--- Makes sure the querystring pk matches the payload pk
--- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
--- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
--- If this condition is not satisfied then nothing is inserted,
--- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-failPut :: ResultSet -> DbHandler ()
-failPut RSPlan{} = pure ()
-failPut RSStandard{rsQueryTotal=queryTotal} =
-  when (queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
-
-deleteQuery :: MutateReadPlan -> ApiRequest -> AppConfig -> DbHandler ResultSet
-deleteQuery mrPlan@MutateReadPlan{mrMedia} apiReq@ApiRequest{iPreferences=Preferences{..}, ..} conf = do
-  resultSet <- writeQuery mrPlan apiReq conf
-  failNotSingular mrMedia resultSet
-  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
-  optionalRollback conf apiReq
-  pure resultSet
-
-invokeQuery :: Routine -> CallReadPlan -> ApiRequest -> AppConfig -> PgVersion -> DbHandler ResultSet
-invokeQuery rout CallReadPlan{..} apiReq@ApiRequest{iPreferences=Preferences{..}} conf@AppConfig{..} pgVer = do
-  resultSet <-
-    lift . SQL.statement mempty $
-      Statements.prepareCall
-        rout
-        (QueryBuilder.callPlanToQuery crCallPlan pgVer)
-        (QueryBuilder.readPlanToQuery crReadPlan)
-        (QueryBuilder.readPlanToCountQuery crReadPlan)
-        (shouldCount preferCount)
-        crMedia
-        crHandler
-        configDbPreparedStatements
-
-  optionalRollback conf apiReq
-  failNotSingular crMedia resultSet
-  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  pure resultSet
-
-openApiQuery :: SchemaCache -> PgVersion -> AppConfig -> Schema -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
-openApiQuery sCache pgVer AppConfig{..} tSchema =
-  lift $ case configOpenApiMode of
-    OAFollowPriv -> do
-      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
-      Just <$> ((,,)
-            (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
-        <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
-    OAIgnorePriv ->
-      Just <$> ((,,)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
-        <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
-    OADisabled ->
-      pure Nothing
-
-writeQuery :: MutateReadPlan -> ApiRequest -> AppConfig  -> DbHandler ResultSet
-writeQuery MutateReadPlan{..} ApiRequest{iPreferences=Preferences{..}} conf =
-  let
-    (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
-  in
-  lift . SQL.statement mempty $
-    Statements.prepareWrite
-      (QueryBuilder.readPlanToQuery mrReadPlan)
-      (QueryBuilder.mutatePlanToQuery mrMutatePlan)
-      isInsert
-      isPut
-      mrMedia
-      mrHandler
-      preferRepresentation
-      preferResolution
-      pkCols
-      (configDbPreparedStatements conf)
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one

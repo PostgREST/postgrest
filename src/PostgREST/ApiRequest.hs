@@ -11,9 +11,7 @@ module PostgREST.ApiRequest
   , Mutation(..)
   , MediaType(..)
   , Action(..)
-  , ActionRelation(..)
-  , ActionRoutine(..)
-  , ActionSchema(..)
+  , DbAction(..)
   , Payload(..)
   , userApiRequest
   ) where
@@ -92,23 +90,17 @@ data Resource
   | ResourceRoutine Text
   | ResourceSchema
 
-data ActionRelation
-  = ActRead Bool
-  | ActMutate Mutation
-  | ActRelInfo
-
-data ActionRoutine
-  = ActInvoke InvokeMethod
-  | ActRoutInfo
-
-data ActionSchema
-  = ActSchemaRead Bool
-  | ActSchemaInfo
+data DbAction
+  = ActRelationRead {dbActQi :: QualifiedIdentifier, actHeadersOnly :: Bool}
+  | ActRelationMut  {dbActQi :: QualifiedIdentifier, actMutation :: Mutation}
+  | ActRoutine      {dbActQi :: QualifiedIdentifier, actInvMethod :: InvokeMethod}
 
 data Action
-  = ActRelation QualifiedIdentifier ActionRelation
-  | ActRoutine QualifiedIdentifier ActionRoutine
-  | ActSchema Schema ActionSchema
+  = ActDb           DbAction
+  | ActSchemaRead   Schema Bool
+  | ActRelationInfo QualifiedIdentifier
+  | ActRoutineInfo  QualifiedIdentifier
+  | ActSchemaInfo   Schema
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -168,7 +160,7 @@ userApiRequest conf req reqBody sCache = do
     iHdrs = [ (CI.foldedCase k, v) | (k,v) <- hdrs, k /= hCookie]
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
-    actIsInvokeSafe x = case x of {ActRoutine _  (ActInvoke (InvRead _)) -> True; _ -> False}
+    actIsInvokeSafe x = case x of {ActDb (ActRoutine _  (InvRead _)) -> True; _ -> False}
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
@@ -183,23 +175,23 @@ getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
 getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
 getAction resource schema method =
   case (resource, method) of
-    (ResourceRoutine rout, "HEAD")    -> Right $ ActRoutine (qi rout) $ ActInvoke $ InvRead True
-    (ResourceRoutine rout, "GET")     -> Right $ ActRoutine (qi rout) $ ActInvoke $ InvRead False
-    (ResourceRoutine rout, "POST")    -> Right $ ActRoutine (qi rout) $ ActInvoke Inv
-    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutine (qi rout) ActRoutInfo
+    (ResourceRoutine rout, "HEAD")    -> Right . ActDb $ ActRoutine (qi rout) $ InvRead True
+    (ResourceRoutine rout, "GET")     -> Right . ActDb $ ActRoutine (qi rout) $ InvRead False
+    (ResourceRoutine rout, "POST")    -> Right . ActDb $ ActRoutine (qi rout) Inv
+    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutineInfo (qi rout)
     (ResourceRoutine _, _)            -> Left $ InvalidRpcMethod method
 
-    (ResourceRelation rel, "HEAD")    -> Right $ ActRelation (qi rel) $ ActRead True
-    (ResourceRelation rel, "GET")     -> Right $ ActRelation (qi rel) $ ActRead False
-    (ResourceRelation rel, "POST")    -> Right $ ActRelation (qi rel) $ ActMutate MutationCreate
-    (ResourceRelation rel, "PUT")     -> Right $ ActRelation (qi rel) $ ActMutate MutationSingleUpsert
-    (ResourceRelation rel, "PATCH")   -> Right $ ActRelation (qi rel) $ ActMutate MutationUpdate
-    (ResourceRelation rel, "DELETE")  -> Right $ ActRelation (qi rel) $ ActMutate MutationDelete
-    (ResourceRelation rel, "OPTIONS") -> Right $ ActRelation (qi rel) ActRelInfo
+    (ResourceRelation rel, "HEAD")    -> Right . ActDb $ ActRelationRead (qi rel) True
+    (ResourceRelation rel, "GET")     -> Right . ActDb $ ActRelationRead (qi rel) False
+    (ResourceRelation rel, "POST")    -> Right . ActDb $ ActRelationMut  (qi rel) MutationCreate
+    (ResourceRelation rel, "PUT")     -> Right . ActDb $ ActRelationMut  (qi rel) MutationSingleUpsert
+    (ResourceRelation rel, "PATCH")   -> Right . ActDb $ ActRelationMut  (qi rel) MutationUpdate
+    (ResourceRelation rel, "DELETE")  -> Right . ActDb $ ActRelationMut  (qi rel) MutationDelete
+    (ResourceRelation rel, "OPTIONS") -> Right $ ActRelationInfo (qi rel)
 
-    (ResourceSchema, "HEAD")          -> Right $ ActSchema schema $ ActSchemaRead True
-    (ResourceSchema, "GET")           -> Right $ ActSchema schema $ ActSchemaRead False
-    (ResourceSchema, "OPTIONS")       -> Right $ ActSchema schema ActSchemaInfo
+    (ResourceSchema, "HEAD")          -> Right $ ActSchemaRead schema True
+    (ResourceSchema, "GET")           -> Right $ ActSchemaRead schema False
+    (ResourceSchema, "OPTIONS")       -> Right $ ActSchemaInfo schema
 
     _                                 -> Left $ UnsupportedMethod method
   where
@@ -279,20 +271,20 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
 
     shouldParsePayload = case action of
-      ActRelation _ (ActMutate MutationDelete) -> False
-      ActRelation _ (ActMutate _)              -> True
-      ActRoutine _  (ActInvoke Inv)            -> True
-      _                                        -> False
+      ActDb (ActRelationMut _ MutationDelete) -> False
+      ActDb (ActRelationMut _ _)              -> True
+      ActDb (ActRoutine _  Inv)               -> True
+      _                                       -> False
 
     columns = case action of
-      ActRelation _ (ActMutate MutationCreate) -> qsColumns
-      ActRelation _ (ActMutate MutationUpdate) -> qsColumns
-      ActRoutine  _ (ActInvoke Inv)            -> qsColumns
-      _                                        -> Nothing
+      ActDb (ActRelationMut _ MutationCreate) -> qsColumns
+      ActDb (ActRelationMut _ MutationUpdate) -> qsColumns
+      ActDb (ActRoutine     _ Inv)            -> qsColumns
+      _                                       -> Nothing
 
     isProc = case action of
-      ActRoutine _ _ -> True
-      _              -> False
+      ActDb (ActRoutine _ _) -> True
+      _                      -> False
     params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
 
 type CsvData = V.Vector (M.Map Text LBS.ByteString)
