@@ -302,6 +302,55 @@ ghci> decodeMediaType "application/json"
 MTApplicationJSON
 ```
 
+## Working with locally modified Haskell packages
+
+Sometimes, we need to modify Haskell libraries in order to debug them or enhance them.
+For example, if you want to debug the [`hasql-pool`](https://hackage.haskell.org/package/hasql-pool)
+library:
+
+First, copy the package to the repo root. We'll use GitHub in this example.
+
+```bash
+$ git clone --depth=1 --branch=0.10.1 https://github.com/nikita-volkov/hasql-pool.git
+$ rm -rf ./hasql-pool/.git
+```
+
+Then, pin the local package to the [`haskell-packages.nix`](./overlays/haskell-packages.nix) file.
+
+```nix
+  overrides =
+    # ...
+    rec {
+
+      # Different subpath may be needed if the cabal file is not in the library's base directory
+      hasql-pool = lib.dontCheck
+        (prev.callCabal2nixWithOptions "hasql-pool" ../../hasql-pool "--subpath=." {} );
+
+    };
+```
+
+Next, both [`cabal.project`](/cabal.project) and [`stack.yaml`](/stack.yaml) need to be updated
+with the local library:
+
+```cabal
+-- cabal.project
+packages:
+  ./hasql-pool/hasql-pool.cabal
+```
+
+```yaml
+# stack.yaml
+extra-deps:
+  - ./hasql-pool/hasql-pool.cabal
+```
+
+Lastly, run `nix-shell` to build the local package. You don't need to exit and
+enter the Nix shell every time you modify the library's code, re-executing
+`postgrest-run` should be enough.
+
+This is done for development purposes only. Local libraries must not be left
+in production ready code.
+
 ## Tour
 
 The following is not required for working on PostgREST with Nix, but it will

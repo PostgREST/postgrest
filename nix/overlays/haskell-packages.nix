@@ -34,6 +34,11 @@ let
       # - If the library fails its test suite (usually when it runs IO tests), wrap the expression with `lib.dontCheck ()`
       # - <subpath> is usually "."
       # - When adding a new library version here, postgrest.cabal and stack.yaml must also be updated
+      #
+      # Note:
+      # - This should NOT be the first place to start managing dependencies. Check postgrest.cabal.
+      # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
+      #
 
 
       configurator-pg =
