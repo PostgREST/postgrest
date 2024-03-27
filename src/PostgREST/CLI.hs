@@ -3,7 +3,8 @@
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.CLI
   ( main
-  , CLI (..)
+  , CLIOpts (..)
+  , Commands (..)
   , Command (..)
   , readCLIShowHelp
   ) where
@@ -30,8 +31,8 @@ import qualified PostgREST.Logger   as Logger
 import Protolude hiding (hPutStrLn)
 
 
-main :: CLI -> IO ()
-main CLI{cliCommand, cliPath} = do
+main :: CLIOpts -> IO ()
+main CLIOpts{example, command=Commands{..}} = do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
 
@@ -42,12 +43,15 @@ main CLI{cliCommand, cliPath} = do
   bracket
     (AppState.init conf $ Logger.logObservation loggerState)
     AppState.destroy
-    (\appState -> case cliCommand of
-      CmdDumpConfig -> do
+    (\appState -> case (example, cliCommand) of
+      (_, CmdDumpConfig) -> do
         when configDbConfig $ AppState.reReadConfig True appState (const $ pure ())
         putStr . Config.toText =<< AppState.getConfig appState
-      CmdDumpSchema -> putStrLn =<< dumpSchema appState
-      CmdRun -> App.run appState (Logger.logObservation loggerState))
+      (_, CmdDumpSchemaCache) -> putStrLn =<< dumpSchema appState
+      ("file", CmdRun)        -> putStrLn $ exampleConfig "file"
+      ("db", CmdRun)          -> putStrLn $ exampleConfig "db"
+      ("env", CmdRun)         -> putStrLn $ exampleConfig "env"
+      (_, CmdRun)     -> App.run appState (Logger.logObservation loggerState))
 
 -- | Dump SchemaCache schema to JSON
 dumpSchema :: AppState -> IO LBS.ByteString
@@ -64,8 +68,16 @@ dumpSchema appState = do
       exitFailure
     Right sCache -> return $ JSON.encode sCache
 
+
 -- | Command line interface options
-data CLI = CLI
+data CLIOpts = CLIOpts
+  { example :: Example
+  , command :: Commands
+  }
+
+type Example = [Char]
+
+data Commands = Commands
   { cliCommand :: Command
   , cliPath    :: Maybe FilePath
   }
@@ -73,16 +85,16 @@ data CLI = CLI
 data Command
   = CmdRun
   | CmdDumpConfig
-  | CmdDumpSchema
+  | CmdDumpSchemaCache
 
 -- | Read command line interface options. Also prints help.
-readCLIShowHelp :: IO CLI
+readCLIShowHelp :: IO CLIOpts
 readCLIShowHelp =
   O.customExecParser prefs opts
   where
     prefs = O.prefs $ O.showHelpOnError <> O.showHelpOnEmpty
     opts = O.info parser $ O.fullDesc <> progDesc
-    parser = O.helper <*> versionFlag <*> exampleParser <*> cliParser
+    parser = O.helper <*> versionFlag <*> cliParser
 
     progDesc =
       O.progDesc $
@@ -96,17 +108,19 @@ readCLIShowHelp =
         <> O.short 'v'
         <> O.help "Show the version information"
 
-    exampleParser =
-      O.infoOption exampleConfigFile $
-        O.long "example"
-        <> O.short 'e'
-        <> O.help "Show an example configuration file"
+    showExample :: O.Parser Example
+    showExample =
+      O.strOption $
+          O.long "example"
+          <> O.short 'e'
+          <> O.metavar "EXAMPLETYPE"
+          <> O.help "Type of config file/db/env"
 
-    cliParser :: O.Parser CLI
+    cliParser :: O.Parser CLIOpts
     cliParser =
-      CLI
-        <$> (dumpConfigFlag <|> dumpSchemaFlag)
-        <*> O.optional configFileOption
+      CLIOpts
+        <$> showExample
+        <*> (dumpConfigFlag <|> dumpSchemaCacheFlag)
 
     configFileOption =
       O.strArgument $
@@ -114,17 +128,20 @@ readCLIShowHelp =
         <> O.help "Path to configuration file"
 
     dumpConfigFlag =
-      O.flag CmdRun CmdDumpConfig $
+      Commands <$> (O.flag CmdRun CmdDumpConfig $
         O.long "dump-config"
-        <> O.help "Dump loaded configuration and exit"
+        <> O.help "Dump loaded configuration and exit")
+        <*> O.optional configFileOption
 
-    dumpSchemaFlag =
-      O.flag CmdRun CmdDumpSchema $
-        O.long "dump-schema"
-        <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+    dumpSchemaCacheFlag =
+      Commands <$> (O.flag CmdRun CmdDumpSchemaCache $
+        O.long "dump-schema-cache"
+        <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)")
+        <*> O.optional configFileOption
 
-exampleConfigFile :: [Char]
-exampleConfigFile =
+-- Shown in CLI "--example file"
+exampleConfig :: [Char] -> [Char]
+exampleConfig "file" =
   [str|## Admin server used for checks. It's disabled by default unless a port is specified.
       |# admin-server-port = 3001
       |
@@ -233,3 +250,152 @@ exampleConfigFile =
       |## When none is provided, 660 is applied by default
       |# server-unix-socket-mode = "660"
       |]
+exampleConfig "db" = -- Shown in CLI "--example db"
+  [str|## reloadable config options
+      |ALTER ROLE db_config_authenticator SET pgrst.admin_server_port = '3001';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_anon_role = 'anon';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_channel = 'pgrst';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_channel_enabled = 'true';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_config = 'true';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pre_config = 'postgrest.pre_config';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_extra_search_path = 'public';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_max_rows = '1000';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_plan_enabled = 'false';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pool = '10';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pool_acquisition_timeout = '10';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_lifetime = '1800';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_idletime = '30';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pool_automatic_recovery = 'true';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_pre_request = 'stored_proc_name';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_prepared_statements = 'true';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_schemas = 'public';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.db_uri = 'postgresql://';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.jwt_aut = 'your_audience_claim';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '.role';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.jwt_cache_max_lifetime = '0';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.log_level = 'error';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.openapi_mode = 'follow-privileges';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.openapi_server_proxy_uri = '';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_cors_allowed_origins = '';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_host = '!4';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_port = '3000';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_timing_enabled = 'false';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket = '/tmp/pgrst.sock';
+      |
+      |ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket_mods = '660';
+      |]
+exampleConfig "env" = -- Shown in CLI "--example env"
+  [str|## example env config
+      |PGRST_APP_SETTINGS_test2: test
+      |
+      |PGRST_APP_SETTINGS_test: test
+      |
+      |PGRST_DB_AGGREGATES_ENABLED: true
+      |
+      |PGRST_DB_ANON_ROLE: root
+      |
+      |PGRST_DB_CHANNEL: postgrest
+      |
+      |PGRST_DB_CHANNEL_ENABLED: false
+      |
+      |PGRST_DB_EXTRA_SEARCH_PATH: public, test
+      |
+      |PGRST_DB_MAX_ROWS: 1000
+      |
+      |PGRST_DB_PLAN_ENABLED: true
+      |
+      |PGRST_DB_POOL: 1
+      |
+      |PGRST_DB_POOL_ACQUISITION_TIMEOUT: 30
+      |
+      |PGRST_DB_POOL_MAX_LIFETIME: 3600
+      |
+      |PGRST_DB_POOL_MAX_IDLETIME: 60
+      |
+      |PGRST_DB_POOL_AUTOMATIC_RECOVERY: false
+      |
+      |PGRST_DB_PREPARED_STATEMENTS: false
+      |
+      |PGRST_DB_PRE_REQUEST: please_run_fast
+      |
+      |PGRST_DB_ROOT_SPEC: openapi_v3
+      |
+      |PGRST_DB_SCHEMAS: multi,   tenant,setup
+      |
+      |PGRST_DB_CONFIG: false
+      |
+      |PGRST_DB_PRE_CONFIG: "postgrest.pre_config"
+      |
+      |PGRST_DB_TX_END: rollback-allow-override
+      |
+      |PGRST_DB_URI: tmp_db
+      |
+      |PGRST_DB_USE_LEGACY_GUCS: false
+      |
+      |PGRST_JWT_AUD: 'https://postgrest.org'
+      |
+      |PGRST_JWT_ROLE_CLAIM_KEY: '.user[0]."real-role"'
+      |
+      |PGRST_JWT_SECRET: c2VjdXJpdHl0aHJvdWdob2JzY3VyaXR5
+      |
+      |PGRST_JWT_SECRET_IS_BASE64: true
+      |
+      |PGRST_JWT_CACHE_MAX_LIFETIME: 86400
+      |
+      |PGRST_LOG_LEVEL: info
+      |
+      |PGRST_OPENAPI_MODE: 'ignore-privileges'
+      |
+      |PGRST_OPENAPI_SECURITY_ACTIVE: true
+      |
+      |PGRST_OPENAPI_SERVER_PROXY_URI: 'https://postgrest.org'
+      |
+      |PGRST_SERVER_CORS_ALLOWED_ORIGINS: "http://example.com"
+      |
+      |PGRST_SERVER_HOST: 0.0.0.0
+      |
+      |PGRST_SERVER_PORT: 80
+      |
+      |PGRST_SERVER_TRACE_HEADER: X-Request-Id
+      |
+      |PGRST_SERVER_TIMING_ENABLED: true
+      |
+      |PGRST_SERVER_UNIX_SOCKET: /tmp/pgrst_io_test.sock
+      |
+      |PGRST_SERVER_UNIX_SOCKET_MODE: 777
+      |
+      |PGRST_ADMIN_SERVER_PORT: 3001
+      |]
+exampleConfig _ = "print error" -- unreachable

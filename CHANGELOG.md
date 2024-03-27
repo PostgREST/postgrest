@@ -13,6 +13,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3171, #3046, Log schema cache stats to stderr - @steve-chavez
  - #3210, Dump schema cache through admin API - @taimoorzaeem
  - #2676, Performance improvement on bulk json inserts, around 10% increase on requests per second by removing `json_typeof` from write queries - @steve-chavez
+ - #3248, Add config type to ``--example`` in CLI - @taimoorzaeem
+   + ``--example`` now accepts ``file/env/db``
 
 ### Fixed
 
