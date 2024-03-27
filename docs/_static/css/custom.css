@@ -28,6 +28,7 @@ div.line-block {
 
 #sponsors img{
   margin: 10px;
+  width: 13em; /* ".. image::" does not apply width properly to SVGs */
 }
 
 #thanks{
@@ -92,4 +93,59 @@ div.line-block {
 
 #api span.caption-text {
     display: none;
+}
+
+/* Tweaks for dark mode from extension: sphinx-rtd-dark-theme */
+
+html[data-theme="dark"] .highlight {
+  background-color: #17181c !important;
+}
+
+html[data-theme="dark"] .sphinx-tabs-tab {
+  color: var(--dark-link-color);
+}
+
+html[data-theme="dark"] .sphinx-tabs-panel {
+  border: 1px solid #404040;
+  border-top: 0;
+  background: #141414;
+}
+
+html[data-theme="dark"] .sphinx-tabs-tab[aria-selected="true"] {
+  border: 1px solid #404040;
+  border-bottom: 1px solid #141414;
+  background-color: #141414;
+}
+
+html[data-theme="dark"] [role="tablist"] {
+  border-bottom: 1px solid #404040;
+}
+
+html[data-theme="dark"] .btn-neutral {
+  color: white !important;
+}
+
+html[data-theme="dark"] .img-dark {
+  display: inline;
+}
+
+html:not([data-theme="dark"]) .img-dark {
+  display: none;
+}
+
+html[data-theme="dark"] .img-light {
+  display: none;
+}
+
+html:not([data-theme="dark"]) .img-light {
+  display: inline;
+}
+
+html[data-theme="dark"] .img-translucent img {
+  background-color: #cccccc;
+}
+
+.img-translucent img {
+  transition: background-color 0.3s;
+  margin-bottom: 24px;
 }

@@ -16,6 +16,7 @@ let
     ps.sphinx-tabs
     ps.sphinx-copybutton
     ps.sphinxext-opengraph
+    (ps.callPackage ../docs-extensions/sphinx-rtd-dark-mode.nix { })
     # TODO: Remove override once new sphinx-intl version (> 2.1.0) is released and available in nixpkgs
     (ps.sphinx-intl.overrideAttrs (drv: { nativeBuildInputs = drv.nativeBuildInputs ++ [ ps.six ]; }))
   ];
