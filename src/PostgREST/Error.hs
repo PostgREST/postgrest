@@ -17,7 +17,7 @@ module PostgREST.Error
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
 import qualified Data.CaseInsensitive      as CI
-import qualified Data.FuzzySet.Simple      as Fuzzy
+import qualified Data.FuzzySet             as Fuzzy
 import qualified Data.HashMap.Strict       as HM
 import qualified Data.Map.Internal         as M
 import qualified Data.Text                 as T
@@ -293,9 +293,9 @@ noRelBetweenHint parent child schema allRels = ("Perhaps you meant '" <>) <$>
     findParent = HM.lookup (QualifiedIdentifier schema parent, schema) allRels
     fuzzySetOfParents  = Fuzzy.fromList [qiName (fst p) | p <- HM.keys allRels, snd p == schema]
     fuzzySetOfChildren = Fuzzy.fromList [qiName (relForeignTable c) | c <- fromMaybe [] findParent]
-    suggestParent = snd <$> Fuzzy.findOne parent fuzzySetOfParents
+    suggestParent = Fuzzy.getOne fuzzySetOfParents parent
     -- Do not give suggestion if the child is found in the relations (weight = 1.0)
-    suggestChild  = headMay [snd k | k <- Fuzzy.find child fuzzySetOfChildren, fst k < 1.0]
+    suggestChild  = headMay [snd k | k <- Fuzzy.get fuzzySetOfChildren child, fst k < 1.0]
 
 -- |
 -- If no function is found with the given name, it does a fuzzy search to all the functions
@@ -345,8 +345,8 @@ noRpcHint schema procName params allProcs overloadedProcs =
     -- E.g. ["val", "param", "name"] into "(name, param, val)"
     listToText       = ("(" <>) . (<> ")") . T.intercalate ", " . sort
     possibleProcs
-      | null overloadedProcs = snd <$> Fuzzy.findOne procName fuzzySetOfProcs
-      | otherwise            = (procName <>) . snd <$> Fuzzy.findOne (listToText params) fuzzySetOfParams
+      | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
+      | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

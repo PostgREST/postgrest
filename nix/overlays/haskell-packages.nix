@@ -50,8 +50,15 @@ let
           }
           { };
 
-      # Marked as broken (?)
-      fuzzyset = lib.markUnbroken prev.fuzzyset;
+      # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
+      fuzzyset =
+        prev.callHackageDirect
+          {
+            pkg = "fuzzyset";
+            ver = "0.2.4";
+            sha256 = "sha256-lpkrTFcR0B4rT/P6x7ui31Twgq7BBj6KIvjKyqXKdpc=";
+          }
+          { };
 
       postgresql-libpq = lib.dontCheck
         (prev.postgresql-libpq_0_10_0_0.override {

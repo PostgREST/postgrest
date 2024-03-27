@@ -12,12 +12,12 @@ packages:
   original:
     hackage: configurator-pg-0.2.7
 - completed:
-    hackage: fuzzyset-0.3.1@sha256:344e16deedb43da5cabae558450e5710843cff7ac2f3073be9db453c6f3a3fb7,2373
+    hackage: fuzzyset-0.2.4@sha256:f1b6de8bf33277bf6255207541d65028f1f1ea93af5541b654c86b5674995485,1618
     pantry-tree:
-      sha256: 89e22c2ce70a7c7c4b599ffe2546cda5699e4f8f15410eac49f39af8c4c381c8
-      size: 643
+      sha256: cee68e8d88f530e9e0588b81b260236936fe3318ef9a66e9f43f680b4cd5f76e
+      size: 574
   original:
-    hackage: fuzzyset-0.3.1
+    hackage: fuzzyset-0.2.4
 - completed:
     hackage: hasql-notifications-0.2.1.0@sha256:c9c0ba3ac0866142836d2d0a08a0d10a945bcbe1c163ee1ef6aed407d046a24e,2022
     pantry-tree:
