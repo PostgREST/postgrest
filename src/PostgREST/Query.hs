@@ -1,11 +1,11 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Query
-  ( openApiQuery
-  , actionQuery
+  ( actionQuery
   , setPgLocals
   , runPreReq
   , DbHandler
+  , QueryResult (..)
   ) where
 
 import qualified Data.Aeson                        as JSON
@@ -41,6 +41,7 @@ import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (ActionPlan (..),
+                                          DbActionPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Plan.ReadPlan           (ReadPlanTree)
@@ -59,9 +60,13 @@ import Protolude hiding (Handler)
 
 type DbHandler = ExceptT Error SQL.Transaction
 
-actionQuery :: ActionPlan -> AppConfig -> ApiRequest -> PgVersion -> DbHandler ResultSet
+data QueryResult
+  = DbResult      DbActionPlan ResultSet
+  | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
 
-actionQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionQuery :: ActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> DbHandler QueryResult
+
+actionQuery (Db plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -79,37 +84,37 @@ actionQuery WrappedReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreference
         configDbPreparedStatements
   failNotSingular wrMedia resultSet
   optionalRollback conf apiReq
-  resultSetWTotal conf apiReq resultSet countQuery
+  DbResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
-actionQuery MutateReadPlan{mrMutation=MutationCreate, ..} conf apiReq _ = do
+actionQuery (Db plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf apiReq _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   optionalRollback conf apiReq
-  pure resultSet
+  pure $ DbResult plan resultSet
 
-actionQuery MutateReadPlan{mrMutation=MutationUpdate, ..} conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
+actionQuery (Db plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
-  pure resultSet
+  pure $ DbResult plan resultSet
 
-actionQuery MutateReadPlan{mrMutation=MutationSingleUpsert, ..} conf apiReq _ = do
+actionQuery (Db plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failPut resultSet
   optionalRollback conf apiReq
-  pure resultSet
+  pure $ DbResult plan resultSet
 
-actionQuery MutateReadPlan{mrMutation=MutationDelete, ..} conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
+actionQuery (Db plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
-  pure resultSet
+  pure $ DbResult plan resultSet
 
-actionQuery CallReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer = do
+actionQuery (Db plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -125,25 +130,23 @@ actionQuery CallReadPlan{..} conf@AppConfig{..} apiReq@ApiRequest{iPreferences=P
   optionalRollback conf apiReq
   failNotSingular crMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  pure resultSet
+  pure $ DbResult plan resultSet
 
-openApiQuery :: InspectPlan -> AppConfig -> SchemaCache -> PgVersion -> DbHandler (Maybe (TablesMap, RoutineMap, Maybe Text))
-openApiQuery InspectPlan{ipSchema=tSchema} AppConfig{..} sCache pgVer =
+actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ pgVer sCache =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
       tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables pgVer configDbPreparedStatements)
-      Just <$> ((,,)
+      MaybeDbResult plan . Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
         <$> SQL.statement tSchema (SchemaCache.accessibleFuncs pgVer configDbPreparedStatements)
         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
-      Just <$> ((,,)
+      MaybeDbResult plan . Just <$> ((,,)
             (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
             (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
         <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OADisabled ->
-      pure Nothing
-
+      pure $ MaybeDbResult plan Nothing
 
 writeQuery :: ReadPlanTree -> MutatePlan -> MediaType -> MediaHandler -> ApiRequest -> AppConfig  -> DbHandler ResultSet
 writeQuery readPlan mutatePlan mType mHandler ApiRequest{iPreferences=Preferences{..}} conf =

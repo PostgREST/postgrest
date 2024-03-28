@@ -94,10 +94,10 @@ data DbAction
   = ActRelationRead {dbActQi :: QualifiedIdentifier, actHeadersOnly :: Bool}
   | ActRelationMut  {dbActQi :: QualifiedIdentifier, actMutation :: Mutation}
   | ActRoutine      {dbActQi :: QualifiedIdentifier, actInvMethod :: InvokeMethod}
+  | ActSchemaRead   Schema Bool
 
 data Action
   = ActDb           DbAction
-  | ActSchemaRead   Schema Bool
   | ActRelationInfo QualifiedIdentifier
   | ActRoutineInfo  QualifiedIdentifier
   | ActSchemaInfo
@@ -189,8 +189,8 @@ getAction resource schema method =
     (ResourceRelation rel, "DELETE")  -> Right . ActDb $ ActRelationMut  (qi rel) MutationDelete
     (ResourceRelation rel, "OPTIONS") -> Right $ ActRelationInfo (qi rel)
 
-    (ResourceSchema, "HEAD")          -> Right $ ActSchemaRead schema True
-    (ResourceSchema, "GET")           -> Right $ ActSchemaRead schema False
+    (ResourceSchema, "HEAD")          -> Right . ActDb $ ActSchemaRead schema True
+    (ResourceSchema, "GET")           -> Right . ActDb $ ActSchemaRead schema False
     (ResourceSchema, "OPTIONS")       -> Right ActSchemaInfo
 
     _                                 -> Left $ UnsupportedMethod method
