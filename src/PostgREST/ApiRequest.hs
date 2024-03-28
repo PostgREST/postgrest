@@ -46,6 +46,7 @@ import Web.Cookie                (parseCookies)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.ApiRequest.Types        (ApiRequestError (..),
+                                          ColumnItem (..),
                                           RangeError (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
@@ -55,8 +56,7 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           hasLimitZero,
                                           rangeRequested)
 import PostgREST.SchemaCache             (SchemaCache (..))
-import PostgREST.SchemaCache.Identifiers (FieldName,
-                                          QualifiedIdentifier (..),
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           Schema)
 
 import qualified PostgREST.ApiRequest.Preferences as Preferences
@@ -117,7 +117,7 @@ data ApiRequest = ApiRequest {
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
   , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
   , iQueryParams         :: QueryParams.QueryParams
-  , iColumns             :: S.Set (Tree FieldName)           -- ^ parsed colums from &columns parameter and payload
+  , iColumns             :: S.Set (Tree ColumnItem)          -- ^ parsed colums from &columns parameter and payload
   , iHeaders             :: [(ByteString, ByteString)]       -- ^ HTTP request headers
   , iCookies             :: [(ByteString, ByteString)]       -- ^ Request Cookies
   , iPath                :: ByteString                       -- ^ Raw request path
@@ -237,12 +237,12 @@ getRanges method QueryParams{qsOrder,qsRanges} hdrs
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
 
-getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set (Tree FieldName))
+getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set (Tree ColumnItem))
 getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
   checkedPayload <- if shouldParsePayload then payload else Right Nothing
   let cols = case (checkedPayload, columns) of
-        (Just ProcessedJSON{payKeys}, _)       -> S.map (`Node` []) payKeys
-        (Just ProcessedUrlEncoded{payKeys}, _) -> S.map (`Node` []) payKeys
+        (Just ProcessedJSON{payKeys}, _)       -> S.map ((`Node` []) . ColumnField) payKeys
+        (Just ProcessedUrlEncoded{payKeys}, _) -> S.map ((`Node` []) . ColumnField) payKeys
         (Just RawJSON{}, Just cls)             -> S.fromList cls
         _                                      -> S.empty
   return (checkedPayload, cols)
