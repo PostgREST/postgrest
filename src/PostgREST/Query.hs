@@ -53,7 +53,8 @@ import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Routine     (MediaHandler, RoutineMap)
+import PostgREST.SchemaCache.Routine     (MediaHandler, Routine (..),
+                                          RoutineMap)
 import PostgREST.SchemaCache.Table       (TablesMap)
 
 import Protolude hiding (Handler)
@@ -238,9 +239,8 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Rollback
 
 -- | Set transaction scoped settings
-setPgLocals :: AppConfig  -> KM.KeyMap JSON.Value -> BS.ByteString -> [(ByteString, ByteString)] ->
-               [(Text,Text)] -> ApiRequest -> DbHandler ()
-setPgLocals AppConfig{..} claims role roleSettings funcSettings ApiRequest{..} = lift $
+setPgLocals :: ActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
+setPgLocals actPlan AppConfig{..} claims role ApiRequest{..} = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
@@ -253,13 +253,16 @@ setPgLocals AppConfig{..} claims role roleSettings funcSettings ApiRequest{..} =
     cookiesSql = setConfigWithConstantNameJSON "request.cookies" iCookies
     claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
     roleSql = [setConfigWithConstantName ("role", role)]
-    roleSettingsSql = setConfigWithDynamicName <$> roleSettings
+    roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup role configRoleSettings)
     appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
     funcSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> funcSettings)
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)
+    funcSettings = case actPlan of
+      Db CallReadPlan{crProc} -> pdFuncSettings crProc
+      _                       -> mempty
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()

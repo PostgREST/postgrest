@@ -22,7 +22,8 @@ module PostgREST.Plan
   , InspectPlan(..)
   , inspectPlan
   , callReadPlan
-  , actionPlanTxMode
+  , planTxMode
+  , planIsoLvl
   ) where
 
 import qualified Data.ByteString.Lazy          as LBS
@@ -127,9 +128,16 @@ data InspectPlan = InspectPlan {
 
 data ActionPlan = Db DbActionPlan | MaybeDb InspectPlan
 
-actionPlanTxMode :: ActionPlan -> SQL.Mode
-actionPlanTxMode (Db x)      = pTxMode x
-actionPlanTxMode (MaybeDb x) = ipTxmode x
+planTxMode :: ActionPlan -> SQL.Mode
+planTxMode (Db x)      = pTxMode x
+planTxMode (MaybeDb x) = ipTxmode x
+
+planIsoLvl :: AppConfig -> ByteString -> ActionPlan -> SQL.IsolationLevel
+planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
+  Db CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
+  _                       -> roleIsoLvl
+  where
+    roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
 actionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan dbAct conf apiReq sCache = case dbAct of

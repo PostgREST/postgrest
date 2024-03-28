@@ -9,7 +9,6 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
-{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( postgrest
@@ -24,7 +23,6 @@ import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 
-import qualified Data.HashMap.Strict        as HM
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.Wai                as Wai
@@ -54,7 +52,6 @@ import PostgREST.Query                (DbHandler)
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
-import PostgREST.SchemaCache.Routine  (Routine (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8 as BS
@@ -172,7 +169,10 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
   case iAction of
     ActDb dbAct -> do
       (planTime', plan) <- withTiming $ liftEither $ Plan.actionPlan dbAct conf apiReq sCache
-      (txTime', queryResult) <- withTiming $ runQuery (planIsoLvl plan) (planFunSettings plan) (Plan.actionPlanTxMode plan) $ Query.actionQuery plan conf apiReq pgVer sCache
+      (txTime', queryResult) <- withTiming $ runDbHandler appState conf (Plan.planIsoLvl conf authRole plan) (Plan.planTxMode plan) authenticated prepared observer $ do
+        Query.setPgLocals plan conf authClaims authRole apiReq
+        Query.runPreReq conf
+        Query.actionQuery plan conf apiReq pgVer sCache
       (respTime', pgrst) <- withTiming $ liftEither $ Response.actionResponse queryResult (dbActQi dbAct) apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
@@ -190,20 +190,6 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
   where
-    roleSettings = fromMaybe mempty (HM.lookup authRole $ configRoleSettings conf)
-    roleIsoLvl = HM.findWithDefault SQL.ReadCommitted authRole $ configRoleIsoLvl conf
-    runQuery isoLvl funcSets mode query =
-      runDbHandler appState conf isoLvl mode authenticated prepared observer $ do
-        Query.setPgLocals conf authClaims authRole (HM.toList roleSettings) funcSets apiReq
-        Query.runPreReq conf
-        query
-
-    planIsoLvl (Plan.Db Plan.CallReadPlan{crProc}) = fromMaybe roleIsoLvl $ pdIsoLvl crProc
-    planIsoLvl _ = roleIsoLvl
-
-    planFunSettings (Plan.Db Plan.CallReadPlan{crProc}) = pdFuncSettings crProc
-    planFunSettings _ = mempty
-
     pgrstResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
     pgrstResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled conf])) bod
 
