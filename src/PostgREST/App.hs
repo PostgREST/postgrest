@@ -172,14 +172,8 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
   case iAction of
     ActDb dbAct -> do
       (planTime', plan) <- withTiming $ liftEither $ Plan.actionPlan dbAct conf apiReq sCache
-      (txTime', resultSet) <- withTiming $ runQuery (planIsoLvl plan) (planFunSettings plan) (Plan.pTxMode plan) $ Query.actionQuery plan conf apiReq pgVer
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.actionResponse plan (dbActQi dbAct) apiReq resultSet
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActSchemaRead tSchema headersOnly -> do
-      (planTime', iPlan) <- withTiming $ liftEither $ Plan.inspectPlan apiReq headersOnly tSchema
-      (txTime', oaiResult) <- withTiming $ runQuery roleIsoLvl mempty (Plan.ipTxmode iPlan) $ Query.openApiQuery iPlan conf sCache pgVer
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.openApiResponse iPlan (T.decodeUtf8 prettyVersion, docsVersion) oaiResult conf sCache iSchema iNegotiatedByProfile
+      (txTime', queryResult) <- withTiming $ runQuery (planIsoLvl plan) (planFunSettings plan) (Plan.actionPlanTxMode plan) $ Query.actionQuery plan conf apiReq pgVer sCache
+      (respTime', pgrst) <- withTiming $ liftEither $ Response.actionResponse queryResult (dbActQi dbAct) apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
 
     ActRelationInfo identifier -> do
@@ -204,10 +198,10 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
         Query.runPreReq conf
         query
 
-    planIsoLvl (Plan.CallReadPlan{crProc}) = fromMaybe roleIsoLvl $ pdIsoLvl crProc
+    planIsoLvl (Plan.Db Plan.CallReadPlan{crProc}) = fromMaybe roleIsoLvl $ pdIsoLvl crProc
     planIsoLvl _ = roleIsoLvl
 
-    planFunSettings (Plan.CallReadPlan{crProc}) = pdFuncSettings crProc
+    planFunSettings (Plan.Db Plan.CallReadPlan{crProc}) = pdFuncSettings crProc
     planFunSettings _ = mempty
 
     pgrstResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response

@@ -18,9 +18,11 @@ resource.
 module PostgREST.Plan
   ( actionPlan
   , ActionPlan(..)
+  , DbActionPlan(..)
   , InspectPlan(..)
   , inspectPlan
   , callReadPlan
+  , actionPlanTxMode
   ) where
 
 import qualified Data.ByteString.Lazy          as LBS
@@ -90,7 +92,7 @@ import Protolude hiding (from)
 -- Setup for doctests
 -- >>> import Data.Ranged.Ranges (fullRange)
 
-data ActionPlan
+data DbActionPlan
   = WrappedReadPlan
   { wrReadPlan :: ReadPlanTree
   , pTxMode    :: SQL.Mode
@@ -123,23 +125,31 @@ data InspectPlan = InspectPlan {
   , ipSchema   :: Schema
   }
 
+data ActionPlan = Db DbActionPlan | MaybeDb InspectPlan
+
+actionPlanTxMode :: ActionPlan -> SQL.Mode
+actionPlanTxMode (Db x)      = pTxMode x
+actionPlanTxMode (MaybeDb x) = ipTxmode x
+
 actionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan dbAct conf apiReq sCache = case dbAct of
   ActRelationRead identifier headersOnly ->
-    wrappedReadPlan identifier conf sCache apiReq headersOnly
+    Db <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
   ActRelationMut identifier mut ->
-    mutateReadPlan mut apiReq identifier conf sCache
+    Db <$> mutateReadPlan mut apiReq identifier conf sCache
   ActRoutine identifier invMethod ->
-    callReadPlan identifier conf sCache apiReq invMethod
+    Db <$> callReadPlan identifier conf sCache apiReq invMethod
+  ActSchemaRead tSchema headersOnly ->
+    MaybeDb <$> inspectPlan apiReq headersOnly tSchema
 
-wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error ActionPlan
+wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error DbActionPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
   rPlan <- readPlan identifier conf sCache apiRequest
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly
 
-mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error ActionPlan
+mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error DbActionPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
@@ -147,7 +157,7 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation
 
-callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error ActionPlan
+callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error DbActionPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
