@@ -100,7 +100,7 @@ data Action
   | ActSchemaRead   Schema Bool
   | ActRelationInfo QualifiedIdentifier
   | ActRoutineInfo  QualifiedIdentifier
-  | ActSchemaInfo   Schema
+  | ActSchemaInfo
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -191,7 +191,7 @@ getAction resource schema method =
 
     (ResourceSchema, "HEAD")          -> Right $ ActSchemaRead schema True
     (ResourceSchema, "GET")           -> Right $ ActSchemaRead schema False
-    (ResourceSchema, "OPTIONS")       -> Right $ ActSchemaInfo schema
+    (ResourceSchema, "OPTIONS")       -> Right ActSchemaInfo
 
     _                                 -> Left $ UnsupportedMethod method
   where

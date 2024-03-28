@@ -9,6 +9,7 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.App
   ( postgrest
@@ -190,7 +191,7 @@ handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@A
       (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
       return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
 
-    ActSchemaInfo _ -> do
+    ActSchemaInfo -> do
       (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
       return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
 
