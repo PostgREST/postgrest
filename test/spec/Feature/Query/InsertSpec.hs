@@ -453,7 +453,7 @@ spec actualPgVersion = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|{"code":"PGRST204","details":null,"hint":null,"message":"Column 'helicopter' of relation 'articles' does not exist"} |]
+          [json|{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopter' column of 'articles' in the schema cache"} |]
           { matchStatus  = 400
           , matchHeaders = []
           }
@@ -835,7 +835,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos?columns=id,label_color,helicopters&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
             [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
-            [json| {"code":"PGRST204","message":"Column 'helicopters' of relation 'datarep_todos' does not exist","details":null,"hint":null} |]
+            [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
               }
@@ -890,7 +890,7 @@ spec actualPgVersion = do
           request methodPost "/datarep_todos_computed?columns=id,label_color,helicopters&select=id,name,label_color,due_at" [("Prefer", "return=representation")]
             [json| {"due_at": "2019-01-03T11:00:00+00", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
-            [json| {"code":"PGRST204","message":"Column 'helicopters' of relation 'datarep_todos_computed' does not exist","details":null,"hint":null} |]
+            [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos_computed' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
               }

@@ -333,7 +333,7 @@ spec actualPgVersion = do
           [("Prefer", "return=representation")]
           [json|{"body": "yyy"}|]
           `shouldRespondWith`
-          [json|{"code":"PGRST204","details":null,"hint":null,"message":"Column 'helicopter' of relation 'articles' does not exist"} |]
+          [json|{"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopter' column of 'articles' in the schema cache"}|]
           { matchStatus  = 400
           , matchHeaders = []
           }
@@ -879,7 +879,7 @@ spec actualPgVersion = do
           request methodPatch "/datarep_todos?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
             [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
-            [json| {"code":"PGRST204","message":"Column 'helicopters' of relation 'datarep_todos' does not exist","details":null,"hint":null} |]
+            [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
               }
@@ -969,7 +969,7 @@ spec actualPgVersion = do
             request methodPatch "/datarep_todos_computed?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
               [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
               `shouldRespondWith`
-              [json| {"code":"PGRST204","message":"Column 'helicopters' of relation 'datarep_todos_computed' does not exist","details":null,"hint":null} |]
+              [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos_computed' in the schema cache"} |]
                 { matchStatus  = 400
                 , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
                 }
