@@ -249,7 +249,7 @@ instance JSON.ToJSON ApiRequestError where
     (Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved")
 
   toJSON (ColumnNotFound relName colName) = toJsonPgrstError
-    SchemaCacheErrorCode04 ("Column '" <> colName <> "' of relation '" <> relName <> "' does not exist") Nothing Nothing
+    SchemaCacheErrorCode04 ("Could not find the '" <> colName <> "' column of '" <> relName <> "' in the schema cache") Nothing Nothing
 
 -- |
 -- If no relationship is found then:
