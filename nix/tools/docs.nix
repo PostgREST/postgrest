@@ -59,6 +59,24 @@ let
       '';
 
   render =
+    let
+      pdflatex = texlive.combine {
+        inherit (texlive)
+          amsmath
+          booktabs
+          cancel
+          gensymb
+          mathdots
+          multirow
+          pgf
+          pgf-blur
+          scheme-basic
+          siunitx
+          standalone
+          yhmath
+          ;
+      };
+    in
     checkedShellScript
       {
         name = "postgrest-docs-render";
@@ -67,7 +85,7 @@ let
         withTmpDir = true;
       }
       ''
-        ${texlive.combined.scheme-full}/bin/pdflatex -halt-on-error -output-directory="$tmpdir" db.tex
+        ${pdflatex}/bin/pdflatex -halt-on-error -output-directory="$tmpdir" db.tex
         ${imagemagick}/bin/convert -density 300 "$tmpdir/db.pdf" ../_static/db.png
       '';
 
