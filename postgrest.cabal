@@ -121,7 +121,7 @@ library
                     , mtl                       >= 2.2.2 && < 2.4
                     , network                   >= 2.6 && < 3.2
                     , network-uri               >= 2.6.1 && < 2.8
-                    , optparse-applicative      >= 0.13 && < 0.18
+                    , optparse-applicative      >= 0.13 && < 0.19
                     , parsec                    >= 3.1.11 && < 3.2
                     , postgresql-libpq          >= 0.10
                     , protolude                 >= 0.3.1 && < 0.4
