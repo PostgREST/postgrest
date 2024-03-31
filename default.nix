@@ -1,11 +1,22 @@
-{ system ? builtins.currentSystem }:
+{ system ? builtins.currentSystem
+
+, compiler ? "ghc948"
+
+, # Commit of the Nixpkgs repository that we want to use.
+  nixpkgsVersion ? import nix/nixpkgs-version.nix
+
+, # Nix files that describe the Nixpkgs repository. We evaluate the expression
+  # using `import` below.
+  nixpkgs ? let inherit (nixpkgsVersion) owner repo rev tarballHash; in
+  builtins.fetchTarball {
+    url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
+    sha256 = tarballHash;
+  }
+}:
 
 let
   name =
     "postgrest";
-
-  compiler =
-    "ghc948";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
   # and file extensions. We want to include as litte as possible, as the files
@@ -15,18 +26,6 @@ let
     pkgs.lib.sourceFilesBySuffices
       (pkgs.gitignoreSource ./.)
       [ ".cabal" ".hs" ".lhs" "LICENSE" ];
-
-  # Commit of the Nixpkgs repository that we want to use.
-  nixpkgsVersion =
-    import nix/nixpkgs-version.nix;
-
-  # Nix files that describe the Nixpkgs repository. We evaluate the expression
-  # using `import` below.
-  nixpkgs = with nixpkgsVersion;
-    builtins.fetchTarball {
-      url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
-      sha256 = tarballHash;
-    };
 
   allOverlays =
     import nix/overlays;
