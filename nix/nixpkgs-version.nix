@@ -2,7 +2,7 @@
 {
   owner = "NixOS";
   repo = "nixpkgs";
-  date = "2024-01-06";
-  rev = "4bbf5a2eb6046c54f7a29a0964c642ebfe912cbc";
-  tarballHash = "03p45qdcxqxc41mmzmmyzbkff29vv95vv643z0kd3mf1s2nnsy5b";
+  date = "2024-04-20";
+  rev = "92d295f588631b0db2da509f381b4fb1e74173c5";
+  tarballHash = "162w28y4i5c8g5qhjvs827qxphf2a8n4c8fwhcywzl1j1a35h2im";
 }

@@ -44,37 +44,21 @@ let
       #   + For stack.yml.lock, CI should report an error with the correct lock, copy/paste that one into the file
       # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
 
-      configurator-pg =
-        prev.callHackageDirect
-          {
-            pkg = "configurator-pg";
-            ver = "0.2.9";
-            sha256 = "sha256-UqFiOgPlksbIdHBVO0wYhCnboB+mxKJcXVhY9C1V7Hg=";
-          }
-          { };
-
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
-      fuzzyset =
-        prev.callHackageDirect
+      # jailbreak, because hspec limit for tests
+      fuzzyset = lib.doJailbreak
+        (prev.callHackageDirect
           {
             pkg = "fuzzyset";
             ver = "0.2.4";
             sha256 = "sha256-lpkrTFcR0B4rT/P6x7ui31Twgq7BBj6KIvjKyqXKdpc=";
           }
-          { };
+          { });
 
-      hasql-pool =
-        lib.dontCheck (prev.callHackageDirect
-          {
-            pkg = "hasql-pool";
-            ver = "1.0.1";
-            sha256 = "sha256-Hf1f7lX0LWkjrb25SDBovCYPRdmUP1H6pAxzi7kT4Gg=";
-          }
-          { }
-        );
+      hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
 
       postgresql-libpq = lib.dontCheck
-        (prev.postgresql-libpq_0_10_0_0.override {
+        (prev.postgresql-libpq.override {
           postgresql = super.libpq;
         });
 
