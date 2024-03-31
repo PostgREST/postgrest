@@ -40,6 +40,8 @@ let
         cat > nix/nixpkgs-version.nix << EOF
         # Pinned version of Nixpkgs, generated with ${name}.
         {
+          owner = "NixOS";
+          repo = "nixpkgs";
           date = "$currentDate";
           rev = "$commitHash";
           tarballHash = "$tarballHash";
