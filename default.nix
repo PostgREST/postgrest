@@ -22,10 +22,10 @@ let
 
   # Nix files that describe the Nixpkgs repository. We evaluate the expression
   # using `import` below.
-  nixpkgs =
+  nixpkgs = with nixpkgsVersion;
     builtins.fetchTarball {
-      url = "https://github.com/nixos/nixpkgs/archive/${nixpkgsVersion.rev}.tar.gz";
-      sha256 = nixpkgsVersion.tarballHash;
+      url = "https://github.com/${owner}/${repo}/archive/${rev}.tar.gz";
+      sha256 = tarballHash;
     };
 
   nixpkgs-patched = (import nixpkgs { inherit overlays system; }).applyPatches {
