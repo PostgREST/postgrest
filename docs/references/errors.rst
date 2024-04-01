@@ -259,7 +259,7 @@ Related to the HTTP request elements.
 Group 2 - Schema Cache
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Related to a :ref:`stale schema cache <stale_schema>`. Most of the time, these errors are solved by :ref:`reloading the schema cache <schema_reloading>`.
+Related to a :ref:`schema_cache`. Most of the time, these errors are solved by :ref:`schema_reloading`.
 
 +---------------+-------------+-------------------------------------------------------------+
 | Code          | HTTP status | Description                                                 |
