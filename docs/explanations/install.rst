@@ -143,6 +143,9 @@ To avoid having to install the database at all, you can run both it and the serv
       environment:
         PGRST_DB_URI: postgres://app_user:password@db:5432/app_db
         PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
+      # Uncomment this if you want to allow anonymous use of app_user to avoid the
+      # "Anonymous access is disabled" error in this context (dangerous - for testing purposes ONLY!) 
+      # PGRST_DB_ANON_ROLE: app_user
       depends_on:
         - db
     db:
