@@ -23,10 +23,9 @@ import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
                                  setServerName)
 
-import qualified Data.Text.Encoding         as T
-import qualified Hasql.Transaction.Sessions as SQL
-import qualified Network.Wai                as Wai
-import qualified Network.Wai.Handler.Warp   as Warp
+import qualified Data.Text.Encoding       as T
+import qualified Network.Wai              as Wai
+import qualified Network.Wai.Handler.Warp as Warp
 
 import qualified PostgREST.Admin      as Admin
 import qualified PostgREST.ApiRequest as ApiRequest
@@ -40,15 +39,13 @@ import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
-import PostgREST.ApiRequest           (Action (..), ApiRequest (..),
-                                       DbAction (..))
+import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Observation          (Observation (..))
-import PostgREST.Query                (DbHandler)
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
@@ -143,66 +140,27 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   body <- lift $ Wai.strictRequestBody req
 
-  (parseTime, apiRequest) <-
-    calcTiming configServerTimingEnabled $
-      liftEither . mapLeft Error.ApiRequestError $
-        ApiRequest.userApiRequest conf req body sCache
-
   let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-  handleRequest authResult conf appState (Just authRole /= configDbAnonRole) configDbPreparedStatements pgVer apiRequest sCache jwtTime parseTime observer
 
-runDbHandler :: AppState.AppState -> AppConfig -> SQL.IsolationLevel -> SQL.Mode -> Bool -> Bool -> (Observation -> IO ()) -> DbHandler b -> Handler IO b
-runDbHandler appState config isoLvl mode authenticated prepared observer handler = do
-  dbResp <- lift $ do
-    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState config (transaction isoLvl mode $ runExceptT handler) observer
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
+  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole) observer
+  (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
 
-  resp <-
-    liftEither . mapLeft Error.PgErr $
-      mapLeft (Error.PgError authenticated) dbResp
-
-  liftEither resp
-
-handleRequest :: AuthResult -> AppConfig -> AppState.AppState -> Bool -> Bool -> PgVersion -> ApiRequest -> SchemaCache ->
-                Maybe Double -> Maybe Double -> (Observation -> IO ()) -> Handler IO Wai.Response
-handleRequest AuthResult{..} conf appState authenticated prepared pgVer apiReq@ApiRequest{..} sCache jwtTime parseTime observer =
-  case iAction of
-    ActDb dbAct -> do
-      (planTime', plan) <- withTiming $ liftEither $ Plan.actionPlan dbAct conf apiReq sCache
-      (txTime', queryResult) <- withTiming $ runDbHandler appState conf (Plan.planIsoLvl conf authRole plan) (Plan.planTxMode plan) authenticated prepared observer $ do
-        Query.setPgLocals plan conf authClaims authRole apiReq
-        Query.runPreReq conf
-        Query.actionQuery plan conf apiReq pgVer sCache
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.actionResponse queryResult (dbActQi dbAct) apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' txTime' respTime') pgrst
-
-    ActRelationInfo identifier -> do
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.infoIdentResponse identifier sCache
-      return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
-
-    ActRoutineInfo identifier -> do
-      (planTime', cPlan) <- withTiming $ liftEither $ Plan.callReadPlan identifier conf sCache apiReq $ ApiRequest.InvRead True
-      (respTime', pgrst) <- withTiming $ liftEither $ Response.infoProcResponse (Plan.crProc cPlan)
-      return $ pgrstResponse (ServerTiming jwtTime parseTime planTime' Nothing respTime') pgrst
-
-    ActSchemaInfo -> do
-      (respTime', pgrst) <- withTiming $ liftEither Response.infoRootResponse
-      return $ pgrstResponse (ServerTiming jwtTime parseTime Nothing Nothing respTime') pgrst
+  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 
   where
-    pgrstResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    pgrstResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled conf])) bod
+    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled])) bod
 
-    withTiming = calcTiming $ configServerTimingEnabled conf
-
-calcTiming :: Bool -> Handler IO a -> Handler IO (Maybe Double, a)
-calcTiming timingEnabled f = if timingEnabled
-    then do
-      (t, r) <- timeItT f
-      pure (Just t, r)
-    else do
-      r <- f
-      pure (Nothing, r)
+    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
+    withTiming f = if configServerTimingEnabled
+        then do
+          (t, r) <- timeItT f
+          pure (Just t, r)
+        else do
+          r <- f
+          pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do

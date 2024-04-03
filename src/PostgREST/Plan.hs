@@ -20,10 +20,9 @@ module PostgREST.Plan
   , ActionPlan(..)
   , DbActionPlan(..)
   , InspectPlan(..)
-  , inspectPlan
-  , callReadPlan
-  , planTxMode
-  , planIsoLvl
+  , InfoPlan(..)
+  , CrudPlan(..)
+  , CallReadPlan(..)
   ) where
 
 import qualified Data.ByteString.Lazy          as LBS
@@ -93,13 +92,14 @@ import Protolude hiding (from)
 -- Setup for doctests
 -- >>> import Data.Ranged.Ranges (fullRange)
 
-data DbActionPlan
+data CrudPlan
   = WrappedReadPlan
   { wrReadPlan :: ReadPlanTree
   , pTxMode    :: SQL.Mode
   , wrHandler  :: MediaHandler
   , wrMedia    :: MediaType
   , wrHdrsOnly :: Bool
+  , crudQi     :: QualifiedIdentifier
   }
   | MutateReadPlan {
     mrReadPlan   :: ReadPlanTree
@@ -108,15 +108,18 @@ data DbActionPlan
   , mrHandler    :: MediaHandler
   , mrMedia      :: MediaType
   , mrMutation   :: Mutation
+  , crudQi       :: QualifiedIdentifier
   }
-  | CallReadPlan {
+
+data CallReadPlan = CallReadPlan {
     crReadPlan :: ReadPlanTree
   , crCallPlan :: CallPlan
-  , pTxMode    :: SQL.Mode
+  , crTxMode   :: SQL.Mode
   , crProc     :: Routine
   , crHandler  :: MediaHandler
   , crMedia    :: MediaType
   , crInvMthd  :: InvokeMethod
+  , crQi       :: QualifiedIdentifier
   }
 
 data InspectPlan = InspectPlan {
@@ -126,46 +129,44 @@ data InspectPlan = InspectPlan {
   , ipSchema   :: Schema
   }
 
-data ActionPlan = Db DbActionPlan | MaybeDb InspectPlan
+data DbActionPlan = DbCrud CrudPlan | DbCall CallReadPlan | MaybeDb InspectPlan
+data InfoPlan     = RelInfoPlan QualifiedIdentifier | RoutineInfoPlan CallReadPlan | SchemaInfoPlan
+data ActionPlan   = Db DbActionPlan | NoDb InfoPlan
 
-planTxMode :: ActionPlan -> SQL.Mode
-planTxMode (Db x)      = pTxMode x
-planTxMode (MaybeDb x) = ipTxmode x
+actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
+actionPlan act conf apiReq sCache = case act of
+    ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
+    ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
+    ActRoutineInfo ident inv -> NoDb . RoutineInfoPlan <$> callReadPlan ident conf sCache apiReq inv
+    ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
 
-planIsoLvl :: AppConfig -> ByteString -> ActionPlan -> SQL.IsolationLevel
-planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
-  Db CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
-  _                       -> roleIsoLvl
-  where
-    roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
-
-actionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
-actionPlan dbAct conf apiReq sCache = case dbAct of
+dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error DbActionPlan
+dbActionPlan dbAct conf apiReq sCache = case dbAct of
   ActRelationRead identifier headersOnly ->
-    Db <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
+    DbCrud <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
   ActRelationMut identifier mut ->
-    Db <$> mutateReadPlan mut apiReq identifier conf sCache
+    DbCrud <$> mutateReadPlan mut apiReq identifier conf sCache
   ActRoutine identifier invMethod ->
-    Db <$> callReadPlan identifier conf sCache apiReq invMethod
+    DbCall <$> callReadPlan identifier conf sCache apiReq invMethod
   ActSchemaRead tSchema headersOnly ->
     MaybeDb <$> inspectPlan apiReq headersOnly tSchema
 
-wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error DbActionPlan
+wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
   rPlan <- readPlan identifier conf sCache apiRequest
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly
+  return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly identifier
 
-mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error DbActionPlan
+mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
   rPlan <- readPlan identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation
+  return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation identifier
 
-callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error DbActionPlan
+callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
@@ -186,7 +187,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod
+  return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod identifier
   where
     qsParams' = QueryParams.qsParams iQueryParams
 
