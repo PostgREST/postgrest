@@ -18,8 +18,8 @@ You can do this with UNIX signals or with PostgreSQL notifications. It's also po
 
 .. note::
 
+  - Requests will wait until the schema cache reload is done. This to prevent client errors due to an stale schema cache.
   - If you are using the :ref:`in_db_config`, a schema cache reload will :ref:`reload the configuration<config_reloading>` as well.
-  - There’s no downtime when reloading the schema cache. The reloading will happen on a background thread while serving requests.
 
 .. _schema_reloading_signals:
 
