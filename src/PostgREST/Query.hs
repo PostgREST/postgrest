@@ -1,25 +1,26 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Query
-  ( actionQuery
-  , setPgLocals
-  , runPreReq
-  , DbHandler
-  , QueryResult (..)
+  ( QueryResult (..)
+  , runQuery
   ) where
 
+import           Control.Monad.Except              (liftEither)
 import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString                   as BS
 import qualified Data.ByteString.Lazy.Char8        as LBS
+import           Data.Either.Combinators           (mapLeft)
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
+import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.ApiRequest.Types   as ApiRequestTypes
+import qualified PostgREST.AppState           as AppState
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
@@ -35,13 +36,18 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
+import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
+import PostgREST.Observation             (Observation (..))
 import PostgREST.Plan                    (ActionPlan (..),
+                                          CallReadPlan (..),
+                                          CrudPlan (..),
                                           DbActionPlan (..),
+                                          InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Plan.ReadPlan           (ReadPlanTree)
@@ -62,12 +68,48 @@ import Protolude hiding (Handler)
 type DbHandler = ExceptT Error SQL.Transaction
 
 data QueryResult
-  = DbResult      DbActionPlan ResultSet
+  = DbCrudResult  CrudPlan ResultSet
+  | DbCallResult  CallReadPlan  ResultSet
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
+  | NoDbResult    InfoPlan
 
-actionQuery :: ActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> DbHandler QueryResult
+-- TODO This function needs to be free from IO, only App.hs should do IO
+runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> (Observation -> IO ()) -> ExceptT Error IO QueryResult
+runQuery _ _ _ _ (NoDb x) _ _ _ _ = pure $ NoDbResult x
+runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated observer = do
+  dbResp <- lift $ do
+    let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
+    AppState.usePool appState config (transaction isoLvl txMode $ runExceptT dbHandler) observer
 
-actionQuery (Db plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
+  resp <-
+    liftEither . mapLeft Error.PgErr $
+      mapLeft (Error.PgError authenticated) dbResp
+
+  liftEither resp
+  where
+    prepared = configDbPreparedStatements config
+    isoLvl = planIsoLvl config authRole plan
+    txMode = planTxMode plan
+    dbHandler = do
+        setPgLocals plan config authClaims authRole apiReq
+        runPreReq config
+        actionQuery plan config apiReq pgVer sCache
+
+planTxMode :: DbActionPlan -> SQL.Mode
+planTxMode (DbCrud x)  = pTxMode x
+planTxMode (DbCall x)  = crTxMode x
+planTxMode (MaybeDb x) = ipTxmode x
+
+planIsoLvl :: AppConfig -> ByteString -> DbActionPlan -> SQL.IsolationLevel
+planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
+  DbCall CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
+  _                           -> roleIsoLvl
+  where
+    roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
+
+actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> DbHandler QueryResult
+
+actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -85,37 +127,37 @@ actionQuery (Db plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{i
         configDbPreparedStatements
   failNotSingular wrMedia resultSet
   optionalRollback conf apiReq
-  DbResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
+  DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
-actionQuery (Db plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf apiReq _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf apiReq _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   optionalRollback conf apiReq
-  pure $ DbResult plan resultSet
+  pure $ DbCrudResult plan resultSet
 
-actionQuery (Db plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
-  pure $ DbResult plan resultSet
+  pure $ DbCrudResult plan resultSet
 
-actionQuery (Db plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failPut resultSet
   optionalRollback conf apiReq
-  pure $ DbResult plan resultSet
+  pure $ DbCrudResult plan resultSet
 
-actionQuery (Db plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
-  pure $ DbResult plan resultSet
+  pure $ DbCrudResult plan resultSet
 
-actionQuery (Db plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ = do
+actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
@@ -131,7 +173,7 @@ actionQuery (Db plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPre
   optionalRollback conf apiReq
   failNotSingular crMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  pure $ DbResult plan resultSet
+  pure $ DbCallResult plan resultSet
 
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ pgVer sCache =
   lift $ case configOpenApiMode of
@@ -239,8 +281,8 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Rollback
 
 -- | Set transaction scoped settings
-setPgLocals :: ActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
-setPgLocals actPlan AppConfig{..} claims role ApiRequest{..} = lift $
+setPgLocals :: DbActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
+setPgLocals dbActPlan AppConfig{..} claims role ApiRequest{..} = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
@@ -260,9 +302,9 @@ setPgLocals actPlan AppConfig{..} claims role ApiRequest{..} = lift $
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)
-    funcSettings = case actPlan of
-      Db CallReadPlan{crProc} -> pdFuncSettings crProc
-      _                       -> mempty
+    funcSettings = case dbActPlan of
+      DbCall CallReadPlan{crProc} -> pdFuncSettings crProc
+      _                           -> mempty
 
 -- | Runs the pre-request function.
 runPreReq :: AppConfig -> DbHandler ()

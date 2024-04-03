@@ -5,10 +5,7 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Response
-  ( infoIdentResponse
-  , infoProcResponse
-  , infoRootResponse
-  , actionResponse
+  ( actionResponse
   , PgrstResponse(..)
   ) where
 
@@ -38,7 +35,9 @@ import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (DbActionPlan (..),
+import PostgREST.Plan                    (CallReadPlan (..),
+                                          CrudPlan (..),
+                                          InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query                   (QueryResult (..))
@@ -63,9 +62,9 @@ data PgrstResponse = PgrstResponse {
 , pgrstBody    :: LBS.ByteString
 }
 
-actionResponse :: QueryResult -> QualifiedIdentifier -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
+actionResponse :: QueryResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
-actionResponse (DbResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly} resultSet) identifier ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ =
+actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, crudQi=identifier} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ =
   case resultSet of
     RSStandard{..} -> do
       let
@@ -94,7 +93,7 @@ actionResponse (DbResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly} result
     RSPlan plan ->
       Right $ PgrstResponse HTTP.status200 (contentTypeHeaders wrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, mrMedia} resultSet) QualifiedIdentifier{..} ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, mrMedia, crudQi=QualifiedIdentifier{..}} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
   RSStandard{..} -> do
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
@@ -134,7 +133,7 @@ actionResponse (DbResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan,
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resultSet) _ ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard{..} -> do
     let
       contentRangeHeader =
@@ -156,7 +155,7 @@ actionResponse (DbResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resu
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) _ ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
@@ -176,7 +175,7 @@ actionResponse (DbResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resultSet) _ ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
       contentRangeHeader =
@@ -198,7 +197,7 @@ actionResponse (DbResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resu
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc} resultSet) _ ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = case resultSet of
+actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
       (status, contentRange) =
@@ -225,14 +224,12 @@ actionResponse (DbResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc}
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders crMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ _ versions conf sCache schema negotiatedByProfile =
+actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versions conf sCache schema negotiatedByProfile =
   Right $ PgrstResponse HTTP.status200
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
     (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body)
 
-
-infoIdentResponse :: QualifiedIdentifier -> SchemaCache -> Either Error.Error PgrstResponse
-infoIdentResponse identifier sCache = do
+actionResponse (NoDbResult (RelInfoPlan identifier)) _ _ _ sCache _ _ =
   case HM.lookup identifier (dbTables sCache) of
     Just tbl -> respondInfo $ allowH tbl
     Nothing  -> Left $ Error.ApiRequestError ApiRequestTypes.NotFound
@@ -246,12 +243,11 @@ infoIdentResponse identifier sCache = do
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
 
-infoProcResponse :: Routine -> Either Error.Error PgrstResponse
-infoProcResponse proc | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
-                      | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
+actionResponse (NoDbResult (RoutineInfoPlan CallReadPlan{crProc=proc})) _ _ _ _ _ _
+  | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
+  | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
 
-infoRootResponse :: Either Error.Error PgrstResponse
-infoRootResponse = respondInfo "OPTIONS,GET,HEAD"
+actionResponse (NoDbResult SchemaInfoPlan) _ _ _ _ _ _ = respondInfo "OPTIONS,GET,HEAD"
 
 respondInfo :: ByteString -> Either Error.Error PgrstResponse
 respondInfo allowHeader =

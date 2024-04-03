@@ -99,7 +99,7 @@ data DbAction
 data Action
   = ActDb           DbAction
   | ActRelationInfo QualifiedIdentifier
-  | ActRoutineInfo  QualifiedIdentifier
+  | ActRoutineInfo  QualifiedIdentifier InvokeMethod
   | ActSchemaInfo
 
 {-|
@@ -178,7 +178,7 @@ getAction resource schema method =
     (ResourceRoutine rout, "HEAD")    -> Right . ActDb $ ActRoutine (qi rout) $ InvRead True
     (ResourceRoutine rout, "GET")     -> Right . ActDb $ ActRoutine (qi rout) $ InvRead False
     (ResourceRoutine rout, "POST")    -> Right . ActDb $ ActRoutine (qi rout) Inv
-    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutineInfo (qi rout)
+    (ResourceRoutine rout, "OPTIONS") -> Right $ ActRoutineInfo (qi rout) $ InvRead True
     (ResourceRoutine _, _)            -> Left $ InvalidRpcMethod method
 
     (ResourceRelation rel, "HEAD")    -> Right . ActDb $ ActRelationRead (qi rel) True
