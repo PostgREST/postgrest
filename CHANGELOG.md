@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3224, Return status code 406 for non-accepted media type instead of code 415 - @wolfgangwalther
  - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3361, Clarify PGRST204(column not found) error message - @steve-chavez
+ - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
 
 ## [12.0.2] - 2023-12-20
 
