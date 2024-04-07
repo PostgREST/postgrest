@@ -72,7 +72,7 @@ spec =
           `shouldRespondWith`
           [json|{"details":"The result contains 6 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
           { matchStatus  = 406
-          , matchHeaders = [matchContentTypeSingular]
+          , matchHeaders = [matchContentTypeJson]
           }
 
     context "strip nulls from response even if explicitly selected" $ do
