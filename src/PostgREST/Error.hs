@@ -93,7 +93,6 @@ instance PgrstError ApiRequestError where
   status PGRSTParseError             = HTTP.status500
   status MaxAffectedViolationError{} = HTTP.status400
 
-  headers SingularityError{}     = [MediaType.toContentType $ MTVndSingularJSON False]
   headers _ = mempty
 
 toJsonPgrstError :: ErrorCode -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value

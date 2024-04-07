@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 module SpecHelper where
 
 import           Control.Lens           ((^?))
@@ -36,17 +37,29 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
 
+filterAndMatchCT :: BS.ByteString -> MatchHeader
+filterAndMatchCT val = MatchHeader $ \headers _ ->
+        case filter (\(n,_) -> n == hContentType) headers of
+          [(_,v)] -> if v == val
+                     then Nothing
+                     else Just $ "missing value:" <> toS val <> "\n"
+          _   -> Just "unexpected header: zero or multiple headers present\n"
+
 matchContentTypeJson :: MatchHeader
-matchContentTypeJson = "Content-Type" <:> "application/json; charset=utf-8"
+matchContentTypeJson =
+  filterAndMatchCT "application/json; charset=utf-8"
 
 matchContentTypeSingular :: MatchHeader
-matchContentTypeSingular = "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
+matchContentTypeSingular =
+  filterAndMatchCT "application/vnd.pgrst.object+json; charset=utf-8"
 
 matchCTArrayStrip :: MatchHeader
-matchCTArrayStrip = "Content-Type" <:> "application/vnd.pgrst.array+json;nulls=stripped; charset=utf-8"
+matchCTArrayStrip =
+  filterAndMatchCT "application/vnd.pgrst.array+json;nulls=stripped; charset=utf-8"
 
 matchCTSingularStrip :: MatchHeader
-matchCTSingularStrip = "Content-Type" <:> "application/vnd.pgrst.object+json;nulls=stripped; charset=utf-8"
+matchCTSingularStrip =
+  filterAndMatchCT "application/vnd.pgrst.object+json;nulls=stripped; charset=utf-8"
 
 matchHeaderValuePresent :: HeaderName -> BS.ByteString -> MatchHeader
 matchHeaderValuePresent name val = MatchHeader $ \headers _ ->

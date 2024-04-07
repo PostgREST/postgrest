@@ -72,7 +72,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should not be updated, either
@@ -87,7 +87,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should not be updated, either
@@ -101,7 +101,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
-                  , matchHeaders = [matchContentTypeSingular]
+                  , matchHeaders = [matchContentTypeJson]
                   }
 
       it "raises an error for zero rows with return=rep" $
@@ -110,7 +110,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
-                  , matchHeaders = [matchContentTypeSingular]
+                  , matchHeaders = [matchContentTypeJson]
                   }
 
     context "when creating rows" $ do
@@ -143,7 +143,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should not exist, either
@@ -158,7 +158,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should not exist, either
@@ -173,7 +173,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should not exist, either
@@ -188,7 +188,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
-                  , matchHeaders = [matchContentTypeSingular]
+                  , matchHeaders = [matchContentTypeJson]
                   }
 
       it "raises an error when creating zero entities with return=rep" $
@@ -198,7 +198,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
-                  , matchHeaders = [matchContentTypeSingular]
+                  , matchHeaders = [matchContentTypeJson]
                   }
 
     context "when deleting rows" $ do
@@ -221,7 +221,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should still exist
@@ -238,7 +238,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular ]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- the rows should still exist
@@ -254,7 +254,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
-                , matchHeaders = [matchContentTypeSingular]
+                , matchHeaders = [matchContentTypeJson]
                 }
 
       it "raises an error when deleting zero entities with return=rep" $
@@ -263,7 +263,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
-                , matchHeaders = [matchContentTypeSingular]
+                , matchHeaders = [matchContentTypeJson]
                 }
 
     context "when calling a stored proc" $ do
@@ -273,7 +273,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
-                , matchHeaders = [matchContentTypeSingular]
+                , matchHeaders = [matchContentTypeJson]
                 }
 
       -- this one may be controversial, should vnd.pgrst.object include
@@ -296,7 +296,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
-                , matchHeaders = [matchContentTypeSingular]
+                , matchHeaders = [matchContentTypeJson]
                 }
 
       it "fails for multiple rows with rolled back changes" $ do
@@ -311,7 +311,7 @@ spec =
           `shouldRespondWith`
             [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
-            , matchHeaders = [ matchContentTypeSingular]
+            , matchHeaders = [ matchContentTypeJson ]
             }
 
         -- should rollback function
