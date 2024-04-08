@@ -32,8 +32,7 @@ A request might be rejected at this level if it's invalid. For example when prov
 
 ### Plan
 
-Using the Schema Cache, this module enables more complex functionality (like resource embedding) by enriching the ApiRequest. It generates intermediate Plan types
-that then will be used for the next step.
+Using the Schema Cache, this module fills in SQL details that the user might have not specified (like an `ON CONFLICT (pk)` clause ).
 
 A request might be rejected at this level if it's invalid. For example when doing resource embedding on a nonexistent resource.
 

@@ -1,7 +1,4 @@
 @startuml
-
-:user:
-
 package "PostgREST" {
   () HTTP as HTTPAPI
   HTTPAPI  - [Auth]
@@ -11,11 +8,19 @@ package "PostgREST" {
   [Query] - () "Connection Pool" : "\t"
   [Plan] -u-> [Schema Cache]:uses
   [Query] -u-> [Schema Cache]:uses
-  [Schema Cache] <- () Listener : reloads "\t"
-  () HTTP as HTTPADMIN
-  [Admin] - () HTTPADMIN
+  [Schema Cache] <- () Listener : reloads
 
-  /'HTTPADMIN <-r[hidden]- [Schema Cache] : "\t\t\t"'/
+  () HTTP as HTTPADMIN
+  [Admin]  -r- () HTTPADMIN
+  [Config] -l- () CLI
+  HTTPADMIN -[hidden]r- CLI
+
+  /'
+   'the listener reloads the config. Too much detail, the arrows are crosssed.
+   '[Schema Cache] <-l[hidden]- [Config]
+   '[Schema Cache] <-l[hidden]- [Admin]
+   '[Config] <-l~ () Listener : reloads
+   '/
 }
 
 
@@ -30,9 +35,14 @@ database "PostgreSQL" {
   API -d- texts
 }
 
-HTTPAPI <.l- user : "\t"
-operator .d-> HTTPADMIN
 
+HTTPAPI <.l- :user: : "\t"
+
+:operator: .-> HTTPADMIN
+:operator: .-> CLI
+
+
+PostgreSQL <.developer : "\t"
 Listener -r.> "PostgreSQL"
 "Connection Pool" -r.> "PostgreSQL" : "\t\t"
 
@@ -52,5 +62,4 @@ end note
 note top of Listener
   LISTEN session
 end note
-
 @enduml
