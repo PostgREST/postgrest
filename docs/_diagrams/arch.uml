@@ -1,0 +1,56 @@
+@startuml
+
+:user:
+
+package "PostgREST" {
+  () HTTP as HTTPAPI
+  HTTPAPI  - [Auth]
+  [Auth] -r.> [ApiRequest]
+  [ApiRequest] -r.> [Plan]
+  [Plan] -r.> [Query]
+  [Query] - () "Connection Pool" : "\t"
+  [Plan] -u-> [Schema Cache]:uses
+  [Query] -u-> [Schema Cache]:uses
+  [Schema Cache] <- () Listener : reloads "\t"
+  () HTTP as HTTPADMIN
+  [Admin] - () HTTPADMIN
+
+  /'HTTPADMIN <-r[hidden]- [Schema Cache] : "\t\t\t"'/
+}
+
+
+database "PostgreSQL" {
+  node Authorization {
+    rectangle "Roles, GRANT, RLS"
+  }
+  node API {
+    rectangle "Functions, Views"
+  }
+  rectangle "Tables, extensions" as texts
+  API -d- texts
+}
+
+HTTPAPI <.l- user : "\t"
+operator .d-> HTTPADMIN
+
+Listener -r.> "PostgreSQL"
+"Connection Pool" -r.> "PostgreSQL" : "\t\t"
+
+
+note bottom of Auth
+  Authenticates the user request
+end note
+
+note bottom of ApiRequest
+  Parses the URL syntax
+end note
+
+note bottom of Query
+  Generates the SQL
+end note
+
+note top of Listener
+  LISTEN session
+end note
+
+@enduml
