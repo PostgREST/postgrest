@@ -303,7 +303,7 @@ When calling the above function (see :ref:`functions`), the statement timeout wi
 
 .. note::
 
-   Currently, only ``statement_timeout`` is applied for functions.
+   Only the transactions that are hoisted by config :ref:`db-hoisted-tx-settings` will be applied.
 
 .. _main_query:
 

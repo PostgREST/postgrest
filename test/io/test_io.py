@@ -1492,19 +1492,65 @@ def test_function_setting_statement_timeout_passes(defaultenv):
 def test_function_setting_work_mem(defaultenv):
     "check function setting work_mem is applied"
 
-    with run(env=defaultenv) as postgrest:
-        response = postgrest.session.post("/rpc/work_mem_test")
+    env = {
+        **defaultenv,
+        "PGRST_DB_HOISTED_TX_SETTINGS": "work_mem",
+    }
 
-        assert response.text == '"6000kB"'
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/rpc_work_mem?select=get_work_mem")
+
+        assert response.text == '{"get_work_mem":"6000kB"}'
 
 
 def test_multiple_func_settings(defaultenv):
     "check multiple function settings are applied"
 
-    with run(env=defaultenv) as postgrest:
-        response = postgrest.session.post("/rpc/multiple_func_settings_test")
+    env = {
+        **defaultenv,
+        "PGRST_DB_HOISTED_TX_SETTINGS": "work_mem,statement_timeout",
+    }
 
-        assert response.text == '[{"work_mem":"5000kB","statement_timeout":"10s"}]'
+    with run(env=env) as postgrest:
+        response = postgrest.session.get(
+            "/rpc/rpc_with_two_hoisted?select=get_work_mem,get_statement_timeout"
+        )
+
+        assert (
+            response.text == '{"get_work_mem":"5000kB","get_statement_timeout":"10s"}'
+        )
+
+
+def test_first_hoisted_setting_is_applied(defaultenv):
+    "test that work_mem is applied and statement_timeout is not applied"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_HOISTED_TX_SETTINGS": "work_mem",  # only work_mem is hoisted
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get(
+            "/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout"
+        )
+
+        assert response.text == '{"get_work_mem":"3000kB","get_statement_timeout":"2s"}'
+
+
+def test_second_hoisted_setting_is_applied(defaultenv):
+    "test that statement_timeout is applied and work_mem is not applied"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_HOISTED_TX_SETTINGS": "statement_timeout",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get(
+            "/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout"
+        )
+
+        assert response.text == '{"get_work_mem":"4MB","get_statement_timeout":"7s"}'
 
 
 def test_admin_metrics(defaultenv):

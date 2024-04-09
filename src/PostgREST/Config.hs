@@ -74,6 +74,7 @@ data AppConfig = AppConfig
   , configDbChannel                :: Text
   , configDbChannelEnabled         :: Bool
   , configDbExtraSearchPath        :: [Text]
+  , configDbHoistedTxSettings      :: [Text]
   , configDbMaxRows                :: Maybe Integer
   , configDbPlanEnabled            :: Bool
   , configDbPoolSize               :: Int
@@ -146,6 +147,7 @@ toText conf =
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
+      ,("db-hoisted-tx-settings",    q . T.intercalate "," . configDbHoistedTxSettings)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
       ,("db-pool",                       show . configDbPoolSize)
@@ -241,6 +243,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
+    <*> (maybe defaultHoistedAllowList splitOnCommas <$> optValue "db-hoisted-tx-settings")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
@@ -417,6 +420,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     splitOnCommas :: C.Value -> [Text]
     splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s
     splitOnCommas _            = []
+
+    defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
 
 -- | Read the JWT secret from a file if configJwtSecret is actually a
 -- filepath(has @ as its prefix). To check if the JWT secret is provided is

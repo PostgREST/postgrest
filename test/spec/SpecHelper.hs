@@ -116,6 +116,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbChannel                 = mempty
   , configDbChannelEnabled          = True
   , configDbExtraSearchPath         = []
+  , configDbHoistedTxSettings       = ["default_transaction_isolation","plan_filter.statement_cost_limit","statement_timeout"]
   , configDbMaxRows                 = Nothing
   , configDbPlanEnabled             = False
   , configDbPoolSize                = 10
