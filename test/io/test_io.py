@@ -1001,6 +1001,12 @@ def test_role_settings(defaultenv):
         )
         assert response.text == '"10s"'
 
+        # reset statement timeout to original value
+        response = postgrest.session.post(
+            "/rpc/change_role_statement_timeout", data={"timeout": "2s"}
+        )
+        assert response.status_code == 204
+
 
 def test_isolation_level(defaultenv):
     "isolation_level should be set per role and per function"
