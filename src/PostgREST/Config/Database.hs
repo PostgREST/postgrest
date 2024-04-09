@@ -56,6 +56,7 @@ dbSettingsNames =
   ,"db_root_spec"
   ,"db_schemas"
   ,"db_tx_end"
+  ,"db_hoisted_tx_settings"
   ,"jwt_aud"
   ,"jwt_role_claim_key"
   ,"jwt_secret"

@@ -9,7 +9,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
  - #3171, Add an ability to dump config via admin API - @skywriter
- - #3061, Apply all function settings as transaction-scoped settings - @taimoorzaeem
  - #3171, #3046, Log schema cache stats to stderr - @steve-chavez
  - #3210, Dump schema cache through admin API - @taimoorzaeem
  - #2676, Performance improvement on bulk json inserts, around 10% increase on requests per second by removing `json_typeof` from write queries - @steve-chavez
@@ -23,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Shows the correct JSON format in the `hints` field
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3184, Log full pg version to stderr on connection - @steve-chavez
+ - #3242. Add config `db-hoisted-tx-settings` to apply only hoisted function settings - @taimoorzaeem
 
 ### Fixed
 

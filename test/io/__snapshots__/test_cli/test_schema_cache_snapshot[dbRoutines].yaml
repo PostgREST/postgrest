@@ -59,31 +59,32 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: multiple_func_settings_test
+- - qiName: rpc_with_one_hoisted
     qiSchema: public
   - - pdDescription: null
       pdFuncSettings:
-      - - work_mem
-        - '5000'
       - - statement_timeout
-        - 10s
+        - 7s
       pdHasVariadic: false
-      pdName: multiple_func_settings_test
+      pdName: rpc_with_one_hoisted
       pdParams: []
       pdReturnType:
         contents:
           contents:
-            qiName: record
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: SetOf
+          - qiName: items
+            qiSchema: public
+          - false
+          tag: Composite
+        tag: Single
       pdSchema: public
       pdVolatility: Volatile
 
 - - qiName: serializable_isolation_level
     qiSchema: public
   - - pdDescription: null
-      pdFuncSettings: []
+      pdFuncSettings:
+      - - default_transaction_isolation
+        - serializable
       pdHasVariadic: false
       pdName: serializable_isolation_level
       pdParams: []
@@ -170,6 +171,26 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: rpc_with_two_hoisted
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings:
+      - - statement_timeout
+        - 10s
+      pdHasVariadic: false
+      pdName: rpc_with_two_hoisted
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+          - qiName: items
+            qiSchema: public
+          - false
+          tag: Composite
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: set_statement_timeout
     qiSchema: public
   - - pdDescription: null
@@ -213,25 +234,6 @@
         contents:
           contents:
             qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: work_mem_test
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings:
-      - - work_mem
-        - 6000kB
-      pdHasVariadic: false
-      pdName: work_mem_test
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: text
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single
@@ -348,7 +350,9 @@
 - - qiName: repeatable_read_isolation_level
     qiSchema: public
   - - pdDescription: null
-      pdFuncSettings: []
+      pdFuncSettings:
+      - - default_transaction_isolation
+        - REPEATABLE READ
       pdHasVariadic: false
       pdName: repeatable_read_isolation_level
       pdParams: []
@@ -450,6 +454,24 @@
             qiName: int4
             qiSchema: pg_catalog
           tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: rpc_work_mem
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: rpc_work_mem
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+          - qiName: items
+            qiSchema: public
+          - false
+          tag: Composite
         tag: Single
       pdSchema: public
       pdVolatility: Volatile

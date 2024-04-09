@@ -150,7 +150,7 @@ querySchemaCache AppConfig{..} = do
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
   keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels pgVer prepared
-  funcs   <- SQL.statement schemas $ allFunctions pgVer prepared
+  funcs   <- SQL.statement (schemas, configDbHoistedTxSettings) $ allFunctions pgVer prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
   reps    <- SQL.statement schemas $ dataRepresentations prepared
   mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
@@ -363,13 +363,13 @@ dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentatio
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: PgVersion -> Bool -> SQL.Statement [Schema] RoutineMap
-allFunctions pgVer = SQL.Statement sql (arrayParam HE.text) decodeFuncs
+allFunctions :: PgVersion -> Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
+allFunctions pgVer = SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeFuncs
   where
     sql = funcsSqlQuery pgVer <> " AND pn.nspname = ANY($1)"
 
-accessibleFuncs :: PgVersion -> Bool -> SQL.Statement Schema RoutineMap
-accessibleFuncs pgVer = SQL.Statement sql (param HE.text) decodeFuncs
+accessibleFuncs :: PgVersion -> Bool -> SQL.Statement (Schema, [Text]) RoutineMap
+accessibleFuncs pgVer = SQL.Statement sql (contrazip2 (param HE.text) (arrayParam HE.text)) decodeFuncs
   where
     sql = funcsSqlQuery pgVer <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
@@ -451,7 +451,7 @@ funcsSqlQuery pgVer = [q|
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid
-  LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config like 'default_transaction_isolation%'
+  LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config LIKE 'default_transaction_isolation%'
   LEFT JOIN LATERAL (
     SELECT
       array_agg(row(
@@ -459,7 +459,7 @@ funcsSqlQuery pgVer = [q|
         substr(setting, strpos(setting, '=') + 1)
       )) as kvs
     FROM unnest(proconfig) setting
-    WHERE setting not LIKE 'default_transaction_isolation%'
+    WHERE setting ~ ANY($2)
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
 |] <> (if pgVer >= pgVersion110 then "AND prokind = 'f'" else "AND NOT (proisagg OR proiswindow)")

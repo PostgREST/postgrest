@@ -298,6 +298,21 @@ db-extra-search-path
 
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
 
+.. _db-hoisted-tx-settings:
+
+db-hoisted-tx-settings
+----------------------
+
+  =============== ==================================================================================
+  **Type**        String
+  **Default**     statement_timeout, plan_filter.statement_cost_limit, default_transaction_isolation
+  **Reloadable**  Y
+  **Environment** PGRST_DB_HOISTED_TX_SETTINGS
+  **In-Database** pgrst.db_hoisted_tx_settings
+  =============== ==================================================================================
+
+  Hoisted settings are allowed to be applied as transaction-scoped function settings. Multiple settings can be added in a comma-separated string, e.g. ``work_mem, statement_timeout``.
+
 .. _db-max-rows:
 
 db-max-rows
