@@ -1,4 +1,5 @@
 @startuml
+
 package "PostgREST" {
   () HTTP as HTTPAPI
   HTTPAPI  - [Auth]
@@ -15,12 +16,10 @@ package "PostgREST" {
   [Config] -l- () CLI
   HTTPADMIN -[hidden]r- CLI
 
-  /'
-   'the listener reloads the config. Too much detail, the arrows are crosssed.
-   '[Schema Cache] <-l[hidden]- [Config]
-   '[Schema Cache] <-l[hidden]- [Admin]
-   '[Config] <-l~ () Listener : reloads
-   '/
+  Listener -[hidden]r- [Schema Cache]
+  [Schema Cache] <-l[hidden]- [Config]
+  [Schema Cache] -l[hidden]- [Admin]
+  [Config] <-l~ Listener
 }
 
 
@@ -31,15 +30,18 @@ database "PostgreSQL" {
   node API {
     rectangle "Functions, Views"
   }
-  rectangle "Tables, extensions" as texts
-  API -d- texts
+  rectangle "Tables, extensions" as tbs
+  API -d- tbs
+  Authorization -d- tbs
 }
 
+:user:
+hexagon Proxy
+:user: .r-> Proxy
+HTTPAPI <.l- Proxy
 
-HTTPAPI <.l- :user: : "\t"
-
-:operator: .-> HTTPADMIN
-:operator: .-> CLI
+:operator: .d-> HTTPADMIN
+:operator: .d-> CLI
 
 
 PostgreSQL <.developer : "\t"
