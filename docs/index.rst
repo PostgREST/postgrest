@@ -132,7 +132,7 @@ Technical references for PostgREST's functionality.
    references/errors.rst
    references/configuration.rst
    references/observability.rst
-   references/health_check.rst
+   references/*
 
 Explanations
 ------------
