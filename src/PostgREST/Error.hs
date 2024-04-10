@@ -489,6 +489,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         '3':'9':_ -> HTTP.status500 -- external routine invocation
         '3':'B':_ -> HTTP.status500 -- savepoint exception
         '4':'0':_ -> HTTP.status500 -- tx rollback
+        "53400"   -> HTTP.status500 -- config limit exceeded
         '5':'3':_ -> HTTP.status503 -- insufficient resources
         '5':'4':_ -> HTTP.status413 -- too complex
         '5':'5':_ -> HTTP.status500 -- obj not on prereq state

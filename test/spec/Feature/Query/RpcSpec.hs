@@ -1478,3 +1478,11 @@ spec actualPgVersion =
             "details":"DETAIL is missing in the RAISE statement",
             "hint":"DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."}|]
           { matchStatus = 500 }
+
+    -- here JWT has the role: postgrest_test_superuser
+    context "test function temp_file_limit" $
+      let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoicG9zdGdyZXN0X3Rlc3Rfc3VwZXJ1c2VyIiwiaWQiOiJqZG9lIn0.LQ-qx0ArBnfkwQQhIHKF5cS-lzl0gnTPI8NLoPbL5Fg" in
+      it "should return http status 500" $
+        request methodGet "/rpc/temp_file_limit" [auth] "" `shouldRespondWith`
+          [json|{"code":"53400","message":"temporary file size exceeds temp_file_limit (1kB)","details":null,"hint":null}|]
+          { matchStatus = 500 }
