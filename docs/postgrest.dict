@@ -98,6 +98,7 @@ OpenAPI
 openapi
 ORM
 ov
+parametrized
 passphrase
 PBKDF
 PgBouncer
