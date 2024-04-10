@@ -1,5 +1,6 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
+-- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.Query
   ( QueryResult (..)
   , runQuery
