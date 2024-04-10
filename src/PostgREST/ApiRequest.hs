@@ -4,7 +4,7 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 -}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
-
+-- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)

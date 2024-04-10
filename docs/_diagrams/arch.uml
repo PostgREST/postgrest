@@ -8,31 +8,34 @@ package "PostgREST" {
   [Plan] -r.> [Query]
   [Query] - () "Connection Pool" : "\t"
   [Plan] -u-> [Schema Cache]:uses
-  [Query] -u-> [Schema Cache]:uses
   [Schema Cache] <- () Listener : reloads
 
   () HTTP as HTTPADMIN
   [Admin]  -r- () HTTPADMIN
   [Config] -l- () CLI
-  HTTPADMIN -[hidden]r- CLI
 
-  Listener -[hidden]r- [Schema Cache]
-  [Schema Cache] <-l[hidden]- [Config]
-  [Schema Cache] -l[hidden]- [Admin]
   [Config] <-l~ Listener
+
+  HTTPADMIN -[hidden]r- CLI
+  Listener -[hidden]r- [Schema Cache]
+  Listener -[hidden]r- [Config]
+  [Schema Cache] -l[hidden]- [Config]
+  [Schema Cache] -l[hidden]- [Admin]
+  [Schema Cache] -l[hidden]- CLI
 }
 
 
 database "PostgreSQL" {
+  node "API schema" as API {
+    rectangle "Functions, Views"
+  }
   node Authorization {
     rectangle "Roles, GRANT, RLS"
   }
-  node API {
-    rectangle "Functions, Views"
-  }
   rectangle "Tables, extensions" as tbs
   API -d- tbs
-  Authorization -d- tbs
+
+ API -[hidden]l- Authorization
 }
 
 :user:
