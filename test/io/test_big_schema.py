@@ -49,3 +49,21 @@ def test_openapi_in_big_schema(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
         assert response.status_code == 200
+
+
+# See: https://github.com/PostgREST/postgrest/issues/3329
+def test_should_not_fail_with_stack_overflow(defaultenv):
+    "requesting a non-existent relationship should not fail with stack overflow due to fuzzy search of candidates"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "apflora",
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=30) as postgrest:
+        response = postgrest.session.get("/unknown-table?select=unknown-rel(*)")
+        assert response.status_code == 400
+        data = response.json()
+        assert data["code"] == "PGRST200"
