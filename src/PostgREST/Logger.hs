@@ -10,6 +10,7 @@ module PostgREST.Logger
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
+import Control.Debounce
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
@@ -27,14 +28,31 @@ import qualified PostgREST.Auth as Auth
 
 import Protolude
 
-newtype LoggerState = LoggerState
-  { stateGetZTime                 :: IO ZonedTime -- ^ Time with time zone used for logs
+data LoggerState = LoggerState
+  { stateGetZTime               :: IO ZonedTime  -- ^ Time with time zone used for logs
+  , stateLogDebouncePoolTimeout :: MVar (IO ())  -- ^ Logs with a debounce
   }
 
 init :: IO LoggerState
 init = do
   zTime <- mkAutoUpdate defaultUpdateSettings { updateAction = getZonedTime }
-  pure $ LoggerState zTime
+  LoggerState zTime <$> newEmptyMVar
+
+logWithDebounce :: LoggerState -> IO () -> IO ()
+logWithDebounce loggerState action = do
+  debouncer <- tryReadMVar $ stateLogDebouncePoolTimeout loggerState
+  case debouncer of
+    Just d -> d
+    Nothing -> do
+      newDebouncer <-
+        let oneSecond = 1000000 in
+        mkDebounce defaultDebounceSettings
+           { debounceAction = action
+           , debounceFreq = 5*oneSecond
+           , debounceEdge = leadingEdge -- logs at the start and the end
+           }
+      putMVar (stateLogDebouncePoolTimeout loggerState) newDebouncer
+      newDebouncer
 
 middleware :: LogLevel -> Wai.Middleware
 middleware logLevel = case logLevel of
@@ -51,7 +69,12 @@ middleware logLevel = case logLevel of
       }
 
 observationLogger :: LoggerState -> ObservationHandler
-observationLogger loggerState obs = logWithZTime loggerState $ observationMessage obs
+observationLogger loggerState obs = case obs of
+  o@(PoolAcqTimeoutObs _) -> do
+    logWithDebounce loggerState $
+      logWithZTime loggerState $ observationMessage o
+  o ->
+    logWithZTime loggerState $ observationMessage o
 
 logWithZTime :: LoggerState -> Text -> IO ()
 logWithZTime loggerState txt = do

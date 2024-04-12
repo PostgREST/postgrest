@@ -3759,3 +3759,8 @@ create aggregate test.outfunc_agg (anyelement) (
 , stype = "pg/outfunc"
 , sfunc = outfunc_trans
 );
+
+-- used for manual testing
+create or replace function test.sleep(seconds double precision default 5) returns void as $$
+  select pg_sleep(seconds);
+$$ language sql;
