@@ -26,23 +26,23 @@ import qualified PostgREST.Config   as Config
 
 import Protolude
 
-runAdmin :: AppConfig -> AppState -> Warp.Settings -> (Observation -> IO ()) -> IO ()
-runAdmin conf@AppConfig{configAdminServerPort} appState settings observer =
+runAdmin :: AppConfig -> AppState -> Warp.Settings -> IO ()
+runAdmin conf@AppConfig{configAdminServerPort, configObserver=observer} appState settings =
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
     observer $ AdminStartObs configAdminServerPort
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
-    adminApp = admin appState conf observer
+    adminApp = admin appState conf
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> AppConfig -> (Observation -> IO ()) -> Wai.Application
-admin appState appConfig observer req respond  = do
+admin :: AppState.AppState -> AppConfig -> Wai.Application
+admin appState appConfig req respond  = do
   isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
   isSchemaCacheLoaded <- AppState.getSchemaCacheLoaded appState
   isConnectionUp      <-
     if configDbChannelEnabled appConfig
       then AppState.getIsListenerOn appState
-      else isRight <$> AppState.usePool appState appConfig (SQL.sql "SELECT 1") observer
+      else isRight <$> AppState.usePool appState appConfig (SQL.sql "SELECT 1")
 
   case Wai.pathInfo req of
     ["ready"] ->

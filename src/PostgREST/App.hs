@@ -60,19 +60,20 @@ import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 
-run :: AppState -> (Observation -> IO ()) -> IO ()
-run appState observer = do
+run :: AppState -> IO ()
+run appState = do
+  conf@AppConfig{configObserver=observer, ..} <- AppState.getConfig appState
+
   observer $ AppServerStartObs prettyVersion
 
-  conf@AppConfig{..} <- AppState.getConfig appState
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState observer)
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
-  AppState.runListener conf appState observer
+  AppState.runListener conf appState
 
-  Admin.runAdmin conf appState (serverSettings conf) observer
+  Admin.runAdmin conf appState (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.connectionWorker appState) observer
+  let app = postgrest configLogLevel appState (AppState.connectionWorker appState)
 
   case configServerUnixSocket of
     Just path -> do
@@ -91,8 +92,8 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> (Observation -> IO ()) -> Wai.Application
-postgrest logLevel appState connWorker observer =
+postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
+postgrest logLevel appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState .
   Auth.middleware appState .
@@ -109,7 +110,7 @@ postgrest logLevel appState connWorker observer =
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req observer
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -128,9 +129,8 @@ postgrestResponse
   -> PgVersion
   -> AuthResult
   -> Wai.Request
-  -> (Observation -> IO ())
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req observer = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -144,7 +144,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
-  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole) observer
+  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
   (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp

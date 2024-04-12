@@ -6,17 +6,17 @@ Description : Module for observability types
 module PostgREST.Observation
   ( Observation(..)
   , observationMessage
+  , ObservationHandler
   ) where
 
-import qualified Data.ByteString.Lazy  as LBS
-import qualified Data.Text             as T
-import qualified Data.Text.Encoding    as T
-import qualified Hasql.Connection      as SQL
-import qualified Hasql.Pool            as SQL
-import qualified Network.Socket        as NS
-import           Numeric               (showFFloat)
-import qualified PostgREST.Error       as Error
-import           PostgREST.SchemaCache (SchemaCache, showSummary)
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Text            as T
+import qualified Data.Text.Encoding   as T
+import qualified Hasql.Connection     as SQL
+import qualified Hasql.Pool           as SQL
+import qualified Network.Socket       as NS
+import           Numeric              (showFFloat)
+import qualified PostgREST.Error      as Error
 
 import Protolude
 import Protolude.Partial (fromJust)
@@ -33,7 +33,7 @@ data Observation
   | SchemaCacheFatalErrorObs SQL.UsageError Text
   | SchemaCacheNormalErrorObs SQL.UsageError
   | SchemaCacheQueriedObs Double
-  | SchemaCacheSummaryObs SchemaCache
+  | SchemaCacheSummaryObs Text
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
   | ConnectionPgVersionErrorObs SQL.UsageError
@@ -50,6 +50,8 @@ data Observation
   | QueryRoleSettingsErrorObs SQL.UsageError
   | QueryErrorCodeHighObs SQL.UsageError
   | PoolAcqTimeoutObs SQL.UsageError
+
+type ObservationHandler = Observation -> IO ()
 
 observationMessage :: Observation -> Text
 observationMessage = \case
@@ -75,8 +77,8 @@ observationMessage = \case
     "An error ocurred when loading the schema cache. " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
     "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
-  SchemaCacheSummaryObs sCache ->
-    "Schema cache loaded " <> showSummary sCache
+  SchemaCacheSummaryObs summary ->
+    "Schema cache loaded " <> summary
   SchemaCacheLoadedObs resultTime ->
     "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
   ConnectionRetryObs delay ->
