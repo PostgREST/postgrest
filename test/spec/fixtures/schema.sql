@@ -3768,3 +3768,10 @@ create aggregate test.outfunc_agg (anyelement) (
 , stype = "pg/outfunc"
 , sfunc = outfunc_trans
 );
+
+-- https://github.com/PostgREST/postgrest/issues/3256
+create view test.infinite_recursion as
+select * from test.projects;
+
+create or replace view test.infinite_recursion as
+select * from test.infinite_recursion;
