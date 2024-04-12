@@ -1,6 +1,7 @@
 module Main where
 
 import qualified Hasql.Pool                 as P
+import qualified Hasql.Pool.Config          as P
 import qualified Hasql.Transaction.Sessions as HT
 
 import Data.Function (id)
@@ -70,7 +71,13 @@ import qualified Feature.RpcPreRequestGucsSpec
 main :: IO ()
 main = do
   let observer = const $ pure ()
-  pool <- P.acquire 3 10 60 60 $ toUtf8 $ configDbUri testCfg
+  pool <- P.acquire $ P.settings
+    [ P.size 3
+    , P.acquisitionTimeout 10
+    , P.agingTimeout 60
+    , P.idlenessTimeout 60
+    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
 

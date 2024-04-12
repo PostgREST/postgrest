@@ -593,13 +593,13 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
         assert data["message"] == "Timed out acquiring connection from connection pool."
 
         # ensure the message appears on the logs as well
-        output = sorted(postgrest.read_stdout(nlines=2))
+        output = sorted(postgrest.read_stdout(nlines=3))
 
         if level == "crit":
             assert len(output) == 0
-        else:
+        elif level == "info":
             assert " 504 " in output[0]
-            assert "Timed out acquiring connection from connection pool." in output[1]
+            assert "Timed out acquiring connection from connection pool." in output[2]
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -792,7 +792,7 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = sorted(postgrest.read_stdout(nlines=3))
+        output = sorted(postgrest.read_stdout(nlines=7))
 
         if level == "crit":
             assert len(output) == 0
@@ -825,7 +825,11 @@ def test_log_level(level, defaultenv):
                 r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
                 output[2],
             )
-            assert len(output) == 3
+            assert "Connection" and "is available" in output[3]
+            assert "Connection" and "is available" in output[4]
+            assert "Connection" and "is used" in output[5]
+            assert "Connection" and "is used" in output[6]
+            assert len(output) == 7
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
@@ -1083,12 +1087,14 @@ def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
 def test_log_postgrest_version(defaultenv):
     "Should show the PostgREST version in the logs"
 
+    env = {**defaultenv, "PGRST_LOG_LEVEL": "crit"}
+
     with run(env=defaultenv, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
         output = sorted(postgrest.read_stdout(nlines=5))
 
-        assert "Starting PostgREST %s..." % version in output[3]
+        assert "Starting PostgREST %s..." % version in output[4]
 
 
 def test_succeed_w_role_having_superuser_settings(defaultenv):
@@ -1371,10 +1377,13 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         assert response.status_code == 500
 
         # ensure the message appears on the logs
-        output = sorted(postgrest.read_stdout(nlines=2))
+        output = sorted(postgrest.read_stdout(nlines=4))
 
         if level == "crit":
             assert len(output) == 0
+        elif level == "info":
+            assert " 500 " in output[0]
+            assert "canceling statement due to statement timeout" in output[3]
         else:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[1]
