@@ -3764,3 +3764,10 @@ create aggregate test.outfunc_agg (anyelement) (
 create or replace function test.sleep(seconds double precision default 5) returns void as $$
   select pg_sleep(seconds);
 $$ language sql;
+
+-- https://github.com/PostgREST/postgrest/issues/3256
+create view test.infinite_recursion as
+select * from test.projects;
+
+create or replace view test.infinite_recursion as
+select * from test.infinite_recursion;

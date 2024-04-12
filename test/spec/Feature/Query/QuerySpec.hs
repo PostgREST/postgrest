@@ -1407,3 +1407,10 @@ spec actualPgVersion = do
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
+
+  context "test infinite recursion error 42P17" $
+    it "return http status 500" $
+      get "/infinite_recursion?select=*" `shouldRespondWith`
+        [json|{"code":"42P17","message":"infinite recursion detected in rules for relation \"infinite_recursion\"","details":null,"hint":null}|]
+        { matchStatus = 500 }
+
