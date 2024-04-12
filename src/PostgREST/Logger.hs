@@ -4,7 +4,7 @@ Description : Wai Middleware to log requests to stdout.
 -}
 module PostgREST.Logger
   ( middleware
-  , logObservation
+  , observationLogger
   , init
   ) where
 
@@ -50,8 +50,8 @@ middleware logLevel = case logLevel of
             & Wai.setApacheUserGetter Auth.getRole
       }
 
-logObservation :: LoggerState -> Observation -> IO ()
-logObservation loggerState obs = logWithZTime loggerState $ observationMessage obs
+observationLogger :: LoggerState -> ObservationHandler
+observationLogger loggerState obs = logWithZTime loggerState $ observationMessage obs
 
 logWithZTime :: LoggerState -> Text -> IO ()
 logWithZTime loggerState txt = do

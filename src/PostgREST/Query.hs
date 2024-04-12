@@ -43,7 +43,6 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Observation             (Observation (..))
 import PostgREST.Plan                    (ActionPlan (..),
                                           CallReadPlan (..),
                                           CrudPlan (..),
@@ -75,12 +74,12 @@ data QueryResult
   | NoDbResult    InfoPlan
 
 -- TODO This function needs to be free from IO, only App.hs should do IO
-runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> (Observation -> IO ()) -> ExceptT Error IO QueryResult
-runQuery _ _ _ _ (NoDb x) _ _ _ _ = pure $ NoDbResult x
-runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated observer = do
+runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
+runQuery _ _ _ _ (NoDb x) _ _ _ = pure $ NoDbResult x
+runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState config (transaction isoLvl txMode $ runExceptT dbHandler) observer
+    AppState.usePool appState config (transaction isoLvl txMode $ runExceptT dbHandler)
 
   resp <-
     liftEither . mapLeft Error.PgErr $

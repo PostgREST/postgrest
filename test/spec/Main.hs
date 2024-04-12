@@ -77,21 +77,20 @@ main = do
   sockets <- AppState.initSockets testCfg
 
   let
-    noObs = const $ pure ()
     -- For tests that run with the same refSchemaCache
     app config = do
-      appState <- AppState.initWithPool sockets pool config noObs
+      appState <- AppState.initWithPool sockets pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
-      return ((), postgrest (configLogLevel config) appState (pure ()) noObs)
+      return ((), postgrest (configLogLevel config) appState (pure ()))
 
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSCache pool config
-      appState <- AppState.initWithPool sockets pool config noObs
+      appState <- AppState.initWithPool sockets pool config
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
-      return ((), postgrest (configLogLevel config) appState (pure ()) noObs)
+      return ((), postgrest (configLogLevel config) appState (pure ()))
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg

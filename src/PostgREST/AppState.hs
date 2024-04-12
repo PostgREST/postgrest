@@ -24,7 +24,6 @@ module PostgREST.AppState
   , putSchemaCache
   , putPgVersion
   , usePool
-  , loadSchemaCache
   , reReadConfig
   , connectionWorker
   , runListener
@@ -67,7 +66,8 @@ import PostgREST.Config.Database         (queryDbSettings,
 import PostgREST.Config.PgVersion        (PgVersion (..),
                                           minimumPgVersion)
 import PostgREST.SchemaCache             (SchemaCache (..),
-                                          querySchemaCache)
+                                          querySchemaCache,
+                                          showSummary)
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
@@ -115,15 +115,15 @@ data AppState = AppState
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
-init :: AppConfig -> (Observation -> IO ()) -> IO AppState
-init conf observer = do
+init :: AppConfig -> IO AppState
+init conf = do
   pool <- initPool conf
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf observer
+  state' <- initWithPool (sock, adminSock) pool conf
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock }
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> (Observation -> IO() ) -> IO AppState
-initWithPool (sock, adminSock) pool conf observer = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> IO AppState
+initWithPool (sock, adminSock) pool conf@AppConfig{configObserver=observer} = do
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -152,7 +152,7 @@ initWithPool (sock, adminSock) pool conf observer = do
   debWorker <-
     let decisecond = 100000 in
     mkDebounce defaultDebounceSettings
-       { debounceAction = internalConnectionWorker appState observer
+       { debounceAction = internalConnectionWorker appState
        , debounceFreq = decisecond
        , debounceEdge = leadingEdge -- runs the worker at the start and the end
        }
@@ -205,8 +205,8 @@ initPool AppConfig{..} =
     (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
 
 -- | Run an action with a database connection.
-usePool :: AppState -> AppConfig -> SQL.Session a -> (Observation -> IO ()) -> IO (Either SQL.UsageError a)
-usePool AppState{..} AppConfig{configLogLevel} sess observer = do
+usePool :: AppState -> AppConfig -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool AppState{..} AppConfig{configLogLevel, configObserver=observer} sess = do
   res <- SQL.use statePool sess
 
   when (configLogLevel > LogCrit) $ do
@@ -301,12 +301,12 @@ data SCacheStatus
   | SCFatalFail
 
 -- | Load the SchemaCache by using a connection from the pool.
-loadSchemaCache :: AppState -> (Observation -> IO()) -> IO SCacheStatus
-loadSchemaCache appState observer = do
+loadSchemaCache :: AppState -> AppConfig -> IO SCacheStatus
+loadSchemaCache appState AppConfig{configObserver=observer} = do
   conf@AppConfig{..} <- getConfig appState
   (resultTime, result) <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    timeItT $ usePool appState conf (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf) observer
+    timeItT $ usePool appState conf (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
     Left e -> do
       case checkIsFatal e of
@@ -322,7 +322,7 @@ loadSchemaCache appState observer = do
     Right sCache -> do
       putSchemaCache appState $ Just sCache
       observer $ SchemaCacheQueriedObs resultTime
-      (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs sCache
+      (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
       observer $ SchemaCacheLoadedObs t
       putSchemaCacheLoaded appState True
       return SCLoaded
@@ -345,13 +345,13 @@ data ConnectionStatus
 --  2. Checks if the pg version is supported and if it's not it kills the main
 --     program.
 --  3. Obtains the sCache. If this fails, it goes back to 1.
-internalConnectionWorker :: AppState -> (Observation -> IO()) -> IO ()
-internalConnectionWorker appState observer = work
+internalConnectionWorker :: AppState -> IO ()
+internalConnectionWorker appState = work
   where
     work = do
-      config@AppConfig{..} <- getConfig appState
+      config@AppConfig{configObserver=observer, ..} <- getConfig appState
       observer DBConnectAttemptObs
-      connected <- establishConnection appState config observer
+      connected <- establishConnection appState config
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
@@ -368,8 +368,8 @@ internalConnectionWorker appState observer = work
           observer (DBConnectedObs $ pgvFullName actualPgVersion)
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
-          when configDbConfig $ reReadConfig False appState observer
-          scStatus <- loadSchemaCache appState observer
+          when configDbConfig $ reReadConfig False appState
+          scStatus <- loadSchemaCache appState config
           case scStatus of
             SCLoaded ->
               -- do nothing and proceed if the load was successful
@@ -391,8 +391,8 @@ internalConnectionWorker appState observer = work
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
-establishConnection :: AppState -> AppConfig -> (Observation -> IO ()) -> IO ConnectionStatus
-establishConnection appState config observer =
+establishConnection :: AppState -> AppConfig -> IO ConnectionStatus
+establishConnection appState config@AppConfig{configObserver=observer} =
   retrying retrySettings shouldRetry $
     const $ flushPool appState >> getConnectionStatus
   where
@@ -402,7 +402,7 @@ establishConnection appState config observer =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- usePool appState config (queryPgVersion False) observer -- No need to prepare the query here, as the connection might not be established
+      pgVersion <- usePool appState config (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
           observer $ ConnectionPgVersionErrorObs e
@@ -430,13 +430,13 @@ establishConnection appState config observer =
       return itShould
 
 -- | Re-reads the config plus config options from the db
-reReadConfig :: Bool -> AppState -> (Observation -> IO ()) -> IO ()
-reReadConfig startingUp appState observer = do
-  config@AppConfig{..} <- getConfig appState
+reReadConfig :: Bool -> AppState -> IO ()
+reReadConfig startingUp appState = do
+  config@AppConfig{configObserver=observer, ..} <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- usePool appState config (queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements) observer
+      qDbSettings <- usePool appState config (queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements)
       case qDbSettings of
         Left e -> do
           observer ConfigReadErrorObs
@@ -452,7 +452,7 @@ reReadConfig startingUp appState observer = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
-      rSettings <- usePool appState config (queryRoleSettings pgVer configDbPreparedStatements) observer
+      rSettings <- usePool appState config (queryRoleSettings pgVer configDbPreparedStatements)
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e
@@ -460,7 +460,7 @@ reReadConfig startingUp appState observer = do
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl >>= \case
+  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl observer >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
@@ -473,16 +473,15 @@ reReadConfig startingUp appState observer = do
       else
         observer ConfigSucceededObs
 
-runListener :: AppConfig -> AppState -> (Observation -> IO ()) -> IO ()
-runListener AppConfig{configDbChannelEnabled} appState observer =
-  when configDbChannelEnabled $ listener appState observer
+runListener :: AppConfig -> AppState -> IO ()
+runListener conf@AppConfig{configDbChannelEnabled} appState = do
+  when configDbChannelEnabled $ listener appState conf
 
 -- | Starts a dedicated pg connection to LISTEN for notifications.  When a
 -- NOTIFY <db-channel> - with an empty payload - is done, it refills the schema
 -- cache.  It uses the connectionWorker in case the LISTEN connection dies.
-listener :: AppState -> (Observation -> IO ()) -> IO ()
-listener appState observer = do
-  AppConfig{..} <- getConfig appState
+listener :: AppState -> AppConfig -> IO ()
+listener appState conf@AppConfig{configObserver=observer, ..} = do
   let dbChannel = toS configDbChannel
 
   -- The listener has to wait for a signal from the connectionWorker.
@@ -515,12 +514,12 @@ listener appState observer = do
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
       -- retry the listener
-      listener appState observer
+      listener appState conf
 
     handleNotification channel msg =
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> reReadConfig False appState observer
+         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> reReadConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
