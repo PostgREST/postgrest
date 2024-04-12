@@ -39,6 +39,7 @@ import qualified Data.Text                  as T (unpack)
 import           Hasql.Connection           (acquire)
 import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
@@ -122,7 +123,7 @@ init :: AppConfig -> IO AppState
 init conf@AppConfig{configLogLevel} = do
   loggerState <- Logger.init
   let observer = Logger.observationLogger loggerState configLogLevel
-  pool <- initPool conf
+  pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf loggerState observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
@@ -193,14 +194,16 @@ initSockets AppConfig{..} = do
 
   pure (sock, adminSock)
 
-initPool :: AppConfig -> IO SQL.Pool
-initPool AppConfig{..} =
-  SQL.acquire
-    configDbPoolSize
-    (fromIntegral configDbPoolAcquisitionTimeout)
-    (fromIntegral configDbPoolMaxLifetime)
-    (fromIntegral configDbPoolMaxIdletime)
-    (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
+initPool AppConfig{..} observer =
+  SQL.acquire $ SQL.settings
+    [ SQL.size configDbPoolSize
+    , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
+    , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
+    , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
+    , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+    , SQL.observationHandler $ observer . HasqlPoolObs
+    ]
 
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)

@@ -9,14 +9,15 @@ module PostgREST.Observation
   , ObservationHandler
   ) where
 
-import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Text            as T
-import qualified Data.Text.Encoding   as T
-import qualified Hasql.Connection     as SQL
-import qualified Hasql.Pool           as SQL
-import qualified Network.Socket       as NS
-import           Numeric              (showFFloat)
-import qualified PostgREST.Error      as Error
+import qualified Data.ByteString.Lazy   as LBS
+import qualified Data.Text              as T
+import qualified Data.Text.Encoding     as T
+import qualified Hasql.Connection       as SQL
+import qualified Hasql.Pool             as SQL
+import qualified Hasql.Pool.Observation as SQL
+import qualified Network.Socket         as NS
+import           Numeric                (showFFloat)
+import qualified PostgREST.Error        as Error
 
 import Protolude
 import Protolude.Partial (fromJust)
@@ -50,6 +51,7 @@ data Observation
   | QueryRoleSettingsErrorObs SQL.UsageError
   | QueryErrorCodeHighObs SQL.UsageError
   | PoolAcqTimeoutObs SQL.UsageError
+  | HasqlPoolObs SQL.Observation
 
 type ObservationHandler = Observation -> IO ()
 
@@ -111,6 +113,18 @@ observationMessage = \case
      "Config reloaded"
   PoolAcqTimeoutObs usageErr ->
     jsonMessage usageErr
+  HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
+    "Connection " <> show uuid <> (
+      case status of
+        SQL.ConnectingConnectionStatus   -> " is being established"
+        SQL.ReadyForUseConnectionStatus  -> " is available"
+        SQL.InUseConnectionStatus        -> " is used"
+        SQL.TerminatedConnectionStatus reason -> " is terminated due to " <> case reason of
+          SQL.AgingConnectionTerminationReason          -> "max lifetime"
+          SQL.IdlenessConnectionTerminationReason       -> "max idletime"
+          SQL.ReleaseConnectionTerminationReason        -> "release"
+          SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
+    )
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""

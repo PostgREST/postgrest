@@ -35,11 +35,14 @@ let
       # - <subpath> is usually "."
       # - When adding a new library version here, postgrest.cabal and stack.yaml must also be updated
       #
-      # Note:
+      # Notes:
       # - This should NOT be the first place to start managing dependencies. Check postgrest.cabal.
+      # - When adding a new package version here, you have to update stack:
+      #   + For stack.yml add:
+      #   extra-deps:
+      #     - <package>-<ver>
+      #   + For stack.yml.lock, CI should report an error with the correct lock, copy/paste that one into the file
       # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
-      #
-
 
       configurator-pg =
         prev.callHackageDirect
@@ -60,18 +63,26 @@ let
           }
           { };
 
+      hasql-pool =
+        lib.dontCheck (prev.callHackageDirect
+          {
+            pkg = "hasql-pool";
+            ver = "1.0.1";
+            sha256 = "sha256-Hf1f7lX0LWkjrb25SDBovCYPRdmUP1H6pAxzi7kT4Gg=";
+          }
+          { }
+        );
+
       postgresql-libpq = lib.dontCheck
         (prev.postgresql-libpq_0_10_0_0.override {
           postgresql = super.libpq;
         });
 
-      hasql-pool = lib.dontCheck prev.hasql-pool_0_10;
-
       hasql-notifications = lib.dontCheck (prev.callHackageDirect
         {
           pkg = "hasql-notifications";
-          ver = "0.2.1.0";
-          sha256 = "sha256-MEIirDKR81KpiBOnWJbVInWevL6Kdb/XD1Qtd8e6KsQ=";
+          ver = "0.2.1.1";
+          sha256 = "sha256-oPhKA/pSQGJvgQyhsi7CVr9iDT7uWpKUz0iJfXsaxXo=";
         }
         { }
       );
