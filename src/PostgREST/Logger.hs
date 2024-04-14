@@ -6,11 +6,13 @@ module PostgREST.Logger
   ( middleware
   , observationLogger
   , init
+  , LoggerState
   ) where
 
-import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
-                           updateAction)
-import Control.Debounce
+import           Control.AutoUpdate    (defaultUpdateSettings,
+                                        mkAutoUpdate, updateAction)
+import           Control.Debounce
+import qualified Data.ByteString.Char8 as BS
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
@@ -23,8 +25,6 @@ import System.IO.Unsafe          (unsafePerformIO)
 
 import PostgREST.Config      (LogLevel (..))
 import PostgREST.Observation
-
-import qualified PostgREST.Auth as Auth
 
 import Protolude
 
@@ -54,8 +54,8 @@ logWithDebounce loggerState action = do
       putMVar (stateLogDebouncePoolTimeout loggerState) newDebouncer
       newDebouncer
 
-middleware :: LogLevel -> Wai.Middleware
-middleware logLevel = case logLevel of
+middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
+middleware logLevel getAuthRole = case logLevel of
   LogInfo  -> requestLogger (const True)
   LogWarn  -> requestLogger (>= status400)
   LogError -> requestLogger (>= status500)
@@ -67,15 +67,19 @@ middleware logLevel = case logLevel of
          Wai.ApacheWithSettings $
            Wai.defaultApacheSettings &
            Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res) &
-           Wai.setApacheUserGetter Auth.getRole
+           Wai.setApacheUserGetter getAuthRole
       , Wai.autoFlush = True
       , Wai.destination = Wai.Handle stdout
       }
 
-observationLogger :: LoggerState -> ObservationHandler
-observationLogger loggerState obs = case obs of
+observationLogger :: LoggerState -> LogLevel -> ObservationHandler
+observationLogger loggerState logLevel obs = case obs of
   o@(PoolAcqTimeoutObs _) -> do
-    logWithDebounce loggerState $
+    when (logLevel >= LogError) $ do
+      logWithDebounce loggerState $
+        logWithZTime loggerState $ observationMessage o
+  o@(QueryErrorCodeHighObs _) -> do
+    when (logLevel >= LogError) $ do
       logWithZTime loggerState $ observationMessage o
   o ->
     logWithZTime loggerState $ observationMessage o

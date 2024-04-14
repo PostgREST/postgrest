@@ -27,6 +27,7 @@ module PostgREST.AppState
   , reReadConfig
   , connectionWorker
   , runListener
+  , getObserver
   ) where
 
 import qualified Data.Aeson                 as JSON
@@ -43,6 +44,7 @@ import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
 import qualified PostgREST.Error            as Error
+import qualified PostgREST.Logger           as Logger
 import           PostgREST.Observation
 import           PostgREST.Version          (prettyVersion)
 import           System.TimeIt              (timeItT)
@@ -57,7 +59,6 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                  (AppConfig (..),
-                                          LogLevel (..),
                                           addFallbackAppName,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
@@ -109,19 +110,26 @@ data AppState = AppState
   , stateSocketREST           :: NS.Socket
   -- | Network socket for the admin UI
   , stateSocketAdmin          :: Maybe NS.Socket
+  -- | Logger state
+  , stateLogger               :: Logger.LoggerState
+  -- | Observation handler
+  , stateObserver             :: ObservationHandler
   }
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
 init :: AppConfig -> IO AppState
-init conf = do
+init conf@AppConfig{configLogLevel} = do
+  loggerState <- Logger.init
+  let observer = Logger.observationLogger loggerState configLogLevel
   pool <- initPool conf
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf
-  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock }
+  state' <- initWithPool (sock, adminSock) pool conf loggerState observer
+  pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> IO AppState
-initWithPool (sock, adminSock) pool conf = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> ObservationHandler -> IO AppState
+initWithPool (sock, adminSock) pool conf loggerState observer = do
+
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
@@ -136,6 +144,8 @@ initWithPool (sock, adminSock) pool conf = do
     <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
+    <*> pure loggerState
+    <*> pure observer
 
   debWorker <-
     let decisecond = 100000 in
@@ -193,17 +203,16 @@ initPool AppConfig{..} =
     (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
 
 -- | Run an action with a database connection.
-usePool :: AppState -> AppConfig -> SQL.Session a -> IO (Either SQL.UsageError a)
-usePool AppState{..} AppConfig{configLogLevel, configObserver=observer} sess = do
+usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool AppState{stateObserver=observer,..} sess = do
   res <- SQL.use statePool sess
 
-  when (configLogLevel > LogCrit) $ do
-    whenLeft res (\case
-      SQL.AcquisitionTimeoutUsageError -> observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
-      error
-        -- TODO We're using the 500 HTTP status for getting all internal db errors but there's no response here. We need a new intermediate type to not rely on the HTTP status.
-        | Error.status (Error.PgError False error) >= HTTP.status500 -> observer $ QueryErrorCodeHighObs error
-        | otherwise -> pure ())
+  whenLeft res (\case
+    SQL.AcquisitionTimeoutUsageError -> observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
+    error
+      -- TODO We're using the 500 HTTP status for getting all internal db errors but there's no response here. We need a new intermediate type to not rely on the HTTP status.
+      | Error.status (Error.PgError False error) >= HTTP.status500 -> observer $ QueryErrorCodeHighObs error
+      | otherwise -> pure ())
 
   return res
 
@@ -281,6 +290,9 @@ getSchemaCacheLoaded = readIORef . stateSchemaCacheLoaded
 putSchemaCacheLoaded :: AppState -> Bool -> IO ()
 putSchemaCacheLoaded = atomicWriteIORef . stateSchemaCacheLoaded
 
+getObserver :: AppState -> ObservationHandler
+getObserver = stateObserver
+
 -- | Schema cache status
 data SCacheStatus
   = SCLoaded
@@ -288,12 +300,12 @@ data SCacheStatus
   | SCFatalFail
 
 -- | Load the SchemaCache by using a connection from the pool.
-loadSchemaCache :: AppState -> AppConfig -> IO SCacheStatus
-loadSchemaCache appState AppConfig{configObserver=observer} = do
+loadSchemaCache :: AppState -> IO SCacheStatus
+loadSchemaCache appState@AppState{stateObserver=observer} = do
   conf@AppConfig{..} <- getConfig appState
   (resultTime, result) <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    timeItT $ usePool appState conf (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+    timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
     Left e -> do
       case checkIsFatal e of
@@ -333,12 +345,12 @@ data ConnectionStatus
 --     program.
 --  3. Obtains the sCache. If this fails, it goes back to 1.
 internalConnectionWorker :: AppState -> IO ()
-internalConnectionWorker appState = work
+internalConnectionWorker appState@AppState{stateObserver=observer} = work
   where
     work = do
-      config@AppConfig{configObserver=observer, ..} <- getConfig appState
+      AppConfig{..} <- getConfig appState
       observer DBConnectAttemptObs
-      connected <- establishConnection appState config
+      connected <- establishConnection appState
       case connected of
         FatalConnectionError reason ->
           -- Fatal error when connecting
@@ -356,7 +368,7 @@ internalConnectionWorker appState = work
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
           when configDbConfig $ reReadConfig False appState
-          scStatus <- loadSchemaCache appState config
+          scStatus <- loadSchemaCache appState
           case scStatus of
             SCLoaded ->
               -- do nothing and proceed if the load was successful
@@ -378,8 +390,8 @@ internalConnectionWorker appState = work
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
-establishConnection :: AppState -> AppConfig -> IO ConnectionStatus
-establishConnection appState config@AppConfig{configObserver=observer} =
+establishConnection :: AppState -> IO ConnectionStatus
+establishConnection appState@AppState{stateObserver=observer} =
   retrying retrySettings shouldRetry $
     const $ flushPool appState >> getConnectionStatus
   where
@@ -389,7 +401,7 @@ establishConnection appState config@AppConfig{configObserver=observer} =
 
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
-      pgVersion <- usePool appState config (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
+      pgVersion <- usePool appState (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
           observer $ ConnectionPgVersionErrorObs e
@@ -418,12 +430,12 @@ establishConnection appState config@AppConfig{configObserver=observer} =
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()
-reReadConfig startingUp appState = do
-  config@AppConfig{configObserver=observer, ..} <- getConfig appState
+reReadConfig startingUp appState@AppState{stateObserver=observer} = do
+  AppConfig{..} <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig then do
-      qDbSettings <- usePool appState config (queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements)
+      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements)
       case qDbSettings of
         Left e -> do
           observer ConfigReadErrorObs
@@ -439,7 +451,7 @@ reReadConfig startingUp appState = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig then do
-      rSettings <- usePool appState config (queryRoleSettings pgVer configDbPreparedStatements)
+      rSettings <- usePool appState (queryRoleSettings pgVer configDbPreparedStatements)
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e
@@ -447,7 +459,7 @@ reReadConfig startingUp appState = do
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl observer >>= \case
+  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
@@ -468,7 +480,7 @@ runListener conf@AppConfig{configDbChannelEnabled} appState = do
 -- NOTIFY <db-channel> - with an empty payload - is done, it refills the schema
 -- cache.  It uses the connectionWorker in case the LISTEN connection dies.
 listener :: AppState -> AppConfig -> IO ()
-listener appState conf@AppConfig{configObserver=observer, ..} = do
+listener appState@AppState{stateObserver=observer} conf@AppConfig{..} = do
   let dbChannel = toS configDbChannel
 
   -- The listener has to wait for a signal from the connectionWorker.
