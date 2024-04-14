@@ -61,11 +61,15 @@ middleware logLevel = case logLevel of
   LogError -> requestLogger (>= status500)
   LogCrit  -> requestLogger (const False)
   where
-    requestLogger filterStatus = unsafePerformIO $ Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
-      { Wai.outputFormat = Wai.ApacheWithSettings $
-          Wai.defaultApacheSettings
-            & Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res)
-            & Wai.setApacheUserGetter Auth.getRole
+    requestLogger filterStatus = unsafePerformIO $
+      Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
+      { Wai.outputFormat =
+         Wai.ApacheWithSettings $
+           Wai.defaultApacheSettings &
+           Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res) &
+           Wai.setApacheUserGetter Auth.getRole
+      , Wai.autoFlush = True
+      , Wai.destination = Wai.Handle stdout
       }
 
 observationLogger :: LoggerState -> ObservationHandler
