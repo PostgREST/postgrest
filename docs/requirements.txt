@@ -1,4 +1,4 @@
-docutils==0.20.1
+docutils==0.21.1
 sphinx-copybutton
 sphinx-intl
 sphinx-rtd-theme>=0.5.1
