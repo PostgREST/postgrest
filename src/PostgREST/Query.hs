@@ -79,7 +79,7 @@ runQuery _ _ _ _ (NoDb x) _ _ _ = pure $ NoDbResult x
 runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    AppState.usePool appState config (transaction isoLvl txMode $ runExceptT dbHandler)
+    AppState.usePool appState (transaction isoLvl txMode $ runExceptT dbHandler)
 
   resp <-
     liftEither . mapLeft Error.PgErr $

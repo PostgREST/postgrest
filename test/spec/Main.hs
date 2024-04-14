@@ -15,6 +15,7 @@ import Protolude                 hiding (toList, toS)
 import SpecHelper
 
 import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Logger   as Logger
 
 import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
@@ -68,6 +69,7 @@ import qualified Feature.RpcPreRequestGucsSpec
 
 main :: IO ()
 main = do
+  let observer = const $ pure ()
   pool <- P.acquire 3 10 60 60 $ toUtf8 $ configDbUri testCfg
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
@@ -75,11 +77,12 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
+  loggerState <- Logger.init
 
   let
     -- For tests that run with the same refSchemaCache
     app config = do
-      appState <- AppState.initWithPool sockets pool config
+      appState <- AppState.initWithPool sockets pool config loggerState observer
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just baseSchemaCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))
@@ -87,7 +90,7 @@ main = do
     -- For tests that run with a different SchemaCache(depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSCache pool config
-      appState <- AppState.initWithPool sockets pool config
+      appState <- AppState.initWithPool sockets pool config loggerState observer
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just customSchemaCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))

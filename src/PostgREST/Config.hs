@@ -64,8 +64,6 @@ import PostgREST.Config.Proxy            (Proxy (..),
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 
-import PostgREST.Observation
-
 import Protolude hiding (Proxy, toList)
 
 
@@ -114,7 +112,6 @@ data AppConfig = AppConfig
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCSleep          :: Maybe Int32
-  , configObserver                 :: ObservationHandler
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo
@@ -213,13 +210,13 @@ instance JustIfMaybe a (Maybe a) where
 
 -- | Reads and parses the config and overrides its parameters from env vars,
 -- files or db settings.
-readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> ObservationHandler -> IO (Either Text AppConfig)
-readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl observer = do
+readAppConfig :: [(Text, Text)] -> Maybe FilePath -> Maybe Text -> RoleSettings -> RoleIsolationLvl -> IO (Either Text AppConfig)
+readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
   env <- readPGRSTEnvironment
   -- if no filename provided, start with an empty map to read config from environment
   conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl observer) =<< mapLeft show conf of
+  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
@@ -234,8 +231,8 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl observe
       decodeJWKS <$>
         (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
 
-parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> ObservationHandler -> C.Parser C.Config AppConfig
-parser optPath env dbSettings roleSettings roleIsolationLvl observer =
+parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
+parser optPath env dbSettings roleSettings roleIsolationLvl =
   AppConfig
     <$> parseAppSettings "app.settings"
     <*> (fromMaybe False <$> optBool "db-aggregates-enabled")
@@ -288,7 +285,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl observer =
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-sleep"
-    <*> pure observer
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value

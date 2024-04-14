@@ -62,7 +62,8 @@ type Handler = ExceptT Error
 
 run :: AppState -> IO ()
 run appState = do
-  conf@AppConfig{configObserver=observer, ..} <- AppState.getConfig appState
+  let observer = AppState.getObserver appState
+  conf@AppConfig{..} <- AppState.getConfig appState
 
   observer $ AppServerStartObs prettyVersion
 
@@ -97,7 +98,7 @@ postgrest logLevel appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState .
   Auth.middleware appState .
-  Logger.middleware logLevel $
+  Logger.middleware logLevel Auth.getRole $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
     \req respond -> case fromJust $ Auth.getResult req of

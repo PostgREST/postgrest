@@ -25,17 +25,14 @@ import PostgREST.Version     (prettyVersion)
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
-import qualified PostgREST.Logger   as Logger
 
 import Protolude hiding (hPutStrLn)
 
 
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do
-  loggerState <- Logger.init
-
   conf@AppConfig{..} <-
-    either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty (Logger.observationLogger loggerState)
+    either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
 
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
@@ -56,7 +53,7 @@ dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   result <-
     let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    AppState.usePool appState conf
+    AppState.usePool appState
       (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
     Left e -> do
