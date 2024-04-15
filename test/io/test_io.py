@@ -797,16 +797,34 @@ def test_log_level(level, defaultenv):
         if level == "crit":
             assert len(output) == 0
         elif level == "error":
-            assert '"GET / HTTP/1.1" 500' in output[0]
+            assert re.match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                output[0],
+            )
             assert len(output) == 1
         elif level == "warn":
-            assert '"GET / HTTP/1.1" 500' in output[0]
-            assert '"GET /unknown HTTP/1.1" 404' in output[1]
+            assert re.match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                output[0],
+            )
+            assert re.match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                output[1],
+            )
             assert len(output) == 2
         else:
-            assert '"GET / HTTP/1.1" 500' in output[0]
-            assert '"GET / HTTP/1.1" 200' in output[1]
-            assert '"GET /unknown HTTP/1.1" 404' in output[2]
+            assert re.match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                output[0],
+            )
+            assert re.match(
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                output[1],
+            )
+            assert re.match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                output[2],
+            )
             assert len(output) == 3
 
 
