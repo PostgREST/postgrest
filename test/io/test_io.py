@@ -772,16 +772,8 @@ def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.parametrize(
-    "level, has_output",
-    [
-        ("info", [True, True, True]),
-        ("warn", [False, True, True]),
-        ("error", [False, False, True]),
-        ("crit", [False, False, False]),
-    ],
-)
-def test_log_level(level, has_output, defaultenv):
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+def test_log_level(level, defaultenv):
     "log_level should filter request logging"
 
     env = {**defaultenv, "PGRST_LOG_LEVEL": level}
@@ -791,29 +783,31 @@ def test_log_level(level, has_output, defaultenv):
     headers = jwtauthheader(claim, SECRET)
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get("/")
-        assert response.status_code == 200
-        if has_output[0]:
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
-                postgrest.process.stdout.readline().decode(),
-            )
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 500
 
         response = postgrest.session.get("/unknown")
         assert response.status_code == 404
-        if has_output[1]:
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
-                postgrest.process.stdout.readline().decode(),
-            )
 
-        response = postgrest.session.get("/", headers=headers)
-        assert response.status_code == 500
-        if has_output[2]:
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
-                postgrest.process.stdout.readline().decode(),
-            )
+        response = postgrest.session.get("/")
+        assert response.status_code == 200
+
+        output = sorted(postgrest.read_stdout(nlines=3))
+
+        if level == "crit":
+            assert len(output) == 0
+        elif level == "error":
+            assert '"GET / HTTP/1.1" 500' in output[0]
+            assert len(output) == 1
+        elif level == "warn":
+            assert '"GET / HTTP/1.1" 500' in output[0]
+            assert '"GET /unknown HTTP/1.1" 404' in output[1]
+            assert len(output) == 2
+        else:
+            assert '"GET / HTTP/1.1" 500' in output[0]
+            assert '"GET / HTTP/1.1" 200' in output[1]
+            assert '"GET /unknown HTTP/1.1" 404' in output[2]
+            assert len(output) == 3
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
@@ -1074,10 +1068,9 @@ def test_log_postgrest_version(defaultenv):
     with run(env=defaultenv, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
-        assert (
-            "Starting PostgREST %s..." % version
-            in postgrest.process.stdout.readline().decode()
-        )
+        output = sorted(postgrest.read_stdout(nlines=5))
+
+        assert "Starting PostgREST %s..." % version in output[3]
 
 
 def test_succeed_w_role_having_superuser_settings(defaultenv):
