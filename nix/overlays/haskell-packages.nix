@@ -36,12 +36,14 @@ let
       # - When adding a new library version here, postgrest.cabal and stack.yaml must also be updated
       #
       # Notes:
-      # - This should NOT be the first place to start managing dependencies. Check postgrest.cabal.
-      # - When adding a new package version here, you have to update stack:
-      #   + For stack.yml add:
+      # - When adding a new package version here, update cabal.
+      #   + Update postgrest.cabal with the package version
+      #   + Update cabal.project.freeze. Just set it to the current timestamp then run `cabal build`. It will tell you the correct timestamp for the index state.
+      # - When adding a new package version here, you have to update stack.
+      #   + To update stack.yaml add:
       #   extra-deps:
       #     - <package>-<ver>
-      #   + For stack.yml.lock, CI should report an error with the correct lock, copy/paste that one into the file
+      #   + For stack.yaml.lock, CI should report an error with the correct lock, copy/paste that one into the file
       # - To modify and try packages locally, see "Working with locally modified Haskell packages" in the Nix README.
 
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
