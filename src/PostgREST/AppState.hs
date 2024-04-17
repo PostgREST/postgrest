@@ -46,6 +46,7 @@ import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
+import qualified PostgREST.Metrics          as Metrics
 import           PostgREST.Observation
 import           PostgREST.Version          (prettyVersion)
 import           System.TimeIt              (timeItT)
@@ -111,25 +112,28 @@ data AppState = AppState
   , stateSocketREST           :: NS.Socket
   -- | Network socket for the admin UI
   , stateSocketAdmin          :: Maybe NS.Socket
-  -- | Logger state
-  , stateLogger               :: Logger.LoggerState
   -- | Observation handler
   , stateObserver             :: ObservationHandler
+  , stateLogger               :: Logger.LoggerState
+  , stateMetrics              :: Metrics.MetricsState
   }
 
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
+
 init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel} = do
-  loggerState <- Logger.init
-  let observer = Logger.observationLogger loggerState configLogLevel
+init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+  loggerState  <- Logger.init
+  metricsState <- Metrics.init configDbPoolSize
+  let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
+
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf loggerState observer
+  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf loggerState observer = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
+initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -145,8 +149,9 @@ initWithPool (sock, adminSock) pool conf loggerState observer = do
     <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
-    <*> pure loggerState
     <*> pure observer
+    <*> pure loggerState
+    <*> pure metricsState
 
   debWorker <-
     let decisecond = 100000 in
@@ -156,7 +161,7 @@ initWithPool (sock, adminSock) pool conf loggerState observer = do
        , debounceEdge = leadingEdge -- runs the worker at the start and the end
        }
 
-  return appState { debouncedConnectionWorker = debWorker }
+  return appState { debouncedConnectionWorker = debWorker}
 
 destroy :: AppState -> IO ()
 destroy = destroyPool

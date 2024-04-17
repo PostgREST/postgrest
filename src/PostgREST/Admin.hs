@@ -19,10 +19,12 @@ import Network.Socket.ByteString
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
+import PostgREST.Metrics     (metricsToText)
 import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
+
 
 import Protolude
 
@@ -56,6 +58,9 @@ admin appState appConfig req respond  = do
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)
+    ["metrics"] -> do
+      mets <- metricsToText
+      respond $ Wai.responseLBS HTTP.status200 [] mets
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
 
