@@ -1427,3 +1427,15 @@ def test_multiple_func_settings(defaultenv):
         response = postgrest.session.post("/rpc/multiple_func_settings_test")
 
         assert response.text == '[{"work_mem":"5000kB","statement_timeout":"10s"}]'
+
+
+def test_admin_metrics(defaultenv):
+    "Should get metrics from the admin endpoint"
+
+    with run(env=defaultenv, port=freeport()) as postgrest:
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "pgrst_db_pool_max" in response.text
+        assert "pgrst_db_pool_waiting" in response.text
+        assert "pgrst_db_pool_available" in response.text
+        assert "pgrst_db_pool_timeouts_total" in response.text

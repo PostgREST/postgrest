@@ -52,6 +52,8 @@ data Observation
   | QueryErrorCodeHighObs SQL.UsageError
   | PoolAcqTimeoutObs SQL.UsageError
   | HasqlPoolObs SQL.Observation
+  | PoolRequest
+  | PoolRequestFullfilled
 
 type ObservationHandler = Observation -> IO ()
 
@@ -125,6 +127,7 @@ observationMessage = \case
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
     )
+  _ -> mempty
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""

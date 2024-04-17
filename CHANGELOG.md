@@ -15,6 +15,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2676, Performance improvement on bulk json inserts, around 10% increase on requests per second by removing `json_typeof` from write queries - @steve-chavez
  - #3214, Log connection pool events on log-level=info - @steve-chavez
  - #3435, Add log-level=debug, for development purposes - @steve-chavez
+ - #1526, Add `/metrics` endpoint on admin server - @steve-chavez
+   - Exposes connection pool metrics
 
 ### Fixed
 

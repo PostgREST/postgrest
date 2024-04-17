@@ -17,6 +17,7 @@ import SpecHelper
 
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Logger   as Logger
+import qualified PostgREST.Metrics  as Metrics
 
 import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
@@ -70,7 +71,6 @@ import qualified Feature.RpcPreRequestGucsSpec
 
 main :: IO ()
 main = do
-  let observer = const $ pure ()
   pool <- P.acquire $ P.settings
     [ P.size 3
     , P.acquisitionTimeout 10
@@ -85,22 +85,22 @@ main = do
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
+  metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    -- For tests that run with the same refSchemaCache
-    app config = do
-      appState <- AppState.initWithPool sockets pool config loggerState observer
+    initApp sCache config = do
+      appState <- AppState.initWithPool sockets pool config loggerState metricsState (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
-      AppState.putSchemaCache appState (Just baseSchemaCache)
+      AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))
 
-    -- For tests that run with a different SchemaCache(depends on configSchemas)
+    -- For tests that run with the same schema cache
+    app = initApp baseSchemaCache
+
+    -- For tests that run with a different SchemaCache (depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSCache pool config
-      appState <- AppState.initWithPool sockets pool config loggerState observer
-      AppState.putPgVersion appState actualPgVersion
-      AppState.putSchemaCache appState (Just customSchemaCache)
-      return ((), postgrest (configLogLevel config) appState (pure ()))
+      initApp customSchemaCache config
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
@@ -280,3 +280,4 @@ main = do
   where
     loadSCache pool conf =
       either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+

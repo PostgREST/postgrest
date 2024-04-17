@@ -88,6 +88,10 @@ observationLogger loggerState logLevel obs = case obs of
   o@(SchemaCacheLoadedObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  PoolRequest ->
+    pure ()
+  PoolRequestFullfilled ->
+    pure ()
   o ->
     logWithZTime loggerState $ observationMessage o
 
