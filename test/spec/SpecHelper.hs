@@ -115,6 +115,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbAnonRole                = Just "postgrest_test_anonymous"
   , configDbChannel                 = mempty
   , configDbChannelEnabled          = True
+  , configDbChannelUri              = Nothing
   , configDbExtraSearchPath         = []
   , configDbMaxRows                 = Nothing
   , configDbPlanEnabled             = False

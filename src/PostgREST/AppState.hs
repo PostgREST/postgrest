@@ -485,6 +485,7 @@ runListener conf@AppConfig{configDbChannelEnabled} appState = do
 listener :: AppState -> AppConfig -> IO ()
 listener appState@AppState{stateObserver=observer} conf@AppConfig{..} = do
   let dbChannel = toS configDbChannel
+      dbChannelUri = fromMaybe configDbUri configDbChannelUri
 
   -- The listener has to wait for a signal from the connectionWorker.
   -- This is because when the connection to the db is lost, the listener also
@@ -494,7 +495,7 @@ listener appState@AppState{stateObserver=observer} conf@AppConfig{..} = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally (handleFinally dbChannel configDbPoolAutomaticRecovery) $ do
-    dbOrError <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
+    dbOrError <- acquire $ toUtf8 (addFallbackAppName prettyVersion dbChannelUri)
     case dbOrError of
       Right db -> do
         observer $ DBListenerStart dbChannel
@@ -515,6 +516,7 @@ listener appState@AppState{stateObserver=observer} conf@AppConfig{..} = do
       putIsListenerOn appState False
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
+      -- TODO: debounce
       -- retry the listener
       listener appState conf
 

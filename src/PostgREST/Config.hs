@@ -73,6 +73,7 @@ data AppConfig = AppConfig
   , configDbAnonRole               :: Maybe BS.ByteString
   , configDbChannel                :: Text
   , configDbChannelEnabled         :: Bool
+  , configDbChannelUri             :: Maybe Text
   , configDbExtraSearchPath        :: [Text]
   , configDbMaxRows                :: Maybe Integer
   , configDbPlanEnabled            :: Bool
@@ -144,6 +145,7 @@ toText conf =
       ,("db-anon-role",              q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
       ,("db-channel",                q . configDbChannel)
       ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
+      ,("db-channel-uri",            q . fromMaybe mempty . configDbChannelUri)
       ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
       ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
       ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
@@ -239,6 +241,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
+    <*> optString "db-channel-uri"
     <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")

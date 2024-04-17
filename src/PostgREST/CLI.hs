@@ -134,6 +134,10 @@ exampleConfigFile =
       |## Enable or disable the notification channel
       |db-channel-enabled = true
       |
+      |## The connection for the notification channel in URI format, useful for read replicas
+      |## (the same as db-uri if not set)
+      |## db-channel-uri = "postgresql://"
+      |
       |## Enable in-database configuration
       |db-config = true
       |

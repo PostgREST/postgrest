@@ -6,6 +6,7 @@ module PostgREST.Logger
   ( middleware
   , observationLogger
   , init
+  , logWithDebounce
   , LoggerState
   ) where
 
