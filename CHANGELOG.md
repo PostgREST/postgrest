@@ -29,6 +29,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3345, Fix in-database configuration values not loading for `pgrst.server_trace_header` and `pgrst.server_cors_allowed_origins` - @laurenceisla
  - #3361, Clarify PGRST204(column not found) error message - @steve-chavez
  - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
+ - #3418, Fix OpenAPI not tagging a FK column correctly on O2O relationships - @laurenceisla
 
 ### Deprecated
 
