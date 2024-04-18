@@ -13,6 +13,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3361, Clarify PGRST204(column not found) error message - @steve-chavez
  - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
+ - #3418, Fix OpenAPI not tagging a FK column correctly on O2O relationships - @laurenceisla
 
 ## [12.0.2] - 2023-12-20
 
