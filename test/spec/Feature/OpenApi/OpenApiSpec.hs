@@ -222,6 +222,21 @@ spec actualPgVersion = describe "OpenAPI" $ do
                     . nth 0
       liftIO $ tableTag `shouldBe` Just [aesonQQ|"authors_only"|]
 
+    it "includes a fk description for a O2O relationship" $ do
+      r <- simpleBody <$> get "/"
+
+      let referralLink = r ^? key "definitions" . key "first" . key "properties" . key "second_id_1"
+
+      liftIO $
+        referralLink `shouldBe` Just
+          [aesonQQ|
+            {
+              "format": "integer",
+              "type": "integer",
+              "description": "Note:\nThis is a Foreign Key to `second.id`.<fk table='second' column='id'/>"
+            }
+          |]
+
   describe "Foreign table" $
 
     it "includes foreign table properties" $ do

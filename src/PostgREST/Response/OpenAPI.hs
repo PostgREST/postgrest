@@ -115,6 +115,7 @@ makeProperty tbl rels col = (colName col, Inline s)
         -- Finds the relationship that has a single column foreign key
         rel = find (\case
           Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
+          Relationship{relCardinality=(O2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
           _                                               -> False
           ) relsSortedByIsView
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
