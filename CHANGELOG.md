@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3435, Add log-level=debug, for development purposes - @steve-chavez
  - #1526, Add `/metrics` endpoint on admin server - @steve-chavez
    - Exposes connection pool metrics, schema cache metrics
+ - #3404, Show the failed MESSAGE or DETAIL in the `details` field of the `PGRST121` (could not parse RAISE 'PGRST') error - @laurenceisla
 
 ### Fixed
 
@@ -30,10 +31,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3345, Fix in-database configuration values not loading for `pgrst.server_trace_header` and `pgrst.server_cors_allowed_origins` - @laurenceisla
- - #3361, Clarify PGRST204(column not found) error message - @steve-chavez
+ - #3361, Clarify the `PGRST204` (column not found) error message - @steve-chavez
  - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
  - #3418, Fix OpenAPI not tagging a FK column correctly on O2O relationships - @laurenceisla
  - #3256, Fix wrong http status for pg error `42P17 infinite recursion` - @taimoorzaeem
+ - #3404, Clarify the `PGRST121` (could not parse RAISE 'PGRST') error message - @laurenceisla
 
 ### Deprecated
 
