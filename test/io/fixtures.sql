@@ -205,7 +205,7 @@ $$ language sql;
 
 create or replace function work_mem_test() returns text as $$
   select current_setting('work_mem',false);
-$$ language sql set work_mem = '6000';
+$$ language sql set work_mem = '6000kB';
 
 create or replace function multiple_func_settings_test() returns setof record as $$
   select current_setting('work_mem',false) as work_mem,

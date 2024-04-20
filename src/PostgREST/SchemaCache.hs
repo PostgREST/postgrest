@@ -456,7 +456,7 @@ funcsSqlQuery pgVer = [q|
     SELECT
       array_agg(row(
         substr(setting, 1, strpos(setting, '=') - 1),
-        lower(substr(setting, strpos(setting, '=') + 1))
+        substr(setting, strpos(setting, '=') + 1)
       )) as kvs
     FROM unnest(proconfig) setting
     WHERE setting not LIKE 'default_transaction_isolation%'
