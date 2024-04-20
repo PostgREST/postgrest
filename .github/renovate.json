@@ -12,6 +12,10 @@
     {
       "matchBaseBranches": [ "/^v[0-9]+/" ],
       "groupName": "all dependencies"
+    },
+    {
+      "matchPackageNames": ["docutils"],
+      "allowedVersions": "<0.21.0"
     }
   ]
 }
