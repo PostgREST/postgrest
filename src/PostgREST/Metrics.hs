@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE NumericUnderscores #-}
 module PostgREST.Metrics
   ( init
   , MetricsState (..)
@@ -16,24 +14,22 @@ import PostgREST.Observation
 
 import Protolude
 
-data MetricsState = MetricsState
-  { poolTimeouts         :: Prom.Counter
-  , poolAvailable        :: Prom.Gauge
-  , poolWaiting          :: Prom.Gauge
-  , poolMaxSize          :: Prom.Gauge
-  }
+data MetricsState =
+  MetricsState Prom.Counter Prom.Gauge Prom.Gauge Prom.Gauge Prom.Counter Prom.Gauge
 
 init :: Int -> IO MetricsState
-init poolMaxSize = do
-  timeouts <- Prom.register $ Prom.counter (Prom.Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts")
-  available <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_available" "Available connections in the pool")
-  waiting <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection")
-  maxSize <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_max" "Max pool connections")
-  Prom.setGauge maxSize (fromIntegral poolMaxSize)
-  pure $ MetricsState timeouts available waiting maxSize
+init configDbPoolSize = do
+  poolTimeouts <- Prom.register $ Prom.counter (Prom.Info "pgrst_db_pool_timeouts_total" "The total number of pool connection timeouts")
+  poolAvailable <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_available" "Available connections in the pool")
+  poolWaiting <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection")
+  poolMaxSize <- Prom.register $ Prom.gauge (Prom.Info "pgrst_db_pool_max" "Max pool connections")
+  schemaCacheLoads <- Prom.register $ Prom.counter (Prom.Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded")
+  schemaCacheQueryTime <- Prom.register $ Prom.gauge (Prom.Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load")
+  Prom.setGauge poolMaxSize (fromIntegral configDbPoolSize)
+  pure $ MetricsState poolTimeouts poolAvailable poolWaiting poolMaxSize schemaCacheLoads schemaCacheQueryTime
 
 observationMetrics :: MetricsState -> ObservationHandler
-observationMetrics MetricsState{poolTimeouts, poolAvailable, poolWaiting} obs = case obs of
+observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schemaCacheLoads schemaCacheQueryTime) obs = case obs of
   (PoolAcqTimeoutObs _) -> do
     Prom.incCounter poolTimeouts
   (HasqlPoolObs (SQL.ConnectionObservation _ status)) -> case status of
@@ -48,6 +44,9 @@ observationMetrics MetricsState{poolTimeouts, poolAvailable, poolWaiting} obs = 
     Prom.incGauge poolWaiting
   PoolRequestFullfilled ->
     Prom.decGauge poolWaiting
+  SchemaCacheLoadedObs resTime -> do
+    Prom.incCounter schemaCacheLoads
+    Prom.setGauge schemaCacheQueryTime resTime
   _ ->
     pure ()
 
