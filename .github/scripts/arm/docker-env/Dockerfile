@@ -1,6 +1,6 @@
 # PostgREST docker hub image
 
-FROM ubuntu:jammy@sha256:77906da86b60585ce12215807090eb327e7386c8fafb5402369e421f44eff17e AS postgrest
+FROM ubuntu:jammy@sha256:1b8d8ff4777f36f19bfe73ee4df61e3a0b789caeff29caa019539ec7c9a57f95 AS postgrest
 
 RUN apt-get update -y \
     && apt install -y --no-install-recommends libpq-dev zlib1g-dev jq gcc libnuma-dev \
