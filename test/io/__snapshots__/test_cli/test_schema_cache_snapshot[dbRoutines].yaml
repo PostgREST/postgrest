@@ -219,7 +219,7 @@
   - - pdDescription: null
       pdFuncSettings:
       - - work_mem
-        - '6000'
+        - 6000kB
       pdHasVariadic: false
       pdName: work_mem_test
       pdParams: []
