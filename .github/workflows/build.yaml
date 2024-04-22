@@ -60,7 +60,7 @@ jobs:
 
   macos:
     name: Nix - MacOS
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -95,7 +95,7 @@ jobs:
             # no artifact for Linux, because we use the static build
 
           - name: MacOS
-            runs-on: macos-latest
+            runs-on: macos-12
             cache: |
               ~/.stack
               .stack-work
