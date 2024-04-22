@@ -192,7 +192,7 @@ instance JSON.ToJSON ApiRequestError where
     ApiRequestErrorCode21
     "Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error"
     (Just $ JSON.String $ pgrstParseErrorDetails raiseErr)
-    Nothing
+    (Just $ JSON.String $ pgrstParseErrorHint raiseErr)
 
   toJSON (InvalidPreferences prefs) = toJsonPgrstError
     ApiRequestErrorCode22
@@ -396,6 +396,11 @@ pgrstParseErrorDetails err = case err of
   MsgParseError m -> "Invalid JSON value for MESSAGE: '" <> T.decodeUtf8 m <> "'"
   DetParseError d -> "Invalid JSON value for DETAIL: '" <> T.decodeUtf8 d <> "'"
   NoDetail        -> "DETAIL is missing in the RAISE statement"
+
+pgrstParseErrorHint :: RaiseError -> Text
+pgrstParseErrorHint err = case err of
+  MsgParseError _ -> "MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."
+  _               -> "DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."
 
 data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool

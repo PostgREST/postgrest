@@ -1458,7 +1458,7 @@ spec actualPgVersion =
             "code":"PGRST121",
             "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
             "details":"Invalid JSON value for MESSAGE: 'INVALID'",
-            "hint":null}|]
+            "hint":"MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."}|]
           { matchStatus = 500 }
 
       it "returns error for invalid JSON in the DETAIL option of the RAISE statement" $
@@ -1467,7 +1467,7 @@ spec actualPgVersion =
             "code":"PGRST121",
             "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
             "details":"Invalid JSON value for DETAIL: 'INVALID'",
-            "hint":null}|]
+            "hint":"DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."}|]
           { matchStatus = 500 }
 
       it "returns error for missing DETAIL option in the RAISE statement" $
@@ -1476,5 +1476,5 @@ spec actualPgVersion =
             "code":"PGRST121",
             "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
             "details":"DETAIL is missing in the RAISE statement",
-            "hint":null}|]
+            "hint":"DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."}|]
           { matchStatus = 500 }
