@@ -22,9 +22,9 @@ jobs:
       matrix:
         include:
           - os: Linux
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-22.04
           - os: MacOS
-            runs-on: macos-latest
+            runs-on: macos-12
     name: Seed ${{ matrix.os }}
     runs-on: ${{ matrix.runs-on }}
     steps:

@@ -20,7 +20,7 @@ concurrency:
 jobs:
   Lint-Style:
     name: Lint & check code style
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -35,7 +35,7 @@ jobs:
 
   Test-Nix:
     name: Test (Nix)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -71,7 +71,7 @@ jobs:
       matrix:
         pgVersion: [9.6, 10, 11, 12, 13, 14, 15, 16]
     name: Test PG ${{ matrix.pgVersion }} (Nix)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     defaults:
       run:
         # Hack for enabling color output, see:
@@ -95,7 +95,7 @@ jobs:
 
   Test-Memory-Nix:
     name: Test memory (Nix)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -108,7 +108,7 @@ jobs:
 
   Build-Static-Nix:
     name: Build Linux static (Nix)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -138,7 +138,7 @@ jobs:
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -155,21 +155,21 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-22.04
             cache: |
               ~/.stack
               .stack-work
             artifact: postgrest-ubuntu-x64
 
           - name: MacOS
-            runs-on: macos-latest
+            runs-on: macos-12
             cache: |
               ~/.stack
               .stack-work
             artifact: postgrest-macos-x64
 
           - name: Windows
-            runs-on: windows-latest
+            runs-on: windows-2022
             cache: |
               ~\AppData\Roaming\stack
               ~\AppData\Local\Programs\stack
@@ -202,7 +202,7 @@ jobs:
 
   Get-FreeBSD-CirrusCI:
     name: Get FreeBSD build from CirrusCI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Get FreeBSD executable from CirrusCI
@@ -224,7 +224,7 @@ jobs:
         ghc: ['9.0.2', '9.2.4']
       fail-fast: false
     name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Workaround runner image issue
@@ -262,7 +262,7 @@ jobs:
       fail-fast: false
     name: Build aarch64 (Cabal, GHC ${{ matrix.ghc }})
     if: "${{ github.event_name == 'push' }}"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
     env:
@@ -319,7 +319,7 @@ jobs:
   Prepare-Release:
     name: Prepare release
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - Lint-Style
       - Test-Nix
@@ -381,7 +381,7 @@ jobs:
     name: Release on GitHub
     permissions:
       contents: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: Prepare-Release
     env:
       VERSION: ${{ needs.Prepare-Release.outputs.version }}
@@ -440,7 +440,7 @@ jobs:
 
   Release-Docker:
     name: Release on Docker Hub
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - Prepare-Release
     env:
@@ -491,7 +491,7 @@ jobs:
 
   Release-Docker-Arm:
     name: Release Arm Builds on Docker Hub
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       - Build-Cabal-Arm
       - Prepare-Release
@@ -527,7 +527,7 @@ jobs:
       needs.Build-Cabal-Arm.result == 'failure' ||
       needs.Build-Cabal-Arm.result == 'cancelled' ||
       (needs.Build-Cabal-Arm.result == 'success' && !startsWith(github.ref, 'refs/tags/v'))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
     steps:
