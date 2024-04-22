@@ -203,7 +203,7 @@ exampleConfigFile =
       |## Enables and set JWT Cache max lifetime, disables caching with 0
       |# jwt-cache-max-lifetime = 0
       |
-      |## Logging level, the admitted values are: crit, error, warn and info.
+      |## Logging level, the admitted values are: crit, error, warn, info and debug.
       |log-level = "error"
       |
       |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.

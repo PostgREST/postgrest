@@ -114,7 +114,7 @@ data AppConfig = AppConfig
   , configInternalSCSleep          :: Maybe Int32
   }
 
-data LogLevel = LogCrit | LogError | LogWarn | LogInfo
+data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
   deriving (Eq, Ord)
 
 dumpLogLevel :: LogLevel -> Text
@@ -123,6 +123,7 @@ dumpLogLevel = \case
   LogError -> "error"
   LogWarn  -> "warn"
   LogInfo  -> "info"
+  LogDebug -> "debug"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
@@ -338,6 +339,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just "error" -> pure LogError
         Just "warn"  -> pure LogWarn
         Just "info"  -> pure LogInfo
+        Just "debug" -> pure LogDebug
         Just _       -> fail "Invalid logging level. Check your configuration."
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
