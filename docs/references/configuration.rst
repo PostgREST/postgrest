@@ -680,6 +680,8 @@ log-level
       # All the "warn" level events plus all requests (every status code) are logged
       log-level = "info"
 
+      # All the above plus events for development purposes are logged
+      log-level = "debug"
 
   Because currently there's no buffering for logging, the levels with minimal logging(``crit/error``) will increase throughput.
 

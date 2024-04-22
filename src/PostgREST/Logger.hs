@@ -56,10 +56,11 @@ logWithDebounce loggerState action = do
 
 middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
 middleware logLevel getAuthRole = case logLevel of
-  LogInfo  -> requestLogger (const True)
-  LogWarn  -> requestLogger (>= status400)
-  LogError -> requestLogger (>= status500)
   LogCrit  -> requestLogger (const False)
+  LogError -> requestLogger (>= status500)
+  LogWarn  -> requestLogger (>= status400)
+  LogInfo  -> requestLogger (const True)
+  LogDebug -> requestLogger (const True)
   where
     requestLogger filterStatus = unsafePerformIO $
       Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
@@ -83,6 +84,9 @@ observationLogger loggerState logLevel obs = case obs of
       logWithZTime loggerState $ observationMessage o
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogInfo) $ do
+      logWithZTime loggerState $ observationMessage o
+  o@(SchemaCacheLoadedObs _) -> do
+    when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
   o ->
     logWithZTime loggerState $ observationMessage o

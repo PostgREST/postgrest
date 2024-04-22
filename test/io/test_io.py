@@ -575,7 +575,7 @@ def test_pool_size(defaultenv, metapostgrest):
         assert delta > 1 and delta < 1.5
 
 
-@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
 def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
     "Verify that PGRST_DB_POOL_ACQUISITION_TIMEOUT times out when the pool is empty"
 
@@ -597,7 +597,7 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
 
         if level == "crit":
             assert len(output) == 0
-        elif level == "info":
+        elif level in ["info", "debug"]:
             assert " 504 " in output[0]
             assert "Timed out acquiring connection from connection pool." in output[2]
 
@@ -772,7 +772,7 @@ def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
         assert response.status_code == 200
 
 
-@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
 def test_log_level(level, defaultenv):
     "log_level should filter request logging"
 
@@ -1358,7 +1358,7 @@ def test_no_preflight_request_with_CORS_config_should_not_return_header(defaulte
         assert "Access-Control-Allow-Origin" not in response.headers
 
 
-@pytest.mark.parametrize("level", ["crit", "error", "warn", "info"])
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
 def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
     "verify that DB errors are logged to stderr"
 
@@ -1381,7 +1381,7 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
 
         if level == "crit":
             assert len(output) == 0
-        elif level == "info":
+        elif level in ["info", "debug"]:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[3]
         else:
