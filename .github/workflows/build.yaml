@@ -31,7 +31,7 @@ concurrency:
 jobs:
   static:
     name: Nix - Linux static
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Setup Nix Environment
@@ -88,7 +88,7 @@ jobs:
       matrix:
         include:
           - name: Linux
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-22.04
             cache: |
               ~/.stack
               .stack-work
@@ -102,7 +102,7 @@ jobs:
             artifact: postgrest-macos-x64
 
           - name: Windows
-            runs-on: windows-latest
+            runs-on: windows-2022
             cache: |
               ~\AppData\Roaming\stack
               ~\AppData\Local\Programs\stack
@@ -141,7 +141,7 @@ jobs:
 
   freebsd:
     name: Stack - FreeBSD from CirrusCI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Get FreeBSD executable from CirrusCI
@@ -164,7 +164,7 @@ jobs:
         ghc: ['9.6.4', '9.8.2']
       fail-fast: false
     name: Cabal - Linux GHC ${{ matrix.ghc }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: ghcup
