@@ -18,6 +18,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1526, Add `/metrics` endpoint on admin server - @steve-chavez
    - Exposes connection pool metrics, schema cache metrics
  - #3404, Show the failed MESSAGE or DETAIL in the `details` field of the `PGRST121` (could not parse RAISE 'PGRST') error - @laurenceisla
+ - #3404, Show extra information in the `PGRST121` (could not parse RAISE 'PGRST') error - @laurenceisla
+   + Shows the failed MESSAGE or DETAIL in the `details` field
+   + Shows the correct JSON format in the `hints` field
 
 ### Fixed
 
