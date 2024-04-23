@@ -91,7 +91,7 @@ jobs:
           source: "${{ steps.Remote-Dir.outputs.remotepath }}/result.tar.xz"
           target: "result.tar.xz"
       - name: Remove uploaded files from server
-        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        if: ${{ always() && !startsWith(github.ref, 'refs/tags/v') }}
         uses: appleboy/ssh-action@master
         env:
           REMOTE_DIR: ${{ steps.Remote-Dir.outputs.remotepath }}
@@ -315,7 +315,7 @@ jobs:
     needs:
       - arm
       - docker-arm
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: ubuntu-22.04
     env:
       REMOTE_DIR: ${{ needs.arm.outputs.remotepath }}
