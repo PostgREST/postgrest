@@ -39,3 +39,16 @@ Ready
 -----
 
 In addition, the ``ready`` endpoint checks the state of the :ref:`connection_pool` and the :ref:`schema_cache`. A request will return ``200 OK`` if both are good or ``503`` if not.
+
+.. code-block:: bash
+
+  curl -I "http://localhost:3001/ready"
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+
+Metrics
+=======
+
+Provides :ref:`metrics`.
