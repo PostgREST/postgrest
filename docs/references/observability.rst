@@ -3,10 +3,15 @@
 Observability
 #############
 
+.. contents::
+   :depth: 1
+   :local:
+   :backlinks: none
+
 .. _pgrst_logging:
 
-Logging
--------
+Logs
+====
 
 PostgREST logs basic request information to ``stdout``, including the authenticated user if available, the requesting IP address and user agent, the URL requested, and HTTP response status.
 
@@ -40,7 +45,7 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
 Currently PostgREST doesn't log the SQL commands executed against the underlying database.
 
 Database Logs
-~~~~~~~~~~~~~
+-------------
 
 To find the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
 
@@ -80,6 +85,92 @@ Restart the database and watch the log file in real-time to understand how HTTP 
 
     docker run -v "$(pwd)/init.sh":"/docker-entrypoint-initdb.d/init.sh" -d postgres
     docker logs -f <container-id>
+
+.. _metrics:
+
+Metrics
+=======
+
+The ``metrics`` endpoint on the :ref:`admin_server` endpoint provides metrics in `Prometheus text format <https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format>`_.
+
+.. code-block:: bash
+
+  curl "http://localhost:3001/metrics"
+
+  # HELP pgrst_schema_cache_query_time_seconds The query time in seconds of the last schema cache load
+  # TYPE pgrst_schema_cache_query_time_seconds gauge
+  pgrst_schema_cache_query_time_seconds 1.5937927e-2
+  # HELP pgrst_schema_cache_loads_total The total number of times the schema cache was loaded
+  # TYPE pgrst_schema_cache_loads_total counter
+  pgrst_schema_cache_loads_total 1.0
+  ...
+
+Schema Cache Metrics
+--------------------
+
+Metrics related to the :ref:`schema_cache`.
+
+pgrst_schema_cache_query_time_seconds
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+The query time in seconds of the last schema cache load.
+
+pgrst_schema_cache_loads_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of times the schema cache was loaded.
+
+Connection Pool Metrics
+-----------------------
+
+Metrics related to the :ref:`connection_pool`.
+
+pgrst_db_pool_timeouts_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of pool connection timeouts.
+
+pgrst_db_pool_available
+~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+Available connections in the pool.
+
+pgrst_db_pool_waiting
+~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+Requests waiting to acquire a pool connection
+
+pgrst_db_pool_max
+~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+Max pool connections.
+
+Traces
+======
 
 Server Version
 --------------
