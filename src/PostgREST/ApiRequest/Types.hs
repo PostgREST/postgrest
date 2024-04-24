@@ -25,6 +25,7 @@ module PostgREST.ApiRequest.Types
   , OrderNulls(..)
   , OrderTerm(..)
   , QPError(..)
+  , RaiseError(..)
   , RangeError(..)
   , SingleVal
   , TrileanVal(..)
@@ -95,11 +96,16 @@ data ApiRequestError
   | OffLimitsChangesError Int64 Integer
   | PutMatchingPkError
   | SingularityError Integer
-  | PGRSTParseError
+  | PGRSTParseError RaiseError
   | MaxAffectedViolationError Integer
   deriving Show
 
 data QPError = QPError Text Text
+  deriving Show
+data RaiseError
+  = MsgParseError ByteString
+  | DetParseError ByteString
+  | NoDetail
   deriving Show
 data RangeError
   = NegativeLimit

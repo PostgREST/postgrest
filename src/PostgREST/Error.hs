@@ -34,6 +34,7 @@ import Network.HTTP.Types.Header (Header)
 
 import           PostgREST.ApiRequest.Types (ApiRequestError (..),
                                              QPError (..),
+                                             RaiseError (..),
                                              RangeError (..))
 import           PostgREST.MediaType        (MediaType (..))
 import qualified PostgREST.MediaType        as MediaType
@@ -90,7 +91,7 @@ instance PgrstError ApiRequestError where
   status OffLimitsChangesError{}     = HTTP.status400
   status PutMatchingPkError          = HTTP.status400
   status SingularityError{}          = HTTP.status406
-  status PGRSTParseError             = HTTP.status500
+  status PGRSTParseError{}           = HTTP.status500
   status MaxAffectedViolationError{} = HTTP.status400
 
   headers _ = mempty
@@ -187,8 +188,11 @@ instance JSON.ToJSON ApiRequestError where
     (Just "Only is null or not is null filters are allowed on embedded resources")
     Nothing
 
-  toJSON PGRSTParseError = toJsonPgrstError
-    ApiRequestErrorCode21 "The message and detail field of RAISE 'PGRST' error expects JSON" Nothing Nothing
+  toJSON (PGRSTParseError raiseErr) = toJsonPgrstError
+    ApiRequestErrorCode21
+    "Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error"
+    (Just $ JSON.String $ pgrstParseErrorDetails raiseErr)
+    (Just $ JSON.String $ pgrstParseErrorHint raiseErr)
 
   toJSON (InvalidPreferences prefs) = toJsonPgrstError
     ApiRequestErrorCode22
@@ -387,6 +391,17 @@ relHint rels = T.intercalate ", " (hintList <$> rels)
     -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
     hintList ComputedRelationship{} = mempty
 
+pgrstParseErrorDetails :: RaiseError -> Text
+pgrstParseErrorDetails err = case err of
+  MsgParseError m -> "Invalid JSON value for MESSAGE: '" <> T.decodeUtf8 m <> "'"
+  DetParseError d -> "Invalid JSON value for DETAIL: '" <> T.decodeUtf8 d <> "'"
+  NoDetail        -> "DETAIL is missing in the RAISE statement"
+
+pgrstParseErrorHint :: RaiseError -> Text
+pgrstParseErrorHint err = case err of
+  MsgParseError _ -> "MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."
+  _               -> "DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."
+
 data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool
 
@@ -394,9 +409,9 @@ instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
   headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
-    case (parseMessage m, parseDetails d) of
-      (Just _, Just r) -> headers PGRSTParseError ++ map intoHeader (M.toList $ getHeaders r)
-      _                -> headers PGRSTParseError
+    case parseRaisePGRST m d of
+      Right (_, r) -> map intoHeader (M.toList $ getHeaders r)
+      Left e       -> headers e
     where
       intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
 
@@ -426,13 +441,13 @@ instance JSON.ToJSON SQL.QueryError where
 instance JSON.ToJSON SQL.CommandError where
   -- Special error raised with code PGRST, to allow full response control
   toJSON (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
-    case (parseMessage m, parseDetails d) of
-      (Just r, Just _) -> JSON.object [
+    case parseRaisePGRST m d of
+      Right (r, _) -> JSON.object [
         "code"     .= getCode r,
         "message"  .= getMessage r,
         "details"  .= checkMaybe (getDetails r),
         "hint"     .= checkMaybe (getHint r)]
-      _ -> JSON.toJSON PGRSTParseError
+      Left e      -> JSON.toJSON e
     where
       checkMaybe = maybe JSON.Null JSON.String
 
@@ -493,9 +508,9 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         "42501"   -> if authed then HTTP.status403 else HTTP.status401 -- insufficient privilege
         'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)
         "PGRST"   ->
-          case (parseMessage m, parseDetails d) of
-            (Just _, Just r) -> maybe (toEnum $ getStatus r) (HTTP.mkStatus (getStatus r) . T.encodeUtf8) (getStatusText r)
-            _                -> status PGRSTParseError
+          case parseRaisePGRST m d of
+            Right (_, r) -> maybe (toEnum $ getStatus r) (HTTP.mkStatus (getStatus r) . T.encodeUtf8) (getStatusText r)
+            Left e       -> status e
         _         -> HTTP.status400
 
     _                       -> HTTP.status500
@@ -579,11 +594,12 @@ instance JSON.FromJSON PgRaiseErrDetails where
 
   parseJSON _ = mzero
 
-parseMessage :: ByteString -> Maybe PgRaiseErrMessage
-parseMessage = JSON.decodeStrict
-
-parseDetails :: Maybe ByteString -> Maybe PgRaiseErrDetails
-parseDetails d = JSON.decodeStrict =<< d
+parseRaisePGRST :: ByteString -> Maybe ByteString -> Either ApiRequestError (PgRaiseErrMessage, PgRaiseErrDetails)
+parseRaisePGRST m d = do
+  msgJson <- maybeToRight (PGRSTParseError $ MsgParseError m) (JSON.decodeStrict m)
+  det <- maybeToRight (PGRSTParseError NoDetail) d
+  detJson <- maybeToRight (PGRSTParseError $ DetParseError det) (JSON.decodeStrict det)
+  return (msgJson, detJson)
 
 -- Error codes are grouped by common modules or characteristics
 data ErrorCode

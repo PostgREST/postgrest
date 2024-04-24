@@ -1452,17 +1452,29 @@ spec actualPgVersion =
           resHeaders `shouldSatisfy` elem ("X-Header", "str")
           resBody `shouldBe` [json|{"code":"123","message":"ABC","details":null,"hint":null}|]
 
-      it "returns error for invalid JSON in RAISE Message field" $
+      it "returns error for invalid JSON in the MESSAGE option of the RAISE statement" $
         get "/rpc/raise_sqlstate_invalid_json_message" `shouldRespondWith`
-          [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
+          [json|{
+            "code":"PGRST121",
+            "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
+            "details":"Invalid JSON value for MESSAGE: 'INVALID'",
+            "hint":"MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."}|]
           { matchStatus = 500 }
 
-      it "returns error for invalid JSON in RAISE Details field" $
+      it "returns error for invalid JSON in the DETAIL option of the RAISE statement" $
         get "/rpc/raise_sqlstate_invalid_json_details" `shouldRespondWith`
-          [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
+          [json|{
+            "code":"PGRST121",
+            "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
+            "details":"Invalid JSON value for DETAIL: 'INVALID'",
+            "hint":"DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."}|]
           { matchStatus = 500 }
 
-      it "returns error for missing Details field in RAISE" $
+      it "returns error for missing DETAIL option in the RAISE statement" $
         get "/rpc/raise_sqlstate_missing_details" `shouldRespondWith`
-          [json|{"code":"PGRST121","message":"The message and detail field of RAISE 'PGRST' error expects JSON","details":null,"hint":null}|]
+          [json|{
+            "code":"PGRST121",
+            "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
+            "details":"DETAIL is missing in the RAISE statement",
+            "hint":"DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."}|]
           { matchStatus = 500 }
