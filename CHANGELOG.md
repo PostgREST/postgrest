@@ -17,6 +17,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3435, Add log-level=debug, for development purposes - @steve-chavez
  - #1526, Add `/metrics` endpoint on admin server - @steve-chavez
    - Exposes connection pool metrics, schema cache metrics
+ - #3248, Add more config examples to CLI - @taimoorzaeem
+   + Now accepts ``--example-file``, ``--example-db``, and ``--example-env``
 
 ### Fixed
 
