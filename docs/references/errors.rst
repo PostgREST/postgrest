@@ -247,7 +247,7 @@ Related to the HTTP request elements.
 |               |             | ``is.null`` or ``not.is.null`` :ref:`operators <operators>`.|
 | PGRST120      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst121: | 400         | PostgREST can't parse the JSON objects in RAISE             |
+| .. _pgrst121: | 500         | PostgREST can't parse the JSON objects in RAISE             |
 |               |             | ``PGRST`` error. See :ref:`raise headers <raise_headers>`.  |
 | PGRST121      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
@@ -425,5 +425,3 @@ For non standard HTTP status, you can optionally add ``status_text`` to describe
   detail = '{"status":419,"status_text":"Page Expired","headers":{"X-Powered-By":"Nerd Rage"}}';
 
 If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will throw a ``PGRST121`` error. See :ref:`Errors from PostgREST<pgrst1**>`.
-
-
