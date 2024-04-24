@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Exposes connection pool metrics, schema cache metrics
  - #3248, Add more config examples to CLI - @taimoorzaeem
    + Now accepts ``--example-file``, ``--example-db``, and ``--example-env``
+   + Add docs page for CLI
 
 ### Fixed
 

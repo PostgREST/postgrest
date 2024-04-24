@@ -147,6 +147,7 @@ Technical references for PostgREST's functionality.
 
    references/auth.rst
    references/api.rst
+   references/cli.rst
    references/transactions.rst
    references/connection_pool.rst
    references/schema_cache.rst
