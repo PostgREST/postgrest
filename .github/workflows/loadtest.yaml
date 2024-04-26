@@ -19,7 +19,7 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
       - name: Setup Nix Environment
@@ -46,7 +46,7 @@ jobs:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
         with:
           fetch-depth: 0
       - uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce # v1.4.0
