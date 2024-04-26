@@ -486,7 +486,7 @@ jobs:
     needs:
       - Build-Cabal-Arm
       - Release-Docker
-    if: ${{ always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-')) }}
+    if: ${{ always() && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/rel-'), startsWith(github.ref, 'refs/heads/v')) }}
     runs-on: ubuntu-22.04
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
