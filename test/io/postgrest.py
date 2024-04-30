@@ -61,6 +61,7 @@ class PostgrestProcess:
         "Wait for line(s) on standard output."
         output = []
         for _ in range(10):
+            self.process.stdout.flush()
             l = self.process.stdout.readline()
             if l:
                 output.append(l.decode())
