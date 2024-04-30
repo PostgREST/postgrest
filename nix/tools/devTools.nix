@@ -77,6 +77,7 @@ let
         ${tests}/bin/postgrest-test-doctests
         ${tests}/bin/postgrest-test-io
         ${tests}/bin/postgrest-test-big-schema
+        ${tests}/bin/postgrest-test-replica
         ${style}/bin/postgrest-lint
         ${style}/bin/postgrest-style-check
       '';
