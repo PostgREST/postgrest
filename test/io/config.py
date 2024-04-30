@@ -46,6 +46,27 @@ def defaultenv(baseenv):
 
 
 @pytest.fixture
+def replicaenv(defaultenv):
+    "Default environment for a PostgREST replica."
+    conf = {
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+        "PGRST_DB_SCHEMAS": "replica",
+    }
+    return {
+        "primary": {
+            **defaultenv,
+            **conf,
+        },
+        "replica": {
+            **defaultenv,
+            **conf,
+            "PGHOST": os.environ["PGREPLICAHOST"],
+            "PGREPLICASLOT": os.environ["PGREPLICASLOT"],
+        },
+    }
+
+
+@pytest.fixture
 def slow_schema_cache_env(defaultenv):
     "Slow schema cache load environment PostgREST."
     return {

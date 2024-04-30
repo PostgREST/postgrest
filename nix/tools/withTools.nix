@@ -28,6 +28,7 @@ let
             "ARG_USE_ENV([PGRST_DB_SCHEMAS], [test], [Schema to expose])"
             "ARG_USE_ENV([PGTZ], [utc], [Timezone to use])"
             "ARG_USE_ENV([PGOPTIONS], [-c search_path=public,test], [PG options to use])"
+            "ARG_OPTIONAL_BOOLEAN([replica],, [Enable a replica for the database])"
           ];
         positionalCompletion = "_command";
         workingDir = "/";
@@ -61,6 +62,7 @@ let
           HBA_FILE="$tmpdir/pg_hba.conf"
           echo "local $PGDATABASE some_protected_user password" > "$HBA_FILE"
           echo "local $PGDATABASE all trust" >> "$HBA_FILE"
+          echo "local replication all trust" >> "$HBA_FILE"
 
           log "Initializing database cluster..."
           # We try to make the database cluster as independent as possible from the host
@@ -74,19 +76,50 @@ let
           pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
             >> "$setuplog"
 
-          # shellcheck disable=SC2317
-          stop () {
-            log "Stopping the database cluster..."
-            pg_ctl stop -m i >> "$setuplog"
-            rm -rf "$tmpdir/db"
-          }
-          trap stop EXIT
-
           log "Creating a minimally privileged $PGUSER connection role..."
           createuser "$PGUSER" -U postgres --host="$tmpdir/socket" --no-createdb --no-inherit --no-superuser --no-createrole --no-replication --login
 
-          >&2 echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$tmpdir/socket' -U postgres"
+          >&2 echo "${commandName}: You can connect with: psql 'postgres:///$PGDATABASE?host=$PGHOST' -U postgres"
           >&2 echo "${commandName}: You can tail the logs with: tail -f $tmpdir/db.log"
+
+          if test "$_arg_replica" = "on"; then
+            replica_slot="replica_$RANDOM"
+            replica_dir="$tmpdir/$replica_slot"
+            replica_host="$tmpdir/socket_$replica_slot"
+
+            mkdir -p "$replica_host"
+
+            replica_dblog="$tmpdir/db_$replica_slot.log"
+
+            log "Running pg_basebackup for $replica_slot"
+
+            pg_basebackup -v -h "$PGHOST" -U postgres --wal-method=stream --create-slot --slot="$replica_slot" --write-recovery-conf -D "$replica_dir" \
+              >> "$setuplog" 2>&1
+
+            log "Starting replica on $replica_host"
+
+            pg_ctl -D "$replica_dir" -l "$replica_dblog" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $replica_host -c log_statement=\"all\" " \
+              >> "$setuplog"
+
+            >&2 echo "${commandName}: Replica enabled. You can connect to it with: psql 'postgres:///$PGDATABASE?host=$replica_host' -U postgres"
+            >&2 echo "${commandName}: You can tail the replica logs with: tail -f $replica_dblog"
+
+            export PGREPLICAHOST="$replica_host"
+            export PGREPLICASLOT="$replica_slot"
+          fi
+
+          # shellcheck disable=SC2317
+          stop () {
+            log "Stopping the database cluster..."
+            pg_ctl stop --mode=immediate >> "$setuplog"
+            rm -rf "$tmpdir/db"
+            if test "$_arg_replica" = "on"; then
+              log "Stopping the replica cluster..."
+              pg_ctl -D "$replica_dir" stop --mode=immediate >> "$setuplog"
+              rm -rf "$replica_dir"
+            fi
+          }
+          trap stop EXIT
         fi
 
         if test "$_arg_fixtures"; then
