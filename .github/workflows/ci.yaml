@@ -191,7 +191,7 @@ jobs:
           tar cJvf "release-bundle/postgrest-v$VERSION-ubuntu-aarch64.tar.xz" \
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
 
-          zip "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
+          zip --junk-paths "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
