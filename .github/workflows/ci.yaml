@@ -173,6 +173,12 @@ jobs:
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
           path: artifacts
+      - name: Prepare PostgreSQL binaries for Windows
+        run: |
+          mkdir -p dependencies/postgresql
+          curl --proto '=https' --tlsv1.2 -Sf -L -o dependencies/postgresql/postgresql-16.2-1-windows-x64-binaries.zip \
+            "https://get.enterprisedb.com/postgresql/postgresql-16.2-1-windows-x64-binaries.zip"
+          unzip -d dependencies/postgresql dependencies/postgresql/postgresql-16.2-1-windows-x64-binaries.zip
       - name: Create release bundle with archives for all builds
         run: |
           find artifacts -type f -iname postgrest -exec chmod +x {} \;
@@ -192,7 +198,9 @@ jobs:
             -C artifacts/postgrest-ubuntu-aarch64 postgrest
 
           zip --junk-paths "release-bundle/postgrest-v$VERSION-windows-x64.zip" \
-            artifacts/postgrest-windows-x64/postgrest.exe
+            artifacts/postgrest-windows-x64/postgrest.exe \
+            dependencies/postgresql/pgsql/bin/{libcrypto-3-x64,libiconv-2,libintl-9,libssl-3-x64,libwinpthread-1}.dll \
+            dependencies/postgresql/pgsql/lib/libpq.dll
 
       - name: Save release bundle
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
