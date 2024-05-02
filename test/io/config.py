@@ -60,7 +60,7 @@ def replicaenv(defaultenv):
         "replica": {
             **defaultenv,
             **conf,
-            "PGHOST": os.environ["PGREPLICAHOST"],
+            "PGHOST": os.environ["PGREPLICAHOST"] + "," + os.environ["PGHOST"],
             "PGREPLICASLOT": os.environ["PGREPLICASLOT"],
         },
     }

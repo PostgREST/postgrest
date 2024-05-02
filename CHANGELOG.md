@@ -39,6 +39,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3478, Media Types are parsed case insensitively - @develop7
  - #3533, #3536, Fix listener silently failing on read replica - @steve-chavez
     + If the LISTEN connection fails, it's retried with exponential backoff
+ - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
 
 ### Deprecated
 

@@ -25,6 +25,7 @@ module PostgREST.Config
   , toURI
   , parseSecret
   , addFallbackAppName
+  , addTargetSessionAttrs
   ) where
 
 import qualified Crypto.JOSE.Types      as JOSE
@@ -480,6 +481,18 @@ readPGRSTEnvironment :: IO Environment
 readPGRSTEnvironment =
   M.map T.pack . M.fromList . filter (isPrefixOf "PGRST_" . fst) <$> getEnvironment
 
+data PGConnString = PGURI | PGKeyVal
+
+-- Uses same logic as libpq recognized_connection_string
+-- https://github.com/postgres/postgres/blob/5eafacd2797dc0b04a0bde25fbf26bf79903e7c2/src/interfaces/libpq/fe-connect.c#L5923-L5936
+pgConnString :: Text -> Maybe PGConnString
+pgConnString conn | uriDesignator `T.isPrefixOf` conn || shortUriDesignator `T.isPrefixOf` conn = Just PGURI
+                  | "=" `T.isInfixOf` conn                                                      = Just PGKeyVal
+                  | otherwise                                                                   = Nothing
+  where
+    uriDesignator = "postgresql://"
+    shortUriDesignator = "postgres://"
+
 -- | Adds a `fallback_application_name` value to the connection string. This allows querying the PostgREST version on pg_stat_activity.
 --
 -- >>> let ver = "11.1.0 (5a04ec7)"::ByteString
@@ -519,7 +532,32 @@ readPGRSTEnvironment =
 -- addFallbackAppName ver "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass"
 -- "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 addFallbackAppName :: ByteString -> Text -> Text
-addFallbackAppName version dbUri = dbUri <>
+addFallbackAppName version dbUri = addConnStringOption dbUri "fallback_application_name" pgrstVer
+  where
+    pgrstVer = "PostgREST " <> T.decodeUtf8 version
+
+-- | Adds `target_session_attrs=read-write` to the connection string. This allows using PostgREST listener when multiple hosts are specified in the connection string.
+--
+-- >>> addTargetSessionAttrs "postgres:///postgres?host=/dir/0kN/socket_replica_24378,/dir/0kN/socket"
+-- "postgres:///postgres?host=/dir/0kN/socket_replica_24378,/dir/0kN/socket&target_session_attrs=read-write"
+--
+-- >>> addTargetSessionAttrs "postgresql://host1:123,host2:456/somedb"
+-- "postgresql://host1:123,host2:456/somedb?target_session_attrs=read-write"
+--
+-- >>> addTargetSessionAttrs "postgresql://host1:123,host2:456/somedb?fallback_application_name=foo"
+-- "postgresql://host1:123,host2:456/somedb?fallback_application_name=foo&target_session_attrs=read-write"
+--
+-- adds target_session_attrs despite one existing
+-- >>> addTargetSessionAttrs "postgresql://host1:123,host2:456/somedb?target_session_attrs=read-only"
+-- "postgresql://host1:123,host2:456/somedb?target_session_attrs=read-only&target_session_attrs=read-write"
+--
+-- >>> addTargetSessionAttrs "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres target_session_attrs='read-write'"
+addTargetSessionAttrs :: Text -> Text
+addTargetSessionAttrs dbUri = addConnStringOption dbUri "target_session_attrs" "read-write"
+
+addConnStringOption :: Text -> Text -> Text -> Text
+addConnStringOption dbUri key val = dbUri <>
   case pgConnString dbUri of
     Nothing  -> mempty
     Just PGKeyVal -> " " <> keyValFmt
@@ -528,20 +566,6 @@ addFallbackAppName version dbUri = dbUri <>
       (_, "?") -> uriFmt
       (_, _)   -> "&" <> uriFmt
   where
-    uriFmt = pKeyWord <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
-    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
-    pKeyWord = "fallback_application_name="
-    pgrstVer = "PostgREST " <> T.decodeUtf8 version
+    uriFmt = key <> "=" <> toS (escapeURIString isUnescapedInURIComponent $ toS val)
+    keyValFmt = key <> "=" <> "'" <> T.replace "'" "\\'" val <> "'"
     lookAtOptions x =  T.breakOn "?" . snd $ T.breakOnEnd "@" x -- start from after `@` to not mess passwords that include `?`, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS
-
-data PGConnString = PGURI | PGKeyVal
-
--- Uses same logic as libpq recognized_connection_string
--- https://github.com/postgres/postgres/blob/5eafacd2797dc0b04a0bde25fbf26bf79903e7c2/src/interfaces/libpq/fe-connect.c#L5923-L5936
-pgConnString :: Text -> Maybe PGConnString
-pgConnString conn | uriDesignator `T.isPrefixOf` conn || shortUriDesignator `T.isPrefixOf` conn = Just PGURI
-                  | "=" `T.isInfixOf` conn                                                      = Just PGKeyVal
-                  | otherwise                                                                   = Nothing
-  where
-    uriDesignator = "postgresql://"
-    shortUriDesignator = "postgres://"

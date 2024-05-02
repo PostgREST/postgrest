@@ -64,6 +64,7 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
+                                          addTargetSessionAttrs,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
@@ -560,7 +561,7 @@ retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainT
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs in
       observer $ DBListenRetry delay
 
-    connection <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
+    connection <- acquire $ toUtf8 (addTargetSessionAttrs $ addFallbackAppName prettyVersion configDbUri)
     case connection of
       Right conn -> do
 
