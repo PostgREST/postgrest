@@ -49,8 +49,7 @@ import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Network.URI             (escapeURIString,
-                                isUnescapedInURIComponent, parseURI,
-                                uriQuery)
+                                isUnescapedInURIComponent)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
 import System.Posix.Types      (FileMode)
@@ -502,19 +501,47 @@ readPGRSTEnvironment =
 -- "postgres:///postgres?host=server&port=5432&fallback_application_name=PostgREST%2011%271%260%40%23%24%25%2C.%3A%22%5B%5D%7B%7D%3F%2B%5E%28%29%3Dasdfqwer"
 --
 -- >>> addFallbackAppName ver "postgres://user:invalid_chars[]#@host:5432/postgres"
--- "postgres://user:invalid_chars[]#@host:5432/postgres"
+-- "postgres://user:invalid_chars[]#@host:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 --
--- >>> addFallbackAppName ver "invalid_uri1=val1 invalid_uri2=val2"
--- "invalid_uri1=val1 invalid_uri2=val2"
+-- >>> addFallbackAppName ver "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11.1.0 (5a04ec7)'"
+--
+-- >>> addFallbackAppName strangeVer "host=localhost port=5432 dbname=postgres"
+-- "host=localhost port=5432 dbname=postgres fallback_application_name='PostgREST 11\\'1&0@#$%,.:\"[]{}?+^()=asdfqwer'"
+--
+-- works with passwords containing `?`
+-- >>> addFallbackAppName ver "postgres://admin2:?pass?special?@localhost:5432/postgres"
+-- "postgres://admin2:?pass?special?@localhost:5432/postgres?fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- addFallbackAppName ver "postgresql://?dbname=postgres&host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass"
+-- "postgresql://?dbname=postgres&host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
+--
+-- addFallbackAppName ver "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass"
+-- "postgresql:///postgres?host=/run/user/1000/postgrest/postgrest-with-postgresql-16-BuR/socket&user=some_protected_user&password=invalid_pass&fallback_application_name=PostgREST%2011.1.0%20%285a04ec7%29"
 addFallbackAppName :: ByteString -> Text -> Text
 addFallbackAppName version dbUri = dbUri <>
-  case uriQuery <$> parseURI (toS dbUri) of
-    -- Does not add the application name to key=val connection strings or invalid URIs
+  case pgConnString dbUri of
     Nothing  -> mempty
-    Just ""  -> "?" <> uriFmt
-    Just "?" -> uriFmt
-    _        -> "&" <> uriFmt
+    Just PGKeyVal -> " " <> keyValFmt
+    Just PGURI    -> case lookAtOptions dbUri of
+      (_, "")  -> "?" <> uriFmt
+      (_, "?") -> uriFmt
+      (_, _)   -> "&" <> uriFmt
   where
     uriFmt = pKeyWord <> toS (escapeURIString isUnescapedInURIComponent $ toS pgrstVer)
+    keyValFmt = pKeyWord <> "'" <> T.replace "'" "\\'" pgrstVer <> "'"
     pKeyWord = "fallback_application_name="
     pgrstVer = "PostgREST " <> T.decodeUtf8 version
+    lookAtOptions x =  T.breakOn "?" . snd $ T.breakOnEnd "@" x -- start from after `@` to not mess passwords that include `?`, see https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNSTRING-URIS
+
+data PGConnString = PGURI | PGKeyVal
+
+-- Uses same logic as libpq recognized_connection_string
+-- https://github.com/postgres/postgres/blob/5eafacd2797dc0b04a0bde25fbf26bf79903e7c2/src/interfaces/libpq/fe-connect.c#L5923-L5936
+pgConnString :: Text -> Maybe PGConnString
+pgConnString conn | uriDesignator `T.isPrefixOf` conn || shortUriDesignator `T.isPrefixOf` conn = Just PGURI
+                  | "=" `T.isInfixOf` conn                                                      = Just PGKeyVal
+                  | otherwise                                                                   = Nothing
+  where
+    uriDesignator = "postgresql://"
+    shortUriDesignator = "postgres://"
