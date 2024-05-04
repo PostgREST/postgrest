@@ -134,7 +134,7 @@ jobs:
 
   Build-Macos-Nix:
     name: Build MacOS (Nix)
-    runs-on: macos-12
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Setup Nix Environment
