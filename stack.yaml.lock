@@ -19,19 +19,12 @@ packages:
   original:
     hackage: fuzzyset-0.2.4
 - completed:
-    hackage: hasql-notifications-0.2.1.1@sha256:e4f41f462e96f3af3f088b747daeeb2275ceaebd0e4b0d05187bd10d329afada,2021
+    hackage: hasql-pool-1.1@sha256:409cd9e35cf28bcfe591964d992e4f2cf9a1b0ecab88a459a3c9e3e9868961a9,2368
     pantry-tree:
-      sha256: f9041b1c242436324372f6be9a4f2e5cf70203c3efad36a4e9ea4cca5113a2ec
-      size: 452
+      sha256: 8c1a592b8d8e22f79e3ae051eb3fc7c5c4712c3060bc6f5e867316001bfe5432
+      size: 888
   original:
-    hackage: hasql-notifications-0.2.1.1
-- completed:
-    hackage: hasql-pool-1.0.1@sha256:3cfb4c7153a6c536ac7e126c17723e6d26ee03794954deed2d72bcc826d05a40,2302
-    pantry-tree:
-      sha256: d98e1269bdd60989b0eb0b84e1d5357eaa9f92821439d9f206663b7251ee95b2
-      size: 799
-  original:
-    hackage: hasql-pool-1.0.1
+    hackage: hasql-pool-1.1
 - completed:
     hackage: megaparsec-9.2.2@sha256:c306a135ec25d91d252032c6128f03598a00e87ea12fcf5fc4878fdffc75c768,3219
     pantry-tree:

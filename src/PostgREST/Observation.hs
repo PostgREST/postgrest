@@ -118,14 +118,15 @@ observationMessage = \case
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
     "Connection " <> show uuid <> (
       case status of
-        SQL.ConnectingConnectionStatus   -> " is being established"
-        SQL.ReadyForUseConnectionStatus  -> " is available"
-        SQL.InUseConnectionStatus        -> " is used"
+        SQL.ConnectingConnectionStatus    -> " is being established"
+        SQL.ReadyForUseConnectionStatus _ -> " is available"
+        SQL.InUseConnectionStatus         -> " is used"
         SQL.TerminatedConnectionStatus reason -> " is terminated due to " <> case reason of
           SQL.AgingConnectionTerminationReason          -> "max lifetime"
           SQL.IdlenessConnectionTerminationReason       -> "max idletime"
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
+          SQL.InitializationErrorTerminationReason _    -> "session initialization error"
     )
   _ -> mempty
   where
