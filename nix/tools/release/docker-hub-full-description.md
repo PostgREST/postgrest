@@ -68,3 +68,5 @@ The image is built from scratch using
 no commands are listed in the image history. See the [PostgREST
 respository](https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker) for
 details on the build process and how to inspect the image.
+
+This does not apply to the arm64 variant, which is based on Ubuntu.
