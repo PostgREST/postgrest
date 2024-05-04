@@ -15,7 +15,6 @@
 , stdenv
 , weeder
 , withTools
-, yq
 }:
 let
   testSpec =

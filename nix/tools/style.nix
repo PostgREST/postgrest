@@ -61,7 +61,7 @@ let
         ${actionlint}/bin/actionlint
 
         echo "Scanning nix files for unused code..."
-        ${deadnix}/bin/deadnix
+        ${deadnix}/bin/deadnix -f
 
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases main src
