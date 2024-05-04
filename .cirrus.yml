@@ -9,6 +9,7 @@ build_task:
   # Github Actions build workflow will run on those and the
   # "Fetch from FreeBSD" job should not fail.
   only_if: |
+    $CIRRUS_TAG != '' || $CIRRUS_BRANCH == 'main' || $CIRRUS_BRANCH =~ 'v*' ||
     changesInclude(
       '.github/workflows/build.yaml',
       '.github/actions/setup-nix/**',
