@@ -229,16 +229,19 @@ jobs:
           echo "Releasing version ${GITHUB_REF_NAME} on GitHub..."
 
           if [ "${GITHUB_REF_NAME}" == "devel" ]; then
-            isprerelease=1
+            gh release edit "${GITHUB_REF_NAME}" \
+              -t "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              -F artifacts/release-changes/CHANGES.md \
+              --prerelease \
+              release-bundle/*
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              -t "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              -F artifacts/release-changes/CHANGES.md \
+              release-bundle/*
           fi
-
-          gh release delete "${GITHUB_REF_NAME}" || true
-          gh release create "${GITHUB_REF_NAME}" \
-            -t "${GITHUB_REF_NAME}" \
-            --verify-tag \
-            -F artifacts/release-changes/CHANGES.md \
-            ${isprerelease:+"--prerelease"} \
-            release-bundle/*
 
 
   docker:
