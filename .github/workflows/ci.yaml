@@ -234,6 +234,8 @@ jobs:
 
           gh release delete "${GITHUB_REF_NAME}" || true
           gh release create "${GITHUB_REF_NAME}" \
+            -t "${GITHUB_REF_NAME}" \
+            --verify-tag \
             -F artifacts/release-changes/CHANGES.md \
             ${isprerelease:+"--prerelease"} \
             release-bundle/*
