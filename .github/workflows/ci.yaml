@@ -233,7 +233,7 @@ jobs:
             # then modify the release, then add the new assets.
             gh release view devel --json assets \
               | jq -r '.assets[] | .name' \
-              | xargs -n1 \
+              | xargs -rn1 \
               gh release delete-asset -y devel
             gh release edit devel \
               -t devel \
