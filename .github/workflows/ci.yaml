@@ -258,11 +258,6 @@ jobs:
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - name: Setup Nix Environment
-        uses: ./.github/actions/setup-nix
-        with:
-          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: release.dockerHubDescription.bin
       - name: Download Docker image
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
