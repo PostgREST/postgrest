@@ -229,12 +229,18 @@ jobs:
           echo "Releasing version ${GITHUB_REF_NAME} on GitHub..."
 
           if [ "${GITHUB_REF_NAME}" == "devel" ]; then
-            gh release edit "${GITHUB_REF_NAME}" \
-              -t "${GITHUB_REF_NAME}" \
+            # To replace the existing release, we must first delete the old assets,
+            # then modify the release, then add the new assets.
+            gh release view devel --json assets \
+              | jq -r '.assets[] | .name' \
+              | xargs -n1 \
+              gh release delete-asset -y devel
+            gh release edit devel \
+              -t devel \
               --verify-tag \
               -F artifacts/release-changes/CHANGES.md \
-              --prerelease \
-              release-bundle/*
+              --prerelease
+            gh release upload --clobber devel release-bundle/*
           else
             gh release create "${GITHUB_REF_NAME}" \
               -t "${GITHUB_REF_NAME}" \
