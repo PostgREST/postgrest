@@ -157,7 +157,6 @@ stateful
 stdout
 supervisees
 SvelteKit
-syslog
 systemd
 todo
 todos

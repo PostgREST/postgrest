@@ -20,32 +20,19 @@ PostgREST logs basic request information to ``stdout``, including the authentica
    127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
    127.0.0.1 - anonymous [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
 
-For diagnostic information about the server itself, PostgREST logs to ``stderr``.
+For diagnostic information about the server itself, PostgREST logs to ``stderr``. It includes the server version and also the version of the connected PostgreSQL.
 
 .. code::
 
-   12/Jun/2021:17:47:39 -0500: Starting PostgREST 11.1.0...
-   12/Jun/2021:17:47:39 -0500: Attempting to connect to the database...
-   12/Jun/2021:17:47:39 -0500: Listening on port 3000
-   12/Jun/2021:17:47:39 -0500: Connection successful
-   12/Jun/2021:17:47:39 -0500: Config re-loaded
-   12/Jun/2021:17:47:40 -0500: Schema cache loaded
-
-.. note::
-
-   When running it in an SSH session you must detach it from stdout or it will be terminated when the session closes. The easiest technique is redirecting the output to a log file or to the syslog:
-
-   .. code-block:: bash
-
-     ssh foo@example.com \
-       'postgrest foo.conf </dev/null >/var/log/postgrest.log 2>&1 &'
-
-     # another option is to pipe the output into "logger -t postgrest"
-
-Currently PostgREST doesn't log the SQL commands executed against the underlying database.
+   06/May/2024:08:16:11 -0500: Starting PostgREST 12.1...
+   06/May/2024:08:16:11 -0500: Attempting to connect to the database...
+   06/May/2024:08:16:11 -0500: Successfully connected to PostgreSQL 14.10 (Ubuntu 14.10-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, 64-bit
+   06/May/2024:08:16:11 -0500: Listening on port 3000
 
 Database Logs
 -------------
+
+Currently PostgREST doesn't log the SQL commands executed against the underlying database.
 
 To find the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
 
@@ -172,32 +159,16 @@ Max pool connections.
 Traces
 ======
 
-Server Version
---------------
+Server Version Header
+---------------------
 
-When debugging a problem it's important to verify the running PostgREST version. There are three ways to do this:
-
-- Look for the :code:`Server` HTTP response header that is returned on every request.
+When debugging a problem it's important to verify the running PostgREST version. For this you can look at the :code:`Server` HTTP response header that is returned on every request.
 
 .. code::
 
   HEAD /users HTTP/1.1
 
   Server: postgrest/11.0.1
-
-- Query ``application_name`` on `pg_stat_activity <https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ACTIVITY-VIEW>`_.
-
-.. code-block:: postgres
-
-  select distinct application_name
-  from pg_stat_activity
-  where application_name ilike '%postgrest%';
-
-        application_name
-  ------------------------------
-  PostgREST 11.1.0
-
-- The ``stderr`` logs also contain the version, as noted on :ref:`pgrst_logging`.
 
 .. _trace_header:
 
@@ -348,6 +319,7 @@ For example, to only allow requests from an IP address to get the execution plan
 
     const redirects = {
       '#health_check': 'health_check.html',
+      '#server-version': '#server-version-header',
     };
 
     let willRedirectTo = redirects[hash];

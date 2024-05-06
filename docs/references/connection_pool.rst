@@ -7,11 +7,6 @@ A connection pool is a cache of reusable database connections. It allows serving
 
 Minimizing connections is paramount to performance. Each PostgreSQL connection creates a process, having too many can exhaust available resources.
 
-Connection String
------------------
-
-For connecting to the database, the pool requires a connection string. You can configure it using :ref:`db-uri`.
-
 .. _pool_growth_limit:
 .. _dyn_conn_pool:
 
@@ -22,6 +17,26 @@ To conserve system resources, PostgREST uses a dynamic connection pool. This ena
 
 - If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note that it’s pointless to set this higher than the ``max_connections`` setting in your database.
 - If a connection is unused for a period of time (:ref:`db-pool-max-idletime`), it will be released.
+- For connecting to the database, the :ref:`authenticator <roles>` role is used. You can configure this using :ref:`db-uri`.
+
+Connection Application Name
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+PostgREST sets the connection `application_name <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-FALLBACK-APPLICATION-NAME>`_ for all of its used connections.
+This is useful for PostgreSQL statistics and logs.
+
+For example, you can query `pg_stat_activity <https://www.postgresql.org/docs/current/monitoring-stats.html#MONITORING-PG-STAT-ACTIVITY-VIEW>`_ to get the PostgREST version:
+
+.. code-block:: postgres
+
+  select distinct usename, application_name
+  from pg_stat_activity
+  where usename = 'authenticator';
+
+     usename     |     application_name
+  ---------------+--------------------------
+   authenticator | PostgREST 12.1
+
 
 Connection lifetime
 -------------------
