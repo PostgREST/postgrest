@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3404, Show extra information in the `PGRST121` (could not parse RAISE 'PGRST') error - @laurenceisla
    + Shows the failed MESSAGE or DETAIL in the `details` field
    + Shows the correct JSON format in the `hints` field
+ - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
 
 ### Fixed
 
@@ -32,7 +33,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
  - #3323, #3324, Don't hide error on LISTEN channel failure - @steve-chavez
  - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
- - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3345, Fix in-database configuration values not loading for `pgrst.server_trace_header` and `pgrst.server_cors_allowed_origins` - @laurenceisla
  - #3361, Clarify the `PGRST204` (column not found) error message - @steve-chavez
  - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
