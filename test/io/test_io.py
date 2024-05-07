@@ -739,7 +739,7 @@ def test_admin_ready_dependent_on_main_app(defaultenv):
         # delete the unix socket to make the main app fail
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/ready")
-        assert response.status_code == 503
+        assert response.status_code == 500
 
 
 def test_admin_live_good(defaultenv):
@@ -757,7 +757,7 @@ def test_admin_live_dependent_on_main_app(defaultenv):
         # delete the unix socket to make the main app fail
         os.remove(defaultenv["PGRST_SERVER_UNIX_SOCKET"])
         response = postgrest.admin.get("/live")
-        assert response.status_code == 503
+        assert response.status_code == 500
 
 
 @pytest.mark.parametrize("specialhostvalue", FIXTURES["specialhostvalues"])

@@ -27,6 +27,7 @@ module PostgREST.AppState
   , runListener
   , getObserver
   , isLoaded
+  , isPending
   ) where
 
 import qualified Data.Aeson                 as JSON
@@ -315,6 +316,12 @@ isLoaded x = do
   connEstablished <- isConnEstablished x
   return $ scacheStatus == SCLoaded && connEstablished
 
+isPending :: AppState -> IO Bool
+isPending x = do
+  scacheStatus <- readIORef $ stateSCacheStatus x
+  connStatus <- readIORef $ stateConnStatus x
+  return $ scacheStatus == SCPending || connStatus == ConnPending
+
 putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
 putSCacheStatus = atomicWriteIORef . stateSCacheStatus
 
@@ -338,12 +345,15 @@ loadSchemaCache appState@AppState{stateObserver=observer} = do
           observer $ SchemaCacheFatalErrorObs e hint
           return SCFatalFail
         Nothing -> do
+          putSCacheStatus appState SCPending
           putSchemaCache appState Nothing
           observer $ SchemaCacheNormalErrorObs e
-          putSCacheStatus appState SCPending
           return SCPending
 
     Right sCache -> do
+      -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
+      -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
+      putSCacheStatus appState SCPending
       putSchemaCache appState $ Just sCache
       observer $ SchemaCacheQueriedObs resultTime
       (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
