@@ -72,7 +72,7 @@ run appState = do
   -- reload schema cache + config on NOTIFY
   AppState.runListener conf appState
 
-  Admin.runAdmin conf appState (serverSettings conf)
+  Admin.runAdmin appState (serverSettings conf)
 
   let app = postgrest configLogLevel appState (AppState.connectionWorker appState)
 

@@ -5,7 +5,6 @@ module PostgREST.Admin
   ) where
 
 import qualified Data.Aeson                as JSON
-import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 import qualified Network.Wai.Handler.Warp  as Warp
@@ -28,28 +27,25 @@ import qualified PostgREST.Config   as Config
 
 import Protolude
 
-runAdmin :: AppConfig -> AppState -> Warp.Settings -> IO ()
-runAdmin conf@AppConfig{configAdminServerPort} appState settings =
+runAdmin :: AppState -> Warp.Settings -> IO ()
+runAdmin appState settings = do
+  AppConfig{configAdminServerPort} <- AppState.getConfig appState
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
     observer $ AdminStartObs configAdminServerPort
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
-    adminApp = admin appState conf
+    adminApp = admin appState
     observer = AppState.getObserver appState
 
 -- | PostgREST admin application
-admin :: AppState.AppState -> AppConfig -> Wai.Application
-admin appState appConfig req respond  = do
+admin :: AppState.AppState -> Wai.Application
+admin appState req respond  = do
   isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
-  isSchemaCacheLoaded <- AppState.getSchemaCacheLoaded appState
-  isConnectionUp      <-
-    if configDbChannelEnabled appConfig
-      then AppState.getIsListenerOn appState
-      else isRight <$> AppState.usePool appState (SQL.sql "SELECT 1")
+  isLoaded <- AppState.isLoaded appState
 
   case Wai.pathInfo req of
     ["ready"] ->
-      respond $ Wai.responseLBS (if isMainAppReachable && isConnectionUp && isSchemaCacheLoaded then HTTP.status200 else HTTP.status503) [] mempty
+      respond $ Wai.responseLBS (if isMainAppReachable && isLoaded then HTTP.status200 else HTTP.status503) [] mempty
     ["live"] ->
       respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
     ["config"] -> do
