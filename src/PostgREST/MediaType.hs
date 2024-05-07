@@ -11,13 +11,17 @@ module PostgREST.MediaType
   , decodeMediaType
   ) where
 
-import qualified Data.Aeson               as JSON
-import qualified Data.ByteString          as BS
-import qualified Data.ByteString.Internal as BS (c2w)
+import qualified Data.Aeson      as JSON
+import qualified Data.ByteString as BS
 
 import Network.HTTP.Types.Header (Header, hContentType)
 
-import Protolude
+import           Data.Map           (fromList, (!?))
+import qualified Data.Text          as T (break, drop, dropWhile,
+                                          dropWhileEnd, null, splitOn,
+                                          toLower)
+import           Data.Text.Encoding (decodeLatin1)
+import           Protolude
 
 -- | Enumeration of currently supported media types
 data MediaType
@@ -114,48 +118,69 @@ toMimePlanFormat PlanText = "text"
 --
 -- >>> decodeMediaType "application/vnd.pgrst.object+json"
 -- MTVndSingularJSON False
+--
+-- Test uppercase is parsed correctly (per issue #3478)
+-- >>> decodeMediaType "ApplicatIon/vnd.PgRsT.object+json"
+-- MTVndSingularJSON False
+--
+-- >>> decodeMediaType "application/vnd.twkb"
+-- MTOther "application/vnd.twkb"
 
-decodeMediaType :: BS.ByteString -> MediaType
-decodeMediaType mt =
-  case BS.split (BS.c2w ';') mt of
-    "application/json":_                     -> MTApplicationJSON
-    "application/geo+json":_                 -> MTGeoJSON
-    "text/csv":_                             -> MTTextCSV
-    "text/plain":_                           -> MTTextPlain
-    "text/xml":_                             -> MTTextXML
-    "application/openapi+json":_             -> MTOpenAPI
-    "application/x-www-form-urlencoded":_    -> MTUrlEncoded
-    "application/octet-stream":_             -> MTOctetStream
-    "application/vnd.pgrst.plan":rest        -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+text":rest   -> getPlan PlanText rest
-    "application/vnd.pgrst.plan+json":rest   -> getPlan PlanJSON rest
-    "application/vnd.pgrst.object+json":rest -> checkSingularNullStrip rest
-    "application/vnd.pgrst.object":rest      -> checkSingularNullStrip rest
-    "application/vnd.pgrst.array+json":rest  -> checkArrayNullStrip rest
-    "application/vnd.pgrst.array":rest       -> checkArrayNullStrip rest
-    "*/*":_                                  -> MTAny
-    other:_                                  -> MTOther $ decodeUtf8 other
-    _                                        -> MTAny
+decodeMediaType :: ByteString -> MediaType
+decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
   where
-    checkArrayNullStrip ["nulls=stripped"] = MTVndArrayJSONStrip
-    checkArrayNullStrip  _                 = MTApplicationJSON
+    decodeMediaType' :: Text -> MediaType
+    decodeMediaType' mt' =
+      case (T.toLower mainType, T.toLower subType, params) of
+        ("application", "json", _)                  -> MTApplicationJSON
+        ("application", "geo+json", _)              -> MTGeoJSON
+        ("text", "csv", _)                          -> MTTextCSV
+        ("text", "plain", _)                        -> MTTextPlain
+        ("text", "xml", _)                          -> MTTextXML
+        ("application", "openapi+json", _)          -> MTOpenAPI
+        ("application", "x-www-form-urlencoded", _) -> MTUrlEncoded
+        ("application", "octet-stream", _)          -> MTOctetStream
+        ("application", "vnd.pgrst.plan", _)        -> getPlan PlanText
+        ("application", "vnd.pgrst.plan+text", _)   -> getPlan PlanText
+        ("application", "vnd.pgrst.plan+json", _)   -> getPlan PlanJSON
+        ("application", "vnd.pgrst.object+json", _) -> MTVndSingularJSON strippedNulls
+        ("application", "vnd.pgrst.object", _)      -> MTVndSingularJSON strippedNulls
+        ("application", "vnd.pgrst.array+json", _)  -> checkArrayNullStrip
+        ("application", "vnd.pgrst.array", _)       -> checkArrayNullStrip
+        ("*","*",_)                                 -> MTAny
+        _                                           -> MTOther mt'
+      where
+        (mainType, subType, params') = tokenizeMediaType mt'
+        params = fromList $ map (first T.toLower) params' -- normalize parameter names to lowercase, per RFC 7321
+        getPlan fmt = MTVndPlan mtFor fmt $
+          [PlanAnalyze  | inOpts "analyze" ] ++
+          [PlanVerbose  | inOpts "verbose" ] ++
+          [PlanSettings | inOpts "settings"] ++
+          [PlanBuffers  | inOpts "buffers" ] ++
+          [PlanWAL      | inOpts "wal"     ]
+          where
+            mtFor = decodeMediaType' $ fromMaybe "application/json" (params !? "for")
+            inOpts str = str `elem` opts
+            opts = T.splitOn "|" $ fromMaybe mempty (params !? "options")
+        strippedNulls = fromMaybe "false" (params !? "nulls") == "stripped"
+        checkArrayNullStrip = if strippedNulls then MTVndArrayJSONStrip else MTApplicationJSON
 
-    checkSingularNullStrip ["nulls=stripped"] = MTVndSingularJSON True
-    checkSingularNullStrip  _                 = MTVndSingularJSON False
-
-    getPlan fmt rest =
-      let
-        opts         = BS.split (BS.c2w '|') $ fromMaybe mempty (BS.stripPrefix "options=" =<< find (BS.isPrefixOf "options=") rest)
-        inOpts str   = str `elem` opts
-        dropAround p = BS.dropWhile p . BS.dropWhileEnd p
-        mtFor        = fromMaybe MTApplicationJSON $ do
-          foundFor    <- find (BS.isPrefixOf "for=") rest
-          strippedFor <- BS.stripPrefix "for=" foundFor
-          pure . decodeMediaType $ dropAround (== BS.c2w '"') strippedFor
-      in
-      MTVndPlan mtFor fmt $
-        [PlanAnalyze  | inOpts "analyze" ] ++
-        [PlanVerbose  | inOpts "verbose" ] ++
-        [PlanSettings | inOpts "settings"] ++
-        [PlanBuffers  | inOpts "buffers" ] ++
-        [PlanWAL      | inOpts "wal"     ]
+-- | Split a Media Type string into components
+-- >>> tokenizeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
+-- ("application","vnd.pgrst.plan+json",[("for","text/csv")])
+-- >>> tokenizeMediaType "*/*"
+-- ("*","*",[])
+-- >>> tokenizeMediaType "application/vnd.pgrst.plan;wat=\"application/json;text/csv\""
+-- ("application","vnd.pgrst.plan",[("wat","application/json"),("text/csv\"","")])
+tokenizeMediaType :: Text -> (Text, Text, [(Text, Text)])
+tokenizeMediaType t = (mainType, subType, params)
+  where
+    (mainType, rest) = T.break (== '/') t
+    (subType, restParams) = T.break (== ';') $ T.drop 1 rest
+    params =
+      let rp = T.drop 1 restParams
+      in if T.null rp then [] else map param $ T.splitOn ";" rp -- FIXME: breaks if there's a ';' in a quoted value
+    param p =
+      let (k, v) = T.break (== '=') p
+      in (k, dropAround (== '"') $ T.drop 1 v) -- FIXME: doesn't unescape quotes in values
+    dropAround p = T.dropWhile p . T.dropWhileEnd p
