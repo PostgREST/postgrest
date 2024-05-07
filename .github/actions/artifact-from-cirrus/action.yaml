@@ -38,16 +38,14 @@ runs:
             echo "Cirrus CI task has not started, yet. Waiting..."
             sleep 10
           else
-            echo "check_suite_found=1" >> "$GITHUB_OUTPUT"
             echo "check_runs_url=$check_runs_url" >> "$GITHUB_OUTPUT"
             exit 0
           fi
         done
         >&2 echo "Cirrus CI check suite not found. Is Cirrus CI enabled for this repo?"
-        echo "check_suite_found=0" >> "$GITHUB_OUTPUT"
     - name: Find task by name
       id: find-task
-      if: steps.check-suite.outputs.check_suite_found
+      if: steps.check-suite.outputs.check_runs_url
       shell: bash
       run: |
         get_number_of_tasks() {
