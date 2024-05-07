@@ -70,6 +70,13 @@ class PostgrestProcess:
             time.sleep(0.1)
         return output
 
+    def wait_until_scache_starts_loading(self, max_seconds=1):
+        "Wait for the admin /ready return a status of 503"
+
+        wait_until_status_code(
+            self.admin.baseurl + "/ready", max_seconds=max_seconds, status_code=503
+        )
+
 
 @contextlib.contextmanager
 def run(
@@ -120,7 +127,7 @@ def run(
             process.stdin.close()
 
             if wait_for_readiness:
-                wait_until_ready(adminurl + "/ready", wait_max_seconds)
+                wait_until_status_code(adminurl + "/ready", wait_max_seconds, 200)
 
             if no_startup_stdout:
                 process.stdout.read()
@@ -178,14 +185,14 @@ def wait_until_exit(postgrest):
         raise PostgrestTimedOut()
 
 
-def wait_until_ready(url, max_seconds):
-    "Wait for the given HTTP endpoint to return a status of 200."
+def wait_until_status_code(url, max_seconds, status_code):
+    "Wait for the given HTTP endpoint to return a status code"
     session = requests_unixsocket.Session()
 
     for _ in range(max_seconds * 10):
         try:
             response = session.get(url, timeout=1)
-            if response.status_code == 200:
+            if response.status_code == status_code:
                 return
         except (requests.ConnectionError, requests.ReadTimeout):
             pass

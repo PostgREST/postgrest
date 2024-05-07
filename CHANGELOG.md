@@ -42,6 +42,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3404, Clarify the `PGRST121` (could not parse RAISE 'PGRST') error message - @laurenceisla
  - #3267, Fix wrong `503 Service Unavailable` on pg error `53400` - @taimoorzaeem
  - #2985, Fix not adding `application_name` on all connection strings - @steve-chavez
+ - #3424, Admin `/live` and `/ready` now differentiates a failure as 500 status - @steve-chavez
+    + 503 status is still given when postgREST is in a recovering state
 
 ### Deprecated
 

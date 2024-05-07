@@ -3,7 +3,7 @@
 Admin Server
 ############
 
-PostgREST provides an admin server that can be enabled by setting :ref:`admin-server-port` to the port number of your preference.
+PostgREST provides an admin server that can be enabled by setting :ref:`admin-server-port`.
 
 .. _health_check:
 
@@ -23,7 +23,7 @@ Two endpoints ``live`` and ``ready`` will then be available.
 Live
 ----
 
-The ``live`` endpoint verifies if PostgREST is running on its configured port. A request will return ``200 OK`` if PostgREST is alive or ``503`` otherwise.
+The ``live`` endpoint verifies if PostgREST is running on its configured port. A request will return ``200 OK`` if PostgREST is alive or ``500`` otherwise.
 
 For instance, to verify if PostgREST is running while the ``admin-server-port`` is set to ``3001``:
 
@@ -38,7 +38,7 @@ For instance, to verify if PostgREST is running while the ``admin-server-port`` 
 Ready
 -----
 
-In addition, the ``ready`` endpoint checks the state of the :ref:`connection_pool` and the :ref:`schema_cache`. A request will return ``200 OK`` if both are good or ``503`` if not.
+Additionally to the ``live`` check, the ``ready`` endpoint checks the state of the :ref:`connection_pool` and the :ref:`schema_cache`. A request will return ``200 OK`` if both are good or ``503`` if not.
 
 .. code-block:: bash
 
@@ -47,6 +47,8 @@ In addition, the ``ready`` endpoint checks the state of the :ref:`connection_poo
 .. code-block:: http
 
   HTTP/1.1 200 OK
+
+PostgREST will try to recover from the ``503`` state with :ref:`automatic_recovery`.
 
 Metrics
 =======

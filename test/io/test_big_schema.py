@@ -7,7 +7,7 @@ from util import *
 from postgrest import *
 
 
-def test_requests__wait_for_schema_cache_reload(defaultenv):
+def test_requests_wait_for_schema_cache_reload(defaultenv):
     "requests that use the schema cache (e.g. resource embedding) wait for the schema cache to reload"
 
     env = {
@@ -23,13 +23,14 @@ def test_requests__wait_for_schema_cache_reload(defaultenv):
         response = postgrest.session.get("/rpc/notify_pgrst")
         assert response.status_code == 204
 
-        time.sleep(1.5)  # wait for schema cache to start reloading
+        postgrest.wait_until_scache_starts_loading()
 
         response = postgrest.session.get("/tpopmassn?select=*,tpop(*)")
         assert response.status_code == 200
 
-        server_timings = parse_server_timings_header(response.headers["Server-Timing"])
-        plan_dur = server_timings["plan"]
+        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[
+            "plan"
+        ]
         assert plan_dur > 10000.0
 
 

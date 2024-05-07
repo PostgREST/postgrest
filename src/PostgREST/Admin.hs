@@ -42,12 +42,19 @@ admin :: AppState.AppState -> Wai.Application
 admin appState req respond  = do
   isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
   isLoaded <- AppState.isLoaded appState
+  isPending <- AppState.isPending appState
 
   case Wai.pathInfo req of
-    ["ready"] ->
-      respond $ Wai.responseLBS (if isMainAppReachable && isLoaded then HTTP.status200 else HTTP.status503) [] mempty
     ["live"] ->
-      respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status503) [] mempty
+      respond $ Wai.responseLBS (if isMainAppReachable then HTTP.status200 else HTTP.status500) [] mempty
+    ["ready"] ->
+      let
+        status | not isMainAppReachable = HTTP.status500
+               | isPending              = HTTP.status503
+               | isLoaded               = HTTP.status200
+               | otherwise              = HTTP.status500
+      in
+      respond $ Wai.responseLBS status [] mempty
     ["config"] -> do
       config <- AppState.getConfig appState
       respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)

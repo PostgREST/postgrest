@@ -161,7 +161,7 @@ admin-server-port
   **In-Database** `n/a`
   =============== =======================
 
-  Specifies the port for the :ref:`health_check` endpoints.
+  Specifies the port for the :ref:`admin_server`.
 
 .. _app.settings.*:
 
