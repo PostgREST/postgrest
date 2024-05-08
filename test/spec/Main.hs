@@ -136,8 +136,8 @@ main = do
         analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec actualPgVersion)
-        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec actualPgVersion)
+          ("Feature.Query.AndOrParamsSpec"               , Feature.Query.AndOrParamsSpec.spec)
+        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
         , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
         , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)
@@ -146,18 +146,18 @@ main = do
         , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
         , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec actualPgVersion)
         , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec actualPgVersion)
-        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec actualPgVersion)
-        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec actualPgVersion)
+        , ("Feature.OpenApi.OpenApiSpec"                 , Feature.OpenApi.OpenApiSpec.spec)
+        , ("Feature.OptionsSpec"                         , Feature.OptionsSpec.spec)
         , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
         , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)
         , ("Feature.Query.PreferencesSpec"               , Feature.Query.PreferencesSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec actualPgVersion)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
-        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec actualPgVersion)
+        , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
         , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
-        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec actualPgVersion)
-        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec actualPgVersion)
+        , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
+        , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
         , ("Feature.Query.ComputedRelsSpec"              , Feature.Query.ComputedRelsSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
@@ -227,7 +227,7 @@ main = do
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $ do
       describe "Feature.ExtraSearchPathSpec" Feature.ExtraSearchPathSpec.spec
-      describe "Feature.Query.PostGISSpec" $ Feature.Query.PostGISSpec.spec actualPgVersion
+      describe "Feature.Query.PostGISSpec" Feature.Query.PostGISSpec.spec
 
     -- this test runs with a root spec function override
     parallel $ before rootSpecApp $

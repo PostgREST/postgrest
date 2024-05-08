@@ -15,8 +15,7 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion120,
-                                   pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion130)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -34,10 +33,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe`
-          if actualPgVersion > pgVersion120
-            then 15.63
-            else 15.69
+        totalCost `shouldBe` 15.63
 
     it "outputs the total cost for a single filter on a view" $ do
       r <- request methodGet "/projects_view?id=gt.2"
@@ -50,10 +46,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe`
-          if actualPgVersion > pgVersion120
-            then 24.28
-            else 32.27
+        totalCost `shouldBe` 24.28
 
     it "outputs blocks info when using the buffers option" $
       if actualPgVersion >= pgVersion130
@@ -77,21 +70,20 @@ spec actualPgVersion = do
             resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|buffers; charset=utf-8")
             blocks `shouldBe` Just [aesonQQ| 1.0 |]
 
-    when (actualPgVersion >= pgVersion120) $
-      it "outputs the search path when using the settings option" $ do
-        r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=settings") ""
+    it "outputs the search path when using the settings option" $ do
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=settings") ""
 
-        let searchPath  = simpleBody r ^? nth 0 . key "Settings"
-            resHeaders = simpleHeaders r
+      let searchPath  = simpleBody r ^? nth 0 . key "Settings"
+          resHeaders = simpleHeaders r
 
-        liftIO $ do
-          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=settings; charset=utf-8")
-          searchPath `shouldBe`
-            Just [aesonQQ|
-              {
-                "search_path": "\"test\""
-              }
-            |]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=settings; charset=utf-8")
+        searchPath `shouldBe`
+          Just [aesonQQ|
+            {
+              "search_path": "\"test\""
+            }
+          |]
 
     when (actualPgVersion >= pgVersion130) $
       it "outputs WAL info when using the wal option" $ do
@@ -123,9 +115,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
         aggCol `shouldBe`
-          if actualPgVersion >= pgVersion120
-            then Just [aesonQQ| "COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json)" |]
-            else Just [aesonQQ| "COALESCE(json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)), '[]'::json)" |]
+          Just [aesonQQ| "COALESCE(json_agg(ROW(projects.id, projects.name, projects.client_id)), '[]'::json)" |]
 
     it "outputs the plan for application/vnd.pgrst.object " $ do
       r <- request methodGet "/projects_view" (acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object\"; options=verbose") ""
@@ -136,9 +126,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
         aggCol `shouldBe`
-          if actualPgVersion >= pgVersion120
-            then Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
-            else Just [aesonQQ| "COALESCE((json_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.client_id)) -> 0), 'null'::json)" |]
+          Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
 
   describe "writes plans" $ do
     it "outputs the total cost for an insert" $ do
@@ -452,11 +440,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.twkb\"; options=verbose; charset=utf-8")
         aggCol `shouldBe`
-          (
-            if actualPgVersion >= pgVersion120
-              then Just [aesonQQ| "twkb_agg(ROW(lines.id, lines.name, lines.geom)::lines)" |]
-              else Just [aesonQQ| "twkb_agg(ROW(pgrst_source.id, pgrst_source.name, pgrst_source.geom)::lines)" |]
-          )
+          Just [aesonQQ| "twkb_agg(ROW(lines.id, lines.name, lines.geom)::lines)" |]
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =

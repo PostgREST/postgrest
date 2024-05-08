@@ -43,6 +43,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3267, Fix wrong `503 Service Unavailable` on pg error `53400` - @taimoorzaeem
  - #2985, Fix not adding `application_name` on all connection strings - @steve-chavez
 
+### Changed
+
+ - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
+ - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
+ - #2052, Raise minimum required PostgreSQL version to 11.21 - @wolfgangwalther
+
 ### Deprecated
 
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez

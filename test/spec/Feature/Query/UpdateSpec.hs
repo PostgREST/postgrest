@@ -9,9 +9,6 @@ import Network.HTTP.Types
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion100)
-
-
 import Protolude  hiding (get)
 import SpecHelper
 
@@ -21,8 +18,8 @@ tblDataBefore = [aesonQQ|[
                 , { "id": 3, "name": "item-3" }
                 ]|]
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = do
+spec :: SpecWith ((), Application)
+spec = do
   describe "Patching record" $ do
     context "to unknown uri" $
       it "indicates no table found by returning 404" $
@@ -793,197 +790,196 @@ spec actualPgVersion = do
        , { "id": 3, "name": "updated-item" }
        ]|]
 
-  -- Data representations for payload parsing requires Postgres 10 or above.
-  when (actualPgVersion >= pgVersion100) $ do
-    describe "Data representations" $ do
+  describe "Data representations" $ do
+    context "for a single row" $ do
+      it "parses values in payload" $
+        request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=headers-only")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
+          `shouldRespondWith`
+          ""
+            { matchStatus  = 204
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Range" <:> "0-0/*"]
+            }
+
+      it "parses values in payload and formats individually selected values in return=representation" $
+        request methodPatch "/datarep_todos?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
+          `shouldRespondWith`
+          [json| [{"id":2, "label_color": "#221100"}] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
+      it "parses values in payload and formats values in return=representation" $
+        request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=representation")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z", "icon_image": "3q2+7w"} |]
+          `shouldRespondWith`
+          [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
+      it "parses values in payload and formats star mixed selected values in return=representation" $
+        request methodPatch "/datarep_todos?id=eq.2&select=due_at,*" [("Prefer", "return=representation")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "created_at": 0} |]
+          `shouldRespondWith`
+          -- end up with due_at twice here but that's unrelated to data reps
+          [json| [{"due_at":"2019-01-03T11:00:00Z","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+    context "for multiple rows" $ do
+      it "parses values in payload and formats individually selected values in return=representation" $
+        request methodPatch "/datarep_todos?id=lt.4&select=id,name,label_color" [("Prefer", "return=representation")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
+          `shouldRespondWith`
+          [json| [
+            {"id":1, "name": "Report", "label_color": "#221100"},
+            {"id":2, "name": "Essay", "label_color": "#221100"},
+            {"id":3, "name": "Algebra", "label_color": "#221100"}
+          ] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-2/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
+      it "parses values in payload and formats values in return=representation" $
+        request methodPatch "/datarep_todos?id=lt.4" [("Prefer", "return=representation")]
+          [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "icon_image": "3q2+7w="} |]
+          `shouldRespondWith`
+          [json| [
+            {"id":1,"name":"Report","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"12.50"},
+            {"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"},
+            {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
+          ] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-2/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+    context "with ?columns parameter" $ do
+      it "ignores json keys not included in ?columns; parses only the ones specified" $
+        request methodPatch "/datarep_todos?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
+          [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+          `shouldRespondWith`
+          [json| [
+             {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
+          ] |]
+            { matchStatus  = 200
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
+            }
+
+      it "fails if at least one specified column doesn't exist" $
+        request methodPatch "/datarep_todos?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
+          [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+          `shouldRespondWith`
+          [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos' in the schema cache"} |]
+            { matchStatus  = 400
+            , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+            }
+
+      it "ignores json keys and gives 200 if no record updated" $
+        request methodPatch "/datarep_todos?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
+         [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
+         `shouldRespondWith` 200
+
+    context "on a view" $ do
       context "for a single row" $ do
         it "parses values in payload" $
-          request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=headers-only")]
+          request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=headers-only")]
             [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
-                               , "Content-Range" <:> "0-0/*"]
+                               , "Content-Range" <:> "0-0/*" ]
               }
 
         it "parses values in payload and formats individually selected values in return=representation" $
-          request methodPatch "/datarep_todos?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
+          request methodPatch "/datarep_todos_computed?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
             [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             [json| [{"id":2, "label_color": "#221100"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
               }
 
         it "parses values in payload and formats values in return=representation" $
-          request methodPatch "/datarep_todos?id=eq.2" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z", "icon_image": "3q2+7w"} |]
+          request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=representation")]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z"} |]
             `shouldRespondWith`
-            [json|  [{"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:20Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"}] |]
+            [json| [{"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:20Z"}] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
-              }
-
-        it "parses values in payload and formats star mixed selected values in return=representation" $
-          request methodPatch "/datarep_todos?id=eq.2&select=due_at,*" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "created_at": 0} |]
-            `shouldRespondWith`
-            -- end up with due_at twice here but that's unrelated to data reps
-            [json| [{"due_at":"2019-01-03T11:00:00Z","id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":0,"budget":"100000000000000.13"}] |]
-              { matchStatus  = 200
-              , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
               }
       context "for multiple rows" $ do
         it "parses values in payload and formats individually selected values in return=representation" $
-          request methodPatch "/datarep_todos?id=lt.4&select=id,name,label_color" [("Prefer", "return=representation")]
+          request methodPatch "/datarep_todos_computed?id=lt.4&select=id,name,label_color,dark_color" [("Prefer", "return=representation")]
             [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             [json| [
-              {"id":1, "name": "Report", "label_color": "#221100"},
-              {"id":2, "name": "Essay", "label_color": "#221100"},
-              {"id":3, "name": "Algebra", "label_color": "#221100"}
+              {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880"},
+              {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880"},
+              {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-2/*"
-                               , "Preference-Applied" <:> "return=representation"]
+                             , "Content-Range" <:> "0-2/*"
+                             , "Preference-Applied" <:> "return=representation"]
               }
 
         it "parses values in payload and formats values in return=representation" $
-          request methodPatch "/datarep_todos?id=lt.4" [("Prefer", "return=representation")]
-            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z", "icon_image": "3q2+7w="} |]
+          request methodPatch "/datarep_todos_computed?id=lt.4" [("Prefer", "return=representation")]
+            [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
             `shouldRespondWith`
             [json| [
-              {"id":1,"name":"Report","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"12.50"},
-              {"id":2,"name":"Essay","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"100000000000000.13"},
-              {"id":3,"name":"Algebra","label_color":"#221100","due_at":"2019-01-03T11:00:00Z","icon_image":"3q2+7w==","created_at":1513213350,"budget":"0.00"}
+              {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
+              {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
+              {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-2/*"
-                               , "Preference-Applied" <:> "return=representation"]
+                             , "Content-Range" <:> "0-2/*"
+                             , "Preference-Applied" <:> "return=representation"]
               }
       context "with ?columns parameter" $ do
         it "ignores json keys not included in ?columns; parses only the ones specified" $
-          request methodPatch "/datarep_todos?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
+          request methodPatch "/datarep_todos_computed?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
             [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
             [json| [
-               {"id":2,"name":"Essay","label_color":"#000100","due_at":"2019-01-03T11:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"}
+              {"id":2, "name": "Essay", "label_color": "#000100", "dark_color": "#000080", "due_at":"2019-01-03T11:00:00Z"}
             ] |]
               { matchStatus  = 200
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
+                             , "Content-Range" <:> "0-0/*"
+                             , "Preference-Applied" <:> "return=representation"]
               }
 
         it "fails if at least one specified column doesn't exist" $
-          request methodPatch "/datarep_todos?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
+          request methodPatch "/datarep_todos_computed?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
             [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
             `shouldRespondWith`
-            [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos' in the schema cache"} |]
+            [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos_computed' in the schema cache"} |]
               { matchStatus  = 400
               , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
               }
 
         it "ignores json keys and gives 200 if no record updated" $
-          request methodPatch "/datarep_todos?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
+          request methodPatch "/datarep_todos_computed?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
            [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
            `shouldRespondWith` 200
-      context "on a view" $ do
-        context "for a single row" $ do
-          it "parses values in payload" $
-            request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=headers-only")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
-              `shouldRespondWith`
-              ""
-                { matchStatus  = 204
-                , matchHeaders = [ matchHeaderAbsent hContentType
-                                 , "Content-Range" <:> "0-0/*" ]
-                }
-
-          it "parses values in payload and formats individually selected values in return=representation" $
-            request methodPatch "/datarep_todos_computed?id=eq.2&select=id,label_color" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
-              `shouldRespondWith`
-              [json| [{"id":2, "label_color": "#221100"}] |]
-                { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
-                }
-
-          it "parses values in payload and formats values in return=representation" $
-            request methodPatch "/datarep_todos_computed?id=eq.2" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:20Z"} |]
-              `shouldRespondWith`
-              [json| [{"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:20Z"}] |]
-                { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
-                }
-        context "for multiple rows" $ do
-          it "parses values in payload and formats individually selected values in return=representation" $
-            request methodPatch "/datarep_todos_computed?id=lt.4&select=id,name,label_color,dark_color" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
-              `shouldRespondWith`
-              [json| [
-                {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880"},
-                {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880"},
-                {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880"}
-              ] |]
-                { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-2/*"
-                               , "Preference-Applied" <:> "return=representation"]
-                }
-
-          it "parses values in payload and formats values in return=representation" $
-            request methodPatch "/datarep_todos_computed?id=lt.4" [("Prefer", "return=representation")]
-              [json| {"label_color": "#221100", "due_at": "2019-01-03T11:00:00Z"} |]
-              `shouldRespondWith`
-              [json| [
-                {"id":1, "name": "Report", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
-                {"id":2, "name": "Essay", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"},
-                {"id":3, "name": "Algebra", "label_color": "#221100", "dark_color":"#110880", "due_at":"2019-01-03T11:00:00Z"}
-              ] |]
-                { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-2/*"
-                               , "Preference-Applied" <:> "return=representation"]
-                }
-        context "with ?columns parameter" $ do
-          it "ignores json keys not included in ?columns; parses only the ones specified" $
-            request methodPatch "/datarep_todos_computed?id=eq.2&columns=due_at" [("Prefer", "return=representation")]
-              [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
-              `shouldRespondWith`
-              [json| [
-                {"id":2, "name": "Essay", "label_color": "#000100", "dark_color": "#000080", "due_at":"2019-01-03T11:00:00Z"}
-              ] |]
-                { matchStatus  = 200
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"
-                               , "Content-Range" <:> "0-0/*"
-                               , "Preference-Applied" <:> "return=representation"]
-                }
-
-          it "fails if at least one specified column doesn't exist" $
-            request methodPatch "/datarep_todos_computed?id=eq.2&columns=label_color,helicopters" [("Prefer", "return=representation")]
-              [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
-              `shouldRespondWith`
-              [json| {"code":"PGRST204","details":null,"hint":null,"message":"Could not find the 'helicopters' column of 'datarep_todos_computed' in the schema cache"} |]
-                { matchStatus  = 400
-                , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
-                }
-
-          it "ignores json keys and gives 200 if no record updated" $
-            request methodPatch "/datarep_todos_computed?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
-             [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
-             `shouldRespondWith` 200
