@@ -13,6 +13,8 @@
 , style
 , tests
 , withTools
+, haskellPackages
+, ctags
 }:
 let
   watch =
@@ -292,7 +294,7 @@ let
   parallelCurl =
     checkedShellScript
       {
-        name = "parallel-curl";
+        name = "postgrest-parallel-curl";
         docs = "wrapper for using <num> parallel curl requests on the same <host>";
         args = [
           "ARG_POSITIONAL_SINGLE([num], [number of parallel requests])"
@@ -314,6 +316,17 @@ let
         eval "$curl_command"
       '';
 
+  genCtags =
+    checkedShellScript
+      {
+        name = "postgrest-ctags";
+        docs = "Generate ctags for Haskell and Python code";
+        workingDir = "/";
+      }
+      ''
+        ${ctags}/bin/ctags -a -R --fields=+l --languages=python --python-kinds=-iv -f ./tags test/io/
+        ${haskellPackages.hasktags}/bin/hasktags -a -R -c -f ./tags .
+      '';
 in
 buildToolbox
 {
@@ -327,6 +340,7 @@ buildToolbox
       hsieGraphSymbols
       hsieMinimalImports
       parallelCurl
+      genCtags
       pushCachix
       watch;
   };
