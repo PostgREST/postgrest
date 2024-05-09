@@ -327,7 +327,7 @@ baseTable = BaseTable
 -- | The mutation (update/delete) that will be applied to the base table
 requestMutation :: Method -> ByteString -> [Header] -> BL.ByteString -> WaiExpectation ()
 requestMutation method path headers body =
-  request method path (("Prefer", "tx=commit") : headers) body `shouldRespondWith` 204
+  request method path (("Prefer", "tx=commit") : headers) body `shouldRespondWith` "" { matchStatus = 204 }
 
 data BaseTable = BaseTable ByteString ByteString JSON.Value
 data MutationCheck = MutationCheck BaseTable (WaiExpectation ())
