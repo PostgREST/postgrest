@@ -267,7 +267,7 @@ main = do
 
     -- this test runs with tx-rollback-all = true and tx-allow-override = true
     before withApp $
-      describe"Feature.RollbackAllowedSpec" Feature.RollbackSpec.allowed
+      describe "Feature.RollbackAllowedSpec" Feature.RollbackSpec.allowed
 
     -- this test runs with tx-rollback-all = false and tx-allow-override = false
     before disallowRollbackApp $
