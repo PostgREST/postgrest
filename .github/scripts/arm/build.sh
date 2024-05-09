@@ -1,4 +1,5 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 # This script builds PostgREST in a remote ARM server
 
