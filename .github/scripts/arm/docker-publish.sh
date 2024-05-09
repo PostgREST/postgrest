@@ -1,4 +1,5 @@
 #!/bin/bash
+set -Eeuo pipefail
 
 # This script publishes the Docker ARM images to Docker Hub.
 
