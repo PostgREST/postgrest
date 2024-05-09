@@ -1,7 +1,5 @@
 module Feature.Query.PgSafeUpdateSpec where
 
-import Data.Aeson.QQ
-
 import Network.Wai (Application)
 
 import Network.HTTP.Types
@@ -9,13 +7,7 @@ import Test.Hspec          hiding (pendingWith)
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import Protolude  hiding (get, put)
-
-tblDataBefore = [aesonQQ|[
-                  { "id": 1, "name": "item-1", "observation": null }
-                , { "id": 2, "name": "item-2", "observation": null }
-                , { "id": 3, "name": "item-3", "observation": null }
-                ]|]
+import Protolude hiding (get, put)
 
 spec :: SpecWith ((), Application)
 spec =
