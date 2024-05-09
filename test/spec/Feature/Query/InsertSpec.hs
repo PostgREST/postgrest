@@ -597,9 +597,9 @@ spec actualPgVersion = do
       it "succeeds and returns full representation" $
         request methodPost "/simple_pk2?select=extra,k"
             [("Prefer", "return=representation")]
-            [json| { "k":"圍棋", "extra":"￥" } |]
+            [json| { "k":"棋圍", "extra":"￥" } |]
         `shouldRespondWith`
-          [json|[ { "k":"圍棋", "extra":"￥" } ]|]
+          [json|[ { "k":"棋圍", "extra":"￥" } ]|]
           { matchStatus = 201 }
 
       it "succeeds and returns usable location header" $ do
