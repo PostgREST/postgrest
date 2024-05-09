@@ -506,12 +506,13 @@ def test_statement_timeout(defaultenv, metapostgrest):
         data = response.json()
         assert data["message"] == "canceling statement due to statement timeout"
 
+    reset_statement_timeout(metapostgrest, role)
+
 
 def test_change_statement_timeout(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately"
 
     role = "timeout_authenticator"
-    reset_statement_timeout(metapostgrest, role)
 
     env = {
         **defaultenv,
@@ -543,6 +544,8 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
 
         response = postgrest.session.get("/rpc/sleep?seconds=1")
         assert response.status_code == 204
+
+    reset_statement_timeout(metapostgrest, role)
 
 
 def test_pool_size(defaultenv, metapostgrest):
@@ -606,7 +609,6 @@ def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
     "Statement timeout changes take effect immediately, even with a request outliving the reconfiguration"
 
     role = "timeout_authenticator"
-    reset_statement_timeout(metapostgrest, role)
 
     env = {
         **defaultenv,
@@ -650,6 +652,8 @@ def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
 
         for t in threads:
             t.join()
+
+    reset_statement_timeout(metapostgrest, role)
 
 
 def test_admin_config(defaultenv):
@@ -701,7 +705,6 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     "Should get a failed response from the admin server ready endpoint when the schema cache is not loaded"
 
     role = "timeout_authenticator"
-    reset_statement_timeout(metapostgrest, role)
 
     env = {
         **defaultenv,
@@ -722,6 +725,8 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
 
         response = postgrest.session.get("/projects")
         assert response.status_code == 503
+
+    reset_statement_timeout(metapostgrest, role)
 
 
 def test_admin_not_found(defaultenv):
@@ -1387,6 +1392,8 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         else:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[1]
+
+    reset_statement_timeout(metapostgrest, role)
 
 
 def test_function_setting_statement_timeout_fails(defaultenv):
