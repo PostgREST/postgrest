@@ -6,77 +6,101 @@ let
     checkedShellScript
       {
         name = "postgrest-release";
-        docs = "Patch postgrest.cabal, CHANGELOG.md, tag and push all in one go.";
-        args = [ "ARG_POSITIONAL_SINGLE([version], [Version to release], [pre])" ];
+        docs = "Patch postgrest.cabal, CHANGELOG.md, commit and push all in one go.";
+        args = [ "ARG_OPTIONAL_BOOLEAN([major], [m], [Bump to new major version (only applies on main branch).])" ];
         workingDir = "/";
       }
       ''
+        current_branch="$(git rev-parse --abbrev-ref HEAD)"
         trap "echo You need to be on the main branch or a release branch to proceed. Exiting ..." ERR
-        [[ "$(git rev-parse --abbrev-ref HEAD)" =~ ^main$|^v[0-9]+$ ]]
+        [[ "$current_branch" =~ ^main$|^v[0-9]+$ ]]
         trap "" ERR
 
         trap "echo You have uncommitted changes in postgrest.cabal. Exiting ..." ERR
         git diff --exit-code HEAD postgrest.cabal > /dev/null
         trap "" ERR
 
-        current_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
-        # shellcheck disable=SC2034
-        IFS=. read -r major minor patch pre <<< "$current_version"
-        echo "Current version is $current_version"
+        bump () {
+          current_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+          # shellcheck disable=SC2034
+          IFS=. read -r major minor patch <<< "$current_version"
+          echo "Current version is $current_version"
 
-        today_date="$(date '+%Y%m%d')"
-        today_date_for_changelog="$(date '+%Y-%m-%d')"
-        bump_pre="$major.$minor.$patch.$today_date"
-        bump_pre_minor="$major.$((minor+1)).0.$today_date"
-        bump_patch="$major.$minor.$((patch+1))"
-        bump_minor="$major.$((minor+1)).0"
-        bump_major="$((major+1)).0.0"
-
-        PS3="Please select the new version: "
-        select new_version in "$bump_pre" "$bump_pre_minor" "$bump_patch" "$bump_minor" "$bump_major"; do
-          case "$REPLY" in
-            1|2|3|4|5)
-              echo "Selected $new_version"
-              break
+          case "$1" in
+            major)
+              new_version="$((major+1)).0.0"
               ;;
-            *)
-            echo "Invalid option $REPLY"
-            ;;
+            minor)
+              new_version="$major.$((minor+1)).0"
+              ;;
+            patch)
+              new_version="$major.$minor.$((patch+1))"
+              ;;
+            devel)
+              new_version="$major.$((minor+1))"
+              ;;
           esac
-        done
 
-        echo "Updating postgrest.cabal ..."
-        sed -i -E "s/^(version:\s+).*$/\1$new_version/" postgrest.cabal > /dev/null
+          echo "Updating postgrest.cabal ..."
+          sed -i -E "s/^(version:\s+).*$/\1$new_version/" postgrest.cabal > /dev/null
 
-        echo "Committing ..."
-        git add postgrest.cabal > /dev/null
+          git add postgrest.cabal > /dev/null        
+        }
 
-        if [[ "$new_version" != "$bump_pre" && "$new_version" != "$bump_pre_minor" ]]; then
-          echo "Updating CHANGELOG.md ..."
-          sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
-          git add CHANGELOG.md > /dev/null
+        today_date_for_changelog="$(date '+%Y-%m-%d')"
+        if [[ "$current_branch" == "main" ]]; then
+          if [[ "$_arg_major" == "on" ]]; then
+            bump major
+          else
+            bump minor
+          fi
+        else
+          bump patch
         fi
 
+        echo "Updating CHANGELOG.md ..."
+        sed -i -E "s/Unreleased/&\n\n## [$new_version] - $today_date_for_changelog/" CHANGELOG.md > /dev/null
+        git add CHANGELOG.md > /dev/null
+
+        echo "Committing ..."
         git commit -m "bump version to $new_version" > /dev/null
 
-        echo "Tagging ..."
-        git tag "v$new_version" > /dev/null
+        if [[ "$current_branch" == "main" ]]; then
+          bump devel
+
+          # The order of operations is important here:
+          # - bump devel is run and $major is upated to the new version
+          # - the branch is created with the new major, but the commit before the devel bump
+          # - the devel bump is committed
+          git branch -f "v$major"
+
+          echo "Committing (devel bump)..."
+          git commit -m "bump version to $new_version" > /dev/null
+        fi
 
         trap "echo Remote not found. Please push manually ..." ERR
-        remote="$(git remote -v | grep PostgREST/postgrest | grep push | cut -f1)"
+        remote="$(git remote -v | grep 'PostgREST/postgrest\.git' | grep push | cut -f1)"
         trap "" ERR
 
-        push="git push --atomic $remote $(git rev-parse --abbrev-ref HEAD) v$new_version"
+        if [[ "$current_branch" == "main" ]]; then
+          push1="git push $remote $current_branch"
+          push2="git push $remote v$major --force"
+        else
+          push1="git push $remote $current_branch"
+          push2=""
+        fi
 
-        echo "To push both the branch and the new tag, the following will be run:"
+        echo "To push the version bump(s), the following will be run:"
         echo
-        echo "$push"
+        echo "$push1"
+        echo "$push2"
         echo
 
         read -r -p 'Proceed? (y/N) ' REPLY
         case "$REPLY" in
           y|Y)
-            $push
+            $push1
+            $push2
             ;;
           *)
             echo "Aborting ..."
