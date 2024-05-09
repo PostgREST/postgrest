@@ -290,7 +290,7 @@ jobs:
           command_timeout: 120m
           script_stop: true
           envs: GITHUB_COMMIT,REMOTE_DIR,GHC_VERSION
-          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$REMOTE_DIR" "GHC_VERSION"
+          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$REMOTE_DIR" "$GHC_VERSION"
       - name: Download binaries from remote server
         uses: nicklasfrahm/scp-action@main
         with:
