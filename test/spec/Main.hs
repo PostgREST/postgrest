@@ -245,10 +245,6 @@ main = do
     parallel $ before planEnabledApp $
       describe "Feature.Query.PlanSpec.spec" $ Feature.Query.PlanSpec.spec actualPgVersion
 
-    -- this test runs with a pre request to enable the pg-safeupdate library per-session
-    parallel $ before pgSafeUpdateApp $
-      describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
-
     -- this test runs with server-trace-header set
     parallel $ before obsApp $
       describe "Feature.ObservabilitySpec.spec" Feature.ObservabilitySpec.spec
@@ -276,6 +272,11 @@ main = do
     -- this test runs with tx-rollback-all = true and tx-allow-override = false
     before forceRollbackApp $
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
+
+    -- This test runs with a pre request to enable the pg-safeupdate library per-session.
+    -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
+    before pgSafeUpdateApp $
+      describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
 
   where
     loadSCache pool conf =
