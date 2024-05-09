@@ -376,7 +376,8 @@ jobs:
             echo "Getting unreleased changes..."
             sed -n "1,/## Unreleased/d;/## \[/q;p" CHANGELOG.md > CHANGES.md
           else
-            echo "Full release (no '-' in version), getting changes for version $version ..."
+            version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+            echo "Propper release, getting changes for version $version ..."
             sed -n "1,/## \[$version\]/d;/## \[/q;p" CHANGELOG.md > CHANGES.md
           fi
 
