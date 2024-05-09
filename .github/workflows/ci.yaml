@@ -301,7 +301,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASS }}
           repository: ${{ vars.DOCKER_REPO }}/postgrest
           short-description: ${{ github.event.repository.description }}
-          readme-filepath: ./nix/tools/release/docker-hub-full-description.md
+          readme-filepath: ./docker-hub-readme.md
 
 
   docker-arm:
