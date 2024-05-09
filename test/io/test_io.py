@@ -710,20 +710,23 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
         **defaultenv,
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "500",
     }
 
     with run(env=env) as postgrest:
-        # make it impossible to load the schema cache, by setting statement timeout to 1ms
-        set_statement_timeout(metapostgrest, role, 1)
+        # The schema cache query takes at least 500ms, due do PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
+        set_statement_timeout(metapostgrest, role, 400)
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
-        sleep_until_postgrest_scache_reload()
+        # wait 600ms to finish schema cache reload attempt
+        time.sleep(0.6)
 
-        response = postgrest.admin.get("/ready")
+        response = postgrest.admin.get("/ready", timeout=1)
         assert response.status_code == 503
 
-        response = postgrest.session.get("/projects")
+        response = postgrest.session.get("/projects", timeout=1)
         assert response.status_code == 503
 
     reset_statement_timeout(metapostgrest, role)

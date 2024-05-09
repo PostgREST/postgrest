@@ -145,6 +145,9 @@ type SqlQuery = ByteString
 
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache AppConfig{..} = do
+  _       <-
+    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
+    whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
   pgVer   <- SQL.statement mempty $ pgVersionStatement prepared
   tabs    <- SQL.statement schemas $ allTables pgVer prepared
@@ -155,9 +158,6 @@ querySchemaCache AppConfig{..} = do
   reps    <- SQL.statement schemas $ dataRepresentations prepared
   mHdlers <- SQL.statement schemas $ mediaHandlers pgVer prepared
   tzones  <- SQL.statement mempty $ timezones prepared
-  _       <-
-    let sleepCall = SQL.Statement "select pg_sleep($1)" (param HE.int4) HD.noResult prepared in
-    whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
