@@ -16,12 +16,6 @@ DOCKER_PASS="$4"
 SCRIPT_DIR="$5"
 PGRST_VERSION="$6"
 
-if [ "$PGRST_VERSION" == "devel" ]; then
-  PGRST_TAG="$PGRST_VERSION"
-else
-  PGRST_TAG="v$PGRST_VERSION"
-fi
-
 DOCKER_BUILD_DIR="$SCRIPT_DIR/docker-env"
 
 clean_env()
@@ -43,13 +37,13 @@ cd ~/$DOCKER_BUILD_DIR
 #       be added to the manifest if they are not in the registry beforehand.
 #       This image must be manually deleted from Docker Hub at the end of the process.
 sudo docker buildx build --build-arg PGRST_GITHUB_COMMIT=$PGRST_GITHUB_COMMIT \
-                         -t $DOCKER_REPO/postgrest:$PGRST_TAG-arm \
+                         -t $DOCKER_REPO/postgrest:$PGRST_VERSION-arm \
                          --push .
 
 # Add the arm images to the manifest
 # NOTE: This assumes that there already is a `postgrest:<version>` image
 #       for the amd64 architecture pushed to Docker Hub
-sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:$PGRST_TAG $DOCKER_REPO/postgrest:$PGRST_TAG-arm
-[ "$PGRST_VERSION" != "devel" ] && sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:latest $DOCKER_REPO/postgrest:$PGRST_TAG-arm
+sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:$PGRST_VERSION $DOCKER_REPO/postgrest:$PGRST_VERSION-arm
+[ "$PGRST_VERSION" != "devel" ] && sudo docker buildx imagetools create --append -t $DOCKER_REPO/postgrest:latest $DOCKER_REPO/postgrest:$PGRST_VERSION-arm
 
 sudo docker logout
