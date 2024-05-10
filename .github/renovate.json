@@ -16,6 +16,10 @@
     {
       "matchPackageNames": ["docutils"],
       "allowedVersions": "<0.21.0"
+    },
+    {
+      "matchPackageNames": ["macos"],
+      "allowedVersions": "<13"
     }
   ]
 }
