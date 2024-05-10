@@ -26,19 +26,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
- - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
  - #2815, Build static executable with GSSAPI support - @wolfgangwalther
- - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
- - #3224, Return status code 406 for non-accepted media type instead of code 415 - @wolfgangwalther
- - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
  - #3237, Dump media handlers and timezones with --dump-schema - @wolfgangwalther
  - #3323, #3324, Don't hide error on LISTEN channel failure - @steve-chavez
  - #3330, Incorrect admin server `/ready` response on slow schema cache loads - @steve-chavez
  - #3345, Fix in-database configuration values not loading for `pgrst.server_trace_header` and `pgrst.server_cors_allowed_origins` - @laurenceisla
- - #3361, Clarify the `PGRST204` (column not found) error message - @steve-chavez
- - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
- - #3418, Fix OpenAPI not tagging a FK column correctly on O2O relationships - @laurenceisla
- - #3256, Fix wrong http status for pg error `42P17 infinite recursion` - @taimoorzaeem
  - #3404, Clarify the `PGRST121` (could not parse RAISE 'PGRST') error message - @laurenceisla
  - #3267, Fix wrong `503 Service Unavailable` on pg error `53400` - @taimoorzaeem
  - #2985, Fix not adding `application_name` on all connection strings - @steve-chavez
@@ -53,6 +45,19 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Documentation
 
  - #3289, Add dark mode. Can be toggled by a button in the bottom right corner. - @laurenceisla
+
+## [12.0.3] - 2024-05-09
+
+### Fixed
+
+ - #3149, Misleading "Starting PostgREST.." logs on schema cache reloading - @steve-chavez
+ - #3205, Fix wrong subquery error returning a status of 400 Bad Request - @steve-chavez
+ - #3224, Return status code 406 for non-accepted media type instead of code 415 - @wolfgangwalther
+ - #3160, Fix using select= query parameter for custom media type handlers - @wolfgangwalther
+ - #3361, Clarify PGRST204(column not found) error message - @steve-chavez
+ - #3373, Remove rejected mediatype `application/vnd.pgrst.object+json` from response - @taimoorzaeem
+ - #3418, Fix OpenAPI not tagging a FK column correctly on O2O relationships - @laurenceisla
+ - #3256, Fix wrong http status for pg error `42P17 infinite recursion` - @taimoorzaeem
 
 ## [12.0.2] - 2023-12-20
 
