@@ -102,7 +102,7 @@ def run(
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
             baseurl = "http+unix://" + urllib.parse.quote_plus(str(socketfile))
 
-        adminport = freeport()
+        adminport = freeport(port)
         env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
         adminurl = f"http://localhost:{adminport}"
 
@@ -169,12 +169,15 @@ def metapostgrest():
         yield postgrest
 
 
-def freeport():
+def freeport(used_port=None):
     "Find a free port on localhost."
-    with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
-        s.bind(("", 0))
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        return s.getsockname()[1]
+    while True:
+        with contextlib.closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+            s.bind(("", 0))
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            port = s.getsockname()[1]
+            if port != used_port:
+                return port
 
 
 def wait_until_exit(postgrest):
