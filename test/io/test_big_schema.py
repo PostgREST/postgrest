@@ -15,8 +15,9 @@ def test_requests_wait_for_schema_cache_reload(defaultenv):
         "PGRST_DB_SCHEMAS": "apflora",
         "PGRST_DB_POOL": "2",
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
-        "PGRST_SERVER_TIMING_ENABLED": "true",
     }
+
+    headers = {"Prefer": "metrics=timings"}
 
     with run(env=env, wait_max_seconds=30) as postgrest:
         # reload the schema cache
@@ -25,7 +26,7 @@ def test_requests_wait_for_schema_cache_reload(defaultenv):
 
         postgrest.wait_until_scache_starts_loading()
 
-        response = postgrest.session.get("/tpopmassn?select=*,tpop(*)")
+        response = postgrest.session.get("/tpopmassn?select=*,tpop(*)", headers=headers)
         assert response.status_code == 200
 
         plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[

@@ -107,24 +107,15 @@ middleware appState app req respond = do
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
 
--- If DbPlanEnabled       -> calculate JWT validation time
--- If JwtCacheMaxLifetime -> cache JWT validation result
-  req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
-    (True, 0)            -> do
+-- If JwtCacheMaxLifetime      -> cache JWT validation result
+  req' <- case configJwtCacheMaxLifetime conf of
+      0            -> do
           (dur, authResult) <- timeItT parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
-    (True, maxLifetime)  -> do
+      maxLifetime  -> do
           (dur, authResult) <- timeItT $ getJWTFromCache appState token maxLifetime parseJwt time
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-
-    (False, 0)           -> do
-          authResult <- parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-    (False, maxLifetime) -> do
-          authResult <- getJWTFromCache appState token maxLifetime parseJwt time
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
 
