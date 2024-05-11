@@ -57,21 +57,27 @@ let
           }
           { });
 
-      hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
+      hasql-pool = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hasql-pool";
+          ver = "1.1";
+          sha256 = "sha256-TJZdUwsBo4pLLYydc8FgxYFI37Tj5K+E7idf4fQYEjU=";
+        }
+        { }
+      );
 
       postgresql-libpq = lib.dontCheck
         (prev.postgresql-libpq.override {
           postgresql = super.libpq;
         });
 
-      hasql-notifications = lib.dontCheck (prev.callHackageDirect
-        {
-          pkg = "hasql-notifications";
-          ver = "0.2.1.1";
-          sha256 = "sha256-oPhKA/pSQGJvgQyhsi7CVr9iDT7uWpKUz0iJfXsaxXo=";
-        }
-        { }
-      );
+      hasql-notifications = lib.dontCheck
+        (prev.callCabal2nixWithOptions "hasql-notifications" (super.fetchFromGitHub {
+          owner = "laurenceisla";
+          repo  = "hasql-notifications";
+          rev = "71059bb9e992160dae9ef966e05bc7373ea002ab";
+          sha256 = "sha256-4BF/G1Tmnmzk3wDCSezmn86CB5IMAZ4XUffEv95v208=";
+        }) "--subpath=." {});
 
     };
 in
