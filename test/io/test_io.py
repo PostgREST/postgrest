@@ -714,7 +714,7 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     }
 
     with run(env=env) as postgrest:
-        # The schema cache query takes at least 500ms, due do PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
         # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
         set_statement_timeout(metapostgrest, role, 400)
 
@@ -1024,7 +1024,9 @@ def test_isolation_level(defaultenv):
 def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
     "schema cache should be up-to-date whenever a notification is sent while another reload is in progress, see https://github.com/PostgREST/postgrest/issues/2791"
 
-    internal_sleep = int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"])
+    internal_sleep = (
+        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"]) / 1000
+    )
 
     with run(env=slow_schema_cache_env, wait_for_readiness=False) as postgrest:
         time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
