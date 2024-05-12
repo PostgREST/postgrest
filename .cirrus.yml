@@ -23,7 +23,7 @@ build_task:
     reupload_on_changes: false
 
   build_script: |
-    stack build -j 1 --local-bin-path . --copy-bins
+    stack build -j 1 --local-bin-path . --copy-bins --stack-yaml stack-21.7.yaml
     strip postgrest
 
   bin_artifacts:

@@ -5,13 +5,6 @@
 
 packages:
 - completed:
-    hackage: configurator-pg-0.2.7@sha256:7327ce30c3b6bc50930efa73e2e215c8f62857564483edbbe5a75920057ef764,2849
-    pantry-tree:
-      sha256: 023bd4835a7ac2624c44d3bbb26e99000994ce953d11d853c0f194278983d4dc
-      size: 2463
-  original:
-    hackage: configurator-pg-0.2.7
-- completed:
     hackage: fuzzyset-0.2.4@sha256:f1b6de8bf33277bf6255207541d65028f1f1ea93af5541b654c86b5674995485,1618
     pantry-tree:
       sha256: cee68e8d88f530e9e0588b81b260236936fe3318ef9a66e9f43f680b4cd5f76e
@@ -19,36 +12,15 @@ packages:
   original:
     hackage: fuzzyset-0.2.4
 - completed:
-    hackage: hasql-notifications-0.2.1.1@sha256:e4f41f462e96f3af3f088b747daeeb2275ceaebd0e4b0d05187bd10d329afada,2021
-    pantry-tree:
-      sha256: f9041b1c242436324372f6be9a4f2e5cf70203c3efad36a4e9ea4cca5113a2ec
-      size: 452
-  original:
-    hackage: hasql-notifications-0.2.1.1
-- completed:
     hackage: hasql-pool-1.0.1@sha256:3cfb4c7153a6c536ac7e126c17723e6d26ee03794954deed2d72bcc826d05a40,2302
     pantry-tree:
       sha256: d98e1269bdd60989b0eb0b84e1d5357eaa9f92821439d9f206663b7251ee95b2
       size: 799
   original:
     hackage: hasql-pool-1.0.1
-- completed:
-    hackage: megaparsec-9.2.2@sha256:c306a135ec25d91d252032c6128f03598a00e87ea12fcf5fc4878fdffc75c768,3219
-    pantry-tree:
-      sha256: db9715d6910e64d3bbfce69895042a66fcdcd64a54805563834bf0821562b74f
-      size: 1518
-  original:
-    hackage: megaparsec-9.2.2
-- completed:
-    hackage: postgresql-libpq-0.10.0.0@sha256:5c1cafdc2e3e5c0036b6801b10b6f14ae95b98428d6c88bc8ae560bd700d0ef7,3089
-    pantry-tree:
-      sha256: a7790b5283fc1510bde9e7c70772cdbf1ad6a3bad32ea966c6fc95e1b3c524c7
-      size: 1019
-  original:
-    hackage: postgresql-libpq-0.10.0.0
 snapshots:
 - completed:
-    sha256: 23bb9bb355bfdb1635252e120a29b712f0d5e8a6c6a65c5ab5bd6692f46c438e
-    size: 640457
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/21/7.yaml
-  original: lts-21.7
+    sha256: b146f371d1a90abbd2aeae1da10f776951046be50eae55a6fe93548a74fcc0dd
+    size: 713338
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/21.yaml
+  original: lts-22.21
