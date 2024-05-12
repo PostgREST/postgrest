@@ -6,7 +6,9 @@ on:
       - CI
       - Test
     branches-ignore:
+      - devel
       - v[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+
     types:
       - completed
 
