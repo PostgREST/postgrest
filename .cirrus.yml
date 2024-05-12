@@ -19,8 +19,20 @@ build_task:
 
   stack_cache:
     folders: /.stack
-    fingerprint_script: cat postgrest.cabal stack.yaml.lock
-    reupload_on_changes: false
+    fingerprint_script:
+      - echo $CIRRUS_OS
+      - stack --version
+      - md5sum postgrest.cabal
+      - md5sum stack.yaml.lock
+
+  stack_work_cache:
+    folders: .stack-work
+    fingerprint_script:
+      - echo $CIRRUS_OS
+      - stack --version
+      - md5sum postgrest.cabal
+      - md5sum stack.yaml.lock
+      - find main src -type f -iname '*.hs' -exec md5sum "{}" +
 
   build_script: |
     stack build -j 1 --local-bin-path . --copy-bins --stack-yaml stack-21.7.yaml
