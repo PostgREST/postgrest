@@ -64,7 +64,6 @@ dbSettingsNames =
   ,"openapi_mode"
   ,"openapi_security_active"
   ,"openapi_server_proxy_uri"
-  ,"raw_media_types"
   ,"server_cors_allowed_origins"
   ,"server_trace_header"
   ,"server_timing_enabled"
