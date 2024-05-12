@@ -487,7 +487,7 @@ db-tx-end
   **Default**     commit
   **Reloadable**  N
   **Environment** PGRST_DB_TX_END
-  **In-Database** `n/a`
+  **In-Database** pgrst.db_tx_end
   =============== =================================
 
   Specifies how to terminate the database transactions.
