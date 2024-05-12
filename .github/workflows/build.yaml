@@ -91,14 +91,12 @@ jobs:
             runs-on: ubuntu-22.04
             cache: |
               ~/.stack
-              .stack-work
             # no artifact for Linux, because we use the static build
 
           - name: MacOS
             runs-on: macos-12
             cache: |
               ~/.stack
-              .stack-work
             artifact: postgrest-macos-x64
 
           - name: Windows
@@ -106,7 +104,6 @@ jobs:
             cache: |
               ~\AppData\Roaming\stack
               ~\AppData\Local\Programs\stack
-              .stack-work
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
             artifact: postgrest-windows-x64
 
@@ -114,12 +111,19 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-      - name: Stack working files cache
+      - name: Cache ~/.stack
         uses: ./.github/actions/cache-on-main
         with:
           path: ${{ matrix.cache }}
           prefix: stack
-          suffix: ${{ hashFiles('stack.yaml.lock') }}
+          suffix: ${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
+      - name: Cache .stack-work
+        uses: ./.github/actions/cache-on-main
+        with:
+          path: .stack-work
+          save-prs: true
+          prefix: stack-work-${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
+          suffix: ${{ hashFiles('main/**/*.hs', 'src/**/*.hs') }}
       - name: Install dependencies
         if: matrix.deps
         run: ${{ matrix.deps }}
@@ -169,15 +173,21 @@ jobs:
       - name: Fix caching
         run: |
           mkdir ~/.cabal
-      - name: Cache
+      - name: Cache .cabal
         uses: ./.github/actions/cache-on-main
         with:
           path: |
             ~/.cabal/packages
             ~/.cabal/store
-            dist-newstyle
           prefix: cabal-${{ matrix.ghc }}
           suffix: ${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
+      - name: Cache dist-newstyle
+        uses: ./.github/actions/cache-on-main
+        with:
+          path: dist-newstyle
+          save-prs: true
+          prefix: cabal-${{ matrix.ghc }}-dist-newstyle-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
+          suffix: ${{ hashFiles('**/*.hs') }}
       - name: Install dependencies
         run: |
           cabal update
