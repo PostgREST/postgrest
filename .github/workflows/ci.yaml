@@ -112,6 +112,7 @@ jobs:
       group: ci-tag-${{ (github.ref == 'refs/heads/main' && github.ref) || github.run_id }}
       cancel-in-progress: true
     if: |
+      vars.RELEASE_ENABLED &&
       startsWith(github.ref, 'refs/heads/') &&
       needs.docs.result == 'success' &&
       needs.test.result == 'success' &&
