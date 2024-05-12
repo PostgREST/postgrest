@@ -10,8 +10,9 @@ on:
       - v*
 
 concurrency:
-  # Terminate all previous runs of the same workflow for pull requests
-  group: ci-${{ github.head_ref || github.run_id }}
+  # Terminate all previous runs of the same workflow for the same tag, but never
+  # cancel for the main / release branch pipelines.
+  group: ci-${{ (github.ref_type == 'tag' && github.ref) || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -103,6 +104,10 @@ jobs:
 
   tag:
     name: Release / Tag
+    concurrency:
+      # Never tag outdated commits on the main branch by skipping superseded commits
+      group: ci-tag-${{ (github.ref == 'refs/heads/main' && github.ref) || github.run_id }}
+      cancel-in-progress: true
     if: |
       startsWith(github.ref, 'refs/heads/') &&
       needs.docs.result == 'success' &&
