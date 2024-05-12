@@ -18,6 +18,7 @@ concurrency:
 jobs:
   check:
     name: Check
+    if: startsWith(github.ref, 'refs/heads/')
     uses: ./.github/workflows/check.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -25,6 +26,7 @@ jobs:
 
   docs:
     name: Docs
+    if: startsWith(github.ref, 'refs/heads/')
     uses: ./.github/workflows/docs.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -32,6 +34,7 @@ jobs:
 
   test:
     name: Test
+    if: startsWith(github.ref, 'refs/heads/')
     uses: ./.github/workflows/test.yaml
     secrets:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
@@ -147,8 +150,6 @@ jobs:
     name: Release / Prepare
     if: |
       startsWith(github.ref, 'refs/tags/') &&
-      needs.docs.result == 'success' &&
-      needs.test.result == 'success' &&
       needs.build.result == 'success' &&
       (needs.arm.result == 'skipped' || success())
     runs-on: ubuntu-22.04
