@@ -8,10 +8,12 @@ cli:
     args: ['--version']
   - name: version short
     args: ['-v']
-  - name: example long
-    args: ['--example']
-  - name: example short
-    args: ['-e']
+  - name: example file long
+    args: ['--example-file']
+  - name: example db long
+    args: ['--example-db']
+  - name: example env long
+    args: ['--example-env']
   - name: dump config
     args: ['--dump-config']
   - name: dump schema

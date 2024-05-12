@@ -23,6 +23,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3184, Log full pg version to stderr on connection - @steve-chavez
  - #3242. Add config `db-hoisted-tx-settings` to apply only hoisted function settings - @taimoorzaeem
  - #3214, #3229 Log connection pool events on log-level=debug - @steve-chavez, @laurenceisla
+ - #3248, Add more config examples to CLI - @taimoorzaeem
+   + Now accepts ``--example-file``, ``--example-db``, and ``--example-env``
 
 ### Fixed
 
@@ -41,6 +43,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
  - #3255, Fix incorrect `413 Request Entity Too Large` on pg errors `54*` - @taimoorzaeem
  - #3549, Remove verbosity from error logs starting with "An error occurred..." and replacing it with "Failed to..." - @laurenceisla
+
+### Changed
+ - #3248, Modified some CLI options - @taimoorzaeem
+   + Replace ``-e`` and ``--example`` with ``--example-file``
 
 ### Deprecated
 

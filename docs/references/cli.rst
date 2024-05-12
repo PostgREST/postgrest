@@ -28,7 +28,9 @@ Example
 
 .. code:: bash
 
-  $ postgrest [-e|--example]
+  $ postgrest [--example-file]
+  $ postgrest [--example-db]
+  $ postgrest [--example-env]
 
 Shows example configuration options.
 
