@@ -90,20 +90,28 @@ jobs:
           - name: Linux
             runs-on: ubuntu-22.04
             cache: |
-              ~/.stack
+              ~/.stack/pantry
+              ~/.stack/snapshots
+              ~/.stack/stack.sqlite3
             # no artifact for Linux, because we use the static build
 
           - name: MacOS
             runs-on: macos-12
             cache: |
-              ~/.stack
+              ~/.stack/pantry
+              ~/.stack/snapshots
+              ~/.stack/stack.sqlite3
             artifact: postgrest-macos-x64
 
           - name: Windows
             runs-on: windows-2022
             cache: |
-              ~\AppData\Roaming\stack
-              ~\AppData\Local\Programs\stack
+              ~\AppData\Roaming\stack\pantry
+              ~\AppData\Local\Programs\stack\pantry
+              ~\AppData\Roaming\stack\snapshots
+              ~\AppData\Local\Programs\stack\snapshots
+              ~\AppData\Roaming\stack\stack.sqlite3
+              ~\AppData\Local\Programs\stack\stack.sqlite3
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
             artifact: postgrest-windows-x64
 
