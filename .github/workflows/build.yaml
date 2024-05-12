@@ -119,6 +119,12 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: haskell-actions/setup@64aa5146ed5bd91f181552b8b5fbe50fbd2bd3fe # v2.7.1
+        with:
+          ghc-version: 9.4.5
+          enable-stack: true
+          stack-no-global: true
+          stack-setup-ghc: true
       - name: Cache ~/.stack
         uses: ./.github/actions/cache-on-main
         with:
@@ -172,15 +178,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-      - name: ghcup
-        run: |
-          # GHC 9.8.2 is not available in regular release channel, yet.
-          ghcup config add-release-channel https://raw.githubusercontent.com/haskell/ghcup-metadata/master/ghcup-vanilla-0.0.8.yaml
-          ghcup install ghc ${{ matrix.ghc }}
-          ghcup set ghc ${{ matrix.ghc }}
-      - name: Fix caching
-        run: |
-          mkdir ~/.cabal
+      - uses: haskell-actions/setup@64aa5146ed5bd91f181552b8b5fbe50fbd2bd3fe # v2.7.1
+        with:
+          ghc-version: ${{ matrix.ghc }}
       - name: Cache .cabal
         uses: ./.github/actions/cache-on-main
         with:
@@ -197,8 +197,6 @@ jobs:
           prefix: cabal-${{ matrix.ghc }}-dist-newstyle-${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
           suffix: ${{ hashFiles('**/*.hs') }}
       - name: Install dependencies
-        run: |
-          cabal update
-          cabal build --only-dependencies --enable-tests --enable-benchmarks
+        run: cabal build --only-dependencies --enable-tests --enable-benchmarks
       - name: Build
         run: cabal build --enable-tests --enable-benchmarks all
