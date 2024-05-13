@@ -15,6 +15,7 @@
 , withTools
 , haskellPackages
 , ctags
+, openssl
 }:
 let
   watch =
@@ -319,13 +320,57 @@ let
   genCtags =
     checkedShellScript
       {
-        name = "postgrest-ctags";
+        name = "postgrest-gen-ctags";
         docs = "Generate ctags for Haskell and Python code";
         workingDir = "/";
       }
       ''
         ${ctags}/bin/ctags -a -R --fields=+l --languages=python --python-kinds=-iv -f ./tags test/io/
         ${haskellPackages.hasktags}/bin/hasktags -a -R -c -f ./tags .
+      '';
+
+  genJwt =
+    checkedShellScript
+      {
+        name = "postgrest-gen-jwt";
+        docs = "Generate a JWT";
+        args = [
+          "ARG_POSITIONAL_SINGLE([role], [role for the jwt payload])"
+          "ARG_OPTIONAL_SINGLE([secret],, [secret used to sign the JWT], [reallyreallyreallyreallyverysafe])"
+        ];
+      }
+      ''
+        # From https://stackoverflow.com/questions/59002949/how-to-create-a-json-web-token-jwt-using-openssl-shell-commands
+
+        # Construct the header
+        jwt_header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 | sed s/\+/-/g | sed 's/\//_/g' | sed -E s/=+$//)
+
+        # Construct the payload
+        payload=$(echo -n "{\"role\":\"$_arg_role\"}" | base64 | sed s/\+/-/g |sed 's/\//_/g' |  sed -E s/=+$//)
+
+        # Convert secret to hex
+        hexsecret=$(echo -n "$_arg_secret" | xxd -p | paste -sd "")
+
+        # Calculate hmac signature -- note option to pass in the key as hex bytes
+        hmac_signature=$(echo -n "$jwt_header.$payload" |  ${openssl}/bin/openssl dgst -sha256 -mac HMAC -macopt hexkey:"$hexsecret" -binary \
+          | base64  | sed s/\+/-/g | sed 's/\//_/g' | sed -E s/=+$//)
+
+        # Create the full token
+        jwt="$jwt_header.$payload.$hmac_signature"
+
+        echo -n "$jwt"
+      '';
+
+  genSecret =
+    checkedShellScript
+      {
+        name = "postgrest-gen-secret";
+        docs = "Generate a JWT secret";
+      }
+      ''
+        export LC_CTYPE=C
+
+        LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c32
       '';
 in
 buildToolbox
@@ -341,6 +386,8 @@ buildToolbox
       hsieMinimalImports
       parallelCurl
       genCtags
+      genJwt
+      genSecret
       pushCachix
       watch;
   };
