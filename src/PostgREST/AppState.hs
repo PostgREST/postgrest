@@ -74,7 +74,8 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
+import Data.Streaming.Network (HostPreference, bindPortTCP,
+                               bindRandomPortTCP)
 import Data.String            (IsString (..))
 import Protolude
 
@@ -207,11 +208,20 @@ initSockets AppConfig{..} = do
 
   adminSock <- case cfg'adminport of
     Just adminPort -> do
-      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'host)
+      hp <- resolvedAddress sock -- reuse the same host as the main socket
+      adminSock <- bindPortTCP adminPort $ fromMaybe (fromString $ T.unpack cfg'host) hp
       pure $ Just adminSock
     Nothing -> pure Nothing
 
   pure (sock, adminSock)
+  where
+    resolvedAddress :: NS.Socket -> IO (Maybe HostPreference)
+    resolvedAddress sock = do
+      sn <- NS.getSocketName sock
+      case sn of
+        NS.SockAddrInet _ hostAddr ->  pure $ Just $ fromString $ T.unpack $ show hostAddr
+        _ -> pure Nothing
+
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
 initPool AppConfig{..} observer =
