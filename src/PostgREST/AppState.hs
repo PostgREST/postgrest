@@ -74,6 +74,7 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
+import Data.IP (fromHostAddress, fromHostAddress6)
 import Data.Streaming.Network (HostPreference, bindPortTCP,
                                bindRandomPortTCP)
 import Data.String            (IsString (..))
@@ -209,7 +210,7 @@ initSockets AppConfig{..} = do
   adminSock <- case cfg'adminport of
     Just adminPort -> do
       hp <- resolvedAddress sock -- reuse the same host as the main socket
-      adminSock <- bindPortTCP adminPort $ fromMaybe (fromString $ T.unpack cfg'host) hp
+      adminSock <- bindPortTCP adminPort $ fromMaybe (fromString $ T.unpack cfg'host) $ hp
       pure $ Just adminSock
     Nothing -> pure Nothing
 
@@ -219,7 +220,8 @@ initSockets AppConfig{..} = do
     resolvedAddress sock = do
       sn <- NS.getSocketName sock
       case sn of
-        NS.SockAddrInet _ hostAddr ->  pure $ Just $ fromString $ T.unpack $ show hostAddr
+        NS.SockAddrInet _ hostAddr ->  pure $ Just $ fromString $ show $ fromHostAddress hostAddr
+        NS.SockAddrInet6 _ _ hostAddr6 _ -> pure $ Just $ fromString $ show $ fromHostAddress6 hostAddr6
         _ -> pure Nothing
 
 

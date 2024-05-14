@@ -116,6 +116,7 @@ library
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , interpolatedstring-perl6  >= 1 && < 1.1
+                    , iproute                   >= 1.7.0 && < 1.8
                     , jose                      >= 0.8.5.1 && < 0.12
                     , lens                      >= 4.14 && < 5.3
                     , lens-aeson                >= 1.0.1 && < 1.3
