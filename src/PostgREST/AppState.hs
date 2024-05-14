@@ -74,7 +74,7 @@ import PostgREST.SchemaCache             (SchemaCache (..),
 import PostgREST.SchemaCache.Identifiers (dumpQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
-import Data.IP (fromHostAddress, fromHostAddress6)
+import Data.IP                (fromHostAddress, fromHostAddress6)
 import Data.Streaming.Network (HostPreference, bindPortTCP,
                                bindRandomPortTCP)
 import Data.String            (IsString (..))
