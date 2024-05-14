@@ -210,7 +210,7 @@ initSockets AppConfig{..} = do
   adminSock <- case cfg'adminport of
     Just adminPort -> do
       hp <- resolvedAddress sock -- reuse the same host as the main socket
-      adminSock <- bindPortTCP adminPort $ fromMaybe (fromString $ T.unpack cfg'host) $ hp
+      adminSock <- bindPortTCP adminPort $ fromMaybe (fromString $ T.unpack cfg'host) hp
       pure $ Just adminSock
     Nothing -> pure Nothing
 
