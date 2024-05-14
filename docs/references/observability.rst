@@ -109,9 +109,10 @@ The query time in seconds of the last schema cache load.
 pgrst_schema_cache_loads_total
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-======== =======
-**Type** Counter
-======== =======
+========== ==========================
+**Type**   Counter
+**Labels** ``status``: SUCCESS | FAIL
+========== ==========================
 
 The total number of times the schema cache was loaded.
 
