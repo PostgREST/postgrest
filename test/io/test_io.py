@@ -732,6 +732,44 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
     reset_statement_timeout(metapostgrest, role)
 
 
+def test_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
+    "Should get shema cache fails from the metrics endpoint"
+
+    role = "timeout_authenticator"
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "50",
+    }
+
+    with run(env=env) as postgrest:
+        # The schema cache query takes at least 20ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # Make it impossible to load the schema cache, by setting statement timeout to 100ms.
+        set_statement_timeout(metapostgrest, role, 20)
+
+        # force a reconnection so the new role setting is picked up
+        postgrest.process.send_signal(signal.SIGUSR1)
+
+        # wait for some schema cache retries
+        time.sleep(1)
+
+        response = postgrest.admin.get("/ready", timeout=1)
+        assert response.status_code == 503
+
+        response = postgrest.admin.get("/metrics", timeout=1)
+        assert response.status_code == 200
+
+        metrics = float(
+            re.search(
+                r'pgrst_schema_cache_loads_total{status="FAIL"} (\d+)', response.text
+            ).group(1)
+        )
+        assert metrics > 3.0
+
+    reset_statement_timeout(metapostgrest, role)
+
+
 def test_admin_not_found(defaultenv):
     "Should get a not found from a undefined endpoint on the admin server"
 
@@ -1448,7 +1486,7 @@ def test_admin_metrics(defaultenv):
         response = postgrest.admin.get("/metrics")
         assert response.status_code == 200
         assert "pgrst_schema_cache_query_time_seconds" in response.text
-        assert "pgrst_schema_cache_loads_total" in response.text
+        assert 'pgrst_schema_cache_loads_total{status="SUCCESS"}' in response.text
         assert "pgrst_db_pool_max" in response.text
         assert "pgrst_db_pool_waiting" in response.text
         assert "pgrst_db_pool_available" in response.text
