@@ -5,34 +5,36 @@ Description : Module for observability types
 -}
 module PostgREST.Observation
   ( Observation(..)
+  , ObsFatalError(..)
   , observationMessage
   , ObservationHandler
   ) where
 
-import qualified Data.ByteString.Lazy   as LBS
-import qualified Data.Text              as T
-import qualified Data.Text.Encoding     as T
-import qualified Hasql.Connection       as SQL
-import qualified Hasql.Pool             as SQL
-import qualified Hasql.Pool.Observation as SQL
-import qualified Network.Socket         as NS
-import           Numeric                (showFFloat)
-import qualified PostgREST.Error        as Error
+import qualified Data.ByteString.Lazy       as LBS
+import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as T
+import qualified Hasql.Connection           as SQL
+import qualified Hasql.Pool                 as SQL
+import qualified Hasql.Pool.Observation     as SQL
+import qualified Network.Socket             as NS
+import           Numeric                    (showFFloat)
+import           PostgREST.Config.PgVersion
+import qualified PostgREST.Error            as Error
 
 import Protolude
 import Protolude.Partial (fromJust)
 
 data Observation
   = AdminStartObs (Maybe Int)
-  | AppServerStartObs ByteString
+  | AppStartObs ByteString
   | AppServerPortObs NS.PortNumber
   | AppServerUnixObs FilePath
   | DBConnectAttemptObs
-  | ExitFatalObs Text
+  | ExitUnsupportedPgVersion PgVersion PgVersion
   | ExitDBNoRecoveryObs
+  | ExitDBFatalError ObsFatalError SQL.UsageError
   | DBConnectedObs Text
-  | SchemaCacheFatalErrorObs SQL.UsageError Text
-  | SchemaCacheNormalErrorObs SQL.UsageError
+  | SchemaCacheErrorObs SQL.UsageError
   | SchemaCacheQueriedObs Double
   | SchemaCacheSummaryObs Text
   | SchemaCacheLoadedObs Double
@@ -43,9 +45,7 @@ data Observation
   | DBListenerFailRecoverObs Bool Text (Either SomeException ())
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
-  | ConfigReadErrorObs
-  | ConfigReadErrorFatalObs SQL.UsageError Text
-  | ConfigReadErrorNotFatalObs SQL.UsageError
+  | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
   | ConfigSucceededObs
   | QueryRoleSettingsErrorObs SQL.UsageError
@@ -55,13 +55,15 @@ data Observation
   | PoolRequest
   | PoolRequestFullfilled
 
+data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
+
 type ObservationHandler = Observation -> IO ()
 
 observationMessage :: Observation -> Text
 observationMessage = \case
   AdminStartObs port ->
     "Admin server listening on port " <> show (fromIntegral (fromJust port) :: Integer)
-  AppServerStartObs ver ->
+  AppStartObs ver ->
     "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerPortObs port ->
     "Listening on port " <> show port
@@ -69,15 +71,21 @@ observationMessage = \case
     "Listening on unix socket " <> show sock
   DBConnectAttemptObs ->
     "Attempting to connect to the database..."
-  ExitFatalObs reason ->
-    "Fatal error encountered. " <> reason
-  ExitDBNoRecoveryObs ->
-    "Automatic recovery disabled, exiting."
   DBConnectedObs ver ->
     "Successfully connected to " <> ver
-  SchemaCacheFatalErrorObs usageErr hint ->
-    "A fatal error ocurred when loading the schema cache. " <> hint <> ". " <> jsonMessage usageErr
-  SchemaCacheNormalErrorObs usageErr ->
+  ExitUnsupportedPgVersion pgVer minPgVer ->
+    "Cannot run in this PostgreSQL version (" <> pgvName pgVer <> "), PostgREST needs at least " <> pgvName minPgVer
+  ExitDBNoRecoveryObs ->
+    "Automatic recovery disabled, exiting."
+  ExitDBFatalError ServerAuthError usageErr ->
+    jsonMessage usageErr
+  ExitDBFatalError ServerPgrstBug usageErr ->
+    "This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues. " <> jsonMessage usageErr
+  ExitDBFatalError ServerError42P05 usageErr ->
+    "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false. " <> jsonMessage usageErr
+  ExitDBFatalError ServerError08P01 usageErr ->
+    "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
+  SchemaCacheErrorObs usageErr ->
     "An error ocurred when loading the schema cache. " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
     "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
@@ -99,12 +107,8 @@ observationMessage = \case
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
-  ConfigReadErrorObs ->
-    "An error ocurred when trying to query database settings for the config parameters"
-  ConfigReadErrorFatalObs usageErr hint ->
-    hint <> ". " <> jsonMessage usageErr
-  ConfigReadErrorNotFatalObs usageErr ->
-    jsonMessage usageErr
+  ConfigReadErrorObs usageErr ->
+    "An error ocurred when trying to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
     "An error ocurred when trying to query the role settings. " <> jsonMessage usageErr
   QueryErrorCodeHighObs usageErr ->

@@ -65,7 +65,7 @@ run appState = do
   let observer = AppState.getObserver appState
   conf@AppConfig{..} <- AppState.getConfig appState
 
-  observer $ AppServerStartObs prettyVersion
+  observer $ AppStartObs prettyVersion
 
   AppState.connectionWorker appState -- Loads the initial SchemaCache
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
