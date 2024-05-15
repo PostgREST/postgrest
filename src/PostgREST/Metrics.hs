@@ -47,7 +47,7 @@ observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schema
   SchemaCacheLoadedObs resTime -> do
     withLabel schemaCacheLoads "SUCCESS" incCounter
     setGauge schemaCacheQueryTime resTime
-  SchemaCacheNormalErrorObs _ -> do
+  SchemaCacheErrorObs _ -> do
     withLabel schemaCacheLoads "FAIL" incCounter
   _ ->
     pure ()
