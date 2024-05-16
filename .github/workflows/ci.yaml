@@ -155,8 +155,6 @@ jobs:
       (needs.arm.result == 'skipped' || success())
     runs-on: ubuntu-22.04
     needs:
-      - docs
-      - test
       - build
       - arm
     steps:
