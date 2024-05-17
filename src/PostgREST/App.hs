@@ -68,7 +68,7 @@ run appState = do
   observer $ AppStartObs prettyVersion
 
   AppState.connectionWorker appState -- Loads the initial SchemaCache
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.readInDbConfig False appState)
   -- reload schema cache + config on NOTIFY
   AppState.runListener appState
 

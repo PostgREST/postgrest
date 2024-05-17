@@ -42,7 +42,7 @@ main CLI{cliCommand, cliPath} = do
     AppState.destroy
     (\appState -> case cliCommand of
       CmdDumpConfig -> do
-        when configDbConfig $ AppState.reReadConfig True appState
+        when configDbConfig $ AppState.readInDbConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
       CmdDumpSchema -> putStrLn =<< dumpSchema appState
       CmdRun -> App.run appState)
