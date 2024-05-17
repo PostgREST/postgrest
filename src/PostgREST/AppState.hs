@@ -542,23 +542,25 @@ listener appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadI
     dbOrError <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
     case dbOrError of
       Right db -> do
-        observer $ DBListenerStart dbChannel
         SQL.listen db $ SQL.toPgIdentifier dbChannel
+        observer $ DBListenStart dbChannel
         SQL.waitForNotifications handleNotification db
 
       Left err -> do
-        observer $ DBListenerFail dbChannel err
+        observer $ DBListenFail dbChannel (Left err)
         exitFailure
   where
     handleFinally dbChannel False err = do
-      observer $ DBListenerFailRecoverObs False dbChannel err
+      observer $ DBListenFail dbChannel (Right err)
       killThread mainThreadId
     handleFinally dbChannel True err = do
       -- if the thread dies, we try to recover
-      observer $ DBListenerFailRecoverObs True dbChannel err
+      observer $ DBListenFail dbChannel (Right err)
       -- assume the pool connection was also lost, call the connection worker
       connectionWorker appState
+
       -- retry the listener
+      observer DBListenRetry
       listener appState conf
 
     handleNotification channel msg =

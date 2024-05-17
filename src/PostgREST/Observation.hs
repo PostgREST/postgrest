@@ -40,9 +40,9 @@ data Observation
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
   | ConnectionPgVersionErrorObs SQL.UsageError
-  | DBListenerStart Text
-  | DBListenerFail Text SQL.ConnectionError
-  | DBListenerFailRecoverObs Bool Text (Either SomeException ())
+  | DBListenStart Text
+  | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
+  | DBListenRetry
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
   | ConfigReadErrorObs SQL.UsageError
@@ -97,12 +97,16 @@ observationMessage = \case
     "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
   ConnectionPgVersionErrorObs usageErr ->
     jsonMessage usageErr
-  DBListenerStart channel -> do
+  DBListenStart channel -> do
     "Listening for notifications on the " <> show channel <> " channel"
-  DBListenerFail channel err -> do
-    "Could not listen for notifications on the " <> channel <> " channel. " <> show err
-  DBListenerFailRecoverObs recover channel err ->
-    "Could not listen for notifications on the " <> channel <> " channel. " <> showListenerError err <> (if recover then " Retrying listening for notifications.." else mempty)
+  DBListenFail channel listenErr ->
+    "Failed listening for notifications on the " <> show channel <> " channel. " <> (
+      case listenErr of
+        Left err  -> show err
+        Right err -> showListenerError err
+    )
+  DBListenRetry ->
+    "Retrying listening for notifications..."
   DBListenerGotSCacheMsg channel ->
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
