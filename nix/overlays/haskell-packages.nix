@@ -38,7 +38,7 @@ let
       # Notes:
       # - When adding a new package version here, update cabal.
       #   + Update postgrest.cabal with the package version
-      #   + Update cabal.project.freeze. Just set it to the current timestamp then run `cabal build`. It will tell you the correct timestamp for the index state.
+      #   + Update the index-state in cabal.project.freeze. Run `cabal update` which should return the latest index state.
       # - When adding a new package version here, you have to update stack.
       #   + To update stack.yaml add:
       #   extra-deps:
@@ -67,8 +67,8 @@ let
       hasql-notifications = lib.dontCheck (prev.callHackageDirect
         {
           pkg = "hasql-notifications";
-          ver = "0.2.1.1";
-          sha256 = "sha256-oPhKA/pSQGJvgQyhsi7CVr9iDT7uWpKUz0iJfXsaxXo=";
+          ver = "0.2.2.0";
+          sha256 = "sha256-73OQ9/su2qvO7HavF3xuuNWLXSXyB9reBUQDaHys06I=";
         }
         { }
       );
