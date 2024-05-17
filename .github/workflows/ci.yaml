@@ -23,7 +23,7 @@ jobs:
     name: Lint & check code style
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -43,7 +43,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -79,7 +79,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -98,7 +98,7 @@ jobs:
     name: Test memory (Nix)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -111,7 +111,7 @@ jobs:
     name: Build Linux static (Nix)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -141,7 +141,7 @@ jobs:
     name: Build MacOS (Nix)
     runs-on: macos-12
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
 
@@ -181,7 +181,7 @@ jobs:
     name: Build ${{ matrix.name }} (Stack)
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Stack working files cache
         uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
         with:
@@ -205,7 +205,7 @@ jobs:
     name: Get FreeBSD build from CirrusCI
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - uses: ./.github/actions/artifact-from-cirrus
         with:
           token: ${{ github.token }}
@@ -221,7 +221,7 @@ jobs:
     name: Build Linux (Cabal, GHC ${{ matrix.ghc }})
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Workaround runner image issue
         # https://github.com/actions/runner-images/issues/7061
         run: sudo chown -R "$USER" /usr/local/.ghcup
@@ -264,7 +264,7 @@ jobs:
       GITHUB_COMMIT: ${{ github.sha }}
       GHC_VERSION: ${{ matrix.ghc }}
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - id: Remote-Dir
         name: Unique directory name for the remote build
         run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
@@ -327,7 +327,7 @@ jobs:
       - Get-FreeBSD-CirrusCI
       - Build-Cabal-Arm
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
         with:
           ssh-key: ${{ secrets.POSTGREST_SSH_KEY }}
       - name: Tag latest commit
@@ -361,7 +361,7 @@ jobs:
       - Get-FreeBSD-CirrusCI
       - Build-Cabal-Arm
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Check the version to be released
         run: |
           cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
@@ -398,7 +398,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: Prepare-Release
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Download all artifacts
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
@@ -469,7 +469,7 @@ jobs:
       DOCKER_USER: ${{ vars.DOCKER_USER }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Download Docker image
         uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
         with:
@@ -515,7 +515,7 @@ jobs:
       DOCKER_USER: ${{ vars.DOCKER_USER }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Publish images for ARM builds on Docker Hub
         uses: appleboy/ssh-action@master
         env:
@@ -542,7 +542,7 @@ jobs:
     env:
       REMOTE_DIR: ${{ needs.Build-Cabal-Arm.outputs.remotepath }}
     steps:
-      - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - name: Remove uploaded files from server
         uses: appleboy/ssh-action@master
         with:
