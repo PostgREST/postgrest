@@ -54,8 +54,8 @@ retryingListen appState = do
 
         delay <- AppState.getNextListenerDelay appState
         when (delay > 1) $ do -- if we did a retry
-          -- assume we lost notifications, call the connection worker which will also reload the schema cache
-          AppState.connectionWorker appState
+          -- assume we lost notifications, refresh the schema cache
+          AppState.schemaCacheLoader appState
           -- reset the delay
           AppState.putNextListenerDelay appState 1
 
@@ -74,8 +74,8 @@ retryingListen appState = do
     handleNotification channel msg =
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.reReadConfig False appState
+         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> AppState.readInDbConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
-      AppState.connectionWorker appState
+      AppState.schemaCacheLoader appState

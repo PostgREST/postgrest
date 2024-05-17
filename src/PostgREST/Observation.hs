@@ -29,7 +29,6 @@ data Observation
   | AppStartObs ByteString
   | AppServerPortObs NS.PortNumber
   | AppServerUnixObs FilePath
-  | DBConnectAttemptObs
   | ExitUnsupportedPgVersion PgVersion PgVersion
   | ExitDBNoRecoveryObs
   | ExitDBFatalError ObsFatalError SQL.UsageError
@@ -39,7 +38,6 @@ data Observation
   | SchemaCacheSummaryObs Text
   | SchemaCacheLoadedObs Double
   | ConnectionRetryObs Int
-  | ConnectionPgVersionErrorObs SQL.UsageError
   | DBListenStart Text
   | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
   | DBListenRetry Int
@@ -50,6 +48,7 @@ data Observation
   | ConfigSucceededObs
   | QueryRoleSettingsErrorObs SQL.UsageError
   | QueryErrorCodeHighObs SQL.UsageError
+  | QueryPgVersionError SQL.UsageError
   | PoolAcqTimeoutObs SQL.UsageError
   | HasqlPoolObs SQL.Observation
   | PoolRequest
@@ -69,8 +68,6 @@ observationMessage = \case
     "Listening on port " <> show port
   AppServerUnixObs sock ->
     "Listening on unix socket " <> show sock
-  DBConnectAttemptObs ->
-    "Attempting to connect to the database..."
   DBConnectedObs ver ->
     "Successfully connected to " <> ver
   ExitUnsupportedPgVersion pgVer minPgVer ->
@@ -78,7 +75,7 @@ observationMessage = \case
   ExitDBNoRecoveryObs ->
     "Automatic recovery disabled, exiting."
   ExitDBFatalError ServerAuthError usageErr ->
-    jsonMessage usageErr
+    "Failed to establish a connection. " <> jsonMessage usageErr
   ExitDBFatalError ServerPgrstBug usageErr ->
     "This is probably a bug in PostgREST, please report it at https://github.com/PostgREST/postgrest/issues. " <> jsonMessage usageErr
   ExitDBFatalError ServerError42P05 usageErr ->
@@ -95,8 +92,8 @@ observationMessage = \case
     "Schema cache loaded in " <> showMillis resultTime <> " milliseconds"
   ConnectionRetryObs delay ->
     "Attempting to reconnect to the database in " <> (show delay::Text) <> " seconds..."
-  ConnectionPgVersionErrorObs usageErr ->
-    jsonMessage usageErr
+  QueryPgVersionError usageErr ->
+    "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
   DBListenStart channel -> do
     "Listening for notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->

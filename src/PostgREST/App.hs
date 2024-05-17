@@ -68,14 +68,14 @@ run appState = do
 
   observer $ AppStartObs prettyVersion
 
-  AppState.connectionWorker appState
-  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
+  AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
+  Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 
   Listener.runListener appState
 
   Admin.runAdmin appState (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.connectionWorker appState)
+  let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
 
   case configServerUnixSocket of
     Just path -> do
