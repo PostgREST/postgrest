@@ -853,7 +853,7 @@ def test_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
                 r'pgrst_schema_cache_loads_total{status="FAIL"} (\d+)', response.text
             ).group(1)
         )
-        assert metrics > 3.0
+        assert metrics == 1.0
 
     reset_statement_timeout(metapostgrest, role)
 
