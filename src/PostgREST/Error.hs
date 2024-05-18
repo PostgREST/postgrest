@@ -491,7 +491,7 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         '4':'0':_ -> HTTP.status500 -- tx rollback
         "53400"   -> HTTP.status500 -- config limit exceeded
         '5':'3':_ -> HTTP.status503 -- insufficient resources
-        '5':'4':_ -> HTTP.status413 -- too complex
+        '5':'4':_ -> HTTP.status500 -- too complex
         '5':'5':_ -> HTTP.status500 -- obj not on prereq state
         "57P01"   -> HTTP.status503 -- terminating connection due to administrator command
         '5':'7':_ -> HTTP.status500 -- operator intervention
