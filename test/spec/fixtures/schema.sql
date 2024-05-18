@@ -3777,3 +3777,20 @@ create or replace function temp_file_limit()
 returns bigint as $$
   select COUNT(*) FROM generate_series('-infinity'::TIMESTAMP, 'epoch'::TIMESTAMP, INTERVAL '1 DAY');
 $$ language sql security definer set temp_file_limit to '1kB';
+
+-- https://github.com/PostgREST/postgrest/issues/3255
+create table test.infinite_inserts(
+  id int
+, name text
+);
+
+create or replace function infinite_inserts()
+returns trigger as $$ begin
+  insert into infinite_inserts values (NEW.id, NEW.name);
+end $$ language plpgsql;
+
+create trigger do_infinite_inserts
+after insert
+on infinite_inserts
+for each row
+execute procedure infinite_inserts();
