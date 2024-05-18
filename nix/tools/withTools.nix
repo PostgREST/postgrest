@@ -106,6 +106,7 @@ let
 
             export PGREPLICAHOST="$replica_host"
             export PGREPLICASLOT="$replica_slot"
+            export PGRST_DB_URI="postgres:///$PGDATABASE?host=$PGREPLICAHOST,$PGHOST"
           fi
 
           # shellcheck disable=SC2317
