@@ -20,7 +20,12 @@ def test_sanity_replica(replicaenv):
         response = postgrest.session.get("/items?select=count")
         assert response.text == '[{"count":10}]'
 
-    with run(env=replicaenv["replica"]) as postgrest:
+    working_replica_env = {
+        **replicaenv["replica"],
+        "PGRST_DB_CHANNEL_ENABLED": "false",  # LISTEN doesn't work on read replicas
+    }
+
+    with run(env=working_replica_env) as postgrest:
         response = postgrest.session.get("/rpc/is_replica")
         assert response.text == "true"
 

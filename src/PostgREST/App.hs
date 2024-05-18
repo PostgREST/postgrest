@@ -70,7 +70,7 @@ run appState = do
   AppState.connectionWorker appState -- Loads the initial SchemaCache
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
   -- reload schema cache + config on NOTIFY
-  AppState.runListener conf appState
+  AppState.runListener appState
 
   Admin.runAdmin appState (serverSettings conf)
 

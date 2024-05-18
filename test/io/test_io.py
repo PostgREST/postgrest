@@ -733,8 +733,8 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
 
         # force a reconnection so the new role setting is picked up
         postgrest.process.send_signal(signal.SIGUSR1)
-        # wait 600ms to finish schema cache reload attempt
-        time.sleep(0.6)
+
+        postgrest.wait_until_scache_starts_loading()
 
         response = postgrest.admin.get("/ready", timeout=1)
         assert response.status_code == 503
