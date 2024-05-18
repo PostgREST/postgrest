@@ -37,7 +37,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3424, Admin `/live` and `/ready` now differentiates a failure as 500 status - @steve-chavez
     + 503 status is still given when postgREST is in a recovering state
  - #3478, Media Types are parsed case insensitively - @develop7
- - #2781, Fix listener silently failing on read replica - @steve-chavez
+ - #3533, #3536, Fix listener silently failing on read replica - @steve-chavez
+    + If the LISTEN connection fails, it's retried with exponential backoff
 
 ### Deprecated
 

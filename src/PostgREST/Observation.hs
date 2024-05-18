@@ -42,7 +42,7 @@ data Observation
   | ConnectionPgVersionErrorObs SQL.UsageError
   | DBListenStart Text
   | DBListenFail Text (Either SQL.ConnectionError (Either SomeException ()))
-  | DBListenRetry
+  | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
   | ConfigReadErrorObs SQL.UsageError
@@ -105,8 +105,8 @@ observationMessage = \case
         Left err  -> show err
         Right err -> showListenerError err
     )
-  DBListenRetry ->
-    "Retrying listening for notifications..."
+  DBListenRetry delay ->
+    "Retrying listening for notifications in " <> (show delay::Text) <> " seconds..."
   DBListenerGotSCacheMsg channel ->
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->

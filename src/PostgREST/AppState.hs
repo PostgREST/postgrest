@@ -54,8 +54,10 @@ import           System.TimeIt              (timeItT)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 import Control.Debounce
-import Control.Retry      (RetryStatus, capDelay, exponentialBackoff,
-                           retrying, rsPreviousDelay)
+import Control.Exception  (throw)
+import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
+                           exponentialBackoff, recoverAll, retrying,
+                           rsPreviousDelay)
 import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
@@ -94,10 +96,10 @@ data AppState = AppState
   , stateSCacheStatus         :: IORef SchemaCacheStatus
   -- | The connection status
   , stateConnStatus           :: IORef ConnectionStatus
+  -- | State of the LISTEN channel
+  , stateIsListenerOn         :: IORef Bool
   -- | starts the connection worker with a debounce
   , debouncedConnectionWorker :: IO ()
-  -- | Binary semaphore used to sync the listener(NOTIFY reload) with the connectionWorker.
-  , stateListener             :: MVar ()
   -- | Config that can change at runtime
   , stateConf                 :: IORef AppConfig
   -- | Time used for verifying JWT expiration
@@ -152,8 +154,8 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> newIORef Nothing
     <*> newIORef SCPending
     <*> newIORef ConnPending
+    <*> newIORef False
     <*> pure (pure ())
-    <*> newEmptyMVar
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
@@ -329,16 +331,16 @@ getSocketAdmin = stateSocketAdmin
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
 
--- | As this IO action uses `takeMVar` internally, it will only return once
--- `stateListener` has been set using `signalListener`. This is currently used
--- to syncronize workers.
-waitListener :: AppState -> IO ()
-waitListener = takeMVar . stateListener
+getIsListenerOn :: AppState -> IO Bool
+getIsListenerOn appState = do
+  AppConfig{..} <- getConfig appState
+  if configDbChannelEnabled then
+    readIORef $ stateIsListenerOn appState
+  else
+    pure True
 
--- tryPutMVar doesn't lock the thread. It should always succeed since
--- the connectionWorker is the only mvar producer.
-signalListener :: AppState -> IO ()
-signalListener appState = void $ tryPutMVar (stateListener appState) ()
+putIsListenerOn :: AppState -> Bool -> IO ()
+putIsListenerOn = atomicWriteIORef . stateIsListenerOn
 
 isConnEstablished :: AppState -> IO Bool
 isConnEstablished x = do
@@ -354,13 +356,15 @@ isLoaded :: AppState -> IO Bool
 isLoaded x = do
   scacheStatus <- readIORef $ stateSCacheStatus x
   connEstablished <- isConnEstablished x
-  return $ scacheStatus == SCLoaded && connEstablished
+  listenerOn <- getIsListenerOn x
+  return $ scacheStatus == SCLoaded && connEstablished && listenerOn
 
 isPending :: AppState -> IO Bool
 isPending x = do
   scacheStatus <- readIORef $ stateSCacheStatus x
   connStatus <- readIORef $ stateConnStatus x
-  return $ scacheStatus == SCPending || connStatus == ConnPending
+  listenerOn <- getIsListenerOn x
+  return $ scacheStatus == SCPending || connStatus == ConnPending || not listenerOn
 
 putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
 putSCacheStatus = atomicWriteIORef . stateSCacheStatus
@@ -424,9 +428,6 @@ internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThre
           when (actualPgVersion < minimumPgVersion) $ do
             observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
             killThread mainThreadId
-          -- Procede with initialization
-          when configDbChannelEnabled $
-            signalListener appState
           observer (DBConnectedObs $ pgvFullName actualPgVersion)
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
@@ -440,6 +441,15 @@ internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThre
               -- retry reloading the schema cache
               work
 
+-- | One second in microseconds
+oneSecondInUs :: Int
+oneSecondInUs = 1000000
+
+retryPolicy :: RetryPolicy
+retryPolicy = capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
+  where
+    delayMicroseconds = 32000000 -- 32 seconds
+
 -- | Repeatedly flush the pool, and check if a connection from the
 -- pool allows access to the PostgreSQL database.
 --
@@ -452,13 +462,9 @@ internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThre
 -- thrown, just 'False' is returned.
 establishConnection :: AppState -> IO ConnectionStatus
 establishConnection appState@AppState{stateObserver=observer} =
-  retrying retrySettings shouldRetry $
+  retrying retryPolicy shouldRetry $
     const $ flushPool appState >> getConnectionStatus
   where
-    retrySettings = capDelay delayMicroseconds $ exponentialBackoff backoffMicroseconds
-    delayMicroseconds = 32000000 -- 32 seconds
-    backoffMicroseconds = 1000000 -- 1 second
-
     getConnectionStatus :: IO ConnectionStatus
     getConnectionStatus = do
       pgVersion <- usePool appState (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
@@ -476,7 +482,7 @@ establishConnection appState@AppState{stateObserver=observer} =
     shouldRetry rs isConnSucc = do
       AppConfig{..} <- getConfig appState
       let
-        delay = fromMaybe 0 (rsPreviousDelay rs) `div` backoffMicroseconds
+        delay = fromMaybe 0 (rsPreviousDelay rs) `div` oneSecondInUs
         itShould = ConnPending == isConnSucc && configDbPoolAutomaticRecovery
       when itShould $ observer $ ConnectionRetryObs delay
       when itShould $ putRetryNextIn appState delay
@@ -520,49 +526,62 @@ reReadConfig startingUp appState@AppState{stateObserver=observer} = do
       else
         observer ConfigSucceededObs
 
-runListener :: AppConfig -> AppState -> IO ()
-runListener conf@AppConfig{configDbChannelEnabled} appState = do
-  when configDbChannelEnabled $ listener appState conf
+-- | Starts the Listener in a thread
+runListener :: AppState -> IO ()
+runListener appState = do
+  AppConfig{..} <- getConfig appState
+  when configDbChannelEnabled $
+    void . forkIO $ retryingListen appState
 
--- | Starts a dedicated pg connection to LISTEN for notifications.  When a
--- NOTIFY <db-channel> - with an empty payload - is done, it refills the schema
--- cache.  It uses the connectionWorker in case the LISTEN connection dies.
-listener :: AppState -> AppConfig -> IO ()
-listener appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} conf@AppConfig{..} = do
-  let dbChannel = toS configDbChannel
+-- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff if the LISTEN connection is lost.
+-- TODO Once the listen channel is recovered, the retry status is not reset. So if the last backoff was 4 seconds, the next time recovery kicks in the backoff will be 8 seconds.
+-- This is because `Hasql.Notifications.waitForNotifications` uses a forever loop that only finishes when it throws an exception.
+retryingListen :: AppState -> IO ()
+retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = do
+  AppConfig{..} <- getConfig appState
+  let
+    dbChannel = toS configDbChannel
+    -- Try, catch and rethrow the exception. This is done so we can observe the failure message and let Control.Retry.recoverAll do its work.
+    -- There's a `Control.Retry.recovering` we could use to avoid this rethrowing, but it's more complex to use.
+    -- The root cause of these workarounds is that `Hasql.Notifications.waitForNotifications` uses exceptions.
+    tryRethrow :: IO () -> IO ()
+    tryRethrow action =  do
+      act <- try action
+      whenLeft act (\ex -> do
+        putIsListenerOn appState False
+        observer $ DBListenFail dbChannel (Right $ Left ex)
+        unless configDbPoolAutomaticRecovery $ do
+          killThread mainThreadId
+        throw ex)
 
-  -- The listener has to wait for a signal from the connectionWorker.
-  -- This is because when the connection to the db is lost, the listener also
-  -- tries to recover the connection, but not with the same pace as the connectionWorker.
-  -- Not waiting makes stderr quickly fill with connection retries messages from the listener.
-  waitListener appState
+  recoverAll retryPolicy (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
 
-  -- forkFinally allows to detect if the thread dies
-  void . flip forkFinally (handleFinally dbChannel configDbPoolAutomaticRecovery) $ do
-    dbOrError <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
-    case dbOrError of
-      Right db -> do
-        SQL.listen db $ SQL.toPgIdentifier dbChannel
+    when (rsIterNumber > 0) $
+      let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs in
+      observer $ DBListenRetry delay
+
+    connection <- acquire $ toUtf8 (addFallbackAppName prettyVersion configDbUri)
+    case connection of
+      Right conn -> do
+
+        tryRethrow $ SQL.listen conn $ SQL.toPgIdentifier dbChannel
+
+        putIsListenerOn appState True
         observer $ DBListenStart dbChannel
-        SQL.waitForNotifications handleNotification db
+
+        when (rsIterNumber > 0) $ do
+          -- once we can LISTEN again, we might have lost schema cache notificacions, so reload
+          connectionWorker appState
+
+        tryRethrow $ SQL.waitForNotifications handleNotification conn
 
       Left err -> do
         observer $ DBListenFail dbChannel (Left err)
+        -- throw an exception so recoverAll works
         exitFailure
+    )
+
   where
-    handleFinally dbChannel False err = do
-      observer $ DBListenFail dbChannel (Right err)
-      killThread mainThreadId
-    handleFinally dbChannel True err = do
-      -- if the thread dies, we try to recover
-      observer $ DBListenFail dbChannel (Right err)
-      -- assume the pool connection was also lost, call the connection worker
-      connectionWorker appState
-
-      -- retry the listener
-      observer DBListenRetry
-      listener appState conf
-
     handleNotification channel msg =
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
@@ -573,4 +592,3 @@ listener appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadI
       -- reloads the schema cache + restarts pool connections
       -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
       connectionWorker appState
-
