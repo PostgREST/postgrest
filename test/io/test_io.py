@@ -183,6 +183,7 @@ def test_flush_pool_no_interrupt(defaultenv):
 
         def sleep():
             response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+            assert response.text == ""
             assert response.status_code == 204
 
         t = Thread(target=sleep)
@@ -291,6 +292,7 @@ def test_jwt_secret_external_file_reload(tmp_path, defaultenv):
 
         # reload config and external file with NOTIFY
         response = postgrest.session.post("/rpc/reload_pgrst_config")
+        assert response.text == ""
         assert response.status_code == 204
         sleep_until_postgrest_config_reload()
 
@@ -346,6 +348,7 @@ def test_db_schema_notify_reload(defaultenv):
 
         # reset db-schemas config on the db
         response = postgrest.session.post("/rpc/reset_db_schema_config")
+        assert response.text == ""
         assert response.status_code == 204
 
 
@@ -375,6 +378,7 @@ def test_max_rows_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
+        assert response.text == ""
         assert response.status_code == 204
 
 
@@ -405,6 +409,7 @@ def test_max_rows_notify_reload(defaultenv):
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
+        assert response.text == ""
         assert response.status_code == 204
 
 
@@ -427,6 +432,7 @@ def test_invalid_role_claim_key_notify_reload(defaultenv):
         assert "failed to parse role-claim-key value" in output[0]
 
         response = postgrest.session.post("/rpc/reset_invalid_role_claim_key")
+        assert response.text == ""
         assert response.status_code == 204
 
 
@@ -442,6 +448,7 @@ def test_notify_do_nothing(defaultenv):
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/notify_do_nothing")
+        assert response.text == ""
         assert response.status_code == 204
 
         output = postgrest.read_stdout()
@@ -477,6 +484,7 @@ def set_statement_timeout(postgrest, role, milliseconds):
     response = postgrest.session.post(
         "/rpc/set_statement_timeout", data={"role": role, "milliseconds": milliseconds}
     )
+    assert response.text == ""
     assert response.status_code == 204
 
 
@@ -499,6 +507,7 @@ def test_statement_timeout(defaultenv, metapostgrest):
 
     with run(env=env) as postgrest:
         response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+        assert response.text == ""
         assert response.status_code == 204
 
         response = postgrest.session.get("/rpc/sleep?seconds=2")
@@ -523,6 +532,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
     with run(env=env) as postgrest:
         # no limit initially
         response = postgrest.session.get("/rpc/sleep?seconds=1")
+        assert response.text == ""
         assert response.status_code == 204
 
         set_statement_timeout(metapostgrest, role, 500)  # 0.5s
@@ -543,6 +553,7 @@ def test_change_statement_timeout(defaultenv, metapostgrest):
         sleep_until_postgrest_scache_reload()
 
         response = postgrest.session.get("/rpc/sleep?seconds=1")
+        assert response.text == ""
         assert response.status_code == 204
 
     reset_statement_timeout(metapostgrest, role)
@@ -563,6 +574,7 @@ def test_pool_size(defaultenv, metapostgrest):
 
             def sleep(i=i):
                 response = postgrest.session.get("/rpc/sleep?seconds=0.5")
+                assert response.text == ""
                 assert response.status_code == 204, "thread {}".format(i)
 
             t = Thread(target=sleep)
@@ -621,6 +633,7 @@ def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
         # start a slow request that holds a pool connection
         def hold_connection():
             response = postgrest.session.get("/rpc/sleep?seconds=1")
+            assert response.text == ""
             assert response.status_code == 204
 
         hold = Thread(target=hold_connection)
@@ -944,6 +957,7 @@ def test_notify_reloading_catalog_cache(defaultenv):
 
         # change it to a bigint
         response = postgrest.session.post("/rpc/drop_change_cats")
+        assert response.text == ""
         assert response.status_code == 204
         sleep_until_postgrest_scache_reload()
 
@@ -969,9 +983,11 @@ def test_role_settings(defaultenv):
         response = postgrest.session.post(
             "/rpc/change_role_statement_timeout", data={"timeout": "5s"}
         )
+        assert response.text == ""
         assert response.status_code == 204
 
         response = postgrest.session.get("/rpc/reload_pgrst_config")
+        assert response.text == ""
         assert response.status_code == 204
         sleep_until_postgrest_config_reload()
 
@@ -1071,6 +1087,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
 
         # first request, create a function and set a schema cache reload in progress
         response = postgrest.session.post("/rpc/create_function")
+        assert response.text == ""
         assert response.status_code == 204
 
         time.sleep(
@@ -1079,6 +1096,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
 
         # second request, change the same function and do another schema cache reload
         response = postgrest.session.post("/rpc/migrate_function")
+        assert response.text == ""
         assert response.status_code == 204
 
         time.sleep(
@@ -1458,6 +1476,7 @@ def test_function_setting_statement_timeout_passes(defaultenv):
     with run(env=defaultenv) as postgrest:
         response = postgrest.session.post("/rpc/four_sec_timeout")
 
+        assert response.text == ""
         assert response.status_code == 204
 
 
