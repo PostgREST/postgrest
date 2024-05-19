@@ -27,7 +27,7 @@ jobs:
     name: Build
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
@@ -41,7 +41,7 @@ jobs:
     name: Spellcheck
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
@@ -58,7 +58,7 @@ jobs:
     if: github.base_ref == 'main'
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
     - name: Setup Nix Environment
       uses: ./.github/actions/setup-nix
       with:
