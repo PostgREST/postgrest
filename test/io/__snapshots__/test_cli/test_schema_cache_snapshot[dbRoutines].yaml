@@ -137,7 +137,12 @@
       pdFuncSettings: []
       pdHasVariadic: false
       pdName: terminate_pgrst
-      pdParams: []
+      pdParams:
+      - ppName: appname
+        ppReq: true
+        ppType: text
+        ppTypeMaxLength: text
+        ppVar: false
       pdReturnType:
         contents:
           contents:

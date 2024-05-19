@@ -187,8 +187,8 @@ where application_name ilike 'postgrest%'
 limit 1;
 $$;
 
-create function terminate_pgrst() returns setof record as $$
-select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%postgrest%';
+create function terminate_pgrst(appname text) returns setof record as $$
+select pg_terminate_backend(pid) from pg_stat_activity where application_name iLIKE '%' || appname || '%';
 $$ language sql security definer;
 
 create or replace function one_sec_timeout() returns void as $$
