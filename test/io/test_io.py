@@ -1214,11 +1214,14 @@ def test_fail_with_automatic_recovery_disabled_and_terminated_using_query(defaul
     env = {
         **defaultenv,
         "PGRST_DB_POOL_AUTOMATIC_RECOVERY": "false",
+        "PGAPPNAME": "target",
     }
+
+    app_name = "'{}'".format(env["PGAPPNAME"])
 
     with run(env=env) as postgrest:
         os.system(
-            f'psql -d {defaultenv["PGDATABASE"]} -U {defaultenv["PGUSER"]} -h {defaultenv["PGHOST"]} --set ON_ERROR_STOP=1 -a -c "SELECT terminate_pgrst()"'
+            f'psql -d {env["PGDATABASE"]} -U {env["PGUSER"]} -h {env["PGHOST"]} --set ON_ERROR_STOP=1 -a -c "SELECT terminate_pgrst({app_name})"'
         )
 
         exitCode = wait_until_exit(postgrest)
