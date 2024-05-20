@@ -1,3 +1,4 @@
+{-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE MultiWayIf          #-}
 {-# LANGUAGE NamedFieldPuns      #-}
@@ -303,6 +304,12 @@ getConfig appState = readIORef appState.conf
 putConfig :: AppState -> AppConfig -> IO ()
 putConfig appState = atomicWriteIORef appState.conf
 
+instance HasField "getConnStatus" AppState (IO ConnectionStatus) where
+  getField appState = readIORef appState.connStatus
+
+instance HasField "putConnStatus" AppState (ConnectionStatus -> IO ()) where
+  getField appState = atomicWriteIORef appState.connStatus
+
 getIsListenerOn :: AppState -> IO Bool
 getIsListenerOn appState = do
   AppConfig{..} <- getConfig appState
@@ -319,7 +326,7 @@ isConnEstablished appState = do
   conf <- getConfig appState
   if configDbChannelEnabled conf
     then do -- if the listener is enabled, we can be sure the connection status is always up to date
-      st <- readIORef appState.connStatus
+      st <- appState.getConnStatus
       return $ st == ConnEstablished
     else    -- otherwise the only way to check the connection is to make a query
       isRight <$> usePool appState (SQL.sql "SELECT 1")
@@ -334,15 +341,12 @@ isLoaded appState = do
 isPending :: AppState -> IO Bool
 isPending appState = do
   scacheStatus <- readIORef appState.sCacheStatus
-  connStatus <- readIORef appState.connStatus
+  connStatus <- appState.getConnStatus
   listenerOn <- getIsListenerOn appState
   return $ scacheStatus == SCPending || connStatus == ConnPending || not listenerOn
 
 putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
 putSCacheStatus appState = atomicWriteIORef appState.sCacheStatus
-
-putConnStatus :: AppState -> ConnectionStatus -> IO ()
-putConnStatus appState = atomicWriteIORef appState.connStatus
 
 -- | Load the SchemaCache by using a connection from the pool.
 loadSchemaCache :: AppState -> IO SchemaCacheStatus
@@ -440,10 +444,10 @@ establishConnection appState@AppState{observer=observer} =
       case pgVersion of
         Left e -> do
           observer $ ConnectionPgVersionErrorObs e
-          putConnStatus appState ConnPending
+          appState.putConnStatus ConnPending
           return ConnPending
         Right version -> do
-          putConnStatus appState ConnEstablished
+          appState.putConnStatus ConnEstablished
           putPgVersion appState version
           return ConnEstablished
 
