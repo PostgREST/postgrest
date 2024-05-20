@@ -87,16 +87,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux
-            runs-on: ubuntu-22.04
+          - name: Linux x64
+            runs-on: '"ubuntu-22.04"'
             cache: |
               ~/.stack/pantry
               ~/.stack/snapshots
               ~/.stack/stack.sqlite3
             # no artifact for Linux, because we use the static build
 
+          - name: Linux aarch64
+            runs-on: '["self-hosted", "Linux", "ARM64"]'
+            cache: |
+              ~/.stack/pantry
+              ~/.stack/snapshots
+              ~/.stack/stack.sqlite3
+            artifact: postgrest-linux-aarch64
+
           - name: MacOS
-            runs-on: macos-12
+            runs-on: '"macos-12"'
             cache: |
               ~/.stack/pantry
               ~/.stack/snapshots
@@ -104,7 +112,7 @@ jobs:
             artifact: postgrest-macos-x64
 
           - name: Windows
-            runs-on: windows-2022
+            runs-on: '"windows-2022"'
             cache: |
               ~\AppData\Roaming\stack\pantry
               ~\AppData\Local\Programs\stack\pantry
@@ -116,7 +124,7 @@ jobs:
             artifact: postgrest-windows-x64
 
     name: Stack - ${{ matrix.name }}
-    runs-on: ${{ matrix.runs-on }}
+    runs-on: ${{ fromJson(matrix.runs-on) }}
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
