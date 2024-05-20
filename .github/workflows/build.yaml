@@ -121,7 +121,8 @@ jobs:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
         with:
-          ghc-version: 9.4.5
+          # This must match the version in stack.yaml's resolver
+          ghc-version: 9.6.5
           enable-stack: true
           stack-no-global: true
           stack-setup-ghc: true
