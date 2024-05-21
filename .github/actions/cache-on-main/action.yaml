@@ -8,7 +8,7 @@ inputs:
     required: true
   save-prs:
     description: Whether to additionally store the cache in a pull request, too. Should only be used for very small caches.
-    default: false
+    type: boolean
   prefix:
     description: Cache key prefix to be used in both primary key and restore-keys.
     required: true
@@ -20,14 +20,14 @@ runs:
   using: composite
   steps:
     - uses: actions/cache@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
-      if: ${{ startsWith(github.ref, 'refs/heads/') || (inputs.save-prs && github.head_ref) }}
+      if: ${{ startsWith(github.ref, 'refs/heads/') || (inputs.save-prs && startsWith(github.ref, 'refs/pull/')) }}
       with:
         path: ${{ inputs.path }}
         key: ${{ runner.os }}-${{ inputs.prefix }}-${{ inputs.suffix }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.prefix }}-
     - uses: actions/cache/restore@0c45773b623bea8c8e75f6c82b208c3cf94ea4f9 # v4.0.2
-      if: ${{ !startsWith(github.ref, 'refs/heads/') && !(inputs.save-prs && github.head_ref)  }}
+      if: ${{ !startsWith(github.ref, 'refs/heads/') && !(inputs.save-prs && startsWith(github.ref, 'refs/pull/'))  }}
       with:
         path: ${{ inputs.path }}
         key: ${{ runner.os }}-${{ inputs.prefix }}-${{ inputs.suffix }}
