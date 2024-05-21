@@ -14,11 +14,11 @@ import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Options.Applicative        as O
 
-import Data.Text.IO (hPutStrLn)
 import Text.Heredoc (str)
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
+import PostgREST.Observation (Observation (..))
 import PostgREST.SchemaCache (querySchemaCache)
 import PostgREST.Version     (prettyVersion)
 
@@ -26,7 +26,7 @@ import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
 
-import Protolude hiding (hPutStrLn)
+import Protolude
 
 
 main :: CLI -> IO ()
@@ -57,7 +57,8 @@ dumpSchema appState = do
       (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
     Left e -> do
-      hPutStrLn stderr $ "An error ocurred when loading the schema cache:\n" <> show e
+      let observer = AppState.getObserver appState
+      observer $ SchemaCacheErrorObs e
       exitFailure
     Right sCache -> return $ JSON.encode sCache
 

@@ -41,6 +41,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     + If the LISTEN connection fails, it's retried with exponential backoff
  - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
  - #3255, Fix incorrect `413 Request Entity Too Large` on pg errors `54*` - @taimoorzaeem
+ - #3549, Remove verbosity from error logs starting with "An error occurred..." and replacing it with "Failed to..." - @laurenceisla
 
 ### Deprecated
 
