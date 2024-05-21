@@ -7,12 +7,14 @@ When submitting a new feature or fix:
   + `fix`, bug fixes
   + `feat`, new features added
   + `perf`, performance improvements
+  + `docs`, updating the documentation
   + `nix`, related to the Nix development environment
   + `ci`, related to the Continuous Integration modules
   + `test`, related to the testing modules
   + `refactor`, refactoring code
   + `deprecate`, deprecating a feature
-  + `chore`, maintenance (changelog, build process, etc.)
+  + `changelog`, updating the CHANGELOG
+  + `chore`, maintenance (build process, updating sponsors, etc.)
   + Other prefixes may be used if necessary
 - If there's a breaking change, add `BREAKING CHANGE` and an explanation to your commit message
 -->
