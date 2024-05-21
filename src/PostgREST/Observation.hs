@@ -86,7 +86,7 @@ observationMessage = \case
   ExitDBFatalError ServerError08P01 usageErr ->
     "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
   SchemaCacheErrorObs usageErr ->
-    "An error ocurred when loading the schema cache. " <> jsonMessage usageErr
+    "Failed to load the schema cache. " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
     "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
   SchemaCacheSummaryObs summary ->
@@ -112,9 +112,9 @@ observationMessage = \case
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
   ConfigReadErrorObs usageErr ->
-    "An error ocurred when trying to query database settings for the config parameters." <> jsonMessage usageErr
+    "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
-    "An error ocurred when trying to query the role settings. " <> jsonMessage usageErr
+    "Failed to query the role settings. " <> jsonMessage usageErr
   QueryErrorCodeHighObs usageErr ->
     jsonMessage usageErr
   ConfigInvalidObs err ->
