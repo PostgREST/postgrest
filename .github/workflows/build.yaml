@@ -11,7 +11,7 @@ on:
       - v[0-9]+
     paths:
       - .github/workflows/build.yaml
-      - .github/actions/setup-nix/**
+      - .github/actions/**
       - .github/scripts/**
       - .github/*
       - '*.nix'
