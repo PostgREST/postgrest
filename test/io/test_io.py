@@ -1233,7 +1233,6 @@ def test_server_timing_jwt_should_decrease_on_subsequent_requests(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
         "PGRST_JWT_SECRET": "@/dev/stdin",
         "PGRST_DB_CONFIG": "false",
@@ -1248,6 +1247,7 @@ def test_server_timing_jwt_should_decrease_on_subsequent_requests(defaultenv):
         },
         SECRET,
     )
+    headers["Prefer"] = "metrics=timings"
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
         first_timings = postgrest.session.get("/authors_only", headers=headers).headers[
@@ -1293,13 +1293,13 @@ def test_server_timing_jwt_should_not_decrease_when_caching_disabled(defaultenv)
 
     env = {
         **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "0",  # cache disabled
         "PGRST_JWT_SECRET": "@/dev/stdin",
         "PGRST_DB_CONFIG": "false",
     }
 
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+    headers["Prefer"] = "metrics=timings"
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
         warmup_req = postgrest.session.get("/authors_only", headers=headers)
@@ -1323,13 +1323,13 @@ def test_jwt_cache_with_no_exp_claim(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
         "PGRST_JWT_SECRET": "@/dev/stdin",
         "PGRST_DB_CONFIG": "false",
     }
 
     headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)  # no exp
+    headers["Prefer"] = "metrics=timings"
 
     with run(stdin=SECRET.encode(), env=env) as postgrest:
         first_timings = postgrest.session.get("/authors_only", headers=headers).headers[

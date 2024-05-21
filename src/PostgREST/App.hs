@@ -39,17 +39,20 @@ import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
-import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
-import PostgREST.Auth                 (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..))
-import PostgREST.Config.PgVersion     (PgVersion (..))
-import PostgREST.Error                (Error)
-import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..),
-                                       serverTimingHeader)
-import PostgREST.SchemaCache          (SchemaCache (..))
-import PostgREST.Version              (docsVersion, prettyVersion)
+import PostgREST.ApiRequest             (ApiRequest (..))
+import PostgREST.ApiRequest.Preferences (PreferMetrics (..),
+                                         Preferences (..))
+import PostgREST.AppState               (AppState)
+import PostgREST.Auth                   (AuthResult (..))
+import PostgREST.Config                 (AppConfig (..),
+                                         LogLevel (..))
+import PostgREST.Config.PgVersion       (PgVersion (..))
+import PostgREST.Error                  (Error)
+import PostgREST.Observation            (Observation (..))
+import PostgREST.Response.Performance   (ServerTiming (..),
+                                         serverTimingHeader)
+import PostgREST.SchemaCache            (SchemaCache (..))
+import PostgREST.Version                (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
@@ -141,27 +144,29 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
+-- the preference metrics=timings cant be used before it is parsed, hence
+-- parseTime will be calculated for all requests
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming True $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
+  let timingsPref = preferMetrics iPreferences == Just Timings
+  (planTime, plan)                   <- withTiming timingsPref $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (queryTime, queryResult)           <- withTiming timingsPref $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
+  (respTime, resp)                   <- withTiming timingsPref $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
-  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
-  (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+  let jwtTime = if timingsPref then Auth.getJwtDur req else Nothing
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
+  return $ toWaiResponse timingsPref (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled])) bod
+    toWaiResponse :: Bool -> ServerTiming -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse includeTimings timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | includeTimings])) bod
 
-    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
-    withTiming f = if configServerTimingEnabled
-        then do
-          (t, r) <- timeItT f
-          pure (Just t, r)
-        else do
-          r <- f
-          pure (Nothing, r)
+    withTiming :: Bool -> Handler IO a -> Handler IO (Maybe Double, a)
+    withTiming True f = do
+                        (t, r) <- timeItT f
+                        pure (Just t, r)
+    withTiming False f = do
+                        r <- f
+                        pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do

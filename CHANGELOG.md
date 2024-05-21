@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Shows the correct JSON format in the `hints` field
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3184, Log full pg version to stderr on connection - @steve-chavez
+ - #3410, Add `metrics=timings` to Prefer header - @taimoorzaeem
 
 ### Fixed
 
