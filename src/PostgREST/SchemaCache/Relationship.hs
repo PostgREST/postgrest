@@ -44,8 +44,8 @@ data Cardinality
   -- ^ one-to-many
   | M2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
   -- ^ many-to-one
-  | O2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)]}
-  -- ^ one-to-one, this is a refinement over M2O so operating on it is pretty much the same as M2O
+  | O2O {relCons :: FKConstraint, relColumns :: [(FieldName, FieldName)], isParent :: Bool}
+  -- ^ one-to-one, this is a refinement over M2O, operating on it is pretty much the same as M2O when isParent == False
   | M2M Junction
   -- ^ many-to-many
   deriving (Eq, Show, Ord, Generic, JSON.ToJSON)
@@ -67,7 +67,7 @@ type RelationshipsMap = HM.HashMap (QualifiedIdentifier, Schema)  [Relationship]
 
 relIsToOne :: Relationship -> Bool
 relIsToOne rel = case rel of
-  Relationship{relCardinality=M2O _ _} -> True
-  Relationship{relCardinality=O2O _ _} -> True
-  ComputedRelationship{relToOne=True}  -> True
-  _                                    -> False
+  Relationship{relCardinality=M2O {}} -> True
+  Relationship{relCardinality=O2O {}} -> True
+  ComputedRelationship{relToOne=True} -> True
+  _                                   -> False

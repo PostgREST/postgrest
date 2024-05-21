@@ -508,7 +508,7 @@ getJoinConditions tblAlias parentAlias Relationship{relTable=qi,relForeignTable=
       toJoinCondition parentAlias tblAlias tN ftN <$> cols
     M2O _ cols ->
       toJoinCondition parentAlias tblAlias tN ftN <$> cols
-    O2O _ cols ->
+    O2O _ cols _ ->
       toJoinCondition parentAlias tblAlias tN ftN <$> cols
   where
     QualifiedIdentifier{qiSchema=tSchema, qiName=tN} = qi
@@ -533,20 +533,20 @@ findRel schema allRels origin target hint =
     rs  -> Left $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ card = case card of
-      O2M _ [(col, _)] -> hint_ == col
-      M2O _ [(col, _)] -> hint_ == col
-      O2O _ [(col, _)] -> hint_ == col
-      _                -> False
+      O2M{relColumns=[(col, _)]} -> hint_ == col
+      M2O{relColumns=[(col, _)]} -> hint_ == col
+      O2O{relColumns=[(col, _)]} -> hint_ == col
+      _                          -> False
     matchFKRefSingleCol hint_ card  = case card of
-      O2M _ [(_, fCol)] -> hint_ == fCol
-      M2O _ [(_, fCol)] -> hint_ == fCol
-      O2O _ [(_, fCol)] -> hint_ == fCol
-      _                 -> False
+      O2M{relColumns=[(_, fCol)]} -> hint_ == fCol
+      M2O{relColumns=[(_, fCol)]} -> hint_ == fCol
+      O2O{relColumns=[(_, fCol)]} -> hint_ == fCol
+      _                           -> False
     matchConstraint tar card = case card of
-      O2M cons _ -> tar == cons
-      M2O cons _ -> tar == cons
-      O2O cons _ -> tar == cons
-      _          -> False
+      O2M{relCons} -> tar == relCons
+      M2O{relCons} -> tar == relCons
+      O2O{relCons} -> tar == relCons
+      _            -> False
     matchJunction hint_ card = case card of
       M2M Junction{junTable} -> hint_ == qiName junTable
       _                      -> False
@@ -990,7 +990,7 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
           Just $ fst <$> cols
         Node ReadPlan{relToParent=Just Relationship{relCardinality=M2O _ cols}} _ ->
           Just $ fst <$> cols
-        Node ReadPlan{relToParent=Just Relationship{relCardinality=O2O _ cols}} _ ->
+        Node ReadPlan{relToParent=Just Relationship{relCardinality=O2O _ cols _}} _ ->
           Just $ fst <$> cols
         Node ReadPlan{relToParent=Just Relationship{relCardinality=M2M Junction{junColsSource=cols}}} _ ->
           Just $ fst <$> cols

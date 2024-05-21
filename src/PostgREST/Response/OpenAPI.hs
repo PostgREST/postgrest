@@ -114,9 +114,9 @@ makeProperty tbl rels col = (colName col, Inline s)
         relsSortedByIsView = sortOn relFTableIsView [ r | r@Relationship{} <- searchedRels]
         -- Finds the relationship that has a single column foreign key
         rel = find (\case
-          Relationship{relCardinality=(M2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
-          Relationship{relCardinality=(O2O _ relColumns)} -> [colName col] == (fst <$> relColumns)
-          _                                               -> False
+          Relationship{relCardinality=(M2O _ relColumns)}       -> [colName col] == (fst <$> relColumns)
+          Relationship{relCardinality=(O2O _ relColumns False)} -> [colName col] == (fst <$> relColumns)
+          _                                                     -> False
           ) relsSortedByIsView
         fCol = (headMay . (\r -> snd <$> relColumns (relCardinality r)) =<< rel)
         fTbl = qiName . relForeignTable <$> rel
