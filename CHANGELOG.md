@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Shows the correct JSON format in the `hints` field
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3184, Log full pg version to stderr on connection - @steve-chavez
+ - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
 
 ### Fixed
 
@@ -41,6 +42,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
     + If the LISTEN connection fails, it's retried with exponential backoff
  - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
  - #3255, Fix incorrect `413 Request Entity Too Large` on pg errors `54*` - @taimoorzaeem
+ - #3523, Fix schema cache loading retry without backoff - @steve-chavez
 
 ### Deprecated
 

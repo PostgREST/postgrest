@@ -22,7 +22,7 @@ module PostgREST.AppState
   , putSchemaCache
   , putPgVersion
   , usePool
-  , reReadConfig
+  , readInDbConfig
   , connectionWorker
   , runListener
   , getObserver
@@ -95,8 +95,6 @@ data AppState = AppState
   , stateSchemaCache          :: IORef (Maybe SchemaCache)
   -- | The schema cache status
   , stateSCacheStatus         :: IORef SchemaCacheStatus
-  -- | The connection status
-  , stateConnStatus           :: IORef ConnectionStatus
   -- | State of the LISTEN channel
   , stateIsListenerOn         :: IORef Bool
   -- | starts the connection worker with a debounce
@@ -127,14 +125,7 @@ data SchemaCacheStatus
   | SCPending
   deriving Eq
 
--- | Current database connection status
-data ConnectionStatus
-  = ConnEstablished
-  | ConnPending
-  deriving Eq
-
 type AppSockets = (NS.Socket, Maybe NS.Socket)
-
 
 init :: AppConfig -> IO AppState
 init conf@AppConfig{configLogLevel, configDbPoolSize} = do
@@ -154,7 +145,6 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef SCPending
-    <*> newIORef ConnPending
     <*> newIORef False
     <*> pure (pure ())
     <*> newIORef conf
@@ -171,7 +161,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
   debWorker <-
     let decisecond = 100000 in
     mkDebounce defaultDebounceSettings
-       { debounceAction = internalConnectionWorker appState
+       { debounceAction = internalSchemaCacheLoad appState
        , debounceFreq = decisecond
        , debounceEdge = leadingEdge -- runs the worker at the start and the end
        }
@@ -332,115 +322,41 @@ getSocketAdmin = stateSocketAdmin
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
 
-getIsListenerOn :: AppState -> IO Bool
-getIsListenerOn appState = do
+isConnEstablished :: AppState -> IO Bool
+isConnEstablished appState = do
   AppConfig{..} <- getConfig appState
-  if configDbChannelEnabled then
+  if configDbChannelEnabled then -- if the listener is enabled, we can be sure the connection is up
     readIORef $ stateIsListenerOn appState
-  else
-    pure True
+  else -- otherwise the only way to check the connection is to make a query
+    isRight <$> usePool appState (SQL.sql "SELECT 1")
 
 putIsListenerOn :: AppState -> Bool -> IO ()
 putIsListenerOn = atomicWriteIORef . stateIsListenerOn
-
-isConnEstablished :: AppState -> IO Bool
-isConnEstablished x = do
-  conf <- getConfig x
-  if configDbChannelEnabled conf
-    then do -- if the listener is enabled, we can be sure the connection status is always up to date
-      st <- readIORef $ stateConnStatus x
-      return $ st == ConnEstablished
-    else    -- otherwise the only way to check the connection is to make a query
-      isRight <$> usePool x (SQL.sql "SELECT 1")
 
 isLoaded :: AppState -> IO Bool
 isLoaded x = do
   scacheStatus <- readIORef $ stateSCacheStatus x
   connEstablished <- isConnEstablished x
-  listenerOn <- getIsListenerOn x
-  return $ scacheStatus == SCLoaded && connEstablished && listenerOn
+  return $ scacheStatus == SCLoaded && connEstablished
 
 isPending :: AppState -> IO Bool
 isPending x = do
   scacheStatus <- readIORef $ stateSCacheStatus x
-  connStatus <- readIORef $ stateConnStatus x
-  listenerOn <- getIsListenerOn x
-  return $ scacheStatus == SCPending || connStatus == ConnPending || not listenerOn
+  connEstablished <- isConnEstablished x
+  return $ scacheStatus == SCPending || not connEstablished
 
 putSCacheStatus :: AppState -> SchemaCacheStatus -> IO ()
 putSCacheStatus = atomicWriteIORef . stateSCacheStatus
 
-putConnStatus :: AppState -> ConnectionStatus -> IO ()
-putConnStatus = atomicWriteIORef . stateConnStatus
-
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
 
--- | Load the SchemaCache by using a connection from the pool.
-loadSchemaCache :: AppState -> IO SchemaCacheStatus
-loadSchemaCache appState@AppState{stateObserver=observer} = do
-  conf@AppConfig{..} <- getConfig appState
-  (resultTime, result) <-
-    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
-  case result of
-    Left e -> do
-      putSCacheStatus appState SCPending
-      putSchemaCache appState Nothing
-      observer $ SchemaCacheErrorObs e
-      return SCPending
-
-    Right sCache -> do
-      -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
-      -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
-      putSCacheStatus appState SCPending
-      putSchemaCache appState $ Just sCache
-      observer $ SchemaCacheQueriedObs resultTime
-      (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
-      observer $ SchemaCacheLoadedObs t
-      putSCacheStatus appState SCLoaded
-      return SCLoaded
-
--- | The purpose of this worker is to obtain a healthy connection to pg and an
--- up-to-date schema cache(SchemaCache).  This method is meant to be called
--- multiple times by the same thread, but does nothing if the previous
--- invocation has not terminated. In all cases this method does not halt the
--- calling thread, the work is performed in a separate thread.
---
--- Background thread that does the following :
---  1. Tries to connect to pg server and will keep trying until success.
---  2. Checks if the pg version is supported and if it's not it kills the main
---     program.
---  3. Obtains the sCache. If this fails, it goes back to 1.
-internalConnectionWorker :: AppState -> IO ()
-internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = work
-  where
-    work = do
-      AppConfig{..} <- getConfig appState
-      observer DBConnectAttemptObs
-      connStatus <- establishConnection appState
-      case connStatus of
-        ConnPending ->
-          unless configDbPoolAutomaticRecovery $ do
-            observer ExitDBNoRecoveryObs
-            killThread mainThreadId
-        ConnEstablished -> do
-          actualPgVersion <- getPgVersion appState
-          when (actualPgVersion < minimumPgVersion) $ do
-            observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
-            killThread mainThreadId
-          observer (DBConnectedObs $ pgvFullName actualPgVersion)
-          -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
-          -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
-          when configDbConfig $ reReadConfig False appState
-          scStatus <- loadSchemaCache appState
-          case scStatus of
-            SCLoaded ->
-              -- do nothing and proceed if the load was successful
-              return ()
-            SCPending ->
-              -- retry reloading the schema cache
-              work
+internalSchemaCacheLoad :: AppState -> IO ()
+internalSchemaCacheLoad appState = do
+  AppConfig{..} <- getConfig appState
+  void $ retryingSchemaCacheLoad appState
+  -- We cannot retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
+  when configDbConfig $ readInDbConfig False appState
 
 -- | One second in microseconds
 oneSecondInUs :: Int
@@ -451,47 +367,78 @@ retryPolicy = capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
   where
     delayMicroseconds = 32000000 -- 32 seconds
 
--- | Repeatedly flush the pool, and check if a connection from the
--- pool allows access to the PostgreSQL database.
+-- | Try to load the schema cache and retry if it fails.
 --
--- Releasing the pool is key for rapid recovery. Otherwise, the pool
--- timeout would have to be reached for new healthy connections to be acquired.
--- Which might not happen if the server is busy with requests. No idle
--- connection, no pool timeout.
+-- This is done by repeatedly: 1) flushing the pool, 2) querying the version and validating that the postgres version is supported by us, and 3) loading the schema cache.
 --
--- The connection tries are capped, but if the connection times out no error is
--- thrown, just 'False' is returned.
-establishConnection :: AppState -> IO ConnectionStatus
-establishConnection appState@AppState{stateObserver=observer} =
-  retrying retryPolicy shouldRetry $
-    const $ flushPool appState >> getConnectionStatus
+-- It's necessary to flush the pool:
+--
+-- + Because connections cache the pg catalog(see #2620)
+-- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
+retryingSchemaCacheLoad :: AppState -> IO (Maybe PgVersion, Maybe SchemaCache)
+retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
+  retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
+    when (rsIterNumber > 0) $ do
+      let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
+      observer $ ConnectionRetryObs delay
+      putRetryNextIn appState delay
+
+    flushPool appState
+    (,) <$> qPgVersion <*> qSchemaCache
+  )
   where
-    getConnectionStatus :: IO ConnectionStatus
-    getConnectionStatus = do
+    qPgVersion :: IO (Maybe PgVersion)
+    qPgVersion = do
+      AppConfig{..} <- getConfig appState
       pgVersion <- usePool appState (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
       case pgVersion of
         Left e -> do
-          observer $ ConnectionPgVersionErrorObs e
-          putConnStatus appState ConnPending
-          return ConnPending
-        Right version -> do
-          putConnStatus appState ConnEstablished
-          putPgVersion appState version
-          return ConnEstablished
+          observer $ QueryPgVersionError e
+          unless configDbPoolAutomaticRecovery $ do
+            observer ExitDBNoRecoveryObs
+            killThread mainThreadId
+          return Nothing
+        Right actualPgVersion -> do
+          when (actualPgVersion < minimumPgVersion) $ do
+            observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
+            killThread mainThreadId
+          observer $ DBConnectedObs $ pgvFullName actualPgVersion
+          putPgVersion appState actualPgVersion
+          return $ Just actualPgVersion
 
-    shouldRetry :: RetryStatus -> ConnectionStatus -> IO Bool
-    shouldRetry rs isConnSucc = do
+    qSchemaCache :: IO (Maybe SchemaCache)
+    qSchemaCache = do
+      conf@AppConfig{..} <- getConfig appState
+      (resultTime, result) <-
+        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+      case result of
+        Left e -> do
+          putSCacheStatus appState SCPending
+          putSchemaCache appState Nothing
+          observer $ SchemaCacheErrorObs e
+          return Nothing
+
+        Right sCache -> do
+          -- IMPORTANT: While the pending schema cache state starts from running the above querySchemaCache, only at this stage we block API requests due to the usage of an
+          -- IORef on putSchemaCache. This is why SCacheStatus is put at SCPending here to signal the Admin server (using isPending) that we're on a recovery state.
+          putSCacheStatus appState SCPending
+          putSchemaCache appState $ Just sCache
+          observer $ SchemaCacheQueriedObs resultTime
+          (t, _) <- timeItT $ observer $ SchemaCacheSummaryObs $ showSummary sCache
+          observer $ SchemaCacheLoadedObs t
+          putSCacheStatus appState SCLoaded
+          return $ Just sCache
+
+    shouldRetry :: RetryStatus -> (Maybe PgVersion, Maybe SchemaCache) -> IO Bool
+    shouldRetry _ (pgVer, sCache) = do
       AppConfig{..} <- getConfig appState
-      let
-        delay = fromMaybe 0 (rsPreviousDelay rs) `div` oneSecondInUs
-        itShould = ConnPending == isConnSucc && configDbPoolAutomaticRecovery
-      when itShould $ observer $ ConnectionRetryObs delay
-      when itShould $ putRetryNextIn appState delay
+      let itShould = configDbPoolAutomaticRecovery && (isNothing pgVer || isNothing sCache)
       return itShould
 
--- | Re-reads the config plus config options from the db
-reReadConfig :: Bool -> AppState -> IO ()
-reReadConfig startingUp appState@AppState{stateObserver=observer} = do
+-- | Reads the in-db config and reads the config file again
+readInDbConfig :: Bool -> AppState -> IO ()
+readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
   AppConfig{..} <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -586,10 +533,8 @@ retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainT
     handleNotification channel msg =
       if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
          | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> reReadConfig False appState
+         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> readInDbConfig False appState
          | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
 
     cacheReloader =
-      -- reloads the schema cache + restarts pool connections
-      -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
       connectionWorker appState
