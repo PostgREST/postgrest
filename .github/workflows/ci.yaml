@@ -13,7 +13,8 @@ concurrency:
   # Terminate all previous runs of the same workflow for the same tag, but never
   # cancel for the main / release branch pipelines.
   group: ci-${{ (github.ref_type == 'tag' && github.ref) || github.run_id }}
-  cancel-in-progress: true
+  # TODO: Enable this once https://github.com/orgs/community/discussions/13015 is solved
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -110,7 +111,8 @@ jobs:
     concurrency:
       # Never tag outdated commits on the main branch by skipping superseded commits
       group: ci-tag-${{ (github.ref == 'refs/heads/main' && github.ref) || github.run_id }}
-      cancel-in-progress: true
+      # TODO: Enable this once https://github.com/orgs/community/discussions/13015 is solved
+      cancel-in-progress: false
     if: |
       vars.RELEASE_ENABLED &&
       startsWith(github.ref, 'refs/heads/') &&
