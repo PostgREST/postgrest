@@ -252,7 +252,7 @@ decodeRels :: HD.Result [Relationship]
 decodeRels =
  HD.rowList relRow
  where
-  relRow = (\(qi1, qi2, isSelf, constr, cols, isOneToOne) -> Relationship qi1 qi2 isSelf ((if isOneToOne then O2O else M2O) constr cols) False False) <$> row
+  relRow = (\(qi1, qi2, isSelf, constr, cols, isOneToOne)-> Relationship qi1 qi2 isSelf (if isOneToOne then O2O constr cols False else M2O constr cols) False False) <$> row
   row =
     (,,,,,) <$>
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
@@ -518,13 +518,14 @@ addViewM2OAndO2ORels :: [ViewKeyDependency] -> [Relationship] -> [Relationship]
 addViewM2OAndO2ORels keyDeps rels =
   rels ++ concatMap viewRels rels
   where
-    isM2O card = case card of {M2O _ _ -> True; _ -> False;}
-    isO2O card = case card of {O2O _ _ -> True; _ -> False;}
+    isM2O card = case card of {M2O _ _       -> True; _ -> False;}
+    isO2O card = case card of {O2O _ _ False -> True; _ -> False;}
     viewRels Relationship{relTable,relForeignTable,relCardinality=card} =
       if isM2O card || isO2O card then
       let
         cons = relCons card
         relCols = relColumns card
+        buildCard cns cls = if isM2O card then M2O cns cls else O2O cns cls False
         viewTableRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relTable        && keyDepCons == cons && keyDepType == FKDep)    keyDeps
         tableViewRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relForeignTable && keyDepCons == cons && keyDepType == FKDepRef) keyDeps
       in
@@ -532,7 +533,7 @@ addViewM2OAndO2ORels keyDeps rels =
             (keyDepView vwTbl)
             relForeignTable
             False
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) keyDepColsVwTbl relCols)
+            (buildCard cons $ zipWith (\(_, vCol) (_, fCol)-> (vCol, fCol)) keyDepColsVwTbl relCols)
             True
             False
         | vwTbl <- viewTableRels
@@ -542,7 +543,7 @@ addViewM2OAndO2ORels keyDeps rels =
             relTable
             (keyDepView tblVw)
             False
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols keyDepColsTblVw)
+            (buildCard cons $ zipWith (\(tCol, _) (_, vCol) -> (tCol, vCol)) relCols keyDepColsTblVw)
             False
             True
         | tblVw <- tableViewRels
@@ -557,7 +558,7 @@ addViewM2OAndO2ORels keyDeps rels =
             vw1
             vw2
             (vw1 == vw2)
-            ((if isM2O card then M2O else O2O) cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) keyDepColsVwTbl keyDepColsTblVw)
+            (buildCard cons $ zipWith (\(_, vcol1) (_, vcol2) -> (vcol1, vcol2)) keyDepColsVwTbl keyDepColsTblVw)
             True
             True
         | vwTbl <- viewTableRels
@@ -572,7 +573,7 @@ addInverseRels :: [Relationship] -> [Relationship]
 addInverseRels rels =
   rels ++
   [ Relationship ft t isSelf (O2M cons (swap <$> cols)) fTableIsView tableIsView | Relationship t ft isSelf (M2O cons cols) tableIsView fTableIsView <- rels ] ++
-  [ Relationship ft t isSelf (O2O cons (swap <$> cols)) fTableIsView tableIsView | Relationship t ft isSelf (O2O cons cols) tableIsView fTableIsView <- rels ]
+  [ Relationship ft t isSelf (O2O cons (swap <$> cols) (not isParent)) fTableIsView tableIsView | Relationship t ft isSelf (O2O cons cols isParent) tableIsView fTableIsView <- rels ]
 
 -- | Adds a m2m relationship if a table has FKs to two other tables and the FK columns are part of the PK columns
 addM2MRels :: TablesMap -> [Relationship] -> [Relationship]

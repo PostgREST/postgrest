@@ -369,7 +369,7 @@ compressedRel Relationship{..} =
             "cardinality" .= ("many-to-one" :: Text)
           , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
           ]
-        O2O cons relColumns -> [
+        O2O cons relColumns _ -> [
             "cardinality" .= ("one-to-one" :: Text)
           , "relationship" .= (cons <> " using " <> qiName relTable <> fmtEls (fst <$> relColumns) <> " and " <> qiName relForeignTable <> fmtEls (snd <$> relColumns))
           ]
@@ -386,7 +386,7 @@ relHint rels = T.intercalate ", " (hintList <$> rels)
       case relCardinality of
         M2M Junction{..} -> buildHint (qiName junTable)
         M2O cons _       -> buildHint cons
-        O2O cons _       -> buildHint cons
+        O2O cons _ _     -> buildHint cons
         O2M cons _       -> buildHint cons
     -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
     hintList ComputedRelationship{} = mempty
