@@ -45,7 +45,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Deprecated
 
- - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/stored_procedures.html#s-proc-single-json) instead. - @steve-chavez
+ - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/functions.html#function-single-json) instead. - @steve-chavez
 
 ### Documentation
 
