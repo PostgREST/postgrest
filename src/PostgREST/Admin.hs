@@ -1,4 +1,5 @@
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 module PostgREST.Admin
   ( runAdmin
@@ -30,17 +31,17 @@ import Protolude
 runAdmin :: AppState -> Warp.Settings -> IO ()
 runAdmin appState settings = do
   AppConfig{configAdminServerPort} <- AppState.getConfig appState
-  whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
+  whenJust appState.socketAdmin $ \adminSocket -> do
     observer $ AdminStartObs configAdminServerPort
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
     adminApp = admin appState
-    observer = AppState.getObserver appState
+    observer = appState.observer
 
 -- | PostgREST admin application
 admin :: AppState.AppState -> Wai.Application
 admin appState req respond  = do
-  isMainAppReachable  <- isRight <$> reachMainApp (AppState.getSocketREST appState)
+  isMainAppReachable  <- isRight <$> reachMainApp appState.socketREST
   isLoaded <- AppState.isLoaded appState
   isPending <- AppState.isPending appState
 

@@ -1,5 +1,6 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE NamedFieldPuns      #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards     #-}
 -- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.Query
   ( QueryResult (..)
@@ -22,6 +23,7 @@ import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.ApiRequest.Types   as ApiRequestTypes
 import qualified PostgREST.AppState           as AppState
+import qualified PostgREST.Auth               as Auth
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
@@ -37,7 +39,6 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
-import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
@@ -74,9 +75,9 @@ data QueryResult
   | NoDbResult    InfoPlan
 
 -- TODO This function needs to be free from IO, only App.hs should do IO
-runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
+runQuery :: AppState.AppState -> AppConfig -> Auth.Result -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
 runQuery _ _ _ _ (NoDb x) _ _ _ = pure $ NoDbResult x
-runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated = do
+runQuery appState config authResult apiReq (Db plan) sCache pgVer authenticated = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     AppState.usePool appState (transaction isoLvl txMode $ runExceptT dbHandler)
@@ -88,10 +89,10 @@ runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authentica
   liftEither resp
   where
     prepared = configDbPreparedStatements config
-    isoLvl = planIsoLvl config authRole plan
+    isoLvl = planIsoLvl config authResult.role plan
     txMode = planTxMode plan
     dbHandler = do
-        setPgLocals plan config authClaims authRole apiReq
+        setPgLocals plan config authResult.claims authResult.role apiReq
         runPreReq config
         actionQuery plan config apiReq pgVer sCache
 

@@ -10,9 +10,10 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE RecordWildCards     #-}
 module PostgREST.Auth
-  ( AuthResult (..)
+  ( Result (..)
   , getResult
   , getJwtDur
   , getRole
@@ -44,13 +45,17 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, AuthResult (..), getConfig,
-                           getJwtCache, getTime)
+import PostgREST.AppState (AppState (..), getConfig)
 import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
 import PostgREST.Error    (Error (..))
 
 import Protolude
 
+
+data Result = Result
+  { claims :: KM.KeyMap JSON.Value
+  , role   :: BS.ByteString
+  }
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
@@ -75,14 +80,14 @@ parseToken AppConfig{..} token time = do
     jwtClaimsError e              = JwtTokenInvalid $ show e
 
 parseClaims :: Monad m =>
-  AppConfig -> JSON.Value -> ExceptT Error m AuthResult
+  AppConfig -> JSON.Value -> ExceptT Error m Result
 parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   -- role defaults to anon if not specified in jwt
   role <- liftEither . maybeToRight JwtTokenRequired $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
-  return AuthResult
-           { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
-           , authRole = role
+  return Result
+           { claims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
+           , role = role
            }
   where
     walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
@@ -95,14 +100,14 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     unquoted (JSON.String t) = encodeUtf8 t
     unquoted v               = LBS.toStrict $ JSON.encode v
 -- impossible case - just added to please -Wincomplete-patterns
-parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
+parseClaims _ _ = return Result { claims = KM.empty, role = mempty }
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
 middleware :: AppState -> Wai.Middleware
 middleware appState app req respond = do
   conf <- getConfig appState
-  time <- getTime appState
+  time <- appState.getTime
 
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
@@ -129,32 +134,32 @@ middleware appState app req respond = do
   app req' respond
 
 -- | Used to retrieve and insert JWT to JWT Cache
-getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
+getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error Result) -> UTCTime -> IO (Either Error Result)
 getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
+  checkCache <- C.lookup appState.jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
   case (authResult,checkCache) of
-    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    (Right res, Nothing) -> C.insert' appState.jwtCache (getTimeSpec res maxLifetime utc) token res
     _                    -> pure ()
 
   return authResult
 
 -- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
+getTimeSpec :: Result -> Int -> UTCTime -> Maybe TimeSpec
+getTimeSpec authResult maxLifetime utc = do
+  let expireJSON = KM.lookup "exp" authResult.claims
       utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
   case expireJSON of
     Just (JSON.Number seconds) -> Just $ TimeSpec (sciToInt seconds - utcToSecs utc) 0
     _                          -> Just $ TimeSpec (fromIntegral maxLifetime :: Int64) 0
 
-authResultKey :: Vault.Key (Either Error AuthResult)
+authResultKey :: Vault.Key (Either Error Result)
 authResultKey = unsafePerformIO Vault.newKey
 {-# NOINLINE authResultKey #-}
 
-getResult :: Wai.Request -> Maybe (Either Error AuthResult)
+getResult :: Wai.Request -> Maybe (Either Error Result)
 getResult = Vault.lookup authResultKey . Wai.vault
 
 jwtDurKey :: Vault.Key Double
@@ -165,4 +170,4 @@ getJwtDur :: Wai.Request -> Maybe Double
 getJwtDur =  Vault.lookup jwtDurKey . Wai.vault
 
 getRole :: Wai.Request -> Maybe BS.ByteString
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+getRole req = role <$> (rightToMaybe =<< getResult req)
