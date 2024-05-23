@@ -73,6 +73,15 @@ let
         { }
       );
 
+      wai-cors = lib.dontCheck (
+        prev.callCabal2nixWithOptions "wai-cors" (super.fetchFromGitHub {
+          owner = "laurenceisla";
+          repo  = "wai-cors";
+          rev = "e2da0d7a3e56592a5f4b35fd3aa6ccd3175525cc";
+          sha256 = "sha256-lTzFiH7c7ZpR+hg6jJXvPKM2DtwMs8gdjdk68GTmtaQ=";
+        }) "--subpath=." {}
+      );
+
     };
 in
 {

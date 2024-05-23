@@ -251,8 +251,7 @@ actionResponse (NoDbResult SchemaInfoPlan) _ _ _ _ _ _ = respondInfo "OPTIONS,GE
 
 respondInfo :: ByteString -> Either Error.Error PgrstResponse
 respondInfo allowHeader =
-  let allOrigins = ("Access-Control-Allow-Origin", "*") in
-  Right $ PgrstResponse HTTP.status200 [allOrigins, (HTTP.hAllow, allowHeader)] mempty
+  Right $ PgrstResponse HTTP.status200 [(HTTP.hAllow, allowHeader)] mempty
 
 -- Status and headers can be overridden as per https://postgrest.org/en/stable/references/transactions.html#response-headers
 overrideStatusHeaders :: Maybe Text -> Maybe BS.ByteString -> HTTP.Status -> [HTTP.Header]-> Either Error.Error (HTTP.Status, [HTTP.Header])
