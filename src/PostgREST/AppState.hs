@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE MultiWayIf      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -21,10 +20,10 @@ module PostgREST.AppState
   , initWithPool
   , putSchemaCache
   , putPgVersion
+  , putIsListenerOn
   , usePool
   , reReadConfig
   , connectionWorker
-  , runListener
   , getObserver
   , isLoaded
   , isPending
@@ -36,8 +35,6 @@ import qualified Data.ByteString.Char8      as BS
 import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
-import           Hasql.Connection           (acquire)
-import qualified Hasql.Notifications        as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
@@ -54,9 +51,8 @@ import           System.TimeIt              (timeItT)
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
 import Control.Debounce
-import Control.Exception  (throw)
 import Control.Retry      (RetryPolicy, RetryStatus (..), capDelay,
-                           exponentialBackoff, recoverAll, retrying,
+                           exponentialBackoff, retrying,
                            rsPreviousDelay)
 import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
@@ -64,7 +60,6 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
-                                          addTargetSessionAttrs,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
@@ -442,15 +437,6 @@ internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThre
               -- retry reloading the schema cache
               work
 
--- | One second in microseconds
-oneSecondInUs :: Int
-oneSecondInUs = 1000000
-
-retryPolicy :: RetryPolicy
-retryPolicy = capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
-  where
-    delayMicroseconds = 32000000 -- 32 seconds
-
 -- | Repeatedly flush the pool, and check if a connection from the
 -- pool allows access to the PostgreSQL database.
 --
@@ -458,6 +444,8 @@ retryPolicy = capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
 -- timeout would have to be reached for new healthy connections to be acquired.
 -- Which might not happen if the server is busy with requests. No idle
 -- connection, no pool timeout.
+--
+-- It's also necessary to release the pool connections because they cache the pg catalog(see #2620)
 --
 -- The connection tries are capped, but if the connection times out no error is
 -- thrown, just 'False' is returned.
@@ -488,6 +476,14 @@ establishConnection appState@AppState{stateObserver=observer} =
       when itShould $ observer $ ConnectionRetryObs delay
       when itShould $ putRetryNextIn appState delay
       return itShould
+
+    retryPolicy :: RetryPolicy
+    retryPolicy =
+      let
+        delayMicroseconds = 32000000 -- 32 seconds
+      in
+      capDelay delayMicroseconds $ exponentialBackoff oneSecondInUs
+    oneSecondInUs = 1000000 -- | One second in microseconds
 
 -- | Re-reads the config plus config options from the db
 reReadConfig :: Bool -> AppState -> IO ()
@@ -526,70 +522,3 @@ reReadConfig startingUp appState@AppState{stateObserver=observer} = do
         pass
       else
         observer ConfigSucceededObs
-
--- | Starts the Listener in a thread
-runListener :: AppState -> IO ()
-runListener appState = do
-  AppConfig{..} <- getConfig appState
-  when configDbChannelEnabled $
-    void . forkIO $ retryingListen appState
-
--- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff if the LISTEN connection is lost.
--- TODO Once the listen channel is recovered, the retry status is not reset. So if the last backoff was 4 seconds, the next time recovery kicks in the backoff will be 8 seconds.
--- This is because `Hasql.Notifications.waitForNotifications` uses a forever loop that only finishes when it throws an exception.
-retryingListen :: AppState -> IO ()
-retryingListen appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} = do
-  AppConfig{..} <- getConfig appState
-  let
-    dbChannel = toS configDbChannel
-    -- Try, catch and rethrow the exception. This is done so we can observe the failure message and let Control.Retry.recoverAll do its work.
-    -- There's a `Control.Retry.recovering` we could use to avoid this rethrowing, but it's more complex to use.
-    -- The root cause of these workarounds is that `Hasql.Notifications.waitForNotifications` uses exceptions.
-    tryRethrow :: IO () -> IO ()
-    tryRethrow action =  do
-      act <- try action
-      whenLeft act (\ex -> do
-        putIsListenerOn appState False
-        observer $ DBListenFail dbChannel (Right $ Left ex)
-        unless configDbPoolAutomaticRecovery $ do
-          killThread mainThreadId
-        throw ex)
-
-  recoverAll retryPolicy (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
-
-    when (rsIterNumber > 0) $
-      let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs in
-      observer $ DBListenRetry delay
-
-    connection <- acquire $ toUtf8 (addTargetSessionAttrs $ addFallbackAppName prettyVersion configDbUri)
-    case connection of
-      Right conn -> do
-
-        tryRethrow $ SQL.listen conn $ SQL.toPgIdentifier dbChannel
-
-        putIsListenerOn appState True
-        observer $ DBListenStart dbChannel
-
-        when (rsIterNumber > 0) $ do
-          -- once we can LISTEN again, we might have lost schema cache notificacions, so reload
-          connectionWorker appState
-
-        tryRethrow $ SQL.waitForNotifications handleNotification conn
-
-      Left err -> do
-        observer $ DBListenFail dbChannel (Left err)
-        -- throw an exception so recoverAll works
-        exitFailure
-    )
-
-  where
-    handleNotification channel msg =
-      if | BS.null msg            -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload schema" -> observer (DBListenerGotSCacheMsg channel) >> cacheReloader
-         | msg == "reload config" -> observer (DBListenerGotConfigMsg channel) >> reReadConfig False appState
-         | otherwise              -> pure () -- Do nothing if anything else than an empty message is sent
-
-    cacheReloader =
-      -- reloads the schema cache + restarts pool connections
-      -- it's necessary to restart the pg connections because they cache the pg catalog(see #2620)
-      connectionWorker appState

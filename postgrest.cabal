@@ -62,6 +62,7 @@ library
                       PostgREST.SchemaCache.Representations
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
+                      PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MediaType
                       PostgREST.Metrics

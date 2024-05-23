@@ -1,9 +1,9 @@
 {-|
 Module      : PostgREST.Auth
-Description : PostgREST authorization functions.
+Description : PostgREST authentication functions.
 
-This module provides functions to deal with the JWT authorization (http://jwt.io).
-It also can be used to define other authorization functions,
+This module provides functions to deal with the JWT authentication (http://jwt.io).
+It also can be used to define other authentication functions,
 in the future Oauth, LDAP and similar integrations can be coded here.
 
 Authentication should always be implemented in an external service.
