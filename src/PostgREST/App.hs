@@ -33,6 +33,7 @@ import qualified PostgREST.AppState   as AppState
 import qualified PostgREST.Auth       as Auth
 import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
+import qualified PostgREST.Listener   as Listener
 import qualified PostgREST.Logger     as Logger
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
@@ -67,10 +68,10 @@ run appState = do
 
   observer $ AppStartObs prettyVersion
 
-  AppState.connectionWorker appState -- Loads the initial SchemaCache
+  AppState.connectionWorker appState
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.connectionWorker appState) (AppState.reReadConfig False appState)
-  -- reload schema cache + config on NOTIFY
-  AppState.runListener appState
+
+  Listener.runListener appState
 
   Admin.runAdmin appState (serverSettings conf)
 
