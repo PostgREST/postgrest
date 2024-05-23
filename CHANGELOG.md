@@ -50,6 +50,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Documentation
 
  - #3289, Add dark mode. Can be toggled by a button in the bottom right corner. - @laurenceisla
+ - #3384, Add architecture diagram and documentation - @steve-chavez
 
 ## [12.0.3] - 2024-05-09
 
