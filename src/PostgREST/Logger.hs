@@ -1,7 +1,8 @@
 {-|
 Module      : PostgREST.Logger
-Description : Wai Middleware to log requests to stdout.
+Description : Logging based on the Observation.hs module. Access logs get sent to stdout and server diagnostic get sent to stderr.
 -}
+-- TODO log with buffering enabled to not lose throughput on logging levels higher than LogError
 module PostgREST.Logger
   ( middleware
   , observationLogger
@@ -54,6 +55,7 @@ logWithDebounce loggerState action = do
       putMVar (stateLogDebouncePoolTimeout loggerState) newDebouncer
       newDebouncer
 
+-- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
 middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
 middleware logLevel getAuthRole = case logLevel of
   LogCrit  -> requestLogger (const False)

@@ -1,7 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.Observation
-Description : Module for observability types
+Description : Observations that can be used for Logging and Metrics
 -}
 module PostgREST.Observation
   ( Observation(..)

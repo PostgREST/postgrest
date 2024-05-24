@@ -3,6 +3,8 @@
 Observability
 #############
 
+Observability allows measuring a system's current state based on the data it generates, such as logs, metrics, and traces.
+
 .. contents::
    :depth: 1
    :local:
