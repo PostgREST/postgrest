@@ -1164,9 +1164,9 @@ def test_log_postgrest_version(defaultenv):
     with run(env=defaultenv, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
-        output = sorted(postgrest.read_stdout(nlines=5))
+        output = postgrest.read_stdout(nlines=1)
 
-        assert "Starting PostgREST %s..." % version in output[4]
+        assert "Starting PostgREST %s..." % version in output[0]
 
 
 def test_succeed_w_role_having_superuser_settings(defaultenv):
