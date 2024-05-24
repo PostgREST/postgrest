@@ -3,44 +3,49 @@
 CLI
 ===
 
-PostgREST provides a CLI to start and run your postgrest service. The CLI provides the commands listed below:
+PostgREST provides a CLI with the commands listed below:
 
-.. _cli_commands:
-
-CLI Commands
-------------
-
-Help and Version
-~~~~~~~~~~~~~~~~
+Help
+----
 
 .. code:: bash
 
   $ postgrest [-h|--help]
+
+Shows all the commands available.
+
+Version
+-------
+
+.. code:: bash
+
   $ postgrest [-v|--version]
 
-Example Config
-~~~~~~~~~~~~~~
+Prints the PostgREST version.
+
+Example
+-------
 
 .. code:: bash
 
   $ postgrest [-e|--example]
 
-These commands show the example configuration file.
+Shows example configuration options.
 
-Config
-~~~~~~
-
-.. code:: bash
-
-  $ postgrest [--dump-config] [FILENAME]
-
-Here ``FILENAME`` is the path to configuration file.
-
-Schema Cache
-~~~~~~~~~~~~
+Dump Config
+-----------
 
 .. code:: bash
 
-  $ postgrest [--dump-schema] [FILENAME]
+  $ postgrest [--dump-config]
 
-Here ``FILENAME`` is the path to configuration file.
+Dumps the loaded :ref:`configuration` values, considering the configuration file, environment variables and :ref:`in_db_config`.
+
+Dump Schema
+-----------
+
+.. code:: bash
+
+  $ postgrest [--dump-schema]
+
+Dumps the schema cache in JSON format.
