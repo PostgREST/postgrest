@@ -13,13 +13,20 @@ Code Map
 
 This section talks briefly about various important modules.
 
-The starting points of the program are:
+Main
+----
 
-- `Main.hs <https://github.com/PostgREST/postgrest/blob/main/main/Main.hs>`_
-- `CLI.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/CLI.hs>`_
-- `App.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/App.hs>`_
+The starting point of the program is `Main.hs <https://github.com/PostgREST/postgrest/blob/main/main/Main.hs>`_.
 
-``App.hs`` is then in charge of composing the different modules.
+CLI
+---
+
+Main then calls `CLI.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/CLI.hs>`_, which is in charge of :ref:`cli`.
+
+App
+---
+
+`App.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/App.hs>`_ is then in charge of composing the different modules.
 
 Auth
 ----
