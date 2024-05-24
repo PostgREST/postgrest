@@ -12,7 +12,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3171, #3046, Log schema cache stats to stderr - @steve-chavez
  - #3210, Dump schema cache through admin API - @taimoorzaeem
  - #2676, Performance improvement on bulk json inserts, around 10% increase on requests per second by removing `json_typeof` from write queries - @steve-chavez
- - #3214, Log connection pool events on log-level=info - @steve-chavez
  - #3435, Add log-level=debug, for development purposes - @steve-chavez
  - #1526, Add `/metrics` endpoint on admin server - @steve-chavez
    - Exposes connection pool metrics, schema cache metrics
@@ -23,6 +22,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3340, Log when the LISTEN channel gets a notification - @steve-chavez
  - #3184, Log full pg version to stderr on connection - @steve-chavez
  - #3242. Add config `db-hoisted-tx-settings` to apply only hoisted function settings - @taimoorzaeem
+ - #3214, #3229 Log connection pool events on log-level=debug - @steve-chavez, @laurenceisla
 
 ### Fixed
 

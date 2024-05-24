@@ -612,7 +612,7 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
 
         if level == "crit":
             assert len(output) == 0
-        elif level in ["info", "debug"]:
+        else:
             assert " 504 " in output[0]
             assert "Timed out acquiring connection from connection pool." in output[2]
 
@@ -871,7 +871,21 @@ def test_log_level(level, defaultenv):
                 output[1],
             )
             assert len(output) == 2
-        else:
+        elif level == "info":
+            assert re.match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                output[0],
+            )
+            assert re.match(
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                output[1],
+            )
+            assert re.match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                output[2],
+            )
+            assert len(output) == 3
+        elif level == "debug":
             assert re.match(
                 r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
                 output[0],
@@ -1456,7 +1470,7 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
 
         if level == "crit":
             assert len(output) == 0
-        elif level in ["info", "debug"]:
+        elif level == "debug":
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[3]
         else:
