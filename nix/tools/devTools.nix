@@ -325,8 +325,8 @@ let
         workingDir = "/";
       }
       ''
+        ${haskellPackages.haskdogs}/bin/haskdogs
         ${ctags}/bin/ctags -a -R --fields=+l --languages=python --python-kinds=-iv -f ./tags test/io/
-        ${haskellPackages.hasktags}/bin/hasktags -a -R -c -f ./tags .
       '';
 
   genJwt =
