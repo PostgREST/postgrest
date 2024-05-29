@@ -222,11 +222,20 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
-      Right <$> decodeLoadFiles parsedConfig
+      case processForbiddenValues parsedConfig of
+        Left err' ->
+          return . Left $ "Error in config " <> err'
+        Right config ->
+          Right <$> decodeLoadFiles config
   where
     -- Both C.ParseError and IOError are shown here
     loadConfig :: FilePath -> IO (Either SomeException C.Config)
     loadConfig = try . C.load
+
+    processForbiddenValues :: AppConfig -> Either Text AppConfig
+    processForbiddenValues cfg@AppConfig{..}
+      | configAdminServerPort == Just configServerPort = Left "admin-server-port cannot be the same as server-port"
+      | otherwise = Right cfg
 
     decodeLoadFiles :: AppConfig -> IO AppConfig
     decodeLoadFiles parsedConfig =
