@@ -159,7 +159,7 @@ admin-server-host
   **In-Database** `n/a`
   =============== =======================
 
-  Specifies the host for the :ref:`admin_server`. Defaults to :ref:`server_host` value.
+  Specifies the host for the :ref:`admin_server`. Defaults to :ref:`server-host` value.
 
 .. _admin-server-port:
 
