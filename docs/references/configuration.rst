@@ -174,7 +174,7 @@ admin-server-port
   **In-Database** `n/a`
   =============== =======================
 
-  Specifies the port for the :ref:`admin_server`.
+  Specifies the port for the :ref:`admin_server`. Cannot be equal to :ref:`server-port`.
 
 .. _app.settings.*:
 
