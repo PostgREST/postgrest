@@ -146,6 +146,21 @@ To reload the configuration from within the database, you can use the ``NOTIFY``
 List of parameters
 ==================
 
+.. _admin-server-host:
+
+admin-server-host
+-----------------
+
+  =============== =======================
+  **Type**        String
+  **Default**     `server-host` value
+  **Reloadable**  N
+  **Environment** PGRST_ADMIN_SERVER_HOST
+  **In-Database** `n/a`
+  =============== =======================
+
+  Specifies the host for the :ref:`admin_server`. Defaults to :ref:`server_host` value.
+
 .. _admin-server-port:
 
 admin-server-port
