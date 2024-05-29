@@ -150,6 +150,7 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerUnixSocketMode      = 432
   , configDbTxAllowOverride         = True
   , configDbTxRollbackAll           = True
+  , configAdminServerHost           = "localhost"
   , configAdminServerPort           = Nothing
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty

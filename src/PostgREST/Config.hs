@@ -106,6 +106,7 @@ data AppConfig = AppConfig
   , configServerTimingEnabled      :: Bool
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
+  , configAdminServerHost          :: Text
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
@@ -176,6 +177,7 @@ toText conf =
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
+      ,("admin-server-host",         q . configAdminServerHost)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ]
 
@@ -276,17 +278,19 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
-    <*> (fromMaybe "!4" <$> optString "server-host")
+    <*> (fromMaybe fallbackServerHost <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
+    <*> (fromMaybe fallbackServerHost <$> optString "admin-server-host")
     <*> optInt "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-sleep"
   where
+    fallbackServerHost = "!4"
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
       where
