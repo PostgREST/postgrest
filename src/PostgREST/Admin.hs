@@ -19,6 +19,7 @@ import Network.Socket.ByteString
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
 import PostgREST.Metrics     (metricsToText)
+import PostgREST.Network     (resolveHost)
 import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
@@ -31,7 +32,8 @@ runAdmin :: AppState -> Warp.Settings -> IO ()
 runAdmin appState settings = do
   AppConfig{configAdminServerPort} <- AppState.getConfig appState
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
-    observer $ AdminStartObs configAdminServerPort
+    host <- resolveHost adminSocket
+    observer $ AdminStartObs host configAdminServerPort
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
     adminApp = admin appState

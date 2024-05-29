@@ -25,9 +25,9 @@ import Protolude
 import Protolude.Partial (fromJust)
 
 data Observation
-  = AdminStartObs (Maybe Int)
+  = AdminStartObs (Maybe Text) (Maybe Int)
   | AppStartObs ByteString
-  | AppServerPortObs NS.PortNumber
+  | AppServerPortObs Text NS.PortNumber
   | AppServerUnixObs FilePath
   | ExitUnsupportedPgVersion PgVersion PgVersion
   | ExitDBNoRecoveryObs
@@ -60,12 +60,12 @@ type ObservationHandler = Observation -> IO ()
 
 observationMessage :: Observation -> Text
 observationMessage = \case
-  AdminStartObs port ->
-    "Admin server listening on port " <> show (fromIntegral (fromJust port) :: Integer)
+  AdminStartObs host port ->
+    "Admin server listening on " <> fromJust host <> ":" <> show (fromIntegral (fromJust port) :: Integer)
   AppStartObs ver ->
     "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
-  AppServerPortObs port ->
-    "Listening on port " <> show port
+  AppServerPortObs host port ->
+    "Listening on " <> host <> ":" <> show port
   AppServerUnixObs sock ->
     "Listening on unix socket " <> show sock
   DBConnectedObs ver ->
