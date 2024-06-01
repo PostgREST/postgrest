@@ -409,7 +409,10 @@ Note that the foreign keys have been named explicitly in the :ref:`SQL definitio
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
+  # curl "http://localhost:3000/orders?select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
+
+  curl --get "http://localhost:3000/orders" \
+    -d "select=name,billing_address:addresses!billing(name),shipping_address:addresses!shipping(name)"
 
 .. code-block:: json
 
@@ -434,7 +437,11 @@ Let's take the tables from :ref:`multiple_m2o`. To get the opposite one-to-many 
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1"
+  # curl "http://localhost:3000/addresses?select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)&id=eq.1"
+
+  curl --get "http://localhost:3000/addresses" \
+    -d "select=name,billing_orders:orders!billing(name),shipping_orders!shipping(name)" \
+    -d "id=eq.1"
 
 .. code-block:: json
 
@@ -492,7 +499,11 @@ Now, to query a president with their predecessor and successor:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/presidents?select=last_name,predecessor(last_name),successor(last_name)&id=eq.2"
+  # curl "http://localhost:3000/presidents?select=last_name,predecessor(last_name),successor(last_name)&id=eq.2"
+
+  curl --get "http://localhost:3000/presidents" \
+    -d "select=last_name,predecessor(last_name),successor(last_name)" \
+    -d "id=eq.2"
 
 .. code-block:: json
 
@@ -540,7 +551,11 @@ Now, the query would be:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/employees?select=last_name,supervisees(last_name)&id=eq.1"
+  # curl "http://localhost:3000/employees?select=last_name,supervisees(last_name)&id=eq.1"
+
+  curl --get "http://localhost:3000/employees" \
+    -d "select=last_name,supervisees(last_name)" \
+    -d "id=eq.1"
 
 .. code-block:: json
 
@@ -572,7 +587,11 @@ Then, the query would be:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/employees?select=last_name,supervisor(last_name)&id=eq.3"
+  # curl "http://localhost:3000/employees?select=last_name,supervisor(last_name)&id=eq.3"
+
+  curl --get "http://localhost:3000/employees" \
+    -d "select=last_name,supervisor(last_name)" \
+    -d "id=eq.3"
 
 .. code-block:: json
 
@@ -636,7 +655,11 @@ Then, the request would be:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/users?select=username,subscribers(username),following(username)&id=eq.4"
+  # curl "http://localhost:3000/users?select=username,subscribers(username),following(username)&id=eq.4"
+
+  curl --get "http://localhost:3000/users" \
+    -d "select=username,subscribers(username),following(username)" \
+    -d "id=eq.4"
 
 .. code-block:: json
 
@@ -691,7 +714,11 @@ Since it contains the ``films_id`` foreign key, it is possible to join ``box_off
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
+  # curl "http://localhost:3000/box_office?select=bo_date,gross_revenue,films(title)&gross_revenue=gte.1000000"
+
+  curl --get "http://localhost:3000/box_office" \
+    -d "select=bo_date,gross_revenue,films(title)" \
+    -d "gross_revenue=gte.1000000"
 
 .. note::
 
@@ -726,7 +753,11 @@ Since this view contains ``nominations.film_id``, which has a **foreign key** re
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
+  # curl "http://localhost:3000/nominations_view?select=film_title,films(language),roles(character),actors(last_name,first_name)&rank=eq.5"
+
+  curl --get "http://localhost:3000/nominations_view" \
+    -d "select=film_title,films(language),roles(character),actors(last_name,first_name)" \
+    -d "rank=eq.5"
 
 It's also possible to foreign key join `Materialized Views <https://www.postgresql.org/docs/current/rules-materializedviews.html>`_.
 
@@ -766,7 +797,11 @@ A request with ``directors`` embedded:
 
 .. code-block:: bash
 
-   curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
+   # curl "http://localhost:3000/rpc/getallfilms?select=title,directors(id,last_name)&title=like.*Workers*"
+
+   curl --get "http://localhost:3000/rpc/getallfilms" \
+     -d "select=title,directors(id,last_name)" \
+     -d "title=like.*Workers*"
 
 .. code-block:: json
 
@@ -836,13 +871,21 @@ Embedded resources can be shaped similarly to their top-level counterparts. To d
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,actors(*)&actors.order=last_name,first_name"
+  # curl "http://localhost:3000/films?select=*,actors(*)&actors.order=last_name,first_name"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=*,actors(*)" \
+    -d "actors.order=last_name,first_name"
 
 This sorts the list of actors in each film but does *not* change the order of the films themselves. To filter the roles returned with each film:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho)"
+  # curl "http://localhost:3000/films?select=*,roles(*)&roles.character=in.(Chico,Harpo,Groucho)"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=*,roles(*)" \
+    -d "roles.character=in.(Chico,Harpo,Groucho)"
 
 Once again, this restricts the roles included to certain characters but does not filter the films in any way. Films without any of those characters would be included along with empty character lists.
 
@@ -850,7 +893,11 @@ An ``or`` filter can be used for a similar operation:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
+  # curl "http://localhost:3000/films?select=*,roles(*)&roles.or=(character.eq.Gummo,character.eq.Zeppo)"
+
+  curl --get "http://localhost:3000/films" \
+   -d "select=*,roles(*)" \
+   -d "roles.or=(character.eq.Gummo,character.eq.Zeppo)"
 
 However, this only works for columns inside ``roles``. See :ref:`how to use "or" across multiple resources <or_embed_rels>`.
 
@@ -858,13 +905,23 @@ Limit and offset operations are possible:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,actors(*)&actors.limit=10&actors.offset=2"
+  # curl "http://localhost:3000/films?select=*,actors(*)&actors.limit=10&actors.offset=2"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=*,actors(*)" \
+    -d "actors.limit=10" \
+    -d "actors.offset=2"
 
 Embedded resources can be aliased and filters can be applied on these aliases:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,90_comps:competitions(name),91_comps:competitions(name)&90_comps.year=eq.1990&91_comps.year=eq.1991"
+  # curl "http://localhost:3000/films?select=*,actors(*)&actors.limit=10&actors.offset=2"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=*,90_comps:competitions(name),91_comps:competitions(name)" \
+    -d "90_comps.year=eq.1990" \
+    -d "91_comps.year=eq.1991"
 
 Filters can also be applied on nested embedded resources:
 
@@ -883,7 +940,11 @@ By default, :ref:`embed_filters` don't change the top-level resource(``films``) 
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne
+  # curl "http://localhost:3000/films?select=title,actors(first_name,last_name)&actors.first_name=eq.Jehanne
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors(first_name,last_name)" \
+    -d "actors.first_name=eq.Jehanne"
 
 .. code-block:: json
 
@@ -911,7 +972,11 @@ In order to filter the top level rows you need to add ``!inner`` to the embedded
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne"
+  # curl "http://localhost:3000/films?select=title,actors!inner(first_name,last_name)&actors.first_name=eq.Jehanne"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors!inner(first_name,last_name)" \
+    -d "actors.first_name=eq.Jehanne"
 
 .. code-block:: json
 
@@ -938,20 +1003,32 @@ For example, doing ``actors=not.is.null`` returns the same result as ``actors!in
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors(*)&actors=not.is.null"
+  # curl "http://localhost:3000/films?select=title,actors(*)&actors=not.is.null"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors(*)" \
+    -d "actors=not.is.null"
 
 The ``is.null`` filter can be used in embedded resources to perform an anti-join. To get all the films that do not have any nominations:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
+  # curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,nominations()" \
+    -d "nominations=is.null"
 
 
 Both ``is.null`` and ``not.is.null`` can be included inside the `or` operator. For instance, to get the films that have no actors **or** directors registered yet:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors(*),directors(*)&or=(actors.is.null,directors.is.null)"
+  # curl "http://localhost:3000/films?select=title,nominations()&nominations=is.null"
+
+  curl --get "http://localhost:3000/films" \
+    -d select=title,actors(*),directors(*)" \
+    -d "or=(actors.is.null,directors.is.null)"
 
 .. _or_embed_rels:
 
@@ -963,7 +1040,13 @@ For instance, to show the films whose actors **or** directors are named John:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors(),directors()&directors.first_name=eq.John&actors.first_name=eq.John&or=(directors.not.is.null,actors.not.is.null)"
+  # curl "http://localhost:3000/films?select=title,actors(),directors()&directors.first_name=eq.John&actors.first_name=eq.John&or=(directors.not.is.null,actors.not.is.null)"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors(),directors()" \
+    -d "directors.first_name=eq.John" \
+    -d "actors.first_name=eq.John" \
+    -d "or=(directors.not.is.null,actors.not.is.null)"
 
 .. _empty_embed:
 
@@ -976,7 +1059,12 @@ To filter the films by actors but not include them:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null"
+  # curl "http://localhost:3000/films?select=title,actors()&actors.first_name=eq.Jehanne&actors=not.is.null"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors()" \
+    -d "actors.first_name=eq.Jehanne" \
+    -d "actors=not.is.null"
 
 .. code-block:: json
 
@@ -997,7 +1085,11 @@ For example, to arrange the films in descending order using the director's last 
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
+  # curl "http://localhost:3000/films?select=title,directors(last_name)&order=directors(last_name).desc"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,directors(last_name)" \
+    -d "order=directors(last_name).desc"
 
 .. _spread_embed:
 
@@ -1008,7 +1100,11 @@ On many-to-one and one-to-one relationships, you can "spread" the embedded resou
 
 .. code-block:: bash
 
-   curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
+   # curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,...directors(director_last_name:last_name)" \
+    -d "title=like.*Workers*"
 
 .. code-block:: json
 
@@ -1025,7 +1121,11 @@ You can use this to get the columns of a join table in a many-to-many relationsh
 
 .. code-block:: bash
 
-   curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
+   # curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors:roles(character,...actors(first_name,last_name))" \
+    -d "title=like.*Lighthouse*"
 
 .. code-block:: json
 
