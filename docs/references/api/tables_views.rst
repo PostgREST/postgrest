@@ -129,7 +129,12 @@ You can also apply complex logic to the conditions:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
+  # curl "http://localhost:3000/people?grade=gte.90&student=is.true&or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
+
+  curl --get "http://localhost:3000/people" \
+    -d "grade=gte.90" \
+    -d "student=is.true" \
+    -d "or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
 
 .. _modifiers:
 
@@ -322,7 +327,11 @@ The arrow operators(``->``, ``->>``) can also be used for accessing composite fi
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19"
+  # curl "http://localhost:3000/countries?select=id,location->>lat,location->>long,primary_language:languages->0&location->lat=gte.19"
+
+  curl --get "http://localhost:3000/countries" \
+    -d "select=id,location->>lat,location->>long,primary_language:languages->0" \
+    -d "location->lat=gte.19"
 
 .. code-block:: json
 
