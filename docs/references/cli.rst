@@ -48,6 +48,6 @@ Dump Schema
 
 .. code:: bash
 
-  $ postgrest [--dump-schema]
+  $ postgrest [--dump-schema-cache]
 
 Dumps the schema cache in JSON format.

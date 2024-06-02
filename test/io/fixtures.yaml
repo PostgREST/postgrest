@@ -17,7 +17,7 @@ cli:
   - name: dump config
     args: ['--dump-config']
   - name: dump schema
-    args: ['--dump-schema']
+    args: ['--dump-schema-cache']
     use_defaultenv: true
   - name: no config
 # failures: config files

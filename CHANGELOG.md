@@ -47,6 +47,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
  - #3248, Modified some CLI options - @taimoorzaeem
    + Replace ``-e`` and ``--example`` with ``--example-file``
+   + Rename option ``--dump-schema`` to ``--dump-schema-cache``
 
 ### Deprecated
 

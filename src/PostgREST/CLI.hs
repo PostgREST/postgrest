@@ -44,7 +44,7 @@ main CLI{cliCommand, cliPath} = do
       CmdDumpConfig -> do
         when configDbConfig $ AppState.reReadConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
-      CmdDumpSchema -> putStrLn =<< dumpSchema appState
+      CmdDumpSchemaCache -> putStrLn =<< dumpSchema appState
       CmdRun -> App.run appState)
 
 -- | Dump SchemaCache schema to JSON
@@ -71,7 +71,7 @@ data CLI = CLI
 data Command
   = CmdRun
   | CmdDumpConfig
-  | CmdDumpSchema
+  | CmdDumpSchemaCache
 
 data Example = ExampleFile | ExampleDb | ExampleEnv
 
@@ -116,7 +116,7 @@ readCLIShowHelp =
     cliParser :: O.Parser CLI
     cliParser =
       CLI
-        <$> (dumpConfigFlag <|> dumpSchemaFlag)
+        <$> (dumpConfigFlag <|> dumpSchemaCacheFlag)
         <*> O.optional configFileOption
 
     configFileOption =
@@ -129,9 +129,9 @@ readCLIShowHelp =
         O.long "dump-config"
         <> O.help "Dump loaded configuration and exit"
 
-    dumpSchemaFlag =
-      O.flag CmdRun CmdDumpSchema $
-        O.long "dump-schema"
+    dumpSchemaCacheFlag =
+      O.flag CmdRun CmdDumpSchemaCache $
+        O.long "dump-schema-cache"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
 
 exampleConfig :: Example -> [Char]
