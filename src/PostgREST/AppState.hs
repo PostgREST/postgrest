@@ -10,7 +10,8 @@ module PostgREST.AppState
   , getSchemaCache
   , getMainThreadId
   , getPgVersion
-  , getRetryNextIn
+  , getNextDelay
+  , getNextListenerDelay
   , getTime
   , getJwtCache
   , getSocketREST
@@ -18,6 +19,7 @@ module PostgREST.AppState
   , init
   , initSockets
   , initWithPool
+  , putNextListenerDelay
   , putSchemaCache
   , putPgVersion
   , putIsListenerOn
@@ -102,8 +104,10 @@ data AppState = AppState
   , stateGetTime              :: IO UTCTime
   -- | Used for killing the main thread in case a subthread fails
   , stateMainThreadId         :: ThreadId
-  -- | Keeps track of when the next retry for connecting to database is scheduled
-  , stateRetryNextIn          :: IORef Int
+  -- | Keeps track of the next delay for db connection retry
+  , stateNextDelay            :: IORef Int
+  -- | Keeps track of the next delay for the listener
+  , stateNextListenerDelay    :: IORef Int
   -- | JWT Cache
   , jwtCache                  :: C.Cache ByteString AuthResult
   -- | Network socket for REST API
@@ -156,6 +160,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
     <*> newIORef 0
+    <*> newIORef 1
     <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
@@ -300,11 +305,17 @@ putSchemaCache appState = atomicWriteIORef (stateSchemaCache appState)
 connectionWorker :: AppState -> IO ()
 connectionWorker = debouncedConnectionWorker
 
-getRetryNextIn :: AppState -> IO Int
-getRetryNextIn = readIORef . stateRetryNextIn
+getNextDelay :: AppState -> IO Int
+getNextDelay = readIORef . stateNextDelay
 
-putRetryNextIn :: AppState -> Int -> IO ()
-putRetryNextIn = atomicWriteIORef . stateRetryNextIn
+putNextDelay :: AppState -> Int -> IO ()
+putNextDelay = atomicWriteIORef . stateNextDelay
+
+getNextListenerDelay :: AppState -> IO Int
+getNextListenerDelay = readIORef . stateNextListenerDelay
+
+putNextListenerDelay :: AppState -> Int -> IO ()
+putNextListenerDelay = atomicWriteIORef . stateNextListenerDelay
 
 getConfig :: AppState -> IO AppConfig
 getConfig = readIORef . stateConf
@@ -474,7 +485,7 @@ establishConnection appState@AppState{stateObserver=observer} =
         delay = fromMaybe 0 (rsPreviousDelay rs) `div` oneSecondInUs
         itShould = ConnPending == isConnSucc && configDbPoolAutomaticRecovery
       when itShould $ observer $ ConnectionRetryObs delay
-      when itShould $ putRetryNextIn appState delay
+      when itShould $ putNextDelay appState delay
       return itShould
 
     retryPolicy :: RetryPolicy

@@ -120,7 +120,7 @@ postgrest logLevel appState connWorker =
         -- the connWorker is done.
         when (isServiceUnavailable response) connWorker
         resp <- do
-          delay <- AppState.getRetryNextIn appState
+          delay <- AppState.getNextDelay appState
           return $ addRetryHint delay response
         respond resp
 
