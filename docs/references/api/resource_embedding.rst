@@ -1036,7 +1036,7 @@ OR filtering across Embedded Resources
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 You can also use ``not.is.null`` to make an ``or`` filter across multiple resources.
-For instance, to show the films whose actors **or** directors are named John:
+For instance, to show the films with actors **or** directors named John:
 
 .. code-block:: bash
 
@@ -1047,6 +1047,48 @@ For instance, to show the films whose actors **or** directors are named John:
     -d "directors.first_name=eq.John" \
     -d "actors.first_name=eq.John" \
     -d "or=(directors.not.is.null,actors.not.is.null)"
+
+.. code-block:: json
+
+  [
+    { "title": "Pulp Fiction" },
+    { "title": "The Thing" },
+    ".."
+  ]
+
+Here, we use :ref:`empty embeds <empty_embed>` because retrieving their info would be restricted by the filters.
+For example, the ``directors`` embedding would return ``null`` if its ``first_name`` is not John.
+To solve this, you need to add extra embedded resources and use the empty ones for filtering.
+From the above example:
+
+.. code-block:: bash
+
+  # curl "http://localhost:3000/films?select=title,act:actors(),dir:directors(),actors(first_name),directors(first_name)&dir.first_name=eq.John&act.first_name=eq.John&or=(dir.not.is.null,act.not.is.null)"
+
+  curl --get "http://localhost:3000/films" \
+    # We need to use aliases like "act" and "dir" to filter the empty embeds
+    -d "select=title,act:actors(),dir:directors(),actors(first_name),directors(first_name)" \
+    -d "dir.first_name=eq.John" \
+    -d "act.first_name=eq.John" \
+    -d "or=(dir.not.is.null,act.not.is.null)"
+
+.. code-block:: json
+
+  [
+    {
+      "title": "Pulp Fiction",
+      "actors": [
+        { "first_name": "John" },
+        { "first_name": "Samuel" },
+        { "first_name": "Uma" },
+        ".."
+      ]
+      "directors": {
+        "first_name": "Quentin"
+      }
+    },
+    ".."
+  ]
 
 .. _empty_embed:
 
