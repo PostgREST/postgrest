@@ -29,6 +29,7 @@ module PostgREST.AppState
   , getObserver
   , isLoaded
   , isPending
+  , waitForListenerCanStart
   ) where
 
 import qualified Data.Aeson                 as JSON
@@ -98,6 +99,8 @@ data AppState = AppState
   , stateIsListenerOn         :: IORef Bool
   -- | starts the connection worker with a debounce
   , debouncedConnectionWorker :: IO ()
+  -- | Binary semaphore used to sync the listener with the connectionWorker.
+  , stateListenerCanStart     :: MVar ()
   -- | Config that can change at runtime
   , stateConf                 :: IORef AppConfig
   -- | Time used for verifying JWT expiration
@@ -156,6 +159,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> newIORef ConnPending
     <*> newIORef False
     <*> pure (pure ())
+    <*> newEmptyMVar
     <*> newIORef conf
     <*> mkAutoUpdate defaultUpdateSettings { updateAction = getCurrentTime }
     <*> myThreadId
@@ -317,6 +321,26 @@ getNextListenerDelay = readIORef . stateNextListenerDelay
 putNextListenerDelay :: AppState -> Int -> IO ()
 putNextListenerDelay = atomicWriteIORef . stateNextListenerDelay
 
+--------------------------------------------------------------------------------------
+-------------------------------------------IMPORTANT----------------------------------
+--------------------------------------------------------------------------------------
+-- Both of these function ensure there's no parallel connection attempts between the listener and the connection pool.
+-- Doing that raised an error with GSSAPI as discussed on https://github.com/PostgREST/postgrest/issues/3569.
+-- Until the root cause is found and solved, we need to prevent parallel connection attempts.
+
+-- tryPutMVar doesn't lock the thread. It should always succeed since
+-- the connectionWorker is the only mvar producer.
+setListenerCanStart :: AppState -> IO ()
+setListenerCanStart appState = void $ tryPutMVar (stateListenerCanStart appState) ()
+
+-- | As this IO action uses `takeMVar` internally, it will only return once
+-- `stateListenerCanStart` has been set using `setListenerCanStart`.
+waitForListenerCanStart :: AppState -> IO ()
+waitForListenerCanStart = takeMVar . stateListenerCanStart
+
+--------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
+
 getConfig :: AppState -> IO AppConfig
 getConfig = readIORef . stateConf
 
@@ -436,6 +460,9 @@ internalConnectionWorker appState@AppState{stateObserver=observer, stateMainThre
             observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
             killThread mainThreadId
           observer (DBConnectedObs $ pgvFullName actualPgVersion)
+          -- Wake up the Listener
+          when configDbChannelEnabled $
+            setListenerCanStart appState
           -- this could be fail because the connection drops, but the loadSchemaCache will pick the error and retry again
           -- We cannot retry after it fails immediately, because db-pre-config could have user errors. We just log the error and continue.
           when configDbConfig $ reReadConfig False appState

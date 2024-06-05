@@ -27,10 +27,16 @@ runListener appState = do
 -- | Starts a LISTEN connection and handles notifications. It recovers with exponential backoff with a cap of 32 seconds, if the LISTEN connection is lost.
 retryingListen :: AppState -> IO ()
 retryingListen appState = do
+  AppState.waitForListenerCanStart appState
   AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
     handleFinally err = do
+      -- assume we lost notifications, call the connection worker which will also reload the schema cache
+      -- and will setListenerCanStart again
+      -- TODO: When the connection error is only on the Listener, it's wasteful to call the connectionWorker everytime.
+      AppState.connectionWorker appState
+
       AppState.putIsListenerOn appState False
       observer $ DBListenFail dbChannel (Right err)
       unless configDbPoolAutomaticRecovery $
@@ -54,8 +60,6 @@ retryingListen appState = do
 
         delay <- AppState.getNextListenerDelay appState
         when (delay > 1) $ do -- if we did a retry
-          -- assume we lost notifications, call the connection worker which will also reload the schema cache
-          AppState.connectionWorker appState
           -- reset the delay
           AppState.putNextListenerDelay appState 1
 
