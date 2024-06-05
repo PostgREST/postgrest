@@ -10,7 +10,6 @@
 , lib
 , openssl
 , zlib
-, libkrb5
 , postgresql
 , pkg-config
 , tzdata
@@ -24,14 +23,13 @@ stdenv.mkDerivation {
     "--without-gssapi"
     "--without-icu"
     "--without-readline"
-    "--with-gssapi"
     "--with-openssl"
     "--with-system-tzdata=${tzdata}/share/zoneinfo"
     "--sysconfdir=/etc/postgresql"
   ];
 
   nativeBuildInputs = [ pkg-config tzdata ];
-  buildInputs = [ libkrb5 openssl zlib ];
+  buildInputs = [ openssl zlib ];
 
   buildFlags = [ "submake-libpq" "submake-libpgport" ];
 
@@ -47,12 +45,6 @@ stdenv.mkDerivation {
     rm -rfv $out/share
 
     runHook postInstall
-  '';
-
-  # To avoid linking errors in the static build with gssapi
-  postInstall = ''
-    substituteInPlace $out/lib/pkgconfig/libpq.pc\
-      --replace "Requires.private:" "Requires.private: krb5-gssapi,"
   '';
 
   outputs = [ "out" ];

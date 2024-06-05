@@ -29,19 +29,7 @@ let
           # derivation is built with static libraries anyway.
           libraryPkgconfigDepends = [ pkgsCross.libpq ];
         }).overrideAttrs (_: prevAttrs: {
-          buildInputs = prevAttrs.buildInputs ++ [
-            (pkgsStatic.libkrb5.overrideAttrs (_: prevAttrs: {
-              configureFlags = prevAttrs.configureFlags ++ [
-                "--sysconfdir=/etc"
-                # disable keyutils dependency, to avoid linking errors
-                "--without-keyutils"
-              ];
-
-              postInstall = prevAttrs.postInstall + ''
-                ${pkgsStatic.pkgsBuildHost.removeReferencesTo}/bin/remove-references-to -t $out $out/lib/*.a
-              '';
-            }))
-          ];
+          buildInputs = prevAttrs.buildInputs ++ [ pkgsStatic.openssl ];
         });
       });
     });
