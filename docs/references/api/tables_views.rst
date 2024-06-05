@@ -136,6 +136,12 @@ You can also apply complex logic to the conditions:
     -d "student=is.true" \
     -d "or=(age.eq.14,not.and(age.gte.11,age.lte.17))"
 
+If the filter value has a :ref:`reserved character <reserved-chars>`, then you need to wrap it in double quotes:
+
+.. code-block:: bash
+
+  curl -g 'http://localhost:3000/survey?or=(age_range.adj."[18,21)",age_range.cs."[30,35]")'
+
 .. _modifiers:
 
 Operator Modifiers
