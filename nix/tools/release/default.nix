@@ -79,7 +79,7 @@ let
         fi
 
         trap "echo Remote not found. Please push manually ..." ERR
-        remote="$(git remote -v | grep 'PostgREST/postgrest\.git' | grep push | cut -f1)"
+        remote="$(git remote -v | grep 'PostgREST/postgrest' | grep push | cut -f1)"
         trap "" ERR
 
         if [[ "$current_branch" == "main" ]]; then
