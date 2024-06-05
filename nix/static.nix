@@ -25,14 +25,9 @@ let
 
       overrides = pkgs.lib.composeExtensions old.overrides (_: prev: {
         postgresql-libpq = (lib.overrideCabal prev.postgresql-libpq {
-          # TODO: This section can be simplified when this PR has made it's way to us:
-          #  https://github.com/NixOS/nixpkgs/pull/286370
-          # Using use-pkg-config flag, because pg_config won't work when cross-compiling
-          configureFlags = [ "-fuse-pkg-config" ];
           # postgresql doesn't build in the fully static overlay - but the default
           # derivation is built with static libraries anyway.
           libraryPkgconfigDepends = [ pkgsCross.libpq ];
-          librarySystemDepends = [ ];
         }).overrideAttrs (_: prevAttrs: {
           buildInputs = prevAttrs.buildInputs ++ [
             (pkgsStatic.libkrb5.overrideAttrs (_: prevAttrs: {
