@@ -44,6 +44,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Deprecated
 
+ - Support for PostgreSQL versions 9.6, 10 and 11 is deprecated. From this on version onwards, PostgREST will only support non-end-of-life PostgreSQL versions. See https://www.postgresql.org/support/versioning/.
  - `Prefer: params=single-object` is deprecated. Use [a function with a single unnamed JSON parameter](https://postgrest.org/en/latest/references/api/functions.html#function-single-json) instead. - @steve-chavez
 
 ### Documentation
