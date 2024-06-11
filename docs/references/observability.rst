@@ -22,7 +22,11 @@ PostgREST logs basic request information to ``stdout``, including the authentica
    127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
    127.0.0.1 - anonymous [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
 
-For diagnostic information about the server itself, PostgREST logs to ``stderr``. It includes the server version and also the version of the connected PostgreSQL.
+For diagnostic information about the server itself, PostgREST logs to ``stderr``:
+
+  - The full version of the connected PostgreSQL database.
+  - :ref:`schema_cache` statistics.
+  - The messages received by the :ref:`listener`.
 
 .. code::
 
@@ -30,6 +34,12 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:08:16:11 -0500: Attempting to connect to the database...
    06/May/2024:08:16:11 -0500: Successfully connected to PostgreSQL 14.10 (Ubuntu 14.10-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, 64-bit
    06/May/2024:08:16:11 -0500: Listening on port 3000
+   06/May/2024:08:16:11 -0500: Listening for notifications on the "pgrst" channel
+   06/May/2024:08:16:11 -0500: Config reloaded
+   06/May/2024:08:16:11 -0500: Schema cache queried in 3.8 milliseconds
+   06/May/2024:08:16:11 -0500: Schema cache loaded 15 Relations, 8 Relationships, 8 Functions, 0 Domain Representations, 4 Media Type Handlers
+   06/May/2024:14:11:27 -0500: Received a config reload message on the "pgrst" channel
+   06/May/2024:14:11:27 -0500: Config reloaded
 
 Database Logs
 -------------
