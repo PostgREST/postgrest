@@ -21,6 +21,12 @@ Supported PostgreSQL versions
 
 PostgREST works with all PostgreSQL versions starting from 9.6.
 
+.. note::
+
+   Support for PostgreSQL versions 9.6, 10 and 11 is deprecated. From this on version onwards, PostgREST will only support non-end-of-life PostgreSQL versions.
+
+   See https://www.postgresql.org/support/versioning/.
+
 Running PostgREST
 =================
 
