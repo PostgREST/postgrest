@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.0] - 2024-06-11
+
 ### Added
 
  - #2887, Add Preference `max-affected` to limit affected resources - @taimoorzaeem
