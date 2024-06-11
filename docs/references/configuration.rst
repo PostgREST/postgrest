@@ -694,6 +694,7 @@ log-level
       log-level = "info"
 
       # All the above plus events for development purposes are logged
+      # Logs connection pool events and the schema cache parsing time
       log-level = "debug"
 
   Because currently there's no buffering for logging, the levels with minimal logging(``crit/error``) will increase throughput.
