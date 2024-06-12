@@ -77,5 +77,4 @@ The HTTP server is provided by `Warp <https://aosabook.org/en/posa/warp.html>`_.
 Listener
 --------
 
-`Listener.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Listener.hs>`_ is in charge of maintaining a `LISTEN session <https://www.postgresql.org/docs/current/sql-listen.html>`_
-that keeps the :ref:`schema_cache` and the :ref:`in_db_config` up to date.
+`Listener.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Listener.hs>`_ is in charge of the :ref:`listener`.
