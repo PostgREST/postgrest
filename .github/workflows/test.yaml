@@ -39,7 +39,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -76,7 +76,7 @@ jobs:
         # https://github.com/actions/runner/issues/241#issuecomment-842566950
         shell: script -qec "bash --noprofile --norc -eo pipefail {0}"
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -100,7 +100,7 @@ jobs:
     name: Memory
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -114,7 +114,7 @@ jobs:
     name: Loadtest
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
       - name: Setup Nix Environment

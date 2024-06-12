@@ -33,7 +33,7 @@ jobs:
     name: Nix - Linux static
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -62,7 +62,7 @@ jobs:
     name: Nix - MacOS
     runs-on: macos-12
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
         uses: ./.github/actions/setup-nix
         with:
@@ -118,7 +118,7 @@ jobs:
     name: Stack - ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
         with:
           # This must match the version in stack.yaml's resolver
@@ -161,7 +161,7 @@ jobs:
     name: Stack - FreeBSD from CirrusCI
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: ./.github/actions/artifact-from-cirrus
         with:
           token: ${{ github.token }}
@@ -178,7 +178,7 @@ jobs:
     name: Cabal - Linux GHC ${{ matrix.ghc }}
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
         with:
           ghc-version: ${{ matrix.ghc }}
