@@ -135,13 +135,11 @@ To reload the configuration via signal, send a SIGUSR2 signal to the server proc
 Configuration Reload with NOTIFY
 --------------------------------
 
-To reload the configuration from within the database, you can use a NOTIFY command.
+To reload the configuration from within the database, you can use the ``NOTIFY`` command. See :ref:`listener`.
 
 .. code:: postgresql
 
    NOTIFY pgrst, 'reload config'
-
-The ``"pgrst"`` notification channel is enabled by default. You can name the channel with :ref:`db-channel` and enable or disable it with :ref:`db-channel-enabled`.
 
 .. _config_full_list:
 

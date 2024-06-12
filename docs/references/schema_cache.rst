@@ -47,15 +47,11 @@ For docker you can do:
 Schema Cache Reloading with NOTIFY
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-PostgREST also allows you to reload its schema cache through PostgreSQL `NOTIFY <https://www.postgresql.org/docs/current/sql-notify.html>`_.
+To reload the schema cache from within the database, you can use the ``NOTIFY`` command. See :ref:`listener`.
 
 .. code-block:: postgres
 
   NOTIFY pgrst, 'reload schema'
-
-This is useful in environments where you can’t send the SIGUSR1 Unix Signal. Like on cloud managed containers or on Windows systems.
-
-The ``pgrst`` notification channel is enabled by default. For configuring the channel, see :ref:`db-channel` and :ref:`db-channel-enabled`.
 
 .. _auto_schema_reloading:
 
