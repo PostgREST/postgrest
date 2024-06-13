@@ -22,9 +22,17 @@ Listener on Read Replicas
 The ``LISTEN`` and ``NOTIFY`` commands do not work on PostgreSQL read replicas.
 Thus, if you connect PostgREST to a read replica the Listener will fail to start.
 
-.. code:: console
+.. code:: psql
 
-  12/Jun/2024:15:19:57 -0500: Failed listening for notifications on the "pgrst" channel... connection to server... failed: session is read-only
+  -- check if the instance is a replica
+  postgres=# select pg_is_in_recovery();
+   pg_is_in_recovery
+  -------------------
+   t
+  (1 row)
+
+  postgres=# LISTEN pgrst;
+  ERROR:  cannot execute LISTEN during recovery
 
 To work around this, you can connect the Listener to the primary while still using the :ref:`connection_pool` on the replica.
 
