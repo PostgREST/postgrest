@@ -90,7 +90,8 @@ let
         ${pdflatex}/bin/pdflatex -halt-on-error -output-directory="$tmpdir" db.tex
         ${imagemagick}/bin/convert -density 300 "$tmpdir/db.pdf" ../_static/db.png
 
-        ${plantuml}/bin/plantuml arch.uml -o ../_static
+        ${plantuml}/bin/plantuml -tsvg arch.uml -o ../_static
+        ${plantuml}/bin/plantuml -tsvg -darkmode arch-dark.uml -o ../_static
       '';
 
   server =

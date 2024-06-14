@@ -1,7 +1,3 @@
-.. note::
-
-  This page is a work in progress.
-
 .. _schema_isolation:
 
 Schema Isolation
