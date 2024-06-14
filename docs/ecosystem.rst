@@ -66,6 +66,7 @@ These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for
 * `pgsql-listen-exchange <https://github.com/gmr/pgsql-listen-exchange>`_ - RabbitMQ
 * `postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
 * `postgresql2websocket <https://github.com/frafra/postgresql2websocket>`_ - Websockets
+* `pg-notify-stdout <https://github.com/mkleczek/pg-notify-stdout>`_ - writes notifications to standard output (use in shell scripts etc.)
 
 
 .. _eco_extensions:
