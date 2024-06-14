@@ -37,3 +37,16 @@ zathura db.pdf &
 # live reload with entr
 echo db.tex | entr pdflatex --shell-escape -halt-on-error db.tex
 ```
+
+## UML
+
+The UML diagrams are created with https://plantuml.com/.
+
+PlantUML only creates one diagram per file.
+That's why we need to create another one for dark mode.
+For example, for the file [arch.uml](./arch.uml) there's [arch-dark](./arch-dark.uml) which includes the first one:
+
+```bash
+plantuml -tsvg arch.uml -o ../_static
+plantuml -tsvg -darkmode arch-dark.uml -o ../_static
+```
