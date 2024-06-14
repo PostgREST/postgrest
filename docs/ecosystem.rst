@@ -62,6 +62,7 @@ External Notification
 
 These are PostgreSQL bridges that propagate LISTEN/NOTIFY to external queues for further processing. This allows functions to initiate actions outside the database such as sending emails.
 
+* `pg-notify-stdout <https://github.com/mkleczek/pg-notify-stdout>`_ - writes notifications to standard output (use in shell scripts etc.)
 * `pg-notify-webhook <https://github.com/vbalasu/pg-notify-webhook>`_ - trigger webhooks from PostgreSQL's LISTEN/NOTIFY
 * `pgsql-listen-exchange <https://github.com/gmr/pgsql-listen-exchange>`_ - RabbitMQ
 * `postgres-websockets <https://github.com/diogob/postgres-websockets>`_ - expose web sockets for PostgreSQL's LISTEN/NOTIFY
