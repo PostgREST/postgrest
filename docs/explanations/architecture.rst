@@ -6,7 +6,22 @@ This page describes the architecture of PostgREST.
 Bird's Eye View
 ===============
 
-.. image:: ../_static/arch.png
+You can click on the components to navigate to their respective documentation.
+
+  .. container:: img-dark
+
+    .. See https://github.com/sphinx-doc/sphinx/issues/2240#issuecomment-187366626
+
+    .. raw:: html
+
+      <object width="100%" data="../_static/arch-dark.svg" type="image/svg+xml"></object>
+
+  .. container:: img-light
+
+    .. raw:: html
+
+      <object width="100%" data="../_static/arch.svg" type="image/svg+xml"></object>
+
 
 Code Map
 ========
