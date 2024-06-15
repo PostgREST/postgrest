@@ -40,7 +40,7 @@ import qualified Hasql.Encoders             as HE
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
 
-import Contravariant.Extras          (contrazip2)
+import Data.Functor.Contravariant    ((>$<))
 import Text.InterpolatedString.Perl6 (q)
 
 import PostgREST.Config                      (AppConfig (..))
@@ -140,15 +140,15 @@ type SqlQuery = ByteString
 
 
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
-querySchemaCache AppConfig{..} = do
+querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- SQL.statement schemas $ allTables prepared
-  keyDeps <- SQL.statement (schemas, configDbExtraSearchPath) $ allViewsKeyDependencies prepared
+  tabs    <- SQL.statement conf $ allTables prepared
+  keyDeps <- SQL.statement conf $ allViewsKeyDependencies prepared
   m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
-  funcs   <- SQL.statement (schemas, configDbHoistedTxSettings) $ allFunctions prepared
+  funcs   <- SQL.statement conf $ allFunctions prepared
   cRels   <- SQL.statement mempty $ allComputedRels prepared
-  reps    <- SQL.statement schemas $ dataRepresentations prepared
-  mHdlers <- SQL.statement schemas $ mediaHandlers prepared
+  reps    <- SQL.statement conf $ dataRepresentations prepared
+  mHdlers <- SQL.statement conf $ mediaHandlers prepared
   tzones  <- SQL.statement mempty $ timezones prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
@@ -336,8 +336,8 @@ decodeRepresentations =
 -- 2. implicit
 -- For the time being it must also be to/from JSON or text, although one can imagine a future where we support special
 -- cases like CSV specific representations.
-dataRepresentations :: Bool -> SQL.Statement [Schema] RepresentationsMap
-dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentations
+dataRepresentations :: Bool -> SQL.Statement AppConfig RepresentationsMap
+dataRepresentations = SQL.Statement sql mempty decodeRepresentations
   where
     sql = [q|
     SELECT
@@ -358,14 +358,21 @@ dataRepresentations = SQL.Statement sql (arrayParam HE.text) decodeRepresentatio
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
-allFunctions = SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeFuncs
+allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
+allFunctions = SQL.Statement sql params decodeFuncs
   where
-    sql = funcsSqlQuery <> " AND pn.nspname = ANY($1)"
+    params =
+      (toList . configDbSchemas >$< arrayParam HE.text) <>
+      (configDbHoistedTxSettings >$< arrayParam HE.text)
+    sql =
+      funcsSqlQuery <> " AND pn.nspname = ANY($1)"
 
 accessibleFuncs :: Bool -> SQL.Statement (Schema, [Text]) RoutineMap
-accessibleFuncs = SQL.Statement sql (contrazip2 (param HE.text) (arrayParam HE.text)) decodeFuncs
+accessibleFuncs = SQL.Statement sql params decodeFuncs
   where
+    params =
+      (fst >$< param HE.text) <>
+      (snd >$< arrayParam HE.text)
     sql = funcsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
 
 funcsSqlQuery :: SqlQuery
@@ -599,9 +606,10 @@ addViewPrimaryKeys tabs keyDeps =
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
 
-allTables :: Bool -> SQL.Statement [Schema] TablesMap
-allTables =
-  SQL.Statement tablesSqlQuery (arrayParam HE.text) decodeTables
+allTables :: Bool -> SQL.Statement AppConfig TablesMap
+allTables = SQL.Statement tablesSqlQuery params decodeTables
+  where
+    params = toList . configDbSchemas >$< arrayParam HE.text
 
 -- | Gets tables with their PK cols
 tablesSqlQuery :: SqlQuery
@@ -909,13 +917,16 @@ allComputedRels =
     column HD.bool
 
 -- | Returns all the views' primary keys and foreign keys dependencies
-allViewsKeyDependencies :: Bool -> SQL.Statement ([Schema], [Schema]) [ViewKeyDependency]
+allViewsKeyDependencies :: Bool -> SQL.Statement AppConfig [ViewKeyDependency]
 allViewsKeyDependencies =
-  SQL.Statement sql (contrazip2 (arrayParam HE.text) (arrayParam HE.text)) decodeViewKeyDeps
+  SQL.Statement sql params decodeViewKeyDeps
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
   where
+    params =
+      (toList . configDbSchemas >$< arrayParam HE.text) <>
+      (configDbExtraSearchPath >$< arrayParam HE.text)
     sql = [q|
       with recursive
       pks_fks as (
@@ -1114,10 +1125,11 @@ initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
-mediaHandlers :: Bool -> SQL.Statement [Schema] MediaHandlerMap
+mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap
 mediaHandlers =
-  SQL.Statement sql (arrayParam HE.text) decodeMediaHandlers
+  SQL.Statement sql params decodeMediaHandlers
   where
+    params = toList . configDbSchemas >$< arrayParam HE.text
     sql = [q|
       with
       all_relations as (

@@ -101,7 +101,6 @@ library
                     , clock                     >= 0.8.3 && < 0.9.0
                     , configurator-pg           >= 0.2 && < 0.3
                     , containers                >= 0.5.7 && < 0.7
-                    , contravariant-extras      >= 0.3.3 && < 0.4
                     , cookie                    >= 0.4.2 && < 0.5
                     , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
