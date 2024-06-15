@@ -7,13 +7,11 @@ import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion121)
-
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: PgVersion -> SpecWith ((), Application)
-spec actualPgVersion = describe "json and jsonb operators" $ do
+spec :: SpecWith ((), Application)
+spec = describe "json and jsonb operators" $ do
   context "Shaping response with select parameter" $ do
     it "obtains a json subfield one level with casting" $
       get "/complex_items?id=eq.1&select=settings->>foo::json" `shouldRespondWith`
@@ -27,12 +25,8 @@ spec actualPgVersion = describe "json and jsonb operators" $ do
 
     it "fails on bad casting (data of the wrong format)" $
       get "/complex_items?select=settings->foo->>bar::integer"
-        `shouldRespondWith` (
-        if actualPgVersion >= pgVersion121 then
+        `shouldRespondWith`
         [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for type integer: \"baz\""} |]
-        else
-        [json| {"hint":null,"details":null,"code":"22P02","message":"invalid input syntax for integer: \"baz\""} |]
-                            )
         { matchStatus  = 400 , matchHeaders = [] }
 
     it "obtains a json subfield two levels (string)" $
