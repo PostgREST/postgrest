@@ -3,7 +3,7 @@
 Installation
 ############
 
-The release page has `pre-compiled binaries for macOS, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_ .
+The release page has `pre-compiled binaries for macOS, Windows, Linux and FreeBSD <https://github.com/PostgREST/postgrest/releases/latest>`_.
 The Linux binary is a static executable that can be run on any Linux distribution.
 
 You can also use your OS package manager.
