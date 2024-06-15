@@ -295,13 +295,7 @@ def setup(app):
 # taken from https://github.com/sphinx-doc/sphinx/blob/82dad44e5bd3776ecb6fd8ded656bc8151d0e63d/sphinx/util/requests.py#L42
 user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0"
 
-# TODO: these pages are returning 403 right now. Verify if they can be fixed by addressing the issue:
-# https://github.com/PostgREST/postgrest/issues/3544
-linkcheck_ignore = [
-    r"https://stackoverflow.com/",
-    r"https://www.patreon.com/postgrest",
-    r"https://blog.frankel.ch/poor-man-api",
-]
+linkcheck_ignore = []
 
 # sphinx-tabs configuration
 sphinx_tabs_disable_tab_closing = True

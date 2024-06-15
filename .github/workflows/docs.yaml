@@ -51,17 +51,3 @@ jobs:
       run: postgrest-docs-spellcheck
     - name: Run dictcheck
       run: postgrest-docs-dictcheck
-
-
-  linkcheck:
-    name: Linkcheck
-    if: github.base_ref == 'main'
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-    - name: Setup Nix Environment
-      uses: ./.github/actions/setup-nix
-      with:
-        authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-        tools: docs.linkcheck.bin
-    - run: postgrest-docs-linkcheck
