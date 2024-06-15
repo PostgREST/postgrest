@@ -29,22 +29,28 @@ let
           case "$1" in
             major)
               new_version="$((major+1)).0.0"
+              new_docs_version="$((major+1)).0"
               ;;
             minor)
               new_version="$major.$((minor+1)).0"
+              new_docs_version="$major.$((minor+1))"
               ;;
             patch)
               new_version="$major.$minor.$((patch+1))"
+              new_docs_version="$major.$minor"
               ;;
             devel)
               new_version="$major.$((minor+1))"
+              new_docs_version="devel"
               ;;
           esac
 
           echo "Updating postgrest.cabal ..."
           sed -i -E "s/^(version:\s+).*$/\1$new_version/" postgrest.cabal > /dev/null
+          echo "Updating docs/conf.py ..."
+          sed -i -E "s/^(version = ).*$/\1\"$new_docs_version\"/" docs/conf.py > /dev/null
 
-          git add postgrest.cabal > /dev/null        
+          git add postgrest.cabal docs/conf.py > /dev/null
         }
 
         today_date_for_changelog="$(date '+%Y-%m-%d')"

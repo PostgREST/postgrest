@@ -135,7 +135,7 @@ rec {
 
   # Scripts for publishing new releases.
   release =
-    pkgs.callPackage nix/tools/release { };
+    pkgs.callPackage nix/tools/release.nix { };
 
   # Linting and styling tools.
   style =
