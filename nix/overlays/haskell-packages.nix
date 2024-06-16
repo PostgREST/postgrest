@@ -59,6 +59,8 @@ let
 
       hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
 
+      jose-jwt = prev.jose-jwt_0_10_0;
+
       postgresql-libpq = lib.dontCheck
         (prev.postgresql-libpq.override {
           postgresql = super.libpq;

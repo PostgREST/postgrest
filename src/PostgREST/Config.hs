@@ -28,27 +28,24 @@ module PostgREST.Config
   , addTargetSessionAttrs
   ) where
 
-import qualified Crypto.JOSE.Types      as JOSE
-import qualified Crypto.JWT             as JWT
 import qualified Data.Aeson             as JSON
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Base64 as B64
-import qualified Data.ByteString.Lazy   as LBS
 import qualified Data.CaseInsensitive   as CI
 import qualified Data.Configurator      as C
 import qualified Data.Map.Strict        as M
 import qualified Data.Text              as T
 import qualified Data.Text.Encoding     as T
+import qualified Jose.Jwa               as JWT
+import qualified Jose.Jwk               as JWT
 
-import Control.Lens            (preview)
 import Control.Monad           (fail)
-import Crypto.JWT              (JWK, JWKSet, StringOrURI, stringOrUri)
-import Data.Aeson              (toJSON)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
+import Jose.Jwk                (Jwk, JwkSet)
 import Network.URI             (escapeURIString,
                                 isUnescapedInURIComponent)
 import Numeric                 (readOct, showOct)
@@ -92,8 +89,8 @@ data AppConfig = AppConfig
   , configDbTxRollbackAll          :: Bool
   , configDbUri                    :: Text
   , configFilePath                 :: Maybe FilePath
-  , configJWKS                     :: Maybe JWKSet
-  , configJwtAudience              :: Maybe StringOrURI
+  , configJWKS                     :: Maybe JwkSet
+  , configJwtAudience              :: Maybe Text
   , configJwtRoleClaimKey          :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
@@ -163,7 +160,7 @@ toText conf =
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("jwt-aud",                       T.decodeUtf8 . LBS.toStrict . JSON.encode . maybe "" toJSON . configJwtAudience)
+      ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
@@ -267,7 +264,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> pure optPath
     <*> pure Nothing
-    <*> parseJwtAudience "jwt-aud"
+    <*> optString "jwt-aud"
     <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
     <*> (fmap encodeUtf8 <$> optString "jwt-secret")
     <*> (fromMaybe False <$> optWithAlias
@@ -325,14 +322,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Nothing                            -> pure Nothing
         Just val | isMalformedProxyUri val -> fail "Malformed proxy uri, a correct example: https://example.com:8443/basePath"
                  | otherwise               -> pure $ Just val
-
-    parseJwtAudience :: C.Key -> C.Parser C.Config (Maybe StringOrURI)
-    parseJwtAudience k =
-      optString k >>= \case
-        Nothing -> pure Nothing -- no audience in config file
-        Just aud -> case preview stringOrUri (T.unpack aud) of
-          Nothing -> fail "Invalid Jwt audience. Check your configuration."
-          aud' -> pure aud'
 
     parseLogLevel :: C.Key -> C.Parser C.Config LogLevel
     parseLogLevel k =
@@ -447,24 +436,23 @@ decodeSecret conf@AppConfig{..} =
     decodeB64 = B64.decode . encodeUtf8 . T.strip . replaceUrlChars . decodeUtf8
     replaceUrlChars = T.replace "_" "/" . T.replace "-" "+" . T.replace "." "="
 
--- | Parse `jwt-secret` configuration option and turn into a JWKSet.
+-- | Parse `jwt-secret` configuration option and turn into a JWKS.
 --
 -- There are three ways to specify `jwt-secret`: text secret, JSON Web Key
--- (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JWKSet
+-- (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JwkSet
 -- with one key and the last is converted as is.
 decodeJWKS :: AppConfig -> AppConfig
 decodeJWKS conf =
   conf { configJWKS = parseSecret <$> configJwtSecret conf }
 
-parseSecret :: ByteString -> JWKSet
+parseSecret :: ByteString -> JwkSet
 parseSecret bytes =
-  fromMaybe (maybe secret (\jwk' -> JWT.JWKSet [jwk']) maybeJWK)
+  fromMaybe (maybe secret (\jwk' -> JWT.JwkSet [jwk']) maybeJWK)
     maybeJWKSet
   where
-    maybeJWKSet = JSON.decodeStrict bytes :: Maybe JWKSet
-    maybeJWK = JSON.decodeStrict bytes :: Maybe JWK
-    secret = JWT.JWKSet [JWT.fromKeyMaterial keyMaterial]
-    keyMaterial = JWT.OctKeyMaterial . JWT.OctKeyParameters $ JOSE.Base64Octets bytes
+    maybeJWKSet = JSON.decodeStrict bytes :: Maybe JwkSet
+    maybeJWK = JSON.decodeStrict bytes :: Maybe Jwk
+    secret = JWT.JwkSet [JWT.SymmetricJwk bytes Nothing (Just JWT.Sig) (Just $ JWT.Signed JWT.HS256)]
 
 -- | Read database uri from a separate file if `db-uri` is a filepath.
 readDbUriFile :: Maybe Text -> AppConfig -> IO AppConfig
