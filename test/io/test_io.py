@@ -66,6 +66,68 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         assert response.status_code == 200
 
 
+def test_jwt_errors(defaultenv):
+    "invalid JWT should throw error"
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
+
+    relativeSeconds = lambda sec: int(
+        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
+    )
+
+    with run(env=env) as postgrest:
+        headers = jwtauthheader({}, "other secret")
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWSError JWSInvalidSignature"
+
+        headers = jwtauthheader({"role": "not_existing"}, SECRET)
+        response = postgrest.session.get("/", headers=headers)
+        # TODO: Should this return 401?
+        assert response.status_code == 400
+        assert response.json()["message"] == 'role "not_existing" does not exist'
+
+        # -31 seconds, because we allow clock skew of 30 seconds
+        headers = jwtauthheader({"exp": relativeSeconds(-31)}, SECRET)
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWT expired"
+
+        # 31 seconds, because we allow clock skew of 30 seconds
+        headers = jwtauthheader({"nbf": relativeSeconds(31)}, SECRET)
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWTNotYetValid"
+
+        # 31 seconds, because we allow clock skew of 30 seconds
+        headers = jwtauthheader({"iat": relativeSeconds(31)}, SECRET)
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWTIssuedAtFuture"
+
+        headers = jwtauthheader({"aud": "not set"}, SECRET)
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWTNotInAudience"
+
+        # partial token, no signature
+        headers = authheader("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGFuIG9iamVjdA")
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert (
+            response.json()["message"]
+            == "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
+        )
+
+        # token with algorithm "none"
+        headers = authheader(
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI"
+        )
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWSError JWSNoSignatures"
+
+
 def test_fail_with_invalid_password(defaultenv):
     "Connecting with an invalid password should fail without retries."
     uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
@@ -837,8 +899,8 @@ def test_log_level(level, defaultenv):
 
     env = {**defaultenv, "PGRST_LOG_LEVEL": level}
 
-    # expired token to test 500 response for "JWT expired"
-    claim = {"role": "postgrest_test_author", "exp": 0}
+    # any token to test 500 response for "Server lacks JWT secret"
+    claim = {"role": "postgrest_test_author"}
     headers = jwtauthheader(claim, SECRET)
 
     with run(env=env) as postgrest:
