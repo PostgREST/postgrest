@@ -19,7 +19,6 @@ module PostgREST.Auth
   , middleware
   ) where
 
-import qualified Crypto.JWT                      as JWT
 import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.Key                  as K
 import qualified Data.Aeson.KeyMap               as KM
@@ -30,11 +29,12 @@ import qualified Data.Cache                      as C
 import qualified Data.Scientific                 as Sci
 import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
+import qualified Jose.Jwk                        as JWT
+import qualified Jose.Jwt                        as JWT
 import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Middleware.HttpAuth as Wai
 
-import Control.Lens            (set)
 import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
@@ -54,25 +54,57 @@ import Protolude
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: Monad m =>
-  AppConfig -> LByteString -> UTCTime -> ExceptT Error m JSON.Value
+parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
 parseToken _ "" _ = return JSON.emptyObject
 parseToken AppConfig{..} token time = do
   secret <- liftEither . maybeToRight JwtTokenMissing $ configJWKS
-  eitherClaims <-
-    lift . runExceptT $
-      JWT.verifyClaimsAt validation secret time =<< JWT.decodeCompact token
-  liftEither . mapLeft jwtClaimsError $ JSON.toJSON <$> eitherClaims
+  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
+  content <- liftEither . mapLeft jwtDecodeError $ eitherContent
+  liftEither $ verifyClaims content
   where
-    validation =
-      JWT.defaultJWTValidationSettings audienceCheck & set JWT.allowedSkew 30
+      -- TODO: Improve errors, those were just taken as-is from hs-jose to avoid
+      -- breaking changes.
+      jwtDecodeError :: JWT.JwtError -> Error
+      jwtDecodeError (JWT.KeyError _)     = JwtTokenInvalid "JWSError JWSInvalidSignature"
+      jwtDecodeError JWT.BadCrypto        = JwtTokenInvalid "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
+      jwtDecodeError (JWT.BadAlgorithm _) = JwtTokenInvalid "JWSError JWSNoSignatures"
+      jwtDecodeError e                    = JwtTokenInvalid $ show e
 
-    audienceCheck :: JWT.StringOrURI -> Bool
-    audienceCheck = maybe (const True) (==) configJwtAudience
+      verifyClaims :: JWT.JwtContent -> Either Error JSON.Value
+      verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
+        Nothing                    -> Left $ JwtTokenInvalid "Parsing claims failed"
+        Just (JSON.Object mclaims)
+          | failedExpClaim mclaims -> Left $ JwtTokenInvalid "JWT expired"
+          | failedNbfClaim mclaims -> Left $ JwtTokenInvalid "JWTNotYetValid"
+          | failedIatClaim mclaims -> Left $ JwtTokenInvalid "JWTIssuedAtFuture"
+          | failedAudClaim mclaims -> Left $ JwtTokenInvalid "JWTNotInAudience"
+        Just jclaims               -> Right jclaims
+      -- TODO: We could enable JWE support here (encrypted tokens)
+      verifyClaims _                = Left $ JwtTokenInvalid "Unsupported token type"
 
-    jwtClaimsError :: JWT.JWTError -> Error
-    jwtClaimsError JWT.JWTExpired = JwtTokenInvalid "JWT expired"
-    jwtClaimsError e              = JwtTokenInvalid $ show e
+      allowedSkewSeconds = 30 :: Int64
+      now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
+      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
+
+      failedExpClaim :: KM.KeyMap JSON.Value -> Bool
+      failedExpClaim mclaims = case KM.lookup "exp" mclaims of
+        Just (JSON.Number secs) -> now > (sciToInt secs + allowedSkewSeconds)
+        _                       -> False
+
+      failedNbfClaim :: KM.KeyMap JSON.Value -> Bool
+      failedNbfClaim mclaims = case KM.lookup "nbf" mclaims of
+        Just (JSON.Number secs) -> now < (sciToInt secs - allowedSkewSeconds)
+        _                       -> False
+
+      failedIatClaim :: KM.KeyMap JSON.Value -> Bool
+      failedIatClaim mclaims = case KM.lookup "iat" mclaims of
+        Just (JSON.Number secs) -> now < (sciToInt secs - allowedSkewSeconds)
+        _                       -> False
+
+      failedAudClaim :: KM.KeyMap JSON.Value -> Bool
+      failedAudClaim mclaims = case KM.lookup "aud" mclaims of
+        Just (JSON.String str) -> maybe (const False) (/=) configJwtAudience str
+        _                      -> False
 
 parseClaims :: Monad m =>
   AppConfig -> JSON.Value -> ExceptT Error m AuthResult
@@ -105,7 +137,7 @@ middleware appState app req respond = do
   time <- getTime appState
 
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseJwt = runExceptT $ parseToken conf (LBS.fromStrict token) time >>= parseClaims conf
+      parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
 
 -- If DbPlanEnabled       -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result

@@ -115,7 +115,7 @@ library
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
-                    , jose                      >= 0.8.5.1 && < 0.12
+                    , jose-jwt                  >= 0.9.6 && < 0.11
                     , lens                      >= 4.14 && < 5.3
                     , lens-aeson                >= 1.0.1 && < 1.3
                     , mtl                       >= 2.2.2 && < 2.4
