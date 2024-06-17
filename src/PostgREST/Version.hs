@@ -15,7 +15,7 @@ import Protolude
 
 
 -- | User friendly version number such as '1.1.1'.
--- Pre-release versions are tagged as such, e.g., '1.1.1.1 (pre-release)'.
+-- Pre-release versions are tagged as such, e.g., '1.1 (pre-release)'.
 -- If a git hash is available, it's added to the version, e.g., '1.1.1 (abcdef0)'.
 prettyVersion :: ByteString
 prettyVersion =
@@ -31,14 +31,14 @@ prettyVersion =
 
 -- | Version number used in docs.
 -- Pre-release versions link to the latest docs
--- Uses only the two first components of the version. Example: 'v1.1'
+-- Uses only the first component of the version. Example: 'v1'
 docsVersion :: Text
 docsVersion
   | isPreRelease = "latest"
-  | otherwise    =  "v" <> (T.intercalate "." . map show . take 2 $ versionBranch version)
+  | otherwise    =  "v" <> (T.intercalate "." . map show . take 1 $ versionBranch version)
 
 
--- | Versions with four components (e.g., '1.1.1.1') are treated as pre-releases.
+-- | Versions with two components (e.g., '1.1') are treated as pre-releases.
 isPreRelease :: Bool
 isPreRelease =
-  length (versionBranch version) == 4
+  length (versionBranch version) == 2
