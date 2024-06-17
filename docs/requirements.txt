@@ -3,4 +3,4 @@ sphinx>=4.3.0
 sphinx-copybutton
 sphinx-rtd-theme>=0.5.1
 sphinx-tabs
-urllib3==2.2.1
+urllib3==2.2.2
