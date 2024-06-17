@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP             #-}
 {-# LANGUAGE TemplateHaskell #-}
 module PostgREST.Version
   ( docsVersion
@@ -7,19 +8,19 @@ module PostgREST.Version
 import qualified Data.ByteString as BS
 import qualified Data.Text       as T
 
-import Data.Version       (showVersion, versionBranch)
 import Development.GitRev (gitHash)
-import Paths_postgrest    (version)
 
 import Protolude
 
+version :: [Text]
+version = T.splitOn "." VERSION_postgrest
 
 -- | User friendly version number such as '1.1.1'.
 -- Pre-release versions are tagged as such, e.g., '1.1 (pre-release)'.
 -- If a git hash is available, it's added to the version, e.g., '1.1.1 (abcdef0)'.
 prettyVersion :: ByteString
 prettyVersion =
-  toUtf8 (showVersion version) <> preRelease <> gitRev
+  VERSION_postgrest <> preRelease <> gitRev
   where
     gitRev =
       if $(gitHash) == ("UNKNOWN" :: Text) then
@@ -35,10 +36,10 @@ prettyVersion =
 docsVersion :: Text
 docsVersion
   | isPreRelease = "latest"
-  | otherwise    =  "v" <> (T.intercalate "." . map show . take 1 $ versionBranch version)
+  | otherwise    =  "v" <> (T.intercalate "." . map show . take 1 $ version)
 
 
 -- | Versions with two components (e.g., '1.1') are treated as pre-releases.
 isPreRelease :: Bool
 isPreRelease =
-  length (versionBranch version) == 2
+  length version == 2
