@@ -228,7 +228,7 @@ When a pre-built binary does not exist for your system you can build the project
 
 You can build PostgREST from source with `Stack <https://github.com/commercialhaskell/stack>`_. It will install any necessary Haskell dependencies on your system.
 
-* `Install Stack <https://docs.haskellstack.org/en/stable/README/#how-to-install-stack>`_ for your platform
+* `Install Stack <https://docs.haskellstack.org/en/stable/#how-to-install-stack>`_ for your platform
 * Install Library Dependencies
 
   =====================  =======================================
