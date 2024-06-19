@@ -295,7 +295,10 @@ def setup(app):
 # taken from https://github.com/sphinx-doc/sphinx/blob/82dad44e5bd3776ecb6fd8ded656bc8151d0e63d/sphinx/util/requests.py#L42
 user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0"
 
-linkcheck_ignore = []
+linkcheck_ignore = [
+    r"https://www.patreon.com/postgrest",
+    r"https://blog.frankel.ch/poor-man-api",
+]
 
 # sphinx-tabs configuration
 sphinx_tabs_disable_tab_closing = True
