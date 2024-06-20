@@ -106,7 +106,7 @@ data AppConfig = AppConfig
   , configServerTimingEnabled      :: Bool
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
-  , configAdminServerHost          :: Text
+  , configAdminServerHost          :: Maybe Text
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
@@ -177,7 +177,7 @@ toText conf =
       ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
-      ,("admin-server-host",         q . configAdminServerHost)
+      ,("admin-server-host",         q . fromMaybe "\"\"" . configAdminServerHost)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
       ]
 
@@ -218,12 +218,15 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
   -- if no filename provided, start with an empty map to read config from environment
   conf <- maybe (return $ Right M.empty) loadConfig optPath
 
-  case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
+  cfg <- case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
       Right <$> decodeLoadFiles parsedConfig
+  return $ fmap fallbackAdminServerHost cfg 
   where
+    fallbackAdminServerHost cfg@AppConfig{..} =
+      cfg { configAdminServerHost = Just $ fromMaybe configServerHost configAdminServerHost }
     -- Both C.ParseError and IOError are shown here
     loadConfig :: FilePath -> IO (Either SomeException C.Config)
     loadConfig = try . C.load
@@ -278,19 +281,18 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
-    <*> (fromMaybe fallbackServerHost <$> optString "server-host")
+    <*> (fromMaybe "!4" <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
-    <*> (fromMaybe fallbackServerHost <$> optString "admin-server-host")
+    <*> optString "admin-server-host"
     <*> optInt "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-sleep"
   where
-    fallbackServerHost = "!4"
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value
       where
