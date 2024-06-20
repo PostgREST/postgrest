@@ -223,7 +223,7 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
       Right <$> decodeLoadFiles parsedConfig
-  return $ fmap fallbackAdminServerHost cfg 
+  return $ fmap fallbackAdminServerHost cfg
   where
     fallbackAdminServerHost cfg@AppConfig{..} =
       cfg { configAdminServerHost = Just $ fromMaybe configServerHost configAdminServerHost }
