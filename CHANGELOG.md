@@ -14,6 +14,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
+ - #3508, #3559, Server port and admin server port can end up with the same value - @develop7
+    + The app fails to start when the server port and admin server port are the same
 
 ## [12.2.0] - 2024-06-11
 
@@ -53,8 +55,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3414, Force listener to connect to read-write instances using `target_session_attrs` - @steve-chavez
  - #3255, Fix incorrect `413 Request Entity Too Large` on pg errors `54*` - @taimoorzaeem
  - #3549, Remove verbosity from error logs starting with "An error occurred..." and replacing it with "Failed to..." - @laurenceisla
- - #3508, #3559, Server port and admin server port can end up with the same value - @develop7
-    + The app is fails to start when the server port and admin server port are the same
 
 ### Deprecated
 
