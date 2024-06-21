@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
+
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
@@ -31,7 +35,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3184, Log full pg version to stderr on connection - @steve-chavez
  - #3242. Add config `db-hoisted-tx-settings` to apply only hoisted function settings - @taimoorzaeem
  - #3214, #3229 Log connection pool events on log-level=debug - @steve-chavez, @laurenceisla
- - #3558, Config: introduce admin-server-host config parameter - @develop7
 
 ### Fixed
 
