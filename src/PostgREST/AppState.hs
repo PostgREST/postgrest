@@ -192,7 +192,7 @@ initSockets AppConfig{..} = do
     cfg'uspm = configServerUnixSocketMode
     cfg'host = configServerHost
     cfg'port = configServerPort
-    cfg'adminHost = fromMaybe cfg'host configAdminServerHost -- TODO: Get rid of fromMaybe
+    cfg'adminHost = configAdminServerHost
     cfg'adminPort = configAdminServerPort
 
   sock <- case cfg'usp of
