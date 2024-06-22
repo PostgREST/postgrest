@@ -414,7 +414,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
           WHEN 'character'::regtype THEN 'character varying'
           WHEN 'character[]'::regtype THEN 'character varying[]'
           ELSE type::regtype::text
-        END, -- convert types that ignore the lenth and accept any value till maximum size
+        END, -- convert types that ignore the length and accept any value till maximum size
         idx <= (pronargs - pronargdefaults), -- is_required
         COALESCE(mode = 'v', FALSE) -- is_variadic
       ) ORDER BY idx) AS args,
@@ -1113,7 +1113,7 @@ allViewsKeyDependencies =
       join pg_class tbl on tbl.oid = rep.resorigtbl
       join pg_attribute col on col.attrelid = tbl.oid and col.attnum = rep.resorigcol
       join pg_namespace sch on sch.oid = tbl.relnamespace
-      group by sch.nspname, tbl.relname,  rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype, pks_fks.ncol
+      group by sch.nspname, tbl.relname, rep.view_schema, rep.view_name, pks_fks.conname, pks_fks.contype, pks_fks.ncol
       -- make sure we only return key for which all columns are referenced in the view - no partial PKs or FKs
       having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
