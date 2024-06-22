@@ -638,12 +638,12 @@ tablesSqlQuery =
           CASE
               WHEN t.typtype = 'd' THEN
               CASE
-                  WHEN nbt.nspname = 'pg_catalog'::name THEN format_type(t.typbasetype, NULL::integer)
+                  WHEN nbt.oid = 'pg_catalog'::regnamespace THEN format_type(t.typbasetype, NULL::integer)
                   ELSE format_type(a.atttypid, a.atttypmod)
               END
               ELSE
               CASE
-                  WHEN nt.nspname = 'pg_catalog'::name THEN format_type(a.atttypid, NULL::integer)
+                  WHEN nt.oid = 'pg_catalog'::regnamespace THEN format_type(a.atttypid, NULL::integer)
                   ELSE format_type(a.atttypid, a.atttypmod)
               END
           END::text AS data_type,
@@ -738,6 +738,7 @@ tablesSqlQuery =
         WHERE
           c.contype in ('p', 'u')
           AND r.relkind IN ('r', 'p')
+          AND nr.oid NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
           AND NOT pg_is_other_temp_schema(nr.oid)
       ) ss ON a.attrelid = ss.roid AND a.attnum = (ss.x).x
       WHERE
@@ -756,8 +757,6 @@ tablesSqlQuery =
         key_col_usage.table_name = tbl_constraints.table_name AND
         key_col_usage.table_schema = tbl_constraints.table_schema AND
         key_col_usage.constraint_name = tbl_constraints.constraint_name
-    WHERE
-        key_col_usage.table_schema NOT IN ('pg_catalog', 'information_schema')
     GROUP BY key_col_usage.table_schema, key_col_usage.table_name
   )
   SELECT
@@ -799,7 +798,7 @@ tablesSqlQuery =
   LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
   LEFT JOIN columns_agg cols_agg ON n.nspname = cols_agg.table_schema AND c.relname = cols_agg.table_name
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND c.relnamespace NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
   AND not c.relispartition
   ORDER BY table_schema, table_name|]
 
@@ -824,7 +823,7 @@ allM2OandO2ORels =
       ) column_info ON TRUE
       WHERE
         contype IN ('p', 'u') and
-        connamespace::regnamespace::text <> 'pg_catalog'
+        connamespace <> 'pg_catalog'::regnamespace
       GROUP BY connamespace, conrelid
     )
     SELECT
