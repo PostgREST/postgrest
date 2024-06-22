@@ -25,6 +25,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
  - #3508, PostgREST now fails to start when `server-port` and `admin-server-port` config options are the same - @develop7
  - #3607, PostgREST now fails to start when the JWT secret is less than 32 characters long - @laurenceisla
+ - #3644, Fail schema cache lookup with invalid db-schemas config - @wolfgangwalther
+   - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
 
 ## [12.2.1] - 2024-06-27
 
