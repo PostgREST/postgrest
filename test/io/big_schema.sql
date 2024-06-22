@@ -3,7 +3,7 @@ This is a 2018 version of the apflora schema https://github.com/barbalex/apf2/tr
 
 We use it to test our metadata generation because it contains a good amount of db objects.
 
-Custom roles and privileges where removed.
+Custom roles and privileges were removed.
 
 postgrest-with-postgresql-14 -f test/io/big_schema.sql psql
 
