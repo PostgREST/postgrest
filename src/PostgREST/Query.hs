@@ -181,7 +181,7 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCach
       tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
       MaybeDbResult plan . Just <$> ((,,)
             (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement (tSchema, configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
+        <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
         <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
     OAIgnorePriv ->
       MaybeDbResult plan . Just <$> ((,,)

@@ -360,21 +360,19 @@ dataRepresentations = SQL.Statement sql mempty decodeRepresentations
     |]
 
 allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
-allFunctions = SQL.Statement sql params decodeFuncs
+allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
   where
     params =
       (toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbHoistedTxSettings >$< arrayParam HE.text)
-    sql =
-      funcsSqlQuery <> " AND pn.nspname = ANY($1)"
 
-accessibleFuncs :: Bool -> SQL.Statement (Schema, [Text]) RoutineMap
+accessibleFuncs :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
 accessibleFuncs = SQL.Statement sql params decodeFuncs
   where
     params =
-      (fst >$< param HE.text) <>
+      (fst >$< arrayParam HE.text) <>
       (snd >$< arrayParam HE.text)
-    sql = funcsSqlQuery <> " AND pn.nspname = $1 AND has_function_privilege(p.oid, 'execute')"
+    sql = funcsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
 funcsSqlQuery :: SqlQuery
 funcsSqlQuery = encodeUtf8 [trimming|
@@ -465,7 +463,8 @@ funcsSqlQuery = encodeUtf8 [trimming|
     WHERE setting ~ ANY($$2)
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
-  AND prokind = 'f'|]
+  AND prokind = 'f'
+  AND pn.nspname = ANY($$1) |]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
