@@ -46,6 +46,7 @@ import NeatInterpolation          (trimming)
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               toIsolationLevel)
+import PostgREST.Query.SqlFragment           (escapeIdent)
 import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
@@ -363,7 +364,7 @@ allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
 allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
   where
     params =
-      (toList . configDbSchemas >$< arrayParam HE.text) <>
+      (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbHoistedTxSettings >$< arrayParam HE.text)
 
 accessibleFuncs :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
@@ -464,7 +465,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
   ) func_settings ON TRUE
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
   AND prokind = 'f'
-  AND pn.nspname = ANY($$1) |]
+  AND p.pronamespace = ANY($$1::regnamespace[]) |]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
@@ -477,12 +478,13 @@ schemaDescription =
         pg_namespace n
         left join pg_description d on d.objoid = n.oid
       where
-        n.nspname = $$1 |]
+        n.oid = $$1::regnamespace |]
 
 accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables =
-  SQL.Statement sql (arrayParam HE.text) decodeAccessibleIdentifiers
+  SQL.Statement sql params decodeAccessibleIdentifiers
  where
+  params = map escapeIdent >$< arrayParam HE.text
   sql = encodeUtf8 [trimming|
     SELECT
       n.nspname AS table_schema,
@@ -490,7 +492,7 @@ accessibleTables =
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('v','r','m','f','p')
-    AND n.nspname = ANY($$1)
+    AND c.relnamespace = ANY($$1::regnamespace[])
     AND (
       pg_has_role(c.relowner, 'USAGE')
       or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -608,7 +610,7 @@ addViewPrimaryKeys tabs keyDeps =
 allTables :: Bool -> SQL.Statement AppConfig TablesMap
 allTables = SQL.Statement tablesSqlQuery params decodeTables
   where
-    params = toList . configDbSchemas >$< arrayParam HE.text
+    params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
 
 -- | Gets tables with their PK cols
 tablesSqlQuery :: SqlQuery
@@ -657,7 +659,7 @@ tablesSqlQuery =
               ON d.objoid = a.attrelid and d.objsubid = a.attnum
           LEFT JOIN pg_attrdef ad
               ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
-          JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid)
+          JOIN pg_class c
               ON a.attrelid = c.oid
           JOIN pg_type t
               ON a.atttypid = t.oid
@@ -670,7 +672,7 @@ tablesSqlQuery =
           AND a.attnum > 0
           AND NOT a.attisdropped
           AND c.relkind in ('r', 'v', 'f', 'm', 'p')
-          AND nc.nspname = ANY($$1)
+          AND c.relnamespace = ANY($$1::regnamespace[])
   ),
   columns_agg AS (
     SELECT
@@ -856,8 +858,8 @@ allViewsKeyDependencies =
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
   where
     params =
-      (toList . configDbSchemas >$< arrayParam HE.text) <>
-      (configDbExtraSearchPath >$< arrayParam HE.text)
+      (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
+      (map escapeIdent . toList . configDbExtraSearchPath >$< arrayParam HE.text)
     sql = encodeUtf8 [trimming|
       with recursive
       pks_fks as (
@@ -887,18 +889,19 @@ allViewsKeyDependencies =
       ),
       views as (
         select
-          c.oid       as view_id,
-          n.nspname   as view_schema,
-          c.relname   as view_name,
-          r.ev_action as view_definition
+          c.oid          as view_id,
+          c.relnamespace as view_schema_id,
+          n.nspname      as view_schema,
+          c.relname      as view_name,
+          r.ev_action    as view_definition
         from pg_class c
         join pg_namespace n on n.oid = c.relnamespace
         join pg_rewrite r on r.ev_class = c.oid
-        where c.relkind in ('v', 'm') and n.nspname = ANY($$1 || $$2)
+        where c.relkind in ('v', 'm') and c.relnamespace = ANY($$1::regnamespace[] || $$2::regnamespace[])
       ),
       transform_json as (
         select
-          view_id, view_schema, view_name,
+          view_id, view_schema_id, view_schema, view_name,
           -- the following formatting is without indentation on purpose
           -- to allow simple diffs, with less whitespace noise
           replace(
@@ -978,13 +981,13 @@ allViewsKeyDependencies =
       ),
       target_entries as(
         select
-          view_id, view_schema, view_name,
+          view_id, view_schema_id, view_schema, view_name,
           json_array_elements(view_definition->0->'targetList') as entry
         from transform_json
       ),
       results as(
         select
-          view_id, view_schema, view_name,
+          view_id, view_schema_id, view_schema, view_name,
           (entry->>'resno')::int as view_column,
           (entry->>'resorigtbl')::oid as resorigtbl,
           (entry->>'resorigcol')::int as resorigcol
@@ -992,16 +995,17 @@ allViewsKeyDependencies =
       ),
       -- CYCLE detection according to PG docs: https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-CYCLE
       -- Can be replaced with CYCLE clause once PG v13 is EOL.
-      recursion(view_id, view_schema, view_name, view_column, resorigtbl, resorigcol, is_cycle, path) as(
+      recursion(view_id, view_schema_id, view_schema, view_name, view_column, resorigtbl, resorigcol, is_cycle, path) as(
         select
           r.*,
           false,
           ARRAY[resorigtbl]
         from results r
-        where view_schema = ANY ($$1)
+        where view_schema_id = ANY ($$1::regnamespace[])
         union all
         select
           view.view_id,
+          view.view_schema_id,
           view.view_schema,
           view.view_name,
           view.view_column,
@@ -1060,7 +1064,7 @@ mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap
 mediaHandlers =
   SQL.Statement sql params decodeMediaHandlers
   where
-    params = toList . configDbSchemas >$< arrayParam HE.text
+    params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
     sql = encodeUtf8 [trimming|
       with
       all_relations as (
@@ -1101,7 +1105,7 @@ mediaHandlers =
         join pg_type      arg_name     on arg_name.oid = proc.proargtypes[0]
         join pg_namespace arg_schema   on arg_schema.oid = arg_name.typnamespace
       where
-        proc_schema.nspname = ANY($$1) and
+        proc.pronamespace = ANY($$1::regnamespace[]) and
         proc.pronargs = 1 and
         arg_name.oid in (select reltype from all_relations)
       union
@@ -1117,7 +1121,7 @@ mediaHandlers =
         join media_types mtype on proc.prorettype = mtype.oid
         join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
       where
-        pro_sch.nspname = ANY($$1) and NOT proretset
+        proc.pronamespace = ANY($$1::regnamespace[]) and NOT proretset
         and prokind = 'f'|]
 
 decodeMediaHandlers :: HD.Result MediaHandlerMap

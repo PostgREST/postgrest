@@ -157,10 +157,10 @@ pgBuildArrayLiteral vals =
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SQL.Snippet
-pgFmtIdent x = SQL.sql $ escapeIdent x
+pgFmtIdent x = SQL.sql . encodeUtf8 $ escapeIdent x
 
-escapeIdent :: Text -> ByteString
-escapeIdent x = encodeUtf8 $ "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
+escapeIdent :: Text -> Text
+escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
 
 -- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
 pgFmtLit :: Text -> Text
@@ -181,7 +181,7 @@ trimNullChars = T.takeWhile (/= '\x0')
 -- >>> escapeIdentList ["schema_1", "schema_2", "SPECIAL \"@/\\#~_-"]
 -- "\"schema_1\", \"schema_2\", \"SPECIAL \"\"@/\\#~_-\""
 escapeIdentList :: [Text] -> ByteString
-escapeIdentList schemas = BS.intercalate ", " $ escapeIdent <$> schemas
+escapeIdentList schemas = BS.intercalate ", " $ encodeUtf8 . escapeIdent <$> schemas
 
 asCsvF :: SQL.Snippet
 asCsvF = asCsvHeaderF <> " || '\n' || " <> asCsvBodyF

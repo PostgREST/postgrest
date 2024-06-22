@@ -227,9 +227,6 @@ testCfgAsymJWKSet =
   , configJWKS = rightToMaybe $ parseSecret secret
   }
 
-testNonexistentSchemaCfg :: AppConfig
-testNonexistentSchemaCfg = baseCfg { configDbSchemas = fromList ["nonexistent"] }
-
 testCfgExtraSearchPath :: AppConfig
 testCfgExtraSearchPath = baseCfg { configDbExtraSearchPath = ["public", "extensions", "EXTRA \"@/\\#~_-"] }
 
