@@ -149,3 +149,7 @@ html[data-theme="dark"] .img-translucent img {
   transition: background-color 0.3s;
   margin-bottom: 24px;
 }
+
+.svg-container-md {
+  max-width: 400px;
+}
