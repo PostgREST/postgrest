@@ -2,10 +2,8 @@
 , aspellDicts
 , buildToolbox
 , checkedShellScript
-, imagemagick
 , python3
 , python3Packages
-, texlive
 , writers
 , plantuml
 }:
@@ -61,35 +59,13 @@ let
       '';
 
   render =
-    let
-      pdflatex = texlive.combine {
-        inherit (texlive)
-          amsmath
-          booktabs
-          cancel
-          gensymb
-          mathdots
-          multirow
-          pgf
-          pgf-blur
-          scheme-basic
-          siunitx
-          standalone
-          yhmath
-          ;
-      };
-    in
     checkedShellScript
       {
         name = "postgrest-docs-render";
         docs = "Render the diagrams.";
         workingDir = "/docs/_diagrams";
-        withTmpDir = true;
       }
       ''
-        ${pdflatex}/bin/pdflatex -halt-on-error -output-directory="$tmpdir" db.tex
-        ${imagemagick}/bin/convert -density 300 "$tmpdir/db.pdf" ../_static/db.png
-
         ${plantuml}/bin/plantuml -tsvg uml/*.uml -o ../../_static
         ${plantuml}/bin/plantuml -tsvg -darkmode uml/dark/*.uml -o ../../../_static
       '';
