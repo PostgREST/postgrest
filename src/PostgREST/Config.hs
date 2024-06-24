@@ -278,13 +278,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
-    <*> parseServerHost "server-host"
+    <*> (defaultServerHost <$> optString "server-host")
     <*> (fromMaybe 3000 <$> optInt "server-port")
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
-    <*> parseAdminServerHost "admin-server-host" "server-host"
+    <*> (defaultServerHost <$> optWithAlias (optString "admin-server-host")
+                                            (optString "server-host"))
     <*> optInt "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
@@ -296,16 +297,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         addFromEnv f = M.toList $ M.union fromEnv $ M.fromList f
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> T.stripPrefix "PGRST_APP_SETTINGS_" (toS k)
-
-    parseServerHost :: C.Key -> C.Parser C.Config Text
-    parseServerHost key =
-      fromMaybe "!4" <$> optString key
-
-    parseAdminServerHost :: C.Key -> C.Key -> C.Parser C.Config Text
-    parseAdminServerHost mainKey fallbackKey =
-      optString mainKey >>= \case
-        Just ash -> pure ash
-        Nothing  -> parseServerHost fallbackKey
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
@@ -424,6 +415,9 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     splitOnCommas _            = []
 
     defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
+
+    defaultServerHost :: Maybe Text -> Text
+    defaultServerHost = fromMaybe "!4"
 
 -- | Read the JWT secret from a file if configJwtSecret is actually a
 -- filepath(has @ as its prefix). To check if the JWT secret is provided is
