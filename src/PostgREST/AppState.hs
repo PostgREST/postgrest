@@ -192,7 +192,8 @@ initSockets AppConfig{..} = do
     cfg'uspm = configServerUnixSocketMode
     cfg'host = configServerHost
     cfg'port = configServerPort
-    cfg'adminport = configAdminServerPort
+    cfg'adminHost = configAdminServerHost
+    cfg'adminPort = configAdminServerPort
 
   sock <- case cfg'usp of
     -- I'm not using `streaming-commons`' bindPath function here because it's not defined for Windows,
@@ -210,9 +211,9 @@ initSockets AppConfig{..} = do
             pure (num, sock)
       pure sock
 
-  adminSock <- case cfg'adminport of
+  adminSock <- case cfg'adminPort of
     Just adminPort -> do
-      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'host)
+      adminSock <- bindPortTCP adminPort (fromString $ T.unpack cfg'adminHost)
       pure $ Just adminSock
     Nothing -> pure Nothing
 

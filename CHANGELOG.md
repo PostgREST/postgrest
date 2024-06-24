@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+ - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
+
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther

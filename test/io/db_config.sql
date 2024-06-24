@@ -35,6 +35,7 @@ CREATE DATABASE other;
 ALTER ROLE db_config_authenticator IN DATABASE other SET pgrst.db_max_rows = '1111';
 
 -- non-reloadable configs
+ALTER ROLE db_config_authenticator SET pgrst.admin_server_host = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.admin_server_port = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_channel = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_channel_enabled = 'ignored';
