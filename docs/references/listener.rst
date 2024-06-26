@@ -47,3 +47,14 @@ This will cause the :ref:`connection_pool` to connect to the read replica host a
 .. note::
 
   Under the hood, PostgREST forces `target_session_attrs=read-write <https://www.postgresql.org/docs/current/libpq-connect.html#LIBPQ-CONNECT-TARGET-SESSION-ATTRS>`_ for the ``LISTEN`` session.
+
+.. _listener_automatic_recovery:
+
+Automatic Recovery
+==================
+
+The listener will retry reconnecting to the database if connection loss happens.
+
+- It will retry forever with exponential backoff, with a maximum backoff time of 32 seconds between retries. Each of these attempts are :ref:`logged <pgrst_logging>`.
+- Automatic recovery can be disabled by setting :ref:`db-pool-automatic-recovery` to ``false``.
+- To ensure a valid state, the listener reloads the :ref:`schema_cache` and :ref:`configuration` when recovering.
