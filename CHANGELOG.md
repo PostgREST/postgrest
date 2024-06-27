@@ -19,6 +19,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
 
+### Documentation
+
+ - #3592, Architecture diagram now supports dark mode and has links - @laurenceisla
+ - #3616, The schema isolation diagram now supports dark mode and uses well-known schemas - @laurenceisla
+
 ## [12.2.0] - 2024-06-11
 
 ### Added
