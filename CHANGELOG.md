@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.1] - 2024-06-27
+
 ### Fixed
 
  - #3147, Don't reload schema cache on every listener failure - @steve-chavez
