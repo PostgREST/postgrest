@@ -9,6 +9,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3147, Don't reload schema cache on every listener failure - @steve-chavez
 
+### Documentation
+
+ - #3592, Architecture diagram now supports dark mode and has links - @laurenceisla
+ - #3616, The schema isolation diagram now supports dark mode and uses well-known schemas - @laurenceisla
+
 ## [12.2.0] - 2024-06-11
 
 ### Added
