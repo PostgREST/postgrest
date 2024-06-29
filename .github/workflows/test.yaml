@@ -114,7 +114,7 @@ jobs:
     name: Loadtest
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
         with:
           fetch-depth: 0
       - name: Setup Nix Environment
