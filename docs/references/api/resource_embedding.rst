@@ -927,7 +927,12 @@ Filters can also be applied on nested embedded resources:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/films?select=*,roles(*,actors(*))&roles.actors.order=last_name&roles.actors.first_name=like.*Tom*"
+  # curl "http://localhost:3000/films?select=*,roles(*,actors(*))&roles.actors.order=last_name&roles.actors.first_name=like.*Tom*"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=*,roles(*,actors(*))" \
+    -d "roles.actors.order=last_name" \
+    -d "roles.actors.first_name=like.*Tom*"
 
 The result will show the nested actors named Tom and order them by last name. Aliases can also be used instead of the resource names to filter the nested tables.
 
