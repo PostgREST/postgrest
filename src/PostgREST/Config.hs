@@ -222,7 +222,8 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
     Left err ->
       return . Left $ "Error in config " <> err
     Right parsedConfig ->
-      Right <$> decodeLoadFiles parsedConfig
+      catch (Right <$> decodeLoadFiles parsedConfig)
+            (\e -> pure $ Left (show (e :: IOException)))
   where
     -- Both C.ParseError and IOError are shown here
     loadConfig :: FilePath -> IO (Either SomeException C.Config)
