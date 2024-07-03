@@ -297,7 +297,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         addFromEnv f = M.toList $ M.union fromEnv $ M.fromList f
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> T.stripPrefix "PGRST_APP_SETTINGS_" (toS k)
-    
+
     parseServerPort :: C.Key -> C.Parser C.Config Int
     parseServerPort k = fromMaybe 3000 <$> optInt k
 
