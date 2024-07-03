@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
+ - #3508, PostgREST now fails to start when `server-port` and `admin-server-port` config options are the same - @develop7
 
 ### Documentation
 

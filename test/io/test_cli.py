@@ -123,6 +123,15 @@ def test_cli(args, env, use_defaultenv, expect, defaultenv):
             assert expect in dump
 
 
+def test_server_port_and_admin_port_same_value(defaultenv):
+    "PostgREST should exit with an error message in output if server-port and admin-server-port are the same."
+    env = {**defaultenv, "PGRST_SERVER_PORT": "3000", "PGRST_ADMIN_SERVER_PORT": "3000"}
+
+    with pytest.raises(PostgrestError):
+        dump = cli(["--dump-config"], env=env).split("\n")
+        assert "admin-server-port cannot be the same as server-port" in dump
+
+
 @pytest.mark.parametrize(
     "expectedconfig",
     [
