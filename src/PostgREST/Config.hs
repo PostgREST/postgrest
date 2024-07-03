@@ -220,11 +220,11 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
 
   case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
-      return . Left $ "Error in config " <> err
+      return . Left $ "Error in config: " <> err
     Right parsedConfig ->
       case processForbiddenValues parsedConfig of
         Left err' ->
-          return . Left $ "Error in config " <> err'
+          return . Left $ "Error in config: " <> err'
         Right config ->
           Right <$> decodeLoadFiles config
   where
