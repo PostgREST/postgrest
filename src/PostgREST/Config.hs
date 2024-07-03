@@ -221,21 +221,12 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
   case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
       return . Left $ "Error in config: " <> err
-    Right parsedConfig ->
-      case processForbiddenValues parsedConfig of
-        Left err' ->
-          return . Left $ "Error in config: " <> err'
-        Right config ->
-          Right <$> decodeLoadFiles config
+    Right config ->
+      Right <$> decodeLoadFiles config
   where
     -- Both C.ParseError and IOError are shown here
     loadConfig :: FilePath -> IO (Either SomeException C.Config)
     loadConfig = try . C.load
-
-    processForbiddenValues :: AppConfig -> Either Text AppConfig
-    processForbiddenValues cfg@AppConfig{..}
-      | configAdminServerPort == Just configServerPort = Left "admin-server-port cannot be the same as server-port"
-      | otherwise = Right cfg
 
     decodeLoadFiles :: AppConfig -> IO AppConfig
     decodeLoadFiles parsedConfig =
@@ -288,14 +279,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
     <*> parseCORSAllowedOrigins "server-cors-allowed-origins"
     <*> (defaultServerHost <$> optString "server-host")
-    <*> (fromMaybe 3000 <$> optInt "server-port")
+    <*> parseServerPort "server-port"
     <*> (fmap (CI.mk . encodeUtf8) <$> optString "server-trace-header")
     <*> (fromMaybe False <$> optBool "server-timing-enabled")
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> (defaultServerHost <$> optWithAlias (optString "admin-server-host")
                                             (optString "server-host"))
-    <*> optInt "admin-server-port"
+    <*> parseAdminServerPort "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-sleep"
@@ -306,6 +297,17 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         addFromEnv f = M.toList $ M.union fromEnv $ M.fromList f
         fromEnv = M.mapKeys fromJust $ M.filterWithKey (\k _ -> isJust k) $ M.mapKeys normalize env
         normalize k = ("app.settings." <>) <$> T.stripPrefix "PGRST_APP_SETTINGS_" (toS k)
+    
+    parseServerPort :: C.Key -> C.Parser C.Config Int
+    parseServerPort k = fromMaybe 3000 <$> optInt k
+
+    parseAdminServerPort :: C.Key -> C.Parser C.Config (Maybe Int)
+    parseAdminServerPort k = do
+      serverPort <- parseServerPort "server-port"
+      optInt k >>= \case
+        Nothing -> pure Nothing
+        Just asp | asp == serverPort -> fail "admin-server-port cannot be the same as server-port"
+                 | otherwise         -> pure $ Just asp
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =
