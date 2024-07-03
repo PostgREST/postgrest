@@ -220,18 +220,20 @@ readAppConfig dbSettings optPath prevDbUri roleSettings roleIsolationLvl = do
 
   case C.runParser (parser optPath env dbSettings roleSettings roleIsolationLvl) =<< mapLeft show conf of
     Left err ->
-      return . Left $ "Error in config: " <> err
-    Right config ->
-      Right <$> decodeLoadFiles config
+      return . Left $ "Error in config " <> err
+    Right parsedConfig ->
+      mapLeft show <$> decodeLoadFiles parsedConfig
   where
     -- Both C.ParseError and IOError are shown here
     loadConfig :: FilePath -> IO (Either SomeException C.Config)
     loadConfig = try . C.load
 
-    decodeLoadFiles :: AppConfig -> IO AppConfig
-    decodeLoadFiles parsedConfig =
-      decodeJWKS <$>
-        (decodeSecret =<< readSecretFile =<< readDbUriFile prevDbUri parsedConfig)
+    decodeLoadFiles :: AppConfig -> IO (Either IOException AppConfig)
+    decodeLoadFiles parsedConfig = try $
+      decodeJWKS =<<
+      decodeSecret =<<
+      readSecretFile =<<
+      readDbUriFile prevDbUri parsedConfig
 
 parser :: Maybe FilePath -> Environment -> [(Text, Text)] -> RoleSettings -> RoleIsolationLvl -> C.Parser C.Config AppConfig
 parser optPath env dbSettings roleSettings roleIsolationLvl =
@@ -459,18 +461,25 @@ decodeSecret conf@AppConfig{..} =
 -- There are three ways to specify `jwt-secret`: text secret, JSON Web Key
 -- (JWK), or JSON Web Key Set (JWKS). The first two are converted into a JwkSet
 -- with one key and the last is converted as is.
-decodeJWKS :: AppConfig -> AppConfig
-decodeJWKS conf =
-  conf { configJWKS = parseSecret <$> configJwtSecret conf }
+decodeJWKS :: AppConfig -> IO AppConfig
+decodeJWKS conf = do
+  jwks <- case configJwtSecret conf of
+    Just s  -> either fail (pure . Just) $ parseSecret s
+    Nothing -> pure Nothing
+  return $ conf { configJWKS = jwks }
 
-parseSecret :: ByteString -> JwkSet
+parseSecret :: ByteString -> Either [Char] JwkSet
 parseSecret bytes =
-  fromMaybe (maybe secret (\jwk' -> JWT.JwkSet [jwk']) maybeJWK)
-    maybeJWKSet
+  case maybeJWKSet of
+    Just jwk -> Right jwk
+    Nothing  -> maybe validateSecret (\jwk' -> Right $ JWT.JwkSet [jwk']) maybeJWK
   where
     maybeJWKSet = JSON.decodeStrict bytes :: Maybe JwkSet
     maybeJWK = JSON.decodeStrict bytes :: Maybe Jwk
     secret = JWT.JwkSet [JWT.SymmetricJwk bytes Nothing (Just JWT.Sig) (Just $ JWT.Signed JWT.HS256)]
+    validateSecret
+      | BS.length bytes < 32 = Left "The JWT secret must be at least 32 characters long."
+      | otherwise = Right secret
 
 -- | Read database uri from a separate file if `db-uri` is a filepath.
 readDbUriFile :: Maybe Text -> AppConfig -> IO AppConfig
