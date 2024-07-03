@@ -108,7 +108,7 @@ validateOpenApiResponse headers = do
 
 
 baseCfg :: AppConfig
-baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
+baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   AppConfig {
     configAppSettings               = [ ("app.settings.app_host", "localhost") , ("app.settings.external_api_secret", "0123456789abcdef") ]
   , configDbAggregates              = False
@@ -132,10 +132,10 @@ baseCfg = let secret = Just $ encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbPreConfig               = Nothing
   , configDbUri                     = "postgresql://"
   , configFilePath                  = Nothing
-  , configJWKS                      = parseSecret <$> secret
+  , configJWKS                      = rightToMaybe $ parseSecret secret
   , configJwtAudience               = Nothing
   , configJwtRoleClaimKey           = [JSPKey "role"]
-  , configJwtSecret                 = secret
+  , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxLifetime       = 0
   , configLogLevel                  = LogCrit
@@ -196,35 +196,35 @@ testPlanEnabledCfg = baseCfg { configDbPlanEnabled = True }
 
 testCfgBinaryJWT :: AppConfig
 testCfgBinaryJWT =
-  let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
+  let secret = B64.decodeLenient "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
   baseCfg {
-    configJwtSecret = secret
-  , configJWKS = parseSecret <$> secret
+    configJwtSecret = Just secret
+  , configJWKS = rightToMaybe $ parseSecret secret
   }
 
 testCfgAudienceJWT :: AppConfig
 testCfgAudienceJWT =
-  let secret = Just . B64.decodeLenient $ "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
+  let secret = B64.decodeLenient "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
   baseCfg {
-    configJwtSecret = secret
+    configJwtSecret = Just secret
   , configJwtAudience = Just "youraudience"
-  , configJWKS = parseSecret <$> secret
+  , configJWKS = rightToMaybe $ parseSecret secret
   }
 
 testCfgAsymJWK :: AppConfig
 testCfgAsymJWK =
-  let secret = Just $ encodeUtf8 [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
+  let secret = encodeUtf8 [str|{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}|]
   in baseCfg {
-    configJwtSecret = secret
-  , configJWKS = parseSecret <$> secret
+    configJwtSecret = Just secret
+  , configJWKS = rightToMaybe $ parseSecret secret
   }
 
 testCfgAsymJWKSet :: AppConfig
 testCfgAsymJWKSet =
-  let secret = Just $ encodeUtf8 [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
+  let secret = encodeUtf8 [str|{"keys": [{"alg":"RS256","e":"AQAB","key_ops":["verify"],"kty":"RSA","n":"0etQ2Tg187jb04MWfpuogYGV75IFrQQBxQaGH75eq_FpbkyoLcEpRUEWSbECP2eeFya2yZ9vIO5ScD-lPmovePk4Aa4SzZ8jdjhmAbNykleRPCxMg0481kz6PQhnHRUv3nF5WP479CnObJKqTVdEagVL66oxnX9VhZG9IZA7k0Th5PfKQwrKGyUeTGczpOjaPqbxlunP73j9AfnAt4XCS8epa-n3WGz1j-wfpr_ys57Aq-zBCfqP67UYzNpeI1AoXsJhD9xSDOzvJgFRvc3vm2wjAW4LEMwi48rCplamOpZToIHEPIaPzpveYQwDnB1HFTR1ove9bpKJsHmi-e2uzQ","use":"sig"}]}|]
   in baseCfg {
-    configJwtSecret = secret
-  , configJWKS = parseSecret <$> secret
+    configJwtSecret = Just secret
+  , configJWKS = rightToMaybe $ parseSecret secret
   }
 
 testNonexistentSchemaCfg :: AppConfig
