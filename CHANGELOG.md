@@ -9,16 +9,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
 
-### Fixed
-
- - #3147, Don't reload schema cache on every listener failure - @steve-chavez
-
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
  - #3508, PostgREST now fails to start when `server-port` and `admin-server-port` config options are the same - @develop7
+
+## [12.2.1] - 2024-06-27
+
+### Fixed
+
+ - #3147, Don't reload schema cache on every listener failure - @steve-chavez
 
 ### Documentation
 
