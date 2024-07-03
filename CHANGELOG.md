@@ -14,8 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 10 - @wolfgangwalther
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
- - #3508, #3559, Server port and admin server port can end up with the same value - @develop7
-    + The app fails to start when the server port and admin server port are the same
+ - #3508, PostgREST now fails to start when `server-port` and `admin-server-port` config options are the same - @develop7
 
 ## [12.2.0] - 2024-06-11
 
