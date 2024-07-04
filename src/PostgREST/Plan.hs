@@ -622,7 +622,11 @@ generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, rel
   where
     rsSelName = fromMaybe relName relAlias
     rsEmbedMode = if relIsToOne rel then JsonObject else JsonArray
-    rsEmptyEmbed = null select && null forest
+    rsEmptyEmbed = hasOnlyNullEmbed (null select) forest
+    hasOnlyNullEmbed = foldr checkIfNullEmbed
+    checkIfNullEmbed :: ReadPlanTree -> Bool -> Bool
+    checkIfNullEmbed (Node ReadPlan{select=s} f) isNullEmbed =
+      isNullEmbed && hasOnlyNullEmbed (null s) f
 generateRelSelectField _ = Nothing
 
 generateSpreadSelectFields :: ReadPlan -> [SpreadSelectField]
