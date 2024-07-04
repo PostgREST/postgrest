@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
+
 ## [12.2.1] - 2024-06-27
 
 ### Fixed
