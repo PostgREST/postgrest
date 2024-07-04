@@ -9,6 +9,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
 
+### Fixed
+
+ - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla  
+
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
