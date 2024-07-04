@@ -1218,6 +1218,20 @@ spec actualPgVersion = do
         [json|[{"id":1,"name":"Angela Martin"}]|]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "works on nested relationships" $ do
+      get "/users?select=*,users_tasks(tasks(projects()))" `shouldRespondWith`
+        [json| [{"id":1,"name":"Angela Martin"}, {"id":2,"name":"Michael Scott"}, {"id":3,"name":"Dwight Schrute"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/users?select=*,users_tasks!inner(tasks!inner(projects()))&users_tasks.tasks.id=eq.3" `shouldRespondWith`
+        [json| [{"id":1,"name":"Angela Martin"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/users?select=*,tasks(projects(clients()),users_tasks())" `shouldRespondWith`
+        [json| [{"id":1,"name":"Angela Martin"}, {"id":2,"name":"Michael Scott"}, {"id":3,"name":"Dwight Schrute"}]|]
+        { matchHeaders = [matchContentTypeJson] }
+      get "/users?select=*,tasks!inner(projects(clients()),users_tasks(),name)&tasks.id=eq.3" `shouldRespondWith`
+        [json| [{"id":1,"name":"Angela Martin","tasks":[{"name": "Design w10"}]}]|]
+        { matchHeaders = [matchContentTypeJson] }
+
   context "empty root select" $
     it "gives all columns" $ do
       get "/projects?select=" `shouldRespondWith`
@@ -1413,4 +1427,3 @@ spec actualPgVersion = do
       get "/infinite_recursion?select=*" `shouldRespondWith`
         [json|{"code":"42P17","message":"infinite recursion detected in rules for relation \"infinite_recursion\"","details":null,"hint":null}|]
         { matchStatus = 500 }
-
