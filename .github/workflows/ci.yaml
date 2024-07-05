@@ -99,7 +99,7 @@ jobs:
       - name: Extract downloaded binaries
         run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
@@ -183,7 +183,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: release-changes
           path: CHANGES.md
@@ -201,7 +201,7 @@ jobs:
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Download all artifacts
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           path: artifacts
       - name: Create release bundle with archives for all builds
@@ -226,7 +226,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: release-bundle
           path: release-bundle
@@ -275,7 +275,7 @@ jobs:
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Download Docker image
-        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: postgrest-docker-x64
       - name: Publish images on Docker Hub
