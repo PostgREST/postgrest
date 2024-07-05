@@ -42,7 +42,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: postgrest-linux-static-x64
           path: result/bin/postgrest
@@ -51,7 +51,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: postgrest-docker-x64
           path: postgrest-docker.tar.gz
@@ -119,7 +119,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-      - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
+      - uses: haskell-actions/setup@ec49483bfc012387b227434aba94f59a6ecd0900 # v2.7.5
         with:
           # This must match the version in stack.yaml's resolver
           ghc-version: 9.6.5
@@ -148,7 +148,7 @@ jobs:
         run: strip result/postgrest*
       - name: Save built executable as artifact
         if: matrix.artifact
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
         with:
           name: ${{ matrix.artifact }}
           path: |
@@ -179,7 +179,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-      - uses: haskell-actions/setup@33585e1a16afa5875e124b0ebc89dd0c2f872c21 # v2.7.3
+      - uses: haskell-actions/setup@ec49483bfc012387b227434aba94f59a6ecd0900 # v2.7.5
         with:
           ghc-version: ${{ matrix.ghc }}
       - name: Cache .cabal
