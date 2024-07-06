@@ -13,3 +13,5 @@ extra-deps:
   - fuzzyset-0.2.4
   - hasql-notifications-0.2.2.0
   - hasql-pool-1.0.1
+  - git: https://github.com/laurenceisla/wai-cors.git
+    commit: e2da0d7a3e56592a5f4b35fd3aa6ccd3175525cc

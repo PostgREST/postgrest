@@ -39,7 +39,7 @@ corsPolicy corsAllowedOrigins req = case lookup "origin" headers of
     , Wai.corsMaxAge = Just $ 60*60*24
     , Wai.corsVaryOrigin = False
     , Wai.corsRequireOrigin = False
-    , Wai.corsIgnoreFailures = True
+    , Wai.corsIgnoreFailures = False
     }
   Nothing -> Nothing
   where

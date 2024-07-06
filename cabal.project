@@ -2,3 +2,7 @@ packages: postgrest.cabal
 tests: true
 package *
   ghc-options: -split-sections
+source-repository-package
+  type: git
+  location: https://github.com/laurenceisla/wai-cors.git
+  tag: e2da0d7a3e56592a5f4b35fd3aa6ccd3175525cc
