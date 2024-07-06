@@ -32,8 +32,9 @@ let
       }
       ''
         # The list of refs is sorted. The first result will be nixpkgs-unstable, the second the latest stable branch.
-        commitHash="$(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r 'sort_by(.ref) | reverse | .[1].object.sha')"
-        tarballUrl="${tarballUrlBase}$commitHash.tar.gz"
+        # shellcheck disable=SC2207
+        commit=($(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r 'sort_by(.ref) | reverse | [.[1].object.sha, .[1].ref] | @tsv'))
+        tarballUrl="${tarballUrlBase}''${commit[0]}.tar.gz"
         tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
         currentDate="$(${coreutils}/bin/date --iso)"
 
@@ -42,8 +43,9 @@ let
         {
           owner = "NixOS";
           repo = "nixpkgs";
+          ref = "''${commit[1]}";
           date = "$currentDate";
-          rev = "$commitHash";
+          rev = "''${commit[0]}";
           tarballHash = "$tarballHash";
         }
         EOF
