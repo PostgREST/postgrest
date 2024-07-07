@@ -471,14 +471,7 @@ schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
     SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
   where
-    sql = encodeUtf8 [trimming|
-      select
-        description
-      from
-        pg_namespace n
-        left join pg_description d on d.objoid = n.oid
-      where
-        n.oid = $$1::regnamespace |]
+    sql = "SELECT pg_catalog.obj_description($1::regnamespace, 'pg_namespace')"
 
 accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables =
