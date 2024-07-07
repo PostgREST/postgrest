@@ -44,7 +44,9 @@ main CLI{cliCommand, cliPath} = do
       CmdDumpConfig -> do
         when configDbConfig $ AppState.reReadConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
-      CmdDumpSchema -> putStrLn =<< dumpSchema appState
+      CmdDumpSchema -> do
+        when configDbConfig $ AppState.reReadConfig True appState
+        putStrLn =<< dumpSchema appState
       CmdRun -> App.run appState)
 
 -- | Dump SchemaCache schema to JSON
