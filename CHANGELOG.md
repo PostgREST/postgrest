@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
  - #3644, Make --dump-schema work with in-database pgrst.db_schemas setting - @wolfgangwalther
+ - #3644, Show number of timezones in schema cache load report - @wolfgangwalther
 
 ### Changed
 
