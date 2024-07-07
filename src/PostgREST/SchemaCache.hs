@@ -623,14 +623,13 @@ tablesSqlQuery =
   WITH
   columns AS (
       SELECT
-          nc.nspname::name AS table_schema,
-          c.relname::name AS table_name,
+          c.oid AS relid,
           a.attname::name AS column_name,
           d.description AS description,
           -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
           CASE
             WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
-            WHEN a.attidentity  = 'd' THEN format('nextval(%s)', quote_literal(seqsch.nspname || '.' || seqclass.relname))
+            WHEN a.attidentity  = 'd' THEN format('nextval(%L)', seq.objid::regclass)
             WHEN a.attgenerated = 's' THEN null
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
           END AS column_default,
@@ -638,12 +637,12 @@ tablesSqlQuery =
           CASE
               WHEN t.typtype = 'd' THEN
               CASE
-                  WHEN nbt.oid = 'pg_catalog'::regnamespace THEN format_type(t.typbasetype, NULL::integer)
+                  WHEN bt.typnamespace = 'pg_catalog'::regnamespace THEN format_type(t.typbasetype, NULL::integer)
                   ELSE format_type(a.atttypid, a.atttypmod)
               END
               ELSE
               CASE
-                  WHEN nt.oid = 'pg_catalog'::regnamespace THEN format_type(a.atttypid, NULL::integer)
+                  WHEN t.typnamespace = 'pg_catalog'::regnamespace THEN format_type(a.atttypid, NULL::integer)
                   ELSE format_type(a.atttypid, a.atttypmod)
               END
           END::text AS data_type,
@@ -661,18 +660,14 @@ tablesSqlQuery =
               ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
           JOIN (pg_class c JOIN pg_namespace nc ON c.relnamespace = nc.oid)
               ON a.attrelid = c.oid
-          JOIN (pg_type t JOIN pg_namespace nt ON t.typnamespace = nt.oid)
+          JOIN pg_type t
               ON a.atttypid = t.oid
-          LEFT JOIN (pg_type bt JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid)
+          LEFT JOIN pg_type bt
               ON t.typtype = 'd' AND t.typbasetype = bt.oid
-          LEFT JOIN pg_depend dep
-              ON dep.refobjid = a.attrelid and dep.refobjsubid = a.attnum and dep.deptype = 'i'
-          LEFT JOIN pg_class seqclass
-              ON seqclass.oid = dep.objid
-          LEFT JOIN pg_namespace seqsch
-              ON seqsch.oid = seqclass.relnamespace
+          LEFT JOIN pg_depend seq
+              ON seq.refobjid = a.attrelid and seq.refobjsubid = a.attnum and seq.deptype = 'i'
       WHERE
-          NOT pg_is_other_temp_schema(nc.oid)
+          NOT pg_is_other_temp_schema(c.relnamespace)
           AND a.attnum > 0
           AND NOT a.attisdropped
           AND c.relkind in ('r', 'v', 'f', 'm', 'p')
@@ -680,8 +675,7 @@ tablesSqlQuery =
   ),
   columns_agg AS (
     SELECT
-        info.table_schema AS table_schema,
-        info.table_name AS table_name,
+        info.relid,
         array_agg(row(
           info.column_name,
           info.description,
@@ -702,16 +696,13 @@ tablesSqlQuery =
         JOIN pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
     ) AS enum_info ON info.udt_name = enum_info.n
-    GROUP BY info.table_schema, info.table_name
+    GROUP BY info.relid
   ),
   tbl_pk_cols AS (
     SELECT
-      nr.nspname::name AS table_schema,
-      r.relname::name AS table_name,
+      r.oid AS relid,
       array_agg(a.attname ORDER BY a.attname) AS pk_cols
-    FROM pg_namespace nr
-    JOIN pg_class r
-      ON nr.oid = r.relnamespace
+    FROM pg_class r
     JOIN pg_constraint c
       ON r.oid = c.conrelid
     JOIN pg_attribute a
@@ -722,7 +713,7 @@ tablesSqlQuery =
       AND r.relnamespace NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
       AND NOT pg_is_other_temp_schema(r.relnamespace)
       AND NOT a.attisdropped
-    GROUP BY table_schema, table_name
+    GROUP BY r.oid
   )
   SELECT
     n.nspname AS table_schema,
@@ -760,8 +751,8 @@ tablesSqlQuery =
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   LEFT JOIN pg_description d on d.objoid = c.oid and d.objsubid = 0
-  LEFT JOIN tbl_pk_cols tpks ON n.nspname = tpks.table_schema AND c.relname = tpks.table_name
-  LEFT JOIN columns_agg cols_agg ON n.nspname = cols_agg.table_schema AND c.relname = cols_agg.table_name
+  LEFT JOIN tbl_pk_cols tpks ON c.oid = tpks.relid
+  LEFT JOIN columns_agg cols_agg ON c.oid = cols_agg.relid
   WHERE c.relkind IN ('v','r','m','f','p')
   AND c.relnamespace NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
   AND not c.relispartition
