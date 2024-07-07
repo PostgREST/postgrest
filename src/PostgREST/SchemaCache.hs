@@ -491,7 +491,6 @@ accessibleTables =
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('v','r','m','f','p')
-    AND n.nspname NOT IN ('pg_catalog', 'information_schema')
     AND n.nspname = ANY($$1)
     AND (
       pg_has_role(c.relowner, 'USAGE')
@@ -703,7 +702,6 @@ tablesSqlQuery =
         JOIN pg_namespace n ON n.oid = t.typnamespace
         GROUP BY s,n
     ) AS enum_info ON info.udt_name = enum_info.n
-    WHERE info.table_schema NOT IN ('pg_catalog', 'information_schema')
     GROUP BY info.table_schema, info.table_name
   ),
   tbl_constraints AS (
