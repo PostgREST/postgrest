@@ -704,60 +704,25 @@ tablesSqlQuery =
     ) AS enum_info ON info.udt_name = enum_info.n
     GROUP BY info.table_schema, info.table_name
   ),
-  tbl_constraints AS (
-      SELECT
-          c.conname::name AS constraint_name,
-          nr.nspname::name AS table_schema,
-          r.relname::name AS table_name
-      FROM pg_constraint c
-      JOIN pg_class r ON c.conrelid = r.oid
-      JOIN pg_namespace nr ON nr.oid = r.relnamespace
-      WHERE
-        r.relkind IN ('r', 'p')
-        AND NOT pg_is_other_temp_schema(nr.oid)
-        AND c.contype = 'p'
-  ),
-  key_col_usage AS (
-      SELECT
-          ss.conname::name AS constraint_name,
-          ss.nr_nspname::name AS table_schema,
-          ss.relname::name AS table_name,
-          a.attname::name AS column_name
-      FROM pg_attribute a
-      JOIN (
-        SELECT r.oid AS roid,
-          r.relname,
-          nr.nspname AS nr_nspname,
-          c.conname,
-          information_schema._pg_expandarray(c.conkey) AS x
-        FROM pg_namespace nr
-        JOIN pg_class r
-          ON nr.oid = r.relnamespace
-        JOIN pg_constraint c
-          ON r.oid = c.conrelid
-        WHERE
-          c.contype in ('p', 'u')
-          AND r.relkind IN ('r', 'p')
-          AND nr.oid NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
-          AND NOT pg_is_other_temp_schema(nr.oid)
-      ) ss ON a.attrelid = ss.roid AND a.attnum = (ss.x).x
-      WHERE
-        NOT a.attisdropped
-  ),
   tbl_pk_cols AS (
     SELECT
-        key_col_usage.table_schema,
-        key_col_usage.table_name,
-        array_agg(key_col_usage.column_name ORDER BY key_col_usage.column_name) as pk_cols
-    FROM
-        tbl_constraints
-    JOIN
-        key_col_usage
-    ON
-        key_col_usage.table_name = tbl_constraints.table_name AND
-        key_col_usage.table_schema = tbl_constraints.table_schema AND
-        key_col_usage.constraint_name = tbl_constraints.constraint_name
-    GROUP BY key_col_usage.table_schema, key_col_usage.table_name
+      nr.nspname::name AS table_schema,
+      r.relname::name AS table_name,
+      array_agg(a.attname ORDER BY a.attname) AS pk_cols
+    FROM pg_namespace nr
+    JOIN pg_class r
+      ON nr.oid = r.relnamespace
+    JOIN pg_constraint c
+      ON r.oid = c.conrelid
+    JOIN pg_attribute a
+      ON a.attrelid = r.oid AND a.attnum = ANY (c.conkey)
+    WHERE
+      c.contype in ('p')
+      AND r.relkind IN ('r', 'p')
+      AND r.relnamespace NOT IN ('pg_catalog'::regnamespace, 'information_schema'::regnamespace)
+      AND NOT pg_is_other_temp_schema(r.relnamespace)
+      AND NOT a.attisdropped
+    GROUP BY table_schema, table_name
   )
   SELECT
     n.nspname AS table_schema,
