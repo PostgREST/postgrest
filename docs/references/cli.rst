@@ -28,7 +28,9 @@ Example
 
 .. code:: bash
 
-  $ postgrest [-e|--example]
+  $ postgrest [--example-file]
+  $ postgrest [--example-db]
+  $ postgrest [--example-env]
 
 Shows example configuration options.
 
@@ -46,6 +48,6 @@ Dump Schema
 
 .. code:: bash
 
-  $ postgrest [--dump-schema]
+  $ postgrest [--dump-schema-cache]
 
 Dumps the schema cache in JSON format.

@@ -128,7 +128,7 @@ let
       ''
         ${withTools.withPg} -f test/spec/fixtures/load.sql \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
-            postgrest --dump-schema
+            postgrest --dump-schema-cache
       '';
 
   coverage =

@@ -50,7 +50,7 @@ The configuration file must contain a set of key value pairs:
   # Port the postgrest process is listening on for http requests
   server-port = 3000
 
-You can run ``postgrest --example`` to display all possible configuration parameters and how to use them in a configuration file.
+You can run ``postgrest --example-file`` to display all possible configuration parameters and how to use them in a configuration file.
 
 .. _env_variables_config:
 
