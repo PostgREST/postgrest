@@ -651,7 +651,7 @@ tablesSqlQuery =
               information_schema._pg_truetypid(a.*, t.*),
               information_schema._pg_truetypmod(a.*, t.*)
           )::integer AS character_maximum_length,
-          COALESCE(bt.typname, t.typname)::name AS udt_name,
+          COALESCE(bt.oid, t.oid) AS base_type,
           a.attnum::integer AS position
       FROM pg_attribute a
           LEFT JOIN pg_description AS d
@@ -688,14 +688,13 @@ tablesSqlQuery =
     FROM columns info
     LEFT OUTER JOIN (
         SELECT
-            n.nspname AS s,
-            t.typname AS n,
+            e.enumtypid,
             array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
         FROM pg_type t
         JOIN pg_enum e ON t.oid = e.enumtypid
         JOIN pg_namespace n ON n.oid = t.typnamespace
-        GROUP BY s,n
-    ) AS enum_info ON info.udt_name = enum_info.n
+        GROUP BY enumtypid
+    ) AS enum_info ON info.base_type = enum_info.enumtypid
     GROUP BY info.relid
   ),
   tbl_pk_cols AS (
