@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
+ - #3644, Make --dump-schema work with in-database pgrst.db_schemas setting - @wolfgangwalther
 
 ## [12.2.1] - 2024-06-27
 
