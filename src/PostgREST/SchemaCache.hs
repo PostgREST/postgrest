@@ -748,7 +748,7 @@ tablesSqlQuery =
     SELECT
         key_col_usage.table_schema,
         key_col_usage.table_name,
-        array_agg(key_col_usage.column_name) as pk_cols
+        array_agg(key_col_usage.column_name ORDER BY key_col_usage.column_name) as pk_cols
     FROM
         tbl_constraints
     JOIN
