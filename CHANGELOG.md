@@ -10,6 +10,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
  - #3644, Make --dump-schema work with in-database pgrst.db_schemas setting - @wolfgangwalther
  - #3644, Show number of timezones in schema cache load report - @wolfgangwalther
+ - #3644, List correct enum options in OpenApi output when multiple types with same name are present - @wolfgangwalther
 
 ## [12.2.1] - 2024-06-27
 
