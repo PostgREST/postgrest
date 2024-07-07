@@ -675,27 +675,22 @@ tablesSqlQuery =
   ),
   columns_agg AS (
     SELECT
-        info.relid,
-        array_agg(row(
-          info.column_name,
-          info.description,
-          info.is_nullable::boolean,
-          info.data_type,
-          info.nominal_data_type,
-          info.character_maximum_length,
-          info.column_default,
-          coalesce(enum_info.vals, '{}')) order by info.position) as columns
-    FROM columns info
-    LEFT OUTER JOIN (
-        SELECT
-            e.enumtypid,
-            array_agg(e.enumlabel ORDER BY e.enumsortorder) AS vals
-        FROM pg_type t
-        JOIN pg_enum e ON t.oid = e.enumtypid
-        JOIN pg_namespace n ON n.oid = t.typnamespace
-        GROUP BY enumtypid
-    ) AS enum_info ON info.base_type = enum_info.enumtypid
-    GROUP BY info.relid
+      relid,
+      array_agg(row(
+        column_name,
+        description,
+        is_nullable::boolean,
+        data_type,
+        nominal_data_type,
+        character_maximum_length,
+        column_default,
+        coalesce(
+          (SELECT array_agg(enumlabel ORDER BY enumsortorder) FROM pg_enum WHERE enumtypid = base_type),
+          '{}'
+        )
+      ) order by position) as columns
+    FROM columns
+    GROUP BY relid
   ),
   tbl_pk_cols AS (
     SELECT
