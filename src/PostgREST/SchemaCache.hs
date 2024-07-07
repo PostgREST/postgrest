@@ -680,7 +680,7 @@ tablesSqlQuery =
           AND nc.nspname = ANY($$1)
   ),
   columns_agg AS (
-    SELECT DISTINCT
+    SELECT
         info.table_schema AS table_schema,
         info.table_name AS table_name,
         array_agg(row(
