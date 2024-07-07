@@ -666,8 +666,6 @@ tablesSqlQuery =
               ON a.atttypid = t.oid
           LEFT JOIN (pg_type bt JOIN pg_namespace nbt ON bt.typnamespace = nbt.oid)
               ON t.typtype = 'd' AND t.typbasetype = bt.oid
-          LEFT JOIN (pg_collation co JOIN pg_namespace nco ON co.collnamespace = nco.oid)
-              ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog'::name OR co.collname <> 'default'::name)
           LEFT JOIN pg_depend dep
               ON dep.refobjid = a.attrelid and dep.refobjsubid = a.attnum and dep.deptype = 'i'
           LEFT JOIN pg_class seqclass
@@ -713,8 +711,7 @@ tablesSqlQuery =
           c.conname::name AS constraint_name,
           nr.nspname::name AS table_schema,
           r.relname::name AS table_name
-      FROM pg_namespace nc
-      JOIN pg_constraint c ON nc.oid = c.connamespace
+      FROM pg_constraint c
       JOIN pg_class r ON c.conrelid = r.oid
       JOIN pg_namespace nr ON nr.oid = r.relnamespace
       WHERE
@@ -727,32 +724,19 @@ tablesSqlQuery =
           ss.conname::name AS constraint_name,
           ss.nr_nspname::name AS table_schema,
           ss.relname::name AS table_name,
-          a.attname::name AS column_name,
-          (ss.x).n::integer AS ordinal_position,
-          CASE
-              WHEN ss.contype = 'f' THEN information_schema._pg_index_position(ss.conindid, ss.confkey[(ss.x).n])
-              ELSE NULL::integer
-          END::integer AS position_in_unique_constraint
+          a.attname::name AS column_name
       FROM pg_attribute a
       JOIN (
         SELECT r.oid AS roid,
           r.relname,
-          r.relowner,
-          nc.nspname AS nc_nspname,
           nr.nspname AS nr_nspname,
-          c.oid AS coid,
           c.conname,
-          c.contype,
-          c.conindid,
-          c.confkey,
           information_schema._pg_expandarray(c.conkey) AS x
         FROM pg_namespace nr
         JOIN pg_class r
           ON nr.oid = r.relnamespace
         JOIN pg_constraint c
           ON r.oid = c.conrelid
-        JOIN pg_namespace nc
-          ON c.connamespace = nc.oid
         WHERE
           c.contype in ('p', 'u')
           AND r.relkind IN ('r', 'p')
@@ -1146,8 +1130,6 @@ mediaHandlers =
           SELECT
             t.oid,
             lower(t.typname) as typname,
-            b.oid as base_oid,
-            b.typname AS basetypname,
             t.typnamespace,
             case t.typname
               when '*/*' then 'application/octet-stream'
