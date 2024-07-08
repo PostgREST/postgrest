@@ -22,9 +22,6 @@ PostgREST Documentation
 .. image:: https://img.shields.io/badge/Donate-Patreon-orange.svg?colorB=F96854
   :target: https://www.patreon.com/postgrest
 
-.. image:: https://img.shields.io/badge/Donate-PayPal-green.svg
-  :target: https://www.paypal.com/paypalme/postgrest
-
 |
 
 PostgREST is a standalone web server that turns your PostgreSQL database directly into a RESTful API. The structural constraints and permissions in the database determine the API endpoints and operations.
