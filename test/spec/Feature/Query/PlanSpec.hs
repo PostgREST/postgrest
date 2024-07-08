@@ -348,7 +348,7 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/get_projects_below?id=3"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 45.4)
+      liftIO $ planCost r `shouldSatisfy` (< 35.4)
 
     it "should not exceed cost when calling setof composite proc with empty params" $ do
       r <- request methodGet "/rpc/getallprojects"
@@ -360,7 +360,7 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/add_them?a=3&b=4"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 0.11)
+      liftIO $ planCost r `shouldSatisfy` (< 0.08)
 
     context "function inlining" $ do
       it "should inline a zero argument function(the function won't appear in the plan tree)" $ do
