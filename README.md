@@ -1,7 +1,6 @@
 ![Logo](static/postgrest.png "Logo")
 
 [![Donate](https://img.shields.io/badge/Donate-Patreon-orange.svg?colorB=F96854)](https://www.patreon.com/postgrest)
-[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.me/postgrest)
 [![Join the chat at https://gitter.im/begriffs/postgrest](https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg)](https://gitter.im/begriffs/postgrest)
 [![Docs](https://img.shields.io/badge/docs-latest-brightgreen.svg?style=flat)](http://postgrest.org)
 [![Docker Stars](https://img.shields.io/docker/pulls/postgrest/postgrest.svg)](https://hub.docker.com/r/postgrest/postgrest/)
@@ -145,11 +144,7 @@ and the [API guide](http://postgrest.org/en/stable/api.html).
 
 ## Supporting development
 
-You can help PostgREST ongoing maintenance and development by:
-
-- Making a regular donation through Patreon https://www.patreon.com/postgrest
-
-- Alternatively, you can make a one-time donation via Paypal https://www.paypal.me/postgrest
+You can help PostgREST ongoing maintenance and development by making a regular donation through Patreon https://www.patreon.com/postgrest
 
 Every donation will be spent on making PostgREST better for the whole community.
 
