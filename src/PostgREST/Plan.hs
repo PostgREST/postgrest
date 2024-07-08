@@ -25,7 +25,6 @@ module PostgREST.Plan
   , CallReadPlan(..)
   ) where
 
-import qualified Data.ByteString.Lazy          as LBS
 import qualified Data.HashMap.Strict           as HM
 import qualified Data.HashMap.Strict.InsOrd    as HMI
 import qualified Data.List                     as L
@@ -176,9 +175,9 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType) of
-        (InvRead _, _)      -> jsonRpcParams proc qsParams'
-        (Inv, MTUrlEncoded) -> maybe mempty (jsonRpcParams proc . payArray) iPayload
-        (Inv, _)            -> maybe mempty payRaw iPayload
+        (InvRead _, _)      -> DirectArgs $ toRpcParams proc qsParams'
+        (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams proc . payArray) iPayload
+        (Inv, _)            -> JsonArgs $ payRaw <$> iPayload
       txMode = case (invMethod, pdVolatility) of
           (InvRead _,  _)          -> SQL.Read
           (Inv, Routine.Stable)    -> SQL.Read
@@ -955,11 +954,11 @@ resolveOrError ctx (Just table) field =
     CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
     cf                          -> Right $ withJsonParse ctx cf
 
-callPlan :: Routine -> ApiRequest -> S.Set FieldName -> LBS.ByteString -> ReadPlanTree -> CallPlan
+callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan
 callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
-, funCArgs = Just args
+, funCArgs = args
 , funCScalar = funcReturnsScalar proc
 , funCSetOfScalar = funcReturnsSetOfScalar proc
 , funCRetCompositeAlias = funcReturnsCompositeAlias proc

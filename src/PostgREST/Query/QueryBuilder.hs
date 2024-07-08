@@ -1,5 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns        #-}
+{-# LANGUAGE RecordWildCards       #-}
 {-|
 Module      : PostgREST.Query.QueryBuilder
 Description : PostgREST SQL queries generating functions.
@@ -16,8 +17,11 @@ module PostgREST.Query.QueryBuilder
   , limitedQuery
   ) where
 
+import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
+import qualified Data.HashMap.Strict             as HM
 import qualified Hasql.DynamicStatements.Snippet as SQL
+import qualified Hasql.Encoders                  as HE
 
 import Data.Maybe (fromJust)
 import Data.Tree  (Tree (..))
@@ -190,14 +194,19 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
+callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
   "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.pgrst_scalar" else returnedColumns) <> " " <>
   fromCall
   where
+    jsonArgs = case arguments of
+      DirectArgs args -> Just $ JSON.encode args
+      JsonArgs json   -> json
     fromCall = case params of
-      OnePosParam prm -> "FROM " <> callIt (singleParameter args $ encodeUtf8 $ ppType prm)
+      OnePosParam prm -> "FROM " <> callIt (singleParameter jsonArgs $ encodeUtf8 $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
-      KeyParams prms  -> fromJsonBodyF args ((\p -> CoercibleField (ppName p) mempty False (ppTypeMaxLength p) Nothing Nothing) <$> prms) False True False <> ", " <>
+      KeyParams prms  -> case arguments of
+        DirectArgs args -> "FROM " <> callIt (fmtArgs prms args)
+        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False (ppTypeMaxLength p) Nothing Nothing) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
@@ -208,6 +217,23 @@ callPlanToQuery (FunctionCall qi params args returnsScalar returnsSetOfScalar re
     fmtParams :: [RoutineParam] -> SQL.Snippet
     fmtParams prms = intercalateSnippet ", "
       ((\a -> (if ppVar a then "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
+
+    fmtArgs :: [RoutineParam] -> HM.HashMap Text RpcParamValue -> SQL.Snippet
+    fmtArgs prms args = intercalateSnippet ", " $ fmtArg <$> prms
+      where
+        fmtArg RoutineParam{..} =
+          (if ppVar then "VARIADIC " else mempty) <>
+          pgFmtIdent ppName <>
+          " := " <>
+          encodeArg (HM.lookup ppName args) <>
+          "::" <>
+          SQL.sql (encodeUtf8 ppTypeMaxLength)
+        encodeArg :: Maybe RpcParamValue -> SQL.Snippet
+        encodeArg (Just (Variadic v)) = SQL.encoderAndParam (HE.nonNullable $ HE.foldableArray $ HE.nonNullable HE.text) v
+        encodeArg (Just (Fixed v)) = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 v
+        -- Currently not supported: Calling functions without some of their arguments without DEFAULT.
+        -- We could fallback to providing this NULL value in those cases.
+        encodeArg Nothing = "NULL"
 
     returnedColumns :: SQL.Snippet
     returnedColumns
