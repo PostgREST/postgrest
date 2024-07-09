@@ -332,8 +332,8 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
   in
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-    validateAggFunctions configDbAggregates =<<
     hoistSpreadAggFunctions =<<
+    validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
     validateSpreadEmbeds =<<
@@ -721,8 +721,7 @@ hoistIntoRelSelectFields _ r = r
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
-  | aggFunctionsAllowed = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
-  | any (isJust . csAggFunction) select = Left AggregatesNotAllowed
+  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree

@@ -166,3 +166,25 @@ disallowed =
         }|]
         { matchStatus = 400
         , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of aggregates on embedded relationships" $
+      get "/projects?select=name,project_invoices(invoice_total.sum())" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of aggregates on spread embeds" $
+      get "/project_invoices?select=...projects(id.count())" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
