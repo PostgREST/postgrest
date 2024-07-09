@@ -13,6 +13,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2858, Performance improvements when calling RPCs via GET using indexes in more cases - @wolfgangwalther
  - #3560, Log resolved host in "Listening on ..." messages - @develop7
 
+### Fixed
+
+ - #3693, Prevent spread embedding to allow aggregates when they are disabled - @laurenceisla
+
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
