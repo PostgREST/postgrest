@@ -42,7 +42,7 @@ spec = describe "OpenAPI" $ do
 
     let docsUrl = r ^? key "externalDocs" . key "url"
 
-    liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/api.html"))
+    liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/references/api.html"))
 
   describe "schema" $ do
 
