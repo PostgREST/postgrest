@@ -17,12 +17,7 @@ To make an API we'll simply be building a database. All the endpoints and permis
 
 By the end of this tutorial you'll have a working database, PostgREST server, and a simple single-user todo list API.
 
-Step 1. Relax, we'll help
--------------------------
-
-As you begin the tutorial, pop open the project `chat room <https://gitter.im/begriffs/postgrest>`_ in another tab.  There are a nice group of people active in the project and we'll help you out if you get stuck.
-
-Step 2. Install PostgreSQL
+Step 1. Install PostgreSQL
 --------------------------
 
 If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation (see :ref:`pg-dependency` for minimum requirements). For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
@@ -48,7 +43,7 @@ This will run the Docker instance as a daemon and expose port 5432 to the host s
   In this case, you will need to change the **first** of the two 5432 to something else, for example to :code:`5433:5432`. Remember to also adjust the port in your config file in Step 5!
 
 
-Step 3. Install PostgREST
+Step 2. Install PostgREST
 -------------------------
 
 Using a Package Manager
@@ -122,7 +117,7 @@ If everything is working correctly it will print out its version and the availab
     </details>
     </p>
 
-Step 4. Create Database for API
+Step 3. Create Database for API
 -------------------------------
 
 Connect to the SQL console (psql) inside the container. To do so, run this from your command line:
@@ -185,7 +180,7 @@ Now quit out of psql; it's time to start the API!
 
   \q
 
-Step 5. Run PostgREST
+Step 4. Run PostgREST
 ---------------------
 
 PostgREST can use a configuration file to tell it how to connect to the database. Create a file :code:`tutorial.conf` with this inside:
