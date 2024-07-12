@@ -16,9 +16,6 @@ PostgREST Documentation
 .. image:: https://img.shields.io/docker/pulls/postgrest/postgrest.svg
   :target: https://hub.docker.com/r/postgrest/postgrest/
 
-.. image:: https://img.shields.io/badge/gitter-join%20chat%20%E2%86%92-brightgreen.svg
-  :target: https://gitter.im/begriffs/postgrest
-
 .. image:: https://img.shields.io/badge/Donate-Patreon-orange.svg?colorB=F96854
   :target: https://www.patreon.com/postgrest
 
@@ -110,7 +107,7 @@ PostgREST has a focused scope. It works well with other tools like Nginx. This f
 Getting Support
 ----------------
 
-The project has a friendly and growing community. For discussions, use the Github `discussions page <https://github.com/PostgREST/postgrest/discussions>`_ or join our `chat room <https://gitter.im/begriffs/postgrest>`_. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
+The project has a friendly and growing community. For discussions, use the Github `discussions page <https://github.com/PostgREST/postgrest/discussions>`_. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
 
 Release Notes
 -------------
