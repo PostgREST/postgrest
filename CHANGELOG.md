@@ -13,11 +13,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
- - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
- - #3644, Make --dump-schema work with in-database pgrst.db_schemas setting - @wolfgangwalther
- - #3644, Show number of timezones in schema cache load report - @wolfgangwalther
- - #3644, List correct enum options in OpenApi output when multiple types with same name are present - @wolfgangwalther
- - #3523, Fix schema cache loading retry without backoff - @steve-chavez
  - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
 
 ### Changed
@@ -29,6 +24,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3607, PostgREST now fails to start when the JWT secret is less than 32 characters long - @laurenceisla
  - #3644, Fail schema cache lookup with invalid db-schemas config - @wolfgangwalther
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
+
+## [12.2.2] - 2024-07-10
+
+### Fixed
+
+ - #3093, Nested empty embeds no longer show empty values and are correctly omitted - @laurenceisla
+ - #3644, Make --dump-schema work with in-database pgrst.db_schemas setting - @wolfgangwalther
+ - #3644, Show number of timezones in schema cache load report - @wolfgangwalther
+ - #3644, List correct enum options in OpenApi output when multiple types with same name are present - @wolfgangwalther
+ - #3523, Fix schema cache loading retry without backoff - @steve-chavez
 
 ## [12.2.1] - 2024-06-27
 
