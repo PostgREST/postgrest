@@ -756,34 +756,29 @@ allM2OandO2ORels =
     WITH
     pks_uniques_cols AS (
       SELECT
-        connamespace,
         conrelid,
-        jsonb_agg(column_info.cols) as cols
-      FROM pg_constraint
-      JOIN lateral (
-        SELECT array_agg(cols.attname order by cols.attnum) as cols
-        FROM ( select unnest(conkey) as col) _
-        JOIN pg_attribute cols on cols.attrelid = conrelid and cols.attnum = col
-      ) column_info ON TRUE
+        array_agg(key order by key) as cols
+      FROM pg_constraint,
+      LATERAL unnest(conkey) AS _(key)
       WHERE
-        contype IN ('p', 'u') and
-        connamespace <> 'pg_catalog'::regnamespace
-      GROUP BY connamespace, conrelid
+        contype IN ('p', 'u')
+        AND connamespace <> 'pg_catalog'::regnamespace
+      GROUP BY oid, conrelid
     )
     SELECT
       ns1.nspname AS table_schema,
       tab.relname AS table_name,
       ns2.nspname AS foreign_table_schema,
       other.relname AS foreign_table_name,
-      (ns1.nspname, tab.relname) = (ns2.nspname, other.relname) AS is_self,
+      traint.conrelid = traint.confrelid AS is_self,
       traint.conname  AS constraint_name,
       column_info.cols_and_fcols,
-      (column_info.cols IN (SELECT * FROM jsonb_array_elements(pks_uqs.cols))) AS one_to_one
+      (column_info.cols IN (SELECT cols FROM pks_uniques_cols WHERE conrelid = traint.conrelid)) AS one_to_one
     FROM pg_constraint traint
     JOIN LATERAL (
       SELECT
         array_agg(row(cols.attname, refs.attname) order by ord) AS cols_and_fcols,
-        jsonb_agg(cols.attname order by cols.attnum) AS cols
+        array_agg(cols.attnum order by cols.attnum) AS cols
       FROM unnest(traint.conkey, traint.confkey) WITH ORDINALITY AS _(col, ref, ord)
       JOIN pg_attribute cols ON cols.attrelid = traint.conrelid AND cols.attnum = col
       JOIN pg_attribute refs ON refs.attrelid = traint.confrelid AND refs.attnum = ref
@@ -792,7 +787,6 @@ allM2OandO2ORels =
     JOIN pg_class tab ON tab.oid = traint.conrelid
     JOIN pg_class other ON other.oid = traint.confrelid
     JOIN pg_namespace ns2 ON ns2.oid = other.relnamespace
-    LEFT JOIN pks_uniques_cols pks_uqs ON pks_uqs.connamespace = traint.connamespace AND pks_uqs.conrelid = traint.conrelid
     WHERE traint.contype = 'f'
     AND traint.conparentid = 0
     ORDER BY traint.conrelid, traint.conname|]
