@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
  - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
+ - #3659, Embed One-to-One relationship with different column order properly - @wolfgangwalther
 
 ## [12.2.2] - 2024-07-10
 

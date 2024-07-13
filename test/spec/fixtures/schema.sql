@@ -2872,7 +2872,7 @@ CREATE TABLE test.students_info(
 , code text
 , address text
 , primary key(id, code)
-, foreign key (id, code) references test.students(id, code) on delete cascade
+, foreign key (code, id) references test.students(code, id) on delete cascade
 );
 
 CREATE TABLE test.country(
