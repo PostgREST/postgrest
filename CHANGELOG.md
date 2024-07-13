@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
+
 ## [12.2.2] - 2024-07-10
 
 ### Fixed
@@ -14,7 +18,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3644, Show number of timezones in schema cache load report - @wolfgangwalther
  - #3644, List correct enum options in OpenApi output when multiple types with same name are present - @wolfgangwalther
  - #3523, Fix schema cache loading retry without backoff - @steve-chavez
- - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
 
 ## [12.2.1] - 2024-06-27
 
