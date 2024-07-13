@@ -783,7 +783,7 @@ allM2OandO2ORels =
     JOIN LATERAL (
       SELECT
         array_agg(row(cols.attname, refs.attname) order by ord) AS cols_and_fcols,
-        jsonb_agg(cols.attname order by ord) AS cols
+        jsonb_agg(cols.attname order by cols.attnum) AS cols
       FROM unnest(traint.conkey, traint.confkey) WITH ORDINALITY AS _(col, ref, ord)
       JOIN pg_attribute cols ON cols.attrelid = traint.conrelid AND cols.attnum = col
       JOIN pg_attribute refs ON refs.attrelid = traint.confrelid AND refs.attnum = ref
