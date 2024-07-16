@@ -296,8 +296,7 @@ makeRowFilter tn c =
     & required ?~ False
     & schema .~ ParamOther ((mempty :: ParamOtherSchema)
       & in_ .~ ParamQuery
-      & type_ ?~ SwaggerString
-      & format ?~ colType c))
+      & type_ ?~ SwaggerString))
 
 makeRowFilters :: Text -> [Column] -> [(Text, Param)]
 makeRowFilters tn = fmap (makeRowFilter tn)
