@@ -9,6 +9,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
  - #3659, Embed One-to-One relationship with different column order properly - @wolfgangwalther
+ - #3504, Remove `format` from `rowFilter` parameters in OpenAPI - @dantheman2865
 
 ## [12.2.2] - 2024-07-10
 
