@@ -2,8 +2,9 @@
 Module      : PostgREST.Request.ApiRequest
 Description : PostgREST functions to translate HTTP request to a domain type called ApiRequest.
 -}
-{-# LANGUAGE LambdaCase     #-}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
 -- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.ApiRequest
   ( ApiRequest(..)
@@ -35,8 +36,7 @@ import Data.Either.Combinators (mapBoth)
 import Control.Arrow             ((***))
 import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup)
-import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
-                                  rangeIsEmpty)
+import Data.Ranged.Ranges        (rangeIsEmpty)
 import Network.HTTP.Types.Header (RequestHeaders, hCookie)
 import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
@@ -50,8 +50,6 @@ import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          convertToLimitZeroRange,
-                                          hasLimitZero,
                                           rangeRequested)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (FieldName,
@@ -111,8 +109,7 @@ data Action
 -}
 data ApiRequest = ApiRequest {
     iAction              :: Action                           -- ^ Action on the resource
-  , iRange               :: HM.HashMap Text NonnegRange      -- ^ Requested range of rows within response
-  , iTopLevelRange       :: NonnegRange                      -- ^ Requested range of rows from the top level
+  , iRange               :: NonnegRange                      -- ^ Requested range of rows from the selected resource
   , iPayload             :: Maybe Payload                    -- ^ Data sent by client and used for mutation actions
   , iPreferences         :: Preferences.Preferences          -- ^ Prefer header values
   , iQueryParams         :: QueryParams.QueryParams
@@ -134,12 +131,11 @@ userApiRequest conf req reqBody sCache = do
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
   qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
-  (topLevelRange, ranges) <- getRanges method qPrms hdrs
+  hRange <- getRange method qPrms hdrs
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act
   return $ ApiRequest {
     iAction = act
-  , iRange = ranges
-  , iTopLevelRange = topLevelRange
+  , iRange = hRange
   , iPayload = payload
   , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) (dbTimezones sCache) hdrs
   , iQueryParams = qPrms
@@ -217,24 +213,17 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     acceptProfile = T.decodeUtf8 <$> lookupHeader "Accept-Profile"
     lookupHeader    = flip lookup hdrs
 
-getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
-getRanges method QueryParams{qsOrder,qsRanges} hdrs
-  | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
-  | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
-  | method == "PUT" && topLevelRange /= allRange = Left PutLimitNotAllowedError
-  | otherwise = Right (topLevelRange, ranges)
+getRange :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError NonnegRange
+getRange method QueryParams{..} hdrs
+  | rangeIsEmpty headerRange = Left $ InvalidRange LowerGTUpper -- A Range is empty unless its upper boundary is GT its lower boundary
+  | method `elem` ["PATCH","DELETE"] && not (null qsLimit) && null qsOrder = Left LimitNoOrderError
+  | method == "PUT" && offsetLimitPresent = Left PutLimitNotAllowedError
+  | otherwise = Right headerRange
   where
     -- According to the RFC (https://www.rfc-editor.org/rfc/rfc9110.html#name-range),
     -- the Range header must be ignored for all methods other than GET
     headerRange = if method == "GET" then rangeRequested hdrs else allRange
-    limitRange = fromMaybe allRange (HM.lookup "limit" qsRanges)
-    headerAndLimitRange = rangeIntersection headerRange limitRange
-    -- Bypass all the ranges and send only the limit zero range (0 <= x <= -1) if
-    -- limit=0 is present in the query params (not allowed for the Range header)
-    ranges = HM.insert "limit" (convertToLimitZeroRange limitRange headerAndLimitRange) qsRanges
-    -- The only emptyRange allowed is the limit zero range
-    isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
-    topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
+    offsetLimitPresent = not (null qsOffset && null qsLimit)
 
 getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
 getPayload reqBody contentMediaType QueryParams{qsColumns} action = do

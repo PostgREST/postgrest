@@ -94,13 +94,13 @@ spec actualPgVersion = do
     context "requesting full representation" $ do
       it "includes related data after insert" $
         request methodPost "/projects?select=id,name,clients(id,name)"
-                [("Prefer", "return=representation"), ("Prefer", "count=exact")]
+                [("Prefer", "return=representation")]
           [json|{"id":6,"name":"New Project","client_id":2}|] `shouldRespondWith` [json|[{"id":6,"name":"New Project","clients":{"id":2,"name":"Apple"}}]|]
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/1"
-                           , "Preference-Applied" <:> "return=representation, count=exact"]
+                           , "Content-Range" <:> "0-0/*"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "can rename and cast the selected columns" $
@@ -111,7 +111,7 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/*"
+                           , "Content-Range" <:> "0-0/*"
                            , "Preference-Applied" <:> "return=representation"]
           }
 
@@ -122,7 +122,7 @@ spec actualPgVersion = do
           { matchStatus  = 201
           , matchHeaders = [ matchContentTypeJson
                            , matchHeaderAbsent hLocation
-                           , "Content-Range" <:> "*/*"
+                           , "Content-Range" <:> "0-0/*"
                            , "Preference-Applied" <:> "return=representation"]
           }
 
@@ -136,7 +136,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/projects?id=eq.11"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -149,7 +149,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -658,7 +658,7 @@ spec actualPgVersion = do
           `shouldRespondWith` "id\n8\n9"
           { matchStatus  = 201
           , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8",
-                            "Content-Range" <:> "*/*"]
+                            "Content-Range" <:> "0-1/*"]
           }
 
     context "with wrong number of columns" $
@@ -753,7 +753,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -766,7 +766,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -778,7 +778,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -795,7 +795,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/datarep_todos?id=eq.5"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -806,7 +806,7 @@ spec actualPgVersion = do
           [json| [{"id":5, "label_color": "#001100"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
       it "parses values in POST body and formats values in return=representation" $
@@ -816,7 +816,7 @@ spec actualPgVersion = do
           [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "icon_image": "3q2+7w==", "created_at":-15, "budget": "-100000000000000.13"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
     context "with ?columns parameter" $ do
@@ -827,7 +827,7 @@ spec actualPgVersion = do
           [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
       it "fails without parsing anything if at least one specified column doesn't exist" $
@@ -850,7 +850,7 @@ spec actualPgVersion = do
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/datarep_todos_computed?id=eq.5"
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -861,7 +861,7 @@ spec actualPgVersion = do
           [json| [{"id":5, "label_color": "#001100"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
       it "parses values in POST body and formats values in return=representation" $
@@ -871,7 +871,7 @@ spec actualPgVersion = do
           [json| [{"id":5,"name": "party", "label_color": "#001100", "due_at":"2018-01-03T11:00:00Z", "dark_color":"#000880"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
     context "on updatable views with ?columns parameter" $ do
@@ -882,7 +882,7 @@ spec actualPgVersion = do
           [json| [{"id":5, "name":null, "label_color": "#001100", "due_at": "2018-01-01T00:00:00Z"}] |]
             { matchStatus  = 201
             , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8",
-                              "Content-Range" <:> "*/*"]
+                              "Content-Range" <:> "0-0/*"]
             }
 
       it "fails without parsing anything if at least one specified column doesn't exist" $

@@ -30,8 +30,7 @@ import PostgREST.ApiRequest              (ApiRequest (..),
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           PreferResolution (..),
                                           Preferences (..),
-                                          prefAppliedHeader,
-                                          shouldCount)
+                                          prefAppliedHeader)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
@@ -68,23 +67,18 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
   case resultSet of
     RSStandard{..} -> do
       let
-        (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
-        prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+        (status, contentRangeH) = RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
+        prefHeader = maybeToList . prefAppliedHeader (iRange /= RangeQuery.allRange) $ Preferences Nothing Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
         headers =
-          [ contentRange
-          , ( "Content-Location"
-            , "/"
-                <> toUtf8 (qiName identifier)
-                <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams
-            )
-          ]
-          ++ contentTypeHeaders wrMedia ctxApiRequest
-          ++ prefHeader
+          catMaybes [ contentRangeH
+            , Just ( "Content-Location", "/" <> toUtf8 (qiName identifier)
+            <> if BS.null (qsCanonical iQueryParams) then mempty else "?" <> qsCanonical iQueryParams)
+          ] ++ contentTypeHeaders wrMedia ctxApiRequest ++ prefHeader
 
       (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
 
       let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
-                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
               | headersOnly              = mempty
               | otherwise                = LBS.fromStrict rsBody
 
@@ -97,9 +91,10 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
   RSStandard{..} -> do
     let
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
-      prefHeader = prefAppliedHeader $
+      prefHeader = prefAppliedHeader (iRange /= RangeQuery.allRange) $
         Preferences (if null pkCols && isNothing (qsOnConflict iQueryParams) then Nothing else preferResolution)
         preferRepresentation Nothing preferCount preferTransaction preferMissing preferHandling preferTimezone Nothing []
+      (status,contentRangeH) = RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
       headers =
         catMaybes
           [ if null rsLocation then
@@ -111,88 +106,98 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
                     <> toUtf8 qiName
                     <> HTTP.renderSimpleQuery True rsLocation
                 )
-          , Just . RangeQuery.contentRangeH 1 0 $
-              if shouldCount preferCount then Just rsQueryTotal else Nothing
-          , prefHeader ]
+          , contentRangeH , prefHeader ]
 
     let isInsertIfGTZero i =
           if i <= 0 && preferResolution == Just MergeDuplicates then
             HTTP.status200
           else
             HTTP.status201
-        status = maybe HTTP.status200 isInsertIfGTZero rsInserted
+        status' = maybe HTTP.status200 isInsertIfGTZero rsInserted
         (headers', bod) = case preferRepresentation of
           Just Full -> (headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
-          Just None -> (headers, mempty)
-          Just HeadersOnly -> (headers, mempty)
-          Nothing -> (headers, mempty)
+          _         -> (headers, mempty)
 
-    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'
 
-    Right $ PgrstResponse ovStatus ovHeaders bod
+    let bod' | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
+                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
+            | otherwise = bod
+
+    Right $ PgrstResponse ovStatus ovHeaders bod'
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
   RSStandard{..} -> do
     let
-      contentRangeHeader =
-        Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
-          if shouldCount preferCount then Just rsQueryTotal else Nothing
-      prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
-      headers = catMaybes [contentRangeHeader, prefHeader]
+      prefHeader = prefAppliedHeader (iRange /= RangeQuery.allRange) $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
+      (status, cRangeHeader) = RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
+      headers = catMaybes [cRangeHeader, prefHeader]
 
-    let (status, headers', body) =
+    let (status', headers', body) =
           case preferRepresentation of
             Just Full -> (HTTP.status200, headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
             Just None -> (HTTP.status204, headers, mempty)
             _         -> (HTTP.status204, headers, mempty)
 
-    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'
 
-    Right $ PgrstResponse ovStatus ovHeaders body
+    let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
+                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
+            | otherwise = body
+
+    Right $ PgrstResponse ovStatus ovHeaders bod
 
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+      prefHeader = maybeToList . prefAppliedHeader (iRange /= RangeQuery.allRange) $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
       cTHeader = contentTypeHeaders mrMedia ctxApiRequest
+      (status, cRangeHeader) = RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
+      allHeaders = cTHeader ++ prefHeader ++ maybeToList cRangeHeader
+
 
     let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
         upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
-        (status, headers, body) =
+        (status', headers, body) =
           case preferRepresentation of
-            Just Full -> (upsertStatus, cTHeader ++ prefHeader, LBS.fromStrict rsBody)
-            Just None -> (HTTP.status204,  prefHeader, mempty)
-            _ -> (HTTP.status204, prefHeader, mempty)
-    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
+            Just Full -> (upsertStatus, allHeaders, LBS.fromStrict rsBody)
+            _         -> (HTTP.status204, prefHeader, mempty)
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers
 
-    Right $ PgrstResponse ovStatus ovHeaders body
+    let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
+                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
+            | otherwise = body
+
+    Right $ PgrstResponse ovStatus ovHeaders bod
 
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
-      contentRangeHeader =
-        RangeQuery.contentRangeH 1 0 $
-          if shouldCount preferCount then Just rsQueryTotal else Nothing
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
-      headers = contentRangeHeader : prefHeader
+      prefHeader = maybeToList . prefAppliedHeader (iRange /= RangeQuery.allRange) $ Preferences Nothing preferRepresentation Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+      (status, cRangeHeader) = RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
+      headers = prefHeader ++ maybeToList cRangeHeader
 
-    let (status, headers', body) =
+    let (status', headers', body) =
           case preferRepresentation of
               Just Full -> (HTTP.status200, headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
               Just None -> (HTTP.status204, headers, mempty)
               _ -> (HTTP.status204, headers, mempty)
 
-    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'
 
-    Right $ PgrstResponse ovStatus ovHeaders body
+    let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
+                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
+            | otherwise = body
+
+    Right $ PgrstResponse ovStatus ovHeaders bod
 
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
@@ -200,14 +205,14 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} 
 actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
-      (status, contentRange) =
-        RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
+      (status, cRangeHeader) =
+        RangeQuery.rangeStatusHeader preferCount iRange rsQueryTotal rsTableTotal
       rsOrErrBody = if status == HTTP.status416
         then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferParameters preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
-      headers = contentRange : prefHeader
+      prefHeader = maybeToList . prefAppliedHeader (iRange /= RangeQuery.allRange) $ Preferences Nothing Nothing preferParameters preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+      headers = prefHeader ++ maybeToList cRangeHeader
 
     let (status', headers', body) =
           if Routine.funcReturnsVoid proc then

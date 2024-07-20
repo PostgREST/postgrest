@@ -46,7 +46,6 @@ import PostgREST.Error                       (Error (..))
 import PostgREST.MediaType                   (MediaType (..))
 import PostgREST.Query.SqlFragment           (sourceCTEName)
 import PostgREST.RangeQuery                  (NonnegRange, allRange,
-                                              convertToLimitZeroRange,
                                               restrictRange)
 import PostgREST.SchemaCache                 (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers     (FieldName,
@@ -342,7 +341,9 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     expandStars ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
-    addRanges apiRequest =<<
+    addOffset apiRequest =<<
+    addLimit apiRequest =<<
+    addRange apiRequest =<<
     addOrders ctx apiRequest =<<
     addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
@@ -352,7 +353,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] Nothing Nothing allRange mempty Nothing [] Nothing mempty Nothing Nothing False [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -455,7 +456,7 @@ treeRestrictRange _ (ActDb (ActRelationMut _ _)) request = Right request
 treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
     nodeRestrictRange :: Maybe Integer -> ReadPlan -> ReadPlan
-    nodeRestrictRange m q@ReadPlan{range_=r} = q{range_= convertToLimitZeroRange r (restrictRange m r) }
+    nodeRestrictRange m q@ReadPlan{range_=r} = q{range_= restrictRange m r }
 
 -- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode(https://stackoverflow.com/questions/22721064/get-the-parent-of-a-node-in-data-tree-haskell#comment34627048_22721064)
 -- also adds aliasing
@@ -794,7 +795,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       rootLabel = ReadPlan {
 --         select = [], -- there will be fields at this stage but we just omit them for brevity
 --         from = QualifiedIdentifier {qiSchema = "test", qiName = "projects"},
---         fromAlias = Just "projects_1", where_ = [], order = [], range_ = fullRange,
+--         fromAlias = Just "projects_1", where_ = [], order = [],
+--         offset = Nothing, limit = Nothing, range_ = fullRange,
 --         relName = "projects",
 --         relToParent = Nothing,
 --         relJoinConds = [],
@@ -823,7 +825,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --           }
 --         )
 --       ],
---       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
+--       order = [], offset = Nothing, limit = Nothing, range_ = fullRange,
+--       relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
 --       relJoinType = Nothing, relIsSpread = False, depth = 0,
 --       relSelect = []
 --     },
@@ -861,26 +864,38 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
       flt@(CoercibleStmnt _) ->
         Right flt
 
-addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addRanges ApiRequest{..} rReq =
+addOffset :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addOffset ApiRequest{..} rReq =
+  foldr addOffsetToNode (Right rReq) qsOffset
+    where
+      QueryParams.QueryParams{..} = iQueryParams
+      addOffsetToNode :: (EmbedPath, Integer) -> Either ApiRequestError ReadPlanTree ->Either ApiRequestError ReadPlanTree
+      addOffsetToNode = updateNode (\o (Node q f) -> Node q{offset = Just o} f)
+
+addLimit :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addLimit ApiRequest{..} rReq =
+  foldr addLimitToNode (Right rReq) qsLimit
+    where
+      QueryParams.QueryParams{..} = iQueryParams
+      addLimitToNode :: (EmbedPath, Integer) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+      addLimitToNode = updateNode (\l (Node q f) -> Node q{limit = Just l} f)
+
+addRange :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRange ApiRequest{..} rReq =
   case iAction of
     ActDb (ActRelationMut _ _) -> Right rReq
-    _                          -> foldr addRangeToNode (Right rReq) =<< ranges
+    _                          -> foldr addRangeToNode (Right rReq) [([], iRange)]
   where
-    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` HM.toList iRange
-
     addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
     addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
 
 addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addLogicTrees ctx ApiRequest{..} rReq =
   foldr addLogicTreeToNode (Right rReq) qsLogic
-  where
-    QueryParams.QueryParams{..} = iQueryParams
-
-    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
-    addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
+    where
+      QueryParams.QueryParams{..} = iQueryParams
+      addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+      addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
 
 resolveLogicTree :: ResolverContext -> LogicTree -> CoercibleLogicTree
 resolveLogicTree ctx (Stmnt flt) = CoercibleStmnt $ resolveFilter ctx flt
@@ -913,12 +928,12 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq = mapLeft ApiRequestError $
+mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq@(Node ReadPlan{offset,limit} _) = mapLeft ApiRequestError $
   case mutation of
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic offset limit rootOrder returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -929,7 +944,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
+    MutationDelete -> Right $ Delete qi combinedLogic offset limit rootOrder returnings
   where
     ctx = ResolverContext dbTables dbRepresentations qi "json"
     confCols = fromMaybe pkCols qsOnConflict

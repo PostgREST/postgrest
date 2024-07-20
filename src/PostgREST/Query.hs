@@ -25,7 +25,6 @@ import qualified PostgREST.AppState           as AppState
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
-import qualified PostgREST.RangeQuery         as RangeQuery
 import qualified PostgREST.SchemaCache        as SchemaCache
 
 import PostgREST.ApiRequest              (ApiRequest (..),
@@ -49,7 +48,7 @@ import PostgREST.Plan                    (ActionPlan (..),
                                           DbActionPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
-import PostgREST.Plan.MutatePlan         (MutatePlan (..))
+import PostgREST.Plan.MutatePlan         (MutatePlan (..), mPlanLimit)
 import PostgREST.Plan.ReadPlan           (ReadPlanTree)
 import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           intercalateSnippet,
@@ -135,11 +134,11 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf api
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  failsChangesOffLimits (mPlanLimit mrMutatePlan) resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
@@ -149,11 +148,11 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) co
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
+  failsChangesOffLimits (mPlanLimit mrMutatePlan) resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 

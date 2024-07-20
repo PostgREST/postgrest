@@ -132,7 +132,7 @@ spec =
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=minimal"]
             }
 
