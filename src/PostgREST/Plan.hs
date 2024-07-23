@@ -679,15 +679,23 @@ applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsSp
                                 then (select rp, [])
                                 else hoistFromSelectFields relAggAlias (select rp)
 
-      newRelSelects = if null children
+      -- If the current `ReadPlan` is a spread rel and it has aggregates hoisted from
+      -- child relationships, then it must hoist those aggregates to its parent rel.
+      -- So we update them with the current `relAggAlias`.
+      hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
+      hoistedAggList = if relIsSpread
+                       then aggList ++ map hoistAgg allChildAggLists
+                       else aggList
+
+      newRelSelects = if null children || relIsSpread
                       then relSelect rp
                       else map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
-  in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, aggList)
+  in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, hoistedAggList)
 
 -- Hoist aggregate functions from the select list of a ReadPlan, and return the
 -- updated select list and the list of hoisted aggregates.
 hoistFromSelectFields :: Alias -> [CoercibleSelectField] -> ([CoercibleSelectField], [HoistedAgg])
-hoistFromSelectFields aggAlias fields =
+hoistFromSelectFields relAggAlias fields =
     let (newFields, maybeAggs) = foldr processField ([], []) fields
     in (newFields, catMaybes maybeAggs)
   where
@@ -699,7 +707,7 @@ hoistFromSelectFields aggAlias fields =
       case csAggFunction field of
         Just aggFunc ->
           ( field { csAggFunction = Nothing, csAggCast = Nothing },
-            Just ((aggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
+            Just ((relAggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
         Nothing -> (field, Nothing)
 
     determineFieldName field = fromMaybe (cfName $ csField field) (csAlias field)
@@ -707,11 +715,11 @@ hoistFromSelectFields aggAlias fields =
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
 -- and any applicable casts or aliases.
 hoistIntoRelSelectFields :: [HoistedAgg] -> RelSelectField -> RelSelectField
-hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = aggAlias}) =
+hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = relAggAlias}) =
     r { rsSpreadSel = map updateSelect spreadSelects }
   where
     updateSelect s =
-        case lookup (aggAlias, ssSelName s) aggList of
+        case lookup (relAggAlias, ssSelName s) aggList of
             Just (aggFunc, aggCast, fldAlias) ->
                 s { ssSelAggFunction = Just aggFunc,
                     ssSelAggCast     = aggCast,
