@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3659, Embed One-to-One relationship with different column order properly - @wolfgangwalther
  - #3504, Remove `format` from `rowFilter` parameters in OpenAPI - @dantheman2865
  - #3640, Prevent spread embedding to allow aggregates when they are disabled - @laurenceisla
+ - #3640, A nested spread embedding now correctly groups by the fields of its top parent relationship - @laurenceisla
 
 ### Changed
 
