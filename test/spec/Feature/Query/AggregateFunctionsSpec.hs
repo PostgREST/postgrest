@@ -152,6 +152,77 @@ allowed =
         get "/budget_expenses?select=...budget_categories(total_budget:budget_amount.sum())" `shouldRespondWith`
           [json|[{"total_budget": 9501.06}]|]
           { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates from a spread relationships grouped by spreaded fields from other relationships" $ do
+        get "/processes?select=...process_costs(cost.sum()),...process_categories(name)" `shouldRespondWith`
+          [json|[
+            {"sum": 400.00, "name": "Batch"},
+            {"sum": 320.00, "name": "Mass"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/processes?select=...process_costs(cost_sum:cost.sum()),...process_categories(category:name)" `shouldRespondWith`
+          [json|[
+            {"cost_sum": 400.00, "category": "Batch"},
+            {"cost_sum": 320.00, "category": "Mass"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships" $ do
+        get "/process_supervisor?select=...processes(factory_id,...process_costs(cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factory_id": 3, "sum": 120.00},
+            {"factory_id": 2, "sum": 500.00},
+            {"factory_id": 1, "sum": 350.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/process_supervisor?select=...processes(factory_id,...process_costs(cost_sum:cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factory_id": 3, "cost_sum": 120.00},
+            {"factory_id": 2, "cost_sum": 500.00},
+            {"factory_id": 1, "cost_sum": 350.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships, grouped by a regular nested relationship" $ do
+        get "/process_supervisor?select=...processes(factories(name),...process_costs(cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factories": {"name": "Factory A"}, "sum": 350.00},
+            {"factories": {"name": "Factory B"}, "sum": 500.00},
+            {"factories": {"name": "Factory C"}, "sum": 120.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/process_supervisor?select=...processes(factory:factories(name),...process_costs(cost_sum:cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factory": {"name": "Factory A"}, "cost_sum": 350.00},
+            {"factory": {"name": "Factory B"}, "cost_sum": 500.00},
+            {"factory": {"name": "Factory C"}, "cost_sum": 120.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships, grouped by spreaded fields from other nested relationships" $ do
+        get "/process_supervisor?select=supervisor_id,...processes(...process_costs(cost.sum()),...process_categories(name))&order=supervisor_id" `shouldRespondWith`
+          [json|[
+            {"supervisor_id": 1, "sum": 220.00, "name": "Batch"},
+            {"supervisor_id": 2, "sum": 70.00, "name": "Batch"},
+            {"supervisor_id": 2, "sum": 200.00, "name": "Mass"},
+            {"supervisor_id": 3, "sum": 180.00, "name": "Batch"},
+            {"supervisor_id": 3, "sum": 120.00, "name": "Mass"},
+            {"supervisor_id": 4, "sum": 180.00, "name": "Batch"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/process_supervisor?select=supervisor_id,...processes(...process_costs(cost_sum:cost.sum()),...process_categories(category:name))&order=supervisor_id" `shouldRespondWith`
+          [json|[
+            {"supervisor_id": 1, "cost_sum": 220.00, "category": "Batch"},
+            {"supervisor_id": 2, "cost_sum": 70.00, "category": "Batch"},
+            {"supervisor_id": 2, "cost_sum": 200.00, "category": "Mass"},
+            {"supervisor_id": 3, "cost_sum": 180.00, "category": "Batch"},
+            {"supervisor_id": 3, "cost_sum": 120.00, "category": "Mass"},
+            {"supervisor_id": 4, "cost_sum": 180.00, "category": "Batch"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships, grouped by spreaded fields from other nested relationships, using a nested relationship as top parent" $ do
+        get "/supervisors?select=name,process_supervisor(...processes(...process_costs(cost.sum()),...process_categories(name)))" `shouldRespondWith`
+          [json|[
+            {"name": "Mary", "process_supervisor": [{"name": "Batch", "sum": 220.00}]},
+            {"name": "John", "process_supervisor": [{"name": "Batch", "sum": 70.00}, {"name": "Mass", "sum": 200.00}]},
+            {"name": "Peter", "process_supervisor": [{"name": "Batch", "sum": 180.00}, {"name": "Mass", "sum": 120.00}]},
+            {"name": "Sarah", "process_supervisor": [{"name": "Batch", "sum": 180.00}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/supervisors?select=name,process_supervisor(...processes(...process_costs(cost_sum:cost.sum()),...process_categories(category:name)))" `shouldRespondWith`
+          [json|[
+            {"name": "Mary", "process_supervisor": [{"category": "Batch", "cost_sum": 220.00}]},
+            {"name": "John", "process_supervisor": [{"category": "Batch", "cost_sum": 70.00}, {"category": "Mass", "cost_sum": 200.00}]},
+            {"name": "Peter", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}, {"category": "Mass", "cost_sum": 120.00}]},
+            {"name": "Sarah", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
 
 disallowed :: SpecWith ((), Application)
 disallowed =

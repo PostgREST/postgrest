@@ -883,3 +883,42 @@ INSERT INTO budget_expenses VALUES (1, 200.26, 1);
 INSERT INTO budget_expenses VALUES (2, 400.26, 3);
 INSERT INTO budget_expenses VALUES (3, 100.22, 4);
 INSERT INTO budget_expenses VALUES (5, 900.27, 5);
+
+TRUNCATE TABLE factories CASCADE;
+INSERT INTO factories VALUES (1, 'Factory A');
+INSERT INTO factories VALUES (2, 'Factory B');
+INSERT INTO factories VALUES (3, 'Factory C');
+INSERT INTO factories VALUES (4, 'Factory D');
+
+TRUNCATE TABLE process_categories CASCADE;
+INSERT INTO process_categories VALUES (1, 'Batch');
+INSERT INTO process_categories VALUES (2, 'Mass');
+
+TRUNCATE TABLE processes CASCADE;
+INSERT INTO processes VALUES (1, 'Process A1', 1, 1);
+INSERT INTO processes VALUES (2, 'Process A2', 1, 2);
+INSERT INTO processes VALUES (3, 'Process B1', 2, 1);
+INSERT INTO processes VALUES (4, 'Process B2', 2, 1);
+INSERT INTO processes VALUES (5, 'Process C1', 3, 2);
+
+TRUNCATE TABLE process_costs CASCADE;
+INSERT INTO process_costs VALUES (1, 150.00);
+INSERT INTO process_costs VALUES (2, 200.00);
+INSERT INTO process_costs VALUES (3, 180.00);
+INSERT INTO process_costs VALUES (4, 70.00);
+INSERT INTO process_costs VALUES (5, 120.00);
+
+TRUNCATE TABLE supervisors CASCADE;
+INSERT INTO supervisors VALUES (1, 'Mary');
+INSERT INTO supervisors VALUES (2, 'John');
+INSERT INTO supervisors VALUES (3, 'Peter');
+INSERT INTO supervisors VALUES (4, 'Sarah');
+
+TRUNCATE TABLE process_supervisor CASCADE;
+INSERT INTO process_supervisor VALUES (1, 1);
+INSERT INTO process_supervisor VALUES (2, 2);
+INSERT INTO process_supervisor VALUES (3, 3);
+INSERT INTO process_supervisor VALUES (3, 4);
+INSERT INTO process_supervisor VALUES (4, 1);
+INSERT INTO process_supervisor VALUES (4, 2);
+INSERT INTO process_supervisor VALUES (5, 3);
