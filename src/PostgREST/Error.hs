@@ -80,7 +80,6 @@ instance PgrstError ApiRequestError where
   status PutLimitNotAllowedError     = HTTP.status400
   status QueryParamError{}           = HTTP.status400
   status RelatedOrderNotToOne{}      = HTTP.status400
-  status SpreadNotToOne{}            = HTTP.status400
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
@@ -173,12 +172,6 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (RelatedOrderNotToOne origin target) = toJsonPgrstError
     ApiRequestErrorCode18
     ("A related order on '" <> target <> "' is not possible")
-    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
-    Nothing
-
-  toJSON (SpreadNotToOne origin target) = toJsonPgrstError
-    ApiRequestErrorCode19
-    ("A spread operation on '" <> target <> "' is not possible")
     (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
     Nothing
 

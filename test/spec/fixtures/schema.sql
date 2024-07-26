@@ -3749,3 +3749,36 @@ after insert
 on infinite_inserts
 for each row
 execute procedure infinite_inserts();
+
+create table factories (
+  id int primary key,
+  name text
+);
+
+create table process_categories (
+  id int primary key,
+  name text
+);
+
+create table processes (
+  id int primary key,
+  name text,
+  factory_id int references factories(id),
+  category_id int references process_categories(id)
+);
+
+create table process_costs (
+  process_id int references processes(id) primary key,
+  cost numeric
+);
+
+create table supervisors (
+  id int primary key,
+  name text
+);
+
+create table process_supervisor (
+  process_id int references processes(id),
+  supervisor_id int references supervisors(id),
+  primary key (process_id, supervisor_id)
+);

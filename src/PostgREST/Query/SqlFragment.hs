@@ -283,10 +283,12 @@ pgFmtApplyAggregate Nothing _ snippet = snippet
 pgFmtApplyAggregate (Just agg) aggCast snippet =
   pgFmtApplyCast aggCast aggregatedSnippet
   where
+    aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
     convertAggFunction :: AggregateFunction -> SQL.Snippet
     -- Convert from e.g. Sum (the data type) to SUM
-    convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
-    aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
+    convertAggFunction = \case
+      JsonAgg -> SQL.sql "json_agg"
+      a       -> SQL.sql . BS.map toUpper . BS.pack $ show a
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet

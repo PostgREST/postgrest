@@ -152,12 +152,144 @@ allowed =
         get "/budget_expenses?select=...budget_categories(total_budget:budget_amount.sum())" `shouldRespondWith`
           [json|[{"total_budget": 9501.06}]|]
           { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates from a spread relationships grouped by spreaded fields from other relationships" $ do
+        get "/processes?select=...process_costs(cost.sum()),...process_categories(name)" `shouldRespondWith`
+          [json|[
+            {"sum": 400.00, "name": "Batch"},
+            {"sum": 320.00, "name": "Mass"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/processes?select=...process_costs(cost_sum:cost.sum()),...process_categories(category:name)" `shouldRespondWith`
+          [json|[
+            {"cost_sum": 400.00, "category": "Batch"},
+            {"cost_sum": 320.00, "category": "Mass"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships" $ do
+        get "/process_supervisor?select=...processes(factory_id,...process_costs(cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factory_id": 3, "sum": 120.00},
+            {"factory_id": 2, "sum": 500.00},
+            {"factory_id": 1, "sum": 350.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/process_supervisor?select=...processes(factory_id,...process_costs(cost_sum:cost.sum()))" `shouldRespondWith`
+          [json|[
+            {"factory_id": 3, "cost_sum": 120.00},
+            {"factory_id": 2, "cost_sum": 500.00},
+            {"factory_id": 1, "cost_sum": 350.00}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships, grouped by spreaded fields from other nested relationships" $ do
+        get "/process_supervisor?select=supervisor_id,...processes(...process_costs(cost.sum()),...process_categories(name))&order=supervisor_id" `shouldRespondWith`
+          [json|[
+            {"supervisor_id": 1, "sum": 220.00, "name": "Batch"},
+            {"supervisor_id": 2, "sum": 70.00, "name": "Batch"},
+            {"supervisor_id": 2, "sum": 200.00, "name": "Mass"},
+            {"supervisor_id": 3, "sum": 180.00, "name": "Batch"},
+            {"supervisor_id": 3, "sum": 120.00, "name": "Mass"},
+            {"supervisor_id": 4, "sum": 180.00, "name": "Batch"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/process_supervisor?select=supervisor_id,...processes(...process_costs(cost_sum:cost.sum()),...process_categories(category:name))&order=supervisor_id" `shouldRespondWith`
+          [json|[
+            {"supervisor_id": 1, "cost_sum": 220.00, "category": "Batch"},
+            {"supervisor_id": 2, "cost_sum": 70.00, "category": "Batch"},
+            {"supervisor_id": 2, "cost_sum": 200.00, "category": "Mass"},
+            {"supervisor_id": 3, "cost_sum": 180.00, "category": "Batch"},
+            {"supervisor_id": 3, "cost_sum": 120.00, "category": "Mass"},
+            {"supervisor_id": 4, "cost_sum": 180.00, "category": "Batch"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "supports aggregates on spreaded fields from nested relationships, grouped by spreaded fields from other nested relationships, using a nested relationship as top parent" $ do
+        get "/supervisors?select=name,process_supervisor(...processes(...process_costs(cost.sum()),...process_categories(name)))" `shouldRespondWith`
+          [json|[
+            {"name": "Mary", "process_supervisor": [{"name": "Batch", "sum": 220.00}]},
+            {"name": "John", "process_supervisor": [{"name": "Batch", "sum": 70.00}, {"name": "Mass", "sum": 200.00}]},
+            {"name": "Peter", "process_supervisor": [{"name": "Batch", "sum": 180.00}, {"name": "Mass", "sum": 120.00}]},
+            {"name": "Sarah", "process_supervisor": [{"name": "Batch", "sum": 180.00}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/supervisors?select=name,process_supervisor(...processes(...process_costs(cost_sum:cost.sum()),...process_categories(category:name)))" `shouldRespondWith`
+          [json|[
+            {"name": "Mary", "process_supervisor": [{"category": "Batch", "cost_sum": 220.00}]},
+            {"name": "John", "process_supervisor": [{"category": "Batch", "cost_sum": 70.00}, {"category": "Mass", "cost_sum": 200.00}]},
+            {"name": "Peter", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}, {"category": "Mass", "cost_sum": 120.00}]},
+            {"name": "Sarah", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}]}]|]
+          { matchHeaders = [matchContentTypeJson] }
+
+    context "performing json_agg() aggregations on to-many spread embeds" $ do
+      it "works on a one-to-many relationship" $ do
+        get "/clients?select=id,...projects(name)" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":["Windows 7", "Windows 10"]},
+            {"id":2,"name":["IOS", "OSX"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+-- Nested not working as expected:
+--        get "/entities?select=name,...child_entities(child_name:name,...grandchild_entities(grandchild_name:name))&limit=3" `shouldRespondWith`
+--          [json|[
+--            {"name":"entity 1","child_name":"child entity 1","grandchild_name":"grandchild entity 1"},
+--            {"name":"entity 2","child_name":"child entity 1","grandchild_name":"grandchild entity 1"},
+--            {"name":"entity 3","child_name":"child entity 2","grandchild_name":"grandchild entity 1"}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+--        get "/videogames?select=name,...computed_designers(designer_name:name)" `shouldRespondWith`
+--          [json|[
+--            {"name":"Civilization I","designer_name":"Sid Meier"},
+--            {"name":"Civilization II","designer_name":"Sid Meier"},
+--            {"name":"Final Fantasy I","designer_name":"Hironobu Sakaguchi"},
+--            {"name":"Final Fantasy II","designer_name":"Hironobu Sakaguchi"}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+
+
+--      it "works inside a normal embed" $
+--        get "/grandchild_entities?select=name,child_entity:child_entities(name,...entities(parent_name:name))&limit=1" `shouldRespondWith`
+--          [json|[
+--            {"name":"grandchild entity 1","child_entity":{"name":"child entity 1","parent_name":"entity 1"}}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+
+      it "works on a many-to-many relationship" $
+        get "/users?select=name,...projects(projects:name)" `shouldRespondWith`
+          [json|[
+            {"name":"Dwight Schrute","projects":["Windows 7", "IOS"]},
+            {"name":"Angela Martin","projects":["Windows 7", "Windows 10"]},
+            {"name":"Michael Scott","projects":["IOS", "OSX"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
 
 disallowed :: SpecWith ((), Application)
 disallowed =
   describe "attempting to use an aggregate when aggregate functions are disallowed" $ do
     it "prevents the use of aggregates" $
       get "/project_invoices?select=invoice_total.sum()" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of aggregates on embedded relationships" $
+      get "/projects?select=name,project_invoices(invoice_total.sum())" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson] }
+
+    it "prevents the use of aggregates on spread embeds" $
+      get "/project_invoices?select=...projects(id.count())" `shouldRespondWith`
         [json|{
           "hint":null,
           "details":null,

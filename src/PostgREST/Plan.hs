@@ -332,14 +332,14 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
   in
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-    validateAggFunctions configDbAggregates =<<
     hoistSpreadAggFunctions =<<
+    validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
-    validateSpreadEmbeds =<<
     addRelatedOrders =<<
     addAliases =<<
     expandStars ctx =<<
+    addJsonAggToManySpread False =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
@@ -604,6 +604,22 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
+-- Add JsonAgg aggregates to selected fields that do not have other aggregates and:
+-- * Belong to a spread to-many relationship
+-- * Are to-one spread but are nested inside a spread to-many relationship
+addJsonAggToManySpread :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addJsonAggToManySpread isNestedInToManyRel (Node rp@ReadPlan{select, relIsSpread, relToParent} forest) =
+  let shouldAddJsonAgg = relIsSpread && (isNestedInToManyRel || Just False == (relIsToOne <$> relToParent))
+      newForest = rights $ addJsonAggToManySpread shouldAddJsonAgg <$> forest
+      newSelects
+        | shouldAddJsonAgg = fieldToJsonAgg <$> select
+        | otherwise = select
+  in Right $ Node rp { select = newSelects } newForest
+  where
+    fieldToJsonAgg field
+      | isJust $ csAggFunction field = field
+      | otherwise = field { csAggFunction = Just JsonAgg, csAlias = newAlias (csAlias field) (cfName $ csField field) }
+    newAlias alias fieldName = maybe (Just fieldName) pure alias
 
 addRelSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRelSelects node@(Node rp forest)
@@ -679,15 +695,23 @@ applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsSp
                                 then (select rp, [])
                                 else hoistFromSelectFields relAggAlias (select rp)
 
-      newRelSelects = if null children
+      -- If the current `ReadPlan` is a spread rel and it has aggregates hoisted from
+      -- child relationships, then it must hoist those aggregates to its parent rel.
+      -- So we update them with the current `relAggAlias`.
+      hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
+      hoistedAggList = if relIsSpread
+                       then aggList ++ map hoistAgg allChildAggLists
+                       else aggList
+
+      newRelSelects = if null children || relIsSpread
                       then relSelect rp
                       else map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
-  in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, aggList)
+  in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, hoistedAggList)
 
 -- Hoist aggregate functions from the select list of a ReadPlan, and return the
 -- updated select list and the list of hoisted aggregates.
 hoistFromSelectFields :: Alias -> [CoercibleSelectField] -> ([CoercibleSelectField], [HoistedAgg])
-hoistFromSelectFields aggAlias fields =
+hoistFromSelectFields relAggAlias fields =
     let (newFields, maybeAggs) = foldr processField ([], []) fields
     in (newFields, catMaybes maybeAggs)
   where
@@ -699,7 +723,7 @@ hoistFromSelectFields aggAlias fields =
       case csAggFunction field of
         Just aggFunc ->
           ( field { csAggFunction = Nothing, csAggCast = Nothing },
-            Just ((aggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
+            Just ((relAggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
         Nothing -> (field, Nothing)
 
     determineFieldName field = fromMaybe (cfName $ csField field) (csAlias field)
@@ -707,11 +731,11 @@ hoistFromSelectFields aggAlias fields =
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
 -- and any applicable casts or aliases.
 hoistIntoRelSelectFields :: [HoistedAgg] -> RelSelectField -> RelSelectField
-hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = aggAlias}) =
+hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = relAggAlias}) =
     r { rsSpreadSel = map updateSelect spreadSelects }
   where
     updateSelect s =
-        case lookup (aggAlias, ssSelName s) aggList of
+        case lookup (relAggAlias, ssSelName s) aggList of
             Just (aggFunc, aggCast, fldAlias) ->
                 s { ssSelAggFunction = Just aggFunc,
                     ssSelAggCast     = aggCast,
@@ -721,8 +745,7 @@ hoistIntoRelSelectFields _ r = r
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
-  | aggFunctionsAllowed = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
-  | any (isJust . csAggFunction) select = Left AggregatesNotAllowed
+  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -888,15 +911,6 @@ resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
-
--- Validates that spread embeds are only done on to-one relationships
-validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-validateSpreadEmbeds (Node rp@ReadPlan{relToParent=Nothing} forest) = Node rp <$> validateSpreadEmbeds `traverse` forest
-validateSpreadEmbeds (Node rp@ReadPlan{relIsSpread,relToParent=Just rel,relName} forest) = do
-  validRP <- if relIsSpread && not (relIsToOne rel)
-    then Left $ SpreadNotToOne (qiName $ relTable rel) relName -- TODO using relTable is not entirely right because ReadPlan might have an alias, need to store the parent alias on ReadPlan
-    else Right rp
-  Node validRP <$> validateSpreadEmbeds `traverse` forest
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
