@@ -63,25 +63,25 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "fails when is not a to-one relationship" $ do
+    it "fails when it's a to-many relationship and aggregates are disabled" $ do
       get "/clients?select=*,...projects(*)" `shouldRespondWith`
         [json|{
-          "code":"PGRST119",
-          "details":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship",
           "hint":null,
-          "message":"A spread operation on 'projects' is not possible"
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
         }|]
-        { matchStatus  = 400
+        { matchStatus = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/designers?select=*,...computed_videogames(*)" `shouldRespondWith`
         [json|{
-          "code":"PGRST119",
-          "details":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship",
           "hint":null,
-          "message":"A spread operation on 'computed_videogames' is not possible"
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
         }|]
-        { matchStatus  = 400
+        { matchStatus = 400
         , matchHeaders = [matchContentTypeJson]
         }
 

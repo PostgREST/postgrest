@@ -211,6 +211,58 @@ allowed =
             {"name": "Sarah", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+    context "performing json_agg() aggregations on to-many spread embeds" $ do
+      it "works on a one-to-many relationship" $ do
+        get "/clients?select=id,...projects(name)" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":["Windows 7", "Windows 10"]},
+            {"id":2,"name":["IOS", "OSX"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+-- Nested not working as expected:
+--        get "/entities?select=name,...child_entities(child_name:name,...grandchild_entities(grandchild_name:name))&limit=3" `shouldRespondWith`
+--          [json|[
+--            {"name":"entity 1","child_name":"child entity 1","grandchild_name":"grandchild entity 1"},
+--            {"name":"entity 2","child_name":"child entity 1","grandchild_name":"grandchild entity 1"},
+--            {"name":"entity 3","child_name":"child entity 2","grandchild_name":"grandchild entity 1"}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+--        get "/videogames?select=name,...computed_designers(designer_name:name)" `shouldRespondWith`
+--          [json|[
+--            {"name":"Civilization I","designer_name":"Sid Meier"},
+--            {"name":"Civilization II","designer_name":"Sid Meier"},
+--            {"name":"Final Fantasy I","designer_name":"Hironobu Sakaguchi"},
+--            {"name":"Final Fantasy II","designer_name":"Hironobu Sakaguchi"}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+
+
+--      it "works inside a normal embed" $
+--        get "/grandchild_entities?select=name,child_entity:child_entities(name,...entities(parent_name:name))&limit=1" `shouldRespondWith`
+--          [json|[
+--            {"name":"grandchild entity 1","child_entity":{"name":"child entity 1","parent_name":"entity 1"}}
+--          ]|]
+--          { matchStatus  = 200
+--          , matchHeaders = [matchContentTypeJson]
+--          }
+
+      it "works on a many-to-many relationship" $
+        get "/users?select=name,...projects(projects:name)" `shouldRespondWith`
+          [json|[
+            {"name":"Dwight Schrute","projects":["Windows 7", "IOS"]},
+            {"name":"Angela Martin","projects":["Windows 7", "Windows 10"]},
+            {"name":"Michael Scott","projects":["IOS", "OSX"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
 disallowed :: SpecWith ((), Application)
 disallowed =
   describe "attempting to use an aggregate when aggregate functions are disallowed" $ do

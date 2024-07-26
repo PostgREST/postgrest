@@ -336,10 +336,10 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
-    validateSpreadEmbeds =<<
     addRelatedOrders =<<
     addAliases =<<
     expandStars ctx =<<
+    addJsonAggToManySpread False =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
@@ -604,6 +604,22 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
+-- Add JsonAgg aggregates to selected fields that do not have other aggregates and:
+-- * Belong to a spread to-many relationship
+-- * Are to-one spread but are nested inside a spread to-many relationship
+addJsonAggToManySpread :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addJsonAggToManySpread isNestedInToManyRel (Node rp@ReadPlan{select, relIsSpread, relToParent} forest) =
+  let shouldAddJsonAgg = relIsSpread && (isNestedInToManyRel || Just False == (relIsToOne <$> relToParent))
+      newForest = rights $ addJsonAggToManySpread shouldAddJsonAgg <$> forest
+      newSelects
+        | shouldAddJsonAgg = fieldToJsonAgg <$> select
+        | otherwise = select
+  in Right $ Node rp { select = newSelects } newForest
+  where
+    fieldToJsonAgg field
+      | isJust $ csAggFunction field = field
+      | otherwise = field { csAggFunction = Just JsonAgg, csAlias = newAlias (csAlias field) (cfName $ csField field) }
+    newAlias alias fieldName = maybe (Just fieldName) pure alias
 
 addRelSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRelSelects node@(Node rp forest)
@@ -895,15 +911,6 @@ resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
-
--- Validates that spread embeds are only done on to-one relationships
-validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-validateSpreadEmbeds (Node rp@ReadPlan{relToParent=Nothing} forest) = Node rp <$> validateSpreadEmbeds `traverse` forest
-validateSpreadEmbeds (Node rp@ReadPlan{relIsSpread,relToParent=Just rel,relName} forest) = do
-  validRP <- if relIsSpread && not (relIsToOne rel)
-    then Left $ SpreadNotToOne (qiName $ relTable rel) relName -- TODO using relTable is not entirely right because ReadPlan might have an alias, need to store the parent alias on ReadPlan
-    else Right rp
-  Node validRP <$> validateSpreadEmbeds `traverse` forest
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
