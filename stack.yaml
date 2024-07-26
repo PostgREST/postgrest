@@ -3,7 +3,7 @@ resolver: lts-22.21 # 2024-05-06, GHC 9.6.5
 nix:
   packages:
     - pcre
-    - pkgconfig
+    - pkg-config
     - postgresql
     - zlib
   # disable pure by default so that the test enviroment can be passed
