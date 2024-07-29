@@ -358,9 +358,8 @@ getObserver = stateObserver
 internalSchemaCacheLoad :: AppState -> IO ()
 internalSchemaCacheLoad appState = do
   AppConfig{..} <- getConfig appState
-  void $ retryingSchemaCacheLoad appState
-  -- We cannot retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
   when configDbConfig $ readInDbConfig False appState
+  void $ retryingSchemaCacheLoad appState
 
 -- | Try to load the schema cache and retry if it fails.
 --
@@ -438,6 +437,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     oneSecondInUs = 1000000 -- one second in microseconds
 
 -- | Reads the in-db config and reads the config file again
+-- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
 readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
   AppConfig{..} <- getConfig appState
