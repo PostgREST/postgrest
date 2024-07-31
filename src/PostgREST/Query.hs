@@ -145,7 +145,6 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf api
 
 actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
-  failPut resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
@@ -208,18 +207,6 @@ writeQuery readPlan mutatePlan mType mHandler ApiRequest{iPreferences=Preference
       preferResolution
       pkCols
       (configDbPreparedStatements conf)
-
--- Makes sure the querystring pk matches the payload pk
--- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
--- PUT /items?id=eq.14 { "id" : 2, .. } is rejected.
--- If this condition is not satisfied then nothing is inserted,
--- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
-failPut :: ResultSet -> DbHandler ()
-failPut RSPlan{} = pure ()
-failPut RSStandard{rsQueryTotal=queryTotal} =
-  when (queryTotal /= 1) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
 resultSetWTotal _ _ rs@RSPlan{} _ = return rs
