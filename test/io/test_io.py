@@ -1623,9 +1623,7 @@ def test_admin_metrics(defaultenv):
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
 
-    response = metapostgrest.session.post(
-        "/rpc/change_db_schemas_config"
-    )
+    response = metapostgrest.session.post("/rpc/change_db_schemas_config")
     assert response.text == ""
     assert response.status_code == 204
 
@@ -1634,8 +1632,6 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
         assert response.text == '"test"'
         assert response.status_code == 200
 
-    response = metapostgrest.session.post(
-        "/rpc/reset_db_schemas_config"
-    )
+    response = metapostgrest.session.post("/rpc/reset_db_schemas_config")
     assert response.text == ""
     assert response.status_code == 204

@@ -218,6 +218,40 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: reset_db_schemas_config
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: reset_db_schemas_config
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: change_db_schemas_config
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: change_db_schemas_config
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: change_db_schema_and_full_reload
     qiSchema: public
   - - pdDescription: null

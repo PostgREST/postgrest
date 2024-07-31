@@ -241,5 +241,5 @@ begin
 end $_$ volatile security definer language plpgsql ;
 
 create function test.get_current_schema() returns text as $$
-  select current_schema();
+  select current_schema()::text;
 $$ language sql;
