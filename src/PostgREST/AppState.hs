@@ -356,10 +356,7 @@ getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
 
 internalSchemaCacheLoad :: AppState -> IO ()
-internalSchemaCacheLoad appState = do
-  AppConfig{..} <- getConfig appState
-  when configDbConfig $ readInDbConfig False appState
-  void $ retryingSchemaCacheLoad appState
+internalSchemaCacheLoad appState = void $ retryingSchemaCacheLoad appState
 
 -- | Try to load the schema cache and retry if it fails.
 --
@@ -397,6 +394,8 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
             killThread mainThreadId
           observer $ DBConnectedObs $ pgvFullName actualPgVersion
           putPgVersion appState actualPgVersion
+          -- Load the in-db config after getting the pgVersion but before loading the Schema Cache
+          when configDbConfig $ readInDbConfig False appState
           return $ Just actualPgVersion
 
     qSchemaCache :: IO (Maybe SchemaCache)
