@@ -161,7 +161,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
   deb <-
     let decisecond = 100000 in
     mkDebounce defaultDebounceSettings
-       { debounceAction = internalSchemaCacheLoad appState
+       { debounceAction = retryingSchemaCacheLoad appState
        , debounceFreq = decisecond
        , debounceEdge = leadingEdge -- runs the worker at the start and the end
        }
@@ -355,9 +355,6 @@ putSCacheStatus = atomicWriteIORef . stateSCacheStatus
 getObserver :: AppState -> ObservationHandler
 getObserver = stateObserver
 
-internalSchemaCacheLoad :: AppState -> IO ()
-internalSchemaCacheLoad appState = void $ retryingSchemaCacheLoad appState
-
 -- | Try to load the schema cache and retry if it fails.
 --
 -- This is done by repeatedly: 1) flushing the pool, 2) querying the version and validating that the postgres version is supported by us, and 3) loading the schema cache.
@@ -365,16 +362,17 @@ internalSchemaCacheLoad appState = void $ retryingSchemaCacheLoad appState
 --
 -- + Because connections cache the pg catalog(see #2620)
 -- + For rapid recovery. Otherwise, the pool idle or lifetime timeout would have to be reached for new healthy connections to be acquired.
-retryingSchemaCacheLoad :: AppState -> IO (Maybe PgVersion, Maybe SchemaCache)
+retryingSchemaCacheLoad :: AppState -> IO ()
 retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThreadId=mainThreadId} =
-  retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
+  void $ retrying retryPolicy shouldRetry (\RetryStatus{rsIterNumber, rsPreviousDelay} -> do
     when (rsIterNumber > 0) $ do
       let delay = fromMaybe 0 rsPreviousDelay `div` oneSecondInUs
       observer $ ConnectionRetryObs delay
       putNextListenerDelay appState delay
 
     flushPool appState
-    (,) <$> qPgVersion <*> qSchemaCache
+
+    (,) <$> qPgVersion <*> (qInDbConfig *> qSchemaCache)
   )
   where
     qPgVersion :: IO (Maybe PgVersion)
@@ -394,9 +392,12 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
             killThread mainThreadId
           observer $ DBConnectedObs $ pgvFullName actualPgVersion
           putPgVersion appState actualPgVersion
-          -- Load the in-db config after getting the pgVersion but before loading the Schema Cache
-          when configDbConfig $ readInDbConfig False appState
           return $ Just actualPgVersion
+
+    qInDbConfig :: IO ()
+    qInDbConfig = do
+      AppConfig{..} <- getConfig appState
+      when configDbConfig $ readInDbConfig False appState
 
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
