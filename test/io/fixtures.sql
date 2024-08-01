@@ -33,6 +33,9 @@ GRANT
 CREATE SCHEMA v1;
 GRANT USAGE ON SCHEMA v1 TO postgrest_test_anonymous;
 
+CREATE SCHEMA test;
+GRANT USAGE ON SCHEMA test TO postgrest_test_anonymous;
+
 CREATE TABLE authors_only ();
 GRANT SELECT ON authors_only TO postgrest_test_author;
 
@@ -225,4 +228,18 @@ $$ language sql;
 
 create function get_statement_timeout(items) returns text as $$
   select current_setting('statement_timeout', true) as statement_timeout
+$$ language sql;
+
+create function change_db_schemas_config() returns void as $_$
+begin
+  alter role postgrest_test_authenticator set pgrst.db_schemas = 'test';
+end $_$ volatile security definer language plpgsql;
+
+create function reset_db_schemas_config() returns void as $_$
+begin
+  alter role postgrest_test_authenticator reset pgrst.db_schemas;
+end $_$ volatile security definer language plpgsql ;
+
+create function test.get_current_schema() returns text as $$
+  select current_schema()::text;
 $$ language sql;
