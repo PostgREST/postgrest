@@ -46,6 +46,7 @@ import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
+import PostgREST.Network              (resolveHost)
 import PostgREST.Observation          (Observation (..))
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
@@ -82,7 +83,8 @@ run appState = do
       observer $ AppServerUnixObs path
     Nothing   -> do
       port <- NS.socketPort $ AppState.getSocketREST appState
-      observer $ AppServerPortObs port
+      host <- resolveHost $ AppState.getSocketREST appState
+      observer $ AppServerPortObs (fromJust host) port
 
   Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 

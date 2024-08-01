@@ -66,6 +66,7 @@ library
                       PostgREST.Logger
                       PostgREST.MediaType
                       PostgREST.Metrics
+                      PostgREST.Network
                       PostgREST.Observation
                       PostgREST.Query
                       PostgREST.Query.QueryBuilder
@@ -115,6 +116,7 @@ library
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
+                    , iproute                   >= 1.7.0 && < 1.8
                     , jose-jwt                  >= 0.9.6 && < 0.11
                     , lens                      >= 4.14 && < 5.3
                     , lens-aeson                >= 1.0.1 && < 1.3

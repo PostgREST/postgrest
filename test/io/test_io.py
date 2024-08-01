@@ -1258,6 +1258,19 @@ def test_log_postgrest_version(defaultenv):
         assert "Starting PostgREST %s..." % version in output[0]
 
 
+def test_log_postgrest_host_and_port(defaultenv):
+    "PostgREST should output the host and port it is bound to."
+    host = "127.0.0.1"
+    port = freeport()
+
+    with run(
+        env=defaultenv, host=host, port=port, no_startup_stdout=False
+    ) as postgrest:
+        output = postgrest.read_stdout(nlines=10)
+
+        assert f"Listening on {host}:{port}" in output[2]  # output-sensitive
+
+
 def test_succeed_w_role_having_superuser_settings(defaultenv):
     "Should succeed when having superuser settings on the impersonated role"
 
@@ -1618,3 +1631,20 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_waiting" in response.text
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
+
+
+def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
+    "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
+
+    response = metapostgrest.session.post("/rpc/change_db_schemas_config")
+    assert response.text == ""
+    assert response.status_code == 204
+
+    with run(env=defaultenv) as postgrest:
+        response = postgrest.session.get("/rpc/get_current_schema")
+        assert response.text == '"test"'
+        assert response.status_code == 200
+
+    response = metapostgrest.session.post("/rpc/reset_db_schemas_config")
+    assert response.text == ""
+    assert response.status_code == 204
