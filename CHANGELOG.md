@@ -13,13 +13,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2858, Performance improvements when calling RPCs via GET using indexes in more cases - @wolfgangwalther
  - #3560, Log resolved host in "Listening on ..." messages - @develop7
 
-### Fixed
-
- - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
- - #3659, Embed One-to-One relationship with different column order properly - @wolfgangwalther
- - #3504, Remove `format` from `rowFilter` parameters in OpenAPI - @dantheman2865
- - #3660, Fix regression that loaded the schema cache before the in-database configuration - @steve-chavez, @laurenceisla
-
 ### Changed
 
  - #2052, Dropped support for PostgreSQL 9.6 - @wolfgangwalther
@@ -29,6 +22,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3607, PostgREST now fails to start when the JWT secret is less than 32 characters long - @laurenceisla
  - #3644, Fail schema cache lookup with invalid db-schemas config - @wolfgangwalther
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
+
+## [12.2.3] - 2024-08-01
+
+### Fixed
+
+ - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
+ - #3659, Embed One-to-One relationship with different column order properly - @wolfgangwalther
+ - #3504, Remove `format` from `rowFilter` parameters in OpenAPI - @dantheman2865
+ - #3660, Fix regression that loaded the schema cache before the in-database configuration - @steve-chavez, @laurenceisla
 
 ## [12.2.2] - 2024-07-10
 
