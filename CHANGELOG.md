@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.3] - 2024-08-01
+
 ### Fixed
 
  - #3091, Broken link in OpenAPI description `externalDocs` - @salim-b
