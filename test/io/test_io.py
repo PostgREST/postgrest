@@ -1258,6 +1258,19 @@ def test_log_postgrest_version(defaultenv):
         assert "Starting PostgREST %s..." % version in output[0]
 
 
+def test_log_postgrest_host_and_port(defaultenv):
+    "PostgREST should output the host and port it is bound to."
+    host = "127.0.0.1"
+    port = freeport()
+
+    with run(
+        env=defaultenv, host=host, port=port, no_startup_stdout=False
+    ) as postgrest:
+        output = postgrest.read_stdout(nlines=10)
+
+        assert f"Listening on {host}:{port}" in output[2]  # output-sensitive
+
+
 def test_succeed_w_role_having_superuser_settings(defaultenv):
     "Should succeed when having superuser settings on the impersonated role"
 
