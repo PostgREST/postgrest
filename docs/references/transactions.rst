@@ -284,11 +284,10 @@ However, starting from PostgreSQL 15, you can grant privileges for these setting
 
   GRANT SET ON PARAMETER <setting> TO <authenticator>;
 
-Function Settings
-~~~~~~~~~~~~~~~~~
+Hoisted Function Settings
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In addition to :ref:`impersonated_settings`, PostgREST will also apply function settings as transaction-scoped settings. This allows functions settings to override
-the impersonated and connection role settings.
+PostgREST can "hoist" function settings to transaction-scoped settings. This allows functions settings to override the impersonated and connection role settings.
 
 .. code-block:: postgres
 
@@ -303,7 +302,7 @@ When calling the above function (see :ref:`functions`), the statement timeout wi
 
 .. note::
 
-   Only the transactions that are hoisted by config :ref:`db-hoisted-tx-settings` will be applied.
+   Only the settings in :ref:`db-hoisted-tx-settings` will be hoisted.
 
 .. _main_query:
 
