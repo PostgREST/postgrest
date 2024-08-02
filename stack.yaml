@@ -6,7 +6,7 @@ nix:
     - pkgconfig
     - postgresql
     - zlib
-  # disable pure by default so that the test enviroment can be passed
+  # disable pure by default so that the test environment can be passed
   pure: false
 
 extra-deps:

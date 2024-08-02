@@ -4,7 +4,7 @@
 , src
 }:
 let
-  # This builds a static PostgREST exectuable based on pkgsStatic.
+  # This builds a static PostgREST executable based on pkgsStatic.
   # pkgsStatic is based on musl, so is a kind of cross-compilation.
   # We still make this explicit here via pkgsCross, because we need
   # to get postgresql/libpq for musl, too.

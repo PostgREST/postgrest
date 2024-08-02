@@ -19,7 +19,7 @@ let
     "postgrest";
 
   # PostgREST source files, filtered based on the rules in the .gitignore files
-  # and file extensions. We want to include as litte as possible, as the files
+  # and file extensions. We want to include as little as possible, as the files
   # added here will increase the space used in the Nix store and trigger the
   # build of new Nix derivations when changed.
   src =
