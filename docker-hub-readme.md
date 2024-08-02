@@ -64,7 +64,7 @@ The image is built from scratch using
 [Nix](https://nixos.org/nixpkgs/manual/#sec-pkgs-dockerTools) instead of a
 `Dockerfile`, which yields a highly secure and optimized image. This is also why
 no commands are listed in the image history. See the [PostgREST
-respository](https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker) for
+repository](https://github.com/PostgREST/postgrest/tree/main/nix/tools/docker) for
 details on the build process and how to inspect the image.
 
 This does not apply to the arm64 variant, which is based on Ubuntu.
