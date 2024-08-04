@@ -437,7 +437,7 @@ def test_max_rows_reload(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.head("/projects")
         assert response.status_code == 200
-        assert response.headers["Content-Range"] == "0-4/*"
+        assert response.text == ""
 
         # change max-rows config on the db
         postgrest.session.post("/rpc/change_max_rows_config", data={"val": 1})
@@ -447,9 +447,9 @@ def test_max_rows_reload(defaultenv):
 
         sleep_until_postgrest_config_reload()
 
-        response = postgrest.session.head("/projects")
+        response = postgrest.session.get("/projects")
         assert response.status_code == 200
-        assert response.headers["Content-Range"] == "0-0/*"
+        assert response.text == "[{}]"
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")
@@ -467,9 +467,9 @@ def test_max_rows_notify_reload(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.head("/projects")
+        response = postgrest.session.get("/projects")
         assert response.status_code == 200
-        assert response.headers["Content-Range"] == "0-4/*"
+        assert response.text == "[{}, \n {}, \n {}, \n {}, \n {}]"
 
         # change max-rows config on the db and reload with notify
         postgrest.session.post(
@@ -478,9 +478,9 @@ def test_max_rows_notify_reload(defaultenv):
 
         sleep_until_postgrest_config_reload()
 
-        response = postgrest.session.head("/projects")
+        response = postgrest.session.get("/projects")
         assert response.status_code == 200
-        assert response.headers["Content-Range"] == "0-0/*"
+        assert response.text == "[{}]"
 
         # reset max-rows config on the db
         response = postgrest.session.post("/rpc/reset_max_rows_config")

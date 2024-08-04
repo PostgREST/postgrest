@@ -40,13 +40,12 @@ import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment
-import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
-  "SELECT " <>
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order,offset,limit,range_=readRange, relToParent, relJoinConds, relSelect} forest) =
+  "WITH pgrst_select_body AS ( SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
@@ -55,8 +54,12 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
   groupF qi select relSelect <> " " <>
   orderF qi order <> " " <>
-  limitOffsetF readRange
+  offsetF <> " " <> limitF <> " ) " <>
+  "SELECT * FROM pgrst_select_body " <>
+  rangeHeaderF readRange
   where
+    limitF = maybe mempty (\x -> "LIMIT " <> intToSqlSnip x) limit
+    offsetF = maybe mempty (\x -> "OFFSET " <> intToSqlSnip x) offset
     fromFrag = fromF relToParent mainQi fromAlias
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
     -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
@@ -135,14 +138,14 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
 -- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
+mutatePlanToQuery (Update mainQi uCols body logicForest offset limit ordts returnings applyDefaults)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
     "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
-  | range == allRange =
+  | isNothing offset && isNothing limit =
     "UPDATE " <> mainTbl <> " SET " <> nonRangeCols <> " " <>
     fromJsonBodyF body uCols False False applyDefaults <>
     whereLogic <> " " <>
@@ -155,7 +158,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
       "SELECT " <> rangeIdF <> " FROM " <> mainTbl <>
       whereLogic <> " " <>
       orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
+      offsetF <> " " <> limitF <> " " <>
     ") " <>
     "UPDATE " <> mainTbl <> " SET " <> rangeCols <>
     "FROM pgrst_affected_rows " <>
@@ -163,6 +166,8 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     returningF mainQi returnings
 
   where
+    limitF = maybe mempty (\x -> "LIMIT " <> intToSqlSnip x) limit
+    offsetF = maybe mempty (\x -> "OFFSET " <> intToSqlSnip x) offset
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = fromQi mainQi
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
@@ -170,8 +175,8 @@ mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings a
     rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
-mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
-  | range == allRange =
+mutatePlanToQuery (Delete mainQi logicForest offset limit ordts returnings)
+  | isNothing offset && isNothing limit =
     "DELETE FROM " <> fromQi mainQi <> " " <>
     whereLogic <> " " <>
     returningF mainQi returnings
@@ -182,14 +187,16 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
       "SELECT " <> rangeIdF <> " FROM " <> fromQi mainQi <>
        whereLogic <> " " <>
       orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
-    ") " <>
+      offsetF <> " " <> limitF <>
+    " ) " <>
     "DELETE FROM " <> fromQi mainQi <> " " <>
     "USING pgrst_affected_rows " <>
     "WHERE " <> whereRangeIdF <> " " <>
     returningF mainQi returnings
 
   where
+    limitF = maybe mempty (\x -> "LIMIT " <> intToSqlSnip x) limit
+    offsetF = maybe mempty (\x -> "OFFSET " <> intToSqlSnip x) offset
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 

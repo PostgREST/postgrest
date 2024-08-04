@@ -22,15 +22,15 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "0-0/*" ]
             }
 
       it "returns the deleted item and count if requested" $
-        request methodDelete "/items?id=eq.2" [("Prefer", "return=representation"), ("Prefer", "count=exact")] ""
+        request methodDelete "/items?id=eq.2" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/1"
-                           , "Preference-Applied" <:> "return=representation, count=exact"]
+          , matchHeaders = ["Content-Range" <:> "0-0/*"
+                           , "Preference-Applied" <:> "return=representation"]
           }
 
       it "ignores ?select= when return not set or return=minimal" $ do
@@ -41,7 +41,7 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*" ]
+                             , "Content-Range" <:> "0-0/*" ]
             }
         request methodDelete "/items?id=eq.3&select=id"
             [("Prefer", "return=minimal")]
@@ -50,7 +50,7 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , "Content-Range" <:> "*/*"
+                             , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=minimal"]
             }
 
@@ -58,7 +58,7 @@ spec =
         request methodDelete "/complex_items?id=eq.2&select=id,name" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [json|[{"id":2,"name":"Two"}]|]
           { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
+          , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
       it "can rename and cast the selected columns" $
@@ -69,7 +69,7 @@ spec =
         request methodDelete "/tasks?id=eq.8&select=id,name,project:projects(id)" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [json|[{"id":8,"name":"Code OSX","project":{"id":4}}]|]
           { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
+          , matchHeaders = ["Content-Range" <:> "0-0/*"]
           }
 
       it "embeds an O2O relationship after delete" $ do
@@ -121,7 +121,7 @@ spec =
           [json| { "password": "passxyz" } |]
             `shouldRespondWith` [json|[ { "id": 1, "email": "test@123.com" } ]|]
             { matchStatus  = 200
-            , matchHeaders = ["Content-Range" <:> "*/*"]
+            , matchHeaders = ["Content-Range" <:> "0-0/*"]
             }
 
       it "suceeds deleting the row with no explicit select when using return=minimal" $

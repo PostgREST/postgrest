@@ -84,7 +84,7 @@ instance PgrstError ApiRequestError where
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
-  status LimitNoOrderError           = HTTP.status400
+  status LimitNoOrderError{}         = HTTP.status400
   status ColumnNotFound{}            = HTTP.status400
   status GucHeadersError             = HTTP.status500
   status GucStatusError              = HTTP.status500
@@ -118,7 +118,6 @@ instance JSON.ToJSON ApiRequestError where
     ApiRequestErrorCode03
     "Requested range not satisfiable"
     (Just $ case rangeError of
-       NegativeLimit           -> "Limit should be greater than or equal to zero."
        LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
        OutOfBounds lower total -> JSON.String $ "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows.")
     Nothing
@@ -141,7 +140,10 @@ instance JSON.ToJSON ApiRequestError where
     (Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter.")
 
   toJSON LimitNoOrderError = toJsonPgrstError
-    ApiRequestErrorCode09 "A 'limit' was applied without an explicit 'order'" Nothing (Just "Apply an 'order' using unique column(s)")
+    ApiRequestErrorCode09
+    "A 'limit' was applied without an explicit 'order'"
+    Nothing
+    (Just "Apply an 'order' using unique column(s)")
 
   toJSON (OffLimitsChangesError n maxs) = toJsonPgrstError
     ApiRequestErrorCode10
@@ -475,13 +477,15 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
         '0':'9':_ -> HTTP.status500 -- triggered action exception
         '0':'L':_ -> HTTP.status403 -- invalid grantor
         '0':'P':_ -> HTTP.status403 -- invalid role specification
-        "23503"   -> HTTP.status409 -- foreign_key_violation
-        "23505"   -> HTTP.status409 -- unique_violation
-        "25006"   -> HTTP.status405 -- read_only_sql_transaction
         "21000"   -> -- cardinality_violation
           if BS.isSuffixOf "requires a WHERE clause" m
             then HTTP.status400 -- special case for pg-safeupdate, which we consider as client error
             else HTTP.status500 -- generic function or view server error, e.g. "more than one row returned by a subquery used as an expression"
+        "2201W"   -> HTTP.status400 -- invalid/negative limit param
+        "2201X"   -> HTTP.status400 -- invalid/negative offset param
+        "23503"   -> HTTP.status409 -- foreign_key_violation
+        "23505"   -> HTTP.status409 -- unique_violation
+        "25006"   -> HTTP.status405 -- read_only_sql_transaction
         '2':'5':_ -> HTTP.status500 -- invalid tx state
         '2':'8':_ -> HTTP.status403 -- invalid auth specification
         '2':'D':_ -> HTTP.status500 -- invalid tx termination

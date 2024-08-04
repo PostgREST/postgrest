@@ -9,11 +9,10 @@
 module PostgREST.ApiRequest.QueryParams
   ( parse
   , QueryParams(..)
-  , pRequestRange
+  , pTreePath
   ) where
 
 import qualified Data.ByteString.Char8         as BS
-import qualified Data.HashMap.Strict           as HM
 import qualified Data.List                     as L
 import qualified Data.Set                      as S
 import qualified Data.Text                     as T
@@ -22,42 +21,42 @@ import qualified Network.HTTP.Base             as HTTP
 import qualified Network.HTTP.Types.URI        as HTTP
 import qualified Text.ParserCombinators.Parsec as P
 
-import Control.Arrow                 ((***))
-import Data.Either.Combinators       (mapLeft)
-import Data.List                     (init, last)
-import Data.Ranged.Boundaries        (Boundary (..))
-import Data.Ranged.Ranges            (Range (..))
-import Data.Tree                     (Tree (..))
-import Text.Parsec.Error             (errorMessages,
-                                      showErrorMessages)
-import Text.ParserCombinators.Parsec (GenParser, ParseError, Parser,
-                                      anyChar, between, char, choice,
-                                      digit, eof, errorPos, letter,
-                                      lookAhead, many1, noneOf,
-                                      notFollowedBy, oneOf,
-                                      optionMaybe, sepBy, sepBy1,
-                                      string, try, (<?>))
-
-import PostgREST.RangeQuery              (NonnegRange, allRange,
-                                          rangeGeq, rangeLimit,
-                                          rangeOffset, restrictRange)
+import Control.Arrow                     ((***))
+import Data.Either.Combinators           (mapLeft)
+import Data.List                         (init, last)
+import Data.Tree                         (Tree (..))
+import PostgREST.ApiRequest.Types        (AggregateFunction (..),
+                                          EmbedParam (..), EmbedPath,
+                                          Field, Filter (..),
+                                          FtsOperator (..), Hint,
+                                          JoinType (..),
+                                          JsonOperand (..),
+                                          JsonOperation (..),
+                                          JsonPath, ListVal,
+                                          LogicOperator (..),
+                                          LogicTree (..), OpExpr (..),
+                                          OpQuantifier (..),
+                                          Operation (..),
+                                          OrderDirection (..),
+                                          OrderNulls (..),
+                                          OrderTerm (..),
+                                          QPError (..),
+                                          QuantOperator (..),
+                                          SelectItem (..),
+                                          SimpleOperator (..),
+                                          SingleVal, TrileanVal (..))
 import PostgREST.SchemaCache.Identifiers (FieldName)
-
-import PostgREST.ApiRequest.Types (AggregateFunction (..),
-                                   EmbedParam (..), EmbedPath, Field,
-                                   Filter (..), FtsOperator (..),
-                                   Hint, JoinType (..),
-                                   JsonOperand (..),
-                                   JsonOperation (..), JsonPath,
-                                   ListVal, LogicOperator (..),
-                                   LogicTree (..), OpExpr (..),
-                                   OpQuantifier (..), Operation (..),
-                                   OrderDirection (..),
-                                   OrderNulls (..), OrderTerm (..),
-                                   QPError (..), QuantOperator (..),
-                                   SelectItem (..),
-                                   SimpleOperator (..), SingleVal,
-                                   TrileanVal (..))
+import Text.Parsec.Error                 (errorMessages,
+                                          showErrorMessages)
+import Text.ParserCombinators.Parsec     (GenParser, ParseError,
+                                          Parser, anyChar, between,
+                                          char, choice, digit, eof,
+                                          errorPos, letter, lookAhead,
+                                          many1, noneOf,
+                                          notFollowedBy, oneOf,
+                                          optionMaybe, sepBy, sepBy1,
+                                          string, try, (<?>))
+import Text.Read                         (read)
 
 import Protolude hiding (Sum, try)
 
@@ -67,8 +66,10 @@ data QueryParams =
     -- ^ Canonical representation of the query params, sorted alphabetically
     , qsParams         :: [(Text, Text)]
     -- ^ Parameters for RPC calls
-    , qsRanges         :: HM.HashMap Text (Range Integer)
-    -- ^ Ranges derived from &limit and &offset params
+    , qsOffset         :: [(EmbedPath, Integer)]
+    -- ^ &offset parameter
+    , qsLimit          :: [(EmbedPath, Integer)]
+    -- ^ &limit parameter
     , qsOrder          :: [(EmbedPath, [OrderTerm])]
     -- ^ &order parameters for each level
     , qsLogic          :: [(EmbedPath, LogicTree)]
@@ -115,6 +116,8 @@ parse :: Bool -> ByteString -> Either QPError QueryParams
 parse isRpcRead qs = do
   rOrd                      <- pRequestOrder `traverse` order
   rLogic                    <- pRequestLogicTree `traverse` logic
+  rOffset                   <- pRequestOffset `traverse` offset
+  rLimit                    <- pRequestLimit `traverse` limit
   rCols                     <- pRequestColumns columns
   rSel                      <- pRequestSelect select
   (rFlts, params)           <- L.partition hasOp <$> pRequestFilter isRpcRead `traverse` filters
@@ -125,7 +128,7 @@ parse isRpcRead qs = do
       params'               = mapMaybe (\case {(_, Filter (fld, _) (NoOpExpr v)) -> Just (fld,v); _ -> Nothing}) params
       rFltsRoot'            = snd <$> rFltsRoot
 
-  return $ QueryParams canonical params' ranges rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
+  return $ QueryParams canonical params' rOffset rLimit rOrd rLogic rCols rSel rFlts rFltsRoot' rFltsNotRoot rFltsFields rOnConflict
   where
     hasRootFilter, hasOp :: (EmbedPath, Filter) -> Bool
     hasRootFilter ([], _) = True
@@ -138,9 +141,8 @@ parse isRpcRead qs = do
     onConflict = lookupParam "on_conflict"
     columns = lookupParam "columns"
     order = filter (endingIn ["order"] . fst) nonemptyParams
-    limits = filter (endingIn ["limit"] . fst) nonemptyParams
-    -- Replace .offset ending with .limit to be able to match those params later in a map
-    offsets = first (replaceLast "limit") <$> filter (endingIn ["offset"] . fst) nonemptyParams
+    offset = filter (endingIn ["offset"] . fst) nonemptyParams
+    limit = filter (endingIn ["limit"] . fst) nonemptyParams
     lookupParam :: Text -> Maybe Text
     lookupParam needle = toS <$> join (L.lookup needle qParams)
     nonemptyParams = mapMaybe (\(k, v) -> (k,) <$> v) qParams
@@ -155,7 +157,7 @@ parse isRpcRead qs = do
         . map (join (***) BS.unpack . second (fromMaybe mempty))
         $ qString
 
-    endingIn:: [Text] -> Text -> Bool
+    endingIn :: [Text] -> Text -> Bool
     endingIn xx key = lastWord `elem` xx
       where lastWord = L.last $ T.split (== '.') key
 
@@ -164,21 +166,6 @@ parse isRpcRead qs = do
     reserved = ["select", "columns", "on_conflict"]
     reservedEmbeddable = ["order", "limit", "offset", "and", "or"]
 
-    replaceLast x s = T.intercalate "." $ L.init (T.split (=='.') s) <> [x]
-
-    ranges :: HM.HashMap Text (Range Integer)
-    ranges = HM.unionWith f limitParams offsetParams
-      where
-        f rl ro = Range (BoundaryBelow o) (BoundaryAbove $ o + l - 1)
-          where
-            l = fromMaybe 0 $ rangeLimit rl
-            o = rangeOffset ro
-
-        limitParams =
-          HM.fromList [(k, restrictRange (readMaybe v) allRange) | (k,v) <- limits]
-
-        offsetParams =
-          HM.fromList [(k, maybe allRange rangeGeq (readMaybe v)) | (k,v) <- offsets]
 
 simpleOperator :: Parser SimpleOperator
 simpleOperator =
@@ -243,11 +230,19 @@ pRequestOrder (k, v) = mapError $ (,) <$> path <*> ord'
     path = fst <$> treePath
     ord' = P.parse pOrder ("failed to parse order (" ++ toS v ++ ")") $ toS v
 
-pRequestRange :: (Text, NonnegRange) -> Either QPError (EmbedPath, NonnegRange)
-pRequestRange (k, v) = mapError $ (,) <$> path <*> pure v
+pRequestOffset :: (Text, Text) -> Either QPError (EmbedPath, Integer)
+pRequestOffset (k,v) = mapError $ (,) <$> path <*> int
   where
     treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
     path = fst <$> treePath
+    int = P.parse pInt ("failed to parse offset parameter (" <> toS v <> ")") $ toS v
+
+pRequestLimit :: (Text, Text) -> Either QPError (EmbedPath, Integer)
+pRequestLimit (k,v) = mapError $ (,) <$> path <*> int
+  where
+    treePath = P.parse pTreePath ("failed to parse tree path (" ++ toS k ++ ")") $ toS k
+    path = fst <$> treePath
+    int = P.parse pInt ("failed to parse limit parameter (" <> toS v <> ")") $ toS v
 
 pRequestLogicTree :: (Text, Text) -> Either QPError (EmbedPath, LogicTree)
 pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
@@ -841,6 +836,18 @@ pLogicPath = do
   let op = last path
       notOp = "not." <> op
   return (filter (/= "not") (init path), if "not" `elem` path then notOp else op)
+
+pInt :: Parser Integer
+pInt = pPosInt <|> pNegInt
+  where
+    pPosInt :: Parser Integer
+    pPosInt = many1 digit <&> read
+
+    pNegInt :: Parser Integer
+    pNegInt = do
+      _ <- char '-'
+      n <- many1 digit
+      return ((-1) * read n)
 
 pColumns :: Parser [FieldName]
 pColumns = pFieldName `sepBy1` lexeme (char ',')

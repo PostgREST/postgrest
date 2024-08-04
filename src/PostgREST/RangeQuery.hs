@@ -15,7 +15,6 @@ module PostgREST.RangeQuery (
 , convertToLimitZeroRange
 , NonnegRange
 , rangeStatusHeader
-, contentRangeH
 ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -28,6 +27,9 @@ import Data.Ranged.Boundaries
 import Data.Ranged.Ranges
 import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
+
+import PostgREST.ApiRequest.Preferences (PreferCount (..),
+                                         shouldCount)
 
 import Protolude
 
@@ -93,29 +95,33 @@ convertToLimitZeroRange :: Range Integer -> Range Integer -> Range Integer
 convertToLimitZeroRange range fallbackRange =
   if hasLimitZero range then limitZeroRange else fallbackRange
 
-rangeStatusHeader :: NonnegRange -> Int64 -> Maybe Int64 -> (Status, Header)
-rangeStatusHeader topLevelRange queryTotal tableTotal =
-  let lower = rangeOffset topLevelRange
-      upper = lower + toInteger queryTotal - 1
-      contentRange = contentRangeH lower upper (toInteger <$> tableTotal)
-      status = rangeStatus lower upper (toInteger <$> tableTotal)
-  in (status, contentRange)
-  where
-    rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
-    rangeStatus _ _ Nothing = status200
-    rangeStatus lower upper (Just total)
-      | lower > total               = status416 -- 416 Range Not Satisfiable
-      | (1 + upper - lower) < total = status206 -- 206 Partial Content
-      | otherwise                   = status200 -- 200 OK
-
-contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
-contentRangeH lower upper total =
-    ("Content-Range", toUtf8 headerValue)
+rangeStatusHeader :: Maybe PreferCount -> NonnegRange -> Int64 -> Maybe Int64 -> (Status, Maybe Header)
+rangeStatusHeader prefCount topLevelRange queryTotal tableTotal
+  = (status, Just contentRange)
     where
-      headerValue   = rangeString <> "/" <> totalString :: Text
-      rangeString
-        | totalNotZero && fromInRange = show lower <> "-" <> show upper
-        | otherwise = "*"
-      totalString   = maybe "*" show total
-      totalNotZero  = Just 0 /= total
-      fromInRange   = lower <= upper
+      lower = rangeOffset topLevelRange
+      upper = lower + toInteger queryTotal - 1
+      tblTotal = if shouldCount prefCount
+                    then toInteger <$> tableTotal
+                    else Nothing
+      contentRange = contentRangeH lower upper tblTotal
+      status = rangeStatus lower upper tblTotal
+
+      rangeStatus :: Integer -> Integer -> Maybe Integer -> Status
+      rangeStatus _ _ Nothing = status200
+      rangeStatus low up (Just total)
+        | low > total            = status416 -- 416 Range Not Satisfiable
+        | (1 + up - low) < total = status206 -- 206 Partial Content
+        | otherwise              = status200 -- 200 OK
+
+      contentRangeH :: (Integral a, Show a) => a -> a -> Maybe a -> Header
+      contentRangeH low up tot =
+          ("Content-Range", toUtf8 headerValue)
+          where
+            headerValue   = rangeString <> "/" <> totalString :: Text
+            rangeString
+              | totalNotZero && fromInRange = show low <> "-" <> show up
+              | otherwise = "*"
+            totalString   = maybe "*" show tot
+            totalNotZero  = Just 0 /= tot
+            fromInRange   = low <= up
