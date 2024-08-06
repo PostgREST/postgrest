@@ -716,6 +716,7 @@ tablesSqlQuery =
         -- corresponds to `1 << CMD_INSERT` in the PostgreSQL source code, i.e.
         -- it's possible to insert into the relation.
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 8) = 8
+        AND exists(SELECT * FROM information_schema.table_privileges where table_schema=n.nspname and table_name=c.relname and privilege_type='INSERT' and grantee=current_user)
       )
     ) AS insertable,
     (
@@ -724,6 +725,7 @@ tablesSqlQuery =
         c.relkind in ('v','f')
         -- CMD_UPDATE
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 4) = 4
+        AND exists(SELECT * FROM information_schema.table_privileges where table_schema=n.nspname and table_name=c.relname and privilege_type='UPDATE' and grantee=current_user)
       )
     ) AS updatable,
     (
@@ -732,6 +734,7 @@ tablesSqlQuery =
         c.relkind in ('v','f')
         -- CMD_DELETE
         AND (pg_relation_is_updatable(c.oid::regclass, TRUE) & 16) = 16
+        AND exists(SELECT * FROM information_schema.table_privileges where table_schema=n.nspname and table_name=c.relname and privilege_type='DELETE' and grantee=current_user)
       )
     ) AS deletable,
     coalesce(tpks.pk_cols, '{}') as pk_cols,

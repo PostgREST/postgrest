@@ -18,6 +18,12 @@ spec = describe "Allow header" $ do
       liftIO $
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+          
+     it "includes read methods for readonly table" $ do
+       r <- request methodOptions "/selectonly" [] ""
+       liftIO $
+        simpleHeaders r `shouldSatisfy`
+          matchHeader "Allow" "OPTIONS,GET,HEAD"
 
     it "fails with 404 for an unknown table" $
       request methodOptions "/unknown" [] "" `shouldRespondWith` 404
@@ -49,6 +55,12 @@ spec = describe "Allow header" $ do
         liftIO $
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,GET,HEAD"
+            
+      it "includes the GET/HEAD/POST method for a stable function" $ do
+        r <- request methodOptions "/rpc/getallusers" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+           matchHeader "Allow" "OPTIONS,GET,HEAD,POST"
 
       it "includes read/write methods for insertable, updatable and deletable views with pk" $ do
         r <- request methodOptions "/projects_view_with_all_triggers_with_pk" [] ""

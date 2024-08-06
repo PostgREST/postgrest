@@ -1680,6 +1680,13 @@ CREATE TABLE test.bar(
   "fooId" int references "Foo"(id)
 );
 
+CREATE TABLE test.selectonly(
+  id bigserial primary key
+);
+
+create view test.selectonly_view as
+select id from test.selectonly;
+
 CREATE VIEW test.foos as select id,name from "Foo";
 CREATE VIEW test.bars as select id, "fooId", name from bar;
 
