@@ -19,9 +19,9 @@ spec = describe "Allow header" $ do
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
           
-     it "includes read methods for readonly table" $ do
-       r <- request methodOptions "/selectonly" [] ""
-       liftIO $
+    it "includes read methods for readonly table" $ do
+      r <- request methodOptions "/selectonly" [] ""
+      liftIO $
         simpleHeaders r `shouldSatisfy`
           matchHeader "Allow" "OPTIONS,GET,HEAD"
 
