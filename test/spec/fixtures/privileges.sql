@@ -28,9 +28,15 @@ REVOKE ALL PRIVILEGES ON TABLE
     , authors_only
     , insertonly
     , limited_article_stars
+    , selectonly
+    , selectonly_view
 FROM postgrest_test_anonymous;
 
 GRANT INSERT ON TABLE insertonly TO postgrest_test_anonymous;
+
+GRANT SELECT ON TABLE selectonly TO postgrest_test_anonymous;
+
+GRANT SELECT ON TABLE selectonly_view TO postgrest_test_anonymous;
 
 GRANT USAGE ON SEQUENCE
       auto_incrementing_pk_id_seq

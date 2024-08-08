@@ -250,6 +250,19 @@ INSERT INTO items2 VALUES (15);
 
 
 --
+-- Data for Name: selectonly; Type: TABLE DATA; Schema: test; Owner: -
+--
+
+TRUNCATE TABLE selectonly CASCADE;
+INSERT INTO selectonly VALUES (1);
+INSERT INTO selectonly VALUES (2);
+INSERT INTO selectonly VALUES (3);
+INSERT INTO selectonly VALUES (4);
+INSERT INTO selectonly VALUES (5);
+INSERT INTO selectonly VALUES (6);
+INSERT INTO selectonly VALUES (7);
+
+--
 -- Name: items_id_seq; Type: SEQUENCE SET; Schema: test; Owner: -
 --
 
