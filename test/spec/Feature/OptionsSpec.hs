@@ -55,6 +55,12 @@ spec = describe "Allow header" $ do
         liftIO $
           simpleHeaders r `shouldSatisfy`
             matchHeader "Allow" "OPTIONS,GET,HEAD"
+
+      it "includes read methods for readonly view" $ do
+        r <- request methodOptions "/selectonly_view" [] ""
+        liftIO $
+          simpleHeaders r `shouldSatisfy`
+            matchHeader "Allow" "OPTIONS,GET,HEAD"
             
       it "includes the GET/HEAD/POST method for a stable function" $ do
         r <- request methodOptions "/rpc/getallusers" [] ""
