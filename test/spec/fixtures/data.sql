@@ -883,3 +883,6 @@ INSERT INTO budget_expenses VALUES (1, 200.26, 1);
 INSERT INTO budget_expenses VALUES (2, 400.26, 3);
 INSERT INTO budget_expenses VALUES (3, 100.22, 4);
 INSERT INTO budget_expenses VALUES (5, 900.27, 5);
+
+TRUNCATE TABLE mytable CASCADE;
+INSERT INTO mytable VALUES (1, 'hello');
