@@ -703,14 +703,12 @@ hoistFromSelectFields relAggAlias fields =
       let (modifiedField, maybeAgg) = modifyField field
       in (modifiedField : newFields, maybeAgg : aggList)
 
-    modifyField field =
-      case csAggFunction field of
-        Just aggFunc ->
-          ( field { csAggFunction = Nothing, csAggCast = Nothing },
-            Just ((relAggAlias, determineFieldName field), (aggFunc, csAggCast field, csAlias field)))
-        Nothing -> (field, Nothing)
-
-    determineFieldName field = fromMaybe (cfName $ csField field) (csAlias field)
+    modifyField field@CoercibleSelectField{csAggFunction=Just aggFunc, csField, csAggCast, csAlias} =
+      let determineFieldName = fromMaybe (cfName csField) csAlias
+          updatedField = field {csAggFunction = Nothing, csAggCast = Nothing}
+          hoistedField = Just ((relAggAlias, determineFieldName), (aggFunc, csAggCast, csAlias))
+      in (updatedField, hoistedField)
+    modifyField field = (field, Nothing)
 
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
 -- and any applicable casts or aliases.
