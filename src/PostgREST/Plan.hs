@@ -270,7 +270,7 @@ data ResolverContext = ResolverContext
   }
 
 resolveColumnField :: Column -> CoercibleField
-resolveColumnField col = CoercibleField (colName col) mempty False (colNominalType col) Nothing (colDefault col)
+resolveColumnField col = CoercibleField (colName col) mempty False (colNominalType col) Nothing (colDefault col) False
 
 resolveTableFieldName :: Table -> FieldName -> CoercibleField
 resolveTableFieldName table fieldName =
@@ -380,10 +380,18 @@ addAliases = Right . fmap addAliasToPlan
 
     aliasSelectField :: CoercibleSelectField -> CoercibleSelectField
     aliasSelectField field@CoercibleSelectField{csField=fieldDetails, csAggFunction=aggFun, csAlias=alias}
-      | isJust alias || isJust aggFun = field
+      | isJust alias = field
+      | isJust aggFun = fieldAliasForSpreadAgg field
       | isJsonKeyPath fieldDetails, Just key <- lastJsonKey fieldDetails = field { csAlias = Just key }
       | isTransformPath fieldDetails = field { csAlias = Just (cfName fieldDetails) }
       | otherwise = field
+
+    -- A request like: `/top_table?select=...middle_table(...nested_table(count()))` will `SELECT` the full row instead of `*`,
+    -- because doing a `COUNT(*)` in `top_table` would not return the desired results.
+    -- So we use the "count" alias if none is present since the field name won't be selected.
+    fieldAliasForSpreadAgg field
+      | cfFullRow (csField field) = field { csAlias = Just "count" }
+      | otherwise                 = field
 
     isJsonKeyPath CoercibleField{cfJsonPath=(_: _)} = True
     isJsonKeyPath _                                 = False
@@ -428,26 +436,30 @@ expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
     adjustContext context fromQI _ = context{qi=fromQI}
 
 expandStarsForTable :: ResolverContext -> Bool -> ReadPlan -> ReadPlan
-expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields}
+expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields, relIsSpread=isSpread}
   -- We expand if either of the below are true:
   -- * We have a '*' select AND there is an aggregate function in this ReadPlan's sub-tree.
   -- * We have a '*' select AND the target table has at least one data representation.
-  -- We ignore any '*' selects that have an aggregate function attached (i.e for COUNT(*)).
-  | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField knownColumns) selectFields}
+  -- We ignore '*' selects that have an aggregate function attached, unless it's a `COUNT(*)` for a Spread Embed,
+  -- we tag it as "full row" in that case.
+  | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField isSpread knownColumns) selectFields}
   | otherwise = rp
   where
     hasStarSelect = "*" `elem` map (cfName . csField) filteredSelectFields
-    filteredSelectFields = filter (isNothing . csAggFunction) selectFields
+    filteredSelectFields = filter (shouldExpandOrTag . csAggFunction) selectFields
+    shouldExpandOrTag aggFunc = isNothing aggFunc || (isSpread && aggFunc == Just Count)
     hasDataRepresentation = any hasOutputRep knownColumns
     knownColumns = knownColumnsInContext ctx
 
     hasOutputRep :: Column -> Bool
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
 
-    expandStarSelectField :: [Column] -> CoercibleSelectField -> [CoercibleSelectField]
-    expandStarSelectField columns sel@CoercibleSelectField{csField=CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Nothing} =
+    expandStarSelectField :: Bool -> [Column] -> CoercibleSelectField -> [CoercibleSelectField]
+    expandStarSelectField _ columns sel@CoercibleSelectField{csField=CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Nothing} =
       map (\col -> sel { csField = withOutputFormat ctx $ resolveColumnField col }) columns
-    expandStarSelectField _ selectField = [selectField]
+    expandStarSelectField True _ sel@CoercibleSelectField{csField=fld@CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Just Count} =
+      [sel { csField = fld { cfFullRow = True } }]
+    expandStarSelectField _ _ selectField = [selectField]
 
 -- | Enforces the `max-rows` config on the result
 treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -823,7 +835,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       where_ = [
 --         CoercibleStmnt (
 --           CoercibleFilter {
---            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing},
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
 --            opExpr = op
 --           }
 --         )
@@ -839,7 +851,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing}, opExpr = OpExpr True (Is TriNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is TriNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -858,7 +870,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
     newNullFilters rPlans = \case
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
-      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _) opExpr)) ->
+      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _ _) opExpr)) ->
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
           (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias

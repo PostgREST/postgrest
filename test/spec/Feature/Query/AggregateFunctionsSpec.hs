@@ -224,6 +224,73 @@ allowed =
             {"name": "Sarah", "process_supervisor": [{"category": "Batch", "cost_sum": 180.00}]}]|]
           { matchHeaders = [matchContentTypeJson] }
 
+      context "supports count() aggregate without specifying a field" $ do
+        it "works by itself in the embedded resource" $ do
+          get "/process_supervisor?select=supervisor_id,...processes(count())&order=supervisor_id" `shouldRespondWith`
+            [json|[
+              {"supervisor_id": 1, "count": 2},
+              {"supervisor_id": 2, "count": 2},
+              {"supervisor_id": 3, "count": 3},
+              {"supervisor_id": 4, "count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/process_supervisor?select=supervisor_id,...processes(processes_count:count())&order=supervisor_id" `shouldRespondWith`
+            [json|[
+              {"supervisor_id": 1, "processes_count": 2},
+              {"supervisor_id": 2, "processes_count": 2},
+              {"supervisor_id": 3, "processes_count": 3},
+              {"supervisor_id": 4, "processes_count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+        it "works alongside other columns in the embedded resource" $ do
+          get "/process_supervisor?select=...supervisors(id,count())&order=supervisors(id)" `shouldRespondWith`
+            [json|[
+              {"id": 1, "count": 2},
+              {"id": 2, "count": 2},
+              {"id": 3, "count": 3},
+              {"id": 4, "count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/process_supervisor?select=...supervisors(supervisor:id,supervisor_count:count())&order=supervisors(supervisor)" `shouldRespondWith`
+            [json|[
+              {"supervisor": 1, "supervisor_count": 2},
+              {"supervisor": 2, "supervisor_count": 2},
+              {"supervisor": 3, "supervisor_count": 3},
+              {"supervisor": 4, "supervisor_count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+        it "works on nested resources" $ do
+          get "/process_supervisor?select=supervisor_id,...processes(...process_costs(count()))&order=supervisor_id" `shouldRespondWith`
+            [json|[
+              {"supervisor_id": 1, "count": 2},
+              {"supervisor_id": 2, "count": 2},
+              {"supervisor_id": 3, "count": 2},
+              {"supervisor_id": 4, "count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/process_supervisor?select=supervisor:supervisor_id,...processes(...process_costs(process_costs_count:count()))&order=supervisor_id" `shouldRespondWith`
+            [json|[
+              {"supervisor": 1, "process_costs_count": 2},
+              {"supervisor": 2, "process_costs_count": 2},
+              {"supervisor": 3, "process_costs_count": 2},
+              {"supervisor": 4, "process_costs_count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+        it "works on nested resources grouped by spreaded fields" $ do
+          get "/process_supervisor?select=...processes(factory_id,...process_costs(count()))&order=processes(factory_id)" `shouldRespondWith`
+            [json|[
+              {"factory_id": 1, "count": 2},
+              {"factory_id": 2, "count": 4},
+              {"factory_id": 3, "count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/process_supervisor?select=...processes(factory:factory_id,...process_costs(process_costs_count:count()))&order=processes(factory)" `shouldRespondWith`
+            [json|[
+              {"factory": 1, "process_costs_count": 2},
+              {"factory": 2, "process_costs_count": 4},
+              {"factory": 3, "process_costs_count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+        it "works on different levels of the nested resources at the same time" $
+          get "/process_supervisor?select=...processes(factory:factory_id,processes_count:count(),...process_costs(process_costs_count:count()))&order=processes(factory)" `shouldRespondWith`
+            [json|[
+              {"factory": 1, "processes_count": 2, "process_costs_count": 2},
+              {"factory": 2, "processes_count": 4, "process_costs_count": 4},
+              {"factory": 3, "processes_count": 2, "process_costs_count": 1}]|]
+            { matchHeaders = [matchContentTypeJson] }
+
 disallowed :: SpecWith ((), Application)
 disallowed =
   describe "attempting to use an aggregate when aggregate functions are disallowed" $ do

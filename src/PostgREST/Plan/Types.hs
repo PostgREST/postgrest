@@ -39,10 +39,11 @@ data CoercibleField = CoercibleField
   , cfIRType    :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
   , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault   :: Maybe Text
+  , cfFullRow   :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spreaded resources.
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
-unknownField name path = CoercibleField name path False "" Nothing Nothing
+unknownField name path = CoercibleField name path False "" Nothing Nothing False
 
 -- | Like an API request LogicTree, but with coercible field information.
 data CoercibleLogicTree
