@@ -900,6 +900,7 @@ INSERT INTO processes VALUES (2, 'Process A2', 1, 2);
 INSERT INTO processes VALUES (3, 'Process B1', 2, 1);
 INSERT INTO processes VALUES (4, 'Process B2', 2, 1);
 INSERT INTO processes VALUES (5, 'Process C1', 3, 2);
+INSERT INTO processes VALUES (6, 'Process C2', 3, 2);
 
 TRUNCATE TABLE process_costs CASCADE;
 INSERT INTO process_costs VALUES (1, 150.00);
@@ -922,3 +923,4 @@ INSERT INTO process_supervisor VALUES (3, 4);
 INSERT INTO process_supervisor VALUES (4, 1);
 INSERT INTO process_supervisor VALUES (4, 2);
 INSERT INTO process_supervisor VALUES (5, 3);
+INSERT INTO process_supervisor VALUES (6, 3);

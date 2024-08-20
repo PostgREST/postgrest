@@ -17,6 +17,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
  - #3693, Prevent spread embedding to allow aggregates when they are disabled - @laurenceisla
  - #3693, A nested spread embedding now correctly groups by the fields of its top parent relationship - @laurenceisla
+ - #3693, Fix spread embedding errors when using the `count()` aggregate without a field - @laurenceisla
+   + Fixed `"column reference <col> is ambiguous"` error when selecting `?select=...table(col,count())`
+   + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
 
 ### Changed
 
