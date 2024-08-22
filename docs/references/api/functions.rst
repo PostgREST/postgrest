@@ -71,6 +71,40 @@ The function parameter names match the JSON object keys in the POST case, for th
 
 .. _function_single_json:
 
+Functions with an array of JSON objects
+----------------------------------------------
+
+If you want to pass multiple JSON objects to a Postgres function (an array of objects), you can create a function with a parameter of type ``json`` or ``jsonb``.
+
+Within the curl request, this JSON must be embedded in an object where they key matches the same name as the function's ``json`` or ``jsonb`` parameter.
+This will allow you to loop over the array of JSON objects within the Postgres function.
+
+This practice may allow you to reduce the number of ``curl`` requests required to accomplish a task.
+
+For instance, assume we have created this function in the database.
+
+.. code-block:: postgres
+
+  CREATE FUNCTION update_data(p_json jsonb)
+  RETURNS void AS $$
+  DECLARE
+    json_item json;
+  BEGIN
+    FOR json_item IN SELECT jsonb_array_elements(p_json) LOOP
+      UPDATE data_table SET data_text_column = (json_item->>'data_text')::text 
+        WHERE data_int_column = (json_item->>'data_int')::integer;
+    END LOOP;
+  END;
+  $$ LANGUAGE SQL IMMUTABLE;
+
+A ``curl`` request using the POST method would look like the following:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/rpc/update_data" \
+    -X POST -H "Content-Type: application/json" \
+    -d '{ "p_json": [ { "data_text": "one", "data_int": "1" }, { "data_text": "two", "data_int": "2" } ] }'
+
 Functions with a single unnamed JSON parameter
 ----------------------------------------------
 
