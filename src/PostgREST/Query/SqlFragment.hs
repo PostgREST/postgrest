@@ -11,7 +11,7 @@ module PostgREST.Query.SqlFragment
   , countF
   , groupF
   , fromQi
-  , limitOffsetF
+  , rangeHeaderF
   , locationF
   , mutRangeF
   , orderF
@@ -33,6 +33,7 @@ module PostgREST.Query.SqlFragment
   , sourceCTE
   , sourceCTEName
   , unknownEncoder
+  , intToSqlSnip
   , intercalateSnippet
   , explainF
   , setConfigWithConstantName
@@ -480,12 +481,12 @@ returningF qi returnings =
     then "RETURNING 1" -- For mutation cases where there's no ?select, we return 1 to know how many rows were modified
     else "RETURNING " <> intercalateSnippet ", " (pgFmtColumn qi <$> returnings)
 
-limitOffsetF :: NonnegRange -> SQL.Snippet
-limitOffsetF range =
+rangeHeaderF :: NonnegRange -> SQL.Snippet
+rangeHeaderF range =
   if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
   where
-    limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
-    offset = unknownEncoder (BS.pack . show $ rangeOffset range)
+    limit = maybe "ALL" intToSqlSnip $ rangeLimit range
+    offset = intToSqlSnip $ rangeOffset range
 
 responseHeadersF :: SQL.Snippet
 responseHeadersF = currentSettingF "response.headers"
@@ -520,6 +521,9 @@ unknownEncoder = SQL.encoderAndParam (HE.nonNullable HE.unknown)
 
 unknownLiteral :: Text -> SQL.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
+
+intToSqlSnip :: Integer -> SQL.Snippet
+intToSqlSnip x = unknownEncoder (BS.pack $ show x)
 
 intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty

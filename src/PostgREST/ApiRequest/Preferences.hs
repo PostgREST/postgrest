@@ -178,8 +178,8 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefMap :: ToHeaderValue a => [a] -> Map.Map ByteString a
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
-prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
+prefAppliedHeader :: Bool -> Preferences -> Maybe HTTP.Header
+prefAppliedHeader rangeHdPresent Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -190,7 +190,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
       , toHeaderValue <$> preferMissing
       , toHeaderValue <$> preferRepresentation
       , toHeaderValue <$> preferParameters
-      , toHeaderValue <$> preferCount
+      , toHeaderValue <$> (if rangeHdPresent then preferCount else Nothing)
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
       , toHeaderValue <$> preferTimezone
@@ -254,7 +254,7 @@ instance ToHeaderValue PreferCount where
 
 shouldCount :: Maybe PreferCount -> Bool
 shouldCount prefCount =
-  prefCount == Just ExactCount || prefCount == Just EstimatedCount
+  prefCount `elem` [Just ExactCount, Just PlannedCount, Just EstimatedCount]
 
 -- | Whether to commit or roll back transactions.
 data PreferTransaction

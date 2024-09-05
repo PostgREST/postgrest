@@ -247,7 +247,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
-        aggCol `shouldBe` Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
+        aggCol `shouldBe` Just [aesonQQ| "COALESCE((json_agg(_postgrest_t.*) -> 0), 'null'::json)" |]
 
   describe "function plan" $ do
     it "outputs the total cost for a function call" $ do
@@ -261,7 +261,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 68.56
+        totalCost `shouldBe` 68.86
 
   describe "text format" $ do
     it "outputs the total cost for a function call" $ do
@@ -295,7 +295,7 @@ spec actualPgVersion = do
       r <- request methodGet "/clients?select=*,projects(*)&id=eq.1"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 33.3)
+      liftIO $ planCost r `shouldSatisfy` (< 33.4)
 
     it "a many to one doesn't surpass a threshold" $ do
       r <- request methodGet "/projects?select=*,clients(*)&id=eq.1"
@@ -314,12 +314,12 @@ spec actualPgVersion = do
         r1 <- request methodGet "/clients?select=*,projects!inner(*)&id=eq.1"
                [planHdr] ""
 
-        liftIO $ planCost r1 `shouldSatisfy` (< 33.3)
+        liftIO $ planCost r1 `shouldSatisfy` (< 33.4)
 
         r2 <- request methodGet "/clients?select=*,projects(*)&projects=not.is.null&id=eq.1"
                [planHdr] ""
 
-        liftIO $ planCost r2 `shouldSatisfy` (< 33.3)
+        liftIO $ planCost r2 `shouldSatisfy` (< 33.4)
 
       it "on an m2o, an !inner has a similar cost to not.null" $ do
         r1 <- request methodGet "/projects?select=*,clients!inner(*)&id=eq.1"
@@ -348,13 +348,13 @@ spec actualPgVersion = do
       r <- request methodGet "/rpc/get_projects_below?id=3"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 35.4)
+      liftIO $ planCost r `shouldSatisfy` (< 45.28)
 
     it "should not exceed cost when calling setof composite proc with empty params" $ do
       r <- request methodGet "/rpc/getallprojects"
              [planHdr] ""
 
-      liftIO $ planCost r `shouldSatisfy` (< 71.0)
+      liftIO $ planCost r `shouldSatisfy` (< 91.14)
 
     it "should not exceed cost when calling scalar proc" $ do
       r <- request methodGet "/rpc/add_them?a=3&b=4"
@@ -428,7 +428,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"text/xml\"; options=verbose; charset=utf-8")
-        aggCol `shouldBe` Just [aesonQQ| "return_scalar_xml.pgrst_scalar" |]
+        aggCol `shouldBe` Just [aesonQQ| "_postgrest_t.pgrst_scalar" |]
 
     it "outputs the plan for an aggregate application/vnd.twkb" $ do
       r <- request methodGet "/lines"

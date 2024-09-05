@@ -48,6 +48,7 @@ import qualified Feature.Query.ErrorSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.LimitedMutationSpec
+import qualified Feature.Query.LimitOffsetSpec
 import qualified Feature.Query.MultipleSchemaSpec
 import qualified Feature.Query.NullsStripSpec
 import qualified Feature.Query.PgSafeUpdateSpec
@@ -149,6 +150,7 @@ main = do
         , ("Feature.Query.EmbedDisambiguationSpec"       , Feature.Query.EmbedDisambiguationSpec.spec)
         , ("Feature.Query.EmbedInnerJoinSpec"            , Feature.Query.EmbedInnerJoinSpec.spec)
         , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec actualPgVersion)
+        , ("Feature.Query.LimitOffsetSpec"               , Feature.Query.LimitOffsetSpec.spec)
         , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec)
         , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
         , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)

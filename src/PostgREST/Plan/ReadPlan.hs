@@ -34,6 +34,8 @@ data ReadPlan = ReadPlan
   , fromAlias    :: Maybe Alias
   , where_       :: [CoercibleLogicTree]
   , order        :: [CoercibleOrderTerm]
+  , offset       :: Maybe Integer
+  , limit        :: Maybe Integer
   , range_       :: NonnegRange
   , relName      :: NodeName
   , relToParent  :: Maybe Relationship
