@@ -33,8 +33,8 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:08:16:11 -0500: Starting PostgREST 12.1...
    06/May/2024:08:16:11 -0500: Attempting to connect to the database...
    06/May/2024:08:16:11 -0500: Successfully connected to PostgreSQL 14.10 (Ubuntu 14.10-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, 64-bit
-   06/May/2024:08:16:11 -0500: Listening on port 3000
-   06/May/2024:08:16:11 -0500: Listening for notifications on the "pgrst" channel
+   06/May/2024:08:16:11 -0500: API server listening on port 3000
+   06/May/2024:08:16:11 -0500: Listening for database notifications on the "pgrst" channel
    06/May/2024:08:16:11 -0500: Config reloaded
    06/May/2024:08:16:11 -0500: Schema cache queried in 3.8 milliseconds
    06/May/2024:08:16:11 -0500: Schema cache loaded 15 Relations, 8 Relationships, 8 Functions, 0 Domain Representations, 4 Media Type Handlers
