@@ -65,9 +65,9 @@ observationMessage = \case
   AppStartObs ver ->
     "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
   AppServerPortObs host port ->
-    "Listening on " <> host <> ":" <> show port
+    "API server listening on " <> host <> ":" <> show port
   AppServerUnixObs sock ->
-    "Listening on unix socket " <> show sock
+    "API server listening on unix socket " <> show sock
   DBConnectedObs ver ->
     "Successfully connected to " <> ver
   ExitUnsupportedPgVersion pgVer minPgVer ->
@@ -95,15 +95,15 @@ observationMessage = \case
   QueryPgVersionError usageErr ->
     "Failed to query the PostgreSQL version. " <> jsonMessage usageErr
   DBListenStart channel -> do
-    "Listening for notifications on the " <> show channel <> " channel"
+    "Listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
-    "Failed listening for notifications on the " <> show channel <> " channel. " <> (
+    "Failed listening for database notifications on the " <> show channel <> " channel. " <> (
       case listenErr of
         Left err  -> show err
         Right err -> showListenerError err
     )
   DBListenRetry delay ->
-    "Retrying listening for notifications in " <> (show delay::Text) <> " seconds..."
+    "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
   DBListenerGotSCacheMsg channel ->
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->

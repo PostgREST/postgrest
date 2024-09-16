@@ -1268,7 +1268,7 @@ def test_log_postgrest_host_and_port(defaultenv):
     ) as postgrest:
         output = postgrest.read_stdout(nlines=10)
 
-        assert f"Listening on {host}:{port}" in output[2]  # output-sensitive
+        assert f"API server listening on {host}:{port}" in output[2]  # output-sensitive
 
 
 def test_succeed_w_role_having_superuser_settings(defaultenv):
