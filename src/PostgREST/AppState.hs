@@ -132,6 +132,8 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
 
+  observer $ AppStartObs prettyVersion
+
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
@@ -206,7 +208,7 @@ initSockets AppConfig{..} = do
   pure (sock, adminSock)
 
 initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
-initPool AppConfig{..} observer =
+initPool AppConfig{..} observer = do
   SQL.acquire $ SQL.settings
     [ SQL.size configDbPoolSize
     , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
@@ -391,6 +393,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
             observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
             killThread mainThreadId
           observer $ DBConnectedObs $ pgvFullName actualPgVersion
+          observer $ PoolInit configDbPoolSize
           putPgVersion appState actualPgVersion
           return $ Just actualPgVersion
 

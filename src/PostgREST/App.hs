@@ -67,8 +67,6 @@ run appState = do
   let observer = AppState.getObserver appState
   conf@AppConfig{..} <- AppState.getConfig appState
 
-  observer $ AppStartObs prettyVersion
-
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   Unix.installSignalHandlers (AppState.getMainThreadId appState) (AppState.schemaCacheLoader appState) (AppState.readInDbConfig False appState)
 

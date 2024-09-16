@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3607, Log to stderr when the JWT secret is less than 32 characters long - @laurenceisla
  - #2858, Performance improvements when calling RPCs via GET using indexes in more cases - @wolfgangwalther
  - #3560, Log resolved host in "Listening on ..." messages - @develop7
+ - #3727, Log maximum pool size - @steve-chavez
 
 ### Fixed
 
