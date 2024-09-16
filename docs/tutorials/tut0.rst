@@ -213,12 +213,8 @@ You should see something similar to:
 .. code-block:: text
 
   Starting PostgREST 12.0.2...
-  Attempting to connect to the database...
-  Connection successful
-  Listening on port 3000
-  Config reloaded
-  Listening for notifications on the pgrst channel
-  Schema cache loaded
+  Successfully connected to PostgreSQL 14.10 (Ubuntu 14.10-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04) 11.4.0, 64-bit
+  API server listening on port 3000
 
 It's now ready to serve web requests. There are many nice graphical API exploration tools you can use, but for this tutorial we'll use :code:`curl` because it's likely to be installed on your system already. Open a new terminal (leaving the one open that PostgREST is running inside). Try doing an HTTP request for the todos.
 

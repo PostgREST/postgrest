@@ -49,6 +49,7 @@ data Observation
   | QueryRoleSettingsErrorObs SQL.UsageError
   | QueryErrorCodeHighObs SQL.UsageError
   | QueryPgVersionError SQL.UsageError
+  | PoolInit Int
   | PoolAcqTimeoutObs SQL.UsageError
   | HasqlPoolObs SQL.Observation
   | PoolRequest
@@ -118,6 +119,8 @@ observationMessage = \case
     "Failed reloading config: " <> err
   ConfigSucceededObs ->
      "Config reloaded"
+  PoolInit poolSize ->
+     "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
   PoolAcqTimeoutObs usageErr ->
     jsonMessage usageErr
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
