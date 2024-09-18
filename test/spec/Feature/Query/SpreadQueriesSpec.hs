@@ -9,8 +9,8 @@ import Test.Hspec.Wai.JSON
 import Protolude  hiding (get)
 import SpecHelper
 
-spec :: SpecWith ((), Application)
-spec =
+aggDisabledSpec :: SpecWith ((), Application)
+aggDisabledSpec =
   describe "spread embeds" $ do
     it "works on a many-to-one relationship" $ do
       get "/projects?select=id,...clients(client_name:name)" `shouldRespondWith`
@@ -63,23 +63,35 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-    it "fails when is not a to-one relationship" $ do
+    it "fails when it's a one-to-many relationship and aggregates are disabled" $ do
       get "/clients?select=*,...projects(*)" `shouldRespondWith`
         [json|{
-          "code":"PGRST119",
-          "details":"'clients' and 'projects' do not form a many-to-one or one-to-one relationship",
           "hint":null,
-          "message":"A spread operation on 'projects' is not possible"
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
         }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
         }
       get "/designers?select=*,...computed_videogames(*)" `shouldRespondWith`
         [json|{
-          "code":"PGRST119",
-          "details":"'designers' and 'computed_videogames' do not form a many-to-one or one-to-one relationship",
           "hint":null,
-          "message":"A spread operation on 'computed_videogames' is not possible"
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
+        }|]
+        { matchStatus = 400
+        , matchHeaders = [matchContentTypeJson]
+        }
+
+    it "fails when it's a many-to-many relationship and aggregates are disabled" $ do
+      get "/supervisors?select=*,...processes(*)" `shouldRespondWith`
+        [json|{
+          "hint":null,
+          "details":null,
+          "code":"PGRST123",
+          "message":"Use of aggregate functions is not allowed"
         }|]
         { matchStatus  = 400
         , matchHeaders = [matchContentTypeJson]
@@ -112,3 +124,283 @@ spec =
         { matchStatus  = 200
         , matchHeaders = [matchContentTypeJson]
         }
+
+aggEnabledSpec :: SpecWith ((), Application)
+aggEnabledSpec =
+  describe "spread embeds" $ do
+    context "one-to-many relationships as array aggregates" $ do
+      it "should aggregate a single spread column" $ do
+        get "/factories?select=factory:name,...processes(name)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","name":["Process B1", "Process B2"]},
+            {"factory":"Factory A","name":["Process A1", "Process A2"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/factories?select=factory:name,...processes(processes:name)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","processes":["Process B1", "Process B2"]},
+            {"factory":"Factory A","processes":["Process A1", "Process A2"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate many spread columns" $ do
+        get "/factories?select=factory:name,...processes(name,category_id)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","name":["Process B1", "Process B2"],"category_id":[1, 1]},
+            {"factory":"Factory A","name":["Process A1", "Process A2"],"category_id":[1, 2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/factories?select=factory:name,...processes(processes:name,categories:category_id)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","processes":["Process B1", "Process B2"],"categories":[1, 1]},
+            {"factory":"Factory A","processes":["Process A1", "Process A2"],"categories":[1, 2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should return an empty array when no elements are found" $
+        get "/factories?select=factory:name,...processes(processes:name)&processes=is.null" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory D","processes":[]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns, aggregating each one of them" $
+        get "/factories?select=factory:name,...processes(*)&id=lte.2&order=name" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory A","id":[1,2],"name":["Process A1","Process A2"],"factory_id":[1,1],"category_id":[1,2]},
+            {"factory":"Factory B","id":[3,4],"name":["Process B1","Process B2"],"factory_id":[2,2],"category_id":[1,1]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested one-to-one relationship" $
+        get "/factories?select=factory:name,...processes(process:name,...process_costs(process_costs:cost))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"process_costs":[180.00, 70.00]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"process_costs":[150.00, 200.00]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested many-to-one relationship" $
+        get "/factories?select=factory:name,...processes(process:name,...process_categories(categories:name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"categories":["Batch", "Batch"]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"categories":["Batch", "Mass"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested one-to-many relationship" $
+        get "/factories?select=factory:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B1", "Process B2", "Process B2"],"supervisor_ids":[3, 4, 1, 2]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisor_ids":[1, 2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested many-to-many relationship" $ do
+        get "/factories?select=factory:name,...processes(process:name,...supervisors(supervisors:name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B1", "Process B2", "Process B2"],"supervisors":["Peter", "Sarah", "Mary", "John"]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisors":["Mary", "John"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread one-to-one relationship into an array of objects" $ do
+        get "/factories?select=factory:name,...processes(process:name,process_costs(cost))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"process_costs":[{"cost": 180.00}, {"cost": 70.00}]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"process_costs":[{"cost": 150.00}, {"cost": 200.00}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread many-to-one relationship into an array of objects" $
+        get "/factories?select=factory:name,...processes(process:name,process_categories(name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B2"],"process_categories":[{"name": "Batch"}, {"name": "Batch"}]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"process_categories":[{"name": "Batch"}, {"name": "Mass"}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread one-to-many relationship into an array of objects" $
+        get "/factories?select=factory:name,...processes(process:name,process_supervisor(supervisor_id))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1","Process B1","Process B2","Process B2"],"process_supervisor":[{"supervisor_id": 3},{"supervisor_id": 4},{"supervisor_id": 1},{"supervisor_id": 2}]},
+            {"factory":"Factory A","process":["Process A1","Process A2"],"process_supervisor":[{"supervisor_id": 1},{"supervisor_id": 2}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread many-to-many relationship into an array of objects" $
+        get "/factories?select=factory:name,...processes(process:name,supervisors(name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory B","process":["Process B1", "Process B1", "Process B2", "Process B2"],"supervisors":[{"name": "Peter"}, {"name": "Sarah"}, {"name": "Mary"}, {"name": "John"}]},
+            {"factory":"Factory A","process":["Process A1", "Process A2"],"supervisors":[{"name": "Mary"}, {"name": "John"}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns in a nested to-one resource, aggregating each one of them" $
+        get "/factories?select=factory:name,...processes(*,...process_costs(*))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"factory":"Factory A","id":[1,2],"name":["Process A1","Process A2"],"factory_id":[1,1],"category_id":[1,2],"process_id":[1,2],"cost":[150.00,200.00]},
+            {"factory":"Factory B","id":[3,4],"name":["Process B1","Process B2"],"factory_id":[2,2],"category_id":[1,1],"process_id":[3,4],"cost":[180.00,70.00]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+    context "many-to-many relationships as array aggregates" $ do
+      it "should aggregate a single spread column" $ do
+        get "/operators?select=operator:name,...processes(name)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","name":["Process A1","Process A2","Process B2"]},
+            {"operator":"Louis","name":["Process A1","Process A2"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/operators?select=operator:name,...processes(processes:name)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","processes":["Process A1","Process A2","Process B2"]},
+            {"operator":"Louis","processes":["Process A1","Process A2"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate many spread columns" $ do
+        get "/operators?select=operator:name,...processes(name,category_id)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","name":["Process A1","Process A2","Process B2"],"category_id":[1,2,1]},
+            {"operator":"Louis","name":["Process A1","Process A2"],"category_id":[1,2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+        get "/operators?select=operator:name,...processes(processes:name,categories:category_id)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","processes":["Process A1","Process A2","Process B2"],"categories":[1,2,1]},
+            {"operator":"Louis","processes":["Process A1","Process A2"],"categories":[1,2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should return an empty array when no elements are found" $
+        get "/operators?select=operator:name,...processes(processes:name)&processes=is.null" `shouldRespondWith`
+          [json|[
+            {"operator":"Liz","processes":[]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns, aggregating each one of them" $
+        get "/operators?select=operator:name,...processes(*)&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","id":[1,2,4],"name":["Process A1","Process A2","Process B2"],"factory_id":[1,1,2],"category_id":[1,2,1]},
+            {"operator":"Louis","id":[1,2],"name":["Process A1","Process A2"],"factory_id":[1,1],"category_id":[1,2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested one-to-one relationship" $
+        get "/operators?select=operator:name,...processes(process:name,...process_costs(process_costs:cost))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2"],"process_costs":[150.00,200.00,70.00]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"process_costs":[150.00,200.00]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested many-to-one relationship" $
+        get "/operators?select=operator:name,...processes(process:name,...process_categories(categories:name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2"],"categories":["Batch","Mass","Batch"]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"categories":["Batch","Mass"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested one-to-many relationship" $
+        get "/operators?select=operator:name,...processes(process:name,...process_supervisor(supervisor_ids:supervisor_id))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2","Process B2"],"supervisor_ids":[1,2,1,2]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"supervisor_ids":[1,2]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate spread columns from a nested many-to-many relationship" $ do
+        get "/operators?select=operator:name,...processes(process:name,...supervisors(supervisors:name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2","Process B2"],"supervisors":["Mary","John","Mary","John"]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"supervisors":["Mary","John"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread one-to-one relationship into an array of objects" $ do
+        get "/operators?select=operator:name,...processes(process:name,process_costs(cost))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2"],"process_costs":[{"cost": 150.00},{"cost": 200.00},{"cost": 70.00}]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"process_costs":[{"cost": 150.00},{"cost": 200.00}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread many-to-one relationship into an array of objects" $
+        get "/operators?select=operator:name,...processes(process:name,process_categories(name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2"],"process_categories":[{"name": "Batch"},{"name": "Mass"},{"name": "Batch"}]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"process_categories":[{"name": "Batch"},{"name": "Mass"}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread one-to-many relationship into an array of objects" $
+        get "/operators?select=operator:name,...processes(process:name,process_supervisor(supervisor_id))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2","Process B2"],"process_supervisor":[{"supervisor_id": 1},{"supervisor_id": 2},{"supervisor_id": 1},{"supervisor_id": 2}]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"process_supervisor":[{"supervisor_id": 1},{"supervisor_id": 2}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate a nested non-spread many-to-many relationship into an array of objects" $
+        get "/operators?select=operator:name,...processes(process:name,supervisors(name))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"operator":"Anne","process":["Process A1","Process A2","Process B2","Process B2"],"supervisors":[{"name": "Mary"},{"name": "John"},{"name": "Mary"},{"name": "John"}]},
+            {"operator":"Louis","process":["Process A1","Process A2"],"supervisors":[{"name": "Mary"},{"name": "John"}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should not aggregate to-one relationships when they're nested inside a non-spread relationship, even if the latter is nested in a to-many spread" $
+        get "/supervisors?select=name,...process_supervisor(processes(name,...process_costs(cost)))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"name":"Mary","processes":[{"cost": 150.00, "name": "Process A1"}, {"cost": 70.00, "name": "Process B2"}]},
+            {"name":"John","processes":[{"cost": 200.00, "name": "Process A2"}, {"cost": 70.00, "name": "Process B2"}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should aggregate to-many relationships when they're nested inside a non-spread relationship" $
+        get "/supervisors?select=name,...process_supervisor(processes(name,...operators(operators:name)))&id=lte.2" `shouldRespondWith`
+          [json|[
+            {"name":"John","processes":[{"name": "Process A2", "operators": ["Anne", "Louis", "Jeff"]}, {"name": "Process B2", "operators": ["Anne", "Jeff"]}]},
+            {"name":"Mary","processes":[{"name": "Process A1", "operators": ["Anne", "Louis"]}, {"name": "Process B2", "operators": ["Anne", "Jeff"]}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
