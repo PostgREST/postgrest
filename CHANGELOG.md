@@ -16,6 +16,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
    + The selected columns in the embedded resources are aggregated into arrays
    + It's disabled by default, it can be activated with `db-aggregates-enabled`.
+ - #3640, Add the `..` spread operator - @laurenceisla
+   + In one-to-many and many-to-many relationships, it can be used to show only distinct no null values in the array.
+   + It works as an alias of `...` in one-to-one and many-to-one relationships.
+   + The aggregates inside `..` do not use distinct values, they work as if `...` were used.
 
 ### Fixed
 

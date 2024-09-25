@@ -288,8 +288,9 @@ pgFmtApplyAggregate (Just agg) aggCast snippet =
     aggregatedSnippet = case agg of
      -- TODO: NULLIF(...,'{null}') does not take into consideration a case with a single element with a null value.
      -- See https://github.com/PostgREST/postgrest/pull/3640#issuecomment-2334996466
-     ArrayAgg -> "COALESCE(NULLIF(array_agg(" <> snippet <> "),'{null}'),'{}')"
-     a        -> convertAggFunction a <> "(" <> snippet <> ")"
+     ArrayAgg False -> "COALESCE(NULLIF(array_agg(" <> snippet <> "),'{null}'),'{}')"
+     ArrayAgg True  -> "COALESCE(array_agg(DISTINCT " <> snippet <> ") FILTER (WHERE " <> snippet <> " IS NOT NULL),'{}')"
+     a              -> convertAggFunction a <> "(" <> snippet <> ")"
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet

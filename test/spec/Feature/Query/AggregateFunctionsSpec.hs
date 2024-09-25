@@ -378,6 +378,11 @@ allowed =
               {"name":"Sarah","process_supervisor":[{"category": "Batch", "building_size_total": 170}]},
               {"name":"Jane","process_supervisor":[]}]|]
             { matchHeaders = [matchContentTypeJson] }
+        it "does not aggregate by distinct values when using the .. operator, it aggregates as if ... was used" $
+          get "/operators?select=operator:name,...processes(..process_costs(distinct_costs:cost,costs_sum:cost.sum()))&id=eq.3" `shouldRespondWith`
+            [json|[
+              {"operator":"Jeff","distinct_costs":[70.00,180.00,200.00],"costs_sum":520.00}]|]
+            { matchHeaders = [matchContentTypeJson] }
 
         context "supports count() aggregate without specifying a field" $ do
           context "one-to-many" $ do

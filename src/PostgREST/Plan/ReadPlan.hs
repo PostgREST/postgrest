@@ -7,7 +7,8 @@ module PostgREST.Plan.ReadPlan
 import Data.Tree (Tree (..))
 
 import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
-                                           JoinType, NodeName)
+                                           JoinType, NodeName,
+                                           SpreadType)
 import PostgREST.Plan.Types               (CoercibleLogicTree,
                                            CoercibleOrderTerm,
                                            CoercibleSelectField (..),
@@ -42,7 +43,7 @@ data ReadPlan = ReadPlan
   , relAggAlias         :: Alias
   , relHint             :: Maybe Hint
   , relJoinType         :: Maybe JoinType
-  , relIsSpread         :: Bool
+  , relSpread           :: Maybe SpreadType
   , relIsInToManySpread :: Bool
   , relSelect           :: [RelSelectField]
   , depth               :: Depth

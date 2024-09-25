@@ -33,6 +33,7 @@ module PostgREST.ApiRequest.Types
   , QuantOperator(..)
   , FtsOperator(..)
   , SelectItem(..)
+  , SpreadType(..)
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
@@ -60,11 +61,12 @@ data SelectItem
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }
--- | The value in `/tbl?select=...another_tbl(*)`
+-- | The value in `/tbl?select=...another_tbl(*)` or `/tbl?select=..another_tbl(*)`
   | SpreadRelation
-    { selRelation :: FieldName
-    , selHint     :: Maybe Hint
-    , selJoinType :: Maybe JoinType
+    { selRelation   :: FieldName
+    , selHint       :: Maybe Hint
+    , selJoinType   :: Maybe JoinType
+    , selSpreadType :: SpreadType
     }
   deriving (Eq, Show)
 
@@ -144,7 +146,7 @@ type Cast = Text
 type Alias = Text
 type Hint = Text
 
-data AggregateFunction = Sum | Avg | Max | Min | Count | ArrayAgg
+data AggregateFunction = Sum | Avg | Max | Min | Count | ArrayAgg {isDistinctNotNull :: Bool}
   deriving (Show, Eq)
 
 data EmbedParam
@@ -270,4 +272,9 @@ data FtsOperator
   | FilterFtsPlain
   | FilterFtsPhrase
   | FilterFtsWebsearch
+  deriving (Eq, Show)
+
+data SpreadType
+  = SpreadAll
+  | SpreadDistinct
   deriving (Eq, Show)

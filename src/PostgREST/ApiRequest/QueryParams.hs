@@ -57,7 +57,7 @@ import PostgREST.ApiRequest.Types (AggregateFunction (..),
                                    QPError (..), QuantOperator (..),
                                    SelectItem (..),
                                    SimpleOperator (..), SingleVal,
-                                   TrileanVal (..))
+                                   SpreadType (..), TrileanVal (..))
 
 import Protolude hiding (Sum, try)
 
@@ -292,7 +292,7 @@ pTreePath = do
 -- Right [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "client", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SelectRelation {selRelation = "nested", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]}]
 --
 -- >>> P.parse pFieldForest "" "*,...client(*),other(*)"
--- Right [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
+-- Right [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []},Node {rootLabel = SpreadRelation {selRelation = "client", selHint = Nothing, selJoinType = Nothing, selSpreadType = SpreadAll}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]},Node {rootLabel = SelectRelation {selRelation = "other", selAlias = Nothing, selHint = Nothing, selJoinType = Nothing}, subForest = [Node {rootLabel = SelectField {selField = ("*",[]), selAggregateFunction = Nothing, selAggregateCast = Nothing, selCast = Nothing, selAlias = Nothing}, subForest = []}]}]
 --
 -- >>> P.parse pFieldForest "" ""
 -- Right []
@@ -556,10 +556,13 @@ pFieldSelect = lexeme $ try (do
 -- Parse spread relations in select
 --
 -- >>> P.parse pSpreadRelationSelect "" "...rel(*)"
--- Right (SpreadRelation {selRelation = "rel", selHint = Nothing, selJoinType = Nothing})
+-- Right (SpreadRelation {selRelation = "rel", selHint = Nothing, selJoinType = Nothing, selSpreadType = SpreadAll})
 --
 -- >>> P.parse pSpreadRelationSelect "" "...rel!hint!inner(*)"
--- Right (SpreadRelation {selRelation = "rel", selHint = Just "hint", selJoinType = Just JTInner})
+-- Right (SpreadRelation {selRelation = "rel", selHint = Just "hint", selJoinType = Just JTInner, selSpreadType = SpreadAll})
+--
+-- >>> P.parse pSpreadRelationSelect "" "..rel(*)"
+-- Right (SpreadRelation {selRelation = "rel", selHint = Nothing, selJoinType = Nothing, selSpreadType = SpreadDistinct})
 --
 -- >>> P.parse pSpreadRelationSelect "" "rel(*)"
 -- Left (line 1, column 1):
@@ -576,10 +579,11 @@ pFieldSelect = lexeme $ try (do
 -- unexpected '>'
 pSpreadRelationSelect :: Parser SelectItem
 pSpreadRelationSelect = lexeme $ do
-    name <- string "..." >> pFieldName
+    sprType <- try (string "..." $> SpreadAll) <|> string ".." $> SpreadDistinct
+    name <- pFieldName
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
-    return $ SpreadRelation name hint jType
+    return $ SpreadRelation name hint jType sprType
 
 pEmbedParams :: Parser (Maybe Hint, Maybe JoinType)
 pEmbedParams = do
