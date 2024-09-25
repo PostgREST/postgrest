@@ -1235,3 +1235,33 @@ For these relationships, the spread embedded resource columns will be aggregated
 The order of the values inside the resulting array is unspecified.
 However, if more than one embedded column is selected, `it is safe to assume <https://www.postgresql.org/message-id/15950.1491843689%40sss.pgh.pa.us>`_ that all of them will return the values in the same unspecified order.
 From the previous example, we can say that "Pulp Fiction" was made in 1994 and "Reservoir Dogs" in 1992.
+
+It is expected to get duplicated or null values inside the aggregated array.
+So you can use the ``..`` operator to solve this.
+For example, a film could get nominated in the same year for different competitions.
+To get only the distinct years we would do:
+
+.. code-block:: bash
+
+   # curl "http://localhost:3000/films?select=title,..competitions(competition_years:year)"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,..competitions(competition_years:year)"
+
+.. code-block:: json
+
+  [
+    {
+      "title": "Pulp Fiction",
+      "competition_years": [
+        1994,
+        1995
+      ]
+    },
+    ".."
+  ]
+
+The ``..`` operator works as if you were using ``...`` on:
+
+* One-to-one or many-to-one relationships.
+* :ref:`aggregate_functions`, since they will include the duplicated values in the aggregate.
