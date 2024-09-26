@@ -31,7 +31,7 @@ concurrency:
 jobs:
   static:
     name: Nix - Linux static
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - name: Setup Nix Environment
@@ -159,7 +159,7 @@ jobs:
 
   freebsd:
     name: Stack - FreeBSD from CirrusCI
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: ./.github/actions/artifact-from-cirrus
@@ -176,7 +176,7 @@ jobs:
         ghc: ['9.6.4', '9.8.2']
       fail-fast: false
     name: Cabal - Linux GHC ${{ matrix.ghc }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: haskell-actions/setup@dd344bc1cec854a369df8814ce17ef337d6e6170 # v2.7.6
