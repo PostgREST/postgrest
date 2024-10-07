@@ -827,6 +827,12 @@ server-host
   * :code:`*6` - any IPv4 or IPv6 hostname, IPv6 preferred
   * :code:`!6` - any IPv6 hostname
 
+  Examples:
+
+  .. code:: bash
+
+    server-host = "127.0.0.1"
+
 .. _server-port:
 
 server-port
