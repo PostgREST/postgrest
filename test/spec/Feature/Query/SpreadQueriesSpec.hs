@@ -305,6 +305,26 @@ aggEnabledSpec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
+      it "should work when selecting all columns in the top resource, grouping by each one of them" $
+        get "/factories?select=*,...processes(process_ids:id,process_names:name)&id=lte.2&order=id" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":"Factory A","process_ids":[1,2],"process_names":["Process A1","Process A2"]},
+            {"id":2,"name":"Factory B","process_ids":[3,4],"process_names":["Process B1","Process B2"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns in a non-spread embed resource, grouping by each one of them" $
+        get "/factory_buildings?select=code,factories(*,...processes(process_ids:id,process_names:name))&factory_id=lte.2&order=factory_id" `shouldRespondWith`
+          [json|[
+            {"code":"A001","factories":{"id": 1, "name": "Factory A", "process_ids": [1, 2], "process_names": ["Process A1", "Process A2"]}},
+            {"code":"A002","factories":{"id": 1, "name": "Factory A", "process_ids": [1, 2], "process_names": ["Process A1", "Process A2"]}},
+            {"code":"B001","factories":{"id": 2, "name": "Factory B", "process_ids": [3, 4], "process_names": ["Process B1", "Process B2"]}},
+            {"code":"B002","factories":{"id": 2, "name": "Factory B", "process_ids": [3, 4], "process_names": ["Process B1", "Process B2"]}}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
 
       context "using the .. operator to get distinct no null values" $ do
         it "should work on a non-nested spread relationship" $ do
@@ -538,6 +558,24 @@ aggEnabledSpec =
           [json|[
             {"name":"John","processes":[{"name": "Process A2", "operators": ["Anne", "Louis", "Jeff"]}, {"name": "Process B2", "operators": ["Anne", "Jeff"]}]},
             {"name":"Mary","processes":[{"name": "Process A1", "operators": ["Anne", "Louis"]}, {"name": "Process B2", "operators": ["Anne", "Jeff"]}]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns in the top resource, grouping by each one of them" $
+        get "/processes?select=*,...operators(operator_ids:id,operator_names:name)&id=lte.2&order=id" `shouldRespondWith`
+          [json|[
+            {"id":1,"name":"Process A1","factory_id":1,"category_id":1,"operator_ids":[1,2],"operator_names":["Anne","Louis"]},
+            {"id":2,"name":"Process A2","factory_id":1,"category_id":2,"operator_ids":[1,2,3],"operator_names":["Anne","Louis","Jeff"]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "should work when selecting all columns in a non-spread embed resource, grouping by each one of them" $
+        get "/supervisors?select=name,processes(*,...operators(operator_ids:id,operator_names:name))&id=lte.2&order=id" `shouldRespondWith`
+          [json|[
+            {"name":"Mary","processes":[{"id": 1, "name": "Process A1", "factory_id": 1, "category_id": 1, "operator_ids": [1, 2], "operator_names": ["Anne", "Louis"]}, {"id": 4, "name": "Process B2", "factory_id": 2, "category_id": 1, "operator_ids": [1, 3], "operator_names": ["Anne", "Jeff"]}]},
+            {"name":"John","processes":[{"id": 2, "name": "Process A2", "factory_id": 1, "category_id": 2, "operator_ids": [1, 2, 3], "operator_names": ["Anne", "Louis", "Jeff"]}, {"id": 4, "name": "Process B2", "factory_id": 2, "category_id": 1, "operator_ids": [1, 3], "operator_names": ["Anne", "Jeff"]}]}
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]

@@ -417,14 +417,14 @@ knownColumnsInContext ResolverContext{..} =
 -- | Expand "select *" into explicit field names of the table in the following situations:
 -- * When there are data representations present.
 -- * When there is an aggregate function in a given ReadPlan or its parent.
--- * When the ReadPlan is a spread embed nested inside a to-many spread relationship (array aggregate).
+-- * When the ReadPlan or any of its children is a spread embed nested inside a to-many spread relationship (array aggregate).
 expandStars :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
   where
     expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
-    expandStarsForReadPlan hasAgg (Node rp@ReadPlan{select, from=fromQI, fromAlias=alias} children) =
+    expandStarsForReadPlan hasAgg rpt@(Node rp@ReadPlan{select, from=fromQI, fromAlias=alias} children) =
       let
-        newHasAgg = hasAgg || any (isJust . csAggFunction) select || spreadRelIsNestedInToMany rp
+        newHasAgg = hasAgg || any (isJust . csAggFunction) select || any (spreadRelIsNestedInToMany . rootLabel) (rpt:children)
         newCtx = adjustContext ctx fromQI alias
         newRPlan = expandStarsForTable newCtx newHasAgg rp
       in Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
