@@ -160,7 +160,6 @@ main = do
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)
-        , ("Feature.Query.SpreadQueriesSpec"             , Feature.Query.SpreadQueriesSpec.spec)
         , ("Feature.Query.UpdateSpec"                    , Feature.Query.UpdateSpec.spec)
         , ("Feature.Query.UpsertSpec"                    , Feature.Query.UpsertSpec.spec)
         ]
@@ -248,11 +247,14 @@ main = do
     parallel $ before serverTiming $
       describe "Feature.Query.ServerTimingSpec.spec" Feature.Query.ServerTimingSpec.spec
 
-    parallel $ before aggregatesEnabled $
+    -- this test runs with db-aggregates-enabled set
+    parallel $ before aggregatesEnabled $ do
       describe "Feature.Query.AggregateFunctionsSpec" Feature.Query.AggregateFunctionsSpec.allowed
+      describe "Feature.Query.SpreadQueriesAggregatesEnabledSpec" Feature.Query.SpreadQueriesSpec.aggEnabledSpec
 
-    parallel $ before withApp $
+    parallel $ before withApp $ do
       describe "Feature.Query.AggregateFunctionsDisallowedSpec." Feature.Query.AggregateFunctionsSpec.disallowed
+      describe "Feature.Query.SpreadQueriesAggregatesDisabledSpec" Feature.Query.SpreadQueriesSpec.aggDisabledSpec
 
     -- Note: the rollback tests can not run in parallel, because they test persistance and
     -- this results in race conditions

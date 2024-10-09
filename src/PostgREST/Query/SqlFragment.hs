@@ -252,7 +252,7 @@ pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
 pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{cfFullRow=True}                                          = fromQi table
+pgFmtField table CoercibleField{cfFullRow=True}                                          = pgFmtIdent (qiName table)
 pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]}                                = pgFmtColumn table fn
 pgFmtField table CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
                                                                              | otherwise = pgFmtColumn table fn <> pgFmtJsonPath jp
@@ -284,10 +284,13 @@ pgFmtApplyAggregate Nothing _ snippet = snippet
 pgFmtApplyAggregate (Just agg) aggCast snippet =
   pgFmtApplyCast aggCast aggregatedSnippet
   where
-    convertAggFunction :: AggregateFunction -> SQL.Snippet
-    -- Convert from e.g. Sum (the data type) to SUM
     convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
-    aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
+    aggregatedSnippet = case agg of
+     -- TODO: NULLIF(...,'{null}') does not take into consideration a case with a single element with a null value.
+     -- See https://github.com/PostgREST/postgrest/pull/3640#issuecomment-2334996466
+     ArrayAgg False -> "COALESCE(NULLIF(array_agg(" <> snippet <> "),'{null}'),'{}')"
+     ArrayAgg True  -> "COALESCE(array_agg(DISTINCT " <> snippet <> ") FILTER (WHERE " <> snippet <> " IS NOT NULL),'{}')"
+     a              -> convertAggFunction a <> "(" <> snippet <> ")"
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet

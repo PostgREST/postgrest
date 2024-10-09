@@ -336,9 +336,9 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
     addNullEmbedFilters =<<
-    validateSpreadEmbeds =<<
     addRelatedOrders =<<
     addAliases =<<
+    addArrayAggToManySpread =<<
     expandStars ctx =<<
     addRels qiSchema (iAction apiRequest) dbRelationships Nothing =<<
     addLogicTrees ctx apiRequest =<<
@@ -352,7 +352,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing False [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing False [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -365,7 +365,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
         SpreadRelation{..} ->
           Node q $
             foldr (treeEntry nxtDepth)
-            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsSpread=True} [])
+            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relSpread=Just selSpreadType} [])
             fldForest:rForest
         SelectField{..} ->
           Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
@@ -417,13 +417,14 @@ knownColumnsInContext ResolverContext{..} =
 -- | Expand "select *" into explicit field names of the table in the following situations:
 -- * When there are data representations present.
 -- * When there is an aggregate function in a given ReadPlan or its parent.
+-- * When the ReadPlan or any of its children is a spread embed nested inside a to-many spread relationship (array aggregate).
 expandStars :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
   where
     expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
-    expandStarsForReadPlan hasAgg (Node rp@ReadPlan{select, from=fromQI, fromAlias=alias} children) =
+    expandStarsForReadPlan hasAgg rpt@(Node rp@ReadPlan{select, from=fromQI, fromAlias=alias} children) =
       let
-        newHasAgg = hasAgg || any (isJust . csAggFunction) select
+        newHasAgg = hasAgg || any (isJust . csAggFunction) select || any (spreadRelIsNestedInToMany . rootLabel) (rpt:children)
         newCtx = adjustContext ctx fromQI alias
         newRPlan = expandStarsForTable newCtx newHasAgg rp
       in Node newRPlan (map (expandStarsForReadPlan newHasAgg) children)
@@ -436,7 +437,7 @@ expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
     adjustContext context fromQI _ = context{qi=fromQI}
 
 expandStarsForTable :: ResolverContext -> Bool -> ReadPlan -> ReadPlan
-expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields, relIsSpread=isSpread}
+expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields, relSpread=spreadType}
   -- We expand if either of the below are true:
   -- * We have a '*' select AND there is an aggregate function in this ReadPlan's sub-tree.
   -- * We have a '*' select AND the target table has at least one data representation.
@@ -450,6 +451,7 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@R
     shouldExpandOrTag aggFunc = isNothing aggFunc || (isSpread && aggFunc == Just Count)
     hasDataRepresentation = any hasOutputRep knownColumns
     knownColumns = knownColumnsInContext ctx
+    isSpread = isJust spreadType
 
     hasOutputRep :: Column -> Bool
     hasOutputRep col = HM.member (colNominalType col, outputType) representations
@@ -474,18 +476,18 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
 addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,relAlias,depth} forest) =
   case parentNode of
-    Just (Node ReadPlan{from=parentNodeQi, fromAlias=parentAlias} _) ->
+    Just (Node pr@ReadPlan{from=parentNodeQi, fromAlias=parentAlias} _) ->
       let
         newReadPlan = (\r ->
           let newAlias = Just (qiName (relForeignTable r) <> "_" <> show depth)
               aggAlias = qiName (relTable r) <> "_" <> fromMaybe relName relAlias <> "_" <> show depth in
           case r of
             Relationship{relCardinality=M2M _} -> -- m2m does internal implicit joins that don't need aliasing
-              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, relJoinConds=getJoinConditions Nothing parentAlias r}
+              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, relJoinConds=getJoinConditions Nothing parentAlias r, relIsInToManySpread=spreadRelIsNestedInToMany pr}
             ComputedRelationship{} ->
-              rPlan{from=relForeignTable r, relToParent=Just r{relTableAlias=maybe (relTable r) (QualifiedIdentifier mempty) parentAlias}, relAggAlias=aggAlias, fromAlias=newAlias}
+              rPlan{from=relForeignTable r, relToParent=Just r{relTableAlias=maybe (relTable r) (QualifiedIdentifier mempty) parentAlias}, relAggAlias=aggAlias, fromAlias=newAlias, relIsInToManySpread=spreadRelIsNestedInToMany pr}
             _ ->
-              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, fromAlias=newAlias, relJoinConds=getJoinConditions newAlias parentAlias r}
+              rPlan{from=relForeignTable r, relToParent=Just r, relAggAlias=aggAlias, fromAlias=newAlias, relJoinConds=getJoinConditions newAlias parentAlias r, relIsInToManySpread=spreadRelIsNestedInToMany pr}
           ) <$> rel
         origin = if depth == 1 -- Only on depth 1 we check if the root(depth 0) has an alias so the sourceCTEName alias can be found as a relationship
           then fromMaybe (qiName parentNodeQi) parentAlias
@@ -508,6 +510,10 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
   where
     updateForest :: Maybe ReadPlanTree -> Either ApiRequestError [ReadPlanTree]
     updateForest rq = addRels schema action allRels rq `traverse` forest
+
+spreadRelIsNestedInToMany :: ReadPlan -> Bool
+spreadRelIsNestedInToMany ReadPlan{relSpread, relToParent, relIsInToManySpread} =
+  isJust relSpread && (relIsInToManySpread || Just False == (relIsToOne <$> relToParent))
 
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
 getJoinConditions _ _ ComputedRelationship{} = []
@@ -616,6 +622,23 @@ findRel schema allRels origin target hint =
             )
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
+-- Add ArrayAgg aggregates to selected fields that do not have other aggregates and:
+-- * Are selected inside a to-many spread relationship
+-- * Are selected inside a to-one spread relationship but are nested inside a to-many spread relationship at any level
+addArrayAggToManySpread :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addArrayAggToManySpread (Node rp@ReadPlan{select, relSpread} forest) =
+    let newForest = addArrayAggToManySpread `traverse` forest
+        newSelects
+          | shouldAddArrayAgg = fieldToArrayAgg <$> select
+          | otherwise = select
+    in Node rp { select = newSelects } <$> newForest
+    where
+      shouldAddArrayAgg = spreadRelIsNestedInToMany rp
+      fieldToArrayAgg field
+        | isJust $ csAggFunction field = field
+        | otherwise = field { csAggFunction = newAggFunc, csAlias = newAlias (csAlias field) (cfName $ csField field) }
+      newAggFunc = Just $ ArrayAgg $ relSpread == Just SpreadDistinct
+      newAlias alias fieldName = maybe (Just fieldName) pure alias
 
 addRelSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addRelSelects node@(Node rp forest)
@@ -626,13 +649,14 @@ addRelSelects node@(Node rp forest)
     in Right $ Node rp { relSelect = newRelSelects } newForest
 
 generateRelSelectField :: ReadPlanTree -> Maybe RelSelectField
-generateRelSelectField (Node rp@ReadPlan{relToParent=Just _, relAggAlias, relIsSpread = True} _) =
+generateRelSelectField (Node rp@ReadPlan{relToParent=Just _, relAggAlias, relSpread = Just _} _) =
   Just $ Spread { rsSpreadSel = generateSpreadSelectFields rp, rsAggAlias = relAggAlias }
-generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, relAlias, relAggAlias, relIsSpread = False} forest) =
+generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, relAlias, relAggAlias, relSpread = Nothing, relIsInToManySpread} forest) =
   Just $ JsonEmbed { rsEmbedMode, rsSelName, rsAggAlias = relAggAlias, rsEmptyEmbed }
   where
     rsSelName = fromMaybe relName relAlias
-    rsEmbedMode = if relIsToOne rel then JsonObject else JsonArray
+    -- If the JsonEmbed is nested in a to-many spread relationship, it will be aggregated at the top. That's why we treat it as `JsonObject`.
+    rsEmbedMode = if relIsToOne rel || relIsInToManySpread then JsonObject else JsonArray
     rsEmptyEmbed = hasOnlyNullEmbed (null select) forest
     hasOnlyNullEmbed = foldr checkIfNullEmbed
     checkIfNullEmbed :: ReadPlanTree -> Bool -> Bool
@@ -641,7 +665,7 @@ generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, rel
 generateRelSelectField _ = Nothing
 
 generateSpreadSelectFields :: ReadPlan -> [SpreadSelectField]
-generateSpreadSelectFields ReadPlan{select, relSelect} =
+generateSpreadSelectFields rp@ReadPlan{select, relSelect, relSpread} =
   -- We combine the select and relSelect fields into a single list of SpreadSelectField.
   selectSpread ++ relSelectSpread
   where
@@ -653,7 +677,9 @@ generateSpreadSelectFields ReadPlan{select, relSelect} =
     relSelectSpread = concatMap relSelectToSpread relSelect
     relSelectToSpread :: RelSelectField -> [SpreadSelectField]
     relSelectToSpread (JsonEmbed{rsSelName}) =
-      [SpreadSelectField { ssSelName = rsSelName, ssSelAggFunction = Nothing, ssSelAggCast = Nothing, ssSelAlias = Nothing }]
+      -- The regular embeds that are nested inside spread to-many relationships are also aggregated in an array
+      let (aggFun, alias) = if spreadRelIsNestedInToMany rp then (Just $ ArrayAgg $ relSpread == Just SpreadDistinct, Just rsSelName) else (Nothing, Nothing) in
+      [SpreadSelectField { ssSelName = rsSelName, ssSelAggFunction = aggFun, ssSelAggCast = Nothing, ssSelAlias = alias }]
     relSelectToSpread (Spread{rsSpreadSel}) =
       rsSpreadSel
 
@@ -684,10 +710,10 @@ hoistSpreadAggFunctions :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 hoistSpreadAggFunctions tree = Right $ fst $ applySpreadAggHoistingToNode tree
 
 applySpreadAggHoistingToNode :: ReadPlanTree -> (ReadPlanTree, [HoistedAgg])
-applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsSpread} children) =
+applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relSpread} children) =
   let (newChildren, childAggLists) = unzip $ map applySpreadAggHoistingToNode children
       allChildAggLists = concat childAggLists
-      (newSelects, aggList) = if depth rp == 0 || (isJust relToParent && not relIsSpread)
+      (newSelects, aggList) = if depth rp == 0 || (isJust relToParent && isNothing relSpread)
                                 then (select rp, [])
                                 else hoistFromSelectFields relAggAlias (select rp)
 
@@ -695,11 +721,11 @@ applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsSp
       -- child relationships, then it must hoist those aggregates to its parent rel.
       -- So we update them with the current `relAggAlias`.
       hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
-      hoistedAggList = if relIsSpread
+      hoistedAggList = if isJust relSpread
                        then aggList ++ map hoistAgg allChildAggLists
                        else aggList
 
-      newRelSelects = if null children || relIsSpread
+      newRelSelects = if null children || isJust relSpread
                       then relSelect rp
                       else map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
   in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, hoistedAggList)
@@ -815,7 +841,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         relName = "projects",
 --         relToParent = Nothing,
 --         relJoinConds = [],
---         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relIsSpread = False, depth = 1,
+--         relAlias = Nothing, relAggAlias = "clients_projects_1", relHint = Nothing, relJoinType = Nothing, relSpread = Nothing, relIsInToManySpread = False, depth = 1,
 --         relSelect = []
 --       },
 --       subForest = []
@@ -841,7 +867,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --         )
 --       ],
 --       order = [], range_ = fullRange, relName = "clients", relToParent = Nothing, relJoinConds = [], relAlias = Nothing, relAggAlias = "", relHint = Nothing,
---       relJoinType = Nothing, relIsSpread = False, depth = 0,
+--       relJoinType = Nothing, relSpread = Nothing, relIsInToManySpread = False, depth = 0,
 --       relSelect = []
 --     },
 --     subForest = subForst
@@ -905,15 +931,6 @@ resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
-
--- Validates that spread embeds are only done on to-one relationships
-validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-validateSpreadEmbeds (Node rp@ReadPlan{relToParent=Nothing} forest) = Node rp <$> validateSpreadEmbeds `traverse` forest
-validateSpreadEmbeds (Node rp@ReadPlan{relIsSpread,relToParent=Just rel,relName} forest) = do
-  validRP <- if relIsSpread && not (relIsToOne rel)
-    then Left $ SpreadNotToOne (qiName $ relTable rel) relName -- TODO using relTable is not entirely right because ReadPlan might have an alias, need to store the parent alias on ReadPlan
-    else Right rp
-  Node validRP <$> validateSpreadEmbeds `traverse` forest
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree

@@ -1143,7 +1143,17 @@ For example, to arrange the films in descending order using the director's last 
 Spread embedded resource
 ========================
 
-On many-to-one and one-to-one relationships, you can "spread" the embedded resource. That is, remove the surrounding JSON object for the embedded resource columns.
+The ``...`` operator lets you "spread" an embedded resource.
+That is, it removes the surrounding JSON object for the embedded resource columns.
+
+.. note::
+
+  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+
+One-to-one and many-to-one relationships
+----------------------------------------
+
+Take the following example:
 
 .. code-block:: bash
 
@@ -1189,6 +1199,69 @@ You can use this to get the columns of a join table in a many-to-many relationsh
      }
    ]
 
-.. note::
+One-to-many and Many-to-many relationships
+------------------------------------------
 
-  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+For these relationships, the spread embedded resource columns will be aggregated into arrays.
+
+.. note::
+  This is disabled by default, since aggregates can cause performance issues.
+  It can be activated by setting :ref:`db-aggregates-enabled` to ``true``.
+
+.. code-block:: bash
+
+   # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year)&first_name=like.Quentin*"
+
+  curl --get "http://localhost:3000/directors" \
+    -d "select=first_name,...films(film_titles:title,film_years:year)" \
+    -d "first_name=like.Quentin*"
+
+.. code-block:: json
+
+   [
+     {
+       "first_name": "Quentin",
+       "film_titles": [
+         "Pulp Fiction",
+         "Reservoir Dogs"
+       ],
+       "film_years": [
+         1994,
+         1992
+       ]
+     }
+   ]
+
+The order of the values inside the resulting array is unspecified.
+However, if more than one embedded column is selected, `it is safe to assume <https://www.postgresql.org/message-id/15950.1491843689%40sss.pgh.pa.us>`_ that all of them will return the values in the same unspecified order.
+From the previous example, we can say that "Pulp Fiction" was made in 1994 and "Reservoir Dogs" in 1992.
+
+It is expected to get duplicated or null values inside the aggregated array.
+So you can use the ``..`` operator to solve this.
+For example, a film could get nominated in the same year for different competitions.
+To get only the distinct years we would do:
+
+.. code-block:: bash
+
+   # curl "http://localhost:3000/films?select=title,..competitions(competition_years:year)"
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,..competitions(competition_years:year)"
+
+.. code-block:: json
+
+  [
+    {
+      "title": "Pulp Fiction",
+      "competition_years": [
+        1994,
+        1995
+      ]
+    },
+    ".."
+  ]
+
+The ``..`` operator works as if you were using ``...`` on:
+
+* One-to-one or many-to-one relationships.
+* :ref:`aggregate_functions`, since they will include the duplicated values in the aggregate.
