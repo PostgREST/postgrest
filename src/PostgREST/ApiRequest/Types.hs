@@ -86,7 +86,6 @@ data ApiRequestError
   | PutLimitNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
-  | SpreadNotToOne Text Text
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
@@ -145,7 +144,7 @@ type Cast = Text
 type Alias = Text
 type Hint = Text
 
-data AggregateFunction = Sum | Avg | Max | Min | Count
+data AggregateFunction = Sum | Avg | Max | Min | Count | ArrayAgg
   deriving (Show, Eq)
 
 data EmbedParam
