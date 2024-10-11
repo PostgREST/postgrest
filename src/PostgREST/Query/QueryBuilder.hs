@@ -32,7 +32,8 @@ import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..))
-import PostgREST.SchemaCache.Routine      (RoutineParam (..))
+import PostgREST.SchemaCache.Routine      (MediaHandler,
+                                           RoutineParam (..))
 
 import PostgREST.ApiRequest.Types
 import PostgREST.Plan.CallPlan
@@ -44,8 +45,8 @@ import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
-readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
+readPlanToQuery :: ReadPlanTree -> MediaHandler -> SQL.Snippet
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) handler =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
   fromFrag <> " " <>
@@ -61,11 +62,11 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     qi = getQualifiedIdentifier relToParent mainQi fromAlias
     -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
     defSelect = [CoercibleSelectField (unknownField "*" []) Nothing Nothing Nothing Nothing]
-    joins = getJoins node
-    joinsSelects = getJoinSelects node
+    joins = getJoins node handler
+    joinsSelects = getJoinSelects node handler
 
-getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
-getJoinSelects (Node ReadPlan{relSelect} _) =
+getJoinSelects :: ReadPlanTree -> MediaHandler -> [SQL.Snippet]
+getJoinSelects (Node ReadPlan{relSelect} _) handler =
   mapMaybe relSelectToSnippet relSelect
   where
     relSelectToSnippet :: RelSelectField -> Maybe SQL.Snippet
@@ -80,23 +81,23 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
             Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
           Spread{rsSpreadSel, rsAggAlias} ->
-            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
+            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias handler <$> rsSpreadSel)
 
-getJoins :: ReadPlanTree -> [SQL.Snippet]
-getJoins (Node _ []) = []
-getJoins (Node ReadPlan{relSelect} forest) =
+getJoins :: ReadPlanTree -> MediaHandler -> [SQL.Snippet]
+getJoins (Node _ []) _ = []
+getJoins (Node ReadPlan{relSelect} forest) handler =
   map (\fld ->
          let alias = rsAggAlias fld
              matchingNode = fromJust $ find (\(Node ReadPlan{relAggAlias} _) -> alias == relAggAlias) forest
-         in getJoin fld matchingNode
+         in getJoin fld matchingNode handler
       ) relSelect
 
-getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
-getJoin fld node@(Node ReadPlan{relJoinType} _) =
+getJoin :: RelSelectField -> ReadPlanTree -> MediaHandler -> SQL.Snippet
+getJoin fld node@(Node ReadPlan{relJoinType} _) handler =
   let
     correlatedSubquery sub al cond =
       (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
-    subquery = readPlanToQuery node
+    subquery = readPlanToQuery node handler
     aggAlias = pgFmtIdent $ rsAggAlias fld
   in
     case fld of

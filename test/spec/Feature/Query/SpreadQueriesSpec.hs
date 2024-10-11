@@ -1,6 +1,7 @@
 module Feature.Query.SpreadQueriesSpec where
 
-import Network.Wai (Application)
+import Network.HTTP.Types (methodGet)
+import Network.Wai        (Application)
 
 import Test.Hspec
 import Test.Hspec.Wai
@@ -244,6 +245,26 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
+      it "should not include nulls in the aggregated arrays when Accept: application/vnd.pgrst.array+json;nulls=stripped" $
+        request methodGet "/factories?select=name,...processes(processes:name,...process_costs(process_costs:cost))&name=eq.Factory+C"
+          [("Accept", "application/vnd.pgrst.array+json;nulls=stripped")]
+          "" `shouldRespondWith`
+          [json|[
+            {"name":"Factory C","processes":["Process C1","Process C2","Process XX","Process YY"],"process_costs":[40.00,70.00,40.00]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchCTArrayStrip]
+          }
+      it "should not include nulls in the aggregated arrays when Accept: application/vnd.pgrst.object+json;nulls=stripped" $
+        request methodGet "/factories?select=name,...processes(processes:name,...process_costs(process_costs:cost))&name=eq.Factory+C"
+          [("Accept", "application/vnd.pgrst.object+json;nulls=stripped")]
+          "" `shouldRespondWith`
+          [json|
+            {"name":"Factory C","processes":["Process C1","Process C2","Process XX","Process YY"],"process_costs":[40.00,70.00,40.00]}
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchCTSingularStrip]
+          }
 
     context "many-to-many relationships as array aggregates" $ do
       it "should aggregate a single spread column" $ do
@@ -404,4 +425,24 @@ spec =
           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
+          }
+      it "should not include nulls in the aggregated arrays when Accept: application/vnd.pgrst.array+json;nulls=stripped" $
+        request methodGet "/operators?select=name,...processes(processes:name,...process_costs(process_costs:cost))&name=eq.Alfred"
+          [("Accept", "application/vnd.pgrst.array+json;nulls=stripped")]
+          "" `shouldRespondWith`
+          [json|[
+            {"name":"Alfred","processes":["Process C2","Process XX"],"process_costs":[70.00]}
+          ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchCTArrayStrip]
+          }
+      it "should not include nulls in the aggregated arrays when Accept: application/vnd.pgrst.object+json;nulls=stripped" $
+        request methodGet "/operators?select=name,...processes(processes:name,...process_costs(process_costs:cost))&name=eq.Alfred"
+          [("Accept", "application/vnd.pgrst.object+json;nulls=stripped")]
+          "" `shouldRespondWith`
+          [json|
+            {"name":"Alfred","processes":["Process C2","Process XX"],"process_costs":[70.00]}
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchCTSingularStrip]
           }

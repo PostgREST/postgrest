@@ -1231,3 +1231,6 @@ For these relationships, the spread embedded resource columns will be aggregated
 The order of the values inside the resulting array is unspecified.
 However, if more than one embedded column is selected, `it is safe to assume <https://www.postgresql.org/message-id/15950.1491843689%40sss.pgh.pa.us>`_ that all of them will return the values in the same unspecified order.
 From the previous example, we can say that "Pulp Fiction" was made in 1994 and "Reservoir Dogs" in 1992.
+
+It is expected to get ``null`` values in the resulting array.
+You can exclude them with :ref:`stripped_nulls`.
