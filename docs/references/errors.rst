@@ -257,6 +257,10 @@ Related to the HTTP request elements.
 |               |             | ``Prefer: handling=strict``. See :ref:`prefer_handling`.    |
 | PGRST122      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst123: | 400         | Aggregate functions are disabled.                           |
+|               |             | See :ref:`db-aggregates-enabled`.                           |
+| PGRST123      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst2**:
 
