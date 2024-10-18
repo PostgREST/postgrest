@@ -252,7 +252,7 @@ pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
 pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{cfFullRow=True}                                          = fromQi table
+pgFmtField table CoercibleField{cfFullRow=True}                                          = pgFmtIdent (qiName table)
 pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]}                                = pgFmtColumn table fn
 pgFmtField table CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
                                                                              | otherwise = pgFmtColumn table fn <> pgFmtJsonPath jp
@@ -269,25 +269,34 @@ pgFmtCoerceNamed CoercibleField{cfName=fn} = pgFmtIdent fn
 
 pgFmtSelectItem :: QualifiedIdentifier -> CoercibleSelectField -> SQL.Snippet
 pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
-  pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
+  pgFmtApplyAggregate agg aggCast Nothing (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
 
-pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
-pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
-  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast fullSelName <> pgFmtAs ssSelAlias
+pgFmtSpreadSelectItem :: Alias -> MediaHandler -> SpreadSelectField -> SQL.Snippet
+pgFmtSpreadSelectItem aggAlias handler SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
+  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast (Just handler) fullSelName <> pgFmtAs ssSelAlias
   where
     fullSelName = case ssSelName of
       "*" -> pgFmtIdent aggAlias <> ".*"
       _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent ssSelName
 
-pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> SQL.Snippet -> SQL.Snippet
-pgFmtApplyAggregate Nothing _ snippet = snippet
-pgFmtApplyAggregate (Just agg) aggCast snippet =
+pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> Maybe MediaHandler -> SQL.Snippet -> SQL.Snippet
+pgFmtApplyAggregate Nothing _ _ snippet = snippet
+pgFmtApplyAggregate (Just agg) aggCast handler snippet =
   pgFmtApplyCast aggCast aggregatedSnippet
   where
-    convertAggFunction :: AggregateFunction -> SQL.Snippet
-    -- Convert from e.g. Sum (the data type) to SUM
     convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
-    aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
+    arrayAggStripNulls = case handler of
+      Just BuiltinAggArrayJsonStrip     -> True
+      Just (BuiltinAggSingleJson strip) -> strip
+      _                                 -> False
+    fmtArrayAggFunction
+      | arrayAggStripNulls = "array_agg(" <> snippet <> ") FILTER (WHERE " <> snippet <> " IS NOT NULL)"
+      -- TODO: NULLIF(...,'{null}') does not take into consideration a case with a single element with a null value.
+      -- See https://github.com/PostgREST/postgrest/pull/3640#issuecomment-2334996466
+      | otherwise          = "NULLIF(array_agg(" <> snippet <> "),'{null}')"
+    aggregatedSnippet = case agg of
+     ArrayAgg -> "COALESCE(" <> fmtArrayAggFunction <> ",'{}')"
+     a        -> convertAggFunction a <> "(" <> snippet <> ")"
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet
