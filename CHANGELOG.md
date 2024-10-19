@@ -1095,3 +1095,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 - Make filter position match docs, e.g. `?order=col.asc` rather
   than `?order=asc.col`.
+
+
+### Unreleased
+- **fix**: Improved handling of column default values in `SchemaCache`. This addresses issue #3706 by ensuring all relevant cases are covered, including scenarios where `ad.adbin` is not NULL.
