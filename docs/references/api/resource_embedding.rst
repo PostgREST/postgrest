@@ -209,18 +209,25 @@ The join table is also detected if the composite key has additional columns.
 One-to-one relationships
 ------------------------
 
-One-to-one relationships are detected in two ways.
+One-to-one relationships are detected in two ways. (We'll use the ``films`` and ``technical_specs`` tables from the :ref:`sample film database <erd_film>` as an example).
 
-- When the foreign key is a primary key as specified in the :ref:`sample film database <erd_film>`.
-- When the foreign key has a unique constraint.
+- When the foreign key is also a primary key.
 
   .. code-block:: postgres
 
     create table technical_specs(
-      film_id int references films(id) unique,
-      runtime time,
-      camera text,
-      sound text
+      film_id int references films(id) primary key
+    -- ...
+    );
+
+- Or when the foreign key has a unique constraint.
+
+  .. code-block:: postgres
+
+    create table technical_specs(
+      id int primary key
+    , film_id int references films(id) unique
+    -- ...
     );
 
 .. code-block:: bash
