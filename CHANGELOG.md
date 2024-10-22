@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
-
+### Fixed
+- **fix**: Improved handling of column default values in `SchemaCache`. This addresses issue #3706 by ensuring all relevant cases are covered, including scenarios where `ad.adbin` is not NULL.
 
 ### Added
 
@@ -1097,5 +1098,4 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   than `?order=asc.col`.
 
 
-### Unreleased
-- **fix**: Improved handling of column default values in `SchemaCache`. This addresses issue #3706 by ensuring all relevant cases are covered, including scenarios where `ad.adbin` is not NULL.
+

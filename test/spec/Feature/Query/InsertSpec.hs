@@ -563,6 +563,16 @@ spec actualPgVersion = do
                 }|])
               { matchStatus  = 400 }
 
+        it "inserts a default on a DOMAIN with default" $ 
+          request methodPost "/evil_friends?columns=id,name" 
+          [("Prefer", "return=representation"), ("Prefer", "missing=default")] 
+          [json| { "name": "Lu" } |] 
+          `shouldRespondWith` 
+          [json| [{"id": 666, "name": "Lu"}] |] 
+          { matchStatus  = 201 
+          , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"] 
+          }
+
         it "inserts a default on a DOMAIN with default" $
           request methodPost "/evil_friends?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
               [json| { "name": "Lu" } |]
