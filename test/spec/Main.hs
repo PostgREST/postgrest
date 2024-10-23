@@ -11,6 +11,7 @@ import Test.Hspec
 import PostgREST.App             (postgrest)
 import PostgREST.Config          (AppConfig (..))
 import PostgREST.Config.Database (queryPgVersion)
+import PostgREST.OpenTelemetry   (withTracer)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
@@ -89,8 +90,8 @@ main = do
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    initApp sCache config = do
-      appState <- AppState.initWithPool sockets pool config loggerState metricsState (const $ pure ())
+    initApp sCache config = withTracer "PostgREST.Spec" $ \tracer -> do
+      appState <- AppState.initWithPool sockets pool tracer config loggerState metricsState (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))
@@ -99,7 +100,7 @@ main = do
     app = initApp baseSchemaCache
 
     -- For tests that run with a different SchemaCache (depends on configSchemas)
-    appDbs config = do
+    appDbs config = withTracer "PostgREST.Spec" $ \tracer -> do
       customSchemaCache <- loadSCache pool config
       initApp customSchemaCache config
 
