@@ -59,7 +59,7 @@ jobs:
       GITHUB_COMMIT: ${{ github.sha }}
       GHC_VERSION: '9.4.8'
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - id: Remote-Dir
         name: Unique directory name for the remote build
         run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
@@ -99,7 +99,7 @@ jobs:
       - name: Extract downloaded binaries
         run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
@@ -129,7 +129,7 @@ jobs:
       - build
       - arm
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ssh-key: ${{ secrets.POSTGREST_SSH_KEY }}
       - name: Tag latest commit
@@ -160,7 +160,7 @@ jobs:
       - build
       - arm
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Check the version to be released
         run: |
           cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
@@ -183,7 +183,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: release-changes
           path: CHANGES.md
@@ -199,7 +199,7 @@ jobs:
       - prepare
     if: success() || needs.prepare.result == 'success'
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Download all artifacts
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -226,7 +226,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: release-bundle
           path: release-bundle
@@ -273,7 +273,7 @@ jobs:
       DOCKER_USER: ${{ vars.DOCKER_USER }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Download Docker image
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
@@ -303,7 +303,7 @@ jobs:
       vars.DOCKER_REPO && vars.DOCKER_USER &&
       github.ref == 'refs/tags/devel'
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: peter-evans/dockerhub-description@e98e4d1628a5f3be2be7c231e50981aee98723ae # v4.0.0
         with:
           username: ${{ vars.DOCKER_USER }}
@@ -325,7 +325,7 @@ jobs:
       DOCKER_USER: ${{ vars.DOCKER_USER }}
       DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Publish images for ARM builds on Docker Hub
         uses: appleboy/ssh-action@master
         env:
@@ -350,7 +350,7 @@ jobs:
     env:
       REMOTE_DIR: ${{ needs.arm.outputs.remotepath }}
     steps:
-      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Remove uploaded files from server
         uses: appleboy/ssh-action@master
         with:
