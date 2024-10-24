@@ -29,22 +29,24 @@ data JoinCondition =
   deriving (Eq, Show)
 
 data ReadPlan = ReadPlan
-  { select       :: [CoercibleSelectField]
-  , from         :: QualifiedIdentifier
-  , fromAlias    :: Maybe Alias
-  , where_       :: [CoercibleLogicTree]
-  , order        :: [CoercibleOrderTerm]
-  , range_       :: NonnegRange
-  , relName      :: NodeName
-  , relToParent  :: Maybe Relationship
-  , relJoinConds :: [JoinCondition]
-  , relAlias     :: Maybe Alias
-  , relAggAlias  :: Alias
-  , relHint      :: Maybe Hint
-  , relJoinType  :: Maybe JoinType
-  , relIsSpread  :: Bool
-  , relSelect    :: [RelSelectField]
-  , depth        :: Depth
+  { select              :: [CoercibleSelectField]
+  , from                :: QualifiedIdentifier
+  , fromAlias           :: Maybe Alias
+  , where_              :: [CoercibleLogicTree]
+  , order               :: [CoercibleOrderTerm]
+  , range_              :: NonnegRange
+  , relName             :: NodeName
+  , relToParent         :: Maybe Relationship
+  , relJoinConds        :: [JoinCondition]
+  , relAlias            :: Maybe Alias
+  , relAggAlias         :: Alias
+  , relHint             :: Maybe Hint
+  , relJoinType         :: Maybe JoinType
+  , relIsSpread         :: Bool
+  , relIsInToManySpread :: Bool
+  -- ^ save in cache to avoid recursing the tree every time we need to check if the rel is nested in a to-many spread
+  , relSelect           :: [RelSelectField]
+  , depth               :: Depth
   -- ^ used for aliasing
   }
   deriving (Eq, Show)

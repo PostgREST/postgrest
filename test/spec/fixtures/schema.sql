@@ -3782,3 +3782,21 @@ create table process_supervisor (
   supervisor_id int references supervisors(id),
   primary key (process_id, supervisor_id)
 );
+
+create table operators (
+  id int primary key,
+  name text
+);
+
+create table process_operator (
+  process_id int references processes(id),
+  operator_id int references operators(id),
+  primary key (process_id, operator_id)
+);
+
+create table factory_buildings (
+  id int primary key,
+  code char(4),
+  size numeric,
+  factory_id int references factories(id)
+);
