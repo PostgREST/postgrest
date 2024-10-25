@@ -108,8 +108,7 @@ data RaiseError
   | NoDetail
   deriving Show
 data RangeError
-  = NegativeLimit
-  | LowerGTUpper
+  = LowerGTUpper
   | OutOfBounds Text Text
   deriving Show
 

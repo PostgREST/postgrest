@@ -1,5 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
 module PostgREST.Plan.MutatePlan
   ( MutatePlan(..)
+  , mPlanLimit
   )
 where
 
@@ -9,7 +11,6 @@ import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.Plan.Types              (CoercibleField,
                                           CoercibleLogicTree,
                                           CoercibleOrderTerm)
-import PostgREST.RangeQuery              (NonnegRange)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier)
 
@@ -32,7 +33,8 @@ data MutatePlan
       , updCols   :: [CoercibleField]
       , updBody   :: Maybe LBS.ByteString
       , where_    :: [CoercibleLogicTree]
-      , mutRange  :: NonnegRange
+      , offset_   :: Maybe Integer
+      , limit_    :: Maybe Integer
       , mutOrder  :: [CoercibleOrderTerm]
       , returning :: [FieldName]
       , applyDefs :: Bool
@@ -40,7 +42,14 @@ data MutatePlan
   | Delete
       { in_       :: QualifiedIdentifier
       , where_    :: [CoercibleLogicTree]
-      , mutRange  :: NonnegRange
+      , offset_   :: Maybe Integer
+      , limit_    :: Maybe Integer
       , mutOrder  :: [CoercibleOrderTerm]
       , returning :: [FieldName]
       }
+
+mPlanLimit :: MutatePlan -> Maybe Integer
+mPlanLimit = \case
+    Insert{}             -> Nothing
+    Update{limit_=limit} -> limit
+    Delete{limit_=limit} -> limit
