@@ -12,7 +12,6 @@ module PostgREST.ApiRequest.Preferences
   , PreferCount(..)
   , PreferHandling(..)
   , PreferMissing(..)
-  , PreferParameters(..)
   , PreferRepresentation(..)
   , PreferResolution(..)
   , PreferTransaction(..)
@@ -37,7 +36,6 @@ import Protolude
 -- >>> import Text.Pretty.Simple (pPrint)
 -- >>> deriving instance Show PreferResolution
 -- >>> deriving instance Show PreferRepresentation
--- >>> deriving instance Show PreferParameters
 -- >>> deriving instance Show PreferCount
 -- >>> deriving instance Show PreferTransaction
 -- >>> deriving instance Show PreferMissing
@@ -51,7 +49,6 @@ data Preferences
   = Preferences
     { preferResolution     :: Maybe PreferResolution
     , preferRepresentation :: Maybe PreferRepresentation
-    , preferParameters     :: Maybe PreferParameters
     , preferCount          :: Maybe PreferCount
     , preferTransaction    :: Maybe PreferTransaction
     , preferMissing        :: Maybe PreferMissing
@@ -71,7 +68,6 @@ data Preferences
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
---     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
 --     , preferMissing = Nothing
@@ -89,7 +85,6 @@ data Preferences
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
---     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Nothing
 --     , preferMissing = Just ApplyNulls
@@ -122,7 +117,6 @@ data Preferences
 -- Preferences
 --     { preferResolution = Nothing
 --     , preferRepresentation = Just Full
---     , preferParameters = Nothing
 --     , preferCount = Just ExactCount
 --     , preferTransaction = Just Commit
 --     , preferMissing = Just ApplyDefaults
@@ -137,7 +131,6 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
   Preferences
     { preferResolution     = parsePrefs [MergeDuplicates, IgnoreDuplicates]
     , preferRepresentation = parsePrefs [Full, None, HeadersOnly]
-    , preferParameters     = parsePrefs [SingleObject]
     , preferCount          = parsePrefs [ExactCount, PlannedCount, EstimatedCount]
     , preferTransaction    = if allowTxDbOverride then parsePrefs [Commit, Rollback] else Nothing
     , preferMissing        = parsePrefs [ApplyDefaults, ApplyNulls]
@@ -151,7 +144,6 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     mapToHeadVal = map toHeaderValue
     acceptedPrefs = mapToHeadVal [MergeDuplicates, IgnoreDuplicates] ++
                     mapToHeadVal [Full, None, HeadersOnly] ++
-                    mapToHeadVal [SingleObject] ++
                     mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
                     mapToHeadVal [Commit, Rollback] ++
                     mapToHeadVal [ApplyDefaults, ApplyNulls] ++
@@ -179,7 +171,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferParameters, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -189,7 +181,6 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferPar
         toHeaderValue <$> preferResolution
       , toHeaderValue <$> preferMissing
       , toHeaderValue <$> preferRepresentation
-      , toHeaderValue <$> preferParameters
       , toHeaderValue <$> preferCount
       , toHeaderValue <$> preferTransaction
       , toHeaderValue <$> preferHandling
@@ -230,15 +221,6 @@ instance ToHeaderValue PreferRepresentation where
   toHeaderValue Full        = "return=representation"
   toHeaderValue None        = "return=minimal"
   toHeaderValue HeadersOnly = "return=headers-only"
-
--- | How to pass parameters to stored procedures.
--- TODO: deprecated. Remove on next major version.
-data PreferParameters
-  = SingleObject    -- ^ Pass all parameters as a single json object to a stored procedure.
-  deriving Eq
-
-instance ToHeaderValue PreferParameters where
-  toHeaderValue SingleObject    = "params=single-object"
 
 -- | How to determine the count of (expected) results
 data PreferCount

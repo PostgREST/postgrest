@@ -175,7 +175,6 @@ makePreferParam ts =
     val :: Text -> [Text]
     val = \case
       "count"      -> ["count=none"]
-      "params"     -> ["params=single-object"]
       "return"     -> ["return=representation", "return=minimal", "return=none"]
       "resolution" -> ["resolution=ignore-duplicates", "resolution=merge-duplicates"]
       _            -> []

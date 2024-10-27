@@ -15,7 +15,6 @@ The following preferences are supported.
 - ``Prefer: missing``. See :ref:`bulk_insert_default`.
 - ``Prefer: max-affected``, See :ref:`prefer_max_affected`.
 - ``Prefer: tx``. See :ref:`prefer_tx`.
-- ``Prefer: params``. See :ref:`prefer_params`.
 
 .. _prefer_handling:
 
@@ -224,31 +223,3 @@ To illustrate the use of this preference, consider the following scenario where 
       "details": "The query affects 14 rows",
       "hint": null
   }
-
-.. _prefer_params:
-
-Single JSON object as Function Parameter
-----------------------------------------
-
-.. warning::
-
-  Using this preference is **deprecated** in favor of :ref:`function_single_json`.
-
-:code:`Prefer: params=single-object` allows sending the JSON request body as the single argument of a :ref:`function <functions>`.
-
-.. code-block:: postgres
-
-  CREATE FUNCTION mult_them(param json) RETURNS int AS $$
-    SELECT (param->>'x')::int * (param->>'y')::int
-  $$ LANGUAGE SQL;
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/rpc/mult_them" \
-    -X POST -H "Content-Type: application/json" \
-    -H "Prefer: params=single-object" \
-    -d '{ "x": 4, "y": 2 }'
-
-.. code-block:: json
-
-  8
