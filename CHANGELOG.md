@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Removed
 
- - #????, Remove support for `Prefer: params=single-object` - @joelonsql
+ - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
 
 ### Added
