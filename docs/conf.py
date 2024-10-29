@@ -313,12 +313,6 @@ ogp_use_first_image = True
 ogp_enable_meta_description = True
 ogp_description_length = 300
 
-# sphinxcontrib.googleanalytics configuration
-if os.environ.get("READTHEDOCS"):
-    extensions.append("sphinxcontrib.googleanalytics")
-    googleanalytics_enabled = True
-    googleanalytics_id = "G-5CGB3QTKF1"
-
 ## RTD sets html_baseurl, ensures we use the correct env for canonical URLs
 ## Useful to generate correct meta tags for Open Graph
 ## Refs: https://github.com/readthedocs/readthedocs.org/issues/10226, https://github.com/urllib3/urllib3/pull/3064
