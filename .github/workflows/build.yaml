@@ -60,7 +60,7 @@ jobs:
 
   macos:
     name: Nix - MacOS
-    runs-on: macos-12
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Setup Nix Environment
@@ -96,12 +96,13 @@ jobs:
             # no artifact for Linux, because we use the static build
 
           - name: MacOS
-            runs-on: macos-12
+            runs-on: macos-14
             cache: |
               ~/.stack/pantry
               ~/.stack/snapshots
               ~/.stack/stack.sqlite3
             artifact: postgrest-macos-x64
+            deps: brew install libpq && brew link --force libpq
 
           - name: Windows
             runs-on: windows-2022
