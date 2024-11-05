@@ -57,7 +57,14 @@ let
           }
           { });
 
-      hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
+      hasql-pool = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hasql-pool";
+          ver = "1.0.1";
+          sha256 = "sha256-Hf1f7lX0LWkjrb25SDBovCYPRdmUP1H6pAxzi7kT4Gg=";
+        }
+        { }
+      );
 
       postgresql-libpq = lib.dontCheck
         (prev.postgresql-libpq.override {
