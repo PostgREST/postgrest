@@ -5,11 +5,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
-### Removed
-
- - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
-   + This preference was deprecated in favor of Functions with an array of JSON objects
-
 ### Added
 
  - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
@@ -36,6 +31,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3607, PostgREST now fails to start when the JWT secret is less than 32 characters long - @laurenceisla
  - #3644, Fail schema cache lookup with invalid db-schemas config - @wolfgangwalther
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
+ - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
+   + This preference was deprecated in favor of Functions with an array of JSON objects
 
 ## [12.2.3] - 2024-08-01
 
