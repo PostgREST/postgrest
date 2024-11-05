@@ -60,8 +60,13 @@ let
 
       jose-jwt = prev.jose-jwt_0_10_0;
 
-      postgresql-libpq = lib.dontCheck
-        (prev.postgresql-libpq_0_10_1_0.override {
+      postgresql-libpq = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "postgresql-libpq";
+          ver = "0.10.1.0";
+          sha256 = "sha256-tXOMqCO8opMilI9rx0D+njqjIjbZsH168Bzb8Aq8Ff4=";
+        }
+        {
           postgresql = super.libpq;
         });
     };
