@@ -81,7 +81,7 @@ data ApiRequestError
   | LimitNoOrderError
   | NotFound
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
-  | NoRpc Text Text [Text] Bool MediaType Bool [QualifiedIdentifier] [Routine]
+  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | NotEmbedded Text
   | PutLimitNotAllowedError
   | QueryParamError QPError

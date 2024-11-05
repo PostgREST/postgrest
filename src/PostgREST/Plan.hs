@@ -166,12 +166,12 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation identifier
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
-callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} invMethod = do
+callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv       -> iColumns
   proc@Function{..} <- mapLeft ApiRequestError $
-    findProc identifier paramKeys (preferParameters == Just SingleObject) (dbRoutines sCache) iContentMediaType (invMethod == Inv)
+    findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType) of
@@ -207,10 +207,10 @@ inspectPlan apiRequest headersOnly schema = do
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
   the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> Bool -> RoutineMap -> MediaType -> Bool -> Either ApiRequestError Routine
-findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPost =
+findProc :: QualifiedIdentifier -> S.Set Text -> RoutineMap -> MediaType -> Bool -> Either ApiRequestError Routine
+findProc qi argumentsKeys allProcs contentMediaType isInvPost =
   case matchProc of
-    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) paramsAsSingleObject contentMediaType isInvPost (HM.keys allProcs) lookupProcName
+    ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) contentMediaType isInvPost (HM.keys allProcs) lookupProcName
     -- If there are no functions with named arguments, fallback to the single unnamed argument function
     ([], [proc]) -> Right proc
     ([], procs)  -> Left $ AmbiguousRpc (toList procs)
@@ -241,13 +241,9 @@ findProc qi argumentsKeys paramsAsSingleObject allProcs contentMediaType isInvPo
     matchesParams proc =
       let
         params = pdParams proc
-        firstType = (ppType <$> headMay params)
       in
-      -- exceptional case for Prefer: params=single-object
-      if paramsAsSingleObject
-        then length params == 1 && (firstType == Just "json" || firstType == Just "jsonb")
       -- If the function has no parameters, the arguments keys must be empty as well
-      else if null params
+      if null params
         then null argumentsKeys && not (isInvPost && contentMediaType `elem` [MTOctetStream, MTTextPlain, MTTextXML])
       -- A function has optional and required parameters. Optional parameters have a default value and
       -- don't require arguments for the function to be executed, required parameters must have an argument present.
@@ -972,7 +968,7 @@ resolveOrError ctx (Just table) field =
     cf                          -> Right $ withJsonParse ctx cf
 
 callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan
-callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = FunctionCall {
+callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
   funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
 , funCParams = callParams
 , funCArgs = args
@@ -982,11 +978,9 @@ callPlan proc ApiRequest{iPreferences=Preferences{..}} paramKeys args readReq = 
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
-    paramsAsSingleObject = preferParameters == Just SingleObject
     specifiedParams = filter (\x -> ppName x `S.member` paramKeys)
     callParams = case pdParams proc of
-      [prm] | paramsAsSingleObject -> OnePosParam prm
-            | ppName prm == mempty -> OnePosParam prm
+      [prm] | ppName prm == mempty -> OnePosParam prm
             | otherwise            -> KeyParams $ specifiedParams [prm]
       prms  -> KeyParams $ specifiedParams prms
 

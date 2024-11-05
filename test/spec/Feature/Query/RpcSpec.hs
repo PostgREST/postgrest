@@ -239,20 +239,6 @@ spec =
         , matchHeaders = [matchContentTypeJson]
         }
 
-      it "should fail with 404 when no json arg is found with prefer single object" $
-        request methodPost "/rpc/sayhello"
-          [("Prefer","params=single-object")]
-          [json|{}|]
-        `shouldRespondWith`
-          [json| {
-            "hint":null,
-            "message":"Could not find the function test.sayhello in the schema cache",
-            "code":"PGRST202",
-            "details":"Searched for the function test.sayhello with a single json/jsonb parameter, but no matches were found in the schema cache."} |]
-        { matchStatus  = 404
-        , matchHeaders = [matchContentTypeJson]
-        }
-
       it "should fail with 404 for overloaded functions with unknown args" $ do
         get "/rpc/overloaded?wrong_arg=value" `shouldRespondWith`
           [json| {
@@ -514,13 +500,6 @@ spec =
               [json|{"x": 1, "y": 2}|]
             `shouldRespondWith`
               [json|{"x": 1, "y": 2}|]
-
-        it "returns json scalar with prefer single object" $
-          request methodPost "/rpc/ret_point_overloaded" [("Prefer","params=single-object")]
-            [json|{"x": 1, "y": 2}|]
-            `shouldRespondWith`
-            [json|{"x": 1, "y": 2}|]
-            { matchHeaders = [matchContentTypeJson] }
 
     context "proc argument types" $ do
       it "accepts a variety of arguments (Postgres >= 10)" $
@@ -793,39 +772,11 @@ spec =
         , matchHeaders = [ matchContentTypeJson ]
         }
 
-    context "expects a single json object" $ do
-      it "does not expand posted json into parameters" $
-        request methodPost "/rpc/singlejsonparam"
-          [("prefer","params=single-object")] [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |] `shouldRespondWith`
-          [json| { "p1": 1, "p2": "text", "p3" : {"obj":"text"} } |]
-          { matchHeaders = [matchContentTypeJson] }
-
-      it "accepts parameters from an html form" $
-        request methodPost "/rpc/singlejsonparam"
-          [("Prefer","params=single-object"),("Content-Type", "application/x-www-form-urlencoded")]
-          ("integer=7&double=2.71828&varchar=forms+are+fun&" <>
-           "boolean=false&date=1900-01-01&money=$3.99&enum=foo") `shouldRespondWith`
-          [json| { "integer": "7", "double": "2.71828", "varchar" : "forms are fun"
-                 , "boolean":"false", "date":"1900-01-01", "money":"$3.99", "enum":"foo" } |]
-                 { matchHeaders = [matchContentTypeJson] }
-
-      it "works with GET" $
-        request methodGet "/rpc/singlejsonparam?p1=1&p2=text" [("Prefer","params=single-object")] ""
-          `shouldRespondWith` [json|{ "p1": "1", "p2": "text"}|]
-          { matchHeaders = [matchContentTypeJson] }
-
     context "should work with an overloaded function" $ do
       it "overloaded()" $
         get "/rpc/overloaded"
           `shouldRespondWith`
             [json|[1,2,3]|]
-
-      it "overloaded(json) single-object" $
-        request methodPost "/rpc/overloaded"
-            [("Prefer","params=single-object")]
-            [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
-          `shouldRespondWith`
-            [json|[{"x": 1, "y": "first"}, {"x": 2, "y": "second"}]|]
 
       it "overloaded(int, int)" $
         get "/rpc/overloaded?a=1&b=2" `shouldRespondWith` [str|3|]
@@ -839,13 +790,6 @@ spec =
             ""
           `shouldRespondWith`
             [json|[1,2,3]|]
-
-      it "overloaded_html_form(json) single-object" $
-        request methodPost "/rpc/overloaded_html_form"
-            [("Content-Type", "application/x-www-form-urlencoded"), ("Prefer","params=single-object")]
-            "a=1&b=2&c=3"
-          `shouldRespondWith`
-            [json|{"a": "1", "b": "2", "c": "3"}|]
 
       it "overloaded_html_form(int, int)" $
         request methodPost "/rpc/overloaded_html_form"

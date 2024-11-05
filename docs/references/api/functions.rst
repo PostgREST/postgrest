@@ -131,10 +131,6 @@ For this the ``Content-Type: application/json`` header must be included in the r
 
  If an overloaded function has a single ``json`` or ``jsonb`` unnamed parameter, PostgREST will call this function as a fallback provided that no other overloaded function is found with the parameters sent in the POST request.
 
-.. warning::
-
- Sending the JSON request body as a single argument is also possible with :ref:`Prefer: params=single-object <prefer_params>` but this method is **deprecated**.
-
 .. _function_single_unnamed:
 
 Functions with a single unnamed parameter
