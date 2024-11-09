@@ -8,14 +8,13 @@
     "/^v[0-9]+/"
   ],
   "rebaseWhen": "conflicted",
+  "pip_requirements": {
+    "enabled": false
+  },
   "packageRules": [
     {
       "matchBaseBranches": [ "/^v[0-9]+/" ],
       "groupName": "all dependencies"
-    },
-    {
-      "matchPackageNames": ["docutils"],
-      "allowedVersions": "<0.21.0"
     }
   ]
 }
