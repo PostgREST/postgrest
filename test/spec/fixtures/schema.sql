@@ -257,7 +257,7 @@ CREATE FUNCTION varied_arguments(
   enum enum_menagerie_type,
   arr text[],
   "integer" integer default 42,
-  json json default '{}',
+  "json" json default '{}',
   jsonb jsonb default '{}'
 ) RETURNS json
 LANGUAGE sql
@@ -299,7 +299,7 @@ CREATE FUNCTION varied_arguments_openapi(
   json_arr json[],
   jsonb_arr jsonb[],
   "integer" integer default 42,
-  json json default '{}',
+  "json" json default '{}',
   jsonb jsonb default '{}'
 ) RETURNS json
   LANGUAGE sql
@@ -2770,11 +2770,11 @@ END; $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP DOMAIN IF EXISTS public.titlecasetext CASCADE;
 CREATE DOMAIN public.titlecasetext AS text;
 
-CREATE OR REPLACE FUNCTION json(public.titlecasetext) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.titlecasetext) RETURNS json AS $$
   SELECT to_json(INITCAP($1::text));
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE CAST (public.titlecasetext AS json) WITH FUNCTION json(public.titlecasetext) AS IMPLICIT;
+CREATE CAST (public.titlecasetext AS json) WITH FUNCTION "json"(public.titlecasetext) AS IMPLICIT;
 -- End of data representations specific stuff except for where the domain is used in the table.
 
 CREATE TABLE designers (
@@ -3106,14 +3106,14 @@ CREATE OR REPLACE FUNCTION color(text) RETURNS public.color AS $$
   SELECT (('x' || lpad((CASE WHEN SUBSTRING($1::text, 1, 1) = '#' THEN SUBSTRING($1::text, 2) ELSE $1::text END), 8, '0'))::bit(32)::int)::public.color;
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION json(public.color) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.color) RETURNS json AS $$
   SELECT
     CASE WHEN $1 IS NULL THEN to_json(''::text)
     ELSE to_json('#' || lpad(upper(to_hex($1)), 6, '0'))
   END;
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE CAST (public.color AS json) WITH FUNCTION json(public.color) AS IMPLICIT;
+CREATE CAST (public.color AS json) WITH FUNCTION "json"(public.color) AS IMPLICIT;
 CREATE CAST (json AS public.color) WITH FUNCTION color(json) AS IMPLICIT;
 CREATE CAST (text AS public.color) WITH FUNCTION color(text) AS IMPLICIT;
 
@@ -3128,11 +3128,11 @@ CREATE OR REPLACE FUNCTION isodate(text) RETURNS public.isodate AS $$
   SELECT (replace($1, 'Z', '+00:00')::timestamp with time zone)::public.isodate;
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION json(public.isodate) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.isodate) RETURNS json AS $$
   SELECT to_json(replace(to_json($1)#>>'{}', '+00:00', 'Z'));
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE CAST (public.isodate AS json) WITH FUNCTION json(public.isodate) AS IMPLICIT;
+CREATE CAST (public.isodate AS json) WITH FUNCTION "json"(public.isodate) AS IMPLICIT;
 CREATE CAST (json AS public.isodate) WITH FUNCTION isodate(json) AS IMPLICIT;
 -- We intentionally don't have this in order to test query string parsing doesn't try to fall back on JSON parsing.
 -- CREATE CAST (text AS public.isodate) WITH FUNCTION isodate(text) AS IMPLICIT;
@@ -3150,11 +3150,11 @@ CREATE OR REPLACE FUNCTION bytea_b64(text) RETURNS public.bytea_b64 AS $$
   SELECT decode($1 || repeat('=', 4 - (length($1) % 4)), 'base64')::public.bytea_b64;
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION json(public.bytea_b64) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.bytea_b64) RETURNS json AS $$
   SELECT to_json(translate(encode($1, 'base64'), E'\n', ''));
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE CAST (public.bytea_b64 AS json) WITH FUNCTION json(public.bytea_b64) AS IMPLICIT;
+CREATE CAST (public.bytea_b64 AS json) WITH FUNCTION "json"(public.bytea_b64) AS IMPLICIT;
 CREATE CAST (json AS public.bytea_b64) WITH FUNCTION bytea_b64(json) AS IMPLICIT;
 CREATE CAST (text AS public.bytea_b64) WITH FUNCTION bytea_b64(text) AS IMPLICIT;
 
@@ -3170,12 +3170,12 @@ CREATE OR REPLACE FUNCTION unixtz(text) RETURNS public.unixtz AS $$
   SELECT (to_timestamp($1::numeric)::public.unixtz);
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION json(public.unixtz) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.unixtz) RETURNS json AS $$
   SELECT to_json(extract(epoch from $1)::bigint);
 $$ LANGUAGE SQL IMMUTABLE;
 
 
-CREATE CAST (public.unixtz AS json) WITH FUNCTION json(public.unixtz) AS IMPLICIT;
+CREATE CAST (public.unixtz AS json) WITH FUNCTION "json"(public.unixtz) AS IMPLICIT;
 CREATE CAST (json AS public.unixtz) WITH FUNCTION unixtz(json) AS IMPLICIT;
 CREATE CAST (text AS public.unixtz) WITH FUNCTION unixtz(text) AS IMPLICIT;
 
@@ -3190,11 +3190,11 @@ CREATE OR REPLACE FUNCTION monetary(text) RETURNS public.monetary AS $$
   SELECT ($1::numeric)::public.monetary;
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE OR REPLACE FUNCTION json(public.monetary) RETURNS json AS $$
+CREATE OR REPLACE FUNCTION "json"(public.monetary) RETURNS json AS $$
   SELECT to_json($1::text);
 $$ LANGUAGE SQL IMMUTABLE;
 
-CREATE CAST (public.monetary AS json) WITH FUNCTION json(public.monetary) AS IMPLICIT;
+CREATE CAST (public.monetary AS json) WITH FUNCTION "json"(public.monetary) AS IMPLICIT;
 CREATE CAST (json AS public.monetary) WITH FUNCTION monetary(json) AS IMPLICIT;
 CREATE CAST (text AS public.monetary) WITH FUNCTION monetary(text) AS IMPLICIT;
 
