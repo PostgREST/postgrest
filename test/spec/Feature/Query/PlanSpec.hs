@@ -15,7 +15,8 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion130)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion130,
+                                   pgVersion170)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -33,7 +34,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 15.63
+        totalCost `shouldBe` (if actualPgVersion >= pgVersion170 then 11.32 else 15.63)
 
     it "outputs the total cost for a single filter on a view" $ do
       r <- request methodGet "/projects_view?id=gt.2"
@@ -166,7 +167,7 @@ spec actualPgVersion = do
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
-        totalCost `shouldBe` 15.68
+        totalCost `shouldBe` (if actualPgVersion >= pgVersion170 then 11.37 else 15.68)
 
     it "outputs the total cost for a single upsert" $ do
       r <- request methodPut "/tiobe_pls?name=eq.Go"

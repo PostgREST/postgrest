@@ -36,7 +36,6 @@ let
       allOverlays.checked-shell-script
       allOverlays.gitignore
       allOverlays.postgresql-libpq
-      allOverlays.postgresql-future
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
@@ -47,6 +46,7 @@ let
 
   postgresqlVersions =
     [
+      { name = "postgresql-17"; postgresql = pkgs.postgresql_17.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-16"; postgresql = pkgs.postgresql_16.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-15"; postgresql = pkgs.postgresql_15.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-14"; postgresql = pkgs.postgresql_14.withPackages (p: [ p.postgis p.pg_safeupdate ]); }

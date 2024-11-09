@@ -80,7 +80,7 @@ postgrest-lint                    postgrest-with-postgresql-13
 postgrest-run                     postgrest-with-postgresql-14
 postgrest-style                   postgrest-with-postgresql-15
 postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io
+postgrest-test-io                 postgrest-with-postgresql-17
 ...
 
 [nix-shell]$
@@ -104,7 +104,7 @@ postgrest-lint                    postgrest-with-postgresql-13
 postgrest-run                     postgrest-with-postgresql-14
 postgrest-style                   postgrest-with-postgresql-15
 postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io
+postgrest-test-io                 postgrest-with-postgresql-17
 postgrest-test-memory
 ...
 
