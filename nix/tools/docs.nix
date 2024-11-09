@@ -2,21 +2,27 @@
 , aspellDicts
 , buildToolbox
 , checkedShellScript
+, lib
+, plantuml
 , python3
 , python3Packages
+, writeTextFile
 , writers
-, plantuml
 }:
 let
   selectPythonPackages = ps: [
     ps.sphinx
-    ps.sphinx_rtd_theme
-    ps.livereload
-    ps.sphinx-tabs
     ps.sphinx-copybutton
-    ps.sphinxext-opengraph
     ps.sphinx-rtd-dark-mode
+    ps.sphinx-rtd-theme
+    ps.sphinx-tabs
+    ps.sphinxext-opengraph
   ];
+
+  requirements = writeTextFile {
+    name = "requirements.txt";
+    text = lib.concatMapStringsSep "\n" (pkg: "${pkg.pname}==${pkg.version}") (selectPythonPackages python3Packages);
+  };
 
   python = python3.withPackages selectPythonPackages;
 
@@ -71,7 +77,7 @@ let
   server =
     writers.writePython3
       "postgrest-docs-server"
-      { libraries = selectPythonPackages python3Packages; }
+      { libraries = selectPythonPackages python3Packages ++ [ python3Packages.livereload ]; }
       ''
         import sys
         from livereload import Server, shell
@@ -181,4 +187,5 @@ buildToolbox
       serve
       spellcheck;
   };
+  extra = { inherit requirements; };
 }
