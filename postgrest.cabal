@@ -21,7 +21,7 @@ tested-with:
     -- nix, cabal on Ubuntu (arm)
   , GHC == 9.4.8
     -- cabal on Ubuntu
-  , GHC == 9.6.4
+  , GHC == 9.6.6
     -- cabal on Ubuntu
   , GHC == 9.8.2
 
