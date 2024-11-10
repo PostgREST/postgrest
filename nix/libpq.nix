@@ -19,6 +19,10 @@ stdenv.mkDerivation {
   pname = "libpq";
   inherit (postgresql) src version patches;
 
+  __structuredAttrs = true;
+  env.CFLAGS = "-fdata-sections -ffunction-sections"
+    + (if stdenv.cc.isClang then " -flto" else " -fmerge-constants -Wl,--gc-sections");
+
   configureFlags = [
     "--without-gssapi"
     "--without-icu"

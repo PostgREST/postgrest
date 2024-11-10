@@ -5,11 +5,7 @@
 }:
 let
   # This builds a static PostgREST executable based on pkgsStatic.
-  # pkgsStatic is based on musl, so is a kind of cross-compilation.
-  # We still make this explicit here via pkgsCross, because we need
-  # to get postgresql/libpq for musl, too.
-  pkgsCross = pkgs.pkgsCross.musl64;
-  inherit (pkgsCross) pkgsStatic;
+  inherit (pkgs) pkgsStatic;
   inherit (pkgsStatic.haskell) lib;
 
   packagesStatic =
@@ -33,7 +29,7 @@ let
           configureFlags = [ "-fuse-pkg-config" ];
           # postgresql doesn't build in the fully static overlay - but the default
           # derivation is built with static libraries anyway.
-          libraryPkgconfigDepends = [ pkgsCross.libpq ];
+          libraryPkgconfigDepends = [ pkgsStatic.libpq ];
           librarySystemDepends = [ ];
         }).overrideAttrs (_: prevAttrs: {
           buildInputs = prevAttrs.buildInputs ++ [ pkgsStatic.openssl ];
