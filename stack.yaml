@@ -1,4 +1,4 @@
-resolver: lts-22.21 # 2024-05-06, GHC 9.6.5
+resolver: lts-22.41 # 2024-11-10, GHC 9.6.6
 
 nix:
   packages:
@@ -11,5 +11,6 @@ nix:
 
 extra-deps:
   - fuzzyset-0.2.4
-  - hasql-notifications-0.2.2.0
   - hasql-pool-1.0.1
+  - jose-jwt-0.10.0
+  - postgresql-libpq-0.10.1.0
