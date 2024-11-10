@@ -174,7 +174,7 @@ jobs:
   cabal:
     strategy:
       matrix:
-        ghc: ['9.6.4', '9.8.2']
+        ghc: ['9.6.6', '9.8.2']
       fail-fast: false
     name: Cabal - Linux GHC ${{ matrix.ghc }}
     runs-on: ubuntu-22.04
@@ -189,8 +189,8 @@ jobs:
           path: |
             ~/.cabal/packages
             ~/.cabal/store
-          prefix: cabal-${{ matrix.ghc }}
-          suffix: ${{ hashFiles('postgrest.cabal', 'cabal.project', 'cabal.project.freeze') }}
+          prefix: cabal-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+          suffix: ${{ hashFiles('postgrest.cabal', 'cabal.project') }}
       - name: Cache dist-newstyle
         uses: ./.github/actions/cache-on-main
         with:
