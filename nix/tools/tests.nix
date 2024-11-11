@@ -27,6 +27,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${withTools.withPg} -f test/spec/fixtures/load.sql \
           ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec -- "''${_arg_leftovers[@]}"
       '';
@@ -40,6 +41,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         # This makes nix-env -iA tests.doctests.bin work.
         export NIX_GHC=${postgrest.env.NIX_GHC}
         ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:doctests
@@ -54,6 +56,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${withTools.withPg} -f test/spec/fixtures/load.sql \
           ${runtimeShell} -c " \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} test:spec && \
@@ -81,6 +84,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures.sql \
           ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io "''${_arg_leftovers[@]}"
@@ -96,6 +100,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/big_schema.sql \
           ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py "''${_arg_leftovers[@]}"
@@ -111,6 +116,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions}
         ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} --replica -f test/io/replica.sql \
           ${ioTestPython}/bin/pytest -v test/io/test_replica.py "''${_arg_leftovers[@]}"
@@ -126,6 +132,7 @@ let
         withPath = [ jq ];
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         ${withTools.withPg} -f test/spec/fixtures/load.sql \
             ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
             postgrest --dump-schema
@@ -154,6 +161,7 @@ let
           rm -rf coverage/*
 
           # build once before running all the tests
+          ${cabal-install}/bin/cabal v2-update
           ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest lib:postgrest test:spec
 
           (

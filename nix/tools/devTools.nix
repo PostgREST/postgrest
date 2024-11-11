@@ -246,6 +246,7 @@ let
       }
       ''
         mkdir -p "$_arg_dumpdir"
+        ${cabal-install}/bin/cabal v2-update
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} \
           --builddir="$tmpdir" \
           --ghc-option=-ddump-minimal-imports \
