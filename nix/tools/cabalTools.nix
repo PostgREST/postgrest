@@ -15,6 +15,7 @@ let
         withEnv = postgrest.env;
       }
       ''
+        ${cabal-install}/bin/cabal v2-update
         exec ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "''${_arg_leftovers[@]}"
       '';
 
