@@ -623,18 +623,34 @@ You can make an upsert with :code:`POST` and the :code:`Prefer: resolution=merge
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/employees" \
+  curl "http://localhost:3000/products" \
     -X POST -H "Content-Type: application/json" \
     -H "Prefer: resolution=merge-duplicates" \
     -d @- << EOF
     [
-      { "id": 1, "name": "Old employee 1", "salary": 30000 },
-      { "id": 2, "name": "Old employee 2", "salary": 42000 },
-      { "id": 3, "name": "New employee 3", "salary": 50000 }
+      { "sku": "CL2031", "name": "Existing T-shirt", "price": 35 },
+      { "sku": "CL2040", "name": "Existing Hoodie", "price": 60 },
+      { "sku": "AC1022", "name": "New Cap", "price": 30 }
     ]
   EOF
 
-By default, upsert operates based on the primary key columns, you must specify all of them. You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`. This works best when the primary key is natural, but it's also possible to use it if the primary key is surrogate (example: "id serial primary key"). For more details read `this issue <https://github.com/PostgREST/postgrest/issues/1118>`_.
+By default, upsert operates based on the primary key columns, so you must specify all of them.
+You can also choose to ignore the duplicates with :code:`Prefer: resolution=ignore-duplicates`.
+Upsert works best when the primary key is natural (e.g. ``sku``).
+However, it can work with surrogate primary keys (e.g. ``id serial primary key``), if you also do a :ref:`bulk_insert_default`:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/employees?colums=id,name,salary" \
+    -X POST -H "Content-Type: application/json" \
+    -H "Prefer: resolution=merge-duplicates, missing=default" \
+    -d @- << EOF
+    [
+      { "id": 1, "name": "Existing employee 1", "salary": 30000 },
+      { "id": 2, "name": "Existing employee 2", "salary": 42000 },
+      { "name": "New employee 3", "salary": 50000 }
+    ]
+  EOF
 
 .. important::
   After creating a table or changing its primary key, you must refresh PostgREST schema cache for upsert to work properly. To learn how to refresh the cache see :ref:`schema_reloading`.
