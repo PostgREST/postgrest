@@ -87,9 +87,6 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
-  o@(SchemaCacheLoadedObs _) -> do
-    when (logLevel >= LogDebug) $ do
-      logWithZTime loggerState $ observationMessage o
   PoolRequest ->
     pure ()
   PoolRequestFullfilled ->

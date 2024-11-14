@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column reference <col> is ambiguous"` error when selecting `?select=...table(col,count())`
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
+ - #3779, Always log the schema cache load time - @steve-chavez
 
 ### Changed
 
