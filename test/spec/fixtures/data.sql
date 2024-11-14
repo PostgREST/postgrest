@@ -924,3 +924,9 @@ INSERT INTO process_supervisor VALUES (4, 1);
 INSERT INTO process_supervisor VALUES (4, 2);
 INSERT INTO process_supervisor VALUES (5, 3);
 INSERT INTO process_supervisor VALUES (6, 3);
+
+TRUNCATE TABLE surr_serial_upsert CASCADE;
+INSERT INTO surr_serial_upsert(name, extra) VALUES ('value', 'existing value');
+
+TRUNCATE TABLE surr_gen_default_upsert CASCADE;
+INSERT INTO surr_gen_default_upsert(name, extra) VALUES ('value', 'existing value');
