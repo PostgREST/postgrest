@@ -334,20 +334,29 @@ let
     checkedShellScript
       {
         name = "postgrest-gen-jwt";
-        docs = "Generate a JWT";
+        docs = ''
+          Generate a JWT. Example: postgrest-gen-jwt --exp 10 postgrest_test_author
+
+          # This can be used to quickly prove a JWT expiry
+          $ curl localhost:3000/authors_only -H "Authorization: Bearer \$(postgrest-gen-jwt --exp -31 postgrest_test_author)"
+        '';
         args = [
           "ARG_POSITIONAL_SINGLE([role], [role for the jwt payload])"
           "ARG_OPTIONAL_SINGLE([secret],, [secret used to sign the JWT], [reallyreallyreallyreallyverysafe])"
+          "ARG_OPTIONAL_SINGLE([exp],, [seconds for JWT expiry, it accepts negative values], [3600])"
         ];
       }
       ''
-        # From https://stackoverflow.com/questions/59002949/how-to-create-a-json-web-token-jwt-using-openssl-shell-commands
+        # Based on https://stackoverflow.com/questions/59002949/how-to-create-a-json-web-token-jwt-using-openssl-shell-commands
 
         # Construct the header
         jwt_header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | base64 | sed s/\+/-/g | sed 's/\//_/g' | sed -E s/=+$//)
 
+        # Construct the exp value
+        expiry=$((EPOCHSECONDS + _arg_exp))
+
         # Construct the payload
-        payload=$(echo -n "{\"role\":\"$_arg_role\"}" | base64 | sed s/\+/-/g |sed 's/\//_/g' |  sed -E s/=+$//)
+        payload=$(echo -n "{\"role\": \"$_arg_role\", \"exp\": $expiry}" | base64 | sed s/\+/-/g |sed 's/\//_/g' |  sed -E s/=+$//)
 
         # Convert secret to hex
         hexsecret=$(echo -n "$_arg_secret" | xxd -p | paste -sd "")
