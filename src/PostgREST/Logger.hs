@@ -75,6 +75,7 @@ middleware logLevel getAuthRole = case logLevel of
       , Wai.destination = Wai.Handle stdout
       }
 
+-- All observations are logged except some that depend on the log-level
 observationLogger :: LoggerState -> LogLevel -> ObservationHandler
 observationLogger loggerState logLevel obs = case obs of
   o@(PoolAcqTimeoutObs _) -> do
