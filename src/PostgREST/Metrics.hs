@@ -1,3 +1,7 @@
+{-|
+Module      : PostgREST.Logger
+Description : Metrics based on the Observation module. See Observation.hs.
+-}
 module PostgREST.Metrics
   ( init
   , MetricsState (..)
@@ -28,6 +32,7 @@ init configDbPoolSize = do
   setGauge poolMaxSize (fromIntegral configDbPoolSize)
   pure $ MetricsState poolTimeouts poolAvailable poolWaiting poolMaxSize schemaCacheLoads schemaCacheQueryTime
 
+-- Only some observations are used as metrics
 observationMetrics :: MetricsState -> ObservationHandler
 observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schemaCacheLoads schemaCacheQueryTime) obs = case obs of
   (PoolAcqTimeoutObs _) -> do

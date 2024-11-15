@@ -1,7 +1,10 @@
 {-# LANGUAGE LambdaCase #-}
 {-|
 Module      : PostgREST.Observation
-Description : Observations that can be used for Logging and Metrics
+Description : This module holds an Observation type which is the core of Observability for PostgREST.
+              The Observation and ObservationHandler (the observer) are abstractions that allow centralizing logging and metrics concerns,
+              only observer calls with an Observation constructor are applied at different parts in the codebase.
+              The Logger and Metrics modules then decide which observations to expose. Not all observations need to be logged nor all correspond to a metric.
 -}
 module PostgREST.Observation
   ( Observation(..)
