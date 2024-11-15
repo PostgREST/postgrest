@@ -49,7 +49,7 @@ jobs:
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@968872560f81e7bdde9272853e65f2507c0eca7c # v5.0.0
+        uses: codecov/codecov-action@5c47607acb93fed5485fdbf7232e8a31425f672a # v5.0.2
         with:
           files: ./coverage/codecov.json
           token: ${{ secrets.CODECOV_TOKEN }}
