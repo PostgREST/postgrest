@@ -2829,7 +2829,7 @@ You can access request headers, cookies and JWT claims by reading GUC variables 
 Legacy GUC variable names
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For PostgreSQL versions below 14, PostgREST will take into consideration the :ref:`db-use-legacy-gucs` config, which is set to true by default. This means that the interface for accessing these GUCs is `the same as in older versions <https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_. You can opt in to use the JSON GUCs mentioned above by setting the ``db-use-legacy-gucs`` to false.
+For PostgreSQL versions below 14, PostgREST will take into consideration the :ref:`db-use-legacy-gucs` config, which is set to true by default. This means that the interface for accessing these GUCs is `the same as in older versions <https://web.archive.org/web/20230326043738/https://postgrest.org/en/v8.0/api.html#accessing-request-headers-cookies-and-jwt-claims>`_. You can opt in to use the JSON GUCs mentioned above by setting the ``db-use-legacy-gucs`` to false.
 
 .. _guc_req_path_method:
 
