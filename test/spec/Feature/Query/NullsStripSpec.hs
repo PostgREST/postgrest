@@ -70,7 +70,7 @@ spec =
           [singularStrip]
           ""
           `shouldRespondWith`
-          [json|{"details":"The result contains 6 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+          [json|{"details":"The result contains 6 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
           { matchStatus  = 406
           , matchHeaders = [matchContentTypeJson]
           }
