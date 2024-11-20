@@ -70,7 +70,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 4 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -85,7 +85,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
             [json| { address: "zzz" } |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 4 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 4 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -99,7 +99,7 @@ spec =
         request methodPatch "/items?id=gt.0&id=lt.0"
                 [singular] [json|{"id":1}|]
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeJson]
                   }
@@ -108,7 +108,7 @@ spec =
         request methodPatch "/items?id=gt.0&id=lt.0"
                 [("Prefer", "return=representation"), singular] [json|{"id":1}|]
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeJson]
                   }
@@ -141,7 +141,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| [ { id: 200, address: "xxx" }, { id: 201, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -156,7 +156,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular]
             [json| [ { id: 202, address: "xxx" }, { id: 203, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -171,7 +171,7 @@ spec =
             [("Prefer", "tx=commit"), ("Prefer", "return=minimal"), singular]
             [json| [ { id: 204, address: "xxx" }, { id: 205, address: "yyy" } ] |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -186,7 +186,7 @@ spec =
                 [singular]
                 [json| [ ] |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeJson]
                   }
@@ -196,7 +196,7 @@ spec =
                 [("Prefer", "return=representation"), singular]
                 [json| [ ] |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                   { matchStatus  = 406
                   , matchHeaders = [matchContentTypeJson]
                   }
@@ -219,7 +219,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             ""
           `shouldRespondWith`
-            [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -236,7 +236,7 @@ spec =
         request methodDelete "/items?id=gt.5&id=lt.11"
             [("Prefer", "tx=commit"), ("Prefer", "return=representation"), singular] ""
           `shouldRespondWith`
-            [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }
@@ -252,7 +252,7 @@ spec =
         request methodDelete "/items?id=lt.0"
                 [singular] ""
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeJson]
                 }
@@ -261,7 +261,7 @@ spec =
         request methodDelete "/items?id=lt.0"
                 [("Prefer", "return=representation"), singular] ""
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeJson]
                 }
@@ -271,7 +271,7 @@ spec =
         request methodPost "/rpc/getproject"
                 [singular] [json|{ "id": 9999999}|]
           `shouldRespondWith`
-            [json|{"details":"The result contains 0 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 0 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeJson]
                 }
@@ -294,7 +294,7 @@ spec =
         request methodPost "/rpc/getallprojects"
                 [singular] "{}"
           `shouldRespondWith`
-            [json|{"details":"The result contains 5 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 5 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
                 { matchStatus  = 406
                 , matchHeaders = [matchContentTypeJson]
                 }
@@ -309,7 +309,7 @@ spec =
             [("Prefer", "tx=commit"), singular]
             [json| {"id_l": 1, "id_h": 2, "name": "changed"} |]
           `shouldRespondWith`
-            [json|{"details":"The result contains 2 rows","message":"JSON object requested, multiple (or no) rows returned","code":"PGRST116","hint":null}|]
+            [json|{"details":"The result contains 2 rows","message":"Cannot coerce the result to a single JSON object","code":"PGRST116","hint":null}|]
             { matchStatus  = 406
             , matchHeaders = [ matchContentTypeJson ]
             }

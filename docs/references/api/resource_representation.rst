@@ -74,17 +74,15 @@ This returns
 
   { "id": 1 }
 
-with a :code:`Content-Type: application/vnd.pgrst.object+json`.
-
 When a singular response is requested but no entries are found, the server responds with an error message and 406 Not Acceptable status code rather than the usual empty array and 200 status:
 
 .. code-block:: json
 
   {
-    "message": "JSON object requested, multiple (or no) rows returned",
-    "details": "Results contain 0 rows, application/vnd.pgrst.object+json requires 1 row",
-    "hint": null,
-    "code": "PGRST505"
+    "code": "PGRST116",
+    "message": "Cannot coerce the result to a single JSON object",
+    "details": "The result contains 0 rows",
+    "hint": null
   }
 
 .. note::

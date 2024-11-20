@@ -163,7 +163,7 @@ instance JSON.ToJSON ApiRequestError where
 
   toJSON (SingularityError n) = toJsonPgrstError
     ApiRequestErrorCode16
-    "JSON object requested, multiple (or no) rows returned"
+    "Cannot coerce the result to a single JSON object"
     (Just $ JSON.String $ T.unwords ["The result contains", show n, "rows"])
     Nothing
 
