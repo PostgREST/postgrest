@@ -45,7 +45,7 @@ import PostgREST.RangeQuery        (allRange)
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =
   "SELECT " <>
   intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
   fromFrag <> " " <>
@@ -54,7 +54,7 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     then mempty
     else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
   groupF qi select relSelect <> " " <>
-  orderF qi order <> " " <>
+  orderFrag <> " " <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias
@@ -63,6 +63,7 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     defSelect = [CoercibleSelectField (unknownField "*" []) Nothing Nothing Nothing Nothing]
     joins = getJoins node
     joinsSelects = getJoinSelects node
+    orderFrag = if relSpread == Just ToManySpread then mempty else orderF qi order
 
 getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
 getJoinSelects (Node ReadPlan{relSelect} _) =
@@ -80,7 +81,7 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
             Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
           Spread{rsSpreadSel, rsAggAlias} ->
-            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
+            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem False rsAggAlias mempty <$> rsSpreadSel)
 
 getJoins :: ReadPlanTree -> [SQL.Snippet]
 getJoins (Node _ []) = []
@@ -92,23 +93,28 @@ getJoins (Node ReadPlan{relSelect} forest) =
       ) relSelect
 
 getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
-getJoin fld node@(Node ReadPlan{relJoinType} _) =
+getJoin fld node@(Node ReadPlan{order, relJoinType, relSpread} _) =
   let
     correlatedSubquery sub al cond =
       (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
+    selectJsonArray = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
+    wrapSubqAlias = " FROM (" <> subquery <> " ) AS " <> aggAlias
+    joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
         correlatedSubquery subquery aggAlias "TRUE"
-      Spread{} ->
-        correlatedSubquery subquery aggAlias "TRUE"
+      Spread{rsSpreadSel, rsAggAlias} ->
+        if relSpread == Just ToManySpread then
+          let
+            selection = selectJsonArray <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadSelectItem True rsAggAlias order <$> rsSpreadSel)
+          in correlatedSubquery (selection <> wrapSubqAlias) aggAlias joinCondition
+        else
+          correlatedSubquery subquery aggAlias "TRUE"
       JsonEmbed{rsEmbedMode = JsonArray} ->
-        let
-          subq = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias <> " FROM (" <> subquery <> " ) AS " <> aggAlias
-          condition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
-        in correlatedSubquery subq aggAlias condition
+       correlatedSubquery (selectJsonArray <> wrapSubqAlias) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =

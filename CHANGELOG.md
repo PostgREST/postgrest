@@ -12,6 +12,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2858, Performance improvements when calling RPCs via GET using indexes in more cases - @wolfgangwalther
  - #3560, Log resolved host in "Listening on ..." messages - @develop7
  - #3727, Log maximum pool size - @steve-chavez
+ - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
+   + The selected columns in the embedded resources are aggregated into arrays
 
 ### Fixed
 
