@@ -1632,6 +1632,8 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
 
+        assert "pgrst_jwt_cache_size" in response.text
+
 
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
@@ -1648,3 +1650,58 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     response = metapostgrest.session.post("/rpc/reset_db_schemas_config")
     assert response.text == ""
     assert response.status_code == 204
+
+
+def test_jwt_cache_size_decreases_after_expiry(defaultenv):
+    "verify that JWT purges expired JWTs"
+
+    relativeSeconds = lambda sec: int(
+        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
+    )
+
+    headers = lambda sec: jwtauthheader(
+        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
+        SECRET,
+    )
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": SECRET,
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    with run(env=env, port=freeport()) as postgrest:
+
+        # Generate three unique JWT tokens
+        # The 1 second sleep is needed for it generate a unique token
+        hdrs1 = headers(5)
+        postgrest.session.get("/authors_only", headers=hdrs1)
+
+        time.sleep(1)
+
+        hdrs2 = headers(5)
+        postgrest.session.get("/authors_only", headers=hdrs2)
+
+        time.sleep(1)
+
+        hdrs3 = headers(5)
+        postgrest.session.get("/authors_only", headers=hdrs3)
+
+        # the cache should now have three tokens
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "pgrst_jwt_cache_size 3.0" in response.text
+
+        # Wait 5 seconds for the tokens to expire
+        time.sleep(5)
+
+        hdrs4 = headers(5)
+
+        # Make another request to force call the purgeExpired method
+        # This should remove the 3 expired tokens and adds 1 to cache
+        postgrest.session.get("/authors_only", headers=hdrs4)
+
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+        assert "pgrst_jwt_cache_size 1.0" in response.text
