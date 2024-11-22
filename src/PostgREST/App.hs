@@ -15,7 +15,7 @@ module PostgREST.App
   , run
   ) where
 
-
+import Control.Monad
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft)
 import Data.Maybe               (fromJust)
@@ -41,8 +41,7 @@ import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
-import PostgREST.Auth                 (AuthResult (..))
+import PostgREST.AppState             (AppState, AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
