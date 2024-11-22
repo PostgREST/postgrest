@@ -57,8 +57,13 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | JWTCache Int
 
-data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
+data ObsFatalError
+  = ServerAuthError
+  | ServerPgrstBug
+  | ServerError42P05
+  | ServerError08P01
 
 type ObservationHandler = Observation -> IO ()
 
