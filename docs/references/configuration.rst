@@ -193,7 +193,7 @@ app.settings.*
 
   When using the environment variable `PGRST_APP_SETTINGS_*` form, the remainder of the variable is used as the new name. Case is not important : :code:`PGRST_APP_SETTINGS_MY_ENV_VARIABLE=some_value` can be accessed in postgres as :code:`current_setting('app.settings.my_env_variable')`.
 
-  The :code:`current_setting` function has `an optional boolean second <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET>`_ argument to avoid it from raising an error if the value was not defined. Default values to :code:`app.settings` can then easily be given by combining this argument with :code:`coalesce` : :code:`coalesce(current_setting('app.settings.my_custom_variable', true), 'default value')`
+  The :code:`current_setting` function has `an optional boolean second <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET>`_ argument to avoid it from raising an error if the value was not defined. Default values to :code:`app.settings` can then easily be given by combining this argument with :code:`coalesce` and :code:`nullif` : :code:`coalesce(nullif(current_setting('app.settings.my_custom_variable', true), ''), 'default value')`. The use of :code:`nullif` is necessary because if set in a transaction, the setting is sometimes not "rolled back" to :code:`null`. See also :ref:`this section <guc_req_headers_cookies_claims>` for more information on this behaviour.
 
 .. _db-aggregates-enabled:
 
