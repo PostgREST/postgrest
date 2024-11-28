@@ -191,6 +191,10 @@ app.settings.*
 
   Arbitrary settings that can be used to pass in secret keys directly as strings, or via OS environment variables. For instance: :code:`app.settings.jwt_secret = "$(MYAPP_JWT_SECRET)"` will take :code:`MYAPP_JWT_SECRET` from the environment and make it available to PostgreSQL functions as :code:`current_setting('app.settings.jwt_secret')`.
 
+  When using the environment variable `PGRST_APP_SETTINGS_*` form, the remainder of the variable is used as the new name. Case is not important : :code:`PGRST_APP_SETTINGS_MY_ENV_VARIABLE=some_value` can be accessed in postgres as :code:`current_setting('app.settings.my_env_variable')`.
+
+  The :code:`current_setting` function has `an optional boolean second <https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADMIN-SET>`_ argument to avoid it from raising an error if the value was not defined. Default values to :code:`app.settings` can then easily be given by combining this argument with :code:`coalesce` : :code:`coalesce(current_setting('app.settings.my_custom_variable', true), 'default value')`
+
 .. _db-aggregates-enabled:
 
 db-aggregates-enabled
