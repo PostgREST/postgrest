@@ -169,7 +169,7 @@ callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest ->
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
-        Inv       -> iColumns
+        Inv       -> S.map (getColumnAsText . rootLabel) iColumns
   proc@Function{..} <- mapLeft ApiRequestError $
     findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
@@ -958,7 +958,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults
-    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
+    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList (S.map (getColumnAsText . rootLabel) iColumns)
 
 resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
 resolveOrError _ Nothing _ = Left NotFound
@@ -1065,3 +1065,9 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
     when' :: Bool -> Maybe a -> Maybe a
     when' True (Just a) = Just a
     when' _ _           = Nothing
+
+getColumnAsText :: ColumnItem -> Text
+getColumnAsText colItem =
+  case colItem of
+    ColumnField col             -> col
+    ColumnRelation{colRelation} -> colRelation
