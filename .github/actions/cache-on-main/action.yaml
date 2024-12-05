@@ -19,14 +19,14 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       if: ${{ startsWith(github.ref, 'refs/heads/') || (inputs.save-prs && startsWith(github.ref, 'refs/pull/')) }}
       with:
         path: ${{ inputs.path }}
         key: ${{ runner.os }}-${{ inputs.prefix }}-${{ inputs.suffix }}
         restore-keys: |
           ${{ runner.os }}-${{ inputs.prefix }}-
-    - uses: actions/cache/restore@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+    - uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       if: ${{ !startsWith(github.ref, 'refs/heads/') && !(inputs.save-prs && startsWith(github.ref, 'refs/pull/'))  }}
       with:
         path: ${{ inputs.path }}
