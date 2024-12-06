@@ -44,10 +44,11 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, AuthResult (..), getConfig,
-                           getJwtCache, getTime)
-import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
-import PostgREST.Error    (Error (..))
+import PostgREST.AppState    (AppState, AuthResult (..), getConfig,
+                              getJwtCache, getObserver, getTime)
+import PostgREST.Config      (AppConfig (..), JSPath, JSPathExp (..))
+import PostgREST.Error       (Error (..))
+import PostgREST.Observation (Observation (..))
 
 import Protolude
 
@@ -163,14 +164,25 @@ middleware appState app req respond = do
 -- | Used to retrieve and insert JWT to JWT Cache
 getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
 getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
+
+  -- Purge expired tokens in a separate thread
+  _ <- forkIO $ C.purgeExpired jwtCache
+
+  checkCache <- C.lookup jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
+
   case (authResult,checkCache) of
-    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    (Right res, Nothing) -> C.insert' jwtCache (getTimeSpec res maxLifetime utc) token res
     _                    -> pure ()
 
+  jwtCacheSize <- C.size jwtCache
+  observer $ JWTCache jwtCacheSize
+
   return authResult
+    where
+      observer = getObserver appState
+      jwtCache = getJwtCache appState
 
 -- Used to extract JWT exp claim and add to JWT Cache
 getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
