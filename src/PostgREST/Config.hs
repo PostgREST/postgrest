@@ -15,6 +15,7 @@ module PostgREST.Config
   , Environment
   , JSPath
   , JSPathExp(..)
+  , FilterExp(..)
   , LogLevel(..)
   , OpenAPIMode(..)
   , Proxy(..)
@@ -54,8 +55,9 @@ import System.Posix.Types      (FileMode)
 
 import PostgREST.Config.Database         (RoleIsolationLvl,
                                           RoleSettings)
-import PostgREST.Config.JSPath           (JSPath, JSPathExp (..),
-                                          dumpJSPath, pRoleClaimKey)
+import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
+                                          JSPathExp (..), dumpJSPath,
+                                          pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,

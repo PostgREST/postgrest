@@ -27,6 +27,7 @@ import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
 import qualified Data.Cache                      as C
 import qualified Data.Scientific                 as Sci
+import qualified Data.Text                       as T
 import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
 import qualified Jose.Jwk                        as JWT
@@ -46,7 +47,8 @@ import System.TimeIt           (timeItT)
 
 import PostgREST.AppState (AppState, AuthResult (..), getConfig,
                            getJwtCache, getTime)
-import PostgREST.Config   (AppConfig (..), JSPath, JSPathExp (..))
+import PostgREST.Config   (AppConfig (..), FilterExp (..), JSPath,
+                           JSPathExp (..))
 import PostgREST.Error    (Error (..))
 
 import Protolude
@@ -121,7 +123,19 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     walkJSPath x                      []                = x
     walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EqualsCond txt)] = findFirstMatch (==) txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (NotEqualsCond txt)] = findFirstMatch (/=) txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (StartsWithCond txt)] = findFirstMatch T.isPrefixOf txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EndsWithCond txt)] = findFirstMatch T.isSuffixOf txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (ContainsCond txt)] = findFirstMatch T.isInfixOf txt ar
     walkJSPath _                      _                 = Nothing
+
+    findFirstMatch matchWith pattern = foldr checkMatch Nothing
+      where
+        checkMatch (JSON.String txt) acc
+            | pattern `matchWith` txt = Just $ JSON.String txt
+            | otherwise = acc
+        checkMatch _ acc = acc
 
     unquoted :: JSON.Value -> BS.ByteString
     unquoted (JSON.String t) = encodeUtf8 t

@@ -153,6 +153,48 @@ roleclaims:
       role: postgrest_test_author
       other: true
     expected_status: 401
+  # https://github.com/PostgREST/postgrest/pull/3813
+  - key: '.realm_access.roles[?(@ == "postgrest_test_author")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ != "other")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ ^== "postgrest_te")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ ==^ "st_test_author")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ *== "_test_")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ == "string")]'
+    data:
+      realm_access:
+        roles:
+          - obj_key: obj_value
+    expected_status: 401 # fails because it compares an object with a string
 
 invalidroleclaimkeys:
   - 'role.other'
@@ -160,6 +202,7 @@ invalidroleclaimkeys:
   - '.my_role;;domain'
   - '.#$$%&$%/'
   - '1234'
+  - '.role[?(@ =)]'
 
 invalidopenapimodes:
   - 'follow-'

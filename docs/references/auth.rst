@@ -161,6 +161,43 @@ JWT Claims Validation
 
 PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens.
 
+.. _jwt_role_claim_key_extract:
+
+JWT Role Claim Key Extraction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
+
+The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expression grammar with extended string comparison operators. Supported operators are:
+
+- ``==`` selects the first array element that exactly matches the right operand
+- ``!=`` selects the first array element that does not match the right operand
+- ``^==`` selects the first array element that starts with the right operand
+- ``==^`` selects the first array element that ends with the right operand
+- ``*==`` selects the first array element that contains the right operand
+
+Usage examples:
+
+  .. code:: bash
+
+    # {"postgrest":{"roles": ["other", "author"]}}
+    # the DSL accepts characters that are alphanumerical or one of "_$@" as keys
+    jwt-role-claim-key = ".postgrest.roles[1]"
+
+    # {"https://www.example.com/role": { "key": "author" }}
+    # non-alphanumerical characters can go inside quotes(escaped in the config value)
+    jwt-role-claim-key = ".\"https://www.example.com/role\".key"
+
+    # {"postgrest":{"roles": ["other", "author"]}}
+    # `@` represents the current element in the array
+    # all the these match the string "author"
+    jwt-role-claim-key = ".postgrest.roles[?(@ == \"author\")]"
+    jwt-role-claim-key = ".postgrest.roles[?(@ != \"other\")]"
+    jwt-role-claim-key = ".postgrest.roles[?(@ ^== \"aut\")]"
+    jwt-role-claim-key = ".postgrest.roles[?(@ ==^ \"hor\")]"
+    jwt-role-claim-key = ".postgrest.roles[?(@ *== \"utho\")]"
+
+
 JWT Security
 ~~~~~~~~~~~~
 

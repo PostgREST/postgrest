@@ -27,10 +27,12 @@ CSV
 durations
 DDL
 DOM
+DSL
 DevOps
 dockerize
 enum
 Enums
+Entra
 eq
 ETH
 Ethereum
@@ -68,9 +70,11 @@ isdistinct
 JS
 js
 JSON
+JSPath
 JWK
 JWT
 jwt
+Keycloak
 Kubernetes
 localhost
 login
@@ -94,10 +98,11 @@ npm
 nxl
 nxr
 OAuth
+ORM
 Observability
+Okta
 OpenAPI
 openapi
-ORM
 ov
 parametrized
 passphrase
