@@ -88,6 +88,7 @@ library
                       PostgREST.Response.OpenAPI
                       PostgREST.Response.GucHeader
                       PostgREST.Response.Performance
+                      PostgREST.Utils
                       PostgREST.Version
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.20
@@ -105,9 +106,11 @@ library
                     , containers                >= 0.5.7 && < 0.7
                     , cookie                    >= 0.4.2 && < 0.5
                     , directory                 >= 1.2.6 && < 1.4
+                    , deepseq                   >= 1.4 && < 1.5
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
                     , fuzzyset                  >= 0.2.4 && < 0.3
+                    , ghc-heap                  >= 9.4 && < 9.5
                     , gitrev                    >= 1.2 && < 1.4
                     , hasql                     >= 1.6.1.1 && < 1.7
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
