@@ -620,17 +620,7 @@ jwt-role-claim-key
 
   *For backwards compatibility, this config parameter is also available without prefix as "role-claim-key".*
 
-  A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta or Keycloak. Usage examples:
-
-  .. code:: bash
-
-    # {"postgrest":{"roles": ["other", "author"]}}
-    # the DSL accepts characters that are alphanumerical or one of "_$@" as keys
-    jwt-role-claim-key = ".postgrest.roles[1]"
-
-    # {"https://www.example.com/role": { "key": "author }}
-    # non-alphanumerical characters can go inside quotes(escaped in the config value)
-    jwt-role-claim-key = ".\"https://www.example.com/role\".key"
+  See :ref:`jwt_role_claim_key_extract` on how to specify key paths and usage examples.
 
 .. _jwt-secret:
 

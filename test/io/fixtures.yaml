@@ -153,6 +153,41 @@ roleclaims:
       role: postgrest_test_author
       other: true
     expected_status: 401
+  - key: '.realm_access.roles[?(@ == "postgrest_test_author")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ != "other")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ ^== "postgrest_te")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ $== "st_test_author")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
+  - key: '.realm_access.roles[?(@ *== "_test_")]'
+    data:
+      realm_access:
+        roles:
+          - other
+          - postgrest_test_author
+    expected_status: 200
 
 invalidroleclaimkeys:
   - 'role.other'
