@@ -252,7 +252,7 @@ pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
 pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{cfFullRow=True}                                          = fromQi table
+pgFmtField table CoercibleField{cfFullRow=True}                                          = pgFmtIdent (qiName table)
 pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]}                                = pgFmtColumn table fn
 pgFmtField table CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
                                                                              | otherwise = pgFmtColumn table fn <> pgFmtJsonPath jp
@@ -271,9 +271,10 @@ pgFmtSelectItem :: QualifiedIdentifier -> CoercibleSelectField -> SQL.Snippet
 pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAggCast=aggCast, csCast=cast, csAlias=alias} =
   pgFmtApplyAggregate agg aggCast (pgFmtApplyCast cast (pgFmtTableCoerce table fld)) <> pgFmtAs alias
 
-pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
-pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
-  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast fullSelName <> pgFmtAs ssSelAlias
+pgFmtSpreadSelectItem :: Bool -> Alias -> [CoercibleOrderTerm] -> SpreadSelectField -> SQL.Snippet
+pgFmtSpreadSelectItem applyToManySpr aggAlias order SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias}
+  | applyToManySpr = pgFmtApplyToManySpreadAgg ssSelAggFunction ssSelAggCast aggAlias order fullSelName <> " AS " <> pgFmtIdent (fromMaybe ssSelName ssSelAlias)
+  | otherwise = pgFmtApplyAggregate ssSelAggFunction ssSelAggCast fullSelName <> pgFmtAs ssSelAlias
   where
     fullSelName = case ssSelName of
       "*" -> pgFmtIdent aggAlias <> ".*"
@@ -288,6 +289,12 @@ pgFmtApplyAggregate (Just agg) aggCast snippet =
     -- Convert from e.g. Sum (the data type) to SUM
     convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
     aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
+
+pgFmtApplyToManySpreadAgg :: Maybe AggregateFunction -> Maybe Cast -> Alias -> [CoercibleOrderTerm] -> SQL.Snippet -> SQL.Snippet
+pgFmtApplyToManySpreadAgg Nothing aggCast relAggAlias order snippet =
+  "COALESCE(json_agg(" <> pgFmtApplyCast aggCast snippet <> orderF (QualifiedIdentifier "" relAggAlias) order <> "),'[]')::jsonb"
+pgFmtApplyToManySpreadAgg agg aggCast _ _ snippet =
+  pgFmtApplyAggregate agg aggCast snippet
 
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet

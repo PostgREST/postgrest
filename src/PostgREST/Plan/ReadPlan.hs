@@ -2,6 +2,7 @@ module PostgREST.Plan.ReadPlan
   ( ReadPlanTree
   , ReadPlan(..)
   , JoinCondition(..)
+  , SpreadType(..)
   ) where
 
 import Data.Tree (Tree (..))
@@ -28,6 +29,9 @@ data JoinCondition =
     (QualifiedIdentifier, FieldName)
   deriving (Eq, Show)
 
+data SpreadType = ToOneSpread | ToManySpread
+  deriving (Eq, Show)
+
 data ReadPlan = ReadPlan
   { select       :: [CoercibleSelectField]
   , from         :: QualifiedIdentifier
@@ -42,7 +46,7 @@ data ReadPlan = ReadPlan
   , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
-  , relIsSpread  :: Bool
+  , relSpread    :: Maybe SpreadType
   , relSelect    :: [RelSelectField]
   , depth        :: Depth
   -- ^ used for aliasing

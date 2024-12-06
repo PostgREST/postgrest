@@ -180,6 +180,8 @@ You will then get the summed amount, along with the embedded customer resource:
 .. note::
  The previous example uses a has-one association to demonstrate this functionality, but you may also use has-many associations as grouping columns, although there are few obvious use cases for this.
 
+.. _aggregate_functions_embed_context:
+
 Using Aggregate Functions Within the Context of an Embedded Resource
 --------------------------------------------------------------------
 
@@ -228,13 +230,13 @@ Continuing with the example relationship between ``orders`` and ``customers`` fr
 
 In this example, the ``amount`` column is summed and grouped by the ``order_date`` *within* the context of the embedded resource. That is, the ``name``, ``city``, and ``state`` from the ``customers`` table have no bearing on the aggregation performed in the context of the ``orders`` association; instead, each aggregation can be seen as being performed independently on just the orders belonging to a particular customer, using only the data from the embedded resource for both grouping and aggregation.
 
-Using Columns from a Spreaded Resource
---------------------------------------
+Using Columns from a To-One Spreaded Resource
+---------------------------------------------
 
-When you :ref:`spread an embedded resource <spread_embed>`, the columns from the spreaded resource are treated as if they were columns of the top-level resource, both when using them as grouping columns and when applying aggregate functions to them.
+When you :ref:`spread a to-one embedded resource <spread_embed>`, the columns from the spreaded resource are treated as if they were columns of the top-level resource, both when using them as grouping columns and when applying aggregate functions to them.
 
-Grouping with Columns from a Spreaded Resource
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Grouping with Columns from a To-One Spreaded Resource
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For instance, assume you want to sum the ``amount`` column from the ``orders`` table, using the ``city`` and ``state`` columns from the ``customers`` table as grouping columns. To achieve this, you may select these two columns from the ``customers`` table and spread them; they will then be used as grouping columns:
 
@@ -259,8 +261,8 @@ The result will be the same as if ``city`` and ``state`` were columns from the `
     }
   ]
 
-Aggregate Functions with Columns from a Spreaded Resource
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Aggregate Functions with Columns from a To-One Spreaded Resource
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Now imagine that the ``customers`` table has a ``joined_date`` column that represents the date that the customer joined. You want to get both the most recent and the oldest ``joined_date`` for customers that placed an order on every distinct order date. This can be expressed as follows:
 
@@ -284,5 +286,35 @@ The result will be the same as if the aggregations were applied to columns from 
       "order_date": "2023-11-02",
       "max": "2023-10-30",
       "min": "2016-02-11"
+    }
+  ]
+
+Using Aggregates in a To-Many Spread Resource
+---------------------------------------------
+
+Unlike the to-one spreads, the columns inside a :ref:`to-many spread relationship <spread_to_many_embed>` are not treated as if they were part of the top-level resource.
+The aggregates will be done :ref:`in the context of the to-many spread resource <aggregate_functions_embed_context>`.
+For example:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/customers?select=name,city,state,...orders(amount.sum(),order_date)"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "Customer A",
+      "city": "New York",
+      "state": "NY",
+      "sum": [215.22, 905.73],
+      "order_date": ["2023-09-01", "2023-09-02"]
+    },
+    {
+      "name": "Customer B",
+      "city": "Los Angeles",
+      "state": "CA",
+      "sum": [329.71, 425.87],
+      "order_date": ["2023-09-01", "2023-09-03"]
     }
   ]

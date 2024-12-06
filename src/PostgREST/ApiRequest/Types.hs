@@ -86,7 +86,6 @@ data ApiRequestError
   | PutLimitNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
-  | SpreadNotToOne Text Text
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
