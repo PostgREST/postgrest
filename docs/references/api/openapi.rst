@@ -19,6 +19,9 @@ For extra customization, the OpenAPI output contains a "description" field for e
   COMMENT ON TABLE monotremes IS
     'Freakish mammals lay the best eggs for breakfast';
 
+  COMMENT ON VIEW monotremes_v IS
+    'Only the platypus is publicly visible';
+
   COMMENT ON COLUMN monotremes.has_venomous_claw IS
     'Sometimes breakfast is not worth it';
 
