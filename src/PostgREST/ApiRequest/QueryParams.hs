@@ -46,7 +46,7 @@ import PostgREST.SchemaCache.Identifiers (FieldName)
 import PostgREST.ApiRequest.Types (AggregateFunction (..),
                                    EmbedParam (..), EmbedPath, Field,
                                    Filter (..), FtsOperator (..),
-                                   Hint, JoinType (..),
+                                   Hint, IsVal (..), JoinType (..),
                                    JsonOperand (..),
                                    JsonOperation (..), JsonPath,
                                    ListVal, LogicOperator (..),
@@ -56,8 +56,7 @@ import PostgREST.ApiRequest.Types (AggregateFunction (..),
                                    OrderNulls (..), OrderTerm (..),
                                    QPError (..), QuantOperator (..),
                                    SelectItem (..),
-                                   SimpleOperator (..), SingleVal,
-                                   TrileanVal (..))
+                                   SimpleOperator (..), SingleVal)
 
 import Protolude hiding (Sum, try)
 
@@ -640,7 +639,7 @@ pOpExpr pSVal = do
     pOperation = pIn <|> pIs <|> pIsDist <|> try pFts <|> try pSimpleOp <|> try pQuantOp <?> "operator (eq, gt, ...)"
 
     pIn = In <$> (try (string "in" *> pDelimiter) *> pListVal)
-    pIs = Is <$> (try (string "is" *> pDelimiter) *> pTriVal)
+    pIs = Is <$> (try (string "is" *> pDelimiter) *> pIsVal)
 
     pIsDist = IsDistinctFrom <$> (try (string "isdistinct" *> pDelimiter) *> pSVal)
 
@@ -653,11 +652,12 @@ pOpExpr pSVal = do
       quant <- optionMaybe $ try (between (char '(') (char ')') (try (string "any" $> QuantAny) <|> string "all" $> QuantAll))
       pDelimiter *> (OpQuant op quant <$> pSVal)
 
-    pTriVal = try (ciString "null"    $> TriNull)
-          <|> try (ciString "unknown" $> TriUnknown)
-          <|> try (ciString "true"    $> TriTrue)
-          <|> try (ciString "false"   $> TriFalse)
-          <?> "null or trilean value (unknown, true, false)"
+    pIsVal =  try (ciString "null"     $> IsNull)
+          <|> try (ciString "not_null" $> IsNotNull)
+          <|> try (ciString "true"     $> IsTriTrue)
+          <|> try (ciString "false"    $> IsTriFalse)
+          <|> try (ciString "unknown"  $> IsTriUnknown)
+          <?> "isVal: (null, not_null, true, false, unknown)"
 
     pFts = do
       op <-  try (string "fts"   $> FilterFts)

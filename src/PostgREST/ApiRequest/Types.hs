@@ -28,7 +28,7 @@ module PostgREST.ApiRequest.Types
   , RaiseError(..)
   , RangeError(..)
   , SingleVal
-  , TrileanVal(..)
+  , IsVal(..)
   , SimpleOperator(..)
   , QuantOperator(..)
   , FtsOperator(..)
@@ -218,7 +218,7 @@ data Operation
   = Op SimpleOperator SingleVal
   | OpQuant QuantOperator (Maybe OpQuantifier) SingleVal
   | In ListVal
-  | Is TrileanVal
+  | Is IsVal
   | IsDistinctFrom SingleVal
   | Fts FtsOperator (Maybe Language) SingleVal
   deriving (Eq, Show)
@@ -231,12 +231,13 @@ type SingleVal = Text
 -- | Represents a list value in a filter, e.g. id=in.(val1,val2,val3)
 type ListVal = [Text]
 
--- | Three-valued logic values
-data TrileanVal
-  = TriTrue
-  | TriFalse
-  | TriNull
-  | TriUnknown
+data IsVal
+  = IsNull
+  | IsNotNull
+  -- Trilean values
+  | IsTriTrue
+  | IsTriFalse
+  | IsTriUnknown
   deriving (Eq, Show)
 
 -- Operators that are quantifiable, i.e. they can be used with the any/all modifiers
