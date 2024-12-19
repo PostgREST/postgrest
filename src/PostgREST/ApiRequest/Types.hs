@@ -33,6 +33,7 @@ module PostgREST.ApiRequest.Types
   , QuantOperator(..)
   , FtsOperator(..)
   , SelectItem(..)
+  , ColumnItem(..)
   ) where
 
 import PostgREST.MediaType                (MediaType (..))
@@ -67,6 +68,15 @@ data SelectItem
     , selJoinType :: Maybe JoinType
     }
   deriving (Eq, Show)
+
+data ColumnItem
+  = ColumnField FieldName
+  | ColumnRelation
+    { colRelation :: FieldName
+    , colAlias    :: Maybe Alias
+    , colHint     :: Maybe Hint
+    }
+  deriving (Eq, Show, Ord)
 
 data ApiRequestError
   = AggregatesNotAllowed

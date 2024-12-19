@@ -44,10 +44,10 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import PostgREST.ApiRequest.Types (AggregateFunction (..),
-                                   EmbedParam (..), EmbedPath, Field,
-                                   Filter (..), FtsOperator (..),
-                                   Hint, JoinType (..),
-                                   JsonOperand (..),
+                                   ColumnItem (..), EmbedParam (..),
+                                   EmbedPath, Field, Filter (..),
+                                   FtsOperator (..), Hint,
+                                   JoinType (..), JsonOperand (..),
                                    JsonOperation (..), JsonPath,
                                    ListVal, LogicOperator (..),
                                    LogicTree (..), OpExpr (..),
@@ -73,7 +73,7 @@ data QueryParams =
     -- ^ &order parameters for each level
     , qsLogic          :: [(EmbedPath, LogicTree)]
     -- ^ &and and &or parameters used for complex boolean logic
-    , qsColumns        :: Maybe (S.Set FieldName)
+    , qsColumns        :: Maybe [Tree ColumnItem]
     -- ^ &columns parameter and payload
     , qsSelect         :: [Tree SelectItem]
     -- ^ &select parameter used to shape the response
@@ -260,11 +260,13 @@ pRequestLogicTree (k, v) = mapError $ (,) <$> embedPath <*> logicTree
       -- in the form of "?and=and(.. , ..)" instead of "?and=(.. , ..)"
       P.parse pLogicTree ("failed to parse logic tree (" ++ toS v ++ ")") $ toS (op <> v)
 
-pRequestColumns :: Maybe Text -> Either QPError (Maybe (S.Set FieldName))
+
+-- Satisfies the form: /products?columns=name,sup:suppliers!fk(name)
+pRequestColumns :: Maybe Text -> Either QPError (Maybe [Tree ColumnItem])
 pRequestColumns colStr =
   case colStr of
     Just str ->
-      mapError $ Just . S.fromList <$> P.parse pColumns ("failed to parse columns parameter (" <> toS str <> ")") (toS str)
+      mapError $ Just <$> P.parse pColumnForest ("failed to parse columns parameter (" <> toS str <> ")") (toS str)
     _ -> Right Nothing
 
 ws :: Parser Text
@@ -477,6 +479,13 @@ pRelationSelect = lexeme $ do
     try (void $ lookAhead (string "("))
     return $ SelectRelation name alias hint jType
 
+pRelationColumn :: Parser ColumnItem
+pRelationColumn = lexeme $ do
+  alias <- optionMaybe ( try(pFieldName <* aliasSeparator) )
+  name <- pFieldName
+  (hint, _) <- pEmbedParams
+  try (void $ lookAhead (string "("))
+  return $ ColumnRelation name alias hint
 
 -- |
 -- Parse regular fields in select
@@ -844,6 +853,22 @@ pLogicPath = do
 
 pColumns :: Parser [FieldName]
 pColumns = pFieldName `sepBy1` lexeme (char ',')
+
+pColumnForest :: Parser [Tree ColumnItem]
+pColumnForest = pColumnTree `sepBy1` lexeme (char ',')
+  where
+    pColumnTree =  Node <$> try pRelationColumn <*> between (char '(') (char ')') pColumnForest <|>
+                   Node <$> pColumnName <*> pure []
+
+pColumnName :: Parser ColumnItem
+pColumnName = lexeme $ do
+  fld <- pFieldName
+  pEnd
+  return $ ColumnField fld
+  where
+    pEnd = try (void $ lookAhead (string ")")) <|>
+           try (void $ lookAhead (string ",")) <|>
+           try eof
 
 pIdentifier :: Parser Text
 pIdentifier = T.strip . toS <$> many1 pIdentifierChar
