@@ -59,6 +59,7 @@ import NeatInterpolation (trimming)
 import PostgREST.ApiRequest.Types        (AggregateFunction (..),
                                           Alias, Cast,
                                           FtsOperator (..),
+                                          IsVal (..),
                                           JsonOperand (..),
                                           JsonOperation (..),
                                           JsonPath,
@@ -69,8 +70,7 @@ import PostgREST.ApiRequest.Types        (AggregateFunction (..),
                                           OrderDirection (..),
                                           OrderNulls (..),
                                           QuantOperator (..),
-                                          SimpleOperator (..),
-                                          TrileanVal (..))
+                                          SimpleOperator (..))
 import PostgREST.MediaType               (MTVndPlanFormat (..),
                                           MTVndPlanOption (..))
 import PostgREST.Plan.ReadPlan           (JoinCondition (..))
@@ -380,13 +380,15 @@ pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> p
 
    -- IS cannot be prepared. `PREPARE boolplan AS SELECT * FROM projects where id IS $1` will give a syntax error.
    -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
-   -- However that would not accept the TRUE/FALSE/NULL/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
+   -- However that would not accept the TRUE/FALSE/NULL/"NOT NULL"/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
    -- This is why `IS` operands are whitelisted at the Parsers.hs level
-   Is triVal -> " IS " <> case triVal of
-     TriTrue    -> "TRUE"
-     TriFalse   -> "FALSE"
-     TriNull    -> "NULL"
-     TriUnknown -> "UNKNOWN"
+   Is isVal -> " IS " <>
+      case isVal of
+        IsNull       -> "NULL"
+        IsNotNull    -> "NOT NULL"
+        IsTriTrue    -> "TRUE"
+        IsTriFalse   -> "FALSE"
+        IsTriUnknown -> "UNKNOWN"
 
    IsDistinctFrom val -> " IS DISTINCT FROM " <> unknownLiteral val
 

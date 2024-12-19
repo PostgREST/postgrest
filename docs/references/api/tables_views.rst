@@ -72,7 +72,7 @@ imatch        :code:`~*`                ~* operator, see :ref:`pattern_matching`
 in            :code:`IN`                one of a list of values, e.g. :code:`?a=in.(1,2,3)`
                                         – also supports commas in quoted strings like
                                         :code:`?a=in.("hi,there","yes,you")`
-is            :code:`IS`                checking for exact equality (null,true,false,unknown)
+is            :code:`IS`                checking for exact equality (null,not_null,true,false,unknown)
 isdistinct    :code:`IS DISTINCT FROM`  not equal, treating :code:`NULL` as a comparable value
 fts           :code:`@@`                :ref:`fts` using to_tsquery
 plfts         :code:`@@`                :ref:`fts` using plainto_tsquery

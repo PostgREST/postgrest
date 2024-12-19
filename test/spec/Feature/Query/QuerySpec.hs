@@ -63,8 +63,18 @@ spec = do
         [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
         { matchHeaders = [matchContentTypeJson] }
 
+    it "matches not_null using is operator" $
+      get "/no_pk?a=is.not_null" `shouldRespondWith`
+        [json| [{"a":"1","b":"0"},{"a":"2","b":"0"}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
     it "matches nulls in varchar and numeric fields alike" $ do
       get "/no_pk?a=is.null" `shouldRespondWith`
+        [json| [{"a": null, "b": null}] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "not.is.not_null is equivalent to is.null" $ do
+      get "/no_pk?a=not.is.not_null" `shouldRespondWith`
         [json| [{"a": null, "b": null}] |]
         { matchHeaders = [matchContentTypeJson] }
 
@@ -83,11 +93,17 @@ spec = do
         [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
         { matchHeaders = [matchContentTypeJson] }
 
-    it "matches with trilean values in upper or mixed case" $ do
+    it "matches with null and not_null values in upper or mixed case" $ do
       get "/chores?done=is.NULL" `shouldRespondWith`
         [json| [{"id": 3, "name": "wash the dishes", "done": null }] |]
         { matchHeaders = [matchContentTypeJson] }
 
+      get "/chores?done=is.NoT_NuLl" `shouldRespondWith`
+        [json| [{"id": 1, "name": "take out the garbage", "done": true }
+               ,{"id": 2, "name": "do the laundry", "done": false }] |]
+        { matchHeaders = [matchContentTypeJson] }
+
+    it "matches with trilean values in upper or mixed case" $ do
       get "/chores?done=is.TRUE" `shouldRespondWith`
         [json| [{"id": 1, "name": "take out the garbage", "done": true }] |]
         { matchHeaders = [matchContentTypeJson] }

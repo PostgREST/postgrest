@@ -795,8 +795,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --
 -- Setup:
 --
--- >>> let nullOp    = OpExpr True (Is TriNull)
--- >>> let nonNullOp = OpExpr False (Is TriNull)
+-- >>> let nullOp    = OpExpr True (Is IsNull)
+-- >>> let nonNullOp = OpExpr False (Is IsNull)
 -- >>> let notEqOp   = OpExpr True (Op OpNotEqual "val")
 -- >>> :{
 -- -- this represents the `projects(*)` part on `/clients?select=*,projects(*)`
@@ -847,7 +847,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is TriNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -869,7 +869,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
       flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _ _) opExpr)) ->
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
-          (Just ReadPlan{relAggAlias}, OpExpr b (Is TriNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
+          (Just ReadPlan{relAggAlias}, OpExpr b (Is IsNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
           _                                                   -> Right flt
       flt@(CoercibleStmnt _) ->
         Right flt
