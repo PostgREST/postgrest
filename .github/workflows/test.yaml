@@ -108,7 +108,11 @@ jobs:
           tools: memory.test.bin
       - name: Run memory tests
         run: postgrest-test-memory
-
+      - name: Upload postgrest.prof
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: postgrest.prof
+          path: postgrest.prof
 
   loadtest:
     name: Loadtest
@@ -128,7 +132,7 @@ jobs:
           prefix: v
       - name: Run loadtest
         env:
-          OTEL_TRACES_SAMPLER: "always_off"
+          OTEL_TRACES_SAMPLER: "always_off" # Disable tracing for load tests
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report > loadtest/loadtest.md
