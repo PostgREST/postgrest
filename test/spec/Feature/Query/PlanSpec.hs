@@ -15,8 +15,7 @@ import           Test.Hspec           hiding (pendingWith)
 import           Test.Hspec.Wai
 import           Test.Hspec.Wai.JSON
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion130,
-                                   pgVersion170)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion170)
 import Protolude                  hiding (get)
 import SpecHelper
 
@@ -50,27 +49,15 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 24.28
 
-    it "outputs blocks info when using the buffers option" $
-      if actualPgVersion >= pgVersion130
-        then do
-          r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=buffers") ""
+    it "outputs blocks info when using the buffers option" $ do
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=buffers") ""
 
-          let resBody  = simpleBody r
-              resHeaders = simpleHeaders r
+      let resBody  = simpleBody r
+          resHeaders = simpleHeaders r
 
-          liftIO $ do
-            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=buffers; charset=utf-8")
-            resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ LBS.toStrict t))
-        else do
-          -- analyze is required for buffers on pg < 13
-          r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|buffers") ""
-
-          let blocks  = simpleBody r ^? nth 0 . key "Plan" . key "Shared Hit Blocks"
-              resHeaders = simpleHeaders r
-
-          liftIO $ do
-            resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|buffers; charset=utf-8")
-            blocks `shouldBe` Just [aesonQQ| 1.0 |]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=buffers; charset=utf-8")
+        resBody `shouldSatisfy` (\t -> T.isInfixOf "Shared Hit Blocks" (decodeUtf8 $ LBS.toStrict t))
 
     it "outputs the search path when using the settings option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=settings") ""
@@ -87,16 +74,15 @@ spec actualPgVersion = do
             }
           |]
 
-    when (actualPgVersion >= pgVersion130) $
-      it "outputs WAL info when using the wal option" $ do
-        r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|wal") ""
+    it "outputs WAL info when using the wal option" $ do
+      r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=analyze|wal") ""
 
-        let walRecords  = simpleBody r ^? nth 0 . key "Plan" . key "WAL Records"
-            resHeaders = simpleHeaders r
+      let walRecords  = simpleBody r ^? nth 0 . key "Plan" . key "WAL Records"
+          resHeaders = simpleHeaders r
 
-        liftIO $ do
-          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|wal; charset=utf-8")
-          walRecords `shouldBe` Just [aesonQQ|0|]
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze|wal; charset=utf-8")
+        walRecords `shouldBe` Just [aesonQQ|0|]
 
     it "outputs columns info when using the verbose option" $ do
       r <- request methodGet "/projects" (acceptHdrs "application/vnd.pgrst.plan+json; options=verbose") ""

@@ -90,7 +90,7 @@ postgrest-dump-schema             postgrest-watch
 postgrest-gen-ctags               postgrest-with-all
 postgrest-gen-jwt                 postgrest-with-git
 postgrest-gen-secret              postgrest-with-pgrst
-postgrest-git-hooks               postgrest-with-postgresql-12
+postgrest-git-hooks
 postgrest-hsie-graph-modules      postgrest-with-postgresql-13
 postgrest-hsie-graph-symbols      postgrest-with-postgresql-14
 postgrest-hsie-minimal-imports    postgrest-with-postgresql-15

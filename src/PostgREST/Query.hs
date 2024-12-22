@@ -39,7 +39,6 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (ActionPlan (..),
@@ -80,16 +79,16 @@ data QueryResult
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
 
-query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Query
-query _ _ _ (NoDb x) _ _ = NoDbQuery $ NoDbResult x
-query config AuthResult{..} apiReq (Db plan) sCache pgVer =
+query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
+query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
+query config AuthResult{..} apiReq (Db plan) sCache =
   DbQuery isoLvl txMode dbHandler transaction mainSQLQuery
   where
     transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     prepared = configDbPreparedStatements config
     isoLvl = planIsoLvl config authRole plan
     txMode = planTxMode plan
-    (mainActionQuery, mainSQLQuery) = actionQuery plan config apiReq pgVer sCache
+    (mainActionQuery, mainSQLQuery) = actionQuery plan config apiReq sCache
     dbHandler = do
       setPgLocals plan config authClaims authRole apiReq
       runPreReq config
@@ -108,8 +107,8 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
-actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> (DbHandler QueryResult, ByteString)
-actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
+actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> (DbHandler QueryResult, ByteString)
+actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
@@ -131,7 +130,7 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
       optionalRollback conf apiReq
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
-actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
+actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
@@ -163,12 +162,12 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       optionalRollback conf apiReq
       pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ =
+actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
     (result, mainSQLQuery) = Statements.prepareCall
       crProc
-      (QueryBuilder.callPlanToQuery crCallPlan pgVer)
+      (QueryBuilder.callPlanToQuery crCallPlan)
       (QueryBuilder.readPlanToQuery crReadPlan)
       (QueryBuilder.readPlanToCountQuery crReadPlan)
       (shouldCount preferCount)
@@ -182,7 +181,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
       pure $ DbCallResult plan resultSet
 
-actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
+actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
   (mainActionQuery, mempty)
   where
     mainActionQuery = lift $
