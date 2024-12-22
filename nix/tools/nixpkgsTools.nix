@@ -33,7 +33,7 @@ let
       ''
         # The list of refs is sorted. The first result will be nixpkgs-unstable, the second the latest stable branch.
         # shellcheck disable=SC2207
-        commit=($(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r 'sort_by(.ref) | reverse | [.[1].object.sha, .[1].ref] | @tsv'))
+        commit=($(${curl}/bin/curl "${refUrl}" -H "${githubV3Header}" | ${jq}/bin/jq -r 'sort_by(.ref) | reverse | [.[0].object.sha, .[0].ref] | @tsv'))
         tarballUrl="${tarballUrlBase}''${commit[0]}.tar.gz"
         tarballHash="$(${nix}/bin/nix-prefetch-url --unpack "$tarballUrl")"
         currentDate="$(${coreutils}/bin/date --iso)"
