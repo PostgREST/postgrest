@@ -1,72 +1,11 @@
-- - qiName: reload_pgrst_config
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: reload_pgrst_config
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: change_max_rows_config
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: change_max_rows_config
-      pdParams:
-      - ppName: val
-        ppReq: true
-        ppType: integer
-        ppTypeMaxLength: integer
-        ppVar: false
-      - ppName: notify
-        ppReq: false
-        ppType: boolean
-        ppTypeMaxLength: boolean
-        ppVar: false
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: reset_invalid_role_claim_key
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: reset_invalid_role_claim_key
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: rpc_with_one_hoisted
+- - qiName: rpc_with_two_hoisted
     qiSchema: public
   - - pdDescription: null
       pdFuncSettings:
       - - statement_timeout
-        - 7s
+        - 10s
       pdHasVariadic: false
-      pdName: rpc_with_one_hoisted
+      pdName: rpc_with_two_hoisted
       pdParams: []
       pdReturnType:
         contents:
@@ -75,59 +14,6 @@
             qiSchema: public
           - false
           tag: Composite
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: serializable_isolation_level
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings:
-      - - default_transaction_isolation
-        - serializable
-      pdHasVariadic: false
-      pdName: serializable_isolation_level
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: hello
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: hello
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: get_pgrst_version
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: get_pgrst_version
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: text
-            qiSchema: pg_catalog
-          tag: Scalar
         tag: Single
       pdSchema: public
       pdVolatility: Volatile
@@ -171,22 +57,24 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: rpc_with_two_hoisted
+- - qiName: change_db_schema_and_full_reload
     qiSchema: public
   - - pdDescription: null
-      pdFuncSettings:
-      - - statement_timeout
-        - 10s
+      pdFuncSettings: []
       pdHasVariadic: false
-      pdName: rpc_with_two_hoisted
-      pdParams: []
+      pdName: change_db_schema_and_full_reload
+      pdParams:
+      - ppName: schemas
+        ppReq: true
+        ppType: text
+        ppTypeMaxLength: text
+        ppVar: false
       pdReturnType:
         contents:
           contents:
-          - qiName: items
-            qiSchema: public
-          - false
-          tag: Composite
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
         tag: Single
       pdSchema: public
       pdVolatility: Volatile
@@ -218,153 +106,12 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: reset_db_schemas_config
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: reset_db_schemas_config
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: change_db_schemas_config
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: change_db_schemas_config
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: change_db_schema_and_full_reload
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: change_db_schema_and_full_reload
-      pdParams:
-      - ppName: schemas
-        ppReq: true
-        ppType: text
-        ppTypeMaxLength: text
-        ppVar: false
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: invalid_role_claim_key_reload
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: invalid_role_claim_key_reload
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: reset_max_rows_config
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: reset_max_rows_config
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: root
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: root
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: json
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: uses_prepared_statements
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: uses_prepared_statements
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: bool
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
 - - qiName: migrate_function
     qiSchema: public
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
       pdName: migrate_function
-      pdParams: []
-      pdReturnType:
-        contents:
-          contents:
-            qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: create_function
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: create_function
       pdParams: []
       pdReturnType:
         contents:
@@ -398,36 +145,73 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: repeatable_read_isolation_level
+- - qiName: reset_max_rows_config
     qiSchema: public
   - - pdDescription: null
-      pdFuncSettings:
-      - - default_transaction_isolation
-        - REPEATABLE READ
+      pdFuncSettings: []
       pdHasVariadic: false
-      pdName: repeatable_read_isolation_level
+      pdName: reset_max_rows_config
       pdParams: []
       pdReturnType:
         contents:
           contents:
-            qiName: text
+            qiName: void
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: drop_change_cats
+- - qiName: reset_invalid_role_claim_key
     qiSchema: public
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
-      pdName: drop_change_cats
+      pdName: reset_invalid_role_claim_key
       pdParams: []
       pdReturnType:
         contents:
           contents:
             qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: get_postgres_version
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: get_postgres_version
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: int4
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: get_guc_value
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: get_guc_value
+      pdParams:
+      - ppName: name
+        ppReq: true
+        ppType: text
+        ppTypeMaxLength: text
+        ppVar: false
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single
@@ -453,12 +237,66 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: notify_do_nothing
+- - qiName: reload_pgrst_config
     qiSchema: public
   - - pdDescription: null
       pdFuncSettings: []
       pdHasVariadic: false
-      pdName: notify_do_nothing
+      pdName: reload_pgrst_config
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: rpc_with_one_hoisted
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings:
+      - - statement_timeout
+        - 7s
+      pdHasVariadic: false
+      pdName: rpc_with_one_hoisted
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+          - qiName: items
+            qiSchema: public
+          - false
+          tag: Composite
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: hello
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: hello
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: change_db_schemas_config
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: change_db_schemas_config
       pdParams: []
       pdReturnType:
         contents:
@@ -492,17 +330,201 @@
       pdSchema: public
       pdVolatility: Volatile
 
-- - qiName: get_postgres_version
+- - qiName: serializable_isolation_level
     qiSchema: public
   - - pdDescription: null
-      pdFuncSettings: []
+      pdFuncSettings:
+      - - default_transaction_isolation
+        - serializable
       pdHasVariadic: false
-      pdName: get_postgres_version
+      pdName: serializable_isolation_level
       pdParams: []
       pdReturnType:
         contents:
           contents:
-            qiName: int4
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: drop_change_cats
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: drop_change_cats
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: change_max_rows_config
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: change_max_rows_config
+      pdParams:
+      - ppName: val
+        ppReq: true
+        ppType: integer
+        ppTypeMaxLength: integer
+        ppVar: false
+      - ppName: notify
+        ppReq: false
+        ppType: boolean
+        ppTypeMaxLength: boolean
+        ppVar: false
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: invalid_role_claim_key_reload
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: invalid_role_claim_key_reload
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: reset_db_schemas_config
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: reset_db_schemas_config
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: root
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: root
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: json
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: create_function
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: create_function
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: get_pgrst_version
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: get_pgrst_version
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: uses_prepared_statements
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: uses_prepared_statements
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: bool
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: repeatable_read_isolation_level
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings:
+      - - default_transaction_isolation
+        - REPEATABLE READ
+      pdHasVariadic: false
+      pdName: repeatable_read_isolation_level
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: text
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
+- - qiName: notify_do_nothing
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: notify_do_nothing
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: void
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single
@@ -540,28 +562,6 @@
         contents:
           contents:
             qiName: void
-            qiSchema: pg_catalog
-          tag: Scalar
-        tag: Single
-      pdSchema: public
-      pdVolatility: Volatile
-
-- - qiName: get_guc_value
-    qiSchema: public
-  - - pdDescription: null
-      pdFuncSettings: []
-      pdHasVariadic: false
-      pdName: get_guc_value
-      pdParams:
-      - ppName: name
-        ppReq: true
-        ppType: text
-        ppTypeMaxLength: text
-        ppVar: false
-      pdReturnType:
-        contents:
-          contents:
-            qiName: text
             qiSchema: pg_catalog
           tag: Scalar
         tag: Single

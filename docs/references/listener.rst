@@ -4,7 +4,7 @@ Listener
 ########
 
 PostgREST uses `LISTEN <https://www.postgresql.org/docs/current/sql-listen.html>`_ to reload its :ref:`Schema Cache <schema_reloading_notify>` and :ref:`Configuration <config_reloading_notify>` via `NOTIFY <https://www.postgresql.org/docs/current/sql-notify.html>`_.
-This is useful in environments where you can’t send SIGUSR1 or SIGUSR2 Unix Signals.
+This is useful in environments where you can't send SIGUSR1 or SIGUSR2 Unix Signals.
 Like on cloud managed containers or on Windows systems.
 
 .. code:: postgresql

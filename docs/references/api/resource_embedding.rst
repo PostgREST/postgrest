@@ -143,7 +143,7 @@ Since the table name is plural, we can be more accurate by making it singular wi
 One-to-many relationships
 -------------------------
 
-The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the “to-many” end.
+The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the "to-many" end.
 
 .. code-block:: bash
 
@@ -1206,7 +1206,7 @@ Spread on resources forming :ref:`one-to-many <one-to-many>` and :ref:`many-to-m
      }
    ]
 
-Note that ``films`` is no longer an array of objects, unlike regularly embedding :ref:`one-to-many`. The embedded columns become arrays and they're correlated—in the above result, we can say that "Pulp Fiction" premiered in 1994 and "Reservoir Dogs" in 1992.
+Note that ``films`` is no longer an array of objects, unlike regularly embedding :ref:`one-to-many`. The embedded columns become arrays and they're correlated-in the above result, we can say that "Pulp Fiction" premiered in 1994 and "Reservoir Dogs" in 1992.
 
 Order in spread to-many
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -1302,7 +1302,7 @@ You can use multiple spreads at any level. For example, let's spread ``technical
 
 Note that:
 
-- All the ``film_*`` arrays are correlated—"Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
+- All the ``film_*`` arrays are correlated-"Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
 - The ``film_*`` arrays are ordered by ``year`` (due to ``films.order=year``).
 - The bottom level array ``film_characters`` is ordered (due to ``films.roles.order=character``).
 

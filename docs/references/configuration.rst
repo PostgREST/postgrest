@@ -409,7 +409,7 @@ db-pool-max-idletime
   **In-Database** `n/a`
   =============== =================================
 
-   *For backwards compatibility, this config parameter is also available as “db-pool-timeout”.*
+   *For backwards compatibility, this config parameter is also available as "db-pool-timeout".*
 
    Time in seconds to close idle pool connections.
 

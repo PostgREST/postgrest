@@ -155,7 +155,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     listStripPrefix prefix prefList = listToMaybe $ mapMaybe (BS.stripPrefix prefix) prefList
 
     timezonePref = listStripPrefix "timezone=" prefs
-    isTimezonePrefAccepted = (S.member <$> (decodeUtf8 <$> timezonePref) <*> pure acceptedTzNames) == Just True
+    isTimezonePrefAccepted = ((S.member . decodeUtf8 <$> timezonePref) <*> pure acceptedTzNames) == Just True
 
     maxAffectedPref = listStripPrefix "max-affected=" prefs >>= readMaybe . BS.unpack
 

@@ -2,7 +2,6 @@
 , aspellDicts
 , buildToolbox
 , checkedShellScript
-, fetchPypi
 , lib
 , plantuml
 , python3
@@ -11,26 +10,14 @@
 , writers
 }:
 let
-  selectPythonPackages = ps:
-    let
-      # TODO: Remove with next nixpkgs update
-      sphinx-rtd-theme = assert ps.sphinx-rtd-theme.version == "2.0.0"; ps.sphinx-rtd-theme.overrideAttrs rec {
-        version = "3.0.2";
-        src = fetchPypi {
-          pname = "sphinx_rtd_theme";
-          inherit version;
-          hash = "sha256-t0V7wl3acjsgsIamcLmVPIWeq2CioD7o6yuyPhduX4U=";
-        };
-      };
-    in
-    [
-      ps.sphinx
-      ps.sphinx-copybutton
-      (ps.sphinx-rtd-dark-mode.override { inherit sphinx-rtd-theme; })
-      sphinx-rtd-theme
-      ps.sphinx-tabs
-      ps.sphinxext-opengraph
-    ];
+  selectPythonPackages = ps: [
+    ps.sphinx
+    ps.sphinx-copybutton
+    ps.sphinx-rtd-dark-mode
+    ps.sphinx-rtd-theme
+    ps.sphinx-tabs
+    ps.sphinxext-opengraph
+  ];
 
   requirements = writeTextFile {
     name = "requirements.txt";
@@ -48,6 +35,9 @@ let
         workingDir = "/docs";
       }
       ''
+        # https://github.com/sphinx-doc/sphinx/issues/11739
+        export LC_ALL=C
+
         function build() {
           ${python}/bin/sphinx-build --color -W -a -n . -b "$@"
         }
@@ -132,6 +122,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         # shellcheck disable=SC2086 disable=SC2016
@@ -152,6 +144,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         tail -n+2 postgrest.dict \
@@ -170,6 +164,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         ${python}/bin/sphinx-build --color -b linkcheck . ../.docs-build
       '';
 

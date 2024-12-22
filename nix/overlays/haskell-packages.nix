@@ -50,34 +50,14 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
-      hasql-pool = lib.dontCheck (prev.callHackageDirect
-        {
-          pkg = "hasql-pool";
-          ver = "1.0.1";
-          sha256 = "sha256-Hf1f7lX0LWkjrb25SDBovCYPRdmUP1H6pAxzi7kT4Gg=";
-        }
-        { });
-
-      hasql-notifications = lib.dontCheck (prev.callHackageDirect
-        {
-          pkg = "hasql-notifications";
-          ver = "0.2.2.2";
-          sha256 = "sha256-myKwlug7OgTa/qP6mHfCD+5Q8IhM17JvpJBfSo+M01k=";
-        }
-        { });
-
-      # newer nixpkgs already has 0.10., so we fallback to default for forward compat
-      jose-jwt = prev.jose-jwt_0_10_0 or prev.jose-jwt;
-
-      postgresql-libpq = lib.dontCheck (prev.callHackageDirect
-        {
-          pkg = "postgresql-libpq";
-          ver = "0.10.1.0";
-          sha256 = "sha256-tXOMqCO8opMilI9rx0D+njqjIjbZsH168Bzb8Aq8Ff4=";
-        }
-        {
-          postgresql = super.libpq;
-        });
+      # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
+      hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
+      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
+      hasql-implicits = lib.dontCheck prev.hasql-implicits_0_1_1_3;
+      hasql-notifications = lib.dontCheck prev.hasql-notifications_0_2_2_2;
+      hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
+      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_1_0_1;
+      postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
     };
 in
 {

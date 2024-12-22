@@ -53,6 +53,7 @@ class PostgrestSession(requests_unixsocket.Session):
 @dataclasses.dataclass
 class PostgrestProcess:
     "Running PostgREST process and its corresponding main and admin endpoints."
+
     admin: object
     process: object
     session: object

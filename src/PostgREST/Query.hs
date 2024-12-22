@@ -193,10 +193,10 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache 
             <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
             <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
         OAIgnorePriv ->
-          MaybeDbResult plan . Just <$> ((,,)
+          (MaybeDbResult plan . Just) . (,,)
                 (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
                 (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
-            <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+            <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements)
         OADisabled ->
           pure $ MaybeDbResult plan Nothing
 
@@ -279,9 +279,9 @@ setPgLocals dbActPlan AppConfig{..} claims role ApiRequest{..} = lift $
     claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
     roleSql = [setConfigWithConstantName ("role", role)]
     roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup role configRoleSettings)
-    appSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> configAppSettings)
+    appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings
     timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
-    funcSettingsSql = setConfigWithDynamicName <$> (join bimap toUtf8 <$> funcSettings)
+    funcSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> funcSettings
     searchPathSql =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)

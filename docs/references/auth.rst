@@ -110,7 +110,7 @@ Symmetric Keys
 ~~~~~~~~~~~~~~
 
 Each token is cryptographically signed with a secret key. In the case of symmetric cryptography the signer and verifier share the same secret passphrase, which can be configured with :ref:`jwt-secret`.
-If it is set to a simple string value like “reallyreallyreallyreallyverysafe” then PostgREST interprets it as an HMAC-SHA256 passphrase.
+If it is set to a simple string value like "reallyreallyreallyreallyverysafe" then PostgREST interprets it as an HMAC-SHA256 passphrase.
 
 .. _asym_keys:
 
