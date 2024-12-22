@@ -216,7 +216,7 @@ def test_iat_claim(defaultenv):
 
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET}
 
-    claim = {"role": "postgrest_test_author", "iat": datetime.utcnow()}
+    claim = {"role": "postgrest_test_author", "iat": datetime.now(timezone.utc)}
     headers = jwtauthheader(claim, SECRET)
 
     with run(env=env) as postgrest:
