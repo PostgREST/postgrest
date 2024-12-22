@@ -40,7 +40,6 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
 import PostgREST.Auth                    (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
-import PostgREST.Config.PgVersion        (PgVersion (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (ActionPlan (..),
@@ -74,9 +73,9 @@ data QueryResult
   | NoDbResult    InfoPlan
 
 -- TODO This function needs to be free from IO, only App.hs should do IO
-runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Bool -> ExceptT Error IO QueryResult
-runQuery _ _ _ _ (NoDb x) _ _ _ = pure $ NoDbResult x
-runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authenticated = do
+runQuery :: AppState.AppState -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Bool -> ExceptT Error IO QueryResult
+runQuery _ _ _ _ (NoDb x) _ _ = pure $ NoDbResult x
+runQuery appState config AuthResult{..} apiReq (Db plan) sCache authenticated = do
   dbResp <- lift $ do
     let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     AppState.usePool appState (transaction isoLvl txMode $ runExceptT dbHandler)
@@ -93,7 +92,7 @@ runQuery appState config AuthResult{..} apiReq (Db plan) sCache pgVer authentica
     dbHandler = do
         setPgLocals plan config authClaims authRole apiReq
         runPreReq config
-        actionQuery plan config apiReq pgVer sCache
+        actionQuery plan config apiReq sCache
 
 planTxMode :: DbActionPlan -> SQL.Mode
 planTxMode (DbCrud x)  = pTxMode x
@@ -107,9 +106,9 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
-actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> DbHandler QueryResult
+actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> DbHandler QueryResult
 
-actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
+actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
   resultSet <-
      lift . SQL.statement mempty $
@@ -129,13 +128,13 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
   optionalRollback conf apiReq
   DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf apiReq _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf apiReq _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
@@ -143,13 +142,13 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf api
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) conf apiReq _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failPut resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
@@ -157,12 +156,12 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf api
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ = do
+actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <-
     lift . SQL.statement mempty $
       Statements.prepareCall
         crProc
-        (QueryBuilder.callPlanToQuery crCallPlan pgVer)
+        (QueryBuilder.callPlanToQuery crCallPlan)
         (QueryBuilder.readPlanToQuery crReadPlan)
         (QueryBuilder.readPlanToCountQuery crReadPlan)
         (shouldCount preferCount)
@@ -175,7 +174,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure $ DbCallResult plan resultSet
 
-actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
+actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
   lift $ case configOpenApiMode of
     OAFollowPriv -> do
       tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)

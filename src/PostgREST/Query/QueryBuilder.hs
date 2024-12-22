@@ -27,7 +27,6 @@ import Data.Maybe (fromJust)
 import Data.Tree  (Tree (..))
 
 import PostgREST.ApiRequest.Preferences   (PreferResolution (..))
-import PostgREST.Config.PgVersion         (PgVersion, pgVersion130)
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
@@ -193,8 +192,8 @@ mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
-callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
+callPlanToQuery :: CallPlan -> SQL.Snippet
+callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnings) =
   "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.pgrst_scalar" else returnedColumns) <> " " <>
   fromCall
   where
@@ -210,9 +209,8 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
-    callIt argument | pgVer < pgVersion130 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
-                    | returnsScalar || returnsSetOfScalar           = "(SELECT " <> fromQi qi <> "(" <> argument <> ") pgrst_scalar) pgrst_call"
-                    | otherwise                                     = fromQi qi <> "(" <> argument <> ") pgrst_call"
+    callIt argument | returnsScalar || returnsSetOfScalar = "(SELECT " <> fromQi qi <> "(" <> argument <> ") pgrst_scalar) pgrst_call"
+                    | otherwise                           = fromQi qi <> "(" <> argument <> ") pgrst_call"
 
     fmtParams :: [RoutineParam] -> SQL.Snippet
     fmtParams prms = intercalateSnippet ", "
