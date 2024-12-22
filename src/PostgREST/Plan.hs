@@ -1119,7 +1119,7 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
       m@(MTVndPlan (MTVndSingularJSON strip) _ _) -> mtPlanToNothing $ Just (BuiltinAggSingleJson strip, m)
       m@(MTVndPlan MTVndArrayJSONStrip _ _)       -> mtPlanToNothing $ Just (BuiltinAggArrayJsonStrip, m)
       -- TODO the plan should have its own MediaHandler instead of relying on MediaType
-      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ (,) <$> (fst <$> lookupHandler mType) <*> pure m
+      m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ ((,) . fst <$> lookupHandler mType) <*> pure m
       -- all the other media types can be overridden
       x                                           -> lookupHandler x
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed

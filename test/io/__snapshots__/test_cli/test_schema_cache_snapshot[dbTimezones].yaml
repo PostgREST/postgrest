@@ -97,6 +97,7 @@
 - America/Coral_Harbour
 - America/Cordoba
 - America/Costa_Rica
+- America/Coyhaique
 - America/Creston
 - America/Cuiaba
 - America/Curacao
@@ -694,6 +695,7 @@
 - posix/America/Coral_Harbour
 - posix/America/Cordoba
 - posix/America/Costa_Rica
+- posix/America/Coyhaique
 - posix/America/Creston
 - posix/America/Cuiaba
 - posix/America/Curacao

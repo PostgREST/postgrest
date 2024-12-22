@@ -34,7 +34,7 @@ Templates
 Example Apps
 ------------
 
-* `archtika <https://github.com/thiloho/archtika>`_ - self‑hosted CMS
+* `archtika <https://github.com/thiloho/archtika>`_ - self-hosted CMS
 * `delibrium-postgrest <https://gitlab.com/delibrium/delibrium-postgrest/>`_ - example school API and front-end in Vue.js
 * `ETH-transactions-storage <https://github.com/Adamant-im/ETH-transactions-storage>`_ - indexer for Ethereum to get transaction list by ETH address
 * `general <https://github.com/PierreRochard/general>`_ - example auth back-end
