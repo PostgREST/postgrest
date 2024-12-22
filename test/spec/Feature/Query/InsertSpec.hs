@@ -11,8 +11,7 @@ import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
-import PostgREST.Config.PgVersion (PgVersion, pgVersion130,
-                                   pgVersion140)
+import PostgREST.Config.PgVersion (PgVersion, pgVersion140)
 
 import Protolude  hiding (get)
 import SpecHelper
@@ -208,11 +207,7 @@ spec actualPgVersion = do
         it "fails with 400 and error" $
           post "/simple_pk" [json| { "extra":"foo"} |]
           `shouldRespondWith`
-          (if actualPgVersion >= pgVersion130 then
-            [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" of relation \"simple_pk\" violates not-null constraint"}|]
-           else
-            [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" violates not-null constraint"}|]
-          )
+          [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" of relation \"simple_pk\" violates not-null constraint"}|]
           { matchStatus  = 400
           , matchHeaders = [ matchContentTypeJson]
           }
