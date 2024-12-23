@@ -60,15 +60,18 @@ let
 
       jose-jwt = prev.jose-jwt_0_10_0;
 
-      postgresql-libpq = lib.dontCheck (prev.callHackageDirect
+      postgresql-libpq = lib.overrideCabal (lib.dontCheck (prev.callHackageDirect
         {
           pkg = "postgresql-libpq";
           ver = "0.10.1.0";
           sha256 = "sha256-tXOMqCO8opMilI9rx0D+njqjIjbZsH168Bzb8Aq8Ff4=";
         }
-        {
-          postgresql = super.libpq;
-        });
+        { }
+      )) (drv: {
+        configureFlags = [ "-fuse-pkg-config" ];
+        libraryPkgconfigDepends = [ super.postgresql_16 ];
+        librarySystemDepends = [ ];
+      });
     };
 in
 {

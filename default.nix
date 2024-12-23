@@ -35,7 +35,6 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
-      allOverlays.postgresql-libpq
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
