@@ -1632,6 +1632,8 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
 
+        assert "pgrst_jwt_cache_size" in response.text
+
 
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
