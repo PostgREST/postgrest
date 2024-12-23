@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
  - #3779, Always log the schema cache load time - @steve-chavez
+ - #3706, Fix insert with `missing=default` uses default value of domain instead of column - @taimoorzaeem
 
 ### Changed
 
