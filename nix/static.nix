@@ -8,17 +8,7 @@ let
   inherit (pkgs) pkgsStatic;
   inherit (pkgsStatic.haskell) lib;
 
-  packagesStatic =
-    pkgsStatic.haskell.packages."${compiler}".override (old: {
-      ghc = pkgsStatic.pkgsBuildHost.haskell.compiler."${compiler}".override {
-        # Using the bundled libffi generally works better for cross-compiling
-        libffi = null;
-        # Building sphinx fails on some platforms
-        enableDocs = false;
-        # Cross compiling with native bignum works better than with gmp
-        enableNativeBignum = true;
-      };
-    });
+  packagesStatic = pkgsStatic.haskell.packages.native-bignum."${compiler}";
 
   makeExecutableStatic = drv: pkgs.lib.pipe drv [
     lib.compose.justStaticExecutables
