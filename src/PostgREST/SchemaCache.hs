@@ -622,7 +622,7 @@ tablesSqlQuery =
           d.description AS description,
           -- typbasetype and typdefaultbin handles `CREATE DOMAIN .. DEFAULT val`,  attidentity/attgenerated handles generated columns, pg_get_expr gets the default of a column
           CASE
-            WHEN t.typbasetype  != 0  THEN pg_get_expr(t.typdefaultbin, 0)
+            WHEN (t.typbasetype != 0) AND (ad.adbin IS NULL) THEN pg_get_expr(t.typdefaultbin, 0)
             WHEN a.attidentity  = 'd' THEN format('nextval(%L)', seq.objid::regclass)
             WHEN a.attgenerated = 's' THEN null
             ELSE pg_get_expr(ad.adbin, ad.adrelid)::text
