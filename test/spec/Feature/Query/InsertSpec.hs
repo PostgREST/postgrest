@@ -579,6 +579,15 @@ spec actualPgVersion = do
               , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
               }
 
+        it "inserts a COLUMN default before a DOMAIN default with missing=default" $
+          request methodPost "/evil_friends_with_column_default?columns=id,name" [("Prefer", "return=representation"), ("Prefer", "missing=default")]
+              [json| { "name": "Demon" } |]
+            `shouldRespondWith`
+              [json| [{"id": 420, "name": "Demon"}] |]
+              { matchStatus  = 201
+              , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
+              }
+
     it "inserts json that has duplicate keys" $ do
       request methodPost "/tbl_w_json" [("Prefer", "return=representation")]
           [json| { "data": { "a": 1, "a": 2 }, "id": 3 } |]

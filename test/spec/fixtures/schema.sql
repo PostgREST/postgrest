@@ -3319,6 +3319,11 @@ create table evil_friends(
 , name text
 );
 
+create table evil_friends_with_column_default(
+  id   devil_int default 420
+, name text
+);
+
 create table bets (
   id int
 , data_json  json
