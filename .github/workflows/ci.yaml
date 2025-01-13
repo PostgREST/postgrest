@@ -99,7 +99,7 @@ jobs:
       - name: Extract downloaded binaries
         run: tar -xvf result.tar.xz && rm result.tar.xz
       - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: postgrest-ubuntu-aarch64
           path: result/postgrest
@@ -183,7 +183,7 @@ jobs:
           echo "Relevant extract from CHANGELOG.md:"
           cat CHANGES.md
       - name: Save CHANGES.md as artifact
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: release-changes
           path: CHANGES.md
@@ -226,7 +226,7 @@ jobs:
             artifacts/postgrest-windows-x64/postgrest.exe
 
       - name: Save release bundle
-        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: release-bundle
           path: release-bundle
