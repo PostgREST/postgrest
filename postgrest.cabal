@@ -109,7 +109,7 @@ library
                     , extra                     >= 1.7.0 && < 2.0
                     , fuzzyset                  >= 0.2.4 && < 0.3
                     , gitrev                    >= 1.2 && < 1.4
-                    , hasql                     >= 1.6.1.1 && < 1.7
+                    , hasql >=1.6.1.1 && <1.10
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.2.2.0 && < 0.3
                     , hasql-pool                >= 1.0.1 && < 1.1
