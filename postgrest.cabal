@@ -113,7 +113,7 @@ library
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.2.2.0 && < 0.3
                     , hasql-pool                >= 1.0.1 && < 1.1
-                    , hasql-transaction         >= 1.0.1 && < 1.1
+                    , hasql-transaction >=1.0.1 && <1.3
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
@@ -261,7 +261,7 @@ test-suite spec
                     , case-insensitive  >= 1.2 && < 1.3
                     , containers        >= 0.5.7 && < 0.7
                     , hasql-pool        >= 1.0.1 && < 1.1
-                    , hasql-transaction >= 1.0.1 && < 1.1
+                    , hasql-transaction >=1.0.1 && <1.3
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.12
                     , hspec-wai         >= 0.10 && < 0.12
