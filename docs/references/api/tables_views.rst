@@ -193,7 +193,21 @@ The :code:`fts` filter mentioned above has a number of options to support flexib
 
   curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
 
-Using `websearch_to_tsquery` requires PostgreSQL of version at least 11.0 and will raise an error in earlier versions of the database.
+.. _fts_to_tsvector:
+
+Automatic ``tsvector`` conversion
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If the filtered column is not of type ``tsvector``, then it will be automatically converted using `to_tsvector() <https://www.postgresql.org/docs/current/functions-textsearch.html#TEXTSEARCH-FUNCTIONS-TABLE>`_.
+This allows using ``fts`` on ``text`` and ``json`` types out of the box, for example.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/tsearch?my_text_column=fts(french).amusant"
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/tsearch?my_json_column=not.phfts(english).The%20Fat%20Cats"
 
 .. _v_filter:
 

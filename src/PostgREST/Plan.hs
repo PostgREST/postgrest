@@ -265,27 +265,29 @@ data ResolverContext = ResolverContext
   , outputType      :: Text                 -- ^ The output type for the response payload; e.g. "csv", "json", "binary".
   }
 
-resolveColumnField :: Column -> CoercibleField
-resolveColumnField col = CoercibleField (colName col) mempty False (colNominalType col) Nothing (colDefault col) False
+resolveColumnField :: Column -> Maybe ToTsVector -> CoercibleField
+resolveColumnField col toTsV = CoercibleField (colName col) mempty False toTsV (colNominalType col) Nothing (colDefault col) False
 
-resolveTableFieldName :: Table -> FieldName -> CoercibleField
-resolveTableFieldName table fieldName =
+resolveTableFieldName :: Table -> FieldName -> Maybe ToTsVector -> CoercibleField
+resolveTableFieldName table fieldName toTsV=
   fromMaybe (unknownField fieldName []) $ HMI.lookup fieldName (tableColumns table) >>=
-    Just . resolveColumnField
+    Just . flip resolveColumnField toTsV
 
 -- | Resolve a type within the context based on the given field name and JSON path. Although there are situations where failure to resolve a field is considered an error (see `resolveOrError`), there are also situations where we allow it (RPC calls). If it should be an error and `resolveOrError` doesn't fit, ensure to check the `cfIRType` isn't empty.
-resolveTypeOrUnknown :: ResolverContext -> Field -> CoercibleField
-resolveTypeOrUnknown ResolverContext{..} (fn, jp) =
+resolveTypeOrUnknown :: ResolverContext -> Field -> Maybe ToTsVector -> CoercibleField
+resolveTypeOrUnknown ResolverContext{..} (fn, jp) toTsV =
   case res of
     -- types that are already json/jsonb don't need to be converted with `to_jsonb` for using arrow operators `data->attr`
     -- this prevents indexes not applying https://github.com/PostgREST/postgrest/issues/2594
-    cf@CoercibleField{cfIRType="json"}  -> cf{cfJsonPath=jp, cfToJson=False}
-    cf@CoercibleField{cfIRType="jsonb"} -> cf{cfJsonPath=jp, cfToJson=False}
+    cf@CoercibleField{cfIRType="json"}     -> cf{cfJsonPath=jp, cfToJson=False}
+    cf@CoercibleField{cfIRType="jsonb"}    -> cf{cfJsonPath=jp, cfToJson=False}
+    -- Do not apply to_tsvector to tsvector types
+    cf@CoercibleField{cfIRType="tsvector"} -> cf{cfJsonPath=jp, cfToJson=True, cfToTsVector=Nothing}
     -- other types will get converted `to_jsonb(col)->attr`, even unknown types
-    cf                                  -> cf{cfJsonPath=jp, cfToJson=True}
+    cf                                     -> cf{cfJsonPath=jp, cfToJson=True}
   where
     res = fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
-          Just . flip resolveTableFieldName fn
+          Just . (\t -> resolveTableFieldName t fn toTsV)
 
 -- | Install any pre-defined data representation from source to target to coerce this reference.
 --
@@ -311,11 +313,15 @@ withJsonParse ctx field@CoercibleField{cfIRType} = withTransformer ctx "json" cf
 
 -- | Map the intermediate representation type to the output type defined by the resolver context (normally json), if available.
 resolveOutputField :: ResolverContext -> Field -> CoercibleField
-resolveOutputField ctx field = withOutputFormat ctx $ resolveTypeOrUnknown ctx field
+resolveOutputField ctx field = withOutputFormat ctx $ resolveTypeOrUnknown ctx field Nothing
 
 -- | Map the query string format of a value (text) into the intermediate representation type, if available.
-resolveQueryInputField :: ResolverContext -> Field -> CoercibleField
-resolveQueryInputField ctx field = withTextParse ctx $ resolveTypeOrUnknown ctx field
+resolveQueryInputField :: ResolverContext -> Field -> OpExpr -> CoercibleField
+resolveQueryInputField ctx field opExpr = withTextParse ctx $ resolveTypeOrUnknown ctx field toTsVector
+  where
+    toTsVector = case opExpr of
+      OpExpr _ (Fts _ lang _) -> Just $ ToTsVector lang
+      _                       -> Nothing
 
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
@@ -452,7 +458,7 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@R
 
     expandStarSelectField :: Bool -> [Column] -> CoercibleSelectField -> [CoercibleSelectField]
     expandStarSelectField _ columns sel@CoercibleSelectField{csField=CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Nothing} =
-      map (\col -> sel { csField = withOutputFormat ctx $ resolveColumnField col }) columns
+      map (\col -> sel { csField = withOutputFormat ctx $ resolveColumnField col Nothing }) columns
     expandStarSelectField True _ sel@CoercibleSelectField{csField=fld@CoercibleField{cfName="*", cfJsonPath=[]}, csAggFunction=Just Count} =
       [sel { csField = fld { cfFullRow = True } }]
     expandStarSelectField _ _ selectField = [selectField]
@@ -766,7 +772,7 @@ addOrders ctx ApiRequest{..} rReq =
 
 resolveOrder :: ResolverContext -> OrderTerm -> CoercibleOrderTerm
 resolveOrder _ (OrderRelationTerm a b c d) = CoercibleOrderRelationTerm a b c d
-resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUnknown ctx fld) dir nulls
+resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUnknown ctx fld Nothing) dir nulls
 
 -- Validates that the related resource on the order is an embedded resource,
 -- e.g. if `clients` is inside the `select` in /projects?order=clients(id)&select=*,clients(*),
@@ -831,7 +837,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       where_ = [
 --         CoercibleStmnt (
 --           CoercibleFilter {
---            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfToTsVector = Nothing, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
 --            opExpr = op
 --           }
 --         )
@@ -847,7 +853,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfToTsVector = Nothing, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -866,7 +872,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
     newNullFilters rPlans = \case
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
-      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _ _) opExpr)) ->
+      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _ _ _) opExpr)) ->
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
           (Just ReadPlan{relAggAlias}, OpExpr b (Is IsNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias
@@ -900,7 +906,7 @@ resolveLogicTree ctx (Stmnt flt) = CoercibleStmnt $ resolveFilter ctx flt
 resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree ctx) lts)
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
-resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld, opExpr=opExpr}
+resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld opExpr, opExpr=opExpr}
 
 -- Validates that spread embeds are only done on to-one relationships
 validateSpreadEmbeds :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
@@ -963,7 +969,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
 resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
 resolveOrError _ Nothing _ = Left NotFound
 resolveOrError ctx (Just table) field =
-  case resolveTableFieldName table field of
+  case resolveTableFieldName table field Nothing of
     CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
     cf                          -> Right $ withJsonParse ctx cf
 

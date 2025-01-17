@@ -14,6 +14,7 @@ module PostgREST.ApiRequest.Types
   , JsonOperand(..)
   , JsonOperation(..)
   , JsonPath
+  , Language
   , ListVal
   , LogicOperator(..)
   , LogicTree(..)

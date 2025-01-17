@@ -930,3 +930,12 @@ INSERT INTO surr_serial_upsert(name, extra) VALUES ('value', 'existing value');
 
 TRUNCATE TABLE surr_gen_default_upsert CASCADE;
 INSERT INTO surr_gen_default_upsert(name, extra) VALUES ('value', 'existing value');
+
+TRUNCATE TABLE tsearch_to_tsvector CASCADE;
+INSERT INTO tsearch_to_tsvector(text_search) VALUES ('It''s kind of fun to do the impossible');
+INSERT INTO tsearch_to_tsvector(text_search) VALUES ('But also fun to do what is possible');
+INSERT INTO tsearch_to_tsvector(text_search) VALUES ('Fat cats ate rats');
+INSERT INTO tsearch_to_tsvector(text_search) VALUES ('C''est un peu amusant de faire l''impossible');
+INSERT INTO tsearch_to_tsvector(text_search) VALUES ('Es ist eine Art Spaß, das Unmögliche zu machen');
+
+UPDATE tsearch_to_tsvector SET jsonb_search = jsonb_build_object('text_search', text_search);
