@@ -167,116 +167,318 @@ spec = do
       get "/simple_pk?k=not.imatch.^xy&order=extra.asc" `shouldRespondWith` "[]"
 
     describe "Full text search operator" $ do
-      it "finds matches with to_tsquery" $
-        get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`
-          [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
-          { matchHeaders = [matchContentTypeJson] }
+      context "tsvector columns" $ do
+        it "finds matches with to_tsquery" $
+          get "/tsearch?text_search_vector=fts.impossible" `shouldRespondWith`
+            [json| [{"text_search_vector": "'fun':5 'imposs':9 'kind':3" }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-      it "can use lexeme boolean operators(&=%26, |=%7C, !) in to_tsquery" $ do
-        get "/tsearch?text_search_vector=fts.fun%26possible" `shouldRespondWith`
-          [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=fts.impossible%7Cpossible" `shouldRespondWith`
-          [json| [
-          {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-          {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=fts.fun%26!possible" `shouldRespondWith`
-          [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
-          { matchHeaders = [matchContentTypeJson] }
-
-      it "finds matches with plainto_tsquery" $
-        get "/tsearch?text_search_vector=plfts.The%20Fat%20Rats" `shouldRespondWith`
-          [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-
-      it "finds matches with websearch_to_tsquery" $
-          get "/tsearch?text_search_vector=wfts.The%20Fat%20Rats" `shouldRespondWith`
-              [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
-              { matchHeaders = [matchContentTypeJson] }
-
-      it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
-        get "/tsearch?text_search_vector=wfts.fun%20and%20possible"
-          `shouldRespondWith`
+        it "can use lexeme boolean operators(&=%26, |=%7C, !) in to_tsquery" $ do
+          get "/tsearch?text_search_vector=fts.fun%26possible" `shouldRespondWith`
             [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
             { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=wfts.impossible%20or%20possible"
-          `shouldRespondWith`
+          get "/tsearch?text_search_vector=fts.impossible%7Cpossible" `shouldRespondWith`
             [json| [
-              {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-              {"text_search_vector": "'also':2 'fun':3 'possibl':8"}]
-                |]
+            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+            {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
             { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=wfts.fun%20and%20-possible"
-          `shouldRespondWith`
+          get "/tsearch?text_search_vector=fts.fun%26!possible" `shouldRespondWith`
             [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
             { matchHeaders = [matchContentTypeJson] }
 
-      it "finds matches with different dictionaries" $ do
-        get "/tsearch?text_search_vector=fts(french).amusant" `shouldRespondWith`
-          [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=plfts(french).amusant%20impossible" `shouldRespondWith`
-          [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
-          { matchHeaders = [matchContentTypeJson] }
+        it "finds matches with plainto_tsquery" $
+          get "/tsearch?text_search_vector=plfts.The%20Fat%20Rats" `shouldRespondWith`
+            [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+            { matchHeaders = [matchContentTypeJson] }
 
-        get "/tsearch?text_search_vector=wfts(french).amusant%20impossible"
+        it "finds matches with websearch_to_tsquery" $
+            get "/tsearch?text_search_vector=wfts.The%20Fat%20Rats" `shouldRespondWith`
+                [json| [ {"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+                { matchHeaders = [matchContentTypeJson] }
+
+        it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
+          get "/tsearch?text_search_vector=wfts.fun%20and%20possible"
             `shouldRespondWith`
-              [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+              [json| [ {"text_search_vector": "'also':2 'fun':3 'possibl':8"}] |]
               { matchHeaders = [matchContentTypeJson] }
-
-      it "can be negated with not operator" $ do
-        get "/tsearch?text_search_vector=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.fts(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.plfts.The%20Fat%20Rats" `shouldRespondWith`
-          [json| [
-            {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
-            {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
-            {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-            {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
-          { matchHeaders = [matchContentTypeJson] }
-        get "/tsearch?text_search_vector=not.wfts(english).impossible%20or%20fat%20or%20fun"
+          get "/tsearch?text_search_vector=wfts.impossible%20or%20possible"
             `shouldRespondWith`
               [json| [
-                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
-                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+                {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+                {"text_search_vector": "'also':2 'fun':3 'possibl':8"}]
+                  |]
+              { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=wfts.fun%20and%20-possible"
+            `shouldRespondWith`
+              [json| [ {"text_search_vector": "'fun':5 'imposs':9 'kind':3"}] |]
               { matchHeaders = [matchContentTypeJson] }
 
-      context "Use of the phraseto_tsquery function" $ do
-        it "finds matches" $
-          get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
-            [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+        it "finds matches with different dictionaries" $ do
+          get "/tsearch?text_search_vector=fts(french).amusant" `shouldRespondWith`
+            [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=plfts(french).amusant%20impossible" `shouldRespondWith`
+            [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
             { matchHeaders = [matchContentTypeJson] }
 
-        it "finds matches with different dictionaries" $
-          get "/tsearch?text_search_vector=phfts(german).Art%20Spass" `shouldRespondWith`
-            [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
-            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=wfts(french).amusant%20impossible"
+              `shouldRespondWith`
+                [json| [{"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" }] |]
+                { matchHeaders = [matchContentTypeJson] }
 
-        it "can be negated with not operator" $
-          get "/tsearch?text_search_vector=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
+        it "can be negated with not operator" $ do
+          get "/tsearch?text_search_vector=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
+            [json| [
+              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=not.fts(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
+            [json| [
+              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=not.plfts.The%20Fat%20Rats" `shouldRespondWith`
             [json| [
               {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
               {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
               {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
               {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
             { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch?text_search_vector=not.wfts(english).impossible%20or%20fat%20or%20fun"
+              `shouldRespondWith`
+                [json| [
+                  {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+                  {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+                { matchHeaders = [matchContentTypeJson] }
 
-        it "can be used with or query param" $
-          get "/tsearch?or=(text_search_vector.phfts(german).Art%20Spass, text_search_vector.phfts(french).amusant, text_search_vector.fts(english).impossible)" `shouldRespondWith`
-            [json|[
-              {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
-              {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
-              {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
-            ]|] { matchHeaders = [matchContentTypeJson] }
+        context "Use of the phraseto_tsquery function" $ do
+          it "finds matches" $
+            get "/tsearch?text_search_vector=phfts.The%20Fat%20Cats" `shouldRespondWith`
+              [json| [{"text_search_vector": "'ate':3 'cat':2 'fat':1 'rat':4" }] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "finds matches with different dictionaries" $
+            get "/tsearch?text_search_vector=phfts(german).Art%20Spass" `shouldRespondWith`
+              [json| [{"text_search_vector": "'art':4 'spass':5 'unmog':7" }] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "can be negated with not operator" $
+            get "/tsearch?text_search_vector=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
+              [json| [
+                {"text_search_vector": "'fun':5 'imposs':9 'kind':3"},
+                {"text_search_vector": "'also':2 'fun':3 'possibl':8"},
+                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4"},
+                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}]|]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "can be used with or query param" $
+            get "/tsearch?or=(text_search_vector.phfts(german).Art%20Spass, text_search_vector.phfts(french).amusant, text_search_vector.fts(english).impossible)" `shouldRespondWith`
+              [json|[
+                {"text_search_vector": "'fun':5 'imposs':9 'kind':3" },
+                {"text_search_vector": "'amus':5 'fair':7 'impossibl':9 'peu':4" },
+                {"text_search_vector": "'art':4 'spass':5 'unmog':7"}
+              ]|] { matchHeaders = [matchContentTypeJson] }
+
+          it "works with tsvector computed fields" $
+            get "/tsearch_to_tsvector?select=text_search_vector&text_search_vector=fts(simple).of" `shouldRespondWith`
+              [json| [
+                {"text_search_vector":"'do':7 'fun':5 'impossible':9 'it':1 'kind':3 'of':4 's':2 'the':8 'to':6"}
+              ]|]
+              { matchHeaders = [matchContentTypeJson] }
+
+      context "text and json columns" $ do
+        it "finds matches with to_tsquery" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=fts.impossible" `shouldRespondWith`
+            [json| [
+              {"text_search": "It's kind of fun to do the impossible"},
+              {"text_search": "C'est un peu amusant de faire l'impossible"}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=fts.impossible" `shouldRespondWith`
+            [json| [
+              {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+              {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can use lexeme boolean operators(&=%26, |=%7C, !) in to_tsquery" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=fts.fun%26possible" `shouldRespondWith`
+            [json| [{"text_search": "But also fun to do what is possible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=fts.fun%26possible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "But also fun to do what is possible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=fts.impossible%7Cpossible"  `shouldRespondWith`
+            [json| [
+              {"text_search": "It's kind of fun to do the impossible"},
+              {"text_search": "But also fun to do what is possible"},
+              {"text_search": "C'est un peu amusant de faire l'impossible"}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=fts.impossible%7Cpossible" `shouldRespondWith`
+            [json| [
+              {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+              {"jsonb_search" :{"text_search": "But also fun to do what is possible"}},
+              {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=fts.fun%26!possible"  `shouldRespondWith`
+            [json| [{"text_search": "It's kind of fun to do the impossible"}]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=fts.fun%26!possible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "finds matches with plainto_tsquery" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=plfts.The%20Fat%20Rats"  `shouldRespondWith`
+            [json| [{"text_search": "Fat cats ate rats"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=plfts.The%20Fat%20Rats" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "Fat cats ate rats"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "finds matches with websearch_to_tsquery" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=wfts.The%20Fat%20Rats"  `shouldRespondWith`
+            [json| [{"text_search": "Fat cats ate rats"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=wfts.The%20Fat%20Rats" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "Fat cats ate rats"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can use boolean operators(and, or, -) in websearch_to_tsquery" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=wfts.fun%20and%20possible" `shouldRespondWith`
+            [json| [{"text_search": "But also fun to do what is possible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=wfts.fun%20and%20possible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "But also fun to do what is possible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=wfts.impossible%20or%20possible" `shouldRespondWith`
+            [json| [
+              {"text_search": "It's kind of fun to do the impossible"},
+              {"text_search": "But also fun to do what is possible"},
+              {"text_search": "C'est un peu amusant de faire l'impossible"}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=wfts.impossible%20or%20possible" `shouldRespondWith`
+            [json| [
+              {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+              {"jsonb_search" :{"text_search": "But also fun to do what is possible"}},
+              {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=wfts.fun%20and%20-possible" `shouldRespondWith`
+            [json| [{"text_search": "It's kind of fun to do the impossible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=wfts.fun%20and%20-possible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "finds matches with different dictionaries and uses them as configuration for to_tsvector()" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=fts(french).amusant"  `shouldRespondWith`
+            [json| [{"text_search": "C'est un peu amusant de faire l'impossible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=fts(french).amusant" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=plfts(french).amusant%20impossible"  `shouldRespondWith`
+            [json| [{"text_search": "C'est un peu amusant de faire l'impossible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=plfts(french).amusant%20impossible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=wfts(french).amusant%20impossible" `shouldRespondWith`
+            [json| [{"text_search": "C'est un peu amusant de faire l'impossible"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=wfts(french).amusant%20impossible" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        it "can be negated with not operator" $ do
+          get "/tsearch_to_tsvector?select=text_search&text_search=not.fts.impossible%7Cfat%7Cfun"  `shouldRespondWith`
+            [json| [{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=not.fts.impossible%7Cfat%7Cfun" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=not.fts(english).impossible%7Cfat%7Cfun"  `shouldRespondWith`
+            [json| [{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=not.fts(english).impossible%7Cfat%7Cfun" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=not.plfts.The%20Fat%20Rats"  `shouldRespondWith`
+            [json| [
+              {"text_search": "It's kind of fun to do the impossible"},
+              {"text_search": "But also fun to do what is possible"},
+              {"text_search": "C'est un peu amusant de faire l'impossible"},
+              {"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=not.plfts.The%20Fat%20Rats" `shouldRespondWith`
+            [json| [
+              {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+              {"jsonb_search" :{"text_search": "But also fun to do what is possible"}},
+              {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}},
+              {"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}]
+            |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=text_search&text_search=not.wfts(english).impossible%20or%20fat%20or%20fun" `shouldRespondWith`
+            [json| [{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}] |]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=not.wfts(english).impossible%20or%20fat%20or%20fun" `shouldRespondWith`
+            [json| [{"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}] |]
+            { matchHeaders = [matchContentTypeJson] }
+
+        context "Use of the phraseto_tsquery function" $ do
+          it "finds matches" $ do
+            get "/tsearch_to_tsvector?select=text_search&text_search=phfts.The%20Fat%20Cats"  `shouldRespondWith`
+              [json| [{"text_search": "Fat cats ate rats"}] |]
+              { matchHeaders = [matchContentTypeJson] }
+            get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=phfts.The%20Fat%20Cats" `shouldRespondWith`
+              [json| [{"jsonb_search" :{"text_search": "Fat cats ate rats"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "finds matches with different dictionaries and uses them as configuration for to_tsvector()" $ do
+            get "/tsearch_to_tsvector?select=text_search&text_search=phfts(german).Art%20Spass"  `shouldRespondWith`
+              [json| [{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}] |]
+              { matchHeaders = [matchContentTypeJson] }
+            get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=phfts(german).Art%20Spass" `shouldRespondWith`
+              [json| [{"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}] |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "can be negated with not operator" $ do
+            get "/tsearch_to_tsvector?select=text_search&text_search=not.phfts(english).The%20Fat%20Cats"  `shouldRespondWith`
+              [json| [
+                {"text_search": "It's kind of fun to do the impossible"},
+                {"text_search": "But also fun to do what is possible"},
+                {"text_search": "C'est un peu amusant de faire l'impossible"},
+                {"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}]
+              |]
+              { matchHeaders = [matchContentTypeJson] }
+            get "/tsearch_to_tsvector?select=jsonb_search&jsonb_search=not.phfts(english).The%20Fat%20Cats" `shouldRespondWith`
+              [json| [
+                {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+                {"jsonb_search" :{"text_search": "But also fun to do what is possible"}},
+                {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}},
+                {"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}]
+              |]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "can be used with or query param" $ do
+            get "/tsearch_to_tsvector?select=text_search&or=(text_search.phfts(german).Art%20Spass, text_search.phfts(french).amusant, text_search.fts(english).impossible)"  `shouldRespondWith`
+              [json| [
+                {"text_search": "It's kind of fun to do the impossible"},
+                {"text_search": "C'est un peu amusant de faire l'impossible"},
+                {"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}]
+              |]
+              { matchHeaders = [matchContentTypeJson] }
+            get "/tsearch_to_tsvector?select=jsonb_search&or=(jsonb_search.phfts(german).Art%20Spass, jsonb_search.phfts(french).amusant, jsonb_search.fts(english).impossible)" `shouldRespondWith`
+              [json| [
+                {"jsonb_search" :{"text_search": "It's kind of fun to do the impossible"}},
+                {"jsonb_search" :{"text_search": "C'est un peu amusant de faire l'impossible"}},
+                {"jsonb_search" :{"text_search": "Es ist eine Art Spaß, das Unmögliche zu machen"}}]
+              |]
+              { matchHeaders = [matchContentTypeJson] }
 
     it "matches with computed column" $
       get "/items?always_true=eq.true&order=id.asc" `shouldRespondWith`

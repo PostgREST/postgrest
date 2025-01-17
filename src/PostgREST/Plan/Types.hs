@@ -5,6 +5,7 @@ module PostgREST.Plan.Types
   , CoercibleLogicTree(..)
   , CoercibleFilter(..)
   , TransformerProc
+  , ToTsVector(..)
   , CoercibleOrderTerm(..)
   , RelSelectField(..)
   , RelJsonEmbedMode(..)
@@ -12,14 +13,18 @@ module PostgREST.Plan.Types
   ) where
 
 import PostgREST.ApiRequest.Types (AggregateFunction, Alias, Cast,
-                                   Field, JsonPath, LogicOperator,
-                                   OpExpr, OrderDirection, OrderNulls)
+                                   Field, JsonPath, Language,
+                                   LogicOperator, OpExpr,
+                                   OrderDirection, OrderNulls)
 
 import PostgREST.SchemaCache.Identifiers (FieldName)
 
 import Protolude
 
 type TransformerProc = Text
+
+newtype ToTsVector = ToTsVector (Maybe Language)
+  deriving (Eq, Show)
 
 -- | A CoercibleField pairs the name of a query element with any type coercion information we need for some specific use case.
 -- |
@@ -33,17 +38,18 @@ type TransformerProc = Text
 -- |
 -- | The type value is allowed to be the empty string. The analog here is soft type checking in programming languages: sometimes we don't need a variable to have a specified type and things will work anyhow. So the empty type variant is valid when we don't know and *don't need to know* about the specific type in some context. Note that this variation should not be used if it guarantees failure: in that case you should instead raise an error at the planning stage and bail out. For example, we can't parse JSON with `json_to_recordset` without knowing the types of each recipient field, and so error out. Using the empty string for the type would be incorrect and futile. On the other hand we use the empty type for RPC calls since type resolution isn't implemented for RPC, but it's fine because the query still works with Postgres' implicit coercion. In the future, hopefully we will support data representations across the board and then the empty type may be permanently retired.
 data CoercibleField = CoercibleField
-  { cfName      :: FieldName
-  , cfJsonPath  :: JsonPath
-  , cfToJson    :: Bool
-  , cfIRType    :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
-  , cfTransform :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
-  , cfDefault   :: Maybe Text
-  , cfFullRow   :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spreaded resources.
+  { cfName       :: FieldName
+  , cfJsonPath   :: JsonPath
+  , cfToJson     :: Bool
+  , cfToTsVector :: Maybe ToTsVector      -- ^ If the field should be converted using to_tsvector(<language>, <field>)
+  , cfIRType     :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
+  , cfTransform  :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
+  , cfDefault    :: Maybe Text
+  , cfFullRow    :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spreaded resources.
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
-unknownField name path = CoercibleField name path False "" Nothing Nothing False
+unknownField name path = CoercibleField name path False Nothing "" Nothing Nothing False
 
 -- | Like an API request LogicTree, but with coercible field information.
 data CoercibleLogicTree

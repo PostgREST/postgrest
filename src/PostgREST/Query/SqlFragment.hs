@@ -81,6 +81,7 @@ import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleSelectField (..),
                                           RelSelectField (..),
                                           SpreadSelectField (..),
+                                          ToTsVector (..),
                                           unknownField)
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
@@ -252,10 +253,15 @@ pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
 pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
-pgFmtField table CoercibleField{cfFullRow=True}                                          = fromQi table
-pgFmtField table CoercibleField{cfName=fn, cfJsonPath=[]}                                = pgFmtColumn table fn
-pgFmtField table CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  = "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
-                                                                             | otherwise = pgFmtColumn table fn <> pgFmtJsonPath jp
+pgFmtField table cf = case cfToTsVector cf of
+  Just (ToTsVector lang) -> "to_tsvector(" <> pgFmtFtsLang lang <> fmtFld <> ")"
+  _                      -> fmtFld
+  where
+    fmtFld = case cf of
+      CoercibleField{cfFullRow=True}                                          -> fromQi table
+      CoercibleField{cfName=fn, cfJsonPath=[]}                                -> pgFmtColumn table fn
+      CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  -> "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
+                                                                  | otherwise -> pgFmtColumn table fn <> pgFmtJsonPath jp
 
 -- Select the value of a named element from a table, applying its optional coercion mapping if any.
 pgFmtTableCoerce :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
@@ -399,15 +405,17 @@ pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = notOp <> " " <> p
       [""] -> "= ANY('{}') "
       _    -> "= ANY (" <> pgFmtArrayLiteralForField vals fld <> ") "
 
-   Fts op lang val -> " " <> ftsOperator op <> "(" <> ftsLang lang <> unknownLiteral val <> ") "
+   Fts op lang val -> " " <> ftsOperator op <> "(" <> pgFmtFtsLang lang <> unknownLiteral val <> ") "
  where
-   ftsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
    notOp = if hasNot then "NOT" else mempty
    star c = if c == '*' then '%' else c
    fmtQuant q val = case q of
     Just QuantAny -> "ANY(" <> val <> ")"
     Just QuantAll -> "ALL(" <> val <> ")"
     Nothing       -> val
+
+pgFmtFtsLang :: Maybe Text -> SQL.Snippet
+pgFmtFtsLang = maybe mempty (\l -> unknownLiteral l <> ", ")
 
 pgFmtJoinCondition :: JoinCondition -> SQL.Snippet
 pgFmtJoinCondition (JoinCondition (qi1, col1) (qi2, col2)) =

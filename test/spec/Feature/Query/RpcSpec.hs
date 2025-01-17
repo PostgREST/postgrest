@@ -949,7 +949,7 @@ spec =
           [json|[{ "id": 2 }, { "id": 4 }]|]
           { matchHeaders = [matchContentTypeJson] }
 
-      it "should work with filters that use the plain with language fts operator" $ do
+      it "should work with filters that use the fts operator on tsvector columns" $ do
         get "/rpc/get_tsearch?text_search_vector=fts(english).impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
           { matchHeaders = [matchContentTypeJson] }
@@ -961,6 +961,31 @@ spec =
           { matchHeaders = [matchContentTypeJson] }
         get "/rpc/get_tsearch?text_search_vector=wfts.impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
+          { matchHeaders = [matchContentTypeJson] }
+      it "should work with filters that use the fts operator on text and json columns" $ do
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=fts(english).impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=plfts.impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=not.fts(english).fun%7Crat" `shouldRespondWith`
+          [json|[
+            {"text_search":"C'est un peu amusant de faire l'impossible"},
+            {"text_search":"Es ist eine Art Spaß, das Unmögliche zu machen"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+        get "/rpc/get_tsearch_to_tsvector?select=text_search&text_search=wfts.impossible" `shouldRespondWith`
+          [json|[
+            {"text_search":"It's kind of fun to do the impossible"},
+            {"text_search":"C'est un peu amusant de faire l'impossible"}]
+          |]
           { matchHeaders = [matchContentTypeJson] }
 
       it "should work with the phraseto_tsquery function" $
