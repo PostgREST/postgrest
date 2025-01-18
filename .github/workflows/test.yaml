@@ -129,10 +129,4 @@ jobs:
       - name: Run loadtest
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
-          postgrest-loadtest-report > loadtest/loadtest.md
-      - name: Upload report
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: loadtest.md
-          path: loadtest/loadtest.md
-          if-no-files-found: error
+          postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
