@@ -101,7 +101,7 @@ jobs:
               ~/.stack/pantry
               ~/.stack/snapshots
               ~/.stack/stack.sqlite3
-            artifact: postgrest-macos-x64
+            artifact: postgrest-macos-aarch64
             deps: brew install libpq && brew link --force libpq
 
           - name: Windows
