@@ -6,6 +6,7 @@
 , coreutils
 , git
 , lib
+, moreutils
 , runCommand
 , shellcheck
 , stdenv
@@ -56,7 +57,7 @@ let
         # Example: This way `postgrest-watch -h` will return the help output for watch, while
         # `postgrest-watch postgrest-test-spec -h` will return the help output for test-spec.
         # Taken from: https://github.com/matejak/argbash/issues/114#issuecomment-557108274
-        sed '/_positionals_count + 1/a\\t\t\t\tset -- "''${@:1:1}" "--" "''${@:2}"' -i $out
+        sed '/_positionals_count + 1/a\\t\t\t\tset -- "''${@:1:1}" "--" "''${@:2}"' $out | ${moreutils}/bin/sponge $out
       '';
 
   bash-completion =
@@ -66,7 +67,7 @@ let
       ''
 
       + lib.optionalString (positionalCompletion != "") ''
-        sed 's#COMPREPLY.*compgen -o bashdefault .*$#${escape positionalCompletion}#' -i $out
+        sed 's#COMPREPLY.*compgen -o bashdefault .*$#${escape positionalCompletion}#' $out | ${moreutils}/bin/sponge $out
       ''
     );
 
