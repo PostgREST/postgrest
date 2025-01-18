@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.4] - 2025-01-18
+
 ### Fixed
 
  - #3779, Always log the schema cache load time - @steve-chavez
