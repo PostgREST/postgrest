@@ -1,0 +1,202 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - devel
+      - v*
+
+concurrency:
+  # Terminate all previous runs of the same workflow for the same tag.
+  group: release-${{ github.ref }}
+  # TODO: Enable this once https://github.com/orgs/community/discussions/13015 is solved
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yaml
+    secrets:
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-24.04
+    needs:
+      - build
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check the version to be released
+        run: |
+          cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+
+          if [ "${GITHUB_REF_NAME}" != "devel" ] && [ "${GITHUB_REF_NAME}" != "v$cabal_version" ]; then
+            echo "Tagged version ($GITHUB_REF_NAME) does not match the one in postgrest.cabal (v$cabal_version). Aborting release..."
+            exit 1
+          fi
+      - name: Identify changes from CHANGELOG.md
+        run: |
+          if [ "${GITHUB_REF_NAME}" == "devel" ]; then
+            echo "Getting unreleased changes..."
+            sed -n "1,/## Unreleased/d;/## \[/q;p" CHANGELOG.md > CHANGES.md
+          else
+            version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
+            echo "Propper release, getting changes for version $version ..."
+            sed -n "1,/## \[$version\]/d;/## \[/q;p" CHANGELOG.md > CHANGES.md
+          fi
+
+          echo "Relevant extract from CHANGELOG.md:"
+          cat CHANGES.md
+      - name: Save CHANGES.md as artifact
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: release-changes
+          path: CHANGES.md
+          if-no-files-found: error
+
+
+  github:
+    name: GitHub
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    needs:
+      - prepare
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Download all artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          path: artifacts
+      - name: Create release bundle with archives for all builds
+        run: |
+          find artifacts -type f -iname postgrest -exec chmod +x {} \;
+
+          mkdir -p release-bundle
+
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-x86-64.tar.xz" \
+            -C artifacts/postgrest-linux-static-x86-64 postgrest
+
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-macos-aarch64.tar.xz" \
+            -C artifacts/postgrest-macos-aarch64 postgrest
+
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-freebsd-x86-64.tar.xz" \
+            -C artifacts/postgrest-freebsd-x86-64 postgrest
+
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-ubuntu-aarch64.tar.xz" \
+            -C artifacts/postgrest-ubuntu-aarch64 postgrest
+
+          zip --junk-paths "release-bundle/postgrest-${GITHUB_REF_NAME}-windows-x86-64.zip" \
+            artifacts/postgrest-windows-x86-64/postgrest.exe
+
+      - name: Save release bundle
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: release-bundle
+          path: release-bundle
+          if-no-files-found: error
+
+      - name: Publish release on GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Releasing version ${GITHUB_REF_NAME} on GitHub..."
+
+          if [ "${GITHUB_REF_NAME}" == "devel" ]; then
+            # To replace the existing release, we must first delete the old assets,
+            # then modify the release, then add the new assets.
+            gh release view devel --json assets \
+              | jq -r '.assets[] | .name' \
+              | xargs -rn1 \
+              gh release delete-asset -y devel
+            gh release edit devel \
+              -t devel \
+              --verify-tag \
+              -F artifacts/release-changes/CHANGES.md \
+              --prerelease
+            gh release upload --clobber devel release-bundle/*
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              -t "${GITHUB_REF_NAME}" \
+              --verify-tag \
+              -F artifacts/release-changes/CHANGES.md \
+              release-bundle/*
+          fi
+
+
+  docker:
+    name: Docker Hub
+    runs-on: ubuntu-24.04-arm
+    needs:
+      - prepare
+    if: |
+      vars.DOCKER_REPO && vars.DOCKER_USER
+    env:
+      DOCKER_REPO: ${{ vars.DOCKER_REPO }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Download x86-64 Docker image
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: postgrest-docker-x86-64
+      - name: Download aarch64 binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: postgrest-ubuntu-aarch64
+      - uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+      - name: Build aarch64 Docker image
+        run: |
+          # This only pushes the image via digest, not a tag. This will not appear
+          # in the image list on Docker Hub, yet. It will be later added to the main
+          # tag's manifest.
+          docker buildx build \
+            -t "$DOCKER_REPO/postgrest" \
+            --platform linux/arm64 \
+            --output push-by-digest=true,type=image,push=true \
+            --metadata-file metadata.json \
+            .
+          echo "SHA256_ARM=$(jq -r '."containerimage.digest"' metadata.json)" >> "$GITHUB_ENV"
+      - name: Publish images on Docker Hub
+        run: |
+          docker load -i postgrest-docker.tar.gz
+
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          docker buildx imagetools create --append \
+            -t "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}" \
+            "$DOCKER_REPO/postgrest@$SHA256_ARM"
+
+          # Only tag 'latest' for full releases
+          if [ "${GITHUB_REF_NAME}" != "devel" ]; then
+            echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
+            docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
+            docker push "$DOCKER_REPO"/postgrest:latest
+            docker buildx imagetools create --append \
+              -t "$DOCKER_REPO/postgrest:latest" \
+              "$DOCKER_REPO/postgrest@$SHA256_ARM"
+          else
+            echo "Skipping push to 'latest' tag for pre-release..."
+          fi
+
+
+  docker-description:
+    name: Docker Hub Description
+    runs-on: ubuntu-24.04
+    if: |
+      vars.DOCKER_REPO && vars.DOCKER_USER &&
+      github.ref == 'refs/tags/devel'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: peter-evans/dockerhub-description@e98e4d1628a5f3be2be7c231e50981aee98723ae # v4.0.0
+        with:
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+          repository: ${{ vars.DOCKER_REPO }}/postgrest
+          short-description: ${{ github.event.repository.description }}
+          readme-filepath: ./docker-hub-readme.md
+
