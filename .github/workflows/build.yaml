@@ -87,13 +87,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux x86-64
-            runs-on: ubuntu-24.04
+          - name: Linux aarch64
+            runs-on: ubuntu-24.04-arm
             cache: |
               ~/.stack/pantry
               ~/.stack/snapshots
               ~/.stack/stack.sqlite3
-            # no artifact for Linux x86-64, because we use the static build
+            artifact: postgrest-ubuntu-aarch64
+            deps: sudo apt-get update && sudo apt-get install libpq-dev
 
           - name: MacOS
             runs-on: macos-14
@@ -147,7 +148,6 @@ jobs:
       - name: Strip Executable
         run: strip result/postgrest*
       - name: Save built executable as artifact
-        if: matrix.artifact
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: ${{ matrix.artifact }}
