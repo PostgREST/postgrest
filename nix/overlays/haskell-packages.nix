@@ -50,13 +50,21 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
-      hasql-pool = lib.dontCheck (prev.callHackageDirect
+      postgresql-binary = prev.postgresql-binary_0_14;
+      hasql = prev.hasql_1_8_1_1;
+      hasql-dynamic-statements = prev.hasql-dynamic-statements_0_3_1_7;
+      hasql-implicits = prev.hasql-implicits_0_2;
+      hasql-pool = prev.hasql-pool_1_2_0_2;
+      hasql-transaction = prev.hasql-transaction_1_1_1_2;
+
+      hasql-notifications = lib.dontCheck (prev.callHackageDirect
         {
-          pkg = "hasql-pool";
-          ver = "1.0.1";
-          sha256 = "sha256-Hf1f7lX0LWkjrb25SDBovCYPRdmUP1H6pAxzi7kT4Gg=";
+          pkg = "hasql-notifications";
+          ver = "0.2.3.1";
+          sha256 = "sha256-vLLUBreUXLPACqzKun8a+Irew895/VydI1lKrnY/M1w=";
         }
-        { });
+        { }
+      );
 
       jose-jwt = prev.jose-jwt_0_10_0;
 

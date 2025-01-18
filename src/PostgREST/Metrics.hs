@@ -38,7 +38,7 @@ observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schema
   (PoolAcqTimeoutObs _) -> do
     incCounter poolTimeouts
   (HasqlPoolObs (SQL.ConnectionObservation _ status)) -> case status of
-     SQL.ReadyForUseConnectionStatus  -> do
+     SQL.ReadyForUseConnectionStatus _ -> do
       incGauge poolAvailable
      SQL.InUseConnectionStatus        -> do
       decGauge poolAvailable

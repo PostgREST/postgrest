@@ -1,6 +1,6 @@
 { system ? builtins.currentSystem
 
-, compiler ? "ghc948"
+, compiler ? "ghc966"
 
 , # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion ? import nix/nixpkgs-version.nix
@@ -95,7 +95,8 @@ rec {
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
+      # TODO: Fix hsie with newer GHC
+      inherit (pkgs.haskell.packages.ghc948) ghcWithPackages;
     };
 
   ### Tools
