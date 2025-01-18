@@ -1,6 +1,6 @@
 { system ? builtins.currentSystem
 
-, compiler ? "ghc966"
+, compiler ? "ghc984"
 
 , # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion ? import nix/nixpkgs-version.nix
