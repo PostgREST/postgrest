@@ -14,7 +14,27 @@
   "packageRules": [
     {
       "matchBaseBranches": [ "/^v[0-9]+/" ],
+      "matchManagers": ["haskell-cabal"],
+      "enabled": false
+    },
+    {
+      "matchBaseBranches": [ "/^v[0-9]+/" ],
       "groupName": "all dependencies"
+    },
+    {
+      "matchManagers": ["haskell-cabal"],
+      "matchPackageNames": ["base", "bytestring", "containers", "directory", "mtl", "parsec", "process", "text"],
+      "groupName": "GHC dependencies"
+    },
+    {
+      "matchManagers": ["haskell-cabal"],
+      "matchPackageNames": ["hasql", "hasql-dynamic-statements", "hasql-notifications", "hasql-transaction", "hasql-pool"],
+      "groupName": "hasql"
+    },
+    {
+      "matchManagers": ["haskell-cabal"],
+      "matchPackageNames": ["fuzzyset"],
+      "allowedVersions": "<0.3"
     }
   ]
 }
