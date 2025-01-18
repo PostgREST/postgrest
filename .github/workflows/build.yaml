@@ -107,12 +107,9 @@ jobs:
           - name: Windows
             runs-on: windows-2022
             cache: |
-              ~\AppData\Roaming\stack\pantry
-              ~\AppData\Local\Programs\stack\pantry
-              ~\AppData\Roaming\stack\snapshots
-              ~\AppData\Local\Programs\stack\snapshots
-              ~\AppData\Roaming\stack\stack.sqlite3
-              ~\AppData\Local\Programs\stack\stack.sqlite3
+              C:\sr\pantry
+              C:\sr\snapshots
+              C:\sr\stack.sqlite3
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
             artifact: postgrest-windows-x86-64
 
