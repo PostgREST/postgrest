@@ -20,6 +20,7 @@ runs:
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
+        skipPush: ${{ inputs.authToken == '' }}
     - if: ${{ inputs.tools }}
       run: nix-env -f default.nix -iA ${{ inputs.tools }}
       shell: bash
