@@ -87,73 +87,69 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: FreeBSD x86-64
+            runs-on: ubuntu-24.04
+            vm: freebsd
+            artifact: postgrest-freebsd-x86-64
+            deps: pkg install -y postgresql16-client hs-stack
+
           - name: Linux aarch64
             runs-on: ubuntu-24.04-arm
-            cache: |
-              ~/.stack/pantry
-              ~/.stack/snapshots
-              ~/.stack/stack.sqlite3
             artifact: postgrest-ubuntu-aarch64
             deps: sudo apt-get update && sudo apt-get install libpq-dev
 
           - name: MacOS aarch64
             runs-on: macos-14
-            cache: |
-              ~/.stack/pantry
-              ~/.stack/snapshots
-              ~/.stack/stack.sqlite3
             artifact: postgrest-macos-aarch64
             deps: brew link --force libpq
 
           - name: MacOS x86-64
             runs-on: macos-15-intel
-            cache: |
-              ~/.stack/pantry
-              ~/.stack/snapshots
-              ~/.stack/stack.sqlite3
             artifact: postgrest-macos-x86-64
             deps: brew link --force libpq
 
           - name: Windows
             runs-on: windows-2022
-            cache: |
-              C:\sr\pantry
-              C:\sr\snapshots
-              C:\sr\stack.sqlite3
             deps: Add-Content $env:GITHUB_PATH $env:PGBIN
             artifact: postgrest-windows-x86-64
 
     name: Stack - ${{ matrix.name }}
     runs-on: ${{ matrix.runs-on }}
+    env:
+      # Putting .stack in the working directory helps with moving this in and out of the FreeBSD VM.
+      STACK_ROOT: ${{ github.workspace }}/.stack
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: haskell-actions/setup@cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553 # v2.11.0
+      - if: ${{ !matrix.vm }}
+        uses: haskell-actions/setup@cd0d9bdd65b20557f41bea4dbe43d0b5fbbfe553 # v2.11.0
         with:
           # This must match the version in stack.yaml's resolver
           ghc-version: 9.6.7
           enable-stack: true
           stack-no-global: true
           stack-setup-ghc: true
-      - name: Cache ~/.stack
+      - name: Cache .stack
         uses: ./.github/actions/cache-on-main
         with:
-          path: ${{ matrix.cache }}
-          prefix: stack
+          path: .stack
+          prefix: ${{ matrix.vm }}${{ matrix.vm && '-' }}stack
           suffix: ${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
       - name: Cache .stack-work
         uses: ./.github/actions/cache-on-main
         with:
           path: .stack-work
           save-prs: true
-          prefix: stack-work-${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
+          prefix: ${{ matrix.vm }}${{ matrix.vm && '-' }}stack-work-${{ hashFiles('postgrest.cabal', 'stack.yaml.lock') }}
           suffix: ${{ hashFiles('main/**/*.hs', 'src/**/*.hs') }}
-      - name: Install dependencies
-        if: matrix.deps
-        run: ${{ matrix.deps }}
       - name: Build with Stack
-        run: stack build --lock-file error-on-write --local-bin-path result --copy-bins
-      - name: Strip Executable
-        run: strip result/postgrest*
+        uses: ./.github/actions/run-anywhere
+        with:
+          vm: ${{ matrix.vm }}
+          envs: STACK_ROOT
+          prepare: ${{ matrix.deps }}
+          run: |
+            stack build --lock-file error-on-write --local-bin-path result --copy-bins
+            strip result/postgrest*
       - name: Save built executable as artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -162,19 +158,6 @@ jobs:
             result/postgrest
             result/postgrest.exe
           if-no-files-found: error
-
-
-  freebsd:
-    name: Stack - FreeBSD from CirrusCI
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/artifact-from-cirrus
-        with:
-          token: ${{ github.token }}
-          task: Build FreeBSD (Stack)
-          download: bin
-          upload: postgrest-freebsd-x86-64
 
 
   cabal:
