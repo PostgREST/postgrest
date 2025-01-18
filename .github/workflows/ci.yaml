@@ -49,63 +49,6 @@ jobs:
       CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
 
 
-  arm:
-    name: Build / Cabal - aarch64 GHC 9.4.8
-    if: vars.SSH_ARM_ENABLED
-    runs-on: ubuntu-24.04
-    outputs:
-      remotepath: ${{ steps.Remote-Dir.outputs.remotepath }}
-    env:
-      GITHUB_COMMIT: ${{ github.sha }}
-      GHC_VERSION: '9.4.8'
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - id: Remote-Dir
-        name: Unique directory name for the remote build
-        run: echo "remotepath=postgrest-build-$(uuidgen)" >> "$GITHUB_OUTPUT"
-      - name: Copy script files to the remote server
-        uses: appleboy/scp-action@master
-        with:
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          source: ".github/scripts/arm/*"
-          target: ${{ steps.Remote-Dir.outputs.remotepath }}
-          strip_components: 3
-      - name: Build ARM
-        uses: appleboy/ssh-action@master
-        env:
-          REMOTE_DIR: ${{ steps.Remote-Dir.outputs.remotepath }}
-        with:
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          command_timeout: 120m
-          script_stop: true
-          envs: GITHUB_COMMIT,REMOTE_DIR,GHC_VERSION
-          script: bash ~/$REMOTE_DIR/build.sh "$GITHUB_COMMIT" "$REMOTE_DIR" "$GHC_VERSION"
-      - name: Download binaries from remote server
-        uses: nicklasfrahm/scp-action@main
-        with:
-          direction: download
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          source: "${{ steps.Remote-Dir.outputs.remotepath }}/result.tar.xz"
-          target: "result.tar.xz"
-      - name: Extract downloaded binaries
-        run: tar -xvf result.tar.xz && rm result.tar.xz
-      - name: Save aarch64 executable as artifact
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: postgrest-ubuntu-aarch64
-          path: result/postgrest
-          if-no-files-found: error
-
-
   tag:
     name: Release / Tag
     concurrency:
@@ -115,11 +58,7 @@ jobs:
       cancel-in-progress: false
     if: |
       vars.RELEASE_ENABLED &&
-      startsWith(github.ref, 'refs/heads/') &&
-      needs.docs.result == 'success' &&
-      needs.test.result == 'success' &&
-      needs.build.result == 'success' &&
-      (needs.arm.result == 'skipped' || success())
+      startsWith(github.ref, 'refs/heads/')
     permissions:
       contents: write
     runs-on: ubuntu-24.04
@@ -127,7 +66,6 @@ jobs:
       - docs
       - test
       - build
-      - arm
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
@@ -152,13 +90,10 @@ jobs:
   prepare:
     name: Release / Prepare
     if: |
-      startsWith(github.ref, 'refs/tags/') &&
-      needs.build.result == 'success' &&
-      (needs.arm.result == 'skipped' || success())
+      startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-24.04
     needs:
       - build
-      - arm
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Check the version to be released
@@ -197,7 +132,6 @@ jobs:
     runs-on: ubuntu-24.04
     needs:
       - prepare
-    if: success() || needs.prepare.result == 'success'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Download all artifacts
@@ -262,35 +196,58 @@ jobs:
 
   docker:
     name: Release / Docker Hub
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-arm
     needs:
       - prepare
     if: |
-      vars.DOCKER_REPO && vars.DOCKER_USER &&
-      (success() || needs.prepare.result == 'success')
+      vars.DOCKER_REPO && vars.DOCKER_USER
     env:
       DOCKER_REPO: ${{ vars.DOCKER_REPO }}
-      DOCKER_USER: ${{ vars.DOCKER_USER }}
-      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Download Docker image
+      - name: Download x86-64 Docker image
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           name: postgrest-docker-x86-64
+      - name: Download aarch64 binary
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: postgrest-ubuntu-aarch64
+      - uses: docker/setup-buildx-action@6524bf65af31da8d45b59e8c27de4bd072b392f5 # v3.8.0
+      - uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          username: ${{ vars.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+      - name: Build aarch64 Docker image
+        run: |
+          # This only pushes the image via digest, not a tag. This will not appear
+          # in the image list on Docker Hub, yet. It will be later added to the main
+          # tag's manifest.
+          docker buildx build \
+            -t "$DOCKER_REPO/postgrest" \
+            --platform linux/arm64 \
+            --output push-by-digest=true,type=image,push=true \
+            --metadata-file metadata.json \
+            .
+          echo "SHA256_ARM=$(jq -r '."containerimage.digest"' metadata.json)" >> "$GITHUB_ENV"
       - name: Publish images on Docker Hub
         run: |
-          docker login -u "$DOCKER_USER" -p "$DOCKER_PASS"
           docker load -i postgrest-docker.tar.gz
 
           docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
           docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          docker buildx imagetools create --append \
+            -t "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}" \
+            "$DOCKER_REPO/postgrest@$SHA256_ARM"
 
           # Only tag 'latest' for full releases
           if [ "${GITHUB_REF_NAME}" != "devel" ]; then
             echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
             docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
             docker push "$DOCKER_REPO"/postgrest:latest
+            docker buildx imagetools create --append \
+              -t "$DOCKER_REPO/postgrest:latest" \
+              "$DOCKER_REPO/postgrest@$SHA256_ARM"
           else
             echo "Skipping push to 'latest' tag for pre-release..."
           fi
@@ -311,52 +268,3 @@ jobs:
           repository: ${{ vars.DOCKER_REPO }}/postgrest
           short-description: ${{ github.event.repository.description }}
           readme-filepath: ./docker-hub-readme.md
-
-
-  docker-arm:
-    name: Release / Docker Hub Arm
-    runs-on: ubuntu-24.04
-    needs:
-      - arm
-      - docker
-    env:
-      GITHUB_COMMIT: ${{ github.sha }}
-      DOCKER_REPO: ${{ vars.DOCKER_REPO }}
-      DOCKER_USER: ${{ vars.DOCKER_USER }}
-      DOCKER_PASS: ${{ secrets.DOCKER_PASS }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Publish images for ARM builds on Docker Hub
-        uses: appleboy/ssh-action@master
-        env:
-          REMOTE_DIR: ${{ needs.arm.outputs.remotepath }}
-        with:
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          script_stop: true
-          envs: GITHUB_COMMIT,DOCKER_REPO,DOCKER_USER,DOCKER_PASS,REMOTE_DIR,GITHUB_REF_NAME
-          script: bash ~/$REMOTE_DIR/docker-publish.sh "$GITHUB_COMMIT" "$DOCKER_REPO" "$DOCKER_USER" "$DOCKER_PASS" "$REMOTE_DIR" "$GITHUB_REF_NAME"
-
-
-  clean-arm:
-    name: Build / Cleanup
-    needs:
-      - arm
-      - docker-arm
-    if: ${{ always() && vars.SSH_ARM_ENABLED }}
-    runs-on: ubuntu-24.04
-    env:
-      REMOTE_DIR: ${{ needs.arm.outputs.remotepath }}
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Remove uploaded files from server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_ARM_HOST }}
-          username: ubuntu
-          key: ${{ secrets.SSH_ARM_PRIVATE_KEY }}
-          fingerprint: ${{ secrets.SSH_ARM_FINGERPRINT }}
-          envs: REMOTE_DIR
-          script: rm -rf $REMOTE_DIR
