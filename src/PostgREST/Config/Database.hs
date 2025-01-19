@@ -1,5 +1,3 @@
-{-# LANGUAGE QuasiQuotes #-}
-
 module PostgREST.Config.Database
   ( pgVersionStatement
   , queryDbSettings
@@ -23,8 +21,6 @@ import           Hasql.Session              (Session, statement)
 import qualified Hasql.Statement            as SQL
 import qualified Hasql.Transaction          as SQL
 import qualified Hasql.Transaction.Sessions as SQL
-
-import NeatInterpolation (trimming)
 
 import Protolude
 
@@ -95,40 +91,40 @@ queryDbSettings preConfFunc prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings prepared
   where
-    sql = encodeUtf8 [trimming|
-      WITH
-      role_setting AS (
-        SELECT setdatabase as database,
-               unnest(setconfig) as setting
-        FROM pg_catalog.pg_db_role_setting
-        WHERE setrole = CURRENT_USER::regrole::oid
-          AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))
-      ),
-      kv_settings AS (
-        SELECT database,
-               substr(setting, 1, strpos(setting, '=') - 1) as k,
-               substr(setting, strpos(setting, '=') + 1) as v
-        FROM role_setting
-        ${preConfigF}
-      )
-      SELECT DISTINCT ON (key)
-             replace(k, '${prefix}', '') AS key,
-             v AS value
-      FROM kv_settings
-      WHERE k = ANY($$1) AND v IS NOT NULL
-      ORDER BY key, database DESC NULLS LAST;
-    |]
+    sql = encodeUtf8 $ unlines
+      [ "WITH"
+      , "role_setting AS ("
+      , "  SELECT setdatabase as database,"
+      , "         unnest(setconfig) as setting"
+      , "  FROM pg_catalog.pg_db_role_setting"
+      , "  WHERE setrole = CURRENT_USER::regrole::oid"
+      , "    AND setdatabase IN (0, (SELECT oid FROM pg_catalog.pg_database WHERE datname = CURRENT_CATALOG))"
+      , "),"
+      , "kv_settings AS ("
+      , "  SELECT database,"
+      , "         substr(setting, 1, strpos(setting, '=') - 1) as k,"
+      , "         substr(setting, strpos(setting, '=') + 1) as v"
+      , "  FROM role_setting"
+      , preConfigF
+      , ")"
+      , "SELECT DISTINCT ON (key)"
+      , "       replace(k, '" <> prefix <> "', '') AS key,"
+      , "       v AS value"
+      , "FROM kv_settings"
+      , "WHERE k = ANY($1) AND v IS NOT NULL"
+      , "ORDER BY key, database DESC NULLS LAST;"
+      ]
     preConfigF = case preConfFunc of
       Nothing   -> mempty
-      Just func -> [trimming|
-          UNION
-          SELECT
-            null as database,
-            x as k,
-            current_setting(x, true) as v
-          FROM unnest($$1) x
-          JOIN ${func}() _ ON TRUE
-      |]::Text
+      Just func -> unlines
+        [ "UNION"
+        , "SELECT"
+        , "  null as database,"
+        , "  x as k,"
+        , "  current_setting(x, true) as v"
+        , "FROM unnest($1) x"
+        , "JOIN " <> func <> "() _ ON TRUE"
+        ]
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
 queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
@@ -136,35 +132,35 @@ queryRoleSettings pgVer prepared =
   let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
   where
-    sql = encodeUtf8 [trimming|
-      with
-      role_setting as (
-        select r.rolname, unnest(r.rolconfig) as setting
-        from pg_auth_members m
-        join pg_roles r on r.oid = m.roleid
-        where member = current_user::regrole::oid
-      ),
-      kv_settings AS (
-        SELECT
-          rolname,
-          substr(setting, 1, strpos(setting, '=') - 1) as key,
-          lower(substr(setting, strpos(setting, '=') + 1)) as value
-        FROM role_setting
-      ),
-      iso_setting AS (
-        SELECT rolname, value
-        FROM kv_settings
-        WHERE key = 'default_transaction_isolation'
-      )
-      select
-        kv.rolname,
-        i.value as iso_lvl,
-        coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings
-      from kv_settings kv
-      join pg_settings ps on ps.name = kv.key and (ps.context = 'user' ${hasParameterPrivilege})
-      left join iso_setting i on i.rolname = kv.rolname
-      group by kv.rolname, i.value;
-    |]
+    sql = encodeUtf8 $ unlines
+      [ "with"
+      , "role_setting as ("
+      , "  select r.rolname, unnest(r.rolconfig) as setting"
+      , "  from pg_auth_members m"
+      , "  join pg_roles r on r.oid = m.roleid"
+      , "  where member = current_user::regrole::oid"
+      , "),"
+      , "kv_settings AS ("
+      , "  SELECT"
+      , "    rolname,"
+      , "    substr(setting, 1, strpos(setting, '=') - 1) as key,"
+      , "    lower(substr(setting, strpos(setting, '=') + 1)) as value"
+      , "  FROM role_setting"
+      , "),"
+      , "iso_setting AS ("
+      , "  SELECT rolname, value"
+      , "  FROM kv_settings"
+      , "  WHERE key = 'default_transaction_isolation'"
+      , ")"
+      , "select"
+      , "  kv.rolname,"
+      , "  i.value as iso_lvl,"
+      , "  coalesce(array_agg(row(kv.key, kv.value)) filter (where key <> 'default_transaction_isolation'), '{}') as role_settings"
+      , "from kv_settings kv"
+      , "join pg_settings ps on ps.name = kv.key and (ps.context = 'user' " <> hasParameterPrivilege <> ")"
+      , "left join iso_setting i on i.rolname = kv.rolname"
+      , "group by kv.rolname, i.value;"
+      ]
 
     hasParameterPrivilege
       | pgVer >= pgVersion150 = "or has_parameter_privilege(current_user::regrole::oid, ps.name, 'set')"
