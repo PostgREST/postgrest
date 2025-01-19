@@ -85,7 +85,6 @@ library
                       PostgREST.ApiRequest.QueryParams
                       PostgREST.ApiRequest.Types
                       PostgREST.Response
-                      PostgREST.Response.OpenAPI
                       PostgREST.Response.GucHeader
                       PostgREST.Response.Performance
                       PostgREST.Version
@@ -132,7 +131,6 @@ library
                     , retry                     >= 0.7.4 && < 0.10
                     , scientific                >= 0.3.4 && < 0.4
                     , streaming-commons         >= 0.1.1 && < 0.3
-                    , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 2.2
                     , time                      >= 1.6 && < 1.13
                     , timeit                    >= 2.0 && < 2.1
