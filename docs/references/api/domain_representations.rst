@@ -173,4 +173,4 @@ Domain Representations avoid all the above drawbacks. Their only drawback is tha
 
   Why not create a `base type <https://www.postgresql.org/docs/current/sql-createtype.html#id-1.9.3.94.5.8>`_ instead? ``CREATE TYPE app_uuid (INTERNALLENGTH = 22, INPUT = app_uuid_parser, OUTPUT = app_uuid_formatter)``.
 
-  Creating base types need superuser, which is restricted on cloud hosted databases. Additionally this way lets “how the data is presented” dictate “how the data is stored” which would be backwards.
+  Creating base types need superuser, which is restricted on cloud hosted databases. Additionally this way lets "how the data is presented" dictate "how the data is stored" which would be backwards.
