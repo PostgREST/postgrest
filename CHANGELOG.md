@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3867, Fix startup for arm64 docker image - @wolfgangwalther
+
 ## [12.2.4] - 2025-01-18
 
 ### Fixed

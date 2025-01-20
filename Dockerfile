@@ -10,6 +10,7 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY postgrest /usr/bin/postgrest
+RUN chmod +x /usr/bin/postgrest
 
 EXPOSE 3000
 
