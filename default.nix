@@ -1,6 +1,6 @@
 { system ? builtins.currentSystem
 
-, compiler ? "ghc948"
+, compiler ? "ghc984"
 
 , # Commit of the Nixpkgs repository that we want to use.
   nixpkgsVersion ? import nix/nixpkgs-version.nix
@@ -35,7 +35,6 @@ let
       allOverlays.build-toolbox
       allOverlays.checked-shell-script
       allOverlays.gitignore
-      allOverlays.postgresql-libpq
       (allOverlays.haskell-packages { inherit compiler; })
       allOverlays.slocat
     ];
@@ -51,7 +50,6 @@ let
       { name = "postgresql-15"; postgresql = pkgs.postgresql_15.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-14"; postgresql = pkgs.postgresql_14.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
       { name = "postgresql-13"; postgresql = pkgs.postgresql_13.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
-      { name = "postgresql-12"; postgresql = pkgs.postgresql_12.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
     ];
 
   # Dynamic derivation for PostgREST
@@ -97,7 +95,8 @@ rec {
   # Tooling for analyzing Haskell imports and exports.
   hsie =
     pkgs.callPackage nix/hsie {
-      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
+      # TODO: Fix hsie with newer GHC
+      inherit (pkgs.haskell.packages.ghc948) ghcWithPackages;
     };
 
   ### Tools

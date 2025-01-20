@@ -1,6 +1,5 @@
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE QuasiQuotes    #-}
 {-|
 Module      : PostgREST.Query.SqlFragment
 Description : Helper functions for PostgREST.QueryBuilder.
@@ -54,7 +53,6 @@ import qualified Hasql.Encoders                  as HE
 import Control.Arrow ((***))
 
 import Data.Foldable     (foldr1)
-import NeatInterpolation (trimming)
 
 import PostgREST.ApiRequest.Types        (AggregateFunction (..),
                                           Alias, Cast,
@@ -229,12 +227,14 @@ customFuncF _ funcQi RelAnyElement            = fromQi funcQi <> "(_postgrest_t)
 customFuncF _ funcQi (RelId target)           = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
 
 locationF :: [Text] -> SQL.Snippet
-locationF pKeys = SQL.sql $ encodeUtf8 [trimming|(
-  WITH data AS (SELECT row_to_json(_) AS row FROM ${sourceCTEName} AS _ LIMIT 1)
-  SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
-  FROM data CROSS JOIN json_each_text(data.row) AS json_data
-  WHERE json_data.key IN ('${fmtPKeys}')
-)|]
+locationF pKeys = SQL.sql $ encodeUtf8 $ unlines
+  [ "("
+  , "  WITH data AS (SELECT row_to_json(_) AS row FROM " <> sourceCTEName <> " AS _ LIMIT 1)"
+  , "  SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))"
+  , "  FROM data CROSS JOIN json_each_text(data.row) AS json_data"
+  , "  WHERE json_data.key IN ('" <> fmtPKeys <> "')"
+  , ")"
+  ]
   where
     fmtPKeys = T.intercalate "','" pKeys
 

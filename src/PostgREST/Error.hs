@@ -434,7 +434,8 @@ instance JSON.ToJSON SQL.UsageError where
   toJSON SQL.AcquisitionTimeoutUsageError = toJsonPgrstError
     ConnectionErrorCode03 "Timed out acquiring connection from connection pool." Nothing Nothing
 
-instance JSON.ToJSON SQL.QueryError where
+instance JSON.ToJSON SQL.SessionError where
+  toJSON (SQL.PipelineError e) = JSON.toJSON e
   toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
 
 instance JSON.ToJSON SQL.CommandError where
@@ -465,8 +466,13 @@ instance JSON.ToJSON SQL.CommandError where
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
 pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
+pgErrorStatus _      (SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _)))       = HTTP.status503
 pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
-pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
+pgErrorStatus authed (SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError rError)))  = mapSQLtoHTTP authed rError
+pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) = mapSQLtoHTTP authed rError
+
+mapSQLtoHTTP :: Bool -> SQL.ResultError -> HTTP.Status
+mapSQLtoHTTP authed rError =
   case rError of
     (SQL.ServerError c m d _ _) ->
       case BS.unpack c of
