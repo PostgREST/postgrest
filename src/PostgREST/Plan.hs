@@ -152,14 +152,14 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
-  rPlan <- readPlan identifier conf sCache apiRequest
+  rPlan <- readPlan False identifier conf sCache apiRequest
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly identifier
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
-  rPlan <- readPlan identifier conf sCache apiRequest
+  rPlan <- readPlan False identifier conf sCache apiRequest
   mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
@@ -173,7 +173,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
   proc@Function{..} <- mapLeft ApiRequestError $
     findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
-  rPlan <- readPlan relIdentifier conf sCache apiRequest
+  rPlan <- readPlan True relIdentifier conf sCache apiRequest
   let args = case (invMethod, iContentMediaType) of
         (InvRead _, _)      -> DirectArgs $ toRpcParams proc qsParams'
         (Inv, MTUrlEncoded) -> DirectArgs $ maybe mempty (toRpcParams proc . payArray) iPayload
@@ -326,8 +326,8 @@ resolveQueryInputField ctx field opExpr = withTextParse ctx $ resolveTypeOrUnkno
 -- | Builds the ReadPlan tree on a number of stages.
 -- | Adds filters, order, limits on its respective nodes.
 -- | Adds joins conditions obtained from resource embedding.
-readPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
-readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
+readPlan :: Bool -> QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Either Error ReadPlanTree
+readPlan fromCallPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregates} SchemaCache{dbTables, dbRelationships, dbRepresentations} apiRequest  =
   let
     -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
     ctx = ResolverContext dbTables dbRepresentations qi "json"
@@ -346,7 +346,8 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     addLogicTrees ctx apiRequest =<<
     addRanges apiRequest =<<
     addOrders ctx apiRequest =<<
-    addFilters ctx apiRequest (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
+    addFilters ctx apiRequest =<<
+    searchTable fromCallPlan qi dbTables (initReadRequest ctx $ QueryParams.qsSelect $ iQueryParams apiRequest)
 
 -- Build the initial read plan tree
 initReadRequest :: ResolverContext -> [Tree SelectItem] -> ReadPlanTree
@@ -744,6 +745,14 @@ validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
   | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
+-- We only search for the table when readPlan is not called from call plan. This
+-- is because we reuse readPlan in callReadPlan to search for function name
+searchTable :: Bool -> QualifiedIdentifier -> TablesMap -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+searchTable fromCallPlan qi@QualifiedIdentifier{..} tableMap readPlanTree =
+  case (fromCallPlan, HM.lookup qi tableMap) of
+    (False, Nothing) -> Left (TableNotFound qiSchema qiName (HM.elems tableMap))
+    _                -> Right readPlanTree
+
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addFilters ctx ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
@@ -967,7 +976,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
 resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
-resolveOrError _ Nothing _ = Left NotFound
+resolveOrError ctx Nothing _ = Left $ TableNotFound (qiSchema (qi ctx)) (qiName (qi ctx)) (HM.elems (tables ctx))
 resolveOrError ctx (Just table) field =
   case resolveTableFieldName table field Nothing of
     CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
