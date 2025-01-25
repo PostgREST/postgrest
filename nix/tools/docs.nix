@@ -35,6 +35,9 @@ let
         workingDir = "/docs";
       }
       ''
+        # https://github.com/sphinx-doc/sphinx/issues/11739
+        export LC_ALL=C
+
         function build() {
           ${python}/bin/sphinx-build --color -W -a -n . -b "$@"
         }
@@ -119,6 +122,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         # shellcheck disable=SC2086 disable=SC2016
@@ -139,6 +144,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         FILES=$(find . -type f -iname '*.rst' | tr '\n' ' ')
 
         tail -n+2 postgrest.dict \
@@ -157,6 +164,8 @@ let
         workingDir = "/docs";
       }
       ''
+        export LC_ALL=C
+
         ${python}/bin/sphinx-build --color -b linkcheck . ../.docs-build
       '';
 

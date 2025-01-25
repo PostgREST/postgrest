@@ -3,7 +3,7 @@
 SQL User Management
 ===================
 
-As mentioned on :ref:`jwt_generation`, an external service can provide user management and coordinate with the PostgREST server using JWT. It’s also possible to support logins entirely through SQL. It’s a fair bit of work, so get ready.
+As mentioned on :ref:`jwt_generation`, an external service can provide user management and coordinate with the PostgREST server using JWT. It's also possible to support logins entirely through SQL. It's a fair bit of work, so get ready.
 
 Storing Users and Passwords
 ---------------------------

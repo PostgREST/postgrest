@@ -15,7 +15,7 @@ Dynamic Connection Pool
 
 To conserve system resources, PostgREST uses a dynamic connection pool. This enables the number of connections in the pool to increase and decrease depending on request traffic.
 
-- If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note that it’s pointless to set this higher than the ``max_connections`` setting in your database.
+- If all the connections are being used, a new connection is added. The pool can grow until it reaches the :ref:`db-pool` size. Note that it's pointless to set this higher than the ``max_connections`` setting in your database.
 - If a connection is unused for a period of time (:ref:`db-pool-max-idletime`), it will be released.
 - For connecting to the database, the :ref:`authenticator <roles>` role is used. You can configure this using :ref:`db-uri`.
 
@@ -106,4 +106,4 @@ Also set :ref:`db-channel-enabled` to ``false`` since ``LISTEN`` is not compatib
 
 .. note::
 
-  It’s not recommended to use an external connection pooler. `Our benchmarks <https://github.com/PostgREST/postgrest/issues/2294#issuecomment-1139148672>`_ indicate it provides much lower performance than PostgREST built-in pool.
+  It's not recommended to use an external connection pooler. `Our benchmarks <https://github.com/PostgREST/postgrest/issues/2294#issuecomment-1139148672>`_ indicate it provides much lower performance than PostgREST built-in pool.

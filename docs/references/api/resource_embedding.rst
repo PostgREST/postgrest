@@ -143,7 +143,7 @@ Since the table name is plural, we can be more accurate by making it singular wi
 One-to-many relationships
 -------------------------
 
-The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the “to-many” end.
+The **foreign key reference** establishes the inverse one-to-many relationship. In this case, ``films`` returns as a JSON array because of the "to-many" end.
 
 .. code-block:: bash
 

@@ -44,7 +44,6 @@ import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth                 (AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
-import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveHost)
 import PostgREST.Observation          (Observation (..))
@@ -107,12 +106,11 @@ postgrest logLevel appState connWorker =
       Right authResult -> do
         appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
-        pgVer <- AppState.getPgVersion appState
 
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -128,11 +126,10 @@ postgrestResponse
   :: AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
-  -> PgVersion
   -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthResult{..} req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -146,7 +143,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
-  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
+  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache (Just authRole /= configDbAnonRole)
   (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp

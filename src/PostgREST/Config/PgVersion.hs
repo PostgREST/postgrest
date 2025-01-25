@@ -3,7 +3,6 @@
 module PostgREST.Config.PgVersion
   ( PgVersion(..)
   , minimumPgVersion
-  , pgVersion130
   , pgVersion140
   , pgVersion150
   , pgVersion170
@@ -26,10 +25,7 @@ instance Ord PgVersion where
 
 -- | Tells the minimum PostgreSQL version required by this version of PostgREST
 minimumPgVersion :: PgVersion
-minimumPgVersion = pgVersion121
-
-pgVersion121 :: PgVersion
-pgVersion121 = PgVersion 120001 "12.1" "12.1"
+minimumPgVersion = pgVersion130
 
 pgVersion130 :: PgVersion
 pgVersion130 = PgVersion 130000 "13.0" "13.0"
