@@ -45,9 +45,9 @@ import PostgREST.RangeQuery        (allRange)
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
+  intercalateSnippet ", " (selects ++ sprExtraSelects ++ joinsSelects) <> " " <>
   fromFrag <> " " <>
   intercalateSnippet " " joins <> " " <>
   (if null logicForest && null relJoinConds
@@ -62,7 +62,11 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
     defSelect = [CoercibleSelectField (unknownField "*" []) Nothing Nothing Nothing Nothing]
     joins = getJoins node
+    selects = pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)
     joinsSelects = getJoinSelects node
+    sprExtraSelects = case relSpread of
+      Just (ToManySpread sels _) -> (\s -> pgFmtSelectItem (maybe qi (QualifiedIdentifier "") $ fst s) $ snd s) <$> sels
+      _ -> mempty
 
 getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
 getJoinSelects (Node ReadPlan{relSelect} _) =
@@ -92,23 +96,28 @@ getJoins (Node ReadPlan{relSelect} forest) =
       ) relSelect
 
 getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
-getJoin fld node@(Node ReadPlan{relJoinType} _) =
+getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
   let
     correlatedSubquery sub al cond =
       (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
+    selectSubqAgg = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
+    fromSubqAgg = " FROM (" <> subquery <> " ) AS " <> aggAlias
+    joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
         correlatedSubquery subquery aggAlias "TRUE"
-      Spread{} ->
-        correlatedSubquery subquery aggAlias "TRUE"
+      Spread{rsSpreadSel, rsAggAlias} ->
+        case relSpread of
+          Just (ToManySpread _ sprOrder) ->
+            let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
+            in correlatedSubquery (selSpread <> fromSubqAgg) aggAlias joinCondition
+          _ ->
+            correlatedSubquery subquery aggAlias "TRUE"
       JsonEmbed{rsEmbedMode = JsonArray} ->
-        let
-          subq = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias <> " FROM (" <> subquery <> " ) AS " <> aggAlias
-          condition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
-        in correlatedSubquery subq aggAlias condition
+        correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
