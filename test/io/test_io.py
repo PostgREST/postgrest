@@ -1632,6 +1632,8 @@ def test_admin_metrics(defaultenv):
         assert "pgrst_db_pool_available" in response.text
         assert "pgrst_db_pool_timeouts_total" in response.text
 
+        assert "pgrst_jwt_cache_size_bytes" in response.text
+
 
 def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     "verify that the Schema Cache loads correctly at startup, using the in-db `pgrst.db_schemas` config"
@@ -1648,3 +1650,35 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     response = metapostgrest.session.post("/rpc/reset_db_schemas_config")
     assert response.text == ""
     assert response.status_code == 204
+
+
+def test_jwt_cache_size_increase_log(defaultenv):
+    "JWT cache size should increase on every new cache entry"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": "debug",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 200
+
+        output = sorted(postgrest.read_stdout(nlines=3))
+
+        response = postgrest.admin.get("/metrics")
+        assert response.status_code == 200
+
+        # read cache size from metrics
+        cache_size = float(
+            re.search(r"pgrst_jwt_cache_size_bytes (\d+)", response.text).group(1)
+        )
+
+        assert (
+            "The JWT Cache size increased to " + str(int(cache_size)) + " bytes"
+            in output[2]
+        )
