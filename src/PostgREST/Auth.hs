@@ -181,10 +181,33 @@ getJWTFromCache appState token maxLifetime parseJwt utc = do
   authResult <- maybe parseJwt (pure . Right) checkCache
 
   case (authResult,checkCache) of
-    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    -- From comment:
+    -- https://github.com/PostgREST/postgrest/pull/3801#discussion_r1857987914
+    --
+    -- We purge expired cache entries on a cache miss
+    -- The reasoning is that:
+    --
+    -- 1. We expect it to be rare (otherwise there is no point of the cache)
+    -- 2. It makes sure the cache is not growing (as inserting new entries
+    --    does garbage collection)
+    -- 3. Since this is time expiration based cache there is no real risk of
+    --    starvation - sooner or later we are going to have a cache miss.
+
+    (Right res, Nothing) -> do -- cache miss
+
+      let timeSpec = getTimeSpec res maxLifetime utc
+
+      -- purge expired cache entries
+      C.purgeExpired jwtCache
+
+      -- insert new cache entry
+      C.insert' jwtCache timeSpec token res
+
     _                    -> pure ()
 
   return authResult
+    where
+      jwtCache = getJwtCache appState
 
 -- Used to extract JWT exp claim and add to JWT Cache
 getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec

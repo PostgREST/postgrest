@@ -27,6 +27,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
  - #3779, Always log the schema cache load time - @steve-chavez
  - #3706, Fix insert with `missing=default` uses default value of domain instead of column - @taimoorzaeem
+ - #3788, Fix jwt cache does not remove expired entries - @taimoorzaeem
 
 ### Changed
 
