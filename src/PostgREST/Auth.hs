@@ -39,17 +39,20 @@ import qualified Network.Wai.Middleware.HttpAuth as Wai
 import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
+import Data.Maybe              (fromJust)
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, AuthResult (..), getConfig,
-                           getJwtCache, getTime)
-import PostgREST.Config   (AppConfig (..), FilterExp (..), JSPath,
-                           JSPathExp (..))
-import PostgREST.Error    (Error (..))
+import PostgREST.AppState    (AppState, AuthResult (..), getConfig,
+                              getJwtCache, getObserver, getTime)
+import PostgREST.Config      (AppConfig (..), FilterExp (..), JSPath,
+                              JSPathExp (..))
+import PostgREST.Error       (Error (..))
+import PostgREST.Internal    (recursiveSizeNF)
+import PostgREST.Observation (Observation (..))
 
 import Protolude
 
@@ -153,7 +156,7 @@ middleware appState app req respond = do
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
 
--- If DbPlanEnabled       -> calculate JWT validation time
+-- If ServerTimingEnabled -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result
   req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
     (True, 0)            -> do
@@ -177,24 +180,65 @@ middleware appState app req respond = do
 -- | Used to retrieve and insert JWT to JWT Cache
 getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
 getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
+
+  checkCache <- C.lookup jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
+  -- if token not found, add to cache and increment cache size metric
   case (authResult,checkCache) of
-    (Right res, Nothing) -> C.insert' (getJwtCache appState) (getTimeSpec res maxLifetime utc) token res
+    (Right res, Nothing) -> do
+      let tSpec = getTimeSpec res maxLifetime utc
+      C.insert' jwtCache (Just tSpec) token res
+      cacheSize <- calcCacheSizeInBytes jwtCache
+      observer $ JWTCache cacheSize
+
     _                    -> pure ()
 
   return authResult
+    where
+      observer = getObserver appState
+      jwtCache = getJwtCache appState
 
 -- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
+getTimeSpec :: AuthResult -> Int -> UTCTime -> TimeSpec
 getTimeSpec res maxLifetime utc = do
   let expireJSON = KM.lookup "exp" (authClaims res)
       utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
   case expireJSON of
-    Just (JSON.Number seconds) -> Just $ TimeSpec (sciToInt seconds - utcToSecs utc) 0
-    _                          -> Just $ TimeSpec (fromIntegral maxLifetime :: Int64) 0
+    Just (JSON.Number seconds) -> TimeSpec (sciToInt seconds - utcToSecs utc) 0
+    _                          -> TimeSpec (fromIntegral maxLifetime :: Int64) 0
+
+-- | Calculate a single entry of JWT Cache Size in Bytes
+--
+-- The cache size is updated by calculating the size of every
+-- new cache entry and adding it to the metric.
+--
+-- The cache entry consists of
+--   key          :: ByteString
+--   value        :: AuthReults
+--   expire value :: TimeSpec
+--
+-- We calculate the size of each cache entry component
+-- by using recursiveSizeNF function which first evaluates
+-- the data structure to Normal Form and then calculate size.
+-- The normal form evaluation is necessary for accurate size
+-- calculation because haskell is lazy and we dont wanna count
+-- the size of large thunks (unevaluated expressions)
+calcCacheSizeInBytes :: C.Cache ByteString AuthResult -> IO Int
+calcCacheSizeInBytes jwtCache = do
+  cacheList <- C.toList jwtCache
+  let szList = [ unsafePerformIO (getSize (bs, ar, fromJust ts)) | (bs, ar, ts) <- cacheList]
+  return $ fromIntegral (sum szList)
+    where
+      getSize :: (ByteString, AuthResult, TimeSpec) -> IO Word
+      getSize (bs, ar, TimeSpec{..}) = do
+        keySize      <- recursiveSizeNF bs
+        arClaimsSize <- recursiveSizeNF $ authClaims ar
+        arRoleSize   <- recursiveSizeNF $ authRole ar
+        timeSpecSize <- liftA2 (+) (recursiveSizeNF sec) (recursiveSizeNF nsec)
+
+        return (keySize + arClaimsSize + arRoleSize + timeSpecSize)
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey
