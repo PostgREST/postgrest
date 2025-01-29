@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2255, Apply `to_tsvector()` explicitly to the full-text search filtered column (excluding `tsvector` types) - @laurenceisla
  - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
    + The selected columns in the embedded resources are aggregated into arrays
+ - #3885, Allow aliases when spreading embedded resources - @laurenceisla 
 
 ### Fixed
 

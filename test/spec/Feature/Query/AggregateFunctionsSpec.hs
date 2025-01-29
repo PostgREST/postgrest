@@ -378,6 +378,25 @@ allowed =
               {"name":"Liz","process_id":[],"factory_building_size_sum":[]},
               {"name":"Louis","process_id":[2, 1],"factory_building_size_sum":[350, 350]}]|]
             { matchHeaders = [matchContentTypeJson] }
+        it "allows aliases to embed the same resource more than once" $ do
+          get "/factories?select=name,...s:factory_buildings(small_buildings_sum:size.sum()),...b:factory_buildings(big_buildings_sum:size.sum())&s.size=lt.200&b.size=gte.200&order=name" `shouldRespondWith`
+            [json|[
+              {"name":"Factory A","small_buildings_sum":150,"big_buildings_sum":200},
+              {"name":"Factory B","small_buildings_sum":170,"big_buildings_sum":null},
+              {"name":"Factory C","small_buildings_sum":null,"big_buildings_sum":240},
+              {"name":"Factory D","small_buildings_sum":null,"big_buildings_sum":310}
+             ]|]
+            { matchHeaders = [matchContentTypeJson] }
+          get "/supervisors?select=name,...b:processes(batch_processes_count:id.count()),...m:processes(mass_processes_count:id.count()),...processes(total_count:id.count())&b.category_id=eq.1&m.category_id=eq.2&order=name" `shouldRespondWith`
+            [json|[
+              {"name":"Jane","batch_processes_count":0,"mass_processes_count":0,"total_count":0},
+              {"name":"John","batch_processes_count":1,"mass_processes_count":1,"total_count":2},
+              {"name":"Mary","batch_processes_count":2,"mass_processes_count":0,"total_count":2},
+              {"name":"Peter","batch_processes_count":1,"mass_processes_count":2,"total_count":3},
+              {"name":"Sarah","batch_processes_count":1,"mass_processes_count":0,"total_count":1}
+             ]|]
+            { matchHeaders = [matchContentTypeJson] }
+
 
         context "supports count() aggregate without specifying a field" $ do
           context "one-to-many" $ do
@@ -481,8 +500,15 @@ allowed =
                   }
                 ]|]
                 { matchHeaders = [matchContentTypeJson] }
-
-
+            it "allows aliases to embed the same resource more than once" $ do
+              get "/factories?select=name,...s:factory_buildings(small_buildings_count:count()),...b:factory_buildings(big_buildings_count:count()),...factory_buildings(total_count:count())&s.size=lt.200&b.size=gte.200&order=name" `shouldRespondWith`
+                [json|[
+                  {"name":"Factory A","small_buildings_count":1,"big_buildings_count":1,"total_count":2},
+                  {"name":"Factory B","small_buildings_count":2,"big_buildings_count":0,"total_count":2},
+                  {"name":"Factory C","small_buildings_count":0,"big_buildings_count":1,"total_count":1},
+                  {"name":"Factory D","small_buildings_count":0,"big_buildings_count":1,"total_count":1}
+                 ]|]
+                { matchHeaders = [matchContentTypeJson] }
 
           context "many-to-many" $ do
             it "works by itself in the embedded resource" $ do
@@ -588,6 +614,16 @@ allowed =
                   {"name":["Process B1"],"operators":[[{"count": 1}]]},
                   {"name":[],"operators":[]}
                 ]|]
+                { matchHeaders = [matchContentTypeJson] }
+            it "allows aliases to embed the same resource more than once" $
+              get "/supervisors?select=name,...b:processes(batch_processes_count:count()),...m:processes(mass_processes_count:count()),...processes(total_count:count())&b.category_id=eq.1&m.category_id=eq.2&order=name" `shouldRespondWith`
+                [json|[
+                  {"name":"Jane","batch_processes_count":0,"mass_processes_count":0,"total_count":0},
+                  {"name":"John","batch_processes_count":1,"mass_processes_count":1,"total_count":2},
+                  {"name":"Mary","batch_processes_count":2,"mass_processes_count":0,"total_count":2},
+                  {"name":"Peter","batch_processes_count":1,"mass_processes_count":2,"total_count":3},
+                  {"name":"Sarah","batch_processes_count":1,"mass_processes_count":0,"total_count":1}
+                 ]|]
                 { matchHeaders = [matchContentTypeJson] }
 
 disallowed :: SpecWith ((), Application)

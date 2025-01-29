@@ -64,6 +64,7 @@ data SelectItem
 -- | The value in `/tbl?select=...another_tbl(*)`
   | SpreadRelation
     { selRelation :: FieldName
+    , selAlias    :: Maybe Alias
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }

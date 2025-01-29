@@ -333,6 +333,17 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
+      it "allows aliases to embed the same resource more than once" $
+        get "/factories?select=name,...s:factory_buildings(small_buildings:size),...b:factory_buildings(big_buildings:size)&s.size=lt.200&b.size=gte.200&order=name" `shouldRespondWith`
+          [json|[
+            {"name":"Factory A","small_buildings":[150],"big_buildings":[200]},
+            {"name":"Factory B","small_buildings":[50, 120],"big_buildings":[]},
+            {"name":"Factory C","small_buildings":[],"big_buildings":[240]},
+            {"name":"Factory D","small_buildings":[],"big_buildings":[310]}
+           ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
 
     context "many-to-many relationships" $ do
       it "should spread a column as a json array" $ do
@@ -597,6 +608,18 @@ spec =
             {"supervisor":"Peter","name":["Process C1", "Process C2", "Process B1"],"cost":[40.00, 70.00, 180.00]},
             {"supervisor":"Sarah","name":["Process B1"],"cost":[180.00]}
           ]|]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+      it "allows aliases to embed the same resource more than once" $
+        get "/supervisors?select=name,...b:processes(batch_processes:name),...m:processes(mass_processes:name)&b.category_id=eq.1&m.category_id=eq.2&order=name" `shouldRespondWith`
+          [json|[
+            {"name":"Jane","batch_processes":[],"mass_processes":[]},
+            {"name":"John","batch_processes":["Process B2"],"mass_processes":["Process A2"]},
+            {"name":"Mary","batch_processes":["Process A1", "Process B2"],"mass_processes":[]},
+            {"name":"Peter","batch_processes":["Process B1"],"mass_processes":["Process C1", "Process C2"]},
+            {"name":"Sarah","batch_processes":["Process B1"],"mass_processes":[]}
+           ]|]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }

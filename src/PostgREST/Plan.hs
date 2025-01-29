@@ -368,7 +368,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
         SpreadRelation{..} ->
           Node q $
             foldr (treeEntry nxtDepth)
-            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relSpread=Just ToOneSpread} [])
+            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relAlias=selAlias, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relSpread=Just ToOneSpread} [])
             fldForest:rForest
         SelectField{..} ->
           Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
