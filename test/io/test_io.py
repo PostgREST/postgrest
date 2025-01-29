@@ -1653,7 +1653,7 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
 def test_jwt_cache_purges_expired_entries(defaultenv):
     "test expired cache entries are purged on cache miss"
 
-    # The verification of actual cache size reduction is done locally
+    # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
     # This test is written for code coverage of purgeExpired function
 
     relativeSeconds = lambda sec: int(
