@@ -1596,3 +1596,51 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     response = metapostgrest.session.post("/rpc/reset_db_schemas_config")
     assert response.text == ""
     assert response.status_code == 204
+
+
+def test_jwt_cache_purges_expired_entries(defaultenv):
+    "test expired cache entries are purged on cache miss"
+
+    # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
+    # This test is written for code coverage of purgeExpired function
+
+    relativeSeconds = lambda sec: int(
+        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
+    )
+
+    headers = lambda sec: jwtauthheader(
+        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
+        SECRET,
+    )
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": SECRET,
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    with run(env=env) as postgrest:
+
+        # Generate two unique JWT tokens
+        # The 1 second sleep is needed for it generate a unique token
+        hdrs1 = headers(5)
+        postgrest.session.get("/authors_only", headers=hdrs1)
+
+        time.sleep(1)
+
+        hdrs2 = headers(5)
+        postgrest.session.get("/authors_only", headers=hdrs2)
+
+        # Wait 5 seconds for the tokens to expire
+        time.sleep(5)
+
+        hdrs3 = headers(5)
+
+        # Make another request which should cause a cache miss and so
+        # the purgeExpired function will be triggered.
+        #
+        # This should remove the 2 expired tokens but adds another to cache
+        response = postgrest.session.get("/authors_only", headers=hdrs3)
+
+        assert response.status_code == 200

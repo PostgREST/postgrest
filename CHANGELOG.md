@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3788, Fix jwt cache does not remove expired entries - @taimoorzaeem
+
 ## [12.2.5] - 2025-01-20
 
 ### Fixed
