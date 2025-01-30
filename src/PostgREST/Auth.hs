@@ -35,6 +35,7 @@ import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Middleware.HttpAuth as Wai
 
+import Control.Concurrent      (forkIO)
 import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
@@ -197,8 +198,8 @@ getJWTFromCache appState token maxLifetime parseJwt utc = do
 
       let timeSpec = getTimeSpec res maxLifetime utc
 
-      -- purge expired cache entries
-      C.purgeExpired jwtCache
+      -- trigger asynchronous purging of expired cache entries
+      forkIO $ C.purgeExpired jwtCache
 
       -- insert new cache entry
       C.insert' jwtCache timeSpec token res
