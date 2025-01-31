@@ -10,6 +10,7 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
   ( getResult
@@ -44,13 +45,16 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState   (AppState, getConfig, getJwtCache,
-                             getTime)
+import PostgREST.AppState   (AppState, JwtCacheState (..), getConfig,
+                             getJwtCacheState, getTime)
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
                              JSPathExp (..))
 import PostgREST.Error      (Error (..))
 
+import Control.Concurrent (forkFinally, takeMVar)
+import Control.Monad      (void)
+import Data.Cache         (purgeExpired)
 import Protolude
 
 
@@ -177,7 +181,7 @@ middleware appState app req respond = do
 -- | Used to retrieve and insert JWT to JWT Cache
 getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
 getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
+  checkCache <- C.lookup jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
   case (authResult,checkCache) of
@@ -197,17 +201,24 @@ getJWTFromCache appState token maxLifetime parseJwt utc = do
 
       let timeSpec = getTimeSpec res maxLifetime utc
 
-      -- trigger asynchronous purging of expired cache entries
-      _ <- forkIO $ C.purgeExpired jwtCache
-
-      -- insert new cache entry
+      -- insert new cache entry first
       C.insert' jwtCache timeSpec token res
+
+      -- trigger asynchronous purging of expired cache entries
+      -- but only if not already running another purging thread
+      tryPutMVar lock () >>= \case
+        True -> do
+          -- start purge make sure lock is released
+          _ <- forkFinally $ \_ -> void (takeMVar lock) $ purgeExpired jwtCache
+        -- purge already running - do nothing
+        _ -> pure ()
 
     _                    -> pure ()
 
   return authResult
     where
-      jwtCache = getJwtCache appState
+      lock = (purgeLock . getJwtCacheState) appState
+      jwtCache = (cache . getJwtCacheState) appState
 
 -- Used to extract JWT exp claim and add to JWT Cache
 getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
