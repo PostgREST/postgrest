@@ -25,9 +25,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
- - #3779, Always log the schema cache load time - @steve-chavez
- - #3706, Fix insert with `missing=default` uses default value of domain instead of column - @taimoorzaeem
- - #3788, Fix jwt cache does not remove expired entries - @taimoorzaeem
 
 ### Changed
 
@@ -40,6 +37,25 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
+
+## [12.2.6] - 2025-01-29
+
+### Fixed
+
+ - #3788, Fix jwt cache does not remove expired entries - @taimoorzaeem
+
+## [12.2.5] - 2025-01-20
+
+### Fixed
+
+ - #3867, Fix startup for arm64 docker image - @wolfgangwalther
+
+## [12.2.4] - 2025-01-18
+
+### Fixed
+
+ - #3779, Always log the schema cache load time - @steve-chavez
+ - #3706, Fix insert with `missing=default` uses default value of domain instead of column - @taimoorzaeem
 
 ## [12.2.3] - 2024-08-01
 

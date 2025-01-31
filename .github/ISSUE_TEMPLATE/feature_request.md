@@ -1,6 +1,7 @@
 ---
 name: Feature request
 about: Suggest an enhancement for this project
+type: Feature
 title: ''
 labels: ''
 assignees: ''
