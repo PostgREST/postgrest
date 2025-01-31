@@ -53,8 +53,6 @@ import PostgREST.Config   (AppConfig (..), FilterExp (..), JSPath,
 import PostgREST.Error    (Error (..))
 
 import Protolude
-import Control.Concurrent (forkFinally, takeMVar)
-import Control.Monad (void)
 import Data.Cache (purgeExpired)
 
 
