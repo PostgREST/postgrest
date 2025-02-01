@@ -14,3 +14,4 @@ extra-deps:
   - hasql-pool-1.0.1
   - jose-jwt-0.10.0
   - postgresql-libpq-0.10.1.0
+  - hasql-notifications-0.2.2.2
