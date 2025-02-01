@@ -42,6 +42,7 @@ import PostgREST.SchemaCache.Identifiers  (FieldName,
 import PostgREST.SchemaCache.Relationship (Relationship,
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..))
+import PostgREST.SchemaCache.Table        (Table)
 
 import Protolude
 
@@ -92,6 +93,7 @@ data ApiRequestError
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
   | ColumnNotFound Text Text
+  | TableNotFound Text Text [Table]
   | GucHeadersError
   | GucStatusError
   | OffLimitsChangesError Int64 Integer
