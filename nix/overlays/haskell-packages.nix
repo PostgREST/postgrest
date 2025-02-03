@@ -58,6 +58,14 @@ let
         }
         { });
 
+      hasql-notifications = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hasql-notifications";
+          ver = "0.2.2.2";
+          sha256 = "sha256-myKwlug7OgTa/qP6mHfCD+5Q8IhM17JvpJBfSo+M01k=";
+        }
+        { });
+
       jose-jwt = prev.jose-jwt_0_10_0;
 
       postgresql-libpq = lib.dontCheck (prev.callHackageDirect

@@ -18,6 +18,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+ - #2524, Fix schema reloading notice on windows - @diogob
  - #3693, Prevent spread embedding to allow aggregates when they are disabled - @laurenceisla
  - #3693, A nested spread embedding now correctly groups by the fields of its top parent relationship - @laurenceisla
  - #3693, Fix spread embedding errors when using the `count()` aggregate without a field - @laurenceisla

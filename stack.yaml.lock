@@ -32,6 +32,13 @@ packages:
       size: 1096
   original:
     hackage: postgresql-libpq-0.10.1.0
+- completed:
+    hackage: hasql-notifications-0.2.2.2@sha256:d1d6bc0d3ee5e418fc12ea023b78739e0decba6c34e2b43bec55b89e18bd4412,2025
+    pantry-tree:
+      sha256: 83a9cbb179b1efd0b2acd6509583c7afcdbe63469ab033d8581d48d675a80b44
+      size: 452
+  original:
+    hackage: hasql-notifications-0.2.2.2
 snapshots:
 - completed:
     sha256: 1e32b51d9082fdf6f3bd92accc9dfffd4ddaf406404427fb10bf76d2bc03cbbb
