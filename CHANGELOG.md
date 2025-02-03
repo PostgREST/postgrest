@@ -18,7 +18,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
- - #2524, Fix schema reloading notice on windows - @diogob
  - #3693, Prevent spread embedding to allow aggregates when they are disabled - @laurenceisla
  - #3693, A nested spread embedding now correctly groups by the fields of its top parent relationship - @laurenceisla
  - #3693, Fix spread embedding errors when using the `count()` aggregate without a field - @laurenceisla
@@ -38,6 +37,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
+
+## [12.2.7] - 2025-02-03
+
+### Fixed
+
+ - #2524, Fix schema reloading notice on windows - @diogob
 
 ## [12.2.6] - 2025-01-29
 
