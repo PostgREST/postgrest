@@ -151,7 +151,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
-    <*> liftM2 JwtCacheState (C.newCache Nothing) newEmptyMVar
+    <*> liftA2 JwtCacheState (C.newCache Nothing) newEmptyMVar
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
