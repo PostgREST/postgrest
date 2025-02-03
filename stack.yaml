@@ -11,5 +11,5 @@ nix:
 
 extra-deps:
   - fuzzyset-0.2.4
-  - hasql-notifications-0.2.2.0
+  - hasql-notifications-0.2.2.2
   - hasql-pool-1.0.1
