@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.7] - 2025-02-03
+
 ### Fixed
 
  - #2524, Fix schema reloading notice on windows - @diogob
