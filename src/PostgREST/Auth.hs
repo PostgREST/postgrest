@@ -208,7 +208,7 @@ getJWTFromCache appState token maxLifetime parseJwt utc = do
       -- but only if not already running anotherpurging
       tryPutMVar lock () >>= \case
         -- start purge make sure lock is released
-        True -> void $ forkFinally (purgeExpired jwtCache) (const $ takeMVar lock)
+        True -> void $ forkFinally (C.purgeExpired jwtCache) (const $ takeMVar lock)
         -- purge already running - do nothing
         _ -> pure ()
 
