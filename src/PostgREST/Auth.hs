@@ -12,8 +12,7 @@ very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
-  ( AuthResult (..)
-  , getResult
+  ( getResult
   , getJwtDur
   , getRole
   , middleware
@@ -45,11 +44,12 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState (AppState, AuthResult (..), getConfig,
-                           getJwtCache, getTime)
-import PostgREST.Config   (AppConfig (..), FilterExp (..), JSPath,
-                           JSPathExp (..))
-import PostgREST.Error    (Error (..))
+import PostgREST.AppState   (AppState, getConfig, getJwtCache,
+                             getTime)
+import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
+                             JSPathExp (..))
+import PostgREST.Error      (Error (..))
 
 import Protolude
 

@@ -4,7 +4,6 @@
 
 module PostgREST.AppState
   ( AppState
-  , AuthResult(..)
   , destroy
   , getConfig
   , getSchemaCache
@@ -31,8 +30,6 @@ module PostgREST.AppState
   , isPending
   ) where
 
-import qualified Data.Aeson                 as JSON
-import qualified Data.Aeson.KeyMap          as KM
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
@@ -60,6 +57,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
+import PostgREST.Auth.Types              (AuthResult)
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -77,11 +75,6 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
 import Protolude
-
-data AuthResult = AuthResult
-  { authClaims :: KM.KeyMap JSON.Value
-  , authRole   :: BS.ByteString
-  }
 
 data AppState = AppState
   -- | Database connection pool

@@ -42,7 +42,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
-import PostgREST.Auth                 (AuthResult (..))
+import PostgREST.Auth.Types           (AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)

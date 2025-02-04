@@ -37,7 +37,7 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
-import PostgREST.Auth                    (AuthResult (..))
+import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.PgVersion        (PgVersion (..))
