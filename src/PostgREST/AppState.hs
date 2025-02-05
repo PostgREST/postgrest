@@ -4,7 +4,6 @@
 
 module PostgREST.AppState
   ( AppState
-  , JwtCacheState(..)
   , destroy
   , getConfig
   , getSchemaCache
