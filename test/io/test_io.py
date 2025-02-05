@@ -1696,3 +1696,22 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
         response = postgrest.session.get("/authors_only", headers=hdrs3)
 
         assert response.status_code == 200
+
+
+def test_pgrst_log_503_client_error_to_stderr(defaultenv):
+    "PostgREST should log 503 errors to stderr"
+
+    env = {
+        **defaultenv,
+        "PGAPPNAME": "test-io",
+    }
+
+    with run(env=env) as postgrest:
+
+        postgrest.session.get("/rpc/terminate_pgrst?appname=test-io")
+
+        output = postgrest.read_stdout(nlines=6)
+
+        log_message = '{"code":"PGRST001","details":"no connection to the server\\n","hint":null,"message":"Database client error. Retrying the connection."}\n'
+
+        assert any(log_message in line for line in output)
