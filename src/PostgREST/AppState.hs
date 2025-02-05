@@ -57,7 +57,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.Types              (AuthResult, JwtCacheState)
+import PostgREST.Auth.Types              (JwtCacheState (..))
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)

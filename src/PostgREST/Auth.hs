@@ -52,8 +52,6 @@ import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
                              JSPathExp (..))
 import PostgREST.Error      (Error (..))
 
-import Control.Concurrent (forkFinally, takeMVar)
-import Control.Monad      (void)
 import Protolude
 
 
