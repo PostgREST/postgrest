@@ -25,6 +25,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
+ - #3841, Log `503` client error to stderr - @taimoorzaeem
 
 ### Changed
 
