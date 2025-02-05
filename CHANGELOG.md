@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3841, Log `503` client error to stderr - @taimoorzaeem
+
 ## [12.2.7] - 2025-02-03
 
 ### Fixed
