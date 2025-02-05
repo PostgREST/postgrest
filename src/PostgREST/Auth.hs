@@ -54,7 +54,6 @@ import PostgREST.Error      (Error (..))
 
 import Control.Concurrent (forkFinally, takeMVar)
 import Control.Monad      (void)
-import Data.Cache         (purgeExpired)
 import Protolude
 
 
