@@ -58,7 +58,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.Types              (AuthResult)
+import PostgREST.Auth.Types              (AuthResult, JwtCacheState)
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -76,10 +76,6 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
 import Protolude
-
-data JwtCacheState = JwtCacheState
-  { cache     :: C.Cache ByteString AuthResult
-  , purgeLock :: MVar ()}
 
 data AppState = AppState
   -- | Database connection pool

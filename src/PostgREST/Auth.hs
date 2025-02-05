@@ -45,9 +45,9 @@ import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState   (AppState, JwtCacheState (..), getConfig,
-                             getJwtCacheState, getTime)
-import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.AppState   (AppState, getConfig, getJwtCacheState,
+                             getTime)
+import PostgREST.Auth.Types (AuthResult (..), JwtCacheState (..))
 import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
                              JSPathExp (..))
 import PostgREST.Error      (Error (..))
