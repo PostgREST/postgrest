@@ -47,6 +47,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
+import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
 
 
@@ -86,6 +87,7 @@ instance PgrstError ApiRequestError where
   status UnsupportedMethod{}         = HTTP.status405
   status LimitNoOrderError           = HTTP.status400
   status ColumnNotFound{}            = HTTP.status400
+  status TableNotFound{}             = HTTP.status404
   status GucHeadersError             = HTTP.status500
   status GucStatusError              = HTTP.status500
   status OffLimitsChangesError{}     = HTTP.status400
@@ -253,6 +255,12 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (ColumnNotFound relName colName) = toJsonPgrstError
     SchemaCacheErrorCode04 ("Could not find the '" <> colName <> "' column of '" <> relName <> "' in the schema cache") Nothing Nothing
 
+  toJSON (TableNotFound schemaName relName tbls) = toJsonPgrstError
+    SchemaCacheErrorCode05
+    ("Could not find relation '" <> schemaName <> "." <> relName <> "' in the schema cache")
+    Nothing
+    (JSON.String <$> tableNotFoundHint schemaName relName tbls)
+
 -- |
 -- If no relationship is found then:
 --
@@ -349,6 +357,16 @@ noRpcHint schema procName params allProcs overloadedProcs =
     possibleProcs
       | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
       | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
+
+-- |
+-- Do a fuzzy search in all tables in the same schema and return closest result
+tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
+tableNotFoundHint schema tblName tblList
+  = fmap (\tbl -> "Perhaps you meant the relation '" <> schema <> "." <> tbl <> "'") perhapsTable
+    where
+      perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
+      fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
+
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
@@ -640,6 +658,7 @@ data ErrorCode
   | SchemaCacheErrorCode02
   | SchemaCacheErrorCode03
   | SchemaCacheErrorCode04
+  | SchemaCacheErrorCode05
   -- JWT authentication errors
   | JWTErrorCode00
   | JWTErrorCode01
@@ -689,6 +708,7 @@ buildErrorCode code = case code of
   SchemaCacheErrorCode02 -> "PGRST202"
   SchemaCacheErrorCode03 -> "PGRST203"
   SchemaCacheErrorCode04 -> "PGRST204"
+  SchemaCacheErrorCode05 -> "PGRST205"
 
   JWTErrorCode00         -> "PGRST300"
   JWTErrorCode01         -> "PGRST301"

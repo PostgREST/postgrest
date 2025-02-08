@@ -973,11 +973,10 @@ def test_log_level(level, defaultenv):
                 r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
                 output[2],
             )
+
+            assert len(output) == 5
             assert "Connection" and "is available" in output[3]
-            assert "Connection" and "is available" in output[4]
-            assert "Connection" and "is used" in output[5]
-            assert "Connection" and "is used" in output[6]
-            assert len(output) == 7
+            assert "Connection" and "is used" in output[4]
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
