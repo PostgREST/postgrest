@@ -361,18 +361,6 @@ spec = do
             , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
             }
 
-        it "updates with limit/offset using table default values(field-with_sep) when json keys are undefined" $ do
-          request methodPatch "/complex_items?select=id,name&columns=name,field-with_sep&limit=1&offset=2&order=id"
-            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
-            [json|{"name": "Tres"}|]
-            `shouldRespondWith`
-            [json|[
-              {"id":3,"name":"Tres"}
-            ]|]
-            { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
-            }
-
         it "updates table default values(field-with_sep) when json keys are undefined" $ do
           request methodPatch "/complex_items?id=eq.3&columns=name,field-with_sep"
             [("Prefer", "return=representation"), ("Prefer", "missing=default")]

@@ -38,6 +38,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
+ - #3013, Drop support for Limited updates/deletes
+   + The feature was complicated and largely unused.
 
 ## [12.2.7] - 2025-02-03
 

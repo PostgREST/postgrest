@@ -2512,56 +2512,6 @@ CREATE AGGREGATE test.unsupported_agg (*) (
   STYPE = int
 );
 
-create table limited_update_items(
-  id int primary key
-, name text
-);
-
-create table limited_update_items_cpk(
-  id int
-, name text
-, primary key (id, name)
-);
-
-create table limited_update_items_no_pk(
-  id int
-, name text
-);
-
-create view limited_update_items_view as
-select * from limited_update_items;
-
-create view limited_update_items_wnonuniq_view as
-select *, 'static'::text as static from limited_update_items;
-
-create view limited_update_items_cpk_view as
-select * from limited_update_items_cpk;
-
-create table limited_delete_items(
-  id int primary key
-, name text
-);
-
-create table limited_delete_items_cpk(
-  id int
-, name text
-, primary key (id, name)
-);
-
-create table limited_delete_items_no_pk(
-  id int
-, name text
-);
-
-create view limited_delete_items_view as
-select * from limited_delete_items;
-
-create view limited_delete_items_wnonuniq_view as
-select *, 'static'::text as static from limited_delete_items;
-
-create view limited_delete_items_cpk_view as
-select * from limited_delete_items_cpk;
-
 create function reset_table(tbl_name text default '', tbl_data json default '[]') returns void as $_$ begin
   execute format(
   $$

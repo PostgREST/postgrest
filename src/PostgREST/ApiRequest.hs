@@ -218,9 +218,8 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     lookupHeader    = flip lookup hdrs
 
 getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
-getRanges method QueryParams{qsOrder,qsRanges} hdrs
+getRanges method QueryParams{qsRanges} hdrs
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
-  | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutLimitNotAllowedError
   | otherwise = Right (topLevelRange, ranges)
   where

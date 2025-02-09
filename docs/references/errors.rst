@@ -205,14 +205,6 @@ Related to the HTTP request elements.
 |               |             | specified in the ``select`` part of the query string.       |
 | PGRST108      |             | See :ref:`embed_filters`.                                   |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst109: | 400         | Restricting a Deletion or an Update using limits must       |
-|               |             | include the ordering of a unique column.                    |
-| PGRST109      |             | See :ref:`limited_update_delete`.                           |
-+---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst110: | 400         | When restricting a Deletion or an Update using limits       |
-|               |             | modifies more rows than the maximum specified in the limit. |
-| PGRST110      |             | See :ref:`limited_update_delete`.                           |
-+---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst111: | 500         | An invalid ``response.headers`` was set.                    |
 |               |             | See :ref:`guc_resp_hdrs`.                                   |
 | PGRST111      |             |                                                             |

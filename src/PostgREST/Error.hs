@@ -84,11 +84,9 @@ instance PgrstError ApiRequestError where
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
-  status LimitNoOrderError           = HTTP.status400
   status ColumnNotFound{}            = HTTP.status400
   status GucHeadersError             = HTTP.status500
   status GucStatusError              = HTTP.status500
-  status OffLimitsChangesError{}     = HTTP.status400
   status PutMatchingPkError          = HTTP.status400
   status SingularityError{}          = HTTP.status406
   status PGRSTParseError{}           = HTTP.status500
@@ -139,15 +137,6 @@ instance JSON.ToJSON ApiRequestError where
     ("'" <> resource <> "' is not an embedded resource in this request")
     Nothing
     (Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter.")
-
-  toJSON LimitNoOrderError = toJsonPgrstError
-    ApiRequestErrorCode09 "A 'limit' was applied without an explicit 'order'" Nothing (Just "Apply an 'order' using unique column(s)")
-
-  toJSON (OffLimitsChangesError n maxs) = toJsonPgrstError
-    ApiRequestErrorCode10
-    "The maximum number of rows allowed to change was surpassed"
-    (Just $ JSON.String $ T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs])
-    Nothing
 
   toJSON GucHeadersError = toJsonPgrstError
     ApiRequestErrorCode11 "response.headers guc must be a JSON array composed of objects with a single key and a string value" Nothing Nothing

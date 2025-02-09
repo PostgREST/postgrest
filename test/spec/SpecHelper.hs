@@ -24,7 +24,6 @@ import Text.Regex.TDFA      ((=~))
 import Network.HTTP.Types
 import Test.Hspec
 import Test.Hspec.Wai
-import Test.Hspec.Wai.JSON
 import Text.Heredoc
 
 import Data.String                       (String)
@@ -298,38 +297,6 @@ isErrorFormat s =
   obj = JSON.decode s :: Maybe (M.Map Text JSON.Value)
   keys = maybe S.empty M.keysSet obj
   validKeys = S.fromList ["message", "details", "hint", "code"]
-
--- | Follows these steps to verify if the table data changed in the db:
---  * Verifies the table data in the db before the change
---  * Does the mutation
---  * Verifies that the table data changed in the db
---  * Resets the table with the original data
-shouldMutateInto :: MutationCheck -> ResponseMatcher -> WaiExpectation ()
-shouldMutateInto (MutationCheck (BaseTable tblName tblOrd dataBefore) mutation) dataAfter = do
-  get ("/" <> tblName) `shouldRespondWith` [json|#{dataBefore}|]
-  mutation
-  get ("/" <> tblName <> "?order=" <> tblOrd) `shouldRespondWith` dataAfter
-  request methodPost "/rpc/reset_table"
-    [("Prefer", "tx=commit")]
-    [json| {"tbl_name": #{decodeUtf8 tblName}, "tbl_data": #{dataBefore}} |]
-  `shouldRespondWith` 204
-
--- | How the base table data will change using the requested mutation
-mutatesWith :: BaseTable -> WaiExpectation () -> MutationCheck
-mutatesWith = MutationCheck
-
--- | The original table data before it is modified.
--- The column order is needed for an accurate comparison after the mutation
-baseTable :: ByteString -> ByteString -> JSON.Value -> BaseTable
-baseTable = BaseTable
-
--- | The mutation (update/delete) that will be applied to the base table
-requestMutation :: Method -> ByteString -> [Header] -> BL.ByteString -> WaiExpectation ()
-requestMutation method path headers body =
-  request method path (("Prefer", "tx=commit") : headers) body `shouldRespondWith` "" { matchStatus = 204 }
-
-data BaseTable = BaseTable ByteString ByteString JSON.Value
-data MutationCheck = MutationCheck BaseTable (WaiExpectation ())
 
 planCost :: SResponse -> Float
 planCost resp =

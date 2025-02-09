@@ -937,7 +937,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic iTopLevelRange rootOrder returnings applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -948,7 +948,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
           Left InvalidFilters
-    MutationDelete -> Right $ Delete qi combinedLogic iTopLevelRange rootOrder returnings
+    MutationDelete -> Right $ Delete qi combinedLogic returnings
   where
     ctx = ResolverContext dbTables dbRepresentations qi "json"
     confCols = fromMaybe pkCols qsOnConflict
@@ -960,7 +960,6 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     tbl = HM.lookup qi dbTables
     pkCols = maybe mempty tablePKCols tbl
     logic = map (resolveLogicTree ctx . snd) qsLogic
-    rootOrder = resolveOrder ctx <$> maybe [] snd (find (\(x, _) -> null x) qsOrder)
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults

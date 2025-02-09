@@ -730,31 +730,6 @@ Deletions also support :ref:`prefer_return`, :ref:`resource_embedding` and :ref:
 
   Beware of accidentally deleting all rows in a table. To learn to prevent that see :ref:`block_fulltable`.
 
-.. _limited_update_delete:
-
-Limited Update/Delete
-=====================
-
-You can limit the amount of affected rows by :ref:`update` or :ref:`delete` with the ``limit`` query parameter. For this, you must add an explicit ``order`` on a unique column(s).
-
-.. code-block:: bash
-
-  curl -X PATCH "/users?limit=10&order=id&last_login=lt.2020-01-01" \
-    -H "Content-Type: application/json" \
-    -d '{ "status": "inactive" }'
-
-.. code-block:: bash
-
-  curl -X DELETE "http://localhost:3000/users?limit=10&order=id&status=eq.inactive"
-
-If your table has no unique columns, you can use the `ctid <https://www.postgresql.org/docs/current/ddl-system-columns.html>`_ system column.
-
-Using ``offset`` to target a different subset of rows is also possible.
-
-.. note::
-
-  There is no native ``UPDATE...LIMIT`` or ``DELETE...LIMIT`` support in PostgreSQL; the generated query simulates that behavior and is based on `this Crunchy Data blog post <https://www.crunchydata.com/blog/simulating-update-or-delete-with-limit-in-postgres-ctes-to-the-rescue>`_.
-
 .. raw:: html
 
   <script type="text/javascript">
