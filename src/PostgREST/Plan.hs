@@ -66,7 +66,6 @@ import PostgREST.SchemaCache.Routine         (MediaHandler (..),
                                               Routine (..),
                                               RoutineMap,
                                               RoutineParam (..),
-                                              funcReturnsCompositeAlias,
                                               funcReturnsScalar,
                                               funcReturnsSetOfScalar)
 import PostgREST.SchemaCache.Table           (Column (..), Table (..),
@@ -980,7 +979,6 @@ callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
 , funCArgs = args
 , funCScalar = funcReturnsScalar proc
 , funCSetOfScalar = funcReturnsSetOfScalar proc
-, funCRetCompositeAlias = funcReturnsCompositeAlias proc
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where

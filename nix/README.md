@@ -75,12 +75,12 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 postgrest-build                   postgrest-test-spec
 postgrest-check                   postgrest-watch
 postgrest-clean                   postgrest-with-all
-postgrest-coverage                postgrest-with-postgresql-12
-postgrest-lint                    postgrest-with-postgresql-13
-postgrest-run                     postgrest-with-postgresql-14
-postgrest-style                   postgrest-with-postgresql-15
-postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io                 postgrest-with-postgresql-17
+postgrest-coverage                postgrest-with-postgresql-13
+postgrest-lint                    postgrest-with-postgresql-14
+postgrest-run                     postgrest-with-postgresql-15
+postgrest-style                   postgrest-with-postgresql-16
+postgrest-style-check             postgrest-with-postgresql-17
+postgrest-test-io
 ...
 
 [nix-shell]$
@@ -99,12 +99,12 @@ $ nix-shell --arg memory true
 postgrest-build                   postgrest-test-spec
 postgrest-check                   postgrest-watch
 postgrest-clean                   postgrest-with-all
-postgrest-coverage                postgrest-with-postgresql-12
-postgrest-lint                    postgrest-with-postgresql-13
-postgrest-run                     postgrest-with-postgresql-14
-postgrest-style                   postgrest-with-postgresql-15
-postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io                 postgrest-with-postgresql-17
+postgrest-coverage                postgrest-with-postgresql-13
+postgrest-lint                    postgrest-with-postgresql-14
+postgrest-run                     postgrest-with-postgresql-15
+postgrest-style                   postgrest-with-postgresql-16
+postgrest-style-check             postgrest-with-postgresql-17
+postgrest-test-io
 postgrest-test-memory
 ...
 
