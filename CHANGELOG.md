@@ -25,7 +25,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
- - #3841, Log `503` client error to stderr - @taimoorzaeem
 
 ### Changed
 
@@ -38,6 +37,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
+
+## [12.2.8] - 2025-02-10
+
+### Fixed
+
+ - #3841, Log `503` client error to stderr - @taimoorzaeem
 
 ## [12.2.7] - 2025-02-03
 
