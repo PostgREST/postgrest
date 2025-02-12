@@ -167,7 +167,7 @@ PostgREST honors the following `JWT claims <https://datatracker.ietf.org/doc/htm
 - ``aud`` Audience, see :ref:`jwt-aud`
 
 .. note::
-  PostgREST allows a ``30`` seconds clock skew for validating the time-based claims. This means that it allows an extra 30 seconds for that claim before rejecting it.
+  PostgREST allows for a 30-second clock skew when validatiing the `exp` and `iat` claims. In other words, it gives an extra 30 seconds before the token is rejected if there is a slight discrepancy in the timestamps.
 
 .. _jwt_role_claim_key_extract:
 
