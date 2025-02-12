@@ -607,8 +607,8 @@ data ErrorCode
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
   | ApiRequestErrorCode08
-  | ApiRequestErrorCode09
-  | ApiRequestErrorCode10
+  -- | ApiRequestErrorCode09 -- no longer used (used to be mapped to LimitNoOrderError)
+  -- | ApiRequestErrorCode10 -- no longer used (used to be mapped to OffLimitsChangesError)
   | ApiRequestErrorCode11
   -- | ApiRequestErrorCode13 -- no longer used (used to be mapped to BinaryFieldError)
   | ApiRequestErrorCode12
@@ -657,8 +657,6 @@ buildErrorCode code = case code of
   ApiRequestErrorCode06  -> "PGRST106"
   ApiRequestErrorCode07  -> "PGRST107"
   ApiRequestErrorCode08  -> "PGRST108"
-  ApiRequestErrorCode09  -> "PGRST109"
-  ApiRequestErrorCode10  -> "PGRST110"
   ApiRequestErrorCode11  -> "PGRST111"
   ApiRequestErrorCode12  -> "PGRST112"
   ApiRequestErrorCode14  -> "PGRST114"
