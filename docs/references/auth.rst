@@ -159,7 +159,15 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 JWT Claims Validation
 ~~~~~~~~~~~~~~~~~~~~~
 
-PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens.
+PostgREST honors the following `JWT claims <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_:
+
+- ``exp`` Expiration Time
+- ``iat`` Issued At
+- ``nbf`` Not Before
+- ``aud`` Audience, see :ref:`jwt-aud`
+
+.. note::
+  PostgREST allows for a 30-second clock skew when validating the ``exp`` and ``iat`` claims. In other words, it gives an extra 30 seconds before the token is rejected if there is a slight discrepancy in the timestamps.
 
 .. _jwt_role_claim_key_extract:
 
