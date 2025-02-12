@@ -34,7 +34,7 @@
 
         .. code:: bash
 
-          nix-env -i haskellPackages.postgrest
+          nix-env -i postgrest
 
   .. group-tab:: Windows
 
