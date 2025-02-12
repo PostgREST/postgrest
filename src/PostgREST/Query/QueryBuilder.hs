@@ -40,7 +40,6 @@ import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment
-import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
@@ -134,64 +133,31 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
--- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
+mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
     "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
-  | range == allRange =
-    "UPDATE " <> mainTbl <> " SET " <> nonRangeCols <> " " <>
+  | otherwise =
+    "UPDATE " <> mainTbl <> " SET " <> cols <> " " <>
     fromJsonBodyF body uCols False False applyDefaults <>
     whereLogic <> " " <>
-    returningF mainQi returnings
-
-  | otherwise =
-    "WITH " <>
-    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
-    "pgrst_affected_rows AS (" <>
-      "SELECT " <> rangeIdF <> " FROM " <> mainTbl <>
-      whereLogic <> " " <>
-      orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
-    ") " <>
-    "UPDATE " <> mainTbl <> " SET " <> rangeCols <>
-    "FROM pgrst_affected_rows " <>
-    "WHERE " <> whereRangeIdF <> " " <>
     returningF mainQi returnings
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = fromQi mainQi
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
-    rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
+    cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
 
-mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
-  | range == allRange =
-    "DELETE FROM " <> fromQi mainQi <> " " <>
-    whereLogic <> " " <>
-    returningF mainQi returnings
-
-  | otherwise =
-    "WITH " <>
-    "pgrst_affected_rows AS (" <>
-      "SELECT " <> rangeIdF <> " FROM " <> fromQi mainQi <>
-       whereLogic <> " " <>
-      orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
-    ") " <>
-    "DELETE FROM " <> fromQi mainQi <> " " <>
-    "USING pgrst_affected_rows " <>
-    "WHERE " <> whereRangeIdF <> " " <>
-    returningF mainQi returnings
-
+mutatePlanToQuery (Delete mainQi logicForest returnings) =
+  "DELETE FROM " <> fromQi mainQi <> " " <>
+  whereLogic <> " " <>
+  returningF mainQi returnings
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =

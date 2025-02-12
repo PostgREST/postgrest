@@ -25,8 +25,8 @@ import qualified PostgREST.AppState           as AppState
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
-import qualified PostgREST.RangeQuery         as RangeQuery
 import qualified PostgREST.SchemaCache        as SchemaCache
+
 
 import PostgREST.ApiRequest              (ApiRequest (..),
                                           Mutation (..))
@@ -135,11 +135,10 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationCreate, ..}) conf api
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationUpdate, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
@@ -149,11 +148,10 @@ actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationSingleUpsert, ..}) co
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
-actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}, ..} _ _ = do
+actionQuery (DbCrud plan@MutateReadPlan{mrMutation=MutationDelete, ..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ = do
   resultSet <- writeQuery mrReadPlan mrMutatePlan mrMedia mrHandler apiReq conf
   failNotSingular mrMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-  failsChangesOffLimits (RangeQuery.rangeLimit iTopLevelRange) resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
 
@@ -259,14 +257,6 @@ failExceedsMaxAffectedPref _ RSPlan{} = pure ()
 failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
   lift SQL.condemn
   throwError $ Error.ApiRequestError . ApiRequestTypes.MaxAffectedViolationError $ toInteger queryTotal
-
-failsChangesOffLimits :: Maybe Integer -> ResultSet -> DbHandler ()
-failsChangesOffLimits _ RSPlan{} = pure ()
-failsChangesOffLimits Nothing _  = pure ()
-failsChangesOffLimits (Just maxChanges) RSStandard{rsQueryTotal=queryTotal} =
-  when (queryTotal > fromIntegral maxChanges) $ do
-    lift SQL.condemn
-    throwError $ Error.ApiRequestError $ ApiRequestTypes.OffLimitsChangesError queryTotal maxChanges
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()

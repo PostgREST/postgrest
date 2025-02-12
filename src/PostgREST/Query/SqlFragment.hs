@@ -13,7 +13,6 @@ module PostgREST.Query.SqlFragment
   , fromQi
   , limitOffsetF
   , locationF
-  , mutRangeF
   , orderF
   , pgFmtColumn
   , pgFmtFilter
@@ -512,13 +511,6 @@ currentSettingF :: SQL.Snippet -> SQL.Snippet
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting('" <> setting <> "', true), '')"
-
-mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SQL.Snippet, SQL.Snippet)
-mutRangeF mainQi rangeId =
-  (
-    intercalateSnippet " AND " $ (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> rangeId
-  , intercalateSnippet ", " (pgFmtColumn mainQi <$> rangeId)
-  )
 
 orderF :: QualifiedIdentifier -> [CoercibleOrderTerm] -> SQL.Snippet
 orderF _ []    = mempty

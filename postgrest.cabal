@@ -230,7 +230,6 @@ test-suite spec
                       Feature.Query.ErrorSpec
                       Feature.Query.InsertSpec
                       Feature.Query.JsonOperatorSpec
-                      Feature.Query.LimitedMutationSpec
                       Feature.Query.MultipleSchemaSpec
                       Feature.Query.NullsStripSpec
                       Feature.Query.PgSafeUpdateSpec

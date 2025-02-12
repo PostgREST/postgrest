@@ -79,7 +79,6 @@ data ApiRequestError
   | InvalidPreferences [ByteString]
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
-  | LimitNoOrderError
   | NotFound
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
@@ -94,7 +93,6 @@ data ApiRequestError
   | ColumnNotFound Text Text
   | GucHeadersError
   | GucStatusError
-  | OffLimitsChangesError Int64 Integer
   | PutMatchingPkError
   | SingularityError Integer
   | PGRSTParseError RaiseError

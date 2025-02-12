@@ -27,7 +27,7 @@ data Table = Table
   , tableDescription :: Maybe Text
      -- TODO Find a better way to separate tables and views
    , tableIsView     :: Bool
-    -- The following fields identify what can be done on the table/view, they're not related to the privileges granted to it
+    -- The following fields identify what HTTP verbs can be executed on the table/view, they're not related to the privileges granted to it
   , tableInsertable  :: Bool
   , tableUpdatable   :: Bool
   , tableDeletable   :: Bool

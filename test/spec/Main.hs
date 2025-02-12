@@ -47,7 +47,6 @@ import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
-import qualified Feature.Query.LimitedMutationSpec
 import qualified Feature.Query.MultipleSchemaSpec
 import qualified Feature.Query.NullsStripSpec
 import qualified Feature.Query.PgSafeUpdateSpec
@@ -268,9 +267,6 @@ main = do
     -- this test runs with tx-rollback-all = true and tx-allow-override = false
     before forceRollbackApp $
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
-
-    before withApp $
-      describe "Feature.Query.LimitedMutationSpec" Feature.Query.LimitedMutationSpec.spec
 
     -- This test runs with a pre request to enable the pg-safeupdate library per-session.
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
