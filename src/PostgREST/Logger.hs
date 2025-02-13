@@ -21,7 +21,7 @@ import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
 import qualified Network.Wai                          as Wai
 import qualified Network.Wai.Middleware.RequestLogger as Wai
 
-import Network.HTTP.Types.Status (status400, status500)
+import Network.HTTP.Types.Status (Status, status400, status500)
 import System.IO.Unsafe          (unsafePerformIO)
 
 import PostgREST.Config      (LogLevel (..))
@@ -57,23 +57,25 @@ logWithDebounce loggerState action = do
 
 -- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
 middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
-middleware logLevel getAuthRole = case logLevel of
-  LogCrit  -> requestLogger (const False)
-  LogError -> requestLogger (>= status500)
-  LogWarn  -> requestLogger (>= status400)
-  LogInfo  -> requestLogger (const True)
-  LogDebug -> requestLogger (const True)
-  where
-    requestLogger filterStatus = unsafePerformIO $
+middleware logLevel getAuthRole =
+    unsafePerformIO $
       Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
       { Wai.outputFormat =
          Wai.ApacheWithSettings $
            Wai.defaultApacheSettings &
-           Wai.setApacheRequestFilter (\_ res -> filterStatus $ Wai.responseStatus res) &
+           Wai.setApacheRequestFilter (\_ res -> shouldLogResponse logLevel $ Wai.responseStatus res) &
            Wai.setApacheUserGetter getAuthRole
       , Wai.autoFlush = True
       , Wai.destination = Wai.Handle stdout
       }
+
+shouldLogResponse :: LogLevel -> Status -> Bool
+shouldLogResponse logLevel = case logLevel of
+  LogCrit  -> const False
+  LogError -> (>= status500)
+  LogWarn  -> (>= status400)
+  LogInfo  -> const True
+  LogDebug -> const True
 
 -- All observations are logged except some that depend on the log-level
 observationLogger :: LoggerState -> LogLevel -> ObservationHandler
