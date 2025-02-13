@@ -10,6 +10,7 @@ module PostgREST.Plan.Types
   , RelSelectField(..)
   , RelJsonEmbedMode(..)
   , SpreadSelectField(..)
+  , SpreadType(..)
   ) where
 
 import PostgREST.ApiRequest.Types (AggregateFunction, Alias, Cast,
@@ -110,4 +111,12 @@ data SpreadSelectField =
   , ssSelAggCast     :: Maybe Cast
   , ssSelAlias       :: Maybe Alias
   }
+  deriving (Eq, Show)
+
+data SpreadType
+  = ToOneSpread
+  | ToManySpread
+    { stExtraSelect :: [(Maybe FieldName, CoercibleSelectField)]
+    , stOrder       :: [CoercibleOrderTerm]
+    }
   deriving (Eq, Show)

@@ -3762,3 +3762,24 @@ $$ language sql;
 create function test.text_search_vector(test.tsearch_to_tsvector) returns tsvector AS $$
   select to_tsvector('simple', $1.text_search)
 $$ language sql;
+
+create table operators (
+  id int primary key,
+  name text,
+  status jsonb
+);
+
+create table process_operator (
+  process_id int references processes(id),
+  operator_id int references operators(id),
+  primary key (process_id, operator_id)
+);
+
+create table factory_buildings (
+  id int primary key,
+  code char(4),
+  size numeric,
+  "type" char(1),
+  factory_id int references factories(id),
+  inspections jsonb
+);

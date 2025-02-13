@@ -64,6 +64,7 @@ data SelectItem
 -- | The value in `/tbl?select=...another_tbl(*)`
   | SpreadRelation
     { selRelation :: FieldName
+    , selAlias    :: Maybe Alias
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }
@@ -86,7 +87,6 @@ data ApiRequestError
   | PutLimitNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
-  | SpreadNotToOne Text Text
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
