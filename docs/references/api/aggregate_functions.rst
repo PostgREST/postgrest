@@ -3,12 +3,10 @@
 Aggregate Functions
 ###################
 
-Aggregate functions allow you to summarize data by performing calculations across groups of rows. For instance, if you have an ``orders`` table that has an ``amount`` column, you could use an aggregate function to get the sum of the ``amount`` column, either for all rows, or for each group of rows that share specific values, for instance all rows that share the same ``order_date``.
+PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``max()``, ``min()``, and ``sum()``. Please refer to the `section on aggregate functions in the PostgreSQL documentation <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ for a detailed explanation of these functions.
 
 .. note::
  Aggregate functions are *disabled* by default in PostgREST, as without appropriate safeguards, aggregate functions can create performance problems. See :ref:`db-aggregates-enabled` for further details.
-
-PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``max()``, ``min()``, and ``sum()``. Please refer to the `section on aggregate functions in the PostgreSQL documentation <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ for a detailed explanation of these functions.
 
 To use an aggregate function, you append the function to a value in the ``select`` parameter, like so:
 
@@ -28,7 +26,7 @@ With the above query, PostgREST will return a single row with a single column na
 
 You can use multiple aggregate functions by just adding more columns with aggregate functions to the ``select`` parameter.
 
-To group by other columns, you simply add those columns to the ``select`` parameter. For instance:
+To group by other columns, you add those columns to the ``select`` parameter. For instance:
 
 .. code-block:: bash
 
