@@ -8,6 +8,8 @@ Description : PostgREST error HTTP responses
 module PostgREST.Error
   ( errorResponseFor
   , ApiRequestError(..)
+  , QPError(..)
+  , RangeError(..)
   , PgError(..)
   , Error(..)
   , errorPayload
@@ -32,12 +34,8 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.ApiRequest.Types (ApiRequestError (..),
-                                             QPError (..),
-                                             RaiseError (..),
-                                             RangeError (..))
-import           PostgREST.MediaType        (MediaType (..))
-import qualified PostgREST.MediaType        as MediaType
+import           PostgREST.MediaType (MediaType (..))
+import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
@@ -61,6 +59,51 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err =
     let baseHeader = MediaType.toContentType MTApplicationJSON in
     responseLBS (status err) (baseHeader : headers err) $ errorPayload err
+
+data ApiRequestError
+  = AggregatesNotAllowed
+  | AmbiguousRelBetween Text Text [Relationship]
+  | AmbiguousRpc [Routine]
+  | MediaTypeError [ByteString]
+  | InvalidBody ByteString
+  | InvalidFilters
+  | InvalidPreferences [ByteString]
+  | InvalidRange RangeError
+  | InvalidRpcMethod ByteString
+  | NotFound
+  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
+  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
+  | NotEmbedded Text
+  | PutLimitNotAllowedError
+  | QueryParamError QPError
+  | RelatedOrderNotToOne Text Text
+  | SpreadNotToOne Text Text
+  | UnacceptableFilter Text
+  | UnacceptableSchema [Text]
+  | UnsupportedMethod ByteString
+  | ColumnNotFound Text Text
+  | GucHeadersError
+  | GucStatusError
+  | PutMatchingPkError
+  | SingularityError Integer
+  | PGRSTParseError RaiseError
+  | MaxAffectedViolationError Integer
+  deriving Show
+
+data QPError = QPError Text Text
+  deriving Show
+
+data RaiseError
+  = MsgParseError ByteString
+  | DetParseError ByteString
+  | NoDetail
+  deriving Show
+
+data RangeError
+  = NegativeLimit
+  | LowerGTUpper
+  | OutOfBounds Text Text
+  deriving Show
 
 instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400

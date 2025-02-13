@@ -42,7 +42,8 @@ import PostgREST.ApiRequest                  (Action (..),
                                               Mutation (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
-import PostgREST.Error                       (Error (..))
+import PostgREST.Error                       (ApiRequestError (..),
+                                              Error (..))
 import PostgREST.MediaType                   (MediaType (..))
 import PostgREST.Query.SqlFragment           (sourceCTEName)
 import PostgREST.RangeQuery                  (NonnegRange, allRange,

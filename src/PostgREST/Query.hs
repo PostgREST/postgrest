@@ -20,7 +20,6 @@ import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
-import qualified PostgREST.ApiRequest.Types   as ApiRequestTypes
 import qualified PostgREST.AppState           as AppState
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
@@ -217,7 +216,7 @@ failPut RSPlan{} = pure ()
 failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError $ Error.ApiRequestError ApiRequestTypes.PutMatchingPkError
+    throwError $ Error.ApiRequestError Error.PutMatchingPkError
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
 resultSetWTotal _ _ rs@RSPlan{} _ = return rs
@@ -249,14 +248,14 @@ failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
   when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
-    throwError $ Error.ApiRequestError . ApiRequestTypes.SingularityError $ toInteger queryTotal
+    throwError $ Error.ApiRequestError . Error.SingularityError $ toInteger queryTotal
 
 failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
 failExceedsMaxAffectedPref (Nothing,_) _ = pure ()
 failExceedsMaxAffectedPref _ RSPlan{} = pure ()
 failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
   lift SQL.condemn
-  throwError $ Error.ApiRequestError . ApiRequestTypes.MaxAffectedViolationError $ toInteger queryTotal
+  throwError $ Error.ApiRequestError . Error.MaxAffectedViolationError $ toInteger queryTotal
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()

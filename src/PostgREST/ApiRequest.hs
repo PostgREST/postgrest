@@ -44,10 +44,10 @@ import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
-import PostgREST.ApiRequest.Types        (ApiRequestError (..),
-                                          RangeError (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
+import PostgREST.Error                   (ApiRequestError (..),
+                                          RangeError (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
