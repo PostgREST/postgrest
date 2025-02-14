@@ -12,7 +12,7 @@ module PostgREST.AppState
   , getNextDelay
   , getNextListenerDelay
   , getTime
-  , getJwtCache
+  , getJwtCacheState
   , getSocketREST
   , getSocketAdmin
   , init
@@ -57,7 +57,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.Types              (AuthResult)
+import PostgREST.Auth.Types              (JwtCacheState (..))
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -100,7 +100,7 @@ data AppState = AppState
   -- | Keeps track of the next delay for the listener
   , stateNextListenerDelay :: IORef Int
   -- | JWT Cache
-  , jwtCache               :: C.Cache ByteString AuthResult
+  , jwtCacheState          :: JwtCacheState
   -- | Network socket for REST API
   , stateSocketREST        :: NS.Socket
   -- | Network socket for the admin UI
@@ -146,7 +146,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
-    <*> C.newCache Nothing
+    <*> liftA2 JwtCacheState (C.newCache Nothing) newEmptyMVar
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
@@ -310,8 +310,8 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCache :: AppState -> C.Cache ByteString AuthResult
-getJwtCache = jwtCache
+getJwtCacheState :: AppState -> JwtCacheState
+getJwtCacheState = jwtCacheState
 
 getSocketREST :: AppState -> NS.Socket
 getSocketREST = stateSocketREST
