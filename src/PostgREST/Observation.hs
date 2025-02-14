@@ -57,6 +57,7 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | JWTCache Int
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
 
@@ -138,6 +139,7 @@ observationMessage = \case
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
     )
+  JWTCache sz -> "The JWT Cache size updated to " <> show sz <> " bytes"
   _ -> mempty
   where
     showMillis :: Double -> Text
