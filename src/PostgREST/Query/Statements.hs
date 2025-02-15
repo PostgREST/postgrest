@@ -56,10 +56,11 @@ data ResultSet
 
 
 prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
-                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> SQL.Statement () ResultSet
-prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> Bool -> (SQL.Statement () ResultSet, ByteString)
+prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys prepared =
+ (result, sql)
  where
+  result@(SQL.Statement sql _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
   checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
   pgrstInsertedF = checkUpsert "nullif(current_setting('pgrst.inserted', true),'')::int"
   snippet =
@@ -93,10 +94,11 @@ prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pK
     MTVndPlan{} -> planRow
     _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> SQL.Statement () ResultSet
-prepareRead selectQuery countQuery countTotal mt handler =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> Bool -> (SQL.Statement () ResultSet, ByteString)
+prepareRead selectQuery countQuery countTotal mt handler prepared =
+ (result, sql)
  where
+  result@(SQL.Statement sql _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
   snippet =
     "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
     countCTEF <> " " <>
@@ -118,10 +120,11 @@ prepareRead selectQuery countQuery countTotal mt handler =
 
 prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
                MediaType -> MediaHandler -> Bool ->
-               SQL.Statement () ResultSet
-prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler =
-  SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt
+               (SQL.Statement () ResultSet, ByteString)
+prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler prepared =
+  (result, sql)
   where
+    result@(SQL.Statement sql _ _ _) = SQL.dynamicallyParameterized (mtSnippet mt snippet) decodeIt prepared
     snippet =
       "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
       countCTEF <>

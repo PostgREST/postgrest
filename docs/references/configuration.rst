@@ -708,6 +708,22 @@ log-level
 
   Because currently there's no buffering for logging, the levels with minimal logging(``crit/error``) will increase throughput.
 
+.. _log-query:
+
+log-query
+---------
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  Y
+  **Environment** PGRST_LOG_QUERY
+  **In-Database** `pgrst.log_query`
+  =============== =================================
+
+  Logs the SQL query for the corresponding request, at the current :ref:`log-level` that is specified.
+  See :ref:``sql_query_logs``.
+
 .. _openapi-mode:
 
 openapi-mode

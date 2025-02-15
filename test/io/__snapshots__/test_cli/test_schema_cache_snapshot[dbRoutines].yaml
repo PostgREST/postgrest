@@ -308,6 +308,23 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: root
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: root
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: json
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: uses_prepared_statements
     qiSchema: public
   - - pdDescription: null

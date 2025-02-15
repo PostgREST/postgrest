@@ -10,6 +10,18 @@
     tableSchema: public
     tableUpdatable: true
 
+- - qiName: infinite_recursion
+    qiSchema: public
+  - tableColumns: {}
+    tableDeletable: false
+    tableDescription: null
+    tableInsertable: false
+    tableIsView: true
+    tableName: infinite_recursion
+    tablePKCols: []
+    tableSchema: public
+    tableUpdatable: false
+
 - - qiName: cats
     qiSchema: public
   - tableColumns:

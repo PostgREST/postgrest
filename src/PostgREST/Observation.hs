@@ -19,6 +19,7 @@ import qualified Data.Text.Encoding         as T
 import qualified Hasql.Connection           as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
+import           Network.HTTP.Types.Status  (Status)
 import qualified Network.Socket             as NS
 import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
@@ -46,6 +47,7 @@ data Observation
   | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
+  | DBQuery ByteString Status
   | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
   | ConfigSucceededObs
@@ -112,6 +114,8 @@ observationMessage = \case
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
+  DBQuery sql _ ->
+    T.decodeUtf8 sql
   ConfigReadErrorObs usageErr ->
     "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
