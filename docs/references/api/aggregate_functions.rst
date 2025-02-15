@@ -225,10 +225,10 @@ If we also want to get the total ``amount`` grouped by the ``order_date`` of the
 Note that the aggregate is done within the embedded resource ``orders``.
 It is not affected by any of the columns from the top-level relationship ``customers``.
 
-Using Aggregates in Spreads
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Using Aggregates in To-One Spreads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All the aggregates inside a :ref:`spread embedded resource <spread_embed>` will be hoisted to the top-level relationship.
+All the aggregates inside a :ref:`one-to-one or many-to-one spread embedded resource <spread_to_one_embed>` will be hoisted to the top-level relationship.
 In other words, it will behave as if the aggregate was done in the top-level relationship itself. For example:
 
 .. code-block:: bash
@@ -251,3 +251,60 @@ This will take the ``max`` and ``min`` subscription date of every customer and g
       "min": "2016-02-11"
     }
   ]
+
+Using Aggregates in To-Many Spreads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can aggregate :ref:`one-to-many or many-to-many spread columns <spread_to_many_embed>` and group them by the top-level resource columns.
+For example, let's sum the ``amount`` of all the ``orders``, grouped by the ``name``, ``city`` and ``state`` of the ``customers``.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/customers?select=name,city,state,...orders(amount.sum())"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "Customer A",
+      "city": "New York",
+      "state": "NY",
+      "sum": 1120.95
+    },
+    {
+      "name": "Customer B",
+      "city": "Los Angeles",
+      "state": "CA",
+      "sum": 755.58
+    }
+  ]
+
+These aggregated columns can also be grouped by other columns selected inside the spread embed relationship.
+For example, let's also group by the ``order_date``.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/customers?select=name,city,state,...orders(order_date,amount.sum())"
+
+.. code-block:: json
+
+  [
+    {
+      "name": "Customer A",
+      "city": "New York",
+      "state": "NY",
+      "order_date": ["2023-09-01", "2023-09-02"]
+      "sum": [215.22, 905.73],
+    },
+    {
+      "name": "Customer B",
+      "city": "Los Angeles",
+      "state": "CA",
+      "order_date": ["2023-09-01", "2023-09-03"]
+      "sum": [329.71, 425.87],
+    }
+  ]
+
+Note that the aggregate is now returned inside an array.
+This is because to-many spread relationships return column data as arrays.
+So, if we want to group by ``order_date``, then the resulting aggregate also needs to be inside a corresponding array.
