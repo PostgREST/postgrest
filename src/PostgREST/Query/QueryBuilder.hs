@@ -46,14 +46,14 @@ import Protolude
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
 readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
-  fromFrag <> " " <>
-  intercalateSnippet " " joins <> " " <>
+  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <>
+  fromFrag <>
+  intercalateSnippet " " joins <>
   (if null logicForest && null relJoinConds
     then mempty
-    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
-  groupF qi select relSelect <> " " <>
-  orderF qi order <> " " <>
+    else " WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
+  groupF qi select relSelect <>
+  orderF qi order <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias
@@ -94,7 +94,7 @@ getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
 getJoin fld node@(Node ReadPlan{relJoinType} _) =
   let
     correlatedSubquery sub al cond =
-      (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
+      " " <> (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
   in
@@ -258,7 +258,7 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
 
 -- FROM clause plus implicit joins
 fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
-fromF rel mainQi tblAlias = "FROM " <>
+fromF rel mainQi tblAlias = " FROM " <>
   (case rel of
     -- Due to the use of CTEs on RPC, we need to cast the parameter to the table name in case of function overloading.
     -- See https://github.com/PostgREST/postgrest/issues/2963#issuecomment-1736557386

@@ -243,3 +243,13 @@ end $_$ volatile security definer language plpgsql ;
 create function test.get_current_schema() returns text as $$
   select current_schema()::text;
 $$ language sql;
+
+create or replace function root() returns json as $_$
+  select '{"swagger": "2.0"}'::json;
+$_$ language sql;
+
+create view infinite_recursion as
+select * from projects;
+
+create or replace view infinite_recursion as
+select * from infinite_recursion;

@@ -41,12 +41,38 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:14:11:27 -0500: Received a config reload message on the "pgrst" channel
    06/May/2024:14:11:27 -0500: Config reloaded
 
+.. _sql_query_logs:
+
+SQL Query Logs
+--------------
+
+To log the main SQL query executed for a request, set the :ref:`log-query` to ``true``.
+It will be logged based on the current :ref:`log-level` setting.
+For example, with this configuration:
+
+.. code-block:: bash
+
+  log-level = "warn"
+  log-query = true
+
+The SQL queries will only be logged on ``400`` HTTP errors and up.
+So, if a resource does not exist:
+
+.. code-block:: bash
+
+  curl "localhost:3000/rpc/does-not-exist"
+
+This will be logged by PostgREST:
+
+.. code::
+
+  14/Feb/2025:21:00:34 -0500: WITH pgrst_source AS ( SELECT "public"."does-not-exist".* FROM "public"."does-not-exist"  )  SELECT null::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), '[]') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t
+  127.0.0.1 - web_anon [14/Feb/2025:21:00:34 -0500] "GET /does-not-exist HTTP/1.1" 404 - "" "curl/8.7.1"
+
 Database Logs
 -------------
 
-Currently PostgREST doesn't log the SQL commands executed against the underlying database.
-
-To find the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
+Additionally, to see all the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
 
 Find :code:`postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command :code:`show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
 

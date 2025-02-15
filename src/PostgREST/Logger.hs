@@ -90,6 +90,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  o@(DBQuery sql status) -> do
+    when (sql /= mempty && shouldLogResponse logLevel status) $ do
+      logWithZTime loggerState $ observationMessage o
   PoolRequest ->
     pure ()
   PoolRequestFullfilled ->

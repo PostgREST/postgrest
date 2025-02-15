@@ -98,6 +98,7 @@ data AppConfig = AppConfig
   , configJwtSecretIsBase64        :: Bool
   , configJwtCacheMaxLifetime      :: Int
   , configLogLevel                 :: LogLevel
+  , configLogQuery                 :: Bool
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
   , configOpenApiServerProxyUri    :: Maybe Text
@@ -169,6 +170,7 @@ toText conf =
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
+      ,("log-query",                     T.toLower . show . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
@@ -278,6 +280,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           (optBool "secret-is-base64"))
     <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
     <*> parseLogLevel "log-level"
+    <*> (fromMaybe False <$> optBool "log-query")
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
