@@ -90,6 +90,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  o@(JWTCache _) -> do
+    when (logLevel >= LogInfo) $ do
+      logWithZTime loggerState $ observationMessage o
   PoolRequest ->
     pure ()
   PoolRequestFullfilled ->

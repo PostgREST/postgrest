@@ -15,9 +15,10 @@ import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
 
-import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Logger   as Logger
-import qualified PostgREST.Metrics  as Metrics
+import qualified PostgREST.AppState   as AppState
+import qualified PostgREST.Auth.Types as JwtCache
+import qualified PostgREST.Logger     as Logger
+import qualified PostgREST.Metrics    as Metrics
 
 import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
@@ -86,10 +87,11 @@ main = do
   sockets <- AppState.initSockets testCfg
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
+  jwtCacheState <- JwtCache.init
 
   let
     initApp sCache config = do
-      appState <- AppState.initWithPool sockets pool config loggerState metricsState (const $ pure ())
+      appState <- AppState.initWithPool sockets pool config loggerState metricsState (const $ pure ()) jwtCacheState
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))
