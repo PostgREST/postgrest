@@ -12,7 +12,7 @@ module PostgREST.AppState
   , getNextDelay
   , getNextListenerDelay
   , getTime
-  , getJwtCache
+  , getJwtCacheState
   , getSocketREST
   , getSocketAdmin
   , init
@@ -31,7 +31,6 @@ module PostgREST.AppState
   ) where
 
 import qualified Data.ByteString.Char8      as BS
-import qualified Data.Cache                 as C
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
 import qualified Hasql.Pool                 as SQL
@@ -40,6 +39,7 @@ import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
+import qualified PostgREST.Auth.JwtCache    as JwtCache
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
@@ -57,7 +57,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.Types              (AuthResult)
+import PostgREST.Auth.JwtCache           (JwtCacheState)
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -99,14 +99,14 @@ data AppState = AppState
   , stateNextDelay         :: IORef Int
   -- | Keeps track of the next delay for the listener
   , stateNextListenerDelay :: IORef Int
-  -- | JWT Cache
-  , jwtCache               :: C.Cache ByteString AuthResult
   -- | Network socket for REST API
   , stateSocketREST        :: NS.Socket
   -- | Network socket for the admin UI
   , stateSocketAdmin       :: Maybe NS.Socket
   -- | Observation handler
   , stateObserver          :: ObservationHandler
+  -- | JWT Cache
+  , stateJwtCache          :: JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
   }
@@ -127,13 +127,14 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   observer $ AppStartObs prettyVersion
 
+  jwtCacheState <- JwtCache.init
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
+  state' <- initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> JwtCache.JwtCacheState -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
+initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -146,10 +147,10 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
-    <*> C.newCache Nothing
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
+    <*> pure jwtCacheState
     <*> pure loggerState
     <*> pure metricsState
 
@@ -310,8 +311,8 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCache :: AppState -> C.Cache ByteString AuthResult
-getJwtCache = jwtCache
+getJwtCacheState :: AppState -> JwtCacheState
+getJwtCacheState = stateJwtCache
 
 getSocketREST :: AppState -> NS.Socket
 getSocketREST = stateSocketREST

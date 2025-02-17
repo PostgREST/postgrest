@@ -24,7 +24,6 @@ import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
-import qualified Data.Cache                      as C
 import qualified Data.Scientific                 as Sci
 import qualified Data.Text                       as T
 import qualified Data.Vault.Lazy                 as Vault
@@ -40,19 +39,18 @@ import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
-import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState   (AppState, getConfig, getJwtCache,
-                             getTime)
-import PostgREST.Auth.Types (AuthResult (..))
-import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
-                             JSPathExp (..))
-import PostgREST.Error      (Error (..))
+import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
+                                getTime)
+import PostgREST.Auth.JwtCache (lookupJwtCache)
+import PostgREST.Auth.Types    (AuthResult (..))
+import PostgREST.Config        (AppConfig (..), FilterExp (..),
+                                JSPath, JSPathExp (..))
+import PostgREST.Error         (Error (..))
 
 import Protolude
-
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
@@ -152,8 +150,9 @@ middleware appState app req respond = do
 
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
+      jwtCacheState = getJwtCacheState appState
 
--- If DbPlanEnabled       -> calculate JWT validation time
+-- If ServerTimingEnabled -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result
   req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
     (True, 0)            -> do
@@ -161,7 +160,7 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ getJWTFromCache appState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -169,55 +168,10 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- getJWTFromCache appState token maxLifetime parseJwt time
+          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
-
--- | Used to retrieve and insert JWT to JWT Cache
-getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup (getJwtCache appState) token
-  authResult <- maybe parseJwt (pure . Right) checkCache
-
-  case (authResult,checkCache) of
-    -- From comment:
-    -- https://github.com/PostgREST/postgrest/pull/3801#discussion_r1857987914
-    --
-    -- We purge expired cache entries on a cache miss
-    -- The reasoning is that:
-    --
-    -- 1. We expect it to be rare (otherwise there is no point of the cache)
-    -- 2. It makes sure the cache is not growing (as inserting new entries
-    --    does garbage collection)
-    -- 3. Since this is time expiration based cache there is no real risk of
-    --    starvation - sooner or later we are going to have a cache miss.
-
-    (Right res, Nothing) -> do -- cache miss
-
-      let timeSpec = getTimeSpec res maxLifetime utc
-
-      -- purge expired cache entries
-      C.purgeExpired jwtCache
-
-      -- insert new cache entry
-      C.insert' jwtCache timeSpec token res
-
-    _                    -> pure ()
-
-  return authResult
-    where
-      jwtCache = getJwtCache appState
-
--- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
-      utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
-      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
-  case expireJSON of
-    Just (JSON.Number seconds) -> Just $ TimeSpec (sciToInt seconds - utcToSecs utc) 0
-    _                          -> Just $ TimeSpec (fromIntegral maxLifetime :: Int64) 0
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey
