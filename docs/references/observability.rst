@@ -41,12 +41,38 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:14:11:27 -0500: Received a config reload message on the "pgrst" channel
    06/May/2024:14:11:27 -0500: Config reloaded
 
+.. _sql_query_logs:
+
+SQL Query Logs
+--------------
+
+To log the :ref:`main SQL query <main_query>` executed for a request, set the :ref:`log-query` to ``main-query``.
+It will be logged based on the current :ref:`log-level` setting.
+For example, with this configuration:
+
+.. code-block:: bash
+
+  log-level = "warn"
+  log-query = "main-query"
+
+The SQL queries will only be logged on ``400`` HTTP errors and up.
+So, if the user requests a resource without sufficient privileges:
+
+.. code-block:: bash
+
+  curl "localhost:3000/protected_table"
+
+This will be logged by PostgREST:
+
+.. code::
+
+  17/Feb/2025:17:28:15 -0500: WITH pgrst_source AS ( SELECT "public"."protected_table".* FROM "public"."protected_table"  )  SELECT null::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), '[]') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t
+  127.0.0.1 - web_anon [17/Feb/2025:17:28:15 -0500] "GET /protected_table HTTP/1.1" 401 - "" "curl/8.7.1"
+
 Database Logs
 -------------
 
-Currently PostgREST doesn't log the SQL commands executed against the underlying database.
-
-To find the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
+Additionally, to find all the SQL operations, you can watch the database logs. By default PostgreSQL does not keep these logs, so you'll need to make the configuration changes below.
 
 Find :code:`postgresql.conf` inside your PostgreSQL data directory (to find that, issue the command :code:`show data_directory;`). Either find the settings scattered throughout the file and change them to the following values, or append this block of code to the end of the configuration file.
 

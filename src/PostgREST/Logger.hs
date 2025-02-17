@@ -90,6 +90,10 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  o@(DBQuery sql status) -> do
+    -- Does not log SQL when it's empty (for OPTIONS requests or for the default OpenAPI output)
+    when (sql /= mempty && shouldLogResponse logLevel status) $ do
+      logWithZTime loggerState $ observationMessage o
   PoolRequest ->
     pure ()
   PoolRequestFullfilled ->

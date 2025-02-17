@@ -17,6 +17,7 @@ module PostgREST.Config
   , JSPathExp(..)
   , FilterExp(..)
   , LogLevel(..)
+  , LogQuery(..)
   , OpenAPIMode(..)
   , Proxy(..)
   , toText
@@ -98,6 +99,7 @@ data AppConfig = AppConfig
   , configJwtSecretIsBase64        :: Bool
   , configJwtCacheMaxLifetime      :: Int
   , configLogLevel                 :: LogLevel
+  , configLogQuery                 :: LogQuery
   , configOpenApiMode              :: OpenAPIMode
   , configOpenApiSecurityActive    :: Bool
   , configOpenApiServerProxyUri    :: Maybe Text
@@ -125,6 +127,14 @@ dumpLogLevel = \case
   LogWarn  -> "warn"
   LogInfo  -> "info"
   LogDebug -> "debug"
+
+data LogQuery = LogQueryMain | LogQueryDisabled
+  deriving (Eq)
+
+dumpLogQuery :: LogQuery -> Text
+dumpLogQuery = \case
+  LogQueryMain     -> "main-query"
+  LogQueryDisabled -> "disabled"
 
 data OpenAPIMode = OAFollowPriv | OAIgnorePriv | OADisabled
   deriving Eq
@@ -169,6 +179,7 @@ toText conf =
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
       ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
+      ,("log-query",                 q . dumpLogQuery . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
       ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
       ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
@@ -278,6 +289,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           (optBool "secret-is-base64"))
     <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
     <*> parseLogLevel "log-level"
+    <*> parseLogQuery "log-query"
     <*> parseOpenAPIMode "openapi-mode"
     <*> (fromMaybe False <$> optBool "openapi-security-active")
     <*> parseOpenAPIServerProxyURI "openapi-server-proxy-uri"
@@ -352,6 +364,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just "info"  -> pure LogInfo
         Just "debug" -> pure LogDebug
         Just _       -> fail "Invalid logging level. Check your configuration."
+
+    parseLogQuery :: C.Key -> C.Parser C.Config LogQuery
+    parseLogQuery k =
+      optString k >>= \case
+        Nothing           -> pure  LogQueryDisabled
+        Just "disabled"   -> pure  LogQueryDisabled
+        Just "main-query" -> pure  LogQueryMain
+        Just _            -> fail "Invalid SQL logging value. Check your configuration."
 
     parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
     parseTxEnd k f =

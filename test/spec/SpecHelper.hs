@@ -30,6 +30,7 @@ import Data.String                       (String)
 import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
+                                          LogQuery (..),
                                           OpenAPIMode (..),
                                           parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
@@ -138,6 +139,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtSecretIsBase64         = False
   , configJwtCacheMaxLifetime       = 0
   , configLogLevel                  = LogCrit
+  , configLogQuery                  = LogQueryDisabled
   , configOpenApiMode               = OAFollowPriv
   , configOpenApiSecurityActive     = False
   , configOpenApiServerProxyUri     = Nothing
