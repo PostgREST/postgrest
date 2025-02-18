@@ -15,7 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1536, Add string comparison feature for jwt-role-claim-key - @taimoorzaeem
  - #3747, Allow `not_null` value for the `is` operator - @taimoorzaeem
  - #2255, Apply `to_tsvector()` explicitly to the full-text search filtered column (excluding `tsvector` types) - @laurenceisla
- - #1578, Log SQL query to stderr at the current `log-level` when `log-query=true` - @laurenceisla
+ - #1578, Log the main SQL query to stderr at the current `log-level` when `log-query=main-query` - @laurenceisla
 
 ### Fixed
 
