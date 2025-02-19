@@ -5,6 +5,7 @@ module PostgREST.Query
   ( Query (..)
   , QueryResult (..)
   , query
+  , getSQLQuery
   ) where
 
 import qualified Data.Aeson                        as JSON
@@ -69,6 +70,7 @@ data Query
     , dqTxMode      :: SQL.Mode
     , dqDbHandler   :: DbHandler QueryResult
     , dqTransaction :: SQL.IsolationLevel -> SQL.Mode -> SQL.Transaction (Either Error QueryResult) -> SQL.Session (Either Error QueryResult)
+    , dqSQL         :: ByteString
     }
   | NoDbQuery QueryResult
 
@@ -81,16 +83,17 @@ data QueryResult
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Query
 query _ _ _ (NoDb x) _ _ = NoDbQuery $ NoDbResult x
 query config AuthResult{..} apiReq (Db plan) sCache pgVer =
-  DbQuery isoLvl txMode dbHandler transaction
+  DbQuery isoLvl txMode dbHandler transaction mainSQLQuery
   where
     transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
     prepared = configDbPreparedStatements config
     isoLvl = planIsoLvl config authRole plan
     txMode = planTxMode plan
+    (mainActionQuery, mainSQLQuery) = actionQuery plan config apiReq pgVer sCache
     dbHandler = do
       setPgLocals plan config authClaims authRole apiReq
       runPreReq config
-      actionQuery plan config apiReq pgVer sCache
+      mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
 planTxMode (DbCrud x)  = pTxMode x
@@ -104,12 +107,13 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
-actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> DbHandler QueryResult
+-- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
+actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> (DbHandler QueryResult, ByteString)
 actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
-  mainActionQuery
+  (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    result = Statements.prepareRead
+    (result, mainSQLQuery) = Statements.prepareRead
       (QueryBuilder.readPlanToQuery wrReadPlan)
       (if preferCount == Just EstimatedCount then
          -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -128,10 +132,10 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
-  mainActionQuery
+  (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
-    result = Statements.prepareWrite
+    (result, mainSQLQuery) = Statements.prepareWrite
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
@@ -160,9 +164,9 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       pure $ DbCrudResult plan resultSet
 
 actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ =
-  mainActionQuery
+  (mainActionQuery, mainSQLQuery)
   where
-    result = Statements.prepareCall
+    (result, mainSQLQuery) = Statements.prepareCall
       crProc
       (QueryBuilder.callPlanToQuery crCallPlan pgVer)
       (QueryBuilder.readPlanToQuery crReadPlan)
@@ -179,20 +183,23 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       pure $ DbCallResult plan resultSet
 
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
-  lift $ case configOpenApiMode of
-    OAFollowPriv -> do
-      tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
-      MaybeDbResult plan . Just <$> ((,,)
-            (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-        <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
-        <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
-    OAIgnorePriv ->
-      MaybeDbResult plan . Just <$> ((,,)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-            (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
-        <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
-    OADisabled ->
-      pure $ MaybeDbResult plan Nothing
+  (mainActionQuery, mempty)
+  where
+    mainActionQuery = lift $
+      case configOpenApiMode of
+        OAFollowPriv -> do
+          tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
+          MaybeDbResult plan . Just <$> ((,,)
+                (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
+            <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
+            <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+        OAIgnorePriv ->
+          MaybeDbResult plan . Just <$> ((,,)
+                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
+                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
+            <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+        OADisabled ->
+          pure $ MaybeDbResult plan Nothing
 
 -- Makes sure the querystring pk matches the payload pk
 -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
@@ -291,3 +298,7 @@ runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequ
       ("select " <> fromQi req <> "()")
       HD.noResult
       (configDbPreparedStatements conf)
+
+getSQLQuery :: Query -> ByteString
+getSQLQuery DbQuery{dqSQL} = dqSQL
+getSQLQuery _              = mempty

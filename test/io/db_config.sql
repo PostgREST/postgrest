@@ -47,6 +47,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_idletime = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_pool_max_lifetime = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.db_uri = 'postgresql://ignored';
 ALTER ROLE db_config_authenticator SET pgrst.log_level = 'ignored';
+ALTER ROLE db_config_authenticator SET pgrst.log_query = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_host = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_port = 'ignored';
 ALTER ROLE db_config_authenticator SET pgrst.server_unix_socket = 'ignored';

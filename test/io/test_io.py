@@ -980,6 +980,66 @@ def test_log_level(level, defaultenv):
             assert len(output) == 7
 
 
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_query(level, defaultenv):
+    "log_query=true should log the SQL query according to the log_level"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": level,
+        "PGRST_LOG_QUERY": "main-query",
+        # The root path can only log SQL when a function is set in db-root-spec
+        "PGRST_DB_ROOT_SPEC": "root",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/")
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/unknown")
+        assert response.status_code == 404
+
+        response = postgrest.session.get("/infinite_recursion")
+        assert response.status_code == 500
+
+        root_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."root"\(\) pgrst_scalar.+_postgrest_t'
+        get_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
+        unknown_4xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."unknown"\.\* FROM "public"\."unknown".+_postgrest_t'
+        infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
+
+        if level == "crit":
+            output = postgrest.read_stdout(nlines=1)
+            assert len(output) == 0
+        elif level == "error":
+            output = postgrest.read_stdout(nlines=4)
+            assert re.match(infinite_recursion_5xx_regx, output[1])
+            assert len(output) == 3
+        elif level == "warn":
+            output = postgrest.read_stdout(nlines=6)
+            assert re.match(unknown_4xx_regx, output[0])
+            assert re.match(infinite_recursion_5xx_regx, output[3])
+            assert len(output) == 5
+        elif level == "info":
+            output = postgrest.read_stdout(nlines=10)
+            assert re.match(root_2xx_regx, output[0])
+            assert re.match(get_2xx_regx, output[2])
+            assert re.match(unknown_4xx_regx, output[4])
+            assert re.match(infinite_recursion_5xx_regx, output[7])
+            assert len(output) == 9
+        elif level == "debug":
+            output_ok = postgrest.read_stdout(nlines=8)
+            assert re.match(root_2xx_regx, output_ok[2])
+            assert re.match(get_2xx_regx, output_ok[6])
+            assert len(output_ok) == 8
+            output_err = postgrest.read_stdout(nlines=10)
+            assert re.match(unknown_4xx_regx, output_err[2])
+            assert re.match(infinite_recursion_5xx_regx, output_err[7])
+            assert len(output_err) == 9
+
+
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
     "no pool connection should be consumed for failing on invalid http logic"
 
