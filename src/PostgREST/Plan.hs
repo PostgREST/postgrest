@@ -976,7 +976,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
 resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
-resolveOrError _ Nothing _ = Left NotFound
+resolveOrError _ Nothing _ = Left NotFound -- TODO: control never reaches here since #3869, should be fixed when fixing #3906
 resolveOrError ctx (Just table) field =
   case resolveTableFieldName table field Nothing of
     CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
