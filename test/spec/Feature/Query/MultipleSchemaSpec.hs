@@ -64,7 +64,13 @@ spec =
           }
 
       it "doesn't find another_table in schema v1" $
-        request methodGet "/another_table" [("Accept-Profile", "v1")] "" `shouldRespondWith` 404
+        request methodGet "/another_table"
+          [("Accept-Profile", "v1")] ""
+          `shouldRespondWith`
+          [json| {"code":"PGRST205","details":null,"hint":null,"message":"Could not find the table 'v1.another_table' in the schema cache"} |]
+          { matchStatus = 404
+          , matchHeaders = []
+          }
 
       it "fails trying to read table from unkown schema" $
         request methodGet "/parents" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
