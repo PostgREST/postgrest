@@ -24,12 +24,8 @@ spec =
     it "should not raise 'transaction in progress' error" $
       raceTest 10 $
         get "/fakefake"
-          `shouldRespondWith` [json|
-              { "hint": null,
-                "details":null,
-                "code":"42P01",
-                "message":"relation \"test.fakefake\" does not exist"
-              } |]
+          `shouldRespondWith`
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fakefake' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = []
           }

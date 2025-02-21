@@ -286,6 +286,10 @@ Related to a :ref:`schema_cache`. Most of the time, these errors are solved by :
 |               |             | in the ``columns`` query parameter is not found.            |
 | PGRST204      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst205: | 404         | Caused when the :ref:`table specified <tables_views>` in    |
+|               |             | the URI is not found.                                       |
+| PGRST205      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst3**:
 

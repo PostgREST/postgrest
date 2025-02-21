@@ -17,7 +17,12 @@ spec = do
       it "indicates no table found by returning 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
-            `shouldRespondWith` 404
+          `shouldRespondWith`
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fake' in the schema cache"} |]
+          { matchStatus = 404
+          , matchHeaders = []
+          }
+
 
     context "on an empty table" $
       it "succeeds with status code 204" $
@@ -343,7 +348,7 @@ spec = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|{} |]
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.articles'","message":"Could not find the table 'test.garlic' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = []
           }

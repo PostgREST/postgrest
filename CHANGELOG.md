@@ -26,6 +26,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
+ - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
 
 ### Changed
 
@@ -40,6 +41,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This preference was deprecated in favor of Functions with an array of JSON objects
  - #3013, Drop support for Limited updates/deletes
    + The feature was complicated and largely unused.
+ - #3697, #3602, Querying non-existent table now returns `PGRST205` error instead of empty json - @taimoorzaeem
 
 ## [12.2.8] - 2025-02-10
 
