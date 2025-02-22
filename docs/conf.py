@@ -292,12 +292,15 @@ def setup(app):
     app.add_css_file("css/custom.css")
 
 
-# taken from https://github.com/sphinx-doc/sphinx/blob/82dad44e5bd3776ecb6fd8ded656bc8151d0e63d/sphinx/util/requests.py#L42
-user_agent = "Mozilla/5.0 (X11; Linux x86_64; rv:25.0) Gecko/20100101 Firefox/25.0"
+user_agent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0"
 
 linkcheck_ignore = [
-    r"https://www.patreon.com/postgrest",
-    r"https://blog.frankel.ch/poor-man-api",
+    # Odd SSL error
+    r"https://www.dripdepot.com",
+    # New GitHub UI delays comment load, so anchor fails
+    r"https://github.com/.*#issuecomment",
+    # Random 500 Internal Server Error
+    r"https://jwt.io",
 ]
 
 # sphinx-tabs configuration
