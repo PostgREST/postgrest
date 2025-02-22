@@ -1,5 +1,5 @@
 freebsd_instance:
-  image_family: freebsd-14-1
+  image_family: freebsd-14-2
 
 build_task:
   # Don't change this name without adjusting .github/workflows/build.yaml
