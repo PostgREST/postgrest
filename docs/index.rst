@@ -41,7 +41,7 @@ Sponsors
     :width:  13em
 
   .. image:: _static/gnuhost.png
-    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :target: https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest
     :width:  13em
 
   .. image:: _static/supabase.png
