@@ -292,7 +292,9 @@ def setup(app):
     app.add_css_file("css/custom.css")
 
 
-user_agent = "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0"
+user_agent = (
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0"
+)
 
 linkcheck_ignore = [
     # Odd SSL error
