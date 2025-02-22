@@ -15,7 +15,7 @@ Roles for Each Web User
 
 PostgREST can accommodate either viewpoint. If you treat a role as a single user then the :ref:`jwt_impersonation` does most of what you need. When an authenticated user makes a request PostgREST will switch into the database role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
 
-You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <https://www.2ndquadrant.com/en/blog/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
+You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <https://www.enterprisedb.com:443/blog/application-users-vs-row-level-security>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
 
 .. code-block:: postgres
 
