@@ -39,7 +39,7 @@ Sponsors
       :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
 
   .. image:: ../static/gnuhost.png
-    :target: https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest
+    :target: https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-dark
 

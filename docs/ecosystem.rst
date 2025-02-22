@@ -90,7 +90,7 @@ Client-Side Libraries
 * `postgrest-go <https://github.com/supabase-community/postgrest-go>`_ - Go
 * `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
 * `postgrest-kt <https://github.com/supabase-community/postgrest-kt>`_ - Kotlin
-* `postgrest-py <https://github.com/supabase-community/postgrest-py>`_ - Python
+* `postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
 * `postgrest-rs <https://github.com/supabase-community/postgrest-rs>`_ - Rust
 * `postgrest-swift <https://github.com/supabase-community/postgrest-swift>`_ - Swift
 * `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.
