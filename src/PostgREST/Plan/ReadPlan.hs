@@ -2,6 +2,7 @@ module PostgREST.Plan.ReadPlan
   ( ReadPlanTree
   , ReadPlan(..)
   , JoinCondition(..)
+  , SpreadType(..)
   ) where
 
 import Data.Tree (Tree (..))
@@ -11,7 +12,8 @@ import PostgREST.ApiRequest.Types         (Alias, Depth, Hint,
 import PostgREST.Plan.Types               (CoercibleLogicTree,
                                            CoercibleOrderTerm,
                                            CoercibleSelectField (..),
-                                           RelSelectField (..))
+                                           RelSelectField (..),
+                                           SpreadType (..))
 import PostgREST.RangeQuery               (NonnegRange)
 import PostgREST.SchemaCache.Identifiers  (FieldName,
                                            QualifiedIdentifier)
@@ -42,7 +44,7 @@ data ReadPlan = ReadPlan
   , relAggAlias  :: Alias
   , relHint      :: Maybe Hint
   , relJoinType  :: Maybe JoinType
-  , relIsSpread  :: Bool
+  , relSpread    :: Maybe SpreadType
   , relSelect    :: [RelSelectField]
   , depth        :: Depth
   -- ^ used for aliasing

@@ -78,7 +78,6 @@ data ApiRequestError
   | PutLimitNotAllowedError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
-  | SpreadNotToOne Text Text
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
@@ -125,7 +124,6 @@ instance PgrstError ApiRequestError where
   status PutLimitNotAllowedError     = HTTP.status400
   status QueryParamError{}           = HTTP.status400
   status RelatedOrderNotToOne{}      = HTTP.status400
-  status SpreadNotToOne{}            = HTTP.status400
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
@@ -208,12 +206,6 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (RelatedOrderNotToOne origin target) = toJsonPgrstError
     ApiRequestErrorCode18
     ("A related order on '" <> target <> "' is not possible")
-    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
-    Nothing
-
-  toJSON (SpreadNotToOne origin target) = toJsonPgrstError
-    ApiRequestErrorCode19
-    ("A spread operation on '" <> target <> "' is not possible")
     (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
     Nothing
 
@@ -679,7 +671,7 @@ data ErrorCode
   | ApiRequestErrorCode16
   | ApiRequestErrorCode17
   | ApiRequestErrorCode18
-  | ApiRequestErrorCode19
+  -- | ApiRequestErrorCode19 -- no longer used (used to be mapped to SpreadNotToOne)
   | ApiRequestErrorCode20
   | ApiRequestErrorCode21
   | ApiRequestErrorCode22
@@ -727,7 +719,6 @@ buildErrorCode code = case code of
   ApiRequestErrorCode16  -> "PGRST116"
   ApiRequestErrorCode17  -> "PGRST117"
   ApiRequestErrorCode18  -> "PGRST118"
-  ApiRequestErrorCode19  -> "PGRST119"
   ApiRequestErrorCode20  -> "PGRST120"
   ApiRequestErrorCode21  -> "PGRST121"
   ApiRequestErrorCode22  -> "PGRST122"
