@@ -297,6 +297,9 @@ user_agent = (
 )
 
 linkcheck_ignore = [
+    # 403 only in CI / GitHub Actions
+    r"https://www.patreon.com/postgrest",
+    r"https://blog.frankel.ch/poor-man-api",
     # Odd SSL error
     r"https://www.dripdepot.com",
     # New GitHub UI delays comment load, so anchor fails
