@@ -683,13 +683,16 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
         assert data["message"] == "Timed out acquiring connection from connection pool."
 
         # ensure the message appears on the logs as well
-        output = sorted(postgrest.read_stdout(nlines=3))
+        output = sorted(postgrest.read_stdout(nlines=10))
 
         if level == "crit":
             assert len(output) == 0
         else:
-            assert " 504 " in output[0]
-            assert "Timed out acquiring connection from connection pool." in output[2]
+            assert any(" 504 " in line for line in output)
+            assert any(
+                "Timed out acquiring connection from connection pool." in line
+                for line in output
+            )
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -974,9 +977,9 @@ def test_log_level(level, defaultenv):
                 output[2],
             )
 
-            assert len(output) == 5
-            assert "Connection" and "is available" in output[3]
-            assert "Connection" and "is used" in output[4]
+            assert len(output) == 7
+            assert any("Connection" and "is available" in line for line in output)
+            assert any("Connection" and "is used" in line for line in output)
 
 
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
@@ -1023,13 +1026,15 @@ def test_log_query(level, defaultenv):
             assert re.match(infinite_recursion_5xx_regx, output[5])
             assert len(output) == 6
         elif level == "debug":
-            output_ok = postgrest.read_stdout(nlines=8)
-            assert re.match(root_2xx_regx, output_ok[2])
-            assert re.match(get_2xx_regx, output_ok[6])
-            assert len(output_ok) == 8
-            output_err = postgrest.read_stdout(nlines=4)
-            assert re.match(infinite_recursion_5xx_regx, output_err[3])
-            assert len(output_err) == 4
+            output_root = postgrest.read_stdout(nlines=6)
+            assert re.match(root_2xx_regx, output_root[4])
+            assert len(output_root) == 6
+            output_get = postgrest.read_stdout(nlines=6)
+            assert re.match(get_2xx_regx, output_get[4])
+            assert len(output_get) == 6
+            output_err = postgrest.read_stdout(nlines=6)
+            assert re.match(infinite_recursion_5xx_regx, output_err[5])
+            assert len(output_err) == 6
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
@@ -1570,13 +1575,13 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         assert response.status_code == 500
 
         # ensure the message appears on the logs
-        output = sorted(postgrest.read_stdout(nlines=4))
+        output = sorted(postgrest.read_stdout(nlines=6))
 
         if level == "crit":
             assert len(output) == 0
         elif level == "debug":
             assert " 500 " in output[0]
-            assert "canceling statement due to statement timeout" in output[3]
+            assert "canceling statement due to statement timeout" in output[5]
         else:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[1]
@@ -1767,3 +1772,31 @@ def test_pgrst_log_503_client_error_to_stderr(defaultenv):
         log_message = '{"code":"PGRST001","details":"no connection to the server\\n","hint":null,"message":"Database client error. Retrying the connection."}\n'
 
         assert any(log_message in line for line in output)
+
+
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_pool_req_observation(level, defaultenv):
+    "PostgREST should log PoolRequest and PoolRequestFullfilled observation when log-level=debug"
+
+    env = {**defaultenv, "PGRST_LOG_LEVEL": level, "PGRST_JWT_SECRET": SECRET}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    pool_req = "Trying to borrow a connection from pool"
+    pool_req_fullfill = "Borrowed a connection from the pool"
+
+    with run(env=env) as postgrest:
+
+        postgrest.session.get("/authors_only", headers=headers)
+
+        if level == "debug":
+            output = postgrest.read_stdout(nlines=4)
+            assert pool_req in output[0]
+            assert pool_req_fullfill in output[3]
+            assert len(output) == 4
+        elif level == "info":
+            output = postgrest.read_stdout(nlines=4)
+            assert len(output) == 1
+        else:
+            output = postgrest.read_stdout(nlines=4)
+            assert len(output) == 0

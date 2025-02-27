@@ -94,10 +94,12 @@ observationLogger loggerState logLevel obs = case obs of
     -- Does not log SQL when it's empty (for OPTIONS requests or for the default OpenAPI output)
     when (sql /= mempty && shouldLogResponse logLevel status) $ do
       logWithZTime loggerState $ observationMessage o
-  PoolRequest ->
-    pure ()
-  PoolRequestFullfilled ->
-    pure ()
+  o@PoolRequest ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessage o
+  o@PoolRequestFullfilled ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessage o
   o ->
     logWithZTime loggerState $ observationMessage o
 

@@ -142,7 +142,10 @@ observationMessage = \case
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
     )
-  _ -> mempty
+  PoolRequest ->
+    "Trying to borrow a connection from pool"
+  PoolRequestFullfilled ->
+    "Borrowed a connection from the pool"
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""
