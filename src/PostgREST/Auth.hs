@@ -43,7 +43,7 @@ import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
-                                getTime)
+                                getObserver, getTime)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), FilterExp (..),
@@ -151,6 +151,7 @@ middleware appState app req respond = do
   let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
       jwtCacheState = getJwtCacheState appState
+      observer = getObserver appState
 
 -- If ServerTimingEnabled -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result
@@ -160,7 +161,7 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time observer
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -168,7 +169,7 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time observer
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
