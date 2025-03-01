@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
  - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
+ - #3926, Remove caching empty JWT when `Authorization: Bearer` is empty - @taimoorzaeem
 
 ### Changed
 

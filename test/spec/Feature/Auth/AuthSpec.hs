@@ -159,3 +159,14 @@ spec = describe "authorization" $ do
       `shouldRespondWith` 200
     request methodGet "/authors_only" [authHeader "bearer" token] ""
       `shouldRespondWith` 200
+
+  describe "when JWT is empty string" $ do
+
+    it "raises error on empty token in Auth header" $ do
+      let auth = authHeaderJWT ""
+      request methodGet "/authors_only"
+        [auth]
+        ""
+        `shouldRespondWith`
+        [json| {"code":"PGRST301","details":null,"hint":null,"message":"JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"} |]
+        { matchStatus = 401 }
