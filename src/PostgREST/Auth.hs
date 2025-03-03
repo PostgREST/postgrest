@@ -54,9 +54,9 @@ import Protolude
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
-parseToken _ "" _ = return JSON.emptyObject
-parseToken AppConfig{..} token time = do
+parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
+parseToken _ Nothing _ = return JSON.emptyObject
+parseToken AppConfig{..} (Just token) time = do
   secret <- liftEither . maybeToRight JwtTokenMissing $ configJWKS
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
   content <- liftEither . mapLeft jwtDecodeError $ eitherContent
@@ -148,7 +148,7 @@ middleware appState app req respond = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let token = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
       jwtCacheState = getJwtCacheState appState
 
@@ -160,7 +160,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ case token of
+              Nothing -> parseJwt
+              Just tok -> lookupJwtCache jwtCacheState tok maxLifetime parseJwt time
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -168,7 +170,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          authResult <- case token of
+            Nothing -> parseJwt
+            Just tok -> lookupJwtCache jwtCacheState tok maxLifetime parseJwt time
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond

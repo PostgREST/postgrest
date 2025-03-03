@@ -207,6 +207,7 @@ test-suite spec
                       Feature.Auth.AudienceJwtSecretSpec
                       Feature.Auth.AuthSpec
                       Feature.Auth.BinaryJwtSecretSpec
+                      Feature.Auth.JwtCacheSpec
                       Feature.Auth.NoAnonSpec
                       Feature.Auth.NoJwtSpec
                       Feature.ConcurrentSpec
