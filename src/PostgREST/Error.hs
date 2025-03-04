@@ -12,6 +12,7 @@ module PostgREST.Error
   , RangeError(..)
   , PgError(..)
   , Error(..)
+  , JwtError (..)
   , errorPayload
   , status
   ) where
@@ -567,32 +568,47 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
     _                       -> HTTP.status500
 
 
+-- TODO: separate "SchemaCacheError" from ApiRequestError similar to how we
+-- group them in docs
 data Error
   = ApiRequestError ApiRequestError
-  | JwtTokenInvalid Text
-  | JwtTokenMissing
-  | JwtTokenRequired
+  | JwtErr JwtError
   | NoSchemaCacheError
   | PgErr PgError
 
+data JwtError
+  = JwtTokenInvalid Text
+  | JwtTokenMissing
+  | JwtTokenRequired
+
 instance PgrstError Error where
   status (ApiRequestError err) = status err
-  status JwtTokenInvalid{}     = HTTP.unauthorized401
-  status JwtTokenMissing       = HTTP.status500
-  status JwtTokenRequired      = HTTP.unauthorized401
+  status (JwtErr err)          = status err
   status NoSchemaCacheError    = HTTP.status503
   status (PgErr err)           = status err
 
   headers (ApiRequestError err) = headers err
-  headers (JwtTokenInvalid m)   = [invalidTokenHeader m]
-  headers JwtTokenRequired      = [requiredTokenHeader]
+  headers (JwtErr err)          = headers err
   headers (PgErr err)           = headers err
   headers _                     = mempty
 
+instance PgrstError JwtError where
+  status JwtTokenInvalid{} = HTTP.unauthorized401
+  status JwtTokenMissing   = HTTP.status500
+  status JwtTokenRequired  = HTTP.unauthorized401
+
+  headers (JwtTokenInvalid m) = [invalidTokenHeader m]
+  headers JwtTokenRequired    = [requiredTokenHeader]
+  headers _                   = mempty
+
 instance JSON.ToJSON Error where
-  toJSON NoSchemaCacheError = toJsonPgrstError
+  toJSON (ApiRequestError err) = JSON.toJSON err
+  toJSON (JwtErr err)          = JSON.toJSON err
+  toJSON (PgErr err)           = JSON.toJSON err
+  toJSON NoSchemaCacheError    = toJsonPgrstError
       ConnectionErrorCode02 "Could not query the database for the schema cache. Retrying." Nothing Nothing
 
+instance JSON.ToJSON JwtError where
   toJSON JwtTokenMissing = toJsonPgrstError
       JWTErrorCode00 "Server lacks JWT secret" Nothing Nothing
 
@@ -602,8 +618,6 @@ instance JSON.ToJSON Error where
   toJSON JwtTokenRequired = toJsonPgrstError
       JWTErrorCode02 "Anonymous access is disabled" Nothing Nothing
 
-  toJSON (PgErr err) = JSON.toJSON err
-  toJSON (ApiRequestError err) = JSON.toJSON err
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =

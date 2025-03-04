@@ -48,7 +48,7 @@ import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), FilterExp (..),
                                 JSPath, JSPathExp (..))
-import PostgREST.Error         (Error (..))
+import PostgREST.Error         (Error (..), JwtError (..))
 
 import Protolude
 
@@ -57,20 +57,20 @@ import Protolude
 parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
 parseToken _ "" _ = return JSON.emptyObject
 parseToken AppConfig{..} token time = do
-  secret <- liftEither . maybeToRight JwtTokenMissing $ configJWKS
+  secret <- liftEither . maybeToRight (JwtErr JwtTokenMissing) $ configJWKS
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
-  content <- liftEither . mapLeft jwtDecodeError $ eitherContent
-  liftEither $ verifyClaims content
+  content <- liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
+  liftEither $ mapLeft JwtErr $ verifyClaims content
   where
       -- TODO: Improve errors, those were just taken as-is from hs-jose to avoid
       -- breaking changes.
-      jwtDecodeError :: JWT.JwtError -> Error
+      jwtDecodeError :: JWT.JwtError -> JwtError
       jwtDecodeError (JWT.KeyError _)     = JwtTokenInvalid "JWSError JWSInvalidSignature"
       jwtDecodeError JWT.BadCrypto        = JwtTokenInvalid "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
       jwtDecodeError (JWT.BadAlgorithm _) = JwtTokenInvalid "JWSError JWSNoSignatures"
       jwtDecodeError e                    = JwtTokenInvalid $ show e
 
-      verifyClaims :: JWT.JwtContent -> Either Error JSON.Value
+      verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
         Nothing                    -> Left $ JwtTokenInvalid "Parsing claims failed"
         Just (JSON.Object mclaims)
@@ -110,7 +110,7 @@ parseClaims :: Monad m =>
   AppConfig -> JSON.Value -> ExceptT Error m AuthResult
 parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   -- role defaults to anon if not specified in jwt
-  role <- liftEither . maybeToRight JwtTokenRequired $
+  role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
            { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
