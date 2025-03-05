@@ -58,7 +58,7 @@ A request might be rejected at this level if it's invalid. For example when prov
 Plan
 ----
 
-Using the Schema Cache, `Plan.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Plan.hs>`_ fills in out-of-band SQL details (like an ``ON CONFLICT (pk)`` clause) required to complete the user request.
+Using the Schema Cache, `Plan.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Plan.hs>`_ generates an internal AST, filling out-of-band SQL details (like an ``ON CONFLICT (pk)`` clause) required to complete the user request.
 
 A request might be rejected at this level if it's invalid. For example when doing resource embedding on a nonexistent resource.
 
