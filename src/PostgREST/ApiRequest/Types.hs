@@ -22,6 +22,7 @@ module PostgREST.ApiRequest.Types
   , Operation (..)
   , OpQuantifier(..)
   , OrderDirection(..)
+  , OrderElement(..)
   , OrderNulls(..)
   , OrderTerm(..)
   , SingleVal
@@ -65,7 +66,7 @@ type Depth = Integer
 
 data OrderTerm
   = OrderTerm
-    { otTerm      :: Field
+    { otTerm      :: OrderElement
     , otDirection :: Maybe OrderDirection
     , otNullOrder :: Maybe OrderNulls
     }
@@ -75,6 +76,11 @@ data OrderTerm
     , otDirection :: Maybe OrderDirection
     , otNullOrder :: Maybe OrderNulls
     }
+  deriving (Eq, Show)
+
+data OrderElement
+  = OrderField Field
+  | OrderAlias FieldName
   deriving (Eq, Show)
 
 data OrderDirection

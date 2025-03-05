@@ -26,7 +26,7 @@ allowed =
         get "/projects?select=c:count(),client_id&order=client_id.desc" `shouldRespondWith`
           [json|[{ "c": 1, "client_id": null }, { "c": 2, "client_id": 2 }, { "c": 2, "client_id": 1}]|] { matchHeaders = [matchContentTypeJson] }
       it "works with a json field accessor and aggregates" $
-        get "/json_table?select=data->foo->>bar,count()&order=data->foo->>bar.desc.nullslast" `shouldRespondWith`
+        get "/json_table?select=data->foo->>bar,count()&order=:bar.desc.nullslast" `shouldRespondWith`
           [json|[{ "bar":"baz", "count":1}, {"bar":null, "count":2}]|] {matchHeaders = [matchContentTypeJson] }
 
     context "performing a count by using it as a column (backwards compat)" $ do
