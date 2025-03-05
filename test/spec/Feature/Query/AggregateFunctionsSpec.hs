@@ -25,6 +25,9 @@ allowed =
       it "returns the count grouped by all provided fields when other fields are selected" $
         get "/projects?select=c:count(),client_id&order=client_id.desc" `shouldRespondWith`
           [json|[{ "c": 1, "client_id": null }, { "c": 2, "client_id": 2 }, { "c": 2, "client_id": 1}]|] { matchHeaders = [matchContentTypeJson] }
+      it "works with a json field accessor and aggregates" $
+        get "/json_table?select=data->foo->>bar,count()&order=data->foo->>bar.desc.nullslast" `shouldRespondWith`
+          [json|[{ "bar":"baz", "count":1}, {"bar":null, "count":2}]|] {matchHeaders = [matchContentTypeJson] }
 
     context "performing a count by using it as a column (backwards compat)" $ do
       it "returns the count of all rows when no other fields are selected" $
