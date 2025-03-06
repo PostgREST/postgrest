@@ -208,7 +208,7 @@ test-suite spec
                       Feature.Auth.AuthSpec
                       Feature.Auth.BinaryJwtSecretSpec
                       Feature.Auth.NoAnonSpec
-                      Feature.Auth.NoJwtSpec
+                      Feature.Auth.NoJwtSecretSpec
                       Feature.ConcurrentSpec
                       Feature.CorsSpec
                       Feature.ExtraSearchPathSpec

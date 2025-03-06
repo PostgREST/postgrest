@@ -171,8 +171,8 @@ testCfgForceRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRoll
 testCfgNoAnon :: AppConfig
 testCfgNoAnon = baseCfg { configDbAnonRole = Nothing }
 
-testCfgNoJWT :: AppConfig
-testCfgNoJWT = baseCfg { configJwtSecret = Nothing, configJWKS = Nothing }
+testCfgNoJwtSecret :: AppConfig
+testCfgNoJwtSecret = baseCfg { configJwtSecret = Nothing, configJWKS = Nothing }
 
 testUnicodeCfg :: AppConfig
 testUnicodeCfg = baseCfg { configDbSchemas = fromList ["تست"] }

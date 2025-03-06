@@ -25,7 +25,7 @@ import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
 import qualified Feature.Auth.NoAnonSpec
-import qualified Feature.Auth.NoJwtSpec
+import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
@@ -110,7 +110,7 @@ main = do
       securityOpenApi      = app testSecurityOpenApiCfg
       proxyApp             = app testProxyCfg
       noAnonApp            = app testCfgNoAnon
-      noJwtApp             = app testCfgNoJWT
+      noJwtSecretApp       = app testCfgNoJwtSecret
       binaryJwtApp         = app testCfgBinaryJWT
       audJwtApp            = app testCfgAudienceJWT
       asymJwkApp           = app testCfgAsymJWK
@@ -202,8 +202,8 @@ main = do
       describe "Feature.Auth.NoAnonSpec" Feature.Auth.NoAnonSpec.spec
 
     -- this test runs without a JWT secret
-    parallel $ before noJwtApp $
-      describe "Feature.Auth.NoJwtSpec" Feature.Auth.NoJwtSpec.spec
+    parallel $ before noJwtSecretApp $
+      describe "Feature.Auth.NoJwtSecretSpec" Feature.Auth.NoJwtSecretSpec.spec
 
     -- this test runs with a binary JWT secret
     parallel $ before binaryJwtApp $
