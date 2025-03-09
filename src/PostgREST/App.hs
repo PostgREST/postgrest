@@ -144,8 +144,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   body <- lift $ Wai.strictRequestBody req
 
   let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
+      timezones = dbTimezones sCache
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body timezones
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let query = Query.query conf authResult apiReq plan sCache pgVer
