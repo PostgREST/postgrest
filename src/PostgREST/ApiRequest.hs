@@ -4,7 +4,6 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 -}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
--- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
@@ -46,6 +45,7 @@ import Web.Cookie                (parseCookies)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
+import PostgREST.Config.Database         (TimezoneNames)
 import PostgREST.Error                   (ApiRequestError (..),
                                           RangeError (..))
 import PostgREST.MediaType               (MediaType (..))
@@ -53,7 +53,6 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
                                           rangeRequested)
-import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
@@ -128,8 +127,10 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Request -> RequestBody -> SchemaCache -> Either ApiRequestError ApiRequest
-userApiRequest conf req reqBody sCache = do
+--
+--   TimezoneNames are used by Prefer: timezone
+userApiRequest :: AppConfig -> Request -> RequestBody -> TimezoneNames -> Either ApiRequestError ApiRequest
+userApiRequest conf req reqBody timezones = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
@@ -141,7 +142,7 @@ userApiRequest conf req reqBody sCache = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) (dbTimezones sCache) hdrs
+  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones  hdrs
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
