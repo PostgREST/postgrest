@@ -54,33 +54,44 @@ import Protolude
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
-parseToken _ "" _ = return JSON.emptyObject
-parseToken AppConfig{..} token time = do
-  secret <- liftEither . maybeToRight (JwtErr JwtTokenMissing) $ configJWKS
+parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
+parseToken _ Nothing _ = return JSON.emptyObject
+parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header" -- should we validate JWT ourselves before decoding or let the library (not very user friendly with errors) handle it?
+parseToken AppConfig{..} (Just token) time = do
+  secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
   content <- liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
   liftEither $ mapLeft JwtErr $ verifyClaims content
   where
-      -- TODO: Improve errors, those were just taken as-is from hs-jose to avoid
-      -- breaking changes.
       jwtDecodeError :: JWT.JwtError -> JwtError
-      jwtDecodeError (JWT.KeyError _)     = JwtTokenInvalid "JWSError JWSInvalidSignature"
-      jwtDecodeError JWT.BadCrypto        = JwtTokenInvalid "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtTokenInvalid "JWSError JWSNoSignatures"
-      jwtDecodeError e                    = JwtTokenInvalid $ show e
+      -- The only errors we can get from JWT.decode function are:
+      --   BadAlgorithm
+      --   KeyError
+      --   BadCrypto
+      -- So others should have a generic message because they can't
+      -- be covered by tests?
+      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
+      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT parsing failed"
+      -- We can't test below cases with current implementation
+      -- TODO: Remove them or replace with a single generic message?
+      jwtDecodeError (JWT.BadDots dots)   = JwtDecodeError ("Wrong number of '.' periods in JWT: Expected 3, got " <> show dots)
+      jwtDecodeError (JWT.BadHeader _)    = JwtDecodeError "Header couldn't be decoded or contains bad data"
+      jwtDecodeError JWT.BadClaims        = JwtClaimsError "JWT claims couldn't be decoded or contains bad data"
+      jwtDecodeError JWT.BadSignature     = JwtDecodeError "The JWT signature couldn't be decoded or is invalid"
+      jwtDecodeError (JWT.Base64Error _)  = JwtDecodeError "A base64 decoding error has occured"
 
       verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
-        Nothing                    -> Left $ JwtTokenInvalid "Parsing claims failed"
+        Nothing                    -> Left $ JwtClaimsError "Parsing claims failed"
         Just (JSON.Object mclaims)
-          | failedExpClaim mclaims -> Left $ JwtTokenInvalid "JWT expired"
-          | failedNbfClaim mclaims -> Left $ JwtTokenInvalid "JWTNotYetValid"
-          | failedIatClaim mclaims -> Left $ JwtTokenInvalid "JWTIssuedAtFuture"
-          | failedAudClaim mclaims -> Left $ JwtTokenInvalid "JWTNotInAudience"
+          | failedExpClaim mclaims -> Left $ JwtClaimsError "JWT expired"
+          | failedNbfClaim mclaims -> Left $ JwtClaimsError "JWT not yet valid"
+          | failedIatClaim mclaims -> Left $ JwtClaimsError "JWT issued at future"
+          | failedAudClaim mclaims -> Left $ JwtClaimsError "JWT not in audience"
         Just jclaims               -> Right jclaims
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _                = Left $ JwtTokenInvalid "Unsupported token type"
+      verifyClaims _                = Left $ JwtDecodeError "Unsupported token type"
 
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
@@ -148,7 +159,7 @@ middleware appState app req respond = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
       jwtCacheState = getJwtCacheState appState
 
@@ -160,7 +171,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing  -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -168,7 +181,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          authResult <- case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
