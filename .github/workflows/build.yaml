@@ -96,13 +96,22 @@ jobs:
             artifact: postgrest-ubuntu-aarch64
             deps: sudo apt-get update && sudo apt-get install libpq-dev
 
-          - name: MacOS
+          - name: MacOS aarch64
             runs-on: macos-14
             cache: |
               ~/.stack/pantry
               ~/.stack/snapshots
               ~/.stack/stack.sqlite3
             artifact: postgrest-macos-aarch64
+            deps: brew link --force libpq
+
+          - name: MacOS x86-64
+            runs-on: macos-13
+            cache: |
+              ~/.stack/pantry
+              ~/.stack/snapshots
+              ~/.stack/stack.sqlite3
+            artifact: postgrest-macos-x86-64
             deps: brew link --force libpq
 
           - name: Windows
