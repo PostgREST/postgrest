@@ -24,6 +24,7 @@ import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
+import qualified Feature.Auth.JwtCacheSpec
 import qualified Feature.Auth.NoAnonSpec
 import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
@@ -104,26 +105,28 @@ main = do
       customSchemaCache <- loadSCache pool config
       initApp customSchemaCache config
 
-  let withApp              = app testCfg
-      maxRowsApp           = app testMaxRowsCfg
-      disabledOpenApi      = app testDisabledOpenApiCfg
-      securityOpenApi      = app testSecurityOpenApiCfg
-      proxyApp             = app testProxyCfg
-      noAnonApp            = app testCfgNoAnon
-      noJwtSecretApp       = app testCfgNoJwtSecret
-      binaryJwtApp         = app testCfgBinaryJWT
-      audJwtApp            = app testCfgAudienceJWT
-      asymJwkApp           = app testCfgAsymJWK
-      asymJwkSetApp        = app testCfgAsymJWKSet
-      rootSpecApp          = app testCfgRootSpec
-      responseHeadersApp   = app testCfgResponseHeaders
-      disallowRollbackApp  = app testCfgDisallowRollback
-      forceRollbackApp     = app testCfgForceRollback
-      planEnabledApp       = app testPlanEnabledCfg
-      pgSafeUpdateApp      = app testPgSafeUpdateEnabledCfg
-      obsApp               = app testObservabilityCfg
-      serverTiming         = app testCfgServerTiming
-      aggregatesEnabled    = app testCfgAggregatesEnabled
+  let withApp                     = app testCfg
+      maxRowsApp                  = app testMaxRowsCfg
+      disabledOpenApi             = app testDisabledOpenApiCfg
+      securityOpenApi             = app testSecurityOpenApiCfg
+      proxyApp                    = app testProxyCfg
+      noAnonApp                   = app testCfgNoAnon
+      noJwtSecretApp              = app testCfgNoJwtSecret
+      binaryJwtApp                = app testCfgBinaryJWT
+      audJwtApp                   = app testCfgAudienceJWT
+      asymJwkApp                  = app testCfgAsymJWK
+      asymJwkSetApp               = app testCfgAsymJWKSet
+      rootSpecApp                 = app testCfgRootSpec
+      responseHeadersApp          = app testCfgResponseHeaders
+      disallowRollbackApp         = app testCfgDisallowRollback
+      forceRollbackApp            = app testCfgForceRollback
+      planEnabledApp              = app testPlanEnabledCfg
+      pgSafeUpdateApp             = app testPgSafeUpdateEnabledCfg
+      obsApp                      = app testObservabilityCfg
+      serverTiming                = app testCfgServerTiming
+      aggregatesEnabled           = app testCfgAggregatesEnabled
+      jwtCacheWithServerTiming    = app testCfgJwtCacheServerTiming
+      jwtCacheWithoutServerTiming = app testCfgJwtCacheNoServerTiming
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
@@ -220,6 +223,14 @@ main = do
     -- this test runs with asymmetric JWKSet
     parallel $ before asymJwkSetApp $
       describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
+
+    -- this test jwt cache with server timing enabled
+    parallel $ before jwtCacheWithServerTiming $
+      describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
+
+    -- this test jwt cache with server timing disabled
+    parallel $ before jwtCacheWithoutServerTiming $
+      describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $ do

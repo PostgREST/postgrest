@@ -92,7 +92,7 @@ def test_jwt_errors(defaultenv):
         headers = jwtauthheader({}, "other secret")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWSError JWSInvalidSignature"
+        assert response.json()["message"] == "No suitable key or wrong key type"
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
@@ -110,27 +110,30 @@ def test_jwt_errors(defaultenv):
         headers = jwtauthheader({"nbf": relativeSeconds(31)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTNotYetValid"
+        assert response.json()["message"] == "JWT not yet valid"
 
         # 31 seconds, because we allow clock skew of 30 seconds
         headers = jwtauthheader({"iat": relativeSeconds(31)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTIssuedAtFuture"
+        assert response.json()["message"] == "JWT issued at future"
 
         headers = jwtauthheader({"aud": "not set"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTNotInAudience"
+        assert response.json()["message"] == "JWT not in audience"
 
         # partial token, no signature
         headers = authheader("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGFuIG9iamVjdA")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert (
-            response.json()["message"]
-            == "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
-        )
+        assert response.json()["message"] == "Expected 3 parts in JWT; got 2"
+
+        # complete token but random characters
+        headers = authheader("quifquirndsjagnrgniur.fonvoienqhhdj.iuqvnvhojah")
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWT cryptographic operation failed"
 
         # token with algorithm "none"
         headers = authheader(
@@ -138,7 +141,7 @@ def test_jwt_errors(defaultenv):
         )
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWSError JWSNoSignatures"
+        assert response.json()["message"] == "Wrong or unsupported encoding algorithm"
 
 
 def test_fail_with_invalid_password(defaultenv):
