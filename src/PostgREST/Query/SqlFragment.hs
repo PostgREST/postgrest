@@ -348,7 +348,8 @@ pgFmtOrderTerm qi ot =
     maybe mempty nullOrder $ coNullOrder ot])
   where
     fmtOTerm = \case
-      CoercibleOrderTerm{coField=cof}                            -> pgFmtField qi cof
+      CoercibleOrderFieldTerm{coField=cof}                       -> pgFmtField qi cof
+      CoercibleOrderAliasTerm{coAlias=coa}                       -> pgFmtIdent coa
       CoercibleOrderRelationTerm{coRelation, coRelTerm=(fn, jp)} -> pgFmtField (QualifiedIdentifier mempty coRelation) (unknownField fn jp)
 
     direction OrderAsc  = "ASC"

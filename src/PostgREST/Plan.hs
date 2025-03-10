@@ -782,7 +782,8 @@ addOrders ctx ApiRequest{..} rReq =
 
 resolveOrder :: ResolverContext -> OrderTerm -> CoercibleOrderTerm
 resolveOrder _ (OrderRelationTerm a b c d) = CoercibleOrderRelationTerm a b c d
-resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUnknown ctx fld Nothing) dir nulls
+resolveOrder _ (OrderTerm (OrderAlias ali) dir nulls) = CoercibleOrderAliasTerm ali dir nulls
+resolveOrder ctx (OrderTerm (OrderField fld) dir nulls) = CoercibleOrderFieldTerm (resolveTypeOrUnknown ctx fld Nothing) dir nulls
 
 -- Validates that the related resource on the order is an embedded resource,
 -- e.g. if `clients` is inside the `select` in /projects?order=clients(id)&select=*,clients(*),
@@ -792,7 +793,6 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
   newOrder <- newRelOrder `traverse` order
   Node rp{order=newOrder} <$> addRelatedOrders `traverse` forest
   where
-    newRelOrder cot@CoercibleOrderTerm{}                   = Right cot
     newRelOrder cot@CoercibleOrderRelationTerm{coRelation} =
       let foundRP = rootLabel <$> find (\(Node ReadPlan{relName, relAlias} _) -> coRelation == fromMaybe relName relAlias) forest in
       case foundRP of
@@ -804,6 +804,8 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
             else Left $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
           Left $ NotEmbedded coRelation
+    newRelOrder cot = Right cot
+
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
