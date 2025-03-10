@@ -252,6 +252,12 @@ testCfgServerTiming = baseCfg { configDbPlanEnabled = True }
 testCfgAggregatesEnabled :: AppConfig
 testCfgAggregatesEnabled = baseCfg { configDbAggregates = True }
 
+testCfgJwtCacheServerTiming :: AppConfig
+testCfgJwtCacheServerTiming = baseCfg { configServerTimingEnabled = True, configJwtCacheMaxLifetime = 86400 }
+
+testCfgJwtCacheNoServerTiming :: AppConfig
+testCfgJwtCacheNoServerTiming = baseCfg { configServerTimingEnabled = False, configJwtCacheMaxLifetime = 86400 }
+
 analyzeTable :: Text -> IO ()
 analyzeTable tableName =
   void $ readProcess "psql" ["-U", "postgres", "--set", "ON_ERROR_STOP=1", "-a", "-c", toS $ "ANALYZE test.\"" <> tableName <> "\""] []
