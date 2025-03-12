@@ -305,13 +305,17 @@ Related to the authentication process using JWT. You can follow the :ref:`tut1` 
 |               |             | configuration.                                              |
 | PGRST300      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst301: | 401         | Any error related to the verification of the JWT,           |
-|               |             | which means that the JWT provided is invalid in some way.   |
+| .. _pgrst301: | 401         | Provided JWT couldn't be decoded or it is invalid.          |
+|               |             |                                                             |
 | PGRST301      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst302: | 401         | Attempted to do a request without                           |
 |               |             | :ref:`authentication <client_auth>` when the anonymous role |
 | PGRST302      |             | is disabled by not setting it in :ref:`db-anon-role`.       |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst303: | 401         | :ref:`JWT claims validation <jwt_claims_validation>`        |
+|               |             | or parsing failed.                                          |
+| PGRST303      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
 .. The Internal Errors Group X** is always at the end

@@ -23,6 +23,7 @@ import qualified Data.Aeson.Key                  as K
 import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString                 as BS
+import qualified Data.ByteString.Internal        as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
 import qualified Data.Scientific                 as Sci
 import qualified Data.Text                       as T
@@ -54,33 +55,42 @@ import Protolude
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
-parseToken _ "" _ = return JSON.emptyObject
-parseToken AppConfig{..} token time = do
-  secret <- liftEither . maybeToRight (JwtErr JwtTokenMissing) $ configJWKS
-  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
+parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
+parseToken _ Nothing _ = return JSON.emptyObject
+parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header"
+parseToken AppConfig{..} (Just tkn) time = do
+  secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
+  tknWith3Parts <- liftEither $ hasThreeParts tkn
+  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
   content <- liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
   liftEither $ mapLeft JwtErr $ verifyClaims content
   where
-      -- TODO: Improve errors, those were just taken as-is from hs-jose to avoid
-      -- breaking changes.
+      hasThreeParts :: ByteString -> Either Error ByteString
+      hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
+        3 -> Right token
+        n -> Left $ JwtErr $ JwtDecodeError ("Expected 3 parts in JWT; got " <> show n)
       jwtDecodeError :: JWT.JwtError -> JwtError
-      jwtDecodeError (JWT.KeyError _)     = JwtTokenInvalid "JWSError JWSInvalidSignature"
-      jwtDecodeError JWT.BadCrypto        = JwtTokenInvalid "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtTokenInvalid "JWSError JWSNoSignatures"
-      jwtDecodeError e                    = JwtTokenInvalid $ show e
+      -- The only errors we can get from JWT.decode function are:
+      --   BadAlgorithm
+      --   KeyError
+      --   BadCrypto
+      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
+      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed"
+      -- Control never reaches here, the decode function only returns the above three
+      jwtDecodeError _                    = JwtDecodeError "JWT couldn't be decoded"
 
       verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
-        Nothing                    -> Left $ JwtTokenInvalid "Parsing claims failed"
+        Nothing                    -> Left $ JwtClaimsError "Parsing claims failed"
         Just (JSON.Object mclaims)
-          | failedExpClaim mclaims -> Left $ JwtTokenInvalid "JWT expired"
-          | failedNbfClaim mclaims -> Left $ JwtTokenInvalid "JWTNotYetValid"
-          | failedIatClaim mclaims -> Left $ JwtTokenInvalid "JWTIssuedAtFuture"
-          | failedAudClaim mclaims -> Left $ JwtTokenInvalid "JWTNotInAudience"
+          | failedExpClaim mclaims -> Left $ JwtClaimsError "JWT expired"
+          | failedNbfClaim mclaims -> Left $ JwtClaimsError "JWT not yet valid"
+          | failedIatClaim mclaims -> Left $ JwtClaimsError "JWT issued at future"
+          | failedAudClaim mclaims -> Left $ JwtClaimsError "JWT not in audience"
         Just jclaims               -> Right jclaims
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _                = Left $ JwtTokenInvalid "Unsupported token type"
+      verifyClaims _                = Left $ JwtDecodeError "Unsupported token type"
 
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
@@ -148,7 +158,7 @@ middleware appState app req respond = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
       jwtCacheState = getJwtCacheState appState
 
@@ -160,7 +170,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing  -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -168,7 +180,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- lookupJwtCache jwtCacheState token maxLifetime parseJwt time
+          authResult <- case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond

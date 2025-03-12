@@ -577,9 +577,10 @@ data Error
   | PgErr PgError
 
 data JwtError
-  = JwtTokenInvalid Text
-  | JwtTokenMissing
+  = JwtDecodeError Text
+  | JwtSecretMissing
   | JwtTokenRequired
+  | JwtClaimsError Text
 
 instance PgrstError Error where
   status (ApiRequestError err) = status err
@@ -593,13 +594,15 @@ instance PgrstError Error where
   headers _                     = mempty
 
 instance PgrstError JwtError where
-  status JwtTokenInvalid{} = HTTP.unauthorized401
-  status JwtTokenMissing   = HTTP.status500
-  status JwtTokenRequired  = HTTP.unauthorized401
+  status JwtDecodeError{} = HTTP.unauthorized401
+  status JwtSecretMissing = HTTP.status500
+  status JwtTokenRequired = HTTP.unauthorized401
+  status JwtClaimsError{} = HTTP.unauthorized401
 
-  headers (JwtTokenInvalid m) = [invalidTokenHeader m]
-  headers JwtTokenRequired    = [requiredTokenHeader]
-  headers _                   = mempty
+  headers (JwtDecodeError m) = [invalidTokenHeader m]
+  headers JwtTokenRequired   = [requiredTokenHeader]
+  headers (JwtClaimsError m) = [invalidTokenHeader m]
+  headers _                  = mempty
 
 instance JSON.ToJSON Error where
   toJSON (ApiRequestError err) = JSON.toJSON err
@@ -608,15 +611,19 @@ instance JSON.ToJSON Error where
   toJSON NoSchemaCacheError    = toJsonPgrstError
       ConnectionErrorCode02 "Could not query the database for the schema cache. Retrying." Nothing Nothing
 
+-- Should we provide hints and description or explain the error in docs or both?
 instance JSON.ToJSON JwtError where
-  toJSON JwtTokenMissing = toJsonPgrstError
+  toJSON JwtSecretMissing = toJsonPgrstError
       JWTErrorCode00 "Server lacks JWT secret" Nothing Nothing
 
-  toJSON (JwtTokenInvalid message) = toJsonPgrstError
+  toJSON (JwtDecodeError message) = toJsonPgrstError
       JWTErrorCode01 message Nothing Nothing
 
   toJSON JwtTokenRequired = toJsonPgrstError
       JWTErrorCode02 "Anonymous access is disabled" Nothing Nothing
+
+  toJSON (JwtClaimsError message) = toJsonPgrstError
+      JWTErrorCode03 message Nothing Nothing
 
 
 invalidTokenHeader :: Text -> Header
@@ -710,6 +717,7 @@ data ErrorCode
   | JWTErrorCode00
   | JWTErrorCode01
   | JWTErrorCode02
+  | JWTErrorCode03
   -- Internal errors related to the Hasql library
   | InternalErrorCode00
 
@@ -758,5 +766,6 @@ buildErrorCode code = case code of
   JWTErrorCode00         -> "PGRST300"
   JWTErrorCode01         -> "PGRST301"
   JWTErrorCode02         -> "PGRST302"
+  JWTErrorCode03         -> "PGRST303"
 
   InternalErrorCode00    -> "PGRSTX00"
