@@ -1453,8 +1453,9 @@ def test_jwt_cache_server_timing(defaultenv):
         first_dur = parse_server_timings_header(first.headers["Server-Timing"])["jwt"]
         second_dur = parse_server_timings_header(second.headers["Server-Timing"])["jwt"]
 
-        assert first_dur >= 0
-        assert second_dur >= 0
+        # with jwt caching the parse time of second request with the same token
+        # should be at least as fast as the first one
+        assert second_dur <= first_dur
 
 
 def test_jwt_cache_without_server_timing(defaultenv):
