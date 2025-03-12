@@ -17,6 +17,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2255, Apply `to_tsvector()` explicitly to the full-text search filtered column (excluding `tsvector` types) - @laurenceisla
  - #1578, Log the main SQL query to stderr at the current `log-level` when `log-query=main-query` - @laurenceisla
  - #3903, Log connection pool borrows on `log-level=debug` - @taimoorzaeem
+ - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
+   + The selected columns in the embedded resources are aggregated into arrays
+   + Aggregates are not supported
 
 ### Fixed
 

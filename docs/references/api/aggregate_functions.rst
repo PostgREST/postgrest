@@ -225,10 +225,10 @@ If we also want to get the total ``amount`` grouped by the ``order_date`` of the
 Note that the aggregate is done within the embedded resource ``orders``.
 It is not affected by any of the columns from the top-level relationship ``customers``.
 
-Using Aggregates in Spreads
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Aggregates in To-One Spreads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-All the aggregates inside a :ref:`spread embedded resource <spread_embed>` will be hoisted to the top-level relationship.
+All the aggregates inside a :ref:`one-to-one or many-to-one spread embedded resource <spread_to_one_embed>` will be hoisted to the top-level relationship.
 In other words, it will behave as if the aggregate was done in the top-level relationship itself. For example:
 
 .. code-block:: bash
@@ -251,3 +251,7 @@ This will take the ``max`` and ``min`` subscription date of every customer and g
       "min": "2016-02-11"
     }
   ]
+
+.. note::
+
+  Aggregates inside to-many spreads are not supported

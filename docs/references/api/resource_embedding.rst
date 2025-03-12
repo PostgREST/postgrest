@@ -1150,7 +1150,20 @@ For example, to arrange the films in descending order using the director's last 
 Spread embedded resource
 ========================
 
-On many-to-one and one-to-one relationships, you can "spread" the embedded resource. That is, remove the surrounding JSON object for the embedded resource columns.
+The ``...`` operator lets you "spread" an embedded resource.
+That is, it removes the surrounding JSON object for the embedded resource columns.
+
+.. note::
+
+  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+
+.. _spread_to_one_embed:
+
+Spread To-One relationships
+---------------------------
+
+This applies to :ref:`one-to-one <one-to-one>` and :ref:`many-to-one <many-to-one>` relationships.
+Take the following example:
 
 .. code-block:: bash
 
@@ -1196,6 +1209,107 @@ You can use this to get the columns of a join table in a many-to-many relationsh
      }
    ]
 
-.. note::
+.. _spread_to_many_embed:
 
-  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+Spread To-Many relationships
+----------------------------
+
+The spread columns in :ref:`one-to-many <one-to-many>` or :ref:`many-to-many <many-to-many>` relationships will show the data in arrays.
+
+.. code-block:: bash
+
+   # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year)&first_name=like.Quentin*"
+
+  curl --get "http://localhost:3000/directors" \
+    -d "select=first_name,...films(film_titles:title,film_years:year)" \
+    -d "first_name=like.Quentin*"
+
+.. code-block:: json
+
+   [
+     {
+       "first_name": "Quentin",
+       "film_titles": [
+         "Pulp Fiction",
+         "Reservoir Dogs"
+       ],
+       "film_years": [
+         1994,
+         1992
+       ]
+     }
+   ]
+
+Note that there is no ``films`` array of objects.
+
+By default, the order of the values inside the resulting array is unspecified but `it is safe to assume <https://www.postgresql.org/message-id/15950.1491843689%40sss.pgh.pa.us>`_ that all the columns return the values in the same unspecified order.
+From the previous result, we can say that "Pulp Fiction" premiered in 1994 and "Reservoir Dogs" in 1992.
+You can still order all the resulting arrays explicitly. For example, to order by the release year:
+
+.. code-block:: bash
+
+  # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year)&first_name=like.Quentin*&films.order=year"
+
+  curl --get "http://localhost:3000/directors" \
+    -d "select=first_name,...films(film_titles:title,film_years:year)" \
+    -d "first_name=like.Quentin*" \
+    -d "films.order=year"
+
+.. code-block:: json
+
+   [
+     {
+       "first_name": "Quentin",
+       "film_titles": [
+         "Reservoir Dogs",
+         "Pulp Fiction"
+       ],
+       "film_years": [
+         1992,
+         1994
+       ]
+     }
+   ]
+
+Nesting Spreads
+~~~~~~~~~~~~~~~
+
+For example, let's nest ``...technical_specs`` (one-to-one) and ``...roles`` (one-to-many) inside ``...films``:
+
+.. code-block:: bash
+
+  # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year,...technical_specs(film_runtimes:runtime),...roles(film_characters:character))&first_name=like.Quentin*&films.order=year&films.roles.order=character"
+
+  curl --get "http://localhost:3000/directors" \
+    -d "select=first_name,...films(film_titles:title,film_years:year,...technical_specs(film_runtimes:runtime),...roles(film_characters:character))" \
+    -d "first_name=like.Quentin*" \
+    -d "films.order=year" \
+    -d "films.roles.order=character"
+
+.. code-block:: json
+
+   [
+     {
+       "first_name": "Quentin",
+       "film_titles": [
+         "Reservoir Dogs",
+         "Pulp Fiction"
+       ],
+       "film_years": [
+         1992,
+         1994
+       ],
+       "film_runtimes": [
+         "01:39:00",
+         "02:29:00"
+       ]
+       "film_characters": [
+         [ "Mr. Pink", "Mr. White" ],
+         [ "Mia Wallace", "Vincent Vega" ]
+       ]
+     }
+   ]
+
+All the elements inside ``films`` are selected in the same order, including both nested resources.
+For example, we can say that "Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
+Note that the data inside to-many nested resources can also be ordered (``roles`` by the ``character`` name in our example).
