@@ -28,6 +28,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
  - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
+ - #3600, #3926, Improve JWT errors - @taimoorzaeem
 
 ### Changed
 
@@ -43,6 +44,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3013, Drop support for Limited updates/deletes
    + The feature was complicated and largely unused.
  - #3697, #3602, Querying non-existent table now returns `PGRST205` error instead of empty json - @taimoorzaeem
+ - #3600, #3926, Improve JWT errors - @taimoorzaeem
+   + Return `PGRST301` error when `Bearer` in auth header is sent empty
+   + Diagnostic error messages instead of exposed internals
+   + Return new `PGRST303` error when jwt claims decoding fails
 
 ## [12.2.8] - 2025-02-10
 

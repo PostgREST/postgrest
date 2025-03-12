@@ -85,10 +85,21 @@ spec = describe "authorization" $ do
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith` 200
 
+  it "fails when auth header is sent empty" $ do
+    let auth = authHeaderJWT ""
+    request methodGet "/authors_only" [auth] ""
+    `shouldRespondWith` [json| {"message":"Empty JWT is sent in Authorization header","code":"PGRST301","hint":null,"details":null} |]
+      { matchStatus = 401
+      , matchHeaders = [
+          "WWW-Authenticate" <:>
+          "Bearer error=\"invalid_token\", error_description=\"Empty JWT is sent in Authorization header\""
+        ]
+      }
+
   it "fails with an expired token" $ do
     let auth = authHeaderJWT "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0NDY2NzgxNDksInJvbGUiOiJwb3N0Z3Jlc3RfdGVzdF9hdXRob3IiLCJpZCI6Impkb2UifQ.f8__E6VQwYcDqwHmr9PG03uaZn8Zh1b0vbJ9DYS0AdM"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` [json| {"message":"JWT expired","code":"PGRST301","hint":null,"details":null} |]
+      `shouldRespondWith` [json| {"message":"JWT expired","code":"PGRST303","hint":null,"details":null} |]
         { matchStatus = 401
         , matchHeaders = [
             "WWW-Authenticate" <:>
@@ -99,11 +110,11 @@ spec = describe "authorization" $ do
   it "hides tables from users with invalid JWT" $ do
     let auth = authHeaderJWT "ey9zdGdyZXN0X3Rlc3RfYXV0aG9yIiwiaWQiOiJqZG9lIn0.y4vZuu1dDdwAl0-S00MCRWRYMlJ5YAMSir6Es6WtWx0"
     request methodGet "/authors_only" [auth] ""
-      `shouldRespondWith` [json| {"message":"JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)","code":"PGRST301","hint":null,"details":null} |]
+      `shouldRespondWith` [json| {"message":"Expected 3 parts in JWT; got 2","code":"PGRST301","hint":null,"details":null} |]
         { matchStatus = 401
         , matchHeaders = [
             "WWW-Authenticate" <:>
-            "Bearer error=\"invalid_token\", error_description=\"JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)\""
+            "Bearer error=\"invalid_token\", error_description=\"Expected 3 parts in JWT; got 2\""
           ]
         }
 

@@ -156,6 +156,8 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 
   jwt-secret = "@rsa.jwk.pub"
 
+.. _jwt_claims_validation:
+
 JWT Claims Validation
 ~~~~~~~~~~~~~~~~~~~~~
 
