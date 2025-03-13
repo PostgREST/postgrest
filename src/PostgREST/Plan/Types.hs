@@ -65,8 +65,13 @@ data CoercibleFilter = CoercibleFilter
   deriving (Eq, Show)
 
 data CoercibleOrderTerm
-  = CoercibleOrderTerm
+  = CoercibleOrderFieldTerm
     { coField     :: CoercibleField
+    , coDirection :: Maybe OrderDirection
+    , coNullOrder :: Maybe OrderNulls
+    }
+  | CoercibleOrderAliasTerm
+    { coAlias     :: Alias
     , coDirection :: Maybe OrderDirection
     , coNullOrder :: Maybe OrderNulls
     }
