@@ -1459,11 +1459,11 @@ def test_jwt_cache_server_timing(defaultenv):
 
 
 def test_jwt_cache_without_server_timing(defaultenv):
-    "JWT cache does not break requests without server-timing enabled"
+    "JWT cache does not break requests with server-timing disabled"
 
     env = {
         **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
+        "PGRST_SERVER_TIMING_ENABLED": "false",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
