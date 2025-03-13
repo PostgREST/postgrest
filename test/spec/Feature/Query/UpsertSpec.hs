@@ -526,3 +526,16 @@ spec =
             }
         get "/UnitTest?idUnitTest=eq.1" `shouldRespondWith`
           [json| [ { "idUnitTest": 1, "nameUnitTest": "unit test 1" } ]|]
+
+    context "with ordering" $
+      it "works with request method PUT and embedded resource" $
+        request methodPut "/web_content?id=eq.0&select=id,name,web_content(name)&web_content.order=name.asc"
+          [("Prefer", "return=representation")]
+          [json|{ "id": 0, "name": "tardis-upserted", "p_web_id": 5 }|]
+          `shouldRespondWith`
+          [json|
+            [ { "id": 0, "name": "tardis-upserted", "web_content": [ { "name": "bar" }, { "name": "fezz" }, { "name": "foo" } ]} ]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+          }
