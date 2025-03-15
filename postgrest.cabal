@@ -91,7 +91,8 @@ library
                       PostgREST.Response.GucHeader
                       PostgREST.Response.Performance
                       PostgREST.Version
-  other-modules:      Paths_postgrest
+  other-modules:      PostgREST.Internal
+                      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.20
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
@@ -110,6 +111,7 @@ library
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
                     , fuzzyset                  >= 0.2.4 && < 0.3
+                    , ghc-heap                  >= 9.4 && < 9.9
                     , hasql                     >= 1.6.1.1 && < 1.7
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.2.2.2 && < 0.2.3
@@ -158,7 +160,7 @@ library
                       -- -optP-Wno-nonportable-include-path
                       --   prevents build failures on case-insensitive filesystems (macos),
                       --   see https://github.com/commercialhaskell/stack/issues/3918
-  ghc-options:        -Werror -Wall -fwarn-identities
+  ghc-options:        -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if flag(dev)

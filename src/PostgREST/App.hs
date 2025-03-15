@@ -15,7 +15,6 @@ module PostgREST.App
   , run
   ) where
 
-
 import Control.Monad.Except     (liftEither)
 import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)

@@ -59,6 +59,7 @@ data Observation
   | HasqlPoolObs SQL.Observation
   | PoolRequest
   | PoolRequestFullfilled
+  | JwtCache Int
 
 data ObsFatalError = ServerAuthError | ServerPgrstBug | ServerError42P05 | ServerError08P01
 
@@ -146,6 +147,8 @@ observationMessage = \case
     "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
     "Borrowed a connection from the pool"
+  JwtCache sz ->
+    "The JWT Cache size updated to " <> show sz <> " bytes"
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""
