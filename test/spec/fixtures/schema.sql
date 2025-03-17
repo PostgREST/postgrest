@@ -3762,3 +3762,20 @@ $$ language sql;
 create function test.text_search_vector(test.tsearch_to_tsvector) returns tsvector AS $$
   select to_tsvector('simple', $1.text_search)
 $$ language sql;
+
+-- to test ordering with mutations
+CREATE TABLE test.artists (
+  id int PRIMARY KEY,
+  name text
+);
+
+CREATE TABLE test.albums (
+  id int PRIMARY KEY,
+  title text,
+  artist_id int,
+
+  CONSTRAINT fk_artist
+    FOREIGN KEY (artist_id) REFERENCES artists (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);

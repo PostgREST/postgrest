@@ -770,10 +770,7 @@ addFilters ctx ApiRequest{..} rReq =
       updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
 
 addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addOrders ctx ApiRequest{..} rReq =
-  case iAction of
-    ActDb (ActRelationMut _ _) -> Right rReq
-    _                          -> foldr addOrderToNode (Right rReq) qsOrder
+addOrders ctx ApiRequest{..} rReq = foldr addOrderToNode (Right rReq) qsOrder
   where
     QueryParams.QueryParams{..} = iQueryParams
 
