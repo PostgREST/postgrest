@@ -149,3 +149,15 @@ spec =
             { matchStatus = 204
             , matchHeaders = [matchHeaderAbsent hContentType]
             }
+
+    context "with ordering" $
+      it "works with request method DELETE and embedded resource" $ do
+        request methodDelete "/artists?id=lt.3&select=id,name,albums(title)&order=id.desc"
+          [("Prefer", "return=representation")]
+          ""
+          `shouldRespondWith`
+          [json| [ {"id":2,"name":"black country, new road","albums":[{"title": "ants from up above"}]}, {"id":1,"name":"duster","albums":[{"title": "stratosphere"},{"title": "contemporary movement"}]}]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+          }

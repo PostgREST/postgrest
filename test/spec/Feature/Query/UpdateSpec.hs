@@ -426,6 +426,20 @@ spec = do
           , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
           }
 
+      it "with ordering on top-level resource" $
+        request methodPatch "/no_pk?order=a.desc"
+                [("Prefer", "return=representation")]
+          [json|{ "b": "1" }|]
+          `shouldRespondWith`
+          [json|
+            [ { "a": null, "b": "1" },
+              { "a": "2", "b": "1" },
+              { "a": "1", "b": "1" } ]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+          }
+
       it "with filters" $
         request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)&web_content.name=like.f*"
                 [("Prefer", "return=representation")]
@@ -703,3 +717,16 @@ spec = do
         request methodPatch "/datarep_todos_computed?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
          [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
          `shouldRespondWith` 200
+
+    context "with ordering" $
+      it "works with request method PATCH and embedded resource" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)&web_content.order=name.asc"
+                  [("Prefer", "return=representation")]
+            [json|{"name": "tardis-patched"}|]
+            `shouldRespondWith`
+            [json|
+              [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "bar" }, { "name": "fezz" }, { "name": "foo" } ]} ]
+            |]
+            { matchStatus  = 200
+            , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+            }

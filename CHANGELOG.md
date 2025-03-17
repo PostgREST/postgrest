@@ -29,6 +29,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
  - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
+ - #3013, Fix `order=` with POST, PATCH, PUT and DELETE requests - @taimoorzaeem
 
 ### Changed
 
