@@ -79,6 +79,7 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
           ]
           ++ contentTypeHeaders wrMedia ctxApiRequest
           ++ prefHeader
+          ++ [Error.proxyStatusHeader Nothing]
 
       (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
 
@@ -112,7 +113,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
                 )
           , Just . RangeQuery.contentRangeH 1 0 $
               if shouldCount preferCount then Just rsQueryTotal else Nothing
-          , prefHeader ]
+          , prefHeader ] ++ [Error.proxyStatusHeader Nothing]
 
     let isInsertIfGTZero i =
           if i <= 0 && preferResolution == Just MergeDuplicates then
@@ -139,7 +140,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
       prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
-      headers = catMaybes [contentRangeHeader, prefHeader]
+      headers = catMaybes [contentRangeHeader, prefHeader] ++ [Error.proxyStatusHeader Nothing]
 
     let (status, headers', body) =
           case preferRepresentation of
@@ -159,15 +160,16 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrM
     let
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
       cTHeader = contentTypeHeaders mrMedia ctxApiRequest
+      headers = Error.proxyStatusHeader Nothing : prefHeader
 
     let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
         upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
-        (status, headers, body) =
+        (status, headers', body) =
           case preferRepresentation of
-            Just Full -> (upsertStatus, cTHeader ++ prefHeader, LBS.fromStrict rsBody)
-            Just None -> (HTTP.status204,  prefHeader, mempty)
-            _ -> (HTTP.status204, prefHeader, mempty)
-    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
+            Just Full -> (upsertStatus, cTHeader ++ headers, LBS.fromStrict rsBody)
+            Just None -> (HTTP.status204,  headers, mempty)
+            _ -> (HTTP.status204, headers, mempty)
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
 
     Right $ PgrstResponse ovStatus ovHeaders body
 
@@ -181,7 +183,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} 
         RangeQuery.contentRangeH 1 0 $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
-      headers = contentRangeHeader : prefHeader
+      headers = Error.proxyStatusHeader Nothing : contentRangeHeader : prefHeader
 
     let (status, headers', body) =
           case preferRepresentation of
@@ -206,7 +208,7 @@ actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=p
           $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
-      headers = contentRange : prefHeader
+      headers = Error.proxyStatusHeader Nothing : contentRange : prefHeader
 
     let (status', headers', body) =
           if Routine.funcReturnsVoid proc then

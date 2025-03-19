@@ -15,6 +15,7 @@ module PostgREST.Error
   , JwtError (..)
   , errorPayload
   , status
+  , proxyStatusHeader
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -459,17 +460,26 @@ type Authenticated = Bool
 instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
-  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p))))) =
-    case parseRaisePGRST m d of
-      Right (_, r) -> map intoHeader (M.toList $ getHeaders r)
-      Left e       -> headers e
+  headers err@(PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (SQL.ServerError code m d _ _p))))) =
+    case code of
+      -- for 'PGRST' sqlstate error, we get the error code from raised message
+      -- and headers from raised details
+      "PGRST" -> case parseRaisePGRST m d of
+          Right (rm, rd) -> proxyStatusHeader (Just $ T.encodeUtf8 $ getCode rm) : map intoHeader (M.toList $ getHeaders rd)
+          Left e         -> headers e
+      c -> proxyStatusHeader (Just c) : statusBasedHeaders (status err)
     where
       intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
 
-  headers err =
-    if status err == HTTP.status401
-       then [("WWW-Authenticate", "Bearer") :: Header]
-       else mempty
+  headers err = proxyStatusHeader Nothing : statusBasedHeaders (status err)
+
+statusBasedHeaders :: HTTP.Status -> [Header]
+statusBasedHeaders HTTP.Status{HTTP.statusCode=401} = [("WWW-Authenticate", "Bearer")]
+statusBasedHeaders _ = []
+
+proxyStatusHeader :: Maybe ByteString -> Header
+proxyStatusHeader (Just code) = ("Proxy-Status", "PostgREST; error=" <> code)
+proxyStatusHeader Nothing =  ("Proxy-Status", "PostgREST")
 
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = JSON.toJSON usageError
