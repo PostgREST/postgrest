@@ -72,22 +72,39 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```bash
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-build                   postgrest-test-spec
-postgrest-check                   postgrest-watch
-postgrest-clean                   postgrest-with-all
-postgrest-coverage                postgrest-with-postgresql-12
-postgrest-lint                    postgrest-with-postgresql-13
-postgrest-run                     postgrest-with-postgresql-14
-postgrest-style                   postgrest-with-postgresql-15
-postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io                 postgrest-with-postgresql-17
+postgrest-build                   postgrest-parallel-curl
+postgrest-check                   postgrest-profiled-run
+postgrest-clean                   postgrest-push-cachix
+postgrest-coverage                postgrest-release
+postgrest-coverage-draft-overlay  postgrest-repl
+postgrest-docs-build              postgrest-run
+postgrest-docs-check              postgrest-style
+postgrest-docs-dictcheck          postgrest-style-check
+postgrest-docs-linkcheck          postgrest-test-big-schema
+postgrest-docs-render             postgrest-test-doctests
+postgrest-docs-serve              postgrest-test-io
+postgrest-docs-spellcheck         postgrest-test-replica
+postgrest-dump-minimal-imports    postgrest-test-spec
+postgrest-dump-schema             postgrest-test-spec-idempotence
+postgrest-gen-ctags               postgrest-watch
+postgrest-gen-jwt                 postgrest-with-all
+postgrest-gen-secret              postgrest-with-git
+postgrest-git-hooks               postgrest-with-pgrst
+postgrest-hsie-graph-modules      postgrest-with-postgresql-12
+postgrest-hsie-graph-symbols      postgrest-with-postgresql-13
+postgrest-hsie-minimal-imports    postgrest-with-postgresql-14
+postgrest-lint                    postgrest-with-postgresql-15
+postgrest-loadtest                postgrest-with-postgresql-16
+postgrest-loadtest-against        postgrest-with-postgresql-17
+postgrest-loadtest-report         postgrest-with-slow-pg
+postgrest-nixpkgs-upgrade         postgrest-with-slow-postgrest
 ...
 
 [nix-shell]$
 
 ```
 
-Some additional modules like `memory`, `docker` and `release`
+Some additional modules like `memory` and `docker`
 have large dependencies that would need to be built before the shell becomes
 available, which could take an especially long time if the cachix binary cache
 is not used. You can activate those by passing a flag to `nix-shell` with
@@ -95,16 +112,7 @@ is not used. You can activate those by passing a flag to `nix-shell` with
 
 ```bash
 $ nix-shell --arg memory true
-[nix-shell]$ postgrest-<tab>
-postgrest-build                   postgrest-test-spec
-postgrest-check                   postgrest-watch
-postgrest-clean                   postgrest-with-all
-postgrest-coverage                postgrest-with-postgresql-12
-postgrest-lint                    postgrest-with-postgresql-13
-postgrest-run                     postgrest-with-postgresql-14
-postgrest-style                   postgrest-with-postgresql-15
-postgrest-style-check             postgrest-with-postgresql-16
-postgrest-test-io                 postgrest-with-postgresql-17
+[nix-shell]$ postgrest-test-m<tab>
 postgrest-test-memory
 ...
 

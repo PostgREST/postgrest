@@ -24,10 +24,10 @@ let
       postgrest.docs
       postgrest.loadtest
       postgrest.nixpkgsTools
+      postgrest.release
       postgrest.style
       postgrest.tests
       postgrest.withTools
-      postgrest.release
     ]
     ++ lib.optional docker postgrest.docker
     ++ lib.optional memory postgrest.memory;
