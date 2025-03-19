@@ -72,17 +72,17 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```bash
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-build                   postgrest-parallel-curl
-postgrest-check                   postgrest-profiled-run
-postgrest-clean                   postgrest-push-cachix
-postgrest-coverage                postgrest-release
-postgrest-coverage-draft-overlay  postgrest-repl
-postgrest-docs-build              postgrest-run
-postgrest-docs-check              postgrest-style
-postgrest-docs-dictcheck          postgrest-style-check
-postgrest-docs-linkcheck          postgrest-test-big-schema
-postgrest-docs-render             postgrest-test-doctests
-postgrest-docs-serve              postgrest-test-io
+postgrest-build                   postgrest-profiled-run
+postgrest-check                   postgrest-push-cachix
+postgrest-clean                   postgrest-release
+postgrest-coverage                postgrest-repl
+postgrest-coverage-draft-overlay  postgrest-run
+postgrest-docs-build              postgrest-style
+postgrest-docs-check              postgrest-style-check
+postgrest-docs-dictcheck          postgrest-test-big-schema
+postgrest-docs-linkcheck          postgrest-test-doctests
+postgrest-docs-render             postgrest-test-io
+postgrest-docs-serve              postgrest-test-memory
 postgrest-docs-spellcheck         postgrest-test-replica
 postgrest-dump-minimal-imports    postgrest-test-spec
 postgrest-dump-schema             postgrest-test-spec-idempotence
@@ -98,27 +98,27 @@ postgrest-loadtest                postgrest-with-postgresql-16
 postgrest-loadtest-against        postgrest-with-postgresql-17
 postgrest-loadtest-report         postgrest-with-slow-pg
 postgrest-nixpkgs-upgrade         postgrest-with-slow-postgrest
+postgrest-parallel-curl
 ...
 
 [nix-shell]$
 
 ```
 
-Some additional modules like `memory` and `docker`
-have large dependencies that would need to be built before the shell becomes
+The `docker` module has large dependencies to be build before the shell becomes
 available, which could take an especially long time if the cachix binary cache
-is not used. You can activate those by passing a flag to `nix-shell` with
-`nix-shell --arg <module> true`. This will make the respective utilities available:
+is not used. You can activate it by passing a flag to `nix-shell` with
+`nix-shell --arg docker true`. This will make the respective utilities available:
 
 ```bash
-$ nix-shell --arg memory true
-[nix-shell]$ postgrest-test-m<tab>
-postgrest-test-memory
+$ nix-shell --arg docker true
+[nix-shell]$ postgrest-docker-<tab>
+postgrest-docker-load
 ...
 
 ```
 
-Note that `postgrest-test-memory` is now also available.
+Note that `postgrest-docker-load` is now also available.
 
 To run one-off commands, you can also use `nix-shell --run <command>`, which
 will launch the Nix shell, run that one command and exit. Note that the tab

@@ -55,23 +55,19 @@ let
     ];
 
   # Dynamic derivation for PostgREST
-  postgrest =
-    pkgs.haskell.packages."${compiler}".callCabal2nix name src { };
+  postgrest = pkgs.lib.pipe (pkgs.haskell.packages."${compiler}".callCabal2nix name src { }) [
+    # To allow ghc-datasize to be used.
+    lib.disableLibraryProfiling
+    # We are never going to use dynamic haskell libraries anyway. "Dynamic" refers to how
+    # non-haskell deps are linked. All haskell dependencies are always statically linked.
+    lib.disableSharedLibraries
+  ];
 
   staticHaskellPackage = import nix/static.nix { inherit compiler name pkgs src; };
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
     "-f dev --test-show-detail=direct";
-
-  profiledHaskellPackages =
-    pkgs.haskell.packages."${compiler}".extend (_: super:
-      {
-        mkDerivation =
-          args:
-          super.mkDerivation (args // { enableLibraryProfiling = true; });
-      }
-    );
 
   inherit (pkgs.haskell) lib;
 in
@@ -85,12 +81,11 @@ rec {
     lib.dontCheck postgrest;
 
   # Profiled dynamic executable.
-  postgrestProfiled =
-    lib.enableExecutableProfiling (
-      lib.dontHaddock (
-        lib.dontCheck (profiledHaskellPackages.callCabal2nix name src { })
-      )
-    );
+  postgrestProfiled = pkgs.lib.pipe postgrestPackage [
+    lib.enableExecutableProfiling
+    lib.enableLibraryProfiling
+    lib.dontHaddock
+  ];
 
   inherit (postgrest) env;
 
