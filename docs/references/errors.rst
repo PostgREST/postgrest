@@ -253,6 +253,10 @@ Related to the HTTP request elements.
 |               |             | See :ref:`db-aggregates-enabled`.                           |
 | PGRST123      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst124: | 400         | ``max-affected`` preference is violated.                    |
+|               |             | See :ref:`prefer_max_affected`.                             |
+| PGRST124      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst125: | 404         | Invalid path is specified in request URL.                   |
 |               |             |                                                             |
 | PGRST125      |             |                                                             |
@@ -261,6 +265,7 @@ Related to the HTTP request elements.
 |               |             | accessed. See :ref:`openapi-mode`.                          |
 | PGRST126      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+
 
 .. _pgrst2**:
 
