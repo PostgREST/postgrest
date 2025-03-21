@@ -253,6 +253,10 @@ Related to the HTTP request elements.
 |               |             | See :ref:`db-aggregates-enabled`.                           |
 | PGRST123      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst124: | 400         | ``max-affected`` preference is violated.                    |
+|               |             | See :ref:`prefer_max_affected`.                             |
+| PGRST124      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst2**:
 
