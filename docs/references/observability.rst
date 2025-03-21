@@ -195,6 +195,20 @@ pgrst_db_pool_max
 
 Max pool connections.
 
+JWT Cache Metric
+----------------
+
+Related to the :ref:`jwt_caching`.
+
+pgrst_jwt_cache_size_bytes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Gauge
+======== =======
+
+The JWT cache size in bytes.
+
 Traces
 ======
 
