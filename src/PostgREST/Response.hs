@@ -228,10 +228,10 @@ actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versio
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
     (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body)
 
-actionResponse (NoDbResult (RelInfoPlan identifier)) _ _ _ sCache _ _ =
-  case HM.lookup identifier (dbTables sCache) of
+actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ SchemaCache{dbTables} _ _ =
+  case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
-    Nothing  -> Left $ Error.ApiRequestError Error.NotFound
+    Nothing  -> Left $ Error.ApiRequestError $ Error.TableNotFound qiSchema qiName (HM.elems dbTables)
   where
     allowH table =
       let hasPK = not . null $ tablePKCols table in

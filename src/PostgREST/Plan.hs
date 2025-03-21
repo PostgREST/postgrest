@@ -33,6 +33,7 @@ import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete, lookup)
+import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (Action (..),
@@ -964,18 +965,18 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
       if preferRepresentation == Just None || isNothing preferRepresentation
         then []
         else inferColsEmbedNeeds readReq pkCols
-    tbl = HM.lookup qi dbTables
-    pkCols = maybe mempty tablePKCols tbl
+    -- TODO: remove fromJust by refactoring later
+    -- we can use fromJust, we have already looked up the table before building mutatePlan
+    tbl = fromJust $ HM.lookup qi dbTables
+    pkCols = maybe mempty tablePKCols (Just tbl)
     logic = map (resolveLogicTree ctx . snd) qsLogic
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
     applyDefaults = preferMissing == Just ApplyDefaults
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
-resolveOrError :: ResolverContext -> Maybe Table -> FieldName -> Either ApiRequestError CoercibleField
-resolveOrError _ Nothing _ = Left NotFound -- TODO: control never reaches here since #3869, should be fixed when fixing #3906
-resolveOrError ctx (Just table) field =
-  case resolveTableFieldName table field Nothing of
+resolveOrError :: ResolverContext -> Table -> FieldName -> Either ApiRequestError CoercibleField
+resolveOrError ctx table field = case resolveTableFieldName table field Nothing of
     CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
     cf                          -> Right $ withJsonParse ctx cf
 

@@ -72,7 +72,6 @@ data ApiRequestError
   | InvalidPreferences [ByteString]
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
-  | NotFound
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | NotEmbedded Text
@@ -91,6 +90,8 @@ data ApiRequestError
   | SingularityError Integer
   | PGRSTParseError RaiseError
   | MaxAffectedViolationError Integer
+  | InvalidResourcePath
+  | OpenAPIDisabled
   deriving Show
 
 data QPError = QPError Text Text
@@ -118,7 +119,6 @@ instance PgrstError ApiRequestError where
   status InvalidPreferences{}        = HTTP.status400
   status InvalidRpcMethod{}          = HTTP.status405
   status InvalidRange{}              = HTTP.status416
-  status NotFound                    = HTTP.status404
 
   status NoRelBetween{}              = HTTP.status400
   status NoRpc{}                     = HTTP.status404
@@ -138,6 +138,8 @@ instance PgrstError ApiRequestError where
   status SingularityError{}          = HTTP.status406
   status PGRSTParseError{}           = HTTP.status500
   status MaxAffectedViolationError{} = HTTP.status400
+  status InvalidResourcePath         = HTTP.status404
+  status OpenAPIDisabled             = HTTP.status404
 
   headers _ = mempty
 
@@ -176,8 +178,6 @@ instance JSON.ToJSON ApiRequestError where
 
   toJSON (MediaTypeError cts) = toJsonPgrstError
     ApiRequestErrorCode07 ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)) Nothing Nothing
-
-  toJSON NotFound = JSON.object []
 
   toJSON (NotEmbedded resource) = toJsonPgrstError
     ApiRequestErrorCode08
@@ -243,6 +243,18 @@ instance JSON.ToJSON ApiRequestError where
     ApiRequestErrorCode24
     "Query result exceeds max-affected preference constraint"
     (Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"])
+    Nothing
+
+  toJSON InvalidResourcePath = toJsonPgrstError
+    ApiRequestErrorCode25
+    "Invalid path specified in request URL"
+    Nothing
+    Nothing
+
+  toJSON OpenAPIDisabled = toJsonPgrstError
+    ApiRequestErrorCode26
+    "Root endpoint metadata is disabled"
+    Nothing
     Nothing
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
@@ -706,6 +718,8 @@ data ErrorCode
   | ApiRequestErrorCode22
   | ApiRequestErrorCode23
   | ApiRequestErrorCode24
+  | ApiRequestErrorCode25
+  | ApiRequestErrorCode26
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
@@ -755,6 +769,8 @@ buildErrorCode code = case code of
   ApiRequestErrorCode22  -> "PGRST122"
   ApiRequestErrorCode23  -> "PGRST123"
   ApiRequestErrorCode24  -> "PGRST124"
+  ApiRequestErrorCode25  -> "PGRST125"
+  ApiRequestErrorCode26  -> "PGRST126"
 
   SchemaCacheErrorCode00 -> "PGRST200"
   SchemaCacheErrorCode01 -> "PGRST201"

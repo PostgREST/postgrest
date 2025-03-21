@@ -1625,3 +1625,10 @@ spec = do
       get "/infinite_recursion?select=*" `shouldRespondWith`
         [json|{"code":"42P17","message":"infinite recursion detected in rules for relation \"infinite_recursion\"","details":null,"hint":null}|]
         { matchStatus = 500 }
+
+  context "invalid resource path" $ do
+    it "return http status 404" $
+      get "/first/second/third?select=*"
+      `shouldRespondWith`
+      [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
+      { matchStatus = 404 }

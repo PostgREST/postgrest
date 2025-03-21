@@ -30,6 +30,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
  - #3013, Fix `order=` with POST, PATCH, PUT and DELETE requests - @taimoorzaeem
+ - #3906, Add `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
 
 ### Changed
 
@@ -49,6 +50,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Return `PGRST301` error when `Bearer` in auth header is sent empty
    + Diagnostic error messages instead of exposed internals
    + Return new `PGRST303` error when jwt claims decoding fails
+ - #3906, Return `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
 
 ## [12.2.8] - 2025-02-10
 
