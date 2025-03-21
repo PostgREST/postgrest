@@ -257,6 +257,15 @@ Related to the HTTP request elements.
 |               |             | See :ref:`prefer_max_affected`.                             |
 | PGRST124      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst125: | 404         | Invalid path is specified in request URL.                   |
+|               |             |                                                             |
+| PGRST125      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst126: | 404         | Open API config is disabled but API root path is            |
+|               |             | accessed. See :ref:`openapi-mode`.                          |
+| PGRST126      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+
 
 .. _pgrst2**:
 

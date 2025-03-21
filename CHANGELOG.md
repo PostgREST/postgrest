@@ -49,6 +49,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Return `PGRST301` error when `Bearer` in auth header is sent empty
    + Diagnostic error messages instead of exposed internals
    + Return new `PGRST303` error when jwt claims decoding fails
+ - #3906, Return `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
 
 ## [12.2.8] - 2025-02-10
 

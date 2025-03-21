@@ -165,13 +165,15 @@ userApiRequest conf req reqBody timezones = do
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
-  []             -> case configDbRootSpec of
-                      Just (QualifiedIdentifier _ pathName)     -> Right $ ResourceRoutine pathName
-                      Nothing | configOpenApiMode == OADisabled -> Left NotFound
-                              | otherwise                       -> Right ResourceSchema
+  []             ->
+      case (configOpenApiMode,configDbRootSpec) of
+        (OADisabled,_) -> Left OpenAPIDisabled
+        (_, Just qi)   -> Right $ ResourceRoutine (qiName qi)
+        (_, Nothing)   -> Right ResourceSchema
+
   [table]        -> Right $ ResourceRelation table
   ["rpc", pName] -> Right $ ResourceRoutine pName
-  _              -> Left NotFound
+  _              -> Left InvalidResourcePath
 
 getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
 getAction resource schema method =
