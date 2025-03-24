@@ -2,7 +2,7 @@
   description = "REST API for any Postgres database";
 
   inputs = {
-    nixpkgs-lib.url = "github:nix-community/nixpkgs.lib";
+    nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
   };
 
   nixConfig = {
@@ -10,7 +10,7 @@
     extra-trusted-public-keys = "postgrest.cachix.org-1:icgW4R15fz1+LqvhPjt4EnX/r19AaqxiVV+1olwlZtI=";
   };
 
-  outputs = { nixpkgs-lib, ... }:
+  outputs = { nixpkgs, ... }:
     let
       systems = [
         "aarch64-darwin"
@@ -21,15 +21,21 @@
 
       pgrstFor = system: import ./default.nix {
         inherit system;
+        nixpkgsVersion = {
+          owner = "nixos";
+          repo = "nixpkgs";
+          inherit (nixpkgs) rev;
+          tarballHash = nixpkgs.narHash;
+        };
       };
 
-      genSystems = f: nixpkgs-lib.lib.genAttrs systems (system: f (pgrstFor system));
+      genSystems = f: nixpkgs.lib.genAttrs systems (system: f (pgrstFor system));
     in
     {
       packages = genSystems (attrs: {
         default = attrs.postgrestPackage;
         profiled = attrs.postgrestProfiled;
-      } // nixpkgs-lib.lib.optionalAttrs (attrs ? postgrestStatic) {
+      } // nixpkgs.lib.optionalAttrs (attrs ? postgrestStatic) {
         static = attrs.postgrestStatic;
       });
 

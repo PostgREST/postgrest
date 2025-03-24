@@ -379,10 +379,8 @@ that).
 
 We also use `default.nix` to load our pinned version of the `nixpkgs`
 repository. This set of packages will always be the same, independently from
-where or when you use it. The pinned version can be upgraded with the small
-`nixpkgs-upgrade` utility. Running `nixpkgs-upgrade > nix/nixpkgs-version.nix`
-in `nix-shell` will upgrade the pinned version to the latest `nixpkgs-unstable`
-version.
+where or when you use it. The pinned version is taken from `flake.lock` and
+can be updated with `nix flake update`.
 
 ### `shell.nix`
 
