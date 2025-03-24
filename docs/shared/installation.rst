@@ -28,13 +28,24 @@
 
           pacman -S postgrest
 
-      .. tab:: Nix
+      .. tab:: Nix via nixpkgs
 
         You can install PostgREST from nixpkgs.
 
         .. code:: bash
 
           nix-env -i postgrest
+
+      .. tab:: Nix via flake
+
+        You can install PostgREST via flake.
+
+        .. code:: nix
+
+          {
+            inputs.postgrest.url = "github:postgrest/postgrest";
+            # ...
+          }
 
   .. group-tab:: Windows
 
