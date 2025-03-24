@@ -3,7 +3,15 @@
 , compiler ? "ghc948"
 
 , # Commit of the Nixpkgs repository that we want to use.
-  nixpkgsVersion ? import nix/nixpkgs-version.nix
+  # It defaults to reading the inputs from flake.lock, which serves
+  # as a compatibility layer for non-flake builds / default.nix / shell.nix.
+  nixpkgsVersion ? let
+    lock = builtins.fromJSON (builtins.readFile ./flake.lock);
+  in
+  {
+    inherit (lock.nodes.nixpkgs.locked) owner repo rev;
+    tarballHash = lock.nodes.nixpkgs.locked.narHash;
+  }
 
 , # Nix files that describe the Nixpkgs repository. We evaluate the expression
   # using `import` below.
@@ -118,10 +126,6 @@ rec {
   # Script for running memory tests.
   memory =
     pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
-
-  # Utility for updating the pinned version of Nixpkgs.
-  nixpkgsTools =
-    pkgs.callPackage nix/tools/nixpkgsTools.nix { };
 
   # Scripts for publishing new releases.
   release =

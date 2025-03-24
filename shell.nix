@@ -23,7 +23,6 @@ let
       postgrest.docs
       postgrest.loadtest
       postgrest.memory
-      postgrest.nixpkgsTools
       postgrest.release
       postgrest.style
       postgrest.tests
