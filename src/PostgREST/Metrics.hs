@@ -1,5 +1,5 @@
 {-|
-Module      : PostgREST.Logger
+Module      : PostgREST.Metrics
 Description : Metrics based on the Observation module. See Observation.hs.
 -}
 module PostgREST.Metrics
@@ -19,7 +19,7 @@ import PostgREST.Observation
 import Protolude
 
 data MetricsState =
-  MetricsState Counter Gauge Gauge Gauge (Vector Label1 Counter) Gauge
+  MetricsState Counter Gauge Gauge Gauge (Vector Label1 Counter) Gauge Gauge
 
 init :: Int -> IO MetricsState
 init configDbPoolSize = do
@@ -29,12 +29,13 @@ init configDbPoolSize = do
   poolMaxSize <- register $ gauge (Info "pgrst_db_pool_max" "Max pool connections")
   schemaCacheLoads <- register $ vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded")
   schemaCacheQueryTime <- register $ gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load")
+  jwtCacheSize <- register $ gauge (Info "pgrst_jwt_cache_size_bytes" "The JWT cache size in bytes")
   setGauge poolMaxSize (fromIntegral configDbPoolSize)
-  pure $ MetricsState poolTimeouts poolAvailable poolWaiting poolMaxSize schemaCacheLoads schemaCacheQueryTime
+  pure $ MetricsState poolTimeouts poolAvailable poolWaiting poolMaxSize schemaCacheLoads schemaCacheQueryTime jwtCacheSize
 
 -- Only some observations are used as metrics
 observationMetrics :: MetricsState -> ObservationHandler
-observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schemaCacheLoads schemaCacheQueryTime) obs = case obs of
+observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schemaCacheLoads schemaCacheQueryTime jwtCacheSize) obs = case obs of
   (PoolAcqTimeoutObs _) -> do
     incCounter poolTimeouts
   (HasqlPoolObs (SQL.ConnectionObservation _ status)) -> case status of
@@ -54,6 +55,8 @@ observationMetrics (MetricsState poolTimeouts poolAvailable poolWaiting _ schema
     setGauge schemaCacheQueryTime resTime
   SchemaCacheErrorObs _ -> do
     withLabel schemaCacheLoads "FAIL" incCounter
+  JwtCache cacheSize -> do
+    setGauge jwtCacheSize (fromIntegral cacheSize)
   _ ->
     pure ()
 

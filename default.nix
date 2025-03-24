@@ -85,6 +85,9 @@ rec {
     lib.enableExecutableProfiling
     lib.enableLibraryProfiling
     lib.dontHaddock
+    # we disable the jwt-cache-metric flag in cabal to disable
+    # jwt cache size calculation
+    (drv: lib.appendConfigureFlags drv [ "--flags=-jwt-cache-metric" ])
   ];
 
   inherit (postgrest) env;
