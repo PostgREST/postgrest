@@ -130,3 +130,27 @@ jobs:
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
+
+
+  flake:
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on:
+          - macos-13 # x86_64-darwin
+          - macos-14 # aarch64-darwin
+          - ubuntu-24.04 # x86_64-linux
+          - ubuntu-24.04-arm # aarch64-linux
+    name: Flake Check
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+      - name: Run flake check
+        run: |
+          nix flake check
