@@ -233,10 +233,6 @@ Related to the HTTP request elements.
 |               |             | there is no many-to-one or one-to-one relationship between  |
 | PGRST118      |             | them.                                                       |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst119: | 400         | Could not use the spread operator on the related table      |
-|               |             | because there is no many-to-one or one-to-one relationship  |
-| PGRST119      |             | between them.                                               |
-+---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst120: | 400         | An embedded resource can only be filtered using the         |
 |               |             | ``is.null`` or ``not.is.null`` :ref:`operators <operators>`.|
 | PGRST120      |             |                                                             |
@@ -264,6 +260,10 @@ Related to the HTTP request elements.
 | .. _pgrst126: | 404         | Open API config is disabled but API root path is            |
 |               |             | accessed. See :ref:`openapi-mode`.                          |
 | PGRST126      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst127: | 400         | The feature specified in the ``details`` field is not       |
+|               |             | implemented.                                                |
+| PGRST127      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
 
