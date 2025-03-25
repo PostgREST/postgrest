@@ -16,7 +16,7 @@ runs:
         nix_conf: |-
           always-allow-substitutes = true
           max-jobs = auto
-    - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # v15
+    - uses: cachix/cachix-action@0fc020193b5a1fa3ac4575aa3a7d3aa6a35435ad # v16
       with:
         name: postgrest
         authToken: ${{ inputs.authToken }}
