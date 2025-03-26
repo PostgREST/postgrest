@@ -17,6 +17,8 @@ Logs
 
 PostgREST logs basic request information to ``stdout``, including the authenticated user if available, the requesting IP address and user agent, the URL requested, and HTTP response status.
 
+With :ref:`log-level` set to ``info``, we get:
+
 .. code::
 
    127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
@@ -40,6 +42,10 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
    06/May/2024:08:16:11 -0500: Schema cache loaded 15 Relations, 8 Relationships, 8 Functions, 0 Domain Representations, 4 Media Type Handlers
    06/May/2024:14:11:27 -0500: Received a config reload message on the "pgrst" channel
    06/May/2024:14:11:27 -0500: Config reloaded
+
+.. note::
+
+  Logs are based on the ``log-level`` setting. See :ref:`log-level`.
 
 .. _sql_query_logs:
 
