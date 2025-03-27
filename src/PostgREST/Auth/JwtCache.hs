@@ -17,6 +17,8 @@ import qualified Data.Aeson.KeyMap as KM
 import qualified Data.Cache        as C
 import qualified Data.Scientific   as Sci
 
+import Control.Debounce
+
 import Data.Time.Clock       (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
 import System.Clock          (TimeSpec (..))
@@ -29,16 +31,22 @@ import Protolude
 -- | JWT Cache and lock to prevent multiple purging threads
 data JwtCacheState = JwtCacheState
   { jwtCache :: C.Cache ByteString AuthResult
-  , purgeLock :: MVar ()
+  , purgeCache :: IO ()
   }
 
 -- | Initialize JwtCacheState
 init :: IO JwtCacheState
-init = liftA2 JwtCacheState (C.newCache Nothing) newEmptyMVar
+init = do
+  cache <- C.newCache Nothing
+  debounce <- mkDebounce defaultDebounceSettings
+    { debounceAction = C.purgeExpired cache
+    , debounceEdge = leadingEdge
+    }
+  pure $ JwtCacheState cache debounce
 
 -- | Used to retrieve and insert JWT to JWT Cache
 lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-lookupJwtCache JwtCacheState{jwtCache, purgeLock} token maxLifetime parseJwt utc = do
+lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt utc = do
   checkCache <- C.lookup jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
 
@@ -61,11 +69,7 @@ lookupJwtCache JwtCacheState{jwtCache, purgeLock} token maxLifetime parseJwt utc
 
       -- trigger asynchronous purging of expired cache entries
       -- but only if not already running anotherpurging
-      tryPutMVar purgeLock () >>= \case
-        -- start purge make sure lock is released
-        True -> void $ forkFinally (C.purgeExpired jwtCache) (const $ takeMVar purgeLock)
-        -- purge already running - do nothing
-        _ -> pure ()
+      purgeCache
 
       -- insert new cache entry
       C.insert' jwtCache (Just timeSpec) token res
