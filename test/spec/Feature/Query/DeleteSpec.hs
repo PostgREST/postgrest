@@ -109,7 +109,12 @@ spec =
 
     context "totally unknown route" $
       it "fails with 404" $
-        request methodDelete "/foozle?id=eq.101" [] "" `shouldRespondWith` 404
+        request methodDelete "/foozle?id=eq.101" [] ""
+          `shouldRespondWith`
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.foo'","message":"Could not find the table 'test.foozle' in the schema cache"} |]
+          { matchStatus = 404
+          , matchHeaders = []
+          }
 
     context "table with limited privileges" $ do
       it "fails deleting the row when return=representation and selecting all the columns" $
@@ -144,3 +149,15 @@ spec =
             { matchStatus = 204
             , matchHeaders = [matchHeaderAbsent hContentType]
             }
+
+    context "with ordering" $
+      it "works with request method DELETE and embedded resource" $ do
+        request methodDelete "/artists?id=lt.3&select=id,name,albums(title)&order=id.desc"
+          [("Prefer", "return=representation")]
+          ""
+          `shouldRespondWith`
+          [json| [ {"id":2,"name":"black country, new road","albums":[{"title": "ants from up above"}]}, {"id":1,"name":"duster","albums":[{"title": "stratosphere"},{"title": "contemporary movement"}]}]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+          }

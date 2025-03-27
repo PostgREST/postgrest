@@ -15,16 +15,17 @@ import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
 
-import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Logger   as Logger
-import qualified PostgREST.Metrics  as Metrics
+import qualified PostgREST.AppState      as AppState
+import qualified PostgREST.Auth.JwtCache as JwtCache
+import qualified PostgREST.Logger        as Logger
+import qualified PostgREST.Metrics       as Metrics
 
 import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
 import qualified Feature.Auth.NoAnonSpec
-import qualified Feature.Auth.NoJwtSpec
+import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
 import qualified Feature.CorsSpec
 import qualified Feature.ExtraSearchPathSpec
@@ -47,7 +48,6 @@ import qualified Feature.Query.EmbedInnerJoinSpec
 import qualified Feature.Query.ErrorSpec
 import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
-import qualified Feature.Query.LimitedMutationSpec
 import qualified Feature.Query.MultipleSchemaSpec
 import qualified Feature.Query.NullsStripSpec
 import qualified Feature.Query.PgSafeUpdateSpec
@@ -85,12 +85,13 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
+  jwtCacheState <- JwtCache.init
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
     initApp sCache config = do
-      appState <- AppState.initWithPool sockets pool config loggerState metricsState (const $ pure ())
+      appState <- AppState.initWithPool sockets pool config jwtCacheState loggerState metricsState (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
       return ((), postgrest (configLogLevel config) appState (pure ()))
@@ -109,7 +110,7 @@ main = do
       securityOpenApi      = app testSecurityOpenApiCfg
       proxyApp             = app testProxyCfg
       noAnonApp            = app testCfgNoAnon
-      noJwtApp             = app testCfgNoJWT
+      noJwtSecretApp       = app testCfgNoJwtSecret
       binaryJwtApp         = app testCfgBinaryJWT
       audJwtApp            = app testCfgAudienceJWT
       asymJwkApp           = app testCfgAsymJWK
@@ -201,8 +202,8 @@ main = do
       describe "Feature.Auth.NoAnonSpec" Feature.Auth.NoAnonSpec.spec
 
     -- this test runs without a JWT secret
-    parallel $ before noJwtApp $
-      describe "Feature.Auth.NoJwtSpec" Feature.Auth.NoJwtSpec.spec
+    parallel $ before noJwtSecretApp $
+      describe "Feature.Auth.NoJwtSecretSpec" Feature.Auth.NoJwtSecretSpec.spec
 
     -- this test runs with a binary JWT secret
     parallel $ before binaryJwtApp $
@@ -268,9 +269,6 @@ main = do
     -- this test runs with tx-rollback-all = true and tx-allow-override = false
     before forceRollbackApp $
       describe "Feature.RollbackForcedSpec" Feature.RollbackSpec.forced
-
-    before withApp $
-      describe "Feature.Query.LimitedMutationSpec" Feature.Query.LimitedMutationSpec.spec
 
     -- This test runs with a pre request to enable the pg-safeupdate library per-session.
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.

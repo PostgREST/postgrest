@@ -3,20 +3,20 @@
 Aggregate Functions
 ###################
 
-Aggregate functions allow you to summarize data by performing calculations across groups of rows. For instance, if you have an ``orders`` table that has an ``amount`` column, you could use an aggregate function to get the sum of the ``amount`` column, either for all rows, or for each group of rows that share specific values, for instance all rows that share the same ``order_date``.
+PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``max()``, ``min()``, and ``sum()``.
+Please refer to the `section on aggregate functions in the PostgreSQL documentation <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ for a detailed explanation of these functions.
 
 .. note::
- Aggregate functions are *disabled* by default in PostgREST, as without appropriate safeguards, aggregate functions can create performance problems. See :ref:`db-aggregates-enabled` for further details.
+ Aggregate functions are *disabled* by default in PostgREST, because they can create performance problems without appropriate safeguards.
+ See :ref:`db-aggregates-enabled` for further details.
 
-PostgREST supports the following aggregate functions: ``avg()``, ``count()``, ``max()``, ``min()``, and ``sum()``. Please refer to the `section on aggregate functions in the PostgreSQL documentation <https://www.postgresql.org/docs/current/functions-aggregate.html>`_ for a detailed explanation of these functions.
-
-To use an aggregate function, you append the function to a value in the ``select`` parameter, like so:
+To use an aggregate function, append it to a column in the ``select`` parameter, like so:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/orders?select=amount.sum()"
 
-With the above query, PostgREST will return a single row with a single column named ``sum`` that contains the sum of all the values in the ``amount`` column:
+This will return a ``sum`` of all the values of the ``amount`` column in a single row:
 
 .. code-block:: json
 
@@ -26,15 +26,29 @@ With the above query, PostgREST will return a single row with a single column na
     }
   ]
 
-You can use multiple aggregate functions by just adding more columns with aggregate functions to the ``select`` parameter.
+You can ``select`` multiple aggregate functions at the same time (you may need to :ref:`rename them <renaming_columns>` to disambiguate).
 
-To group by other columns, you simply add those columns to the ``select`` parameter. For instance:
+.. code-block:: bash
+
+  curl "http://localhost:3000/orders?select=total_amount:amount.sum(),avg_amount:amount.avg(),total_quantity:quantity.sum()"
+
+.. note::
+  Aggregate functions work alongside other PostgREST features, like :ref:`h_filter`, :ref:`json_columns`, and :ref:`ordering`.
+  However they are not compatible with :ref:`domain_reps` for the moment.
+  Additionally, PostgreSQL's ``HAVING`` clause and ordering by aggregated columns are not yet supported.
+
+Automatic ``GROUP BY``
+======================
+
+In SQL, a ``GROUP BY`` clause is required to aggregate the selected columns.
+However, PostgREST handles grouping automatically if the columns are already present in the ``select`` parameter.
+For instance:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/orders?select=amount.sum(),amount.avg(),order_date"
 
-This will return a row for each unique value in the ``order_date`` column, with the sum and average of the ``amount`` column for all rows that share the same ``order_date``:
+This will get the sum and average of the amounts grouped by each unique value in the ``order_date`` column:
 
 .. code-block:: json
 
@@ -51,66 +65,54 @@ This will return a row for each unique value in the ``order_date`` column, with 
     }
   ]
 
-.. note::
-  Aggregate functions work alongside other PostgREST features, like :ref:`h_filter`, :ref:`json_columns`, and :ref:`ordering`. Please note at this time aggregate functions are not compatible with :ref:`domain_reps`. Additionally, PostgreSQL's ``HAVING`` clause and ordering by aggregated columns are not yet supported.
-
-The Case of ``count()``
-===========================
+The ``count()`` Aggregate
+=========================
 
 .. note::
-  Before the addition of aggregate functions, it was possible to count by adding ``count`` (without parentheses) to the ``select`` parameter. While this is still supported, it may be deprecated in the future, and thus use of this legacy feature is **not recommended.** Please use ``count()`` (with parentheses) instead.
+  Before the addition of aggregate functions, it was possible to count by adding ``count`` (without parentheses) to the ``select`` parameter.
+  While this is still supported, it may be deprecated in the future, and thus use of this legacy feature is **not recommended**.
+  Please use ``count()`` (with parentheses) instead.
 
-
-``count()`` is treated specially, as it can be used without an associated column. Take for example the following query:
+``count()`` is a special case because it can be used with or without an aggregated column. For example:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/orders?select=count(),order_date"
-
-This would return a row for each unique value in the ``order_date`` column, with the count of all rows that share the same ``order_date``:
+  curl "http://localhost:3000/orders?select=count(),observation_count:observation.count(),order_date"
 
 .. code-block:: json
 
   [
     {
       "count": 4,
+      "observation_count": 2,
       "order_date": "2023-01-01"
     },
     {
       "count": 2,
+      "observation_count": 1,
       "order_date": "2023-01-02"
     }
   ]
 
-When ``count()`` is used with an associated column, its behavior is slightly different: It will return the count of all values that are not ``NULL``. This is due to how PostgreSQL itself implements the ``count()`` function.
-
-Renaming and Casting
-====================
-
-Renaming Aggregates
--------------------
-
-Just like with other columns, you can rename aggregated columns too. See :ref:`renaming_columns` for details.
-
-Renaming columns is especially helpful in the context of aggregate functions, as by default a column with an aggregate function applied will take on the name of the applied aggregate function. You may want to provide a more semantically meaningful name or prevent collisions when using multiple aggregate functions of the same type.
+Note that there is a difference between the result of ``count()`` and ``observation.count()``.
+The former counts the whole row, while the latter counts the non ``NULL`` values of the ``observation`` column (both grouped by ``order_date``).
+This is due to how PostgreSQL itself implements the ``count()`` function.
 
 Casting Aggregates
-------------------
+==================
 
-When applying an aggregate function to a column, you are able to cast both the value of the input to the aggregate function *and* the value of the output from the aggregate function. In both cases, the syntax works as described in :ref:`casting_columns`, with the only difference being the placement of the cast.
+It is :ref:`possible to cast <casting_columns>` the aggregated column or the aggregate itself, or both at the same time.
 
-Casting the Value of the Input
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Casting the Aggregated Column
+-----------------------------
 
-For instance, imagine that the ``orders`` table has a JSON column, ``order_details``, and this column contains a JSON object that has a key, ``tax_amount``. Let's say you want to get the sum of the tax amount for every order. You can use the ``->`` or ``->>`` operators to extract the value with this key (see :ref:`json_columns`), but these operators will return values of the types JSON and ``text`` respectively, and neither of these types can be used with ``sum()``.
-
-Therefore, you will need to first cast the input value to a type that is compatible with ``sum()`` (e.g. ``numeric``). Casting the input value is done in exactly the same way as casting any other value:
+For example, let's say that ``orders`` has an ``order_details`` :ref:`JSON column <json_columns>` with a ``tax_amount`` key.
+We cannot sum ``tax_amount`` directly because using ``->`` or ``->>`` will return the data in ``json`` or ``text`` format.
+So we need to cast it to a compatible type (e.g. ``numeric``) right before the aggregate function:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/orders?select=order_details->tax_amount::numeric.sum()"
-
-With this, you will receive the sum of the casted ``tax_amount`` value:
 
 .. code-block:: json
 
@@ -120,16 +122,14 @@ With this, you will receive the sum of the casted ``tax_amount`` value:
     }
   ]
 
-Casting the Value of the Output
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Casting the Aggregate
+---------------------
 
-Now let's return to an example involving the ``amount`` column of the ``orders`` table. Imagine that we want to get the rounded average of the ``amount`` column. One way to do this is to use the ``avg()`` aggregate function and then to cast the output value of the function to ``int``. To cast the value of the output of the function, we simply place the cast *after* the aggregate function:
+For instance, if we wanted to round the average of the ``amount`` column, we could do so by casting ``avg()`` to an ``int``:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/orders?select=amount.avg()::int"
-
-You will then receive the rounded average as the result:
 
 .. code-block:: json
 
@@ -139,26 +139,21 @@ You will then receive the rounded average as the result:
     }
   ]
 
-Of course, you can use both input and output casts at the same time, if you so desire.
+Aggregates and Resource Embedding
+=================================
 
+You can group an aggregate function by an :ref:`embedded resource <resource_embedding>` and also use the aggregates inside them.
 
-Using Aggregate Functions with Resource Embedding
-=================================================
+Grouping by an Embedded Resource
+--------------------------------
 
-Aggregate functions can be used in conjunction with :ref:`resource_embedding`. You can use embedded resources as grouping columns, use aggregate functions within the context of an embedded resource, or use columns from a spreaded resource as grouping columns or as inputs to aggregate functions.
-
-Using Embedded Resources as Grouping Columns
---------------------------------------------
-
-Using an embedded resource as a grouping column allows you to use data from an association to group the results of an aggregation.
-
-For example, imagine that the ``orders`` table from the examples above is related to a ``customers`` table. If you want to get the sum of the ``amount`` column grouped by the ``name`` column from the ``customers`` table, you can include the customer name, using the standard :ref:`resource_embedding` syntax, and perform a sum on the ``amount`` column.
+Similar to grouping by columns, aggregate functions can also be grouped by embedded resources.
+For example, let's say that the ``orders`` table is related to a ``customers`` table.
+To get the sum of the ``amount`` column grouped by the ``name`` column from the ``customers`` table, we would do the following:
 
 .. code-block:: bash
 
   curl "http://localhost:3000/orders?select=amount.sum(),customers(name)"
-
-You will then get the summed amount, along with the embedded customer resource:
 
 .. code-block:: json
 
@@ -177,15 +172,16 @@ You will then get the summed amount, along with the embedded customer resource:
     }
   ]
 
-.. note::
- The previous example uses a has-one association to demonstrate this functionality, but you may also use has-many associations as grouping columns, although there are few obvious use cases for this.
+The previous example uses a "to-one" relationship, but this can be done on "to-many" relationships as well (although there are few obvious use cases).
 
-Using Aggregate Functions Within the Context of an Embedded Resource
---------------------------------------------------------------------
+This also works in a similar way for :ref:`spread embedded resources <spread_embed>`.
+For example, ``select=amount.sum(),...customers(name)`` would sum the ``amount`` grouped by the ``name`` column.
 
-When embedding a resource, you can apply aggregate functions to columns from the associated resource to perform aggregations within the context of an embedded resource.
+Using Aggregates Inside Embedded Resources
+------------------------------------------
 
-Continuing with the example relationship between ``orders`` and ``customers`` from the previous section, imagine that you want to fetch the ``name``, ``city``, and ``state`` for each customer, along with the sum of amount of the customer's orders, grouped by the order date. This can be done in the following way:
+Using the relationship from the previous example, let's take all the ``customers`` and embed their ``orders``.
+If we also want to get the total ``amount`` grouped by the ``order_date`` of the ``orders``, we would do the following:
 
 .. code-block:: bash
 
@@ -226,51 +222,20 @@ Continuing with the example relationship between ``orders`` and ``customers`` fr
     }
   ]
 
-In this example, the ``amount`` column is summed and grouped by the ``order_date`` *within* the context of the embedded resource. That is, the ``name``, ``city``, and ``state`` from the ``customers`` table have no bearing on the aggregation performed in the context of the ``orders`` association; instead, each aggregation can be seen as being performed independently on just the orders belonging to a particular customer, using only the data from the embedded resource for both grouping and aggregation.
+Note that the aggregate is done within the embedded resource ``orders``.
+It is not affected by any of the columns from the top-level relationship ``customers``.
 
-Using Columns from a Spreaded Resource
---------------------------------------
+Aggregates in To-One Spreads
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-When you :ref:`spread an embedded resource <spread_embed>`, the columns from the spreaded resource are treated as if they were columns of the top-level resource, both when using them as grouping columns and when applying aggregate functions to them.
-
-Grouping with Columns from a Spreaded Resource
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-For instance, assume you want to sum the ``amount`` column from the ``orders`` table, using the ``city`` and ``state`` columns from the ``customers`` table as grouping columns. To achieve this, you may select these two columns from the ``customers`` table and spread them; they will then be used as grouping columns:
+All the aggregates inside a :ref:`one-to-one or many-to-one spread embedded resource <spread_to_one_embed>` will be hoisted to the top-level relationship.
+In other words, it will behave as if the aggregate was done in the top-level relationship itself. For example:
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/orders?select=amount.sum(),...customers(city,state)
+  curl "http://localhost:3000/orders?select=order_date,...customers(subscription_date.max(),subscription_date.min())
 
-The result will be the same as if ``city`` and ``state`` were columns from the ``orders`` table:
-
-.. code-block:: json
-
-  [
-    {
-      "sum": 2000.29,
-      "city": "New York",
-      "state": "NY"
-    },
-    {
-      "sum": 9241.21,
-      "city": "Los Angeles",
-      "state": "CA"
-    }
-  ]
-
-Aggregate Functions with Columns from a Spreaded Resource
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Now imagine that the ``customers`` table has a ``joined_date`` column that represents the date that the customer joined. You want to get both the most recent and the oldest ``joined_date`` for customers that placed an order on every distinct order date. This can be expressed as follows:
-
-.. code-block:: bash
-
-  curl "http://localhost:3000/orders?select=order_date,...customers(joined_date.max(),joined_date.min())
-
-As columns from a spreaded resource are treated as if they were columns from the top-level resource, the ``max()`` and ``min()`` are applied *within* the context of the top-level, rather than within the context of the embedded resource, as in the previous section.
-
-The result will be the same as if the aggregations were applied to columns from the top-level:
+This will take the ``max`` and ``min`` subscription date of every customer and group it by the ``order_date`` column:
 
 .. code-block:: json
 
@@ -286,3 +251,7 @@ The result will be the same as if the aggregations were applied to columns from 
       "min": "2016-02-11"
     }
   ]
+
+.. note::
+
+  Aggregates inside to-many spreads are not supported

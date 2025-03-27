@@ -8,9 +8,6 @@ Community Tutorials
 
 * `PostgREST + Auth0: Create REST API in mintutes, and add social login using Auth0 <https://samkhawase.com/blog/postgrest/>`_ - A step-by-step tutorial to show how to dockerize and integrate Auth0 to PostgREST service.
 
-* `PostgREST + PostGIS API tutorial in 5 minutes <https://gis-ops.com/postgrest-postgis-api-tutorial-geospatial-api-in-5-minutes/>`_ -
-  In this tutorial, GIS • OPS shows how to perform PostGIS calculations through PostgREST :ref:`functions` interface.
-
 * `"CodeLess" backend using postgres, postgrest and oauth2 authentication with keycloak <https://www.mathieupassenaud.fr/codeless_backend/>`_ -
   A step-by-step tutorial for using PostgREST with KeyCloak(hosted on a managed service).
 
@@ -90,7 +87,7 @@ Client-Side Libraries
 * `postgrest-go <https://github.com/supabase-community/postgrest-go>`_ - Go
 * `postgrest-js <https://github.com/supabase/postgrest-js>`_ - TypeScript/JavaScript
 * `postgrest-kt <https://github.com/supabase-community/postgrest-kt>`_ - Kotlin
-* `postgrest-py <https://github.com/supabase-community/postgrest-py>`_ - Python
+* `postgrest-py <https://github.com/supabase/postgrest-py>`_ - Python
 * `postgrest-rs <https://github.com/supabase-community/postgrest-rs>`_ - Rust
 * `postgrest-swift <https://github.com/supabase-community/postgrest-swift>`_ - Swift
 * `redux-postgrest <https://github.com/andytango/redux-postgrest>`_ - TypeScript/JS, client integrated with (React) Redux.

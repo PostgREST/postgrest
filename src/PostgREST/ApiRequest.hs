@@ -4,7 +4,6 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 -}
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
--- TODO: This module shouldn't depend on SchemaCache
 module PostgREST.ApiRequest
   ( ApiRequest(..)
   , InvokeMethod(..)
@@ -44,16 +43,16 @@ import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
-import PostgREST.ApiRequest.Types        (ApiRequestError (..),
-                                          RangeError (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
+import PostgREST.Config.Database         (TimezoneNames)
+import PostgREST.Error                   (ApiRequestError (..),
+                                          RangeError (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           convertToLimitZeroRange,
                                           hasLimitZero,
                                           rangeRequested)
-import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
                                           Schema)
@@ -128,8 +127,10 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
-userApiRequest :: AppConfig -> Request -> RequestBody -> SchemaCache -> Either ApiRequestError ApiRequest
-userApiRequest conf req reqBody sCache = do
+--
+--   TimezoneNames are used by Prefer: timezone
+userApiRequest :: AppConfig -> Request -> RequestBody -> TimezoneNames -> Either ApiRequestError ApiRequest
+userApiRequest conf req reqBody timezones = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
@@ -141,7 +142,7 @@ userApiRequest conf req reqBody sCache = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) (dbTimezones sCache) hdrs
+  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones  hdrs
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
@@ -164,13 +165,15 @@ userApiRequest conf req reqBody sCache = do
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
-  []             -> case configDbRootSpec of
-                      Just (QualifiedIdentifier _ pathName)     -> Right $ ResourceRoutine pathName
-                      Nothing | configOpenApiMode == OADisabled -> Left NotFound
-                              | otherwise                       -> Right ResourceSchema
+  []             ->
+      case (configOpenApiMode,configDbRootSpec) of
+        (OADisabled,_) -> Left OpenAPIDisabled
+        (_, Just qi)   -> Right $ ResourceRoutine (qiName qi)
+        (_, Nothing)   -> Right ResourceSchema
+
   [table]        -> Right $ ResourceRelation table
   ["rpc", pName] -> Right $ ResourceRoutine pName
-  _              -> Left NotFound
+  _              -> Left InvalidResourcePath
 
 getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
 getAction resource schema method =
@@ -218,9 +221,8 @@ getSchema AppConfig{configDbSchemas} hdrs method = do
     lookupHeader    = flip lookup hdrs
 
 getRanges :: ByteString -> QueryParams -> RequestHeaders -> Either ApiRequestError (NonnegRange, HM.HashMap Text NonnegRange)
-getRanges method QueryParams{qsOrder,qsRanges} hdrs
+getRanges method QueryParams{qsRanges} hdrs
   | isInvalidRange = Left $ InvalidRange (if rangeIsEmpty headerRange then LowerGTUpper else NegativeLimit)
-  | method `elem` ["PATCH", "DELETE"] && not (null qsRanges) && null qsOrder = Left LimitNoOrderError
   | method == "PUT" && topLevelRange /= allRange = Left PutLimitNotAllowedError
   | otherwise = Right (topLevelRange, ranges)
   where

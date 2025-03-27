@@ -209,6 +209,9 @@ exampleConfigFile =
       |## Logging level, the admitted values are: crit, error, warn, info and debug.
       |log-level = "error"
       |
+      |## Log the requested SQL query at the current log-level.
+      |log-query = "disabled"
+      |
       |## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely.
       |## Admitted values: follow-privileges, ignore-privileges, disabled
       |openapi-mode = "follow-privileges"

@@ -60,6 +60,10 @@ note bottom of ApiRequest
   Parses the URL syntax
 end note
 
+note bottom of Plan
+  Generates internal AST
+end note
+
 note bottom of Query
   Generates the SQL
 end note
@@ -71,6 +75,9 @@ end note
 url of Admin is [[../references/admin_server.html#admin-server]]
 url of API is [[../explanations/schema_isolation.html]]
 url of Auth is [[../references/auth.html#authn]]
+url of ApiRequest is [[../explanations/architecture.html#api-request]]
+url of Plan is [[../explanations/architecture.html#plan]]
+url of Query is [[../explanations/architecture.html#query]]
 url of Authorization is [[../explanations/db_authz.html]]
 url of CLI is [[../references/cli.html#cli]]
 url of "Connection Pool" is [[../references/connection_pool.html]]

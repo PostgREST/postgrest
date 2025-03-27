@@ -13,7 +13,6 @@ module PostgREST.Query.SqlFragment
   , fromQi
   , limitOffsetF
   , locationF
-  , mutRangeF
   , orderF
   , pgFmtColumn
   , pgFmtFilter
@@ -23,6 +22,7 @@ module PostgREST.Query.SqlFragment
   , pgFmtOrderTerm
   , pgFmtSelectItem
   , pgFmtSpreadSelectItem
+  , pgFmtSpreadJoinSelectItem
   , fromJsonBodyF
   , responseHeadersF
   , responseStatusF
@@ -258,7 +258,7 @@ pgFmtField table cf = case cfToTsVector cf of
   _                      -> fmtFld
   where
     fmtFld = case cf of
-      CoercibleField{cfFullRow=True}                                          -> fromQi table
+      CoercibleField{cfFullRow=True}                                          -> pgFmtIdent (qiName table)
       CoercibleField{cfName=fn, cfJsonPath=[]}                                -> pgFmtColumn table fn
       CoercibleField{cfName=fn, cfToJson=doToJson, cfJsonPath=jp} | doToJson  -> "to_jsonb(" <> pgFmtColumn table fn <> ")" <> pgFmtJsonPath jp
                                                                   | otherwise -> pgFmtColumn table fn <> pgFmtJsonPath jp
@@ -279,11 +279,7 @@ pgFmtSelectItem table CoercibleSelectField{csField=fld, csAggFunction=agg, csAgg
 
 pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
 pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
-  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast fullSelName <> pgFmtAs ssSelAlias
-  where
-    fullSelName = case ssSelName of
-      "*" -> pgFmtIdent aggAlias <> ".*"
-      _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent ssSelName
+  pgFmtApplyAggregate ssSelAggFunction ssSelAggCast (pgFmtFullSelName aggAlias ssSelName) <> pgFmtAs ssSelAlias
 
 pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyAggregate Nothing _ snippet = snippet
@@ -295,12 +291,25 @@ pgFmtApplyAggregate (Just agg) aggCast snippet =
     convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
     aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
 
+pgFmtSpreadJoinSelectItem :: Alias -> [CoercibleOrderTerm] -> SpreadSelectField -> SQL.Snippet
+pgFmtSpreadJoinSelectItem aggAlias order SpreadSelectField{ssSelName, ssSelAlias} =
+  "COALESCE(json_agg(" <> fmtField <> " " <> fmtOrder <> "),'[]')::jsonb" <> " AS " <> fmtAlias
+  where
+    fmtField = pgFmtFullSelName aggAlias ssSelName
+    fmtOrder = orderF (QualifiedIdentifier "" aggAlias) order
+    fmtAlias = pgFmtIdent (fromMaybe ssSelName ssSelAlias)
+
 pgFmtApplyCast :: Maybe Cast -> SQL.Snippet -> SQL.Snippet
 pgFmtApplyCast Nothing snippet = snippet
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
 pgFmtApplyCast (Just cast) snippet = "CAST( " <> snippet <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )"
+
+pgFmtFullSelName :: Alias -> FieldName -> SQL.Snippet
+pgFmtFullSelName aggAlias fieldName = case fieldName of
+  "*" -> pgFmtIdent aggAlias <> ".*"
+  _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent fieldName
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> SQL.Snippet
@@ -512,13 +521,6 @@ currentSettingF :: SQL.Snippet -> SQL.Snippet
 currentSettingF setting =
   -- nullif is used because of https://gist.github.com/steve-chavez/8d7033ea5655096903f3b52f8ed09a15
   "nullif(current_setting('" <> setting <> "', true), '')"
-
-mutRangeF :: QualifiedIdentifier -> [FieldName] -> (SQL.Snippet, SQL.Snippet)
-mutRangeF mainQi rangeId =
-  (
-    intercalateSnippet " AND " $ (\col -> pgFmtColumn mainQi col <> " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_affected_rows") col) <$> rangeId
-  , intercalateSnippet ", " (pgFmtColumn mainQi <$> rangeId)
-  )
 
 orderF :: QualifiedIdentifier -> [CoercibleOrderTerm] -> SQL.Snippet
 orderF _ []    = mempty

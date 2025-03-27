@@ -50,7 +50,6 @@ import PostgREST.SchemaCache.Routine     (FuncVolatility (..),
                                           Routine (..))
 import PostgREST.SchemaCache.Table       (Table (..))
 
-import qualified PostgREST.ApiRequest.Types    as ApiRequestTypes
 import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Protolude      hiding (Handler, toS)
@@ -83,8 +82,8 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
 
       (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
 
-      let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange $
-                                           ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+      let bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ Error.InvalidRange $
+                                           Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
               | headersOnly              = mempty
               | otherwise                = LBS.fromStrict rsBody
 
@@ -203,8 +202,8 @@ actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=p
       (status, contentRange) =
         RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
       rsOrErrBody = if status == HTTP.status416
-        then Error.errorPayload $ Error.ApiRequestError $ ApiRequestTypes.InvalidRange
-          $ ApiRequestTypes.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
+        then Error.errorPayload $ Error.ApiRequestError $ Error.InvalidRange
+          $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
       prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
       headers = contentRange : prefHeader
@@ -229,10 +228,10 @@ actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versio
     (MediaType.toContentType MTOpenAPI : maybeToList (profileHeader schema negotiatedByProfile))
     (maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body)
 
-actionResponse (NoDbResult (RelInfoPlan identifier)) _ _ _ sCache _ _ =
-  case HM.lookup identifier (dbTables sCache) of
+actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ SchemaCache{dbTables} _ _ =
+  case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
-    Nothing  -> Left $ Error.ApiRequestError ApiRequestTypes.NotFound
+    Nothing  -> Left $ Error.ApiRequestError $ Error.TableNotFound qiSchema qiName (HM.elems dbTables)
   where
     allowH table =
       let hasPK = not . null $ tablePKCols table in
@@ -263,11 +262,11 @@ overrideStatusHeaders rsGucStatus rsGucHeaders pgrstStatus pgrstHeaders = do
 
 decodeGucHeaders :: Maybe BS.ByteString -> Either Error.Error [GucHeader]
 decodeGucHeaders =
-  maybe (Right []) $ first (const . Error.ApiRequestError $ ApiRequestTypes.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
+  maybe (Right []) $ first (const . Error.ApiRequestError $ Error.GucHeadersError) . JSON.eitherDecode . LBS.fromStrict
 
 decodeGucStatus :: Maybe Text -> Either Error.Error (Maybe HTTP.Status)
 decodeGucStatus =
-  maybe (Right Nothing) $ first (const . Error.ApiRequestError $ ApiRequestTypes.GucStatusError) . fmap (Just . toEnum . fst) . decimal
+  maybe (Right Nothing) $ first (const . Error.ApiRequestError $ Error.GucStatusError) . fmap (Just . toEnum . fst) . decimal
 
 contentTypeHeaders :: MediaType -> ApiRequest -> [HTTP.Header]
 contentTypeHeaders mediaType ApiRequest{..} =

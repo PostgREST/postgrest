@@ -17,7 +17,7 @@ module PostgREST.App
 
 
 import Control.Monad.Except     (liftEither)
-import Data.Either.Combinators  (mapLeft)
+import Data.Either.Combinators  (mapLeft, whenLeft)
 import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
@@ -43,7 +43,8 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..))
+import PostgREST.Config               (AppConfig (..), LogLevel (..),
+                                       LogQuery (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveHost)
@@ -143,11 +144,27 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   body <- lift $ Wai.strictRequestBody req
 
   let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
+      timezones = dbTimezones sCache
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf req body timezones
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
-  (queryTime, queryResult)           <- withTiming $ Query.runQuery appState conf authResult apiReq plan sCache pgVer (Just authRole /= configDbAnonRole)
-  (respTime, resp)                   <- withTiming $ liftEither $ Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+
+  let query = Query.query conf authResult apiReq plan sCache pgVer
+      logSQL = lift . AppState.getObserver appState . DBQuery (Query.getSQLQuery query)
+
+  (queryTime, queryResult) <- withTiming $ do
+    case query of
+      Query.NoDbQuery r -> pure r
+      Query.DbQuery{..} -> do
+        dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
+        let eitherResp = mapLeft Error.PgErr . mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) $ dbRes
+        when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
+        liftEither eitherResp >>= liftEither
+
+  (respTime, resp) <- withTiming $ do
+    let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+    when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response
+    liftEither response
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 

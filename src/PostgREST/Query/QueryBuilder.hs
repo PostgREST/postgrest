@@ -40,21 +40,20 @@ import PostgREST.Plan.MutatePlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Plan.Types
 import PostgREST.Query.SqlFragment
-import PostgREST.RangeQuery        (allRange)
 
 import Protolude
 
 readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect} forest) =
+readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =
   "SELECT " <>
-  intercalateSnippet ", " ((pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)) ++ joinsSelects) <> " " <>
-  fromFrag <> " " <>
-  intercalateSnippet " " joins <> " " <>
+  intercalateSnippet ", " (selects ++ sprExtraSelects ++ joinsSelects) <>
+  fromFrag <>
+  intercalateSnippet " " joins <>
   (if null logicForest && null relJoinConds
     then mempty
-    else "WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
-  groupF qi select relSelect <> " " <>
-  orderF qi order <> " " <>
+    else " WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
+  groupF qi select relSelect <>
+  orderF qi order <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias
@@ -62,7 +61,11 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
     -- gets all the columns in case of an empty select, ignoring/obtaining these columns is done at the aggregation stage
     defSelect = [CoercibleSelectField (unknownField "*" []) Nothing Nothing Nothing Nothing]
     joins = getJoins node
+    selects = pgFmtSelectItem qi <$> (if null select && null forest then defSelect else select)
     joinsSelects = getJoinSelects node
+    sprExtraSelects = case relSpread of
+      Just (ToManySpread sels _) -> (\s -> pgFmtSelectItem (maybe qi (QualifiedIdentifier "") $ fst s) $ snd s) <$> sels
+      _ -> mempty
 
 getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
 getJoinSelects (Node ReadPlan{relSelect} _) =
@@ -92,23 +95,28 @@ getJoins (Node ReadPlan{relSelect} forest) =
       ) relSelect
 
 getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
-getJoin fld node@(Node ReadPlan{relJoinType} _) =
+getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
   let
     correlatedSubquery sub al cond =
-      (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
+      " " <> (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
+    selectSubqAgg = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
+    fromSubqAgg = " FROM (" <> subquery <> " ) AS " <> aggAlias
+    joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
         correlatedSubquery subquery aggAlias "TRUE"
-      Spread{} ->
-        correlatedSubquery subquery aggAlias "TRUE"
+      Spread{rsSpreadSel, rsAggAlias} ->
+        case relSpread of
+          Just (ToManySpread _ sprOrder) ->
+            let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
+            in correlatedSubquery (selSpread <> fromSubqAgg) aggAlias joinCondition
+          _ ->
+            correlatedSubquery subquery aggAlias "TRUE"
       JsonEmbed{rsEmbedMode = JsonArray} ->
-        let
-          subq = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias <> " FROM (" <> subquery <> " ) AS " <> aggAlias
-          condition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
-        in correlatedSubquery subq aggAlias condition
+        correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
@@ -134,64 +142,31 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
--- An update without a limit is always filtered with a WHERE
-mutatePlanToQuery (Update mainQi uCols body logicForest range ordts returnings applyDefaults)
+mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
     "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
 
-  | range == allRange =
-    "UPDATE " <> mainTbl <> " SET " <> nonRangeCols <> " " <>
+  | otherwise =
+    "UPDATE " <> mainTbl <> " SET " <> cols <> " " <>
     fromJsonBodyF body uCols False False applyDefaults <>
     whereLogic <> " " <>
-    returningF mainQi returnings
-
-  | otherwise =
-    "WITH " <>
-    "pgrst_update_body AS (" <> fromJsonBodyF body uCols True True applyDefaults <> "), " <>
-    "pgrst_affected_rows AS (" <>
-      "SELECT " <> rangeIdF <> " FROM " <> mainTbl <>
-      whereLogic <> " " <>
-      orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
-    ") " <>
-    "UPDATE " <> mainTbl <> " SET " <> rangeCols <>
-    "FROM pgrst_affected_rows " <>
-    "WHERE " <> whereRangeIdF <> " " <>
     returningF mainQi returnings
 
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = fromQi mainQi
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    nonRangeCols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
-    rangeCols = intercalateSnippet ", " ((\col -> pgFmtIdent (cfName col) <> " = (SELECT " <> pgFmtIdent (cfName col) <> " FROM pgrst_update_body) ") <$> uCols)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
+    cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
 
-mutatePlanToQuery (Delete mainQi logicForest range ordts returnings)
-  | range == allRange =
-    "DELETE FROM " <> fromQi mainQi <> " " <>
-    whereLogic <> " " <>
-    returningF mainQi returnings
-
-  | otherwise =
-    "WITH " <>
-    "pgrst_affected_rows AS (" <>
-      "SELECT " <> rangeIdF <> " FROM " <> fromQi mainQi <>
-       whereLogic <> " " <>
-      orderF mainQi ordts <> " " <>
-      limitOffsetF range <>
-    ") " <>
-    "DELETE FROM " <> fromQi mainQi <> " " <>
-    "USING pgrst_affected_rows " <>
-    "WHERE " <> whereRangeIdF <> " " <>
-    returningF mainQi returnings
-
+mutatePlanToQuery (Delete mainQi logicForest returnings) =
+  "DELETE FROM " <> fromQi mainQi <> " " <>
+  whereLogic <> " " <>
+  returningF mainQi returnings
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
-    (whereRangeIdF, rangeIdF) = mutRangeF mainQi (cfName . coField <$> ordts)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
@@ -292,7 +267,7 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
 
 -- FROM clause plus implicit joins
 fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
-fromF rel mainQi tblAlias = "FROM " <>
+fromF rel mainQi tblAlias = " FROM " <>
   (case rel of
     -- Due to the use of CTEs on RPC, we need to cast the parameter to the table name in case of function overloading.
     -- See https://github.com/PostgREST/postgrest/issues/2963#issuecomment-1736557386

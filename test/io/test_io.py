@@ -92,7 +92,7 @@ def test_jwt_errors(defaultenv):
         headers = jwtauthheader({}, "other secret")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWSError JWSInvalidSignature"
+        assert response.json()["message"] == "No suitable key or wrong key type"
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
@@ -110,27 +110,30 @@ def test_jwt_errors(defaultenv):
         headers = jwtauthheader({"nbf": relativeSeconds(31)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTNotYetValid"
+        assert response.json()["message"] == "JWT not yet valid"
 
         # 31 seconds, because we allow clock skew of 30 seconds
         headers = jwtauthheader({"iat": relativeSeconds(31)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTIssuedAtFuture"
+        assert response.json()["message"] == "JWT issued at future"
 
         headers = jwtauthheader({"aud": "not set"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWTNotInAudience"
+        assert response.json()["message"] == "JWT not in audience"
 
         # partial token, no signature
         headers = authheader("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bm90IGFuIG9iamVjdA")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert (
-            response.json()["message"]
-            == "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
-        )
+        assert response.json()["message"] == "Expected 3 parts in JWT; got 2"
+
+        # complete token but random characters
+        headers = authheader("quifquirndsjagnrgniur.fonvoienqhhdj.iuqvnvhojah")
+        response = postgrest.session.get("/", headers=headers)
+        assert response.status_code == 401
+        assert response.json()["message"] == "JWT cryptographic operation failed"
 
         # token with algorithm "none"
         headers = authheader(
@@ -138,7 +141,33 @@ def test_jwt_errors(defaultenv):
         )
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "JWSError JWSNoSignatures"
+        assert response.json()["message"] == "Wrong or unsupported encoding algorithm"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_TIMING_ENABLED": "true",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    # for code coverage with cache enabled and server-timing enabled
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only")
+        assert response.status_code == 401
+        assert response.json()["message"] == "permission denied for table authors_only"
+
+    env = {
+        **defaultenv,
+        "PGRST_SERVER_TIMING_ENABLED": "false",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    # for code coverage with cache enabled and server-timing disabled
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only")
+        assert response.status_code == 401
+        assert response.json()["message"] == "permission denied for table authors_only"
 
 
 def test_fail_with_invalid_password(defaultenv):
@@ -683,13 +712,16 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
         assert data["message"] == "Timed out acquiring connection from connection pool."
 
         # ensure the message appears on the logs as well
-        output = sorted(postgrest.read_stdout(nlines=3))
+        output = sorted(postgrest.read_stdout(nlines=10))
 
         if level == "crit":
             assert len(output) == 0
         else:
-            assert " 504 " in output[0]
-            assert "Timed out acquiring connection from connection pool." in output[2]
+            assert any(" 504 " in line for line in output)
+            assert any(
+                "Timed out acquiring connection from connection pool." in line
+                for line in output
+            )
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -973,11 +1005,65 @@ def test_log_level(level, defaultenv):
                 r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
                 output[2],
             )
-            assert "Connection" and "is available" in output[3]
-            assert "Connection" and "is available" in output[4]
-            assert "Connection" and "is used" in output[5]
-            assert "Connection" and "is used" in output[6]
+
             assert len(output) == 7
+            assert any("Connection" and "is available" in line for line in output)
+            assert any("Connection" and "is used" in line for line in output)
+
+
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_query(level, defaultenv):
+    "log_query=true should log the SQL query according to the log_level"
+
+    env = {
+        **defaultenv,
+        "PGRST_LOG_LEVEL": level,
+        "PGRST_LOG_QUERY": "main-query",
+        # The root path can only log SQL when a function is set in db-root-spec
+        "PGRST_DB_ROOT_SPEC": "root",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/")
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+        response = postgrest.session.get("/infinite_recursion")
+        assert response.status_code == 500
+
+        root_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."root"\(\) pgrst_scalar.+_postgrest_t'
+        get_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
+        infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
+
+        if level == "crit":
+            output = postgrest.read_stdout(nlines=1)
+            assert len(output) == 0
+        elif level == "error":
+            output = postgrest.read_stdout(nlines=4)
+            assert re.match(infinite_recursion_5xx_regx, output[1])
+            assert len(output) == 3
+        elif level == "warn":
+            output = postgrest.read_stdout(nlines=2)
+            assert re.match(infinite_recursion_5xx_regx, output[1])
+            assert len(output) == 2
+        elif level == "info":
+            output = postgrest.read_stdout(nlines=6)
+            assert re.match(root_2xx_regx, output[0])
+            assert re.match(get_2xx_regx, output[2])
+            assert re.match(infinite_recursion_5xx_regx, output[5])
+            assert len(output) == 6
+        elif level == "debug":
+            output_root = postgrest.read_stdout(nlines=6)
+            assert re.match(root_2xx_regx, output_root[4])
+            assert len(output_root) == 6
+            output_get = postgrest.read_stdout(nlines=6)
+            assert re.match(get_2xx_regx, output_get[4])
+            assert len(output_get) == 6
+            output_err = postgrest.read_stdout(nlines=6)
+            assert re.match(infinite_recursion_5xx_regx, output_err[5])
+            assert len(output_err) == 6
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
@@ -1367,16 +1453,17 @@ def test_jwt_cache_server_timing(defaultenv):
         first_dur = parse_server_timings_header(first.headers["Server-Timing"])["jwt"]
         second_dur = parse_server_timings_header(second.headers["Server-Timing"])["jwt"]
 
-        assert first_dur >= 0
-        assert second_dur >= 0
+        # with jwt caching the parse time of second request with the same token
+        # should be at least as fast as the first one
+        assert second_dur <= first_dur
 
 
 def test_jwt_cache_without_server_timing(defaultenv):
-    "JWT cache does not break requests without server-timing enabled"
+    "JWT cache does not break requests with server-timing disabled"
 
     env = {
         **defaultenv,
-        "PGRST_SERVER_TIMING_ENABLED": "true",
+        "PGRST_SERVER_TIMING_ENABLED": "false",
         "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
@@ -1518,13 +1605,13 @@ def test_db_error_logging_to_stderr(level, defaultenv, metapostgrest):
         assert response.status_code == 500
 
         # ensure the message appears on the logs
-        output = sorted(postgrest.read_stdout(nlines=4))
+        output = sorted(postgrest.read_stdout(nlines=6))
 
         if level == "crit":
             assert len(output) == 0
         elif level == "debug":
             assert " 500 " in output[0]
-            assert "canceling statement due to statement timeout" in output[3]
+            assert "canceling statement due to statement timeout" in output[5]
         else:
             assert " 500 " in output[0]
             assert "canceling statement due to statement timeout" in output[1]
@@ -1696,3 +1783,50 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
         response = postgrest.session.get("/authors_only", headers=hdrs3)
 
         assert response.status_code == 200
+
+
+def test_pgrst_log_503_client_error_to_stderr(defaultenv):
+    "PostgREST should log 503 errors to stderr"
+
+    env = {
+        **defaultenv,
+        "PGAPPNAME": "test-io",
+    }
+
+    with run(env=env) as postgrest:
+
+        postgrest.session.get("/rpc/terminate_pgrst?appname=test-io")
+
+        output = postgrest.read_stdout(nlines=6)
+
+        log_message = '{"code":"PGRST001","details":"no connection to the server\\n","hint":null,"message":"Database client error. Retrying the connection."}\n'
+
+        assert any(log_message in line for line in output)
+
+
+@pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+def test_log_pool_req_observation(level, defaultenv):
+    "PostgREST should log PoolRequest and PoolRequestFullfilled observation when log-level=debug"
+
+    env = {**defaultenv, "PGRST_LOG_LEVEL": level, "PGRST_JWT_SECRET": SECRET}
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    pool_req = "Trying to borrow a connection from pool"
+    pool_req_fullfill = "Borrowed a connection from the pool"
+
+    with run(env=env) as postgrest:
+
+        postgrest.session.get("/authors_only", headers=headers)
+
+        if level == "debug":
+            output = postgrest.read_stdout(nlines=4)
+            assert pool_req in output[0]
+            assert pool_req_fullfill in output[3]
+            assert len(output) == 4
+        elif level == "info":
+            output = postgrest.read_stdout(nlines=4)
+            assert len(output) == 1
+        else:
+            output = postgrest.read_stdout(nlines=4)
+            assert len(output) == 0

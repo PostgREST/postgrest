@@ -10,7 +10,6 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
-{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
   ( getResult
@@ -24,8 +23,8 @@ import qualified Data.Aeson.Key                  as K
 import qualified Data.Aeson.KeyMap               as KM
 import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString                 as BS
+import qualified Data.ByteString.Internal        as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
-import qualified Data.Cache                      as C
 import qualified Data.Scientific                 as Sci
 import qualified Data.Text                       as T
 import qualified Data.Vault.Lazy                 as Vault
@@ -41,49 +40,57 @@ import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
-import System.Clock            (TimeSpec (..))
 import System.IO.Unsafe        (unsafePerformIO)
 import System.TimeIt           (timeItT)
 
-import PostgREST.AppState   (AppState, getConfig, getJwtCacheState,
-                             getTime)
-import PostgREST.Auth.Types (AuthResult (..), JwtCacheState (..))
-import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
-                             JSPathExp (..))
-import PostgREST.Error      (Error (..))
+import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
+                                getTime)
+import PostgREST.Auth.JwtCache (lookupJwtCache)
+import PostgREST.Auth.Types    (AuthResult (..))
+import PostgREST.Config        (AppConfig (..), FilterExp (..),
+                                JSPath, JSPathExp (..))
+import PostgREST.Error         (Error (..), JwtError (..))
 
 import Protolude
 
-
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: AppConfig -> ByteString -> UTCTime -> ExceptT Error IO JSON.Value
-parseToken _ "" _ = return JSON.emptyObject
-parseToken AppConfig{..} token time = do
-  secret <- liftEither . maybeToRight JwtTokenMissing $ configJWKS
-  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing token
-  content <- liftEither . mapLeft jwtDecodeError $ eitherContent
-  liftEither $ verifyClaims content
+parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
+parseToken _ Nothing _ = return JSON.emptyObject
+parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header"
+parseToken AppConfig{..} (Just tkn) time = do
+  secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
+  tknWith3Parts <- liftEither $ hasThreeParts tkn
+  eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
+  content <- liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
+  liftEither $ mapLeft JwtErr $ verifyClaims content
   where
-      -- TODO: Improve errors, those were just taken as-is from hs-jose to avoid
-      -- breaking changes.
-      jwtDecodeError :: JWT.JwtError -> Error
-      jwtDecodeError (JWT.KeyError _)     = JwtTokenInvalid "JWSError JWSInvalidSignature"
-      jwtDecodeError JWT.BadCrypto        = JwtTokenInvalid "JWSError (CompactDecodeError Invalid number of parts: Expected 3 parts; got 2)"
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtTokenInvalid "JWSError JWSNoSignatures"
-      jwtDecodeError e                    = JwtTokenInvalid $ show e
+      hasThreeParts :: ByteString -> Either Error ByteString
+      hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
+        3 -> Right token
+        n -> Left $ JwtErr $ JwtDecodeError ("Expected 3 parts in JWT; got " <> show n)
+      jwtDecodeError :: JWT.JwtError -> JwtError
+      -- The only errors we can get from JWT.decode function are:
+      --   BadAlgorithm
+      --   KeyError
+      --   BadCrypto
+      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
+      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed"
+      -- Control never reaches here, the decode function only returns the above three
+      jwtDecodeError _                    = JwtDecodeError "JWT couldn't be decoded"
 
-      verifyClaims :: JWT.JwtContent -> Either Error JSON.Value
+      verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
-        Nothing                    -> Left $ JwtTokenInvalid "Parsing claims failed"
+        Nothing                    -> Left $ JwtClaimsError "Parsing claims failed"
         Just (JSON.Object mclaims)
-          | failedExpClaim mclaims -> Left $ JwtTokenInvalid "JWT expired"
-          | failedNbfClaim mclaims -> Left $ JwtTokenInvalid "JWTNotYetValid"
-          | failedIatClaim mclaims -> Left $ JwtTokenInvalid "JWTIssuedAtFuture"
-          | failedAudClaim mclaims -> Left $ JwtTokenInvalid "JWTNotInAudience"
+          | failedExpClaim mclaims -> Left $ JwtClaimsError "JWT expired"
+          | failedNbfClaim mclaims -> Left $ JwtClaimsError "JWT not yet valid"
+          | failedIatClaim mclaims -> Left $ JwtClaimsError "JWT issued at future"
+          | failedAudClaim mclaims -> Left $ JwtClaimsError "JWT not in audience"
         Just jclaims               -> Right jclaims
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _                = Left $ JwtTokenInvalid "Unsupported token type"
+      verifyClaims _                = Left $ JwtDecodeError "Unsupported token type"
 
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
@@ -113,7 +120,7 @@ parseClaims :: Monad m =>
   AppConfig -> JSON.Value -> ExceptT Error m AuthResult
 parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
   -- role defaults to anon if not specified in jwt
-  role <- liftEither . maybeToRight JwtTokenRequired $
+  role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
     unquoted <$> walkJSPath (Just jclaims) configJwtRoleClaimKey <|> configDbAnonRole
   return AuthResult
            { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
@@ -151,10 +158,11 @@ middleware appState app req respond = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token  = fromMaybe "" $ Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
+      jwtCacheState = getJwtCacheState appState
 
--- If DbPlanEnabled       -> calculate JWT validation time
+-- If ServerTimingEnabled -> calculate JWT validation time
 -- If JwtCacheMaxLifetime -> cache JWT validation result
   req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
     (True, 0)            -> do
@@ -162,7 +170,9 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ getJWTFromCache appState token maxLifetime parseJwt time
+          (dur, authResult) <- timeItT $ case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing  -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
     (False, 0)           -> do
@@ -170,61 +180,12 @@ middleware appState app req respond = do
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
     (False, maxLifetime) -> do
-          authResult <- getJWTFromCache appState token maxLifetime parseJwt time
+          authResult <- case token of
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Nothing -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
-
--- | Used to retrieve and insert JWT to JWT Cache
-getJWTFromCache :: AppState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-getJWTFromCache appState token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup jwtCache token
-  authResult <- maybe parseJwt (pure . Right) checkCache
-
-  case (authResult,checkCache) of
-    -- From comment:
-    -- https://github.com/PostgREST/postgrest/pull/3801#discussion_r1857987914
-    --
-    -- We purge expired cache entries on a cache miss
-    -- The reasoning is that:
-    --
-    -- 1. We expect it to be rare (otherwise there is no point of the cache)
-    -- 2. It makes sure the cache is not growing (as inserting new entries
-    --    does garbage collection)
-    -- 3. Since this is time expiration based cache there is no real risk of
-    --    starvation - sooner or later we are going to have a cache miss.
-
-    (Right res, Nothing) -> do -- cache miss
-
-      let timeSpec = getTimeSpec res maxLifetime utc
-
-      -- insert new cache entry first
-      C.insert' jwtCache timeSpec token res
-
-      -- trigger asynchronous purging of expired cache entries
-      -- but only if not already running anotherpurging
-      tryPutMVar lock () >>= \case
-        -- start purge make sure lock is released
-        True -> void $ forkFinally (C.purgeExpired jwtCache) (const $ takeMVar lock)
-        -- purge already running - do nothing
-        _ -> pure ()
-
-    _                    -> pure ()
-
-  return authResult
-    where
-      lock = (purgeLock . getJwtCacheState) appState
-      jwtCache = (cache . getJwtCacheState) appState
-
--- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> Maybe TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
-      utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
-      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
-  case expireJSON of
-    Just (JSON.Number seconds) -> Just $ TimeSpec (sciToInt seconds - utcToSecs utc) 0
-    _                          -> Just $ TimeSpec (fromIntegral maxLifetime :: Int64) 0
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey

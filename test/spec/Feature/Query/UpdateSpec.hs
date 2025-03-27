@@ -17,7 +17,12 @@ spec = do
       it "indicates no table found by returning 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
-            `shouldRespondWith` 404
+          `shouldRespondWith`
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fake' in the schema cache"} |]
+          { matchStatus = 404
+          , matchHeaders = []
+          }
+
 
     context "on an empty table" $
       it "succeeds with status code 204" $
@@ -343,7 +348,7 @@ spec = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json|{} |]
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.articles'","message":"Could not find the table 'test.garlic' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = []
           }
@@ -356,18 +361,6 @@ spec = do
             `shouldRespondWith`
             [json|[
               {"id":3,"name":"Tres","settings":{"foo":{"int":1,"bar":"baz"}},"arr_data":[1,2,3],"field-with_sep":1}
-            ]|]
-            { matchStatus  = 200
-            , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
-            }
-
-        it "updates with limit/offset using table default values(field-with_sep) when json keys are undefined" $ do
-          request methodPatch "/complex_items?select=id,name&columns=name,field-with_sep&limit=1&offset=2&order=id"
-            [("Prefer", "return=representation"), ("Prefer", "missing=default")]
-            [json|{"name": "Tres"}|]
-            `shouldRespondWith`
-            [json|[
-              {"id":3,"name":"Tres"}
             ]|]
             { matchStatus  = 200
             , matchHeaders = ["Preference-Applied" <:> "missing=default, return=representation"]
@@ -428,6 +421,20 @@ spec = do
           `shouldRespondWith`
           [json|
             [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "fezz" }, { "name": "foo" }, { "name": "bar" } ]} ]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+          }
+
+      it "with ordering on top-level resource" $
+        request methodPatch "/no_pk?order=a.desc"
+                [("Prefer", "return=representation")]
+          [json|{ "b": "1" }|]
+          `shouldRespondWith`
+          [json|
+            [ { "a": null, "b": "1" },
+              { "a": "2", "b": "1" },
+              { "a": "1", "b": "1" } ]
           |]
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
@@ -710,3 +717,16 @@ spec = do
         request methodPatch "/datarep_todos_computed?id=eq.2001&columns=label_color" [("Prefer", "return=representation")]
          [json| {"due_at": "2019-01-03T11:00:00Z", "smth": "here", "label_color": "invalid", "fake_id": 13} |]
          `shouldRespondWith` 200
+
+    context "with ordering" $
+      it "works with request method PATCH and embedded resource" $
+        request methodPatch "/web_content?id=eq.0&select=id,name,web_content(name)&web_content.order=name.asc"
+                  [("Prefer", "return=representation")]
+            [json|{"name": "tardis-patched"}|]
+            `shouldRespondWith`
+            [json|
+              [ { "id": 0, "name": "tardis-patched", "web_content": [ { "name": "bar" }, { "name": "fezz" }, { "name": "foo" } ]} ]
+            |]
+            { matchStatus  = 200
+            , matchHeaders = [matchContentTypeJson, "Preference-Applied" <:> "return=representation"]
+            }

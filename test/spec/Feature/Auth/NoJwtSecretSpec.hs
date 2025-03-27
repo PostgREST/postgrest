@@ -1,4 +1,4 @@
-module Feature.Auth.NoJwtSpec where
+module Feature.Auth.NoJwtSecretSpec where
 
 import Network.Wai (Application)
 

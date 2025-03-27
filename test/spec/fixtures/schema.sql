@@ -2512,56 +2512,6 @@ CREATE AGGREGATE test.unsupported_agg (*) (
   STYPE = int
 );
 
-create table limited_update_items(
-  id int primary key
-, name text
-);
-
-create table limited_update_items_cpk(
-  id int
-, name text
-, primary key (id, name)
-);
-
-create table limited_update_items_no_pk(
-  id int
-, name text
-);
-
-create view limited_update_items_view as
-select * from limited_update_items;
-
-create view limited_update_items_wnonuniq_view as
-select *, 'static'::text as static from limited_update_items;
-
-create view limited_update_items_cpk_view as
-select * from limited_update_items_cpk;
-
-create table limited_delete_items(
-  id int primary key
-, name text
-);
-
-create table limited_delete_items_cpk(
-  id int
-, name text
-, primary key (id, name)
-);
-
-create table limited_delete_items_no_pk(
-  id int
-, name text
-);
-
-create view limited_delete_items_view as
-select * from limited_delete_items;
-
-create view limited_delete_items_wnonuniq_view as
-select *, 'static'::text as static from limited_delete_items;
-
-create view limited_delete_items_cpk_view as
-select * from limited_delete_items_cpk;
-
 create function reset_table(tbl_name text default '', tbl_data json default '[]') returns void as $_$ begin
   execute format(
   $$
@@ -3812,3 +3762,41 @@ $$ language sql;
 create function test.text_search_vector(test.tsearch_to_tsvector) returns tsvector AS $$
   select to_tsvector('simple', $1.text_search)
 $$ language sql;
+
+-- to test ordering with mutations
+CREATE TABLE test.artists (
+  id int PRIMARY KEY,
+  name text
+);
+
+CREATE TABLE test.albums (
+  id int PRIMARY KEY,
+  title text,
+  artist_id int,
+
+  CONSTRAINT fk_artist
+    FOREIGN KEY (artist_id) REFERENCES artists (id)
+    ON UPDATE CASCADE
+    ON DELETE CASCADE
+);
+
+create table operators (
+  id int primary key,
+  name text,
+  status jsonb
+);
+
+create table process_operator (
+  process_id int references processes(id),
+  operator_id int references operators(id),
+  primary key (process_id, operator_id)
+);
+
+create table factory_buildings (
+  id int primary key,
+  code char(4),
+  size numeric,
+  "type" char(1),
+  factory_id int references factories(id),
+  inspections jsonb
+);

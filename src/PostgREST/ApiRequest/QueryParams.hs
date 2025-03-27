@@ -54,9 +54,11 @@ import PostgREST.ApiRequest.Types (AggregateFunction (..),
                                    OpQuantifier (..), Operation (..),
                                    OrderDirection (..),
                                    OrderNulls (..), OrderTerm (..),
-                                   QPError (..), QuantOperator (..),
+                                   QuantOperator (..),
                                    SelectItem (..),
                                    SimpleOperator (..), SingleVal)
+
+import PostgREST.Error (QPError (..))
 
 import Protolude hiding (Sum, try)
 

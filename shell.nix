@@ -7,7 +7,6 @@
 # We highly recommend that use the PostgREST binary cache by installing cachix
 # (https://app.cachix.org/) and running `cachix use postgrest`.
 { docker ? false
-, memory ? false
 }:
 let
   postgrest =
@@ -23,14 +22,14 @@ let
       postgrest.devTools
       postgrest.docs
       postgrest.loadtest
+      postgrest.memory
       postgrest.nixpkgsTools
+      postgrest.release
       postgrest.style
       postgrest.tests
       postgrest.withTools
-      postgrest.release
     ]
-    ++ lib.optional docker postgrest.docker
-    ++ lib.optional memory postgrest.memory;
+    ++ lib.optional docker postgrest.docker;
 
 in
 lib.overrideDerivation postgrest.env (

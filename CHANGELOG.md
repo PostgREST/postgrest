@@ -15,6 +15,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #1536, Add string comparison feature for jwt-role-claim-key - @taimoorzaeem
  - #3747, Allow `not_null` value for the `is` operator - @taimoorzaeem
  - #2255, Apply `to_tsvector()` explicitly to the full-text search filtered column (excluding `tsvector` types) - @laurenceisla
+ - #1578, Log the main SQL query to stderr at the current `log-level` when `log-query=main-query` - @laurenceisla
+ - #3903, Log connection pool borrows on `log-level=debug` - @taimoorzaeem
+ - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
+   + The selected columns in the embedded resources are aggregated into arrays
+   + Aggregates are not supported
 
 ### Fixed
 
@@ -25,6 +30,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Fixed `"column <json_aggregate>.<alias> does not exist"` error when selecting `?select=...table(aias:count())`
  - #3727, Clarify "listening" logs - @steve-chavez
  - #3795, Clarify `Accept: vnd.pgrst.object` error message - @steve-chavez
+ - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
+ - #3600, #3926, Improve JWT errors - @taimoorzaeem
+ - #3013, Fix `order=` with POST, PATCH, PUT and DELETE requests - @taimoorzaeem
 
 ### Changed
 
@@ -37,6 +45,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
+ - #3013, Drop support for Limited updates/deletes
+   + The feature was complicated and largely unused.
+ - #3697, #3602, Querying non-existent table now returns `PGRST205` error instead of empty json - @taimoorzaeem
+ - #3600, #3926, Improve JWT errors - @taimoorzaeem
+   + Return `PGRST301` error when `Bearer` in auth header is sent empty
+   + Diagnostic error messages instead of exposed internals
+   + Return new `PGRST303` error when jwt claims decoding fails
+ - #3906, Return `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
+
+## [12.2.8] - 2025-02-10
+
+### Fixed
+
+ - #3841, Log `503` client error to stderr - @taimoorzaeem
 
 ## [12.2.7] - 2025-02-03
 

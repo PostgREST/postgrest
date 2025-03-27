@@ -205,14 +205,6 @@ Related to the HTTP request elements.
 |               |             | specified in the ``select`` part of the query string.       |
 | PGRST108      |             | See :ref:`embed_filters`.                                   |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst109: | 400         | Restricting a Deletion or an Update using limits must       |
-|               |             | include the ordering of a unique column.                    |
-| PGRST109      |             | See :ref:`limited_update_delete`.                           |
-+---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst110: | 400         | When restricting a Deletion or an Update using limits       |
-|               |             | modifies more rows than the maximum specified in the limit. |
-| PGRST110      |             | See :ref:`limited_update_delete`.                           |
-+---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst111: | 500         | An invalid ``response.headers`` was set.                    |
 |               |             | See :ref:`guc_resp_hdrs`.                                   |
 | PGRST111      |             |                                                             |
@@ -241,10 +233,6 @@ Related to the HTTP request elements.
 |               |             | there is no many-to-one or one-to-one relationship between  |
 | PGRST118      |             | them.                                                       |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst119: | 400         | Could not use the spread operator on the related table      |
-|               |             | because there is no many-to-one or one-to-one relationship  |
-| PGRST119      |             | between them.                                               |
-+---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst120: | 400         | An embedded resource can only be filtered using the         |
 |               |             | ``is.null`` or ``not.is.null`` :ref:`operators <operators>`.|
 | PGRST120      |             |                                                             |
@@ -261,6 +249,23 @@ Related to the HTTP request elements.
 |               |             | See :ref:`db-aggregates-enabled`.                           |
 | PGRST123      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst124: | 400         | ``max-affected`` preference is violated.                    |
+|               |             | See :ref:`prefer_max_affected`.                             |
+| PGRST124      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst125: | 404         | Invalid path is specified in request URL.                   |
+|               |             |                                                             |
+| PGRST125      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst126: | 404         | Open API config is disabled but API root path is            |
+|               |             | accessed. See :ref:`openapi-mode`.                          |
+| PGRST126      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst127: | 400         | The feature specified in the ``details`` field is not       |
+|               |             | implemented.                                                |
+| PGRST127      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
+
 
 .. _pgrst2**:
 
@@ -294,6 +299,10 @@ Related to a :ref:`schema_cache`. Most of the time, these errors are solved by :
 |               |             | in the ``columns`` query parameter is not found.            |
 | PGRST204      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst205: | 404         | Caused when the :ref:`table specified <tables_views>` in    |
+|               |             | the URI is not found.                                       |
+| PGRST205      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 .. _pgrst3**:
 
@@ -309,13 +318,17 @@ Related to the authentication process using JWT. You can follow the :ref:`tut1` 
 |               |             | configuration.                                              |
 | PGRST300      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
-| .. _pgrst301: | 401         | Any error related to the verification of the JWT,           |
-|               |             | which means that the JWT provided is invalid in some way.   |
+| .. _pgrst301: | 401         | Provided JWT couldn't be decoded or it is invalid.          |
+|               |             |                                                             |
 | PGRST301      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst302: | 401         | Attempted to do a request without                           |
 |               |             | :ref:`authentication <client_auth>` when the anonymous role |
 | PGRST302      |             | is disabled by not setting it in :ref:`db-anon-role`.       |
++---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst303: | 401         | :ref:`JWT claims validation <jwt_claims_validation>`        |
+|               |             | or parsing failed.                                          |
+| PGRST303      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
 .. The Internal Errors Group X** is always at the end

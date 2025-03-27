@@ -741,24 +741,6 @@ INSERT INTO test.fav_numbers VALUES (ROW(0.5, 0.5), 'A'),  (ROW(0.6, 0.6), 'B');
 TRUNCATE TABLE test.arrays CASCADE;
 INSERT INTO test.arrays VALUES (0, '{1,2,3}', '{{1,2,3},{4,5,6},{7,8,9}}'), (1, '{11,12,13}', '{{11,12,13},{14,15,16},{17,18,19}}');
 
-TRUNCATE TABLE test.limited_update_items CASCADE;
-INSERT INTO test.limited_update_items VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
-TRUNCATE TABLE test.limited_update_items_cpk CASCADE;
-INSERT INTO test.limited_update_items_cpk VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
-TRUNCATE TABLE test.limited_update_items_no_pk CASCADE;
-INSERT INTO test.limited_update_items_no_pk VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
-TRUNCATE TABLE test.limited_delete_items CASCADE;
-INSERT INTO test.limited_delete_items VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
-TRUNCATE TABLE test.limited_delete_items_cpk CASCADE;
-INSERT INTO test.limited_delete_items_cpk VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
-TRUNCATE TABLE test.limited_delete_items_no_pk CASCADE;
-INSERT INTO test.limited_delete_items_no_pk VALUES (1, 'item-1'), (2, 'item-2'), (3, 'item-3');
-
 TRUNCATE TABLE test.xmltest CASCADE;
 INSERT INTO test.xmltest VALUES
 (1, '<myxml>foo</myxml>'),
@@ -901,19 +883,24 @@ INSERT INTO processes VALUES (3, 'Process B1', 2, 1);
 INSERT INTO processes VALUES (4, 'Process B2', 2, 1);
 INSERT INTO processes VALUES (5, 'Process C1', 3, 2);
 INSERT INTO processes VALUES (6, 'Process C2', 3, 2);
+INSERT INTO processes VALUES (7, 'Process XX', 3, 2);
+INSERT INTO processes VALUES (8, 'Process YY', 3, 2);
 
 TRUNCATE TABLE process_costs CASCADE;
 INSERT INTO process_costs VALUES (1, 150.00);
 INSERT INTO process_costs VALUES (2, 200.00);
 INSERT INTO process_costs VALUES (3, 180.00);
 INSERT INTO process_costs VALUES (4, 70.00);
-INSERT INTO process_costs VALUES (5, 120.00);
+INSERT INTO process_costs VALUES (5, 40.00);
+INSERT INTO process_costs VALUES (6, 70.00);
+INSERT INTO process_costs VALUES (8, 40.00);
 
 TRUNCATE TABLE supervisors CASCADE;
 INSERT INTO supervisors VALUES (1, 'Mary');
 INSERT INTO supervisors VALUES (2, 'John');
 INSERT INTO supervisors VALUES (3, 'Peter');
 INSERT INTO supervisors VALUES (4, 'Sarah');
+INSERT INTO supervisors VALUES (5, 'Jane');
 
 TRUNCATE TABLE process_supervisor CASCADE;
 INSERT INTO process_supervisor VALUES (1, 1);
@@ -924,6 +911,34 @@ INSERT INTO process_supervisor VALUES (4, 1);
 INSERT INTO process_supervisor VALUES (4, 2);
 INSERT INTO process_supervisor VALUES (5, 3);
 INSERT INTO process_supervisor VALUES (6, 3);
+
+TRUNCATE TABLE operators CASCADE;
+INSERT INTO operators VALUES (1, 'Anne', '{"id": "543210", "afk": true}');
+INSERT INTO operators VALUES (2, 'Louis', '{"id": "012345"}');
+INSERT INTO operators VALUES (3, 'Jeff', '{"id": "666666", "afk": true}');
+INSERT INTO operators VALUES (4, 'Liz', '{"id": "999999"}');
+INSERT INTO operators VALUES (5, 'Alfred', '{"id": "000000"}');
+
+TRUNCATE TABLE process_operator CASCADE;
+INSERT INTO process_operator VALUES (1,1);
+INSERT INTO process_operator VALUES (1,2);
+INSERT INTO process_operator VALUES (2,1);
+INSERT INTO process_operator VALUES (2,2);
+INSERT INTO process_operator VALUES (2,3);
+INSERT INTO process_operator VALUES (3,3);
+INSERT INTO process_operator VALUES (4,1);
+INSERT INTO process_operator VALUES (4,3);
+INSERT INTO process_operator VALUES (6,3);
+INSERT INTO process_operator VALUES (6,5);
+INSERT INTO process_operator VALUES (7,5);
+
+TRUNCATE TABLE factory_buildings CASCADE;
+INSERT INTO factory_buildings VALUES (1, 'A001', 150, 'A', 1, '{"ins": "2024C", "pending": true}');
+INSERT INTO factory_buildings VALUES (2, 'A002', 200, 'A', 1, '{"ins": "2025A", "pending": true}');
+INSERT INTO factory_buildings VALUES (3, 'B001', 50, 'B', 2, '{"ins": "2025A", "pending": true}');
+INSERT INTO factory_buildings VALUES (4, 'B002', 120, 'C', 2, '{"ins": "2023A"}');
+INSERT INTO factory_buildings VALUES (5, 'C001', 240, 'B', 3, '{"ins": "2022B"}' );
+INSERT INTO factory_buildings VALUES (6, 'D001', 310, 'A', 4, '{"ins": "2024C", "pending": true}');
 
 TRUNCATE TABLE surr_serial_upsert CASCADE;
 INSERT INTO surr_serial_upsert(name, extra) VALUES ('value', 'existing value');
@@ -939,3 +954,15 @@ INSERT INTO tsearch_to_tsvector(text_search) VALUES ('C''est un peu amusant de f
 INSERT INTO tsearch_to_tsvector(text_search) VALUES ('Es ist eine Art Spaß, das Unmögliche zu machen');
 
 UPDATE tsearch_to_tsvector SET jsonb_search = jsonb_build_object('text_search', text_search);
+
+
+TRUNCATE TABLE artists CASCADE;
+INSERT INTO artists
+VALUES (1, 'duster'), (2, 'black country, new road'), (3, 'bjork');
+
+TRUNCATE TABLE albums CASCADE;
+INSERT INTO albums 
+VALUES (1, 'stratosphere', 1),
+       (2, 'ants from up above',2), 
+       (3, 'vespertine',3),
+       (4, 'contemporary movement', 1);

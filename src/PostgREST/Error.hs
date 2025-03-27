@@ -8,8 +8,11 @@ Description : PostgREST error HTTP responses
 module PostgREST.Error
   ( errorResponseFor
   , ApiRequestError(..)
+  , QPError(..)
+  , RangeError(..)
   , PgError(..)
   , Error(..)
+  , JwtError (..)
   , errorPayload
   , status
   ) where
@@ -32,12 +35,8 @@ import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
-import           PostgREST.ApiRequest.Types (ApiRequestError (..),
-                                             QPError (..),
-                                             RaiseError (..),
-                                             RangeError (..))
-import           PostgREST.MediaType        (MediaType (..))
-import qualified PostgREST.MediaType        as MediaType
+import           PostgREST.MediaType (MediaType (..))
+import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
@@ -47,6 +46,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
+import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
 
 
@@ -62,6 +62,53 @@ class (JSON.ToJSON a) => PgrstError a where
     let baseHeader = MediaType.toContentType MTApplicationJSON in
     responseLBS (status err) (baseHeader : headers err) $ errorPayload err
 
+data ApiRequestError
+  = AggregatesNotAllowed
+  | AmbiguousRelBetween Text Text [Relationship]
+  | AmbiguousRpc [Routine]
+  | MediaTypeError [ByteString]
+  | InvalidBody ByteString
+  | InvalidFilters
+  | InvalidPreferences [ByteString]
+  | InvalidRange RangeError
+  | InvalidRpcMethod ByteString
+  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
+  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
+  | NotEmbedded Text
+  | NotImplemented Text
+  | PutLimitNotAllowedError
+  | QueryParamError QPError
+  | RelatedOrderNotToOne Text Text
+  | UnacceptableFilter Text
+  | UnacceptableSchema [Text]
+  | UnsupportedMethod ByteString
+  | ColumnNotFound Text Text
+  | TableNotFound Text Text [Table]
+  | GucHeadersError
+  | GucStatusError
+  | PutMatchingPkError
+  | SingularityError Integer
+  | PGRSTParseError RaiseError
+  | MaxAffectedViolationError Integer
+  | InvalidResourcePath
+  | OpenAPIDisabled
+  deriving Show
+
+data QPError = QPError Text Text
+  deriving Show
+
+data RaiseError
+  = MsgParseError ByteString
+  | DetParseError ByteString
+  | NoDetail
+  deriving Show
+
+data RangeError
+  = NegativeLimit
+  | LowerGTUpper
+  | OutOfBounds Text Text
+  deriving Show
+
 instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
   status AmbiguousRelBetween{}       = HTTP.status300
@@ -72,27 +119,27 @@ instance PgrstError ApiRequestError where
   status InvalidPreferences{}        = HTTP.status400
   status InvalidRpcMethod{}          = HTTP.status405
   status InvalidRange{}              = HTTP.status416
-  status NotFound                    = HTTP.status404
 
   status NoRelBetween{}              = HTTP.status400
   status NoRpc{}                     = HTTP.status404
   status NotEmbedded{}               = HTTP.status400
+  status NotImplemented{}            = HTTP.status400
   status PutLimitNotAllowedError     = HTTP.status400
   status QueryParamError{}           = HTTP.status400
   status RelatedOrderNotToOne{}      = HTTP.status400
-  status SpreadNotToOne{}            = HTTP.status400
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
-  status LimitNoOrderError           = HTTP.status400
   status ColumnNotFound{}            = HTTP.status400
+  status TableNotFound{}             = HTTP.status404
   status GucHeadersError             = HTTP.status500
   status GucStatusError              = HTTP.status500
-  status OffLimitsChangesError{}     = HTTP.status400
   status PutMatchingPkError          = HTTP.status400
   status SingularityError{}          = HTTP.status406
   status PGRSTParseError{}           = HTTP.status500
   status MaxAffectedViolationError{} = HTTP.status400
+  status InvalidResourcePath         = HTTP.status404
+  status OpenAPIDisabled             = HTTP.status404
 
   headers _ = mempty
 
@@ -132,22 +179,11 @@ instance JSON.ToJSON ApiRequestError where
   toJSON (MediaTypeError cts) = toJsonPgrstError
     ApiRequestErrorCode07 ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)) Nothing Nothing
 
-  toJSON NotFound = JSON.object []
-
   toJSON (NotEmbedded resource) = toJsonPgrstError
     ApiRequestErrorCode08
     ("'" <> resource <> "' is not an embedded resource in this request")
     Nothing
     (Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter.")
-
-  toJSON LimitNoOrderError = toJsonPgrstError
-    ApiRequestErrorCode09 "A 'limit' was applied without an explicit 'order'" Nothing (Just "Apply an 'order' using unique column(s)")
-
-  toJSON (OffLimitsChangesError n maxs) = toJsonPgrstError
-    ApiRequestErrorCode10
-    "The maximum number of rows allowed to change was surpassed"
-    (Just $ JSON.String $ T.unwords ["Results contain", show n, "rows changed but the maximum number allowed is", show maxs])
-    Nothing
 
   toJSON GucHeadersError = toJsonPgrstError
     ApiRequestErrorCode11 "response.headers guc must be a JSON array composed of objects with a single key and a string value" Nothing Nothing
@@ -176,12 +212,6 @@ instance JSON.ToJSON ApiRequestError where
     (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
     Nothing
 
-  toJSON (SpreadNotToOne origin target) = toJsonPgrstError
-    ApiRequestErrorCode19
-    ("A spread operation on '" <> target <> "' is not possible")
-    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
-    Nothing
-
   toJSON (UnacceptableFilter target) = toJsonPgrstError
     ApiRequestErrorCode20
     ("Bad operator on the '" <> target <> "' embedded resource")
@@ -207,6 +237,18 @@ instance JSON.ToJSON ApiRequestError where
     ApiRequestErrorCode24
     "Query result exceeds max-affected preference constraint"
     (Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"])
+    Nothing
+
+  toJSON InvalidResourcePath = toJsonPgrstError
+    ApiRequestErrorCode25
+    "Invalid path specified in request URL"
+    Nothing
+    Nothing
+
+  toJSON OpenAPIDisabled = toJsonPgrstError
+    ApiRequestErrorCode26
+    "Root endpoint metadata is disabled"
+    Nothing
     Nothing
 
   toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
@@ -252,6 +294,15 @@ instance JSON.ToJSON ApiRequestError where
 
   toJSON (ColumnNotFound relName colName) = toJsonPgrstError
     SchemaCacheErrorCode04 ("Could not find the '" <> colName <> "' column of '" <> relName <> "' in the schema cache") Nothing Nothing
+
+  toJSON (TableNotFound schemaName relName tbls) = toJsonPgrstError
+    SchemaCacheErrorCode05
+    ("Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache")
+    Nothing
+    (JSON.String <$> tableNotFoundHint schemaName relName tbls)
+
+  toJSON (NotImplemented details) = toJsonPgrstError
+    ApiRequestErrorCode27 "Feature not implemented" (Just $ JSON.String details) Nothing
 
 -- |
 -- If no relationship is found then:
@@ -349,6 +400,16 @@ noRpcHint schema procName params allProcs overloadedProcs =
     possibleProcs
       | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
       | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
+
+-- |
+-- Do a fuzzy search in all tables in the same schema and return closest result
+tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
+tableNotFoundHint schema tblName tblList
+  = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
+    where
+      perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
+      fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
+
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed
@@ -516,43 +577,63 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
     _                       -> HTTP.status500
 
 
+-- TODO: separate "SchemaCacheError" from ApiRequestError similar to how we
+-- group them in docs
 data Error
   = ApiRequestError ApiRequestError
-  | JwtTokenInvalid Text
-  | JwtTokenMissing
-  | JwtTokenRequired
+  | JwtErr JwtError
   | NoSchemaCacheError
   | PgErr PgError
 
+data JwtError
+  = JwtDecodeError Text
+  | JwtSecretMissing
+  | JwtTokenRequired
+  | JwtClaimsError Text
+
 instance PgrstError Error where
   status (ApiRequestError err) = status err
-  status JwtTokenInvalid{}     = HTTP.unauthorized401
-  status JwtTokenMissing       = HTTP.status500
-  status JwtTokenRequired      = HTTP.unauthorized401
+  status (JwtErr err)          = status err
   status NoSchemaCacheError    = HTTP.status503
   status (PgErr err)           = status err
 
   headers (ApiRequestError err) = headers err
-  headers (JwtTokenInvalid m)   = [invalidTokenHeader m]
-  headers JwtTokenRequired      = [requiredTokenHeader]
+  headers (JwtErr err)          = headers err
   headers (PgErr err)           = headers err
   headers _                     = mempty
 
+instance PgrstError JwtError where
+  status JwtDecodeError{} = HTTP.unauthorized401
+  status JwtSecretMissing = HTTP.status500
+  status JwtTokenRequired = HTTP.unauthorized401
+  status JwtClaimsError{} = HTTP.unauthorized401
+
+  headers (JwtDecodeError m) = [invalidTokenHeader m]
+  headers JwtTokenRequired   = [requiredTokenHeader]
+  headers (JwtClaimsError m) = [invalidTokenHeader m]
+  headers _                  = mempty
+
 instance JSON.ToJSON Error where
-  toJSON NoSchemaCacheError = toJsonPgrstError
+  toJSON (ApiRequestError err) = JSON.toJSON err
+  toJSON (JwtErr err)          = JSON.toJSON err
+  toJSON (PgErr err)           = JSON.toJSON err
+  toJSON NoSchemaCacheError    = toJsonPgrstError
       ConnectionErrorCode02 "Could not query the database for the schema cache. Retrying." Nothing Nothing
 
-  toJSON JwtTokenMissing = toJsonPgrstError
+-- Should we provide hints and description or explain the error in docs or both?
+instance JSON.ToJSON JwtError where
+  toJSON JwtSecretMissing = toJsonPgrstError
       JWTErrorCode00 "Server lacks JWT secret" Nothing Nothing
 
-  toJSON (JwtTokenInvalid message) = toJsonPgrstError
+  toJSON (JwtDecodeError message) = toJsonPgrstError
       JWTErrorCode01 message Nothing Nothing
 
   toJSON JwtTokenRequired = toJsonPgrstError
       JWTErrorCode02 "Anonymous access is disabled" Nothing Nothing
 
-  toJSON (PgErr err) = JSON.toJSON err
-  toJSON (ApiRequestError err) = JSON.toJSON err
+  toJSON (JwtClaimsError message) = toJsonPgrstError
+      JWTErrorCode03 message Nothing Nothing
+
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
@@ -618,8 +699,8 @@ data ErrorCode
   | ApiRequestErrorCode06
   | ApiRequestErrorCode07
   | ApiRequestErrorCode08
-  | ApiRequestErrorCode09
-  | ApiRequestErrorCode10
+  -- | ApiRequestErrorCode09 -- no longer used (used to be mapped to LimitNoOrderError)
+  -- | ApiRequestErrorCode10 -- no longer used (used to be mapped to OffLimitsChangesError)
   | ApiRequestErrorCode11
   -- | ApiRequestErrorCode13 -- no longer used (used to be mapped to BinaryFieldError)
   | ApiRequestErrorCode12
@@ -628,22 +709,27 @@ data ErrorCode
   | ApiRequestErrorCode16
   | ApiRequestErrorCode17
   | ApiRequestErrorCode18
-  | ApiRequestErrorCode19
+  -- | ApiRequestErrorCode19 -- no longer used (used to be mapped to SpreadNotToOne)
   | ApiRequestErrorCode20
   | ApiRequestErrorCode21
   | ApiRequestErrorCode22
   | ApiRequestErrorCode23
   | ApiRequestErrorCode24
+  | ApiRequestErrorCode25
+  | ApiRequestErrorCode26
+  | ApiRequestErrorCode27
   -- Schema Cache errors
   | SchemaCacheErrorCode00
   | SchemaCacheErrorCode01
   | SchemaCacheErrorCode02
   | SchemaCacheErrorCode03
   | SchemaCacheErrorCode04
+  | SchemaCacheErrorCode05
   -- JWT authentication errors
   | JWTErrorCode00
   | JWTErrorCode01
   | JWTErrorCode02
+  | JWTErrorCode03
   -- Internal errors related to the Hasql library
   | InternalErrorCode00
 
@@ -668,8 +754,6 @@ buildErrorCode code = case code of
   ApiRequestErrorCode06  -> "PGRST106"
   ApiRequestErrorCode07  -> "PGRST107"
   ApiRequestErrorCode08  -> "PGRST108"
-  ApiRequestErrorCode09  -> "PGRST109"
-  ApiRequestErrorCode10  -> "PGRST110"
   ApiRequestErrorCode11  -> "PGRST111"
   ApiRequestErrorCode12  -> "PGRST112"
   ApiRequestErrorCode14  -> "PGRST114"
@@ -677,21 +761,25 @@ buildErrorCode code = case code of
   ApiRequestErrorCode16  -> "PGRST116"
   ApiRequestErrorCode17  -> "PGRST117"
   ApiRequestErrorCode18  -> "PGRST118"
-  ApiRequestErrorCode19  -> "PGRST119"
   ApiRequestErrorCode20  -> "PGRST120"
   ApiRequestErrorCode21  -> "PGRST121"
   ApiRequestErrorCode22  -> "PGRST122"
   ApiRequestErrorCode23  -> "PGRST123"
   ApiRequestErrorCode24  -> "PGRST124"
+  ApiRequestErrorCode25  -> "PGRST125"
+  ApiRequestErrorCode26  -> "PGRST126"
+  ApiRequestErrorCode27  -> "PGRST127"
 
   SchemaCacheErrorCode00 -> "PGRST200"
   SchemaCacheErrorCode01 -> "PGRST201"
   SchemaCacheErrorCode02 -> "PGRST202"
   SchemaCacheErrorCode03 -> "PGRST203"
   SchemaCacheErrorCode04 -> "PGRST204"
+  SchemaCacheErrorCode05 -> "PGRST205"
 
   JWTErrorCode00         -> "PGRST300"
   JWTErrorCode01         -> "PGRST301"
   JWTErrorCode02         -> "PGRST302"
+  JWTErrorCode03         -> "PGRST303"
 
   InternalErrorCode00    -> "PGRSTX00"
