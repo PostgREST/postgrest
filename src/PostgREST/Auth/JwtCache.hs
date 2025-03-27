@@ -4,7 +4,6 @@ Description : PostgREST Jwt Authentication Result Cache.
 
 This module provides functions to deal with the JWT cache
 -}
-{-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.Auth.JwtCache
   ( init
@@ -30,7 +29,7 @@ import Protolude
 
 -- | JWT Cache and lock to prevent multiple purging threads
 data JwtCacheState = JwtCacheState
-  { jwtCache :: C.Cache ByteString AuthResult
+  { jwtCache   :: C.Cache ByteString AuthResult
   , purgeCache :: IO ()
   }
 
