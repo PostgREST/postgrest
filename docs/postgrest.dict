@@ -108,6 +108,7 @@ openapi
 OpenSSL
 OpenTelemetry
 opentelemetry
+OTLP
 ov
 parametrized
 passphrase
