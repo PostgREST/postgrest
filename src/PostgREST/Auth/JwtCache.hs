@@ -34,10 +34,7 @@ data JwtCacheState = JwtCacheState
 
 -- | Initialize JwtCacheState
 init :: IO JwtCacheState
-init = do
-  cache <- C.newCache Nothing -- no default expiration
-  purgeLock <- newEmptyMVar
-  pure $ JwtCacheState cache purgeLock
+init = liftA2 JwtCacheState (C.newCache Nothing) newEmptyMVar
 
 -- | Used to retrieve and insert JWT to JWT Cache
 lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
