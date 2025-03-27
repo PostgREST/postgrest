@@ -52,7 +52,7 @@ import PostgREST.ApiRequest.Types (AggregateFunction (..),
                                    ListVal, LogicOperator (..),
                                    LogicTree (..), OpExpr (..),
                                    OpQuantifier (..), Operation (..),
-                                   OrderDirection (..),
+                                   OrderDirection (..), OrderElement (..),
                                    OrderNulls (..), OrderTerm (..),
                                    QuantOperator (..),
                                    SelectItem (..),
@@ -762,11 +762,11 @@ pOrder :: Parser [OrderTerm]
 pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
   where
     pOrderTerm = do
-      fld <- pField
+      elm <- pOrdElem
       dir <- optionMaybe pOrdDir
       nls <- optionMaybe pNulls <* pEnd <|>
              pEnd $> Nothing
-      return $ OrderTerm fld dir nls
+      return $ OrderTerm elm dir nls
 
     pOrderRelationTerm = do
       nam <- pFieldName
@@ -774,6 +774,10 @@ pOrder = lexeme (try pOrderRelationTerm <|> pOrderTerm) `sepBy1` char ','
       dir <- optionMaybe pOrdDir
       nls <- optionMaybe pNulls <* pEnd <|> pEnd $> Nothing
       return $ OrderRelationTerm nam fld dir nls
+
+    pOrdElem :: Parser OrderElement
+    pOrdElem = OrderAlias <$> try (aliasSeparator *> pFieldName) <|>
+               OrderField <$> try pField
 
     pNulls :: Parser OrderNulls
     pNulls = try (pDelimiter *> string "nullsfirst" $> OrderNullsFirst) <|>
