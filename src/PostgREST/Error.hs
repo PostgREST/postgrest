@@ -502,20 +502,18 @@ instance JSON.ToJSON SQL.CommandError where
   -- Special error raised with code PGRST, to allow full response control
   toJSON (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
     case parseRaisePGRST m d of
-      Right (r, _) -> JSON.object [
-        "code"     .= getCode r,
-        "message"  .= getMessage r,
-        "details"  .= checkMaybe (getDetails r),
-        "hint"     .= checkMaybe (getHint r)]
+      Right (r, _) -> toJsonPgrstError
+        (CustomErrorCode $ getCode r)
+        (getMessage r)
+        (JSON.String <$> getDetails r)
+        (JSON.String <$> getHint r)
       Left e      -> JSON.toJSON e
-    where
-      checkMaybe = maybe JSON.Null JSON.String
 
-  toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = JSON.object [
-    "code"     .= (T.decodeUtf8 c      :: Text),
-    "message"  .= (T.decodeUtf8 m      :: Text),
-    "details"  .= (fmap T.decodeUtf8 d :: Maybe Text),
-    "hint"     .= (fmap T.decodeUtf8 h :: Maybe Text)]
+  toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = toJsonPgrstError
+    (PgErrorCode $ T.decodeUtf8 c)
+    (T.decodeUtf8 m)
+    (JSON.String . T.decodeUtf8 <$> d)
+    (JSON.String . T.decodeUtf8 <$> h)
 
   toJSON (SQL.ResultError resultError) = toJsonPgrstError
     InternalErrorCode00 (show resultError) Nothing Nothing
@@ -732,6 +730,10 @@ data ErrorCode
   | JWTErrorCode03
   -- Internal errors related to the Hasql library
   | InternalErrorCode00
+  -- PostgreSQL errors from pg response
+  | PgErrorCode Text
+  -- Custom Error Code raised with SQLSTATE "PGRST"
+  | CustomErrorCode Text
 
 instance JSON.ToJSON ErrorCode where
   toJSON e = JSON.toJSON (buildErrorCode e)
@@ -783,3 +785,7 @@ buildErrorCode code = case code of
   JWTErrorCode03         -> "PGRST303"
 
   InternalErrorCode00    -> "PGRSTX00"
+
+  PgErrorCode code'      -> code'
+
+  CustomErrorCode code'  -> code'
