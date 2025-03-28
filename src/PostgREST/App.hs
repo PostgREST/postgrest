@@ -104,7 +104,7 @@ postgrest logLevel appState connWorker =
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
-      Left err -> respond $ Error.errorResponseFor err
+      Left err -> respond $ Error.errorResponseFor False err
       Right authResult -> do
         appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
@@ -115,7 +115,7 @@ postgrest logLevel appState connWorker =
           eitherResponse =
             runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
-        response <- either Error.errorResponseFor identity <$> eitherResponse
+        response <- either (Error.errorResponseFor (Auth.getRole req /= configDbAnonRole appConf)) identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
         -- function can respond successfully (with a stale schema cache) before
         -- the connWorker is done.
@@ -157,13 +157,13 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
       Query.NoDbQuery r -> pure r
       Query.DbQuery{..} -> do
         dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
-        let eitherResp = mapLeft Error.PgErr . mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) $ dbRes
-        when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
+        let eitherResp = mapLeft (Error.PgErr . Error.PgError) dbRes
+        when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status (Just authRole /= configDbAnonRole)
         liftEither eitherResp >>= liftEither
 
   (respTime, resp) <- withTiming $ do
     let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
-    when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response
+    when (configLogQuery /= LogQueryDisabled) $ logSQL $ either (Error.status (Just authRole /= configDbAnonRole)) Response.pgrstStatus response
     liftEither response
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp

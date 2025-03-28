@@ -260,7 +260,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
           observer $ ExitDBFatalError ServerError08P01 err
           killThread mainThreadId
         SQL.ServerError{} ->
-          when (Error.status (Error.PgError False err) >= HTTP.status500) $
+          when (Error.status False (Error.PgError err) >= HTTP.status500) $
             observer $ QueryErrorCodeHighObs err
     err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
       -- An error on the client-side, usually indicates problems wth connection
