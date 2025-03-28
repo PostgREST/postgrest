@@ -50,6 +50,10 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
+      # TODO: Remove this once https://github.com/NixOS/nixpkgs/pull/375121
+      # has made it to us.
+      ghc-datasize = lib.markUnbroken prev.ghc-datasize;
+
       hasql-pool = lib.dontCheck (prev.callHackageDirect
         {
           pkg = "hasql-pool";
