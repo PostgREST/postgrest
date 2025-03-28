@@ -66,12 +66,12 @@ lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt ut
 
       let timeSpec = getTimeSpec res maxLifetime utc
 
+      -- insert new cache entry
+      C.insert' jwtCache (Just timeSpec) token res
+
       -- trigger asynchronous purging of expired cache entries
       -- but only if not already running anotherpurging
       purgeCache
-
-      -- insert new cache entry
-      C.insert' jwtCache (Just timeSpec) token res
 
     _                    -> pure ()
 
