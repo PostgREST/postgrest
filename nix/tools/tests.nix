@@ -1,6 +1,7 @@
 { buildToolbox
 , cabal-install
 , checkedShellScript
+, curl
 , devCabalOptions
 , ghc
 , glibcLocales ? null
@@ -235,6 +236,22 @@ let
         sed -i 's|^module \(.*\):|module \1/|g' test/coverage.overlay
       '';
 
+  testMemory =
+    checkedShellScript
+      {
+        name = "postgrest-test-memory";
+        docs = "Run the memory tests.";
+        workingDir = "/";
+        withEnv = postgrest.env;
+        withPath = [ curl ];
+      }
+      ''
+        ${cabal-install}/bin/cabal v2-update
+        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-build --enable-profiling --disable-shared exe:postgrest
+        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-exec -- ${withTools.withPg} -f test/spec/fixtures/load.sql \
+          test/memory/memory-tests.sh
+      '';
+
 in
 buildToolbox
 {
@@ -249,6 +266,7 @@ buildToolbox
       testReplica
       dumpSchema
       coverage
-      coverageDraftOverlay;
+      coverageDraftOverlay
+      testMemory;
   };
 }

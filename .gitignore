@@ -14,7 +14,7 @@ site
 .#*
 *.swp
 result*
-dist-newstyle
+dist-*
 postgrest.hp
 postgrest.prof
 __pycache__

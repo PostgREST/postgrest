@@ -105,7 +105,7 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: memory.test.bin
+          tools: tests.testMemory.bin
       - name: Run memory tests
         run: postgrest-test-memory
 
