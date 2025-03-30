@@ -123,10 +123,6 @@ rec {
   loadtest =
     pkgs.callPackage nix/tools/loadtest.nix { inherit withTools; };
 
-  # Script for running memory tests.
-  memory =
-    pkgs.callPackage nix/tools/memory.nix { inherit postgrestProfiled withTools; };
-
   # Scripts for publishing new releases.
   release =
     pkgs.callPackage nix/tools/release.nix { };

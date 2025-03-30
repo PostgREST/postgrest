@@ -22,7 +22,6 @@ let
       postgrest.devTools
       postgrest.docs
       postgrest.loadtest
-      postgrest.memory
       postgrest.release
       postgrest.style
       postgrest.tests

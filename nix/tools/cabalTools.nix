@@ -60,6 +60,35 @@ let
           postgrest "''${_arg_leftovers[@]}"
       '';
 
+
+  runProfiled =
+    checkedShellScript
+      {
+        name = "postgrest-profiled-run";
+        docs = "Run a profiled build of postgREST. This will generate a postgrest.prof file that can be used to do optimization.";
+        args =
+          [
+            "ARG_USE_ENV([PGRST_DB_ANON_ROLE], [postgrest_test_anonymous], [PostgREST anonymous role])"
+            "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
+            "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
+            "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
+            "ARG_LEFTOVERS([PostgREST arguments])"
+          ];
+        workingDir = "/";
+        withEnv = postgrest.env;
+      }
+      ''
+        export PGRST_DB_ANON_ROLE
+        export PGRST_DB_POOL
+        export PGRST_DB_POOL_ACQUISITION_TIMEOUT
+        export PGRST_JWT_SECRET
+
+        ${cabal-install}/bin/cabal v2-update
+        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-build --enable-profiling --disable-shared exe:postgrest
+        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-run -- \
+          postgrest +RTS -p -h -RTS "''${_arg_leftovers[@]}"
+      '';
+
   repl =
     checkedShellScript
       {
@@ -81,6 +110,7 @@ buildToolbox
       build
       clean
       run
+      runProfiled
       repl;
   };
 }
