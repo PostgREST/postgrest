@@ -25,7 +25,6 @@ import qualified Data.HashMap.Strict       as HM
 import qualified Data.Map.Internal         as M
 import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
-import qualified Data.Text.Encoding.Error  as T
 import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
@@ -50,7 +49,7 @@ import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
 
 
-class (JSON.ToJSON a) => PgrstError a where
+class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
   status   :: a -> HTTP.Status
   headers  :: a -> [Header]
 
@@ -61,6 +60,12 @@ class (JSON.ToJSON a) => PgrstError a where
   errorResponseFor err =
     let baseHeader = MediaType.toContentType MTApplicationJSON in
     responseLBS (status err) (baseHeader : headers err) $ errorPayload err
+
+class ErrorBody a where
+  code    :: a -> Text
+  message :: a -> Text
+  details :: a -> Maybe JSON.Value
+  hint    :: a -> Maybe JSON.Value
 
 data ApiRequestError
   = AggregatesNotAllowed
@@ -143,166 +148,159 @@ instance PgrstError ApiRequestError where
 
   headers _ = mempty
 
-toJsonPgrstError :: ErrorCode -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value
-toJsonPgrstError code msg details hint = JSON.object [
-    "code"     .= code
-  , "message"  .= msg
-  , "details"  .= details
-  , "hint"     .= hint
-  ]
+-- Error codes:
+--
+-- Error codes are grouped by common modules or characteristics
+-- New group of errors will be added at the end of all the groups and will have the next prefix in the sequence
+-- Keep the "PGRST" prefix in every code for an easier search/grep
+-- They are grouped as following:
+--
+-- PGRST0xx -> Connection Error
+-- PGRST1xx -> ApiRequest Error
+-- PGRST2xx -> SchemaCache Error
+-- PGRST3xx -> JWT authentication Error
+-- PGRSTXxx -> Internal Hasql Error
 
-instance JSON.ToJSON ApiRequestError where
-  toJSON (QueryParamError (QPError message details)) = toJsonPgrstError
-    ApiRequestErrorCode00 message (Just (JSON.String details)) Nothing
+instance ErrorBody ApiRequestError where
+  -- CODE: Text
+  code QueryParamError{}           = "PGRST100"
+  code InvalidRpcMethod{}          = "PGRST101"
+  code InvalidBody{}               = "PGRST102"
+  code InvalidRange{}              = "PGRST103"
+  -- code ParseRequestError           = "PGRST104" -- no longer used
+  code InvalidFilters              = "PGRST105"
+  code UnacceptableSchema{}        = "PGRST106"
+  code MediaTypeError{}            = "PGRST107"
+  code NotEmbedded{}               = "PGRST108"
+  -- code LimitNoOrderError           = "PGRST109" -- no longer used
+  -- code OffLimitsChangesError       = "PGRST110" -- no longer used
+  code GucHeadersError             = "PGRST111"
+  code GucStatusError              = "PGRST112"
+  -- code BinaryFieldError            = "PGRST113" -- no longer used
+  code PutLimitNotAllowedError     = "PGRST114"
+  code PutMatchingPkError          = "PGRST115"
+  code SingularityError{}          = "PGRST116"
+  code UnsupportedMethod{}         = "PGRST117"
+  code RelatedOrderNotToOne{}      = "PGRST118"
+  -- code SpreadNotToOne              = "PGRST109" -- no longer used
+  code UnacceptableFilter{}        = "PGRST120"
+  code PGRSTParseError{}           = "PGRST121"
+  code InvalidPreferences{}        = "PGRST122"
+  code AggregatesNotAllowed        = "PGRST123"
+  code MaxAffectedViolationError{} = "PGRST124"
+  code InvalidResourcePath         = "PGRST125"
+  code OpenAPIDisabled             = "PGRST126"
+  code NotImplemented{}            = "PGRST127"
 
-  toJSON (InvalidRpcMethod method) = toJsonPgrstError
-    ApiRequestErrorCode01 ("Cannot use the " <> T.decodeUtf8 method <> " method on RPC") Nothing Nothing
+  code NoRelBetween{}              = "PGRST200"
+  code AmbiguousRelBetween{}       = "PGRST201"
+  code NoRpc{}                     = "PGRST202"
+  code AmbiguousRpc{}              = "PGRST203"
+  code ColumnNotFound{}            = "PGRST204"
+  code TableNotFound{}             = "PGRST205"
 
-  toJSON (InvalidBody errorMessage) = toJsonPgrstError
-    ApiRequestErrorCode02 (T.decodeUtf8 errorMessage) Nothing Nothing
+  -- MESSAGE: Text
+  message (QueryParamError (QPError msg _)) = msg
+  message (InvalidRpcMethod method)    = "Cannot use the " <> T.decodeUtf8 method <> " method on RPC"
+  message (InvalidBody errorMessage)   = T.decodeUtf8 errorMessage
+  message (InvalidRange _)             = "Requested range not satisfiable"
+  message InvalidFilters               = "Filters must include all and only primary key columns with 'eq' operators"
+  message (UnacceptableSchema schemas) = "The schema must be one of the following: " <> T.intercalate ", " schemas
+  message (MediaTypeError cts)         = "None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)
+  message (NotEmbedded resource)       = "'" <> resource <> "' is not an embedded resource in this request"
+  message GucHeadersError              = "response.headers guc must be a JSON array composed of objects with a single key and a string value"
+  message GucStatusError               = "response.status guc must be a valid status code"
+  message PutLimitNotAllowedError      = "limit/offset querystring parameters are not allowed for PUT"
+  message PutMatchingPkError           = "Payload values do not match URL in primary key column(s)"
+  message (SingularityError _)         = "Cannot coerce the result to a single JSON object"
+  message (UnsupportedMethod method)   = "Unsupported HTTP method: " <> T.decodeUtf8 method
+  message (RelatedOrderNotToOne _ target) = "A related order on '" <> target <> "' is not possible"
+  message (UnacceptableFilter target)    = "Bad operator on the '" <> target <> "' embedded resource"
+  message (PGRSTParseError _)            = "Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error"
+  message (InvalidPreferences _)         = "Invalid preferences given with handling=strict"
+  message AggregatesNotAllowed           = "Use of aggregate functions is not allowed"
+  message (MaxAffectedViolationError _)  = "Query result exceeds max-affected preference constraint"
+  message InvalidResourcePath            = "Invalid path specified in request URL"
+  message OpenAPIDisabled                = "Root endpoint metadata is disabled"
+  message (NotImplemented _)             = "Feature not implemented"
 
-  toJSON (InvalidRange rangeError) = toJsonPgrstError
-    ApiRequestErrorCode03
-    "Requested range not satisfiable"
-    (Just $ case rangeError of
-       NegativeLimit           -> "Limit should be greater than or equal to zero."
-       LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
-       OutOfBounds lower total -> JSON.String $ "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows.")
-    Nothing
-
-  toJSON InvalidFilters = toJsonPgrstError
-    ApiRequestErrorCode05 "Filters must include all and only primary key columns with 'eq' operators" Nothing Nothing
-
-  toJSON (UnacceptableSchema schemas) = toJsonPgrstError
-    ApiRequestErrorCode06 ("The schema must be one of the following: " <> T.intercalate ", " schemas) Nothing Nothing
-
-  toJSON (MediaTypeError cts) = toJsonPgrstError
-    ApiRequestErrorCode07 ("None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)) Nothing Nothing
-
-  toJSON (NotEmbedded resource) = toJsonPgrstError
-    ApiRequestErrorCode08
-    ("'" <> resource <> "' is not an embedded resource in this request")
-    Nothing
-    (Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter.")
-
-  toJSON GucHeadersError = toJsonPgrstError
-    ApiRequestErrorCode11 "response.headers guc must be a JSON array composed of objects with a single key and a string value" Nothing Nothing
-
-  toJSON GucStatusError = toJsonPgrstError
-    ApiRequestErrorCode12 "response.status guc must be a valid status code" Nothing Nothing
-
-  toJSON PutLimitNotAllowedError = toJsonPgrstError
-    ApiRequestErrorCode14 "limit/offset querystring parameters are not allowed for PUT" Nothing Nothing
-
-  toJSON PutMatchingPkError = toJsonPgrstError
-    ApiRequestErrorCode15 "Payload values do not match URL in primary key column(s)" Nothing Nothing
-
-  toJSON (SingularityError n) = toJsonPgrstError
-    ApiRequestErrorCode16
-    "Cannot coerce the result to a single JSON object"
-    (Just $ JSON.String $ T.unwords ["The result contains", show n, "rows"])
-    Nothing
-
-  toJSON (UnsupportedMethod method) = toJsonPgrstError
-    ApiRequestErrorCode17 ("Unsupported HTTP method: " <> T.decodeUtf8 method) Nothing Nothing
-
-  toJSON (RelatedOrderNotToOne origin target) = toJsonPgrstError
-    ApiRequestErrorCode18
-    ("A related order on '" <> target <> "' is not possible")
-    (Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship")
-    Nothing
-
-  toJSON (UnacceptableFilter target) = toJsonPgrstError
-    ApiRequestErrorCode20
-    ("Bad operator on the '" <> target <> "' embedded resource")
-    (Just "Only is null or not is null filters are allowed on embedded resources")
-    Nothing
-
-  toJSON (PGRSTParseError raiseErr) = toJsonPgrstError
-    ApiRequestErrorCode21
-    "Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error"
-    (Just $ JSON.String $ pgrstParseErrorDetails raiseErr)
-    (Just $ JSON.String $ pgrstParseErrorHint raiseErr)
-
-  toJSON (InvalidPreferences prefs) = toJsonPgrstError
-    ApiRequestErrorCode22
-    "Invalid preferences given with handling=strict"
-    (Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs))
-    Nothing
-
-  toJSON AggregatesNotAllowed = toJsonPgrstError
-    ApiRequestErrorCode23 "Use of aggregate functions is not allowed" Nothing Nothing
-
-  toJSON (MaxAffectedViolationError n) = toJsonPgrstError
-    ApiRequestErrorCode24
-    "Query result exceeds max-affected preference constraint"
-    (Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"])
-    Nothing
-
-  toJSON InvalidResourcePath = toJsonPgrstError
-    ApiRequestErrorCode25
-    "Invalid path specified in request URL"
-    Nothing
-    Nothing
-
-  toJSON OpenAPIDisabled = toJsonPgrstError
-    ApiRequestErrorCode26
-    "Root endpoint metadata is disabled"
-    Nothing
-    Nothing
-
-  toJSON (NoRelBetween parent child embedHint schema allRels) = toJsonPgrstError
-    SchemaCacheErrorCode00
-    ("Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache")
-    (Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found.")
-    (JSON.String <$> noRelBetweenHint parent child schema allRels)
-
-  toJSON (AmbiguousRelBetween parent child rels) = toJsonPgrstError
-    SchemaCacheErrorCode01
-    ("Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'")
-    (Just $ JSON.toJSONList (compressedRel <$> rels))
-    (Just $ JSON.String $ "Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key.")
-
-  toJSON (NoRpc schema procName argumentKeys contentType isInvPost allProcs overloadedProcs)  =
-    let func = schema <> "." <> procName
+  message (NoRelBetween parent child _ _ _)  = "Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache"
+  message (AmbiguousRelBetween parent child _) = "Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'"
+  message (NoRpc schema procName argumentKeys contentType isInvPost _ _) = "Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"
+      where
+        onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
+        func = schema <> "." <> procName
         prms = T.intercalate ", " argumentKeys
         prmsMsg = "(" <> prms <> ")"
+        fmtPrms p = if null argumentKeys then " without parameters" else p
+  message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
+  message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
+  message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
+
+  -- DETAILS: Maybe JSON.Value
+  details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
+  details (InvalidRange rangeError) = Just $
+    case rangeError of
+       NegativeLimit           -> "Limit should be greater than or equal to zero."
+       LowerGTUpper            -> "The lower boundary must be lower than or equal to the upper boundary in the Range header."
+       OutOfBounds lower total -> JSON.String $ "An offset of " <> lower <> " was requested, but there are only " <> total <> " rows."
+  details (SingularityError n) = Just $ JSON.String $ T.unwords ["The result contains", show n, "rows"]
+  details (RelatedOrderNotToOne origin target) = Just $ JSON.String $ "'" <> origin <> "' and '" <> target <> "' do not form a many-to-one or one-to-one relationship"
+  details (UnacceptableFilter _)      = Just "Only is null or not is null filters are allowed on embedded resources"
+  details (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorDetails raiseErr
+  details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
+  details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
+  details (NotImplemented details') = Just $ JSON.String details'
+
+  details (NoRelBetween parent child embedHint schema _) = Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."
+  details (AmbiguousRelBetween _ _ rels)       = Just $ JSON.toJSONList (compressedRel <$> rels)
+  details (NoRpc schema procName argumentKeys contentType isInvPost _ _) =
+      Just $ JSON.String $ "Searched for the function " <> func <>
+        (case (isInvPost, contentType) of
+           (True, MTTextPlain)       -> " with a single unnamed text parameter"
+           (True, MTTextXML)         -> " with a single unnamed xml parameter"
+           (True, MTOctetStream)     -> " with a single unnamed bytea parameter"
+           (True, MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
+           _                         -> fmtPrms prmsDet
+        ) <> ", but no matches were found in the schema cache."
+      where
+        func = schema <> "." <> procName
+        prms = T.intercalate ", " argumentKeys
         prmsDet = " with parameter" <> (if length argumentKeys > 1 then "s " else " ") <> prms
         fmtPrms p = if null argumentKeys then " without parameters" else p
-        onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
-    in toJsonPgrstError
-    SchemaCacheErrorCode02
-    ("Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache")
-    (Just $ JSON.String $ "Searched for the function " <> func <>
-      (case (isInvPost, contentType) of
-        (True, MTTextPlain)       -> " with a single unnamed text parameter"
-        (True, MTTextXML)         -> " with a single unnamed xml parameter"
-        (True, MTOctetStream)     -> " with a single unnamed bytea parameter"
-        (True, MTApplicationJSON) -> fmtPrms prmsDet <> " or with a single unnamed json/jsonb parameter"
-        _                         -> fmtPrms prmsDet) <>
-      ", but no matches were found in the schema cache.")
-    -- The hint will be null in the case of single unnamed parameter functions
-    (if onlySingleParams
+
+  details _ = Nothing
+
+  -- HINT: Maybe JSON.Value
+  hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
+  hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
+
+  hint (NoRelBetween parent child _ schema allRels) = JSON.String <$> noRelBetweenHint parent child schema allRels
+  hint (AmbiguousRelBetween _ child rels)   = Just $ JSON.String $ "Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key."
+  -- The hint will be null in the case of single unnamed parameter functions
+  hint (NoRpc schema procName argumentKeys contentType isInvPost allProcs overloadedProcs) =
+    if onlySingleParams
       then Nothing
-      else JSON.String <$> noRpcHint schema procName argumentKeys allProcs overloadedProcs)
+      else JSON.String <$> noRpcHint schema procName argumentKeys allProcs overloadedProcs
+      where
+        onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
+  hint (AmbiguousRpc _)      = Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+  hint (TableNotFound schemaName relName tbls) = JSON.String <$> tableNotFoundHint schemaName relName tbls
 
-  toJSON (AmbiguousRpc procs)  = toJsonPgrstError
-    SchemaCacheErrorCode03
-    ("Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs])
-    Nothing
-    (Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved")
+  hint _ = Nothing
 
-  toJSON (ColumnNotFound relName colName) = toJsonPgrstError
-    SchemaCacheErrorCode04 ("Could not find the '" <> colName <> "' column of '" <> relName <> "' in the schema cache") Nothing Nothing
 
-  toJSON (TableNotFound schemaName relName tbls) = toJsonPgrstError
-    SchemaCacheErrorCode05
-    ("Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache")
-    Nothing
-    (JSON.String <$> tableNotFoundHint schemaName relName tbls)
+instance JSON.ToJSON ApiRequestError where
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
 
-  toJSON (NotImplemented details) = toJsonPgrstError
-    ApiRequestErrorCode27 "Feature not implemented" (Just $ JSON.String details) Nothing
+toJsonPgrstError :: Text -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value
+toJsonPgrstError code' message' details' hint' = JSON.object [
+    "code"     .= code'
+  , "message"  .= message'
+  , "details"  .= details'
+  , "hint"     .= hint'
+  ]
 
 -- |
 -- If no relationship is found then:
@@ -481,45 +479,77 @@ instance PgrstError PgError where
        else mempty
 
 instance JSON.ToJSON PgError where
-  toJSON (PgError _ usageError) = JSON.toJSON usageError
+  toJSON (PgError _ usageError) = toJsonPgrstError
+    (code usageError) (message usageError) (details usageError) (hint usageError)
+
+instance ErrorBody PgError where
+  code    (PgError _ usageError) = code usageError
+  message (PgError _ usageError) = message usageError
+  details (PgError _ usageError) = details usageError
+  hint    (PgError _ usageError) = hint usageError
 
 instance JSON.ToJSON SQL.UsageError where
-  toJSON (SQL.ConnectionUsageError e) = toJsonPgrstError
-    ConnectionErrorCode00
-    "Database connection error. Retrying the connection."
-    (Just $ JSON.String $ T.decodeUtf8With T.lenientDecode $ fromMaybe "" e)
-    Nothing
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
 
-  toJSON (SQL.SessionUsageError e) = JSON.toJSON e -- SQL.Error
+instance ErrorBody SQL.UsageError where
+  code    (SQL.ConnectionUsageError _)                   = "PGRST000"
+  code    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = code e
+  code    SQL.AcquisitionTimeoutUsageError               = "PGRST003"
 
-  toJSON SQL.AcquisitionTimeoutUsageError = toJsonPgrstError
-    ConnectionErrorCode03 "Timed out acquiring connection from connection pool." Nothing Nothing
+  message (SQL.ConnectionUsageError _) = "Database connection error. Retrying the connection."
+  message (SQL.SessionUsageError (SQL.QueryError _ _ e)) = message e
+  message SQL.AcquisitionTimeoutUsageError = "Timed out acquiring connection from connection pool."
 
-instance JSON.ToJSON SQL.QueryError where
-  toJSON (SQL.QueryError _ _ e) = JSON.toJSON e
+  details (SQL.ConnectionUsageError e) = JSON.String . T.decodeUtf8 <$> e
+  details (SQL.SessionUsageError (SQL.QueryError _ _ e)) = details e
+  details SQL.AcquisitionTimeoutUsageError               = Nothing
+
+  hint    (SQL.ConnectionUsageError _)                   = Nothing
+  hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
+  hint    SQL.AcquisitionTimeoutUsageError               = Nothing
 
 instance JSON.ToJSON SQL.CommandError where
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
+
+instance ErrorBody SQL.CommandError where
   -- Special error raised with code PGRST, to allow full response control
-  toJSON (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
+  code (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
     case parseRaisePGRST m d of
-      Right (r, _) -> toJsonPgrstError
-        (CustomErrorCode $ getCode r)
-        (getMessage r)
-        (JSON.String <$> getDetails r)
-        (JSON.String <$> getHint r)
-      Left e      -> JSON.toJSON e
+      Right (r, _) -> getCode r
+      Left e       -> code e
+  code (SQL.ResultError (SQL.ServerError c _ _ _ _)) = T.decodeUtf8 c
 
-  toJSON (SQL.ResultError (SQL.ServerError c m d h _p)) = toJsonPgrstError
-    (PgErrorCode $ T.decodeUtf8 c)
-    (T.decodeUtf8 m)
-    (JSON.String . T.decodeUtf8 <$> d)
-    (JSON.String . T.decodeUtf8 <$> h)
+  code (SQL.ResultError _) = "PGRSTX00" -- Internal Error
 
-  toJSON (SQL.ResultError resultError) = toJsonPgrstError
-    InternalErrorCode00 (show resultError) Nothing Nothing
+  code (SQL.ClientError _) = "PGRST001"
 
-  toJSON (SQL.ClientError d) = toJsonPgrstError
-    ConnectionErrorCode01 "Database client error. Retrying the connection." (JSON.String <$> fmap T.decodeUtf8 d) Nothing
+  message (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
+    case parseRaisePGRST m d of
+      Right (r, _) -> getMessage r
+      Left e       -> message e
+  message (SQL.ResultError (SQL.ServerError _ m _ _ _)) = T.decodeUtf8 m
+  message (SQL.ResultError resultError) = show resultError -- We never really return this error, because we kill pgrst thread early in App.hs
+  message (SQL.ClientError _) = "Database client error. Retrying the connection."
+
+  details (SQL.ResultError (SQL.ServerError "PGRST" m d _ _)) =
+    case parseRaisePGRST m d of
+      Right (r, _) -> JSON.String <$> getDetails r
+      Left e       -> details e
+  details (SQL.ResultError (SQL.ServerError _ _ d _ _)) = JSON.String . T.decodeUtf8 <$> d
+  details (SQL.ClientError d) = JSON.String . T.decodeUtf8 <$> d
+
+  details _ = Nothing
+
+  hint (SQL.ResultError (SQL.ServerError "PGRST" m d _ _p)) =
+    case parseRaisePGRST m d of
+      Right (r, _) -> JSON.String <$> getHint r
+      Left e       -> hint e
+  hint (SQL.ResultError (SQL.ServerError _ _ _ h _)) = JSON.String . T.decodeUtf8 <$> h
+
+  hint _                   = Nothing
+
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
@@ -600,6 +630,31 @@ instance PgrstError Error where
   headers (PgErr err)           = headers err
   headers _                     = mempty
 
+instance JSON.ToJSON Error where
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
+
+instance ErrorBody Error where
+  code (ApiRequestError err) = code err
+  code (JwtErr err)          = code err
+  code NoSchemaCacheError    = "PGRST002"
+  code (PgErr err)           = code err
+
+  message (ApiRequestError err) = message err
+  message (JwtErr err)          = message err
+  message NoSchemaCacheError    = "Could not query the database for the schema cache. Retrying."
+  message (PgErr err)           = message err
+
+  details (ApiRequestError err) = details err
+  details (JwtErr err)          = details err
+  details NoSchemaCacheError    = Nothing
+  details (PgErr err)           = details err
+
+  hint (ApiRequestError err) = hint err
+  hint (JwtErr err)          = hint err
+  hint NoSchemaCacheError    = Nothing
+  hint (PgErr err)           = hint err
+
 instance PgrstError JwtError where
   status JwtDecodeError{} = HTTP.unauthorized401
   status JwtSecretMissing = HTTP.status500
@@ -611,27 +666,24 @@ instance PgrstError JwtError where
   headers (JwtClaimsError m) = [invalidTokenHeader m]
   headers _                  = mempty
 
-instance JSON.ToJSON Error where
-  toJSON (ApiRequestError err) = JSON.toJSON err
-  toJSON (JwtErr err)          = JSON.toJSON err
-  toJSON (PgErr err)           = JSON.toJSON err
-  toJSON NoSchemaCacheError    = toJsonPgrstError
-      ConnectionErrorCode02 "Could not query the database for the schema cache. Retrying." Nothing Nothing
-
--- Should we provide hints and description or explain the error in docs or both?
 instance JSON.ToJSON JwtError where
-  toJSON JwtSecretMissing = toJsonPgrstError
-      JWTErrorCode00 "Server lacks JWT secret" Nothing Nothing
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
 
-  toJSON (JwtDecodeError message) = toJsonPgrstError
-      JWTErrorCode01 message Nothing Nothing
+instance ErrorBody JwtError where
+  code JwtSecretMissing   = "PGRST300"
+  code (JwtDecodeError _) = "PGRST301"
+  code JwtTokenRequired   = "PGRST302"
+  code (JwtClaimsError _) = "PGRST303"
 
-  toJSON JwtTokenRequired = toJsonPgrstError
-      JWTErrorCode02 "Anonymous access is disabled" Nothing Nothing
+  message JwtSecretMissing     = "Server lacks JWT secret"
+  message (JwtDecodeError msg) = msg
+  message JwtTokenRequired     = "Anonymous access is disabled"
+  message (JwtClaimsError msg) = msg
 
-  toJSON (JwtClaimsError message) = toJsonPgrstError
-      JWTErrorCode03 message Nothing Nothing
+  details _ = Nothing
 
+  hint _    = Nothing
 
 invalidTokenHeader :: Text -> Header
 invalidTokenHeader m =
@@ -679,113 +731,3 @@ parseRaisePGRST m d = do
   det <- maybeToRight (PGRSTParseError NoDetail) d
   detJson <- maybeToRight (PGRSTParseError $ DetParseError det) (JSON.decodeStrict det)
   return (msgJson, detJson)
-
--- Error codes are grouped by common modules or characteristics
-data ErrorCode
-  -- PostgreSQL connection errors
-  = ConnectionErrorCode00
-  | ConnectionErrorCode01
-  | ConnectionErrorCode02
-  | ConnectionErrorCode03
-  -- API Request errors
-  | ApiRequestErrorCode00
-  | ApiRequestErrorCode01
-  | ApiRequestErrorCode02
-  | ApiRequestErrorCode03
-  -- | ApiRequestErrorCode04 -- no longer used (used to be mapped to ParseRequestError)
-  | ApiRequestErrorCode05
-  | ApiRequestErrorCode06
-  | ApiRequestErrorCode07
-  | ApiRequestErrorCode08
-  -- | ApiRequestErrorCode09 -- no longer used (used to be mapped to LimitNoOrderError)
-  -- | ApiRequestErrorCode10 -- no longer used (used to be mapped to OffLimitsChangesError)
-  | ApiRequestErrorCode11
-  -- | ApiRequestErrorCode13 -- no longer used (used to be mapped to BinaryFieldError)
-  | ApiRequestErrorCode12
-  | ApiRequestErrorCode14
-  | ApiRequestErrorCode15
-  | ApiRequestErrorCode16
-  | ApiRequestErrorCode17
-  | ApiRequestErrorCode18
-  -- | ApiRequestErrorCode19 -- no longer used (used to be mapped to SpreadNotToOne)
-  | ApiRequestErrorCode20
-  | ApiRequestErrorCode21
-  | ApiRequestErrorCode22
-  | ApiRequestErrorCode23
-  | ApiRequestErrorCode24
-  | ApiRequestErrorCode25
-  | ApiRequestErrorCode26
-  | ApiRequestErrorCode27
-  -- Schema Cache errors
-  | SchemaCacheErrorCode00
-  | SchemaCacheErrorCode01
-  | SchemaCacheErrorCode02
-  | SchemaCacheErrorCode03
-  | SchemaCacheErrorCode04
-  | SchemaCacheErrorCode05
-  -- JWT authentication errors
-  | JWTErrorCode00
-  | JWTErrorCode01
-  | JWTErrorCode02
-  | JWTErrorCode03
-  -- Internal errors related to the Hasql library
-  | InternalErrorCode00
-  -- PostgreSQL errors from pg response
-  | PgErrorCode Text
-  -- Custom Error Code raised with SQLSTATE "PGRST"
-  | CustomErrorCode Text
-
-instance JSON.ToJSON ErrorCode where
-  toJSON e = JSON.toJSON (buildErrorCode e)
-
--- New group of errors will be added at the end of all the groups and will have the next prefix in the sequence
--- New errors are added at the end of the group they belong to and will have the next code in the sequence
-buildErrorCode :: ErrorCode -> Text
-buildErrorCode code = case code of
-  -- Keep the "PGRST" prefix in every code for an easier search/grep
-  ConnectionErrorCode00  -> "PGRST000"
-  ConnectionErrorCode01  -> "PGRST001"
-  ConnectionErrorCode02  -> "PGRST002"
-  ConnectionErrorCode03  -> "PGRST003"
-
-  ApiRequestErrorCode00  -> "PGRST100"
-  ApiRequestErrorCode01  -> "PGRST101"
-  ApiRequestErrorCode02  -> "PGRST102"
-  ApiRequestErrorCode03  -> "PGRST103"
-  ApiRequestErrorCode05  -> "PGRST105"
-  ApiRequestErrorCode06  -> "PGRST106"
-  ApiRequestErrorCode07  -> "PGRST107"
-  ApiRequestErrorCode08  -> "PGRST108"
-  ApiRequestErrorCode11  -> "PGRST111"
-  ApiRequestErrorCode12  -> "PGRST112"
-  ApiRequestErrorCode14  -> "PGRST114"
-  ApiRequestErrorCode15  -> "PGRST115"
-  ApiRequestErrorCode16  -> "PGRST116"
-  ApiRequestErrorCode17  -> "PGRST117"
-  ApiRequestErrorCode18  -> "PGRST118"
-  ApiRequestErrorCode20  -> "PGRST120"
-  ApiRequestErrorCode21  -> "PGRST121"
-  ApiRequestErrorCode22  -> "PGRST122"
-  ApiRequestErrorCode23  -> "PGRST123"
-  ApiRequestErrorCode24  -> "PGRST124"
-  ApiRequestErrorCode25  -> "PGRST125"
-  ApiRequestErrorCode26  -> "PGRST126"
-  ApiRequestErrorCode27  -> "PGRST127"
-
-  SchemaCacheErrorCode00 -> "PGRST200"
-  SchemaCacheErrorCode01 -> "PGRST201"
-  SchemaCacheErrorCode02 -> "PGRST202"
-  SchemaCacheErrorCode03 -> "PGRST203"
-  SchemaCacheErrorCode04 -> "PGRST204"
-  SchemaCacheErrorCode05 -> "PGRST205"
-
-  JWTErrorCode00         -> "PGRST300"
-  JWTErrorCode01         -> "PGRST301"
-  JWTErrorCode02         -> "PGRST302"
-  JWTErrorCode03         -> "PGRST303"
-
-  InternalErrorCode00    -> "PGRSTX00"
-
-  PgErrorCode code'      -> code'
-
-  CustomErrorCode code'  -> code'
