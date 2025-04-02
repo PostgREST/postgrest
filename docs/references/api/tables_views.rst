@@ -722,6 +722,7 @@ Using ``offset`` to target a different subset of rows is also possible.
       '#estimated-count': 'pagination_count.html#estimated-count',
       '#prefer-return-headers-only': 'preferences.html#headers-only',
       '#prefer-return-representation': 'preferences.html#full',
+      '#bulk-insert-default': 'preferences.html#prefer-missing',
     };
 
     let willRedirectTo = redirects[hash];
