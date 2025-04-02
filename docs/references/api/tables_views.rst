@@ -567,7 +567,13 @@ To update a row or rows in a table, use the PATCH verb. Use :ref:`h_filter` to s
     -X PATCH -H "Content-Type: application/json" \
     -d '{ "category": "child" }'
 
-Updates also support :ref:`prefer_return`, :ref:`resource_embedding` and :ref:`v_filter`.
+Updates also support:
+
+- :ref:`prefer_return`
+- :ref:`resource_embedding`
+- :ref:`v_filter`
+- :ref:`Missing Preference <prefer_missing>`
+- :ref:`specify_columns`
 
 .. warning::
 
