@@ -711,6 +711,7 @@ Deletions also support :ref:`prefer_return`, :ref:`resource_embedding` and :ref:
       '#estimated-count': 'pagination_count.html#estimated-count',
       '#prefer-return-headers-only': 'preferences.html#headers-only',
       '#prefer-return-representation': 'preferences.html#full',
+      '#bulk-insert-default': 'preferences.html#prefer-missing',
     };
 
     let willRedirectTo = redirects[hash];
