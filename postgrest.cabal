@@ -40,6 +40,13 @@ flag hpc
   manual:      True
   description: Enable HPC (dev only)
 
+-- this flag is set to false when running memory tests using a profiled
+-- build because profiling is disabled for ghc-datasize library
+flag jwt-cache-metric
+  default:     True
+  manual:      True
+  description: Jwt cache metric is calculated
+
 library
   default-language:   Haskell2010
   default-extensions: OverloadedStrings
@@ -167,6 +174,10 @@ library
       ghc-options: -fhpc -hpcdir .hpc
   else
     ghc-options: -O2
+
+  if flag(jwt-cache-metric)
+    cpp-options: -DJWT_CACHE_METRIC
+    build-depends: ghc-datasize >= 0.2.7 && < 0.3
 
   if !os(windows)
     build-depends:

@@ -19,6 +19,7 @@ nix:
 extra-deps:
   - configurator-pg-0.2.10
   - fuzzyset-0.2.4
+  - ghc-datasize-0.2.7
   - hasql-notifications-0.2.2.2
   - hasql-pool-1.0.1
   - postgresql-libpq-0.10.1.0
