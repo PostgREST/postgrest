@@ -1830,3 +1830,23 @@ def test_log_pool_req_observation(level, defaultenv):
         else:
             output = postgrest.read_stdout(nlines=4)
             assert len(output) == 0
+
+
+def test_proxy_status_header(defaultenv, metapostgrest):
+    "Test Proxy-Status header in statement timeout error"
+
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 1000)  # 1 second
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=2")
+        assert response.status_code == 500
+        assert response.headers["Proxy-Status"] == "PostgREST; error=57014"
+        data = response.json()
+        assert data["message"] == "canceling statement due to statement timeout"

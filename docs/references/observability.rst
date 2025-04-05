@@ -236,6 +236,11 @@ You can enable tracing HTTP requests by setting :ref:`server-trace-header`. Spec
   HTTP/1.1 200 OK
   X-Request-Id: 123
 
+Proxy-Status Header
+-------------------
+
+See :ref:`proxy-status_header`.
+
 .. _server-timing_header:
 
 Server-Timing Header

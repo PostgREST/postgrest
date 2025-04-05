@@ -478,6 +478,9 @@ instance PgrstError PgError where
        then [("WWW-Authenticate", "Bearer") :: Header]
        else mempty
 
+proxyStatusHeader :: Text -> Header
+proxyStatusHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
+
 instance JSON.ToJSON PgError where
   toJSON (PgError _ usageError) = toJsonPgrstError
     (code usageError) (message usageError) (details usageError) (hint usageError)
@@ -625,10 +628,10 @@ instance PgrstError Error where
   status NoSchemaCacheError    = HTTP.status503
   status (PgErr err)           = status err
 
-  headers (ApiRequestError err) = headers err
-  headers (JwtErr err)          = headers err
-  headers (PgErr err)           = headers err
-  headers _                     = mempty
+  headers (ApiRequestError err)  = proxyStatusHeader (code err) : headers err
+  headers (JwtErr err)           = proxyStatusHeader (code err) : headers err
+  headers (PgErr err)            = proxyStatusHeader (code err) : headers err
+  headers err@NoSchemaCacheError = proxyStatusHeader (code err) : mempty
 
 instance JSON.ToJSON Error where
   toJSON err = toJsonPgrstError
