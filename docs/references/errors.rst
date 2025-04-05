@@ -454,7 +454,7 @@ If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will th
 Proxy-Status Header
 ===================
 
-For error cases, `Proxy-Status <https://www.rfc-editor.org/rfc/rfc9209.html#name-the-proxy-status-http-field>`_ header is returned with the error code. The error code comes from either :ref:`PostgREST <pgrst_errors>`, :ref:`PostgreSQL <postgresql_errors>` or :ref:`Custom <custom_errors>` errors. This is useful when doing ``HEAD`` requests where HTTP status is not descriptive enough.
+For error cases, the standard `Proxy-Status <https://www.rfc-editor.org/rfc/rfc9209.html#name-the-proxy-status-http-field>`_ header is returned with the error code. The error code comes from either :ref:`PostgREST <pgrst_errors>`, :ref:`PostgreSQL <postgresql_errors>` or :ref:`Custom <custom_errors>` errors. This is useful when doing ``HEAD`` requests where the HTTP status is not descriptive enough.
 
 For example, doing a request on a table with high count (say 30_000_000), we get:
 
@@ -468,4 +468,4 @@ For example, doing a request on a table with high count (say 30_000_000), we get
   HTTP/1.1 500 Internal Server Error
   Proxy-Status: PostgREST; error=57014
 
-The error code ``57014`` reveals that the error is due to a short ``statement_timeout`` value.
+The PostgreSQL error code ``57014`` (`ref <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_) reveals that the error is due to a short ``statement_timeout`` value.
