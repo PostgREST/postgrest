@@ -20,6 +20,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3041, Allow spreading one-to-many and many-to-many embedded resources - @laurenceisla
    + The selected columns in the embedded resources are aggregated into arrays
    + Aggregates are not supported
+ - #2967, Add `Proxy-Status` header for better error response - @taimoorzaeem
 
 ### Fixed
 

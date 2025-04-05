@@ -5,6 +5,8 @@ Errors
 
 PostgREST error messages follow the PostgreSQL error structure. It includes ``MESSAGE``, ``DETAIL``, ``HINT``, ``ERRCODE`` and will add an HTTP status code to the response.
 
+.. _postgresql_errors:
+
 Errors from PostgreSQL
 ======================
 
@@ -348,6 +350,8 @@ Internal errors. If you encounter any of these, you may have stumbled on a Postg
 | PGRSTX00      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 
+.. _custom_errors:
+
 Custom Errors
 =============
 
@@ -444,3 +448,24 @@ For non standard HTTP status, you can optionally add ``status_text`` to describe
   detail = '{"status":419,"status_text":"Page Expired","headers":{"X-Powered-By":"Nerd Rage"}}';
 
 If PostgREST can't parse the JSON objects ``message`` and ``detail``, it will throw a ``PGRST121`` error. See :ref:`Errors from PostgREST<pgrst1**>`.
+
+.. _proxy-status_header:
+
+Proxy-Status Header
+===================
+
+For error cases, the standard `Proxy-Status <https://www.rfc-editor.org/rfc/rfc9209.html#name-the-proxy-status-http-field>`_ header is returned with the error code. The error code comes from either :ref:`PostgREST <pgrst_errors>`, :ref:`PostgreSQL <postgresql_errors>` or :ref:`Custom <custom_errors>` errors. This is useful when doing ``HEAD`` requests where the HTTP status is not descriptive enough.
+
+For example, doing a request on a table with high count (say 30_000_000), we get:
+
+.. code-block:: http
+
+  HEAD /table HTTP/1.1
+  Prefer: count=exact
+
+.. code-block:: http
+
+  HTTP/1.1 500 Internal Server Error
+  Proxy-Status: PostgREST; error=57014
+
+The PostgreSQL error code ``57014`` (`ref <https://www.postgresql.org/docs/current/errcodes-appendix.html>`_) reveals that the error is due to a short ``statement_timeout`` value.
