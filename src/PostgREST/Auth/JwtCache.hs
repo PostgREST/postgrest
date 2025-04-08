@@ -27,7 +27,7 @@ import PostgREST.Error      (Error (..))
 
 import Protolude
 
--- | JWT Cache and lock to prevent multiple purging threads
+-- | JWT Cache and IO action that triggers purging old entries from the cache
 data JwtCacheState = JwtCacheState
   { jwtCache   :: C.Cache ByteString AuthResult
   , purgeCache :: IO ()
@@ -37,6 +37,10 @@ data JwtCacheState = JwtCacheState
 init :: IO JwtCacheState
 init = do
   cache <- C.newCache Nothing
+  -- purgeExpired has O(n^2) complexity
+  -- so we wrap it in debounce to make sure it:
+  -- 1) is executed asynchronously
+  -- 2) only a single purge operation is running at a time
   debounce <- mkDebounce defaultDebounceSettings
     { debounceAction = C.purgeExpired cache
     , debounceEdge = leadingEdge
@@ -69,8 +73,11 @@ lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt ut
       -- insert new cache entry
       C.insert' jwtCache (Just timeSpec) token res
 
-      -- trigger asynchronous purging of expired cache entries
-      -- but only if not already running anotherpurging
+      -- Execute IO action to purge the cache
+      -- It is assumed this action returns immidiately
+      -- so that request processing is not blocked.
+      -- If cache purging is slow it should trigger
+      -- asynchronous purge operation
       purgeCache
 
     _                    -> pure ()
