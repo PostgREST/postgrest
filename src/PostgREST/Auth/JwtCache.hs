@@ -36,12 +36,13 @@ data JwtCacheState = JwtCacheState
 -- | Initialize JwtCacheState
 init :: IO JwtCacheState
 init = do
-  cache <- C.newCache Nothing
+  cache <- C.newCache Nothing -- no default expiration
   -- purgeExpired has O(n^2) complexity
   -- so we wrap it in debounce to make sure it:
   -- 1) is executed asynchronously
   -- 2) only a single purge operation is running at a time
   debounce <- mkDebounce defaultDebounceSettings
+    -- debounceFreq is set to default 1 second
     { debounceAction = C.purgeExpired cache
     , debounceEdge = leadingEdge
     }
@@ -76,8 +77,6 @@ lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt ut
       -- Execute IO action to purge the cache
       -- It is assumed this action returns immidiately
       -- so that request processing is not blocked.
-      -- If cache purging is slow it should trigger
-      -- asynchronous purge operation
       purgeCache
 
     _                    -> pure ()
