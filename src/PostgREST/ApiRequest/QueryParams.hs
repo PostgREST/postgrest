@@ -310,7 +310,8 @@ pTreePath = do
 pFieldForest :: Parser [Tree SelectItem]
 pFieldForest = pFieldTree `sepBy` lexeme (char ',')
   where
-    pFieldTree =  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
+    pFieldTree =  Node <$> try pHoistedRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
+                  Node <$> try pSpreadRelationSelect <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> try pRelationSelect       <*> between (char '(') (char ')') pFieldForest <|>
                   Node <$> pFieldSelect <*> pure []
 
@@ -581,6 +582,13 @@ pSpreadRelationSelect = lexeme $ do
     (hint, jType) <- pEmbedParams
     try (void $ lookAhead (string "("))
     return $ SpreadRelation name hint jType
+
+pHoistedRelationSelect :: Parser SelectItem
+pHoistedRelationSelect = lexeme $ do
+    name <- string "^" >> pFieldName
+    (hint, jType) <- pEmbedParams
+    try (void $ lookAhead (string "("))
+    return $ HoistedRelation name hint jType
 
 pEmbedParams :: Parser (Maybe Hint, Maybe JoinType)
 pEmbedParams = do

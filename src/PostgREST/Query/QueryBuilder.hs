@@ -82,6 +82,8 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
             Just $ "row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> pgFmtIdent rsSelName
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
             Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
+          Hoisted{rsHoistedSel, rsAggAlias} ->
+            Just $ intercalateSnippet ", " (pgFmtHoistedSelectItem rsAggAlias <$> rsHoistedSel)
           Spread{rsSpreadSel, rsAggAlias} ->
             Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
 
@@ -107,6 +109,8 @@ getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
+        correlatedSubquery subquery aggAlias "TRUE"
+      Hoisted{} ->
         correlatedSubquery subquery aggAlias "TRUE"
       Spread{rsSpreadSel, rsAggAlias} ->
         case relSpread of
