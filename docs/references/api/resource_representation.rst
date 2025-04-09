@@ -38,9 +38,9 @@ Use the Accept request header to specify the acceptable format (or formats) for 
       }
     ]
 
-  This is in line with the `JSON schema spec <https://json-schema.org/draft/2020-12/json-schema-core>`_:
+  This is in line with the `JSON schema spec <https://json-schema.org/draft/2020-12/json-schema-core#name-instance-data-model>`_:
 
-    *JSON Schema is defined over "application/json" or compatible documents, including media types with the "+json" structured syntax suffix.*
+    object: An **unordered** set of properties mapping a string to an instance, from the JSON "object" value
 
 .. _builtin_media:
 
