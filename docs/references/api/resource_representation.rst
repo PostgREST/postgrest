@@ -40,7 +40,7 @@ Use the Accept request header to specify the acceptable format (or formats) for 
 
   This is in line with the `JSON schema spec <https://json-schema.org/draft/2020-12/json-schema-core#name-instance-data-model>`_:
 
-    *object: An **unordered** set of properties mapping a string to an instance, from the JSON "object" value*
+    *"object: An **unordered** set of properties mapping a string to an instance, from the JSON "object" value"*
 
 .. _builtin_media:
 
