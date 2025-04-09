@@ -16,6 +16,32 @@ Use the Accept request header to specify the acceptable format (or formats) for 
   curl "http://localhost:3000/people" \
     -H "Accept: application/json"
 
+.. note::
+  
+  The ordering of columns in the response isn't guaranteed to align with the order specified in the ``select`` clause. For example, with resource embedding:
+
+  .. code-block:: bash
+    
+    http://localhost:3000/films?select=directors(last_name,id),title
+  
+  We may get:
+
+  .. code-block:: bash
+
+    [
+      {
+        "title": "title",
+        "directors": {
+          "id": 5,
+          "last_name": "name"
+        }
+      }
+    ]
+
+  This is in line with the `JSON schema spec <https://json-schema.org/draft/2020-12/json-schema-core#name-instance-data-model>`_:
+
+    *"object: An unordered set of properties mapping a string to an instance"*
+
 .. _builtin_media:
 
 Builtin Media Type Handlers
