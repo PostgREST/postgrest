@@ -152,6 +152,24 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
       optionalRollback conf apiReq
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
+actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
+  (mainActionQuery, mainSQLQuery)
+  where
+    (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
+    (_, mainSQLQuery) = Statements.prepareWrite
+      (QueryBuilder.readPlanToQuery mrReadPlan)
+      (QueryBuilder.mutatePlanToQuery mrMutatePlan)
+      isInsert
+      isPut
+      MTApplicationSQL
+      mrHandler
+      preferRepresentation
+      preferResolution
+      pkCols
+      configDbPreparedStatements
+    mainActionQuery = do
+      pure $ RawSQLResult mainSQLQuery
+
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where
