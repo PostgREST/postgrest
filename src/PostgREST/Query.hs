@@ -79,6 +79,7 @@ data QueryResult
   | DbCallResult  CallReadPlan  ResultSet
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
+  | RawSQLResult  ByteString
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Query
 query _ _ _ (NoDb x) _ _ = NoDbQuery $ NoDbResult x
@@ -109,6 +110,26 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
 
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
 actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> (DbHandler QueryResult, ByteString)
+-- NOTE: Test handling if wrMedia  is equal to MTApplicationSQL, returns RawSQLResult which will not be queried, instead directly returned
+actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
+  (mainActionQuery, mainSQLQuery)
+  where
+    countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
+    (_, mainSQLQuery) = Statements.prepareRead
+      (QueryBuilder.readPlanToQuery wrReadPlan)
+      (if preferCount == Just EstimatedCount then
+         -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
+         QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
+       else
+         countQuery
+      )
+      (shouldCount preferCount)
+      MTApplicationSQL
+      wrHandler
+      configDbPreparedStatements
+    mainActionQuery = do
+      pure $ RawSQLResult mainSQLQuery
+
 actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where

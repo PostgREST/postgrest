@@ -26,6 +26,7 @@ import           Protolude
 -- | Enumeration of currently supported media types
 data MediaType
   = MTApplicationJSON
+  | MTApplicationSQL
   | MTGeoJSON
   | MTTextCSV
   | MTTextPlain
@@ -65,6 +66,7 @@ toContentType ct = (hContentType, toMime ct <> charset)
 -- | Convert from MediaType to a ByteString representing the mime type
 toMime :: MediaType -> ByteString
 toMime MTApplicationJSON      = "application/json"
+toMime MTApplicationSQL       = "application/sql"
 toMime MTVndArrayJSONStrip    = "application/vnd.pgrst.array+json;nulls=stripped"
 toMime MTGeoJSON              = "application/geo+json"
 toMime MTTextCSV              = "text/csv"
@@ -133,6 +135,7 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
     decodeMediaType' mt' =
       case (T.toLower mainType, T.toLower subType, params) of
         ("application", "json", _)                  -> MTApplicationJSON
+        ("application", "sql", _)                   -> MTApplicationSQL
         ("application", "geo+json", _)              -> MTGeoJSON
         ("text", "csv", _)                          -> MTTextCSV
         ("text", "plain", _)                        -> MTTextPlain
