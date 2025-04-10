@@ -1043,6 +1043,7 @@ initialMediaHandlers :: MediaHandlerMap
 initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTAny            ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
   HM.insert (RelAnyElement, MediaType.MTApplicationJSON) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
+  HM.insert (RelAnyElement, MediaType.MTApplicationSQL ) (NoAgg,               MediaType.MTApplicationSQL) $
   HM.insert (RelAnyElement, MediaType.MTTextCSV        ) (BuiltinOvAggCsv,     MediaType.MTTextCSV) $
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
