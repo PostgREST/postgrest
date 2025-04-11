@@ -58,6 +58,12 @@ data SelectItem
     , selHint     :: Maybe Hint
     , selJoinType :: Maybe JoinType
     }
+-- | The value in `/tbl?select=^another_tbl(*)`
+  | HoistedRelation
+    { selRelation :: FieldName
+    , selHint     :: Maybe Hint
+    , selJoinType :: Maybe JoinType
+    }
   deriving (Eq, Show)
 
 type NodeName = Text

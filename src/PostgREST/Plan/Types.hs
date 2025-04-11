@@ -10,6 +10,7 @@ module PostgREST.Plan.Types
   , RelSelectField(..)
   , RelJsonEmbedMode(..)
   , SpreadSelectField(..)
+  , HoistedSelectField(..)
   , SpreadType(..)
   ) where
 
@@ -102,6 +103,10 @@ data RelSelectField
       { rsSpreadSel :: [SpreadSelectField]
       , rsAggAlias  :: Alias
       }
+  | Hoisted
+      { rsHoistedSel :: [HoistedSelectField]
+      , rsAggAlias   :: Alias
+      }
   deriving (Eq, Show)
 
 data SpreadSelectField =
@@ -110,6 +115,16 @@ data SpreadSelectField =
   , ssSelAggFunction :: Maybe AggregateFunction
   , ssSelAggCast     :: Maybe Cast
   , ssSelAlias       :: Maybe Alias
+  }
+  deriving (Eq, Show)
+
+-- TODO(draft): DRY
+data HoistedSelectField =
+  HoistedSelectField
+  { hsSelName        :: FieldName
+  , hsSelAggFunction :: Maybe AggregateFunction
+  , hsSelAggCast     :: Maybe Cast
+  , hsSelAlias       :: Maybe Alias
   }
   deriving (Eq, Show)
 

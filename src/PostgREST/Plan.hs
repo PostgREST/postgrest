@@ -15,6 +15,9 @@ resource.
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE RecordWildCards       #-}
 
+-- TODO(draft): Remove and handle
+{-# OPTIONS_GHC -Wno-incomplete-patterns #-}
+
 module PostgREST.Plan
   ( actionPlan
   , ActionPlan(..)
@@ -339,7 +342,7 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
   in
     mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
-    addToManyOrderSelects =<<
+    addToManySpreadOrderSelects =<<
     hoistSpreadAggFunctions =<<
     validateAggFunctions configDbAggregates =<<
     addRelSelects =<<
@@ -359,7 +362,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
   foldr (treeEntry rootDepth) $ Node defReadPlan{from=qi ctx, relName=qiName, depth=rootDepth} []
   where
     rootDepth = 0
-    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing Nothing Nothing [] rootDepth
+    defReadPlan = ReadPlan [] (QualifiedIdentifier mempty mempty) Nothing [] [] allRange mempty Nothing [] Nothing mempty Nothing False Nothing Nothing [] rootDepth
     treeEntry :: Depth -> Tree SelectItem -> ReadPlanTree -> ReadPlanTree
     treeEntry depth (Node si fldForest) (Node q rForest) =
       let nxtDepth = succ depth in
@@ -374,6 +377,11 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
             foldr (treeEntry nxtDepth)
             (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relSpread=Just ToOneSpread} [])
             fldForest:rForest
+        HoistedRelation{..} ->
+          Node q $
+            foldr (treeEntry nxtDepth)
+            (Node defReadPlan{from=QualifiedIdentifier qiSchema selRelation, relName=selRelation, relHint=selHint, relJoinType=selJoinType, depth=nxtDepth, relIsHoisted=True} [])
+            fldForest:rForest
         SelectField{..} ->
           Node q{select=CoercibleSelectField (resolveOutputField ctx{qi=from q} selField) selAggregateFunction selAggregateCast selCast selAlias:select q} rForest
 
@@ -381,32 +389,33 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
 -- determined automatically in these cases:
 -- * A select term with a JSON path
 -- * Domain representations
--- * Aggregates in spread relationships
+-- * Aggregates in spread or hoisted relationships
 addAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 addAliases = Right . fmap addAliasToPlan
   where
-    addAliasToPlan rp@ReadPlan{select=sel, relSpread=spr} = rp{select=map (aliasSelectField $ isJust spr) sel}
+    addAliasToPlan rp@ReadPlan{select=sel, relSpread=spr, relIsHoisted=hoi} = rp{select=map (aliasSelectField (isJust spr || hoi)) sel}
 
     aliasSelectField :: Bool -> CoercibleSelectField -> CoercibleSelectField
-    aliasSelectField isSpread field@CoercibleSelectField{csField=fieldDetails, csAggFunction=aggFun, csAlias=alias}
+    aliasSelectField shouldAlias field@CoercibleSelectField{csField=fieldDetails, csAggFunction=aggFun, csAlias=alias}
       | isJust alias = field
-      | isJust aggFun = fieldAliasForSpreadAgg isSpread field
+      | isJust aggFun = fieldAliasForSpreadOrHoistedAgg shouldAlias field
       | isJsonKeyPath fieldDetails, Just key <- lastJsonKey fieldDetails = field { csAlias = Just key }
       | isTransformPath fieldDetails = field { csAlias = Just (cfName fieldDetails) }
       | otherwise = field
 
-    -- Spread relationships with non-aliased aggregates can cause problems when selecting the fields in the top level resource.
-    -- The top level won't know the name of the field in this case:
-    -- A nested to-one spread like `/top_table?select=...middle_table(...nested_table(count()))`
-    -- will do a `SELECT nested_table` instead of `SELECT *`, because doing a `COUNT(*)` in `top_table`
-    -- would not return the desired results.
+    -- Hoisted relationships with non-aliased aggregates can cause problems when selecting the fields in the top level resource.
+    -- The top level won't know the name of the field in these cases:
+    -- * A nested to-one spread like `/top_table?select=^middle_table(^nested_table(count()))`
+    --   will do a `SELECT nested_table` instead of `SELECT *`, because doing a `COUNT(*)` in `top_table`
+    --   would not return the desired results.
+    -- * In a to-many spread, the aggregated fields will be wrapped in a `json_agg()`.
     --
     -- That's why we need to use the aggregate name as an alias (e.g. COUNT(...) AS "count").
     -- Since PostgreSQL labels the columns with the aggregate name, it shouldn't be a problem to
     -- apply the aliases to all the aggregates regardless if the previous conditions are met.
-    fieldAliasForSpreadAgg True field@CoercibleSelectField{csAggFunction=Just agg} =
+    fieldAliasForSpreadOrHoistedAgg True field@CoercibleSelectField{csAggFunction=Just agg} =
       field { csAlias = Just (T.toLower $ show agg) }
-    fieldAliasForSpreadAgg _ field = field
+    fieldAliasForSpreadOrHoistedAgg _ field = field
 
     isJsonKeyPath CoercibleField{cfJsonPath=(_: _)} = True
     isJsonKeyPath _                                 = False
@@ -452,18 +461,18 @@ expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
     adjustContext context fromQI _ = context{qi=fromQI}
 
 expandStarsForTable :: ResolverContext -> Bool -> ReadPlan -> ReadPlan
-expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields, relSpread=spread}
+expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@ReadPlan{select=selectFields, relSpread=spread, relIsHoisted=hoisted}
   -- We expand if either of the below are true:
   -- * We have a '*' select AND there is an aggregate function in this ReadPlan's sub-tree.
   -- * We have a '*' select AND the target table has at least one data representation.
   -- We ignore '*' selects that have an aggregate function attached, unless it's a `COUNT(*)` for a Spread Embed,
   -- we tag it as "full row" in that case.
-  | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField (isJust spread) knownColumns) selectFields}
+  | hasStarSelect && (hasAgg || hasDataRepresentation) = rp{select = concatMap (expandStarSelectField (isJust spread || hoisted) knownColumns) selectFields}
   | otherwise = rp
   where
     hasStarSelect = "*" `elem` map (cfName . csField) filteredSelectFields
     filteredSelectFields = filter (shouldExpandOrTag . csAggFunction) selectFields
-    shouldExpandOrTag aggFunc = isNothing aggFunc || (isJust spread && aggFunc == Just Count)
+    shouldExpandOrTag aggFunc = isNothing aggFunc || ((isJust spread || hoisted) && aggFunc == Just Count)
     hasDataRepresentation = any hasOutputRep knownColumns
     knownColumns = knownColumnsInContext ctx
 
@@ -643,6 +652,8 @@ addRelSelects node@(Node rp forest)
     in Right $ Node rp { relSelect = newRelSelects } newForest
 
 generateRelSelectField :: ReadPlanTree -> Maybe RelSelectField
+generateRelSelectField (Node rp@ReadPlan{relToParent=Just _, relAggAlias, relIsHoisted=True} _) =
+  Just $ Hoisted { rsHoistedSel = generateHoistedSelectFields rp, rsAggAlias = relAggAlias }
 generateRelSelectField (Node rp@ReadPlan{relToParent=Just _, relAggAlias, relSpread = Just _} _) =
   Just $ Spread { rsSpreadSel = generateSpreadSelectFields rp, rsAggAlias = relAggAlias }
 generateRelSelectField (Node ReadPlan{relToParent=Just rel, select, relName, relAlias, relAggAlias, relSpread = Nothing} forest) =
@@ -674,54 +685,59 @@ generateSpreadSelectFields ReadPlan{select, relSelect} =
     relSelectToSpread (Spread{rsSpreadSel}) =
       rsSpreadSel
 
--- When aggregates are present in a ReadPlan with a to-one spread, we "hoist"
--- to the highest level possible so that their semantics make sense. For instance,
--- imagine the user performs the following request:
--- `GET /projects?select=client_id,...project_invoices(invoice_total.sum())`
---
--- In this case, it is sensible that we would expect to receive the sum of the
--- `invoice_total`, grouped by the `client_id`. Without hoisting, the sum would
--- be performed in the sub-query for the joined table `project_invoices`, thus
--- making it essentially a no-op. With hoisting, we hoist the aggregate function
--- so that the aggregate function is performed in a more sensible context.
---
--- We will try to hoist the aggregate function to the highest possible level,
--- which means that we hoist until we reach the root node, or until we reach a
--- ReadPlan that will be embedded a JSON object or JSON array.
+-- TODO(draft): DRY
+generateHoistedSelectFields :: ReadPlan -> [HoistedSelectField]
+generateHoistedSelectFields ReadPlan{select, relSelect} =
+  -- We combine the select and relSelect fields into a single list of HoistedSelectField.
+  selectSpread ++ relSelectSpread
+  where
+    selectSpread = map selectToSpread select
+    selectToSpread :: CoercibleSelectField -> HoistedSelectField
+    selectToSpread CoercibleSelectField{csField = CoercibleField{cfName}, csAlias} =
+      HoistedSelectField { hsSelName = fromMaybe cfName csAlias, hsSelAggFunction = Nothing, hsSelAggCast = Nothing, hsSelAlias = Nothing }
 
+    relSelectSpread = concatMap relSelectToSpread relSelect
+    relSelectToSpread :: RelSelectField -> [HoistedSelectField]
+    relSelectToSpread (JsonEmbed{rsSelName}) =
+      [HoistedSelectField { hsSelName = rsSelName, hsSelAggFunction = Nothing, hsSelAggCast = Nothing, hsSelAlias = Nothing }]
+    relSelectToSpread (Hoisted{rsHoistedSel}) =
+      rsHoistedSel
+
+-- When an aggregate is present, it hoists the aggregate and columns to group by to the
+-- containing relationship. It keeps hoisting until it's no longer contained by a
+-- HoistedRelation.
+--
 -- This type alias represents an aggregate that is to be hoisted to the next
 -- level up. The first tuple of `Alias` and `FieldName` contain the alias for
 -- the joined table and the original field name for the hoisted field.
 --
 -- The second tuple contains the aggregate function to be applied, the cast, and
 -- the alias, if it was supplied by the user or otherwise determined.
---
--- No hoisting is done for to-many spreads
 type HoistedAgg = ((Alias, FieldName), (AggregateFunction, Maybe Cast, Maybe Alias))
 
 hoistSpreadAggFunctions :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
 hoistSpreadAggFunctions tree = Right $ fst $ applySpreadAggHoistingToNode tree
 
 applySpreadAggHoistingToNode :: ReadPlanTree -> (ReadPlanTree, [HoistedAgg])
-applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relSpread} children) =
+applySpreadAggHoistingToNode (Node rp@ReadPlan{relAggAlias, relToParent, relIsHoisted} children) =
   let (newChildren, childAggLists) = unzip $ map applySpreadAggHoistingToNode children
       allChildAggLists = concat childAggLists
-      isToOneSpread = relSpread == Just ToOneSpread
-      (newSelects, aggList) = if depth rp == 0 || (isJust relToParent && not isToOneSpread)
+      (newSelects, aggList) = if depth rp == 0 || (isJust relToParent && not relIsHoisted)
                                 then (select rp, [])
                                 else hoistFromSelectFields relAggAlias (select rp)
 
-      -- If the current `ReadPlan` is a to-one spread rel and it has aggregates hoisted from
+      -- If the current `ReadPlan` is a hoisted relationship and it has aggregates hoisted from
       -- child relationships, then it must hoist those aggregates to its parent rel.
       -- So we update them with the current `relAggAlias`.
       hoistAgg ((_, fieldName), hoistFunc) = ((relAggAlias, fieldName), hoistFunc)
-      hoistedAggList = if isToOneSpread
+      hoistedAggList = if relIsHoisted
                        then aggList ++ map hoistAgg allChildAggLists
                        else aggList
 
-      newRelSelects = if null children || isToOneSpread
+      newRelSelects = if null children || relIsHoisted
                       then relSelect rp
                       else map (hoistIntoRelSelectFields allChildAggLists) $ relSelect rp
+  -- TODO(draft): handle to-many hoisting as NotImplemented
   in  (Node rp { select = newSelects, relSelect = newRelSelects } newChildren, hoistedAggList)
 
 -- Hoist aggregate functions from the select list of a ReadPlan, and return the
@@ -745,30 +761,34 @@ hoistFromSelectFields relAggAlias fields =
 -- Taking the hoisted aggregates, modify the rel selects to apply the aggregates,
 -- and any applicable casts or aliases.
 hoistIntoRelSelectFields :: [HoistedAgg] -> RelSelectField -> RelSelectField
-hoistIntoRelSelectFields aggList r@(Spread {rsSpreadSel = spreadSelects, rsAggAlias = relAggAlias}) =
-    r { rsSpreadSel = map updateSelect spreadSelects }
+hoistIntoRelSelectFields aggList r@(Hoisted {rsHoistedSel = hoistedSelects, rsAggAlias = relAggAlias}) =
+    r { rsHoistedSel = map updateSelect hoistedSelects }
   where
-    updateSelect s =
-        case lookup (relAggAlias, ssSelName s) aggList of
+    updateSelect h =
+        case lookup (relAggAlias, hsSelName h) aggList of
             Just (aggFunc, aggCast, fldAlias) ->
-                s { ssSelAggFunction = Just aggFunc,
-                    ssSelAggCast     = aggCast,
-                    ssSelAlias       = fldAlias }
-            Nothing -> s
+                h { hsSelAggFunction = Just aggFunc,
+                    hsSelAggCast     = aggCast,
+                    hsSelAlias       = fldAlias }
+            Nothing -> h
 hoistIntoRelSelectFields _ r = r
 
--- | Handle ordering in a To-Many Spread Relationship
+-- | Handle aggregates and ordering in a To-Many Spread Relationship
+-- It does the following in case of a To-Many Spread
+-- * When only aggregates are selected (no column to group by), it's always expected to return a single row.
+--   That's why we treat these cases as a To-One Spread and they won't be wrapped in an array.
 -- * It removes the ordering done in the ReadPlan and moves it to the SpreadType.
 --   We also select the ordering columns and alias them to avoid collisions. This is because it would be impossible
 --   to order once it's aggregated if it's not selected in the inner query beforehand.
-addToManyOrderSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
-addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, relSpread = Just ToManySpread {}} forest)
-  | anyAggSel || anyAggRelSel = Left $ NotImplemented "Aggregates are not implemented for one-to-many or many-to-many spreads."
-  | otherwise = Node rp { order = [], relSpread = newRelSpread } <$> addToManyOrderSelects `traverse` forest
+addToManySpreadOrderSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addToManySpreadOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, relSpread = Just ToManySpread {}} forest) =
+  Node rp { order = newOrder, relSpread = newRelSpread } <$> addToManySpreadOrderSelects `traverse` forest
   where
-    newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
-    anyAggSel = any (isJust . csAggFunction) select
-    anyAggRelSel = any (\case Spread sels _ -> any (isJust . ssSelAggFunction) sels; _ -> False) relSelect
+    (newOrder, newRelSpread)
+      | allAggsSel && allAggsRelSel = (order, Just ToOneSpread)
+      | otherwise = ([], Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder})
+    allAggsSel = all (isJust . csAggFunction) select
+    allAggsRelSel = all (\case Spread sels _ -> all (isJust . ssSelAggFunction) sels; _ -> False) relSelect
     (addSprExtraSelects, addSprOrder) = unzip $ zipWith ordToExtraSelsAndSprOrds [1..] order
     ordToExtraSelsAndSprOrds i = \case
       CoercibleOrderTerm fld dir ordr -> (
@@ -781,7 +801,7 @@ addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, r
         )
     selOrdAlias :: Alias -> Integer -> Alias
     selOrdAlias name i = relAggAlias <> "_" <> name <> "_" <> show i -- add index to avoid collisions in aliases
-addToManyOrderSelects (Node rp forest) = Node rp <$> addToManyOrderSelects `traverse` forest
+addToManySpreadOrderSelects (Node rp forest) = Node rp <$> addToManySpreadOrderSelects `traverse` forest
 
 validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
