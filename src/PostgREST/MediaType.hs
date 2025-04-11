@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveAnyClass        #-}
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE DuplicateRecordFields #-}
-
+{-# OPTIONS_GHC -Wno-unused-do-bind #-}
 module PostgREST.MediaType
   ( MediaType(..)
   , MTVndPlanOption (..)
@@ -11,17 +11,16 @@ module PostgREST.MediaType
   , decodeMediaType
   ) where
 
-import qualified Data.Aeson      as JSON
-import qualified Data.ByteString as BS
+import qualified Data.Aeson                    as JSON
+import qualified Data.ByteString               as BS
+import qualified Data.Text                     as T
+import qualified Text.ParserCombinators.Parsec as P
 
+import Data.Map                  (fromList, (!?))
+import Data.Text.Encoding        (decodeLatin1)
 import Network.HTTP.Types.Header (Header, hContentType)
 
-import           Data.Map           (fromList, (!?))
-import qualified Data.Text          as T (break, drop, dropWhile,
-                                          dropWhileEnd, null, splitOn,
-                                          toLower)
-import           Data.Text.Encoding (decodeLatin1)
-import           Protolude
+import Protolude
 
 -- | Enumeration of currently supported media types
 data MediaType
@@ -104,6 +103,9 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.pgrst.plan;for=\"application/json\""
 -- MTVndPlan MTApplicationJSON PlanText []
 --
+-- >>> decodeMediaType "application/vnd.pgrst.plan ; for=\"text/xml\" ; options=analyze"
+-- MTVndPlan MTTextXML PlanText [PlanAnalyze]
+--
 -- >>> decodeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
 -- MTVndPlan MTTextCSV PlanJSON []
 --
@@ -150,7 +152,10 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         ("*","*",_)                                 -> MTAny
         _                                           -> MTOther mt'
       where
-        (mainType, subType, params') = tokenizeMediaType mt'
+        mediaTypeOrError = P.parse tokenizeMediaType "parsec: tokenizeMediaType failed" $ T.unpack mt'
+        (mainType, subType, params') = case mediaTypeOrError of
+          Right mt'' -> mt''
+          Left _     -> ("*", "*", []) -- TODO: Throw mediatype error, would need refactoring because currently Error module depend on MediaType module
         params = fromList $ map (first T.toLower) params' -- normalize parameter names to lowercase, per RFC 7321
         getPlan fmt = MTVndPlan mtFor fmt $
           [PlanAnalyze  | inOpts "analyze" ] ++
@@ -166,21 +171,39 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         checkArrayNullStrip = if strippedNulls then MTVndArrayJSONStrip else MTApplicationJSON
 
 -- | Split a Media Type string into components
--- >>> tokenizeMediaType "application/vnd.pgrst.plan+json;for=\"text/csv\""
--- ("application","vnd.pgrst.plan+json",[("for","text/csv")])
--- >>> tokenizeMediaType "*/*"
--- ("*","*",[])
--- >>> tokenizeMediaType "application/vnd.pgrst.plan;wat=\"application/json;text/csv\""
--- ("application","vnd.pgrst.plan",[("wat","application/json"),("text/csv\"","")])
-tokenizeMediaType :: Text -> (Text, Text, [(Text, Text)])
-tokenizeMediaType t = (mainType, subType, params)
-  where
-    (mainType, rest) = T.break (== '/') t
-    (subType, restParams) = T.break (== ';') $ T.drop 1 rest
-    params =
-      let rp = T.drop 1 restParams
-      in if T.null rp then [] else map param $ T.splitOn ";" rp -- FIXME: breaks if there's a ';' in a quoted value
-    param p =
-      let (k, v) = T.break (== '=') p
-      in (k, dropAround (== '"') $ T.drop 1 v) -- FIXME: doesn't unescape quotes in values
-    dropAround p = T.dropWhile p . T.dropWhileEnd p
+-- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan+json;for=\"text/csv\""
+-- Right ("application","vnd.pgrst.plan+json",[("for","text/csv")])
+--
+-- >>> P.parse tokenizeMediaType "" "*/*"
+-- Right ("*","*",[])
+--
+-- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan;wat=\"application/json;text/csv\""
+-- Right ("application","vnd.pgrst.plan",[("wat","application/json;text/csv")])
+--
+-- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan+text; for=\"text/xml\"; options=analyze|verbose|settings|buffers|wal"
+-- Right ("application","vnd.pgrst.plan+text",[("for","text/xml"),("options","analyze|verbose|settings|buffers|wal")])
+
+tokenizeMediaType :: P.Parser (Text, Text, [(Text, Text)])
+tokenizeMediaType = do
+  mainType <- P.many1 (P.alphaNum <|> P.oneOf ".*")
+  P.char '/'
+  subType <- P.many1 (P.alphaNum <|> P.oneOf ".*+-")
+  params <- P.many pSemicolonSeparatedKeyVals
+  P.optional $ P.try $ P.spaces *> P.char ';' -- ending semicolon
+  P.eof
+  return (T.pack mainType, T.pack subType, params)
+    where
+      pSemicolonSeparatedKeyVals :: P.Parser (Text, Text)
+      pSemicolonSeparatedKeyVals = P.try $ P.spaces *> P.char ';' *> P.spaces *> pKeyVal
+        where
+          pKeyVal :: P.Parser (Text, Text)
+          pKeyVal = do
+            key <- P.many1 P.alphaNum
+            P.spaces
+            P.char '='
+            P.spaces
+            val <- P.try pQuoted <|> P.try pUnQuoted
+            return (T.pack key, T.pack val)
+              where
+                pUnQuoted = P.many1 (P.alphaNum <|> P.oneOf "|")
+                pQuoted = P.char '\"' *> P.manyTill P.anyChar (P.char '\"')
