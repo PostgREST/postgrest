@@ -16,6 +16,7 @@ module PostgREST.Query.SqlFragment
   , orderF
   , pgFmtColumn
   , pgFmtFilter
+  , pgFmtHoistedSelectItem
   , pgFmtIdent
   , pgFmtJoinCondition
   , pgFmtLogicTree
@@ -79,6 +80,7 @@ import PostgREST.Plan.Types              (CoercibleField (..),
                                           CoercibleLogicTree (..),
                                           CoercibleOrderTerm (..),
                                           CoercibleSelectField (..),
+                                          HoistedSelectField (..),
                                           RelSelectField (..),
                                           SpreadSelectField (..),
                                           ToTsVector (..),
@@ -281,8 +283,13 @@ pgFmtSpreadSelectItem :: Alias -> SpreadSelectField -> SQL.Snippet
 pgFmtSpreadSelectItem aggAlias SpreadSelectField{ssSelName, ssSelAggFunction, ssSelAggCast, ssSelAlias} =
   pgFmtApplyAggregate ssSelAggFunction ssSelAggCast (pgFmtFullSelName aggAlias ssSelName) <> pgFmtAs ssSelAlias
 
+-- TODO(draft): DRY
+pgFmtHoistedSelectItem :: Alias -> HoistedSelectField -> SQL.Snippet
+pgFmtHoistedSelectItem aggAlias HoistedSelectField{hsSelName, hsSelAggFunction, hsSelAggCast, hsSelAlias} =
+  pgFmtApplyAggregate hsSelAggFunction hsSelAggCast (pgFmtFullSelName aggAlias hsSelName) <> pgFmtAs hsSelAlias
+
 pgFmtApplyAggregate :: Maybe AggregateFunction -> Maybe Cast -> SQL.Snippet -> SQL.Snippet
-pgFmtApplyAggregate Nothing _ snippet = snippet
+pgFmtApplyAggregate Nothing _ snippet =snippet
 pgFmtApplyAggregate (Just agg) aggCast snippet =
   pgFmtApplyCast aggCast aggregatedSnippet
   where
@@ -458,7 +465,7 @@ groupF qi select relSelect
   | otherwise = " GROUP BY " <> intercalateSnippet ", " groupTerms
   where
     noSelectsAreAggregated = null $ [s | s@(CoercibleSelectField { csAggFunction = Just _ }) <- select]
-    noRelSelectsAreAggregated = all (\case Spread sels _ -> all (isNothing . ssSelAggFunction) sels; _ -> True) relSelect
+    noRelSelectsAreAggregated = all (\case Hoisted sels _ -> all (isNothing . hsSelAggFunction) sels; _ -> True) relSelect
     groupTermsFromSelect = mapMaybe (pgFmtGroup qi) select
     groupTermsFromRelSelect = mapMaybe groupTermFromRelSelectField relSelect
     groupTerms = groupTermsFromSelect ++ groupTermsFromRelSelect
@@ -477,6 +484,19 @@ groupTermFromRelSelectField (Spread { rsSpreadSel, rsAggAlias }) =
     processField SpreadSelectField{ssSelName, ssSelAlias} =
       Just $ pgFmtIdent rsAggAlias <> "." <> pgFmtIdent (fromMaybe ssSelName ssSelAlias)
     groupTerms = mapMaybe processField rsSpreadSel
+-- TODO(draft): DRY
+groupTermFromRelSelectField (Hoisted { rsHoistedSel, rsAggAlias }) =
+  if null groupTerms
+  then Nothing
+  else
+    Just $ intercalateSnippet ", " groupTerms
+  where
+    processField :: HoistedSelectField -> Maybe SQL.Snippet
+    processField HoistedSelectField{hsSelAggFunction = Just _} = Nothing
+    processField HoistedSelectField{hsSelName, hsSelAlias} =
+      Just $ pgFmtIdent rsAggAlias <> "." <> pgFmtIdent (fromMaybe hsSelName hsSelAlias)
+    groupTerms = mapMaybe processField rsHoistedSel
+
 
 pgFmtGroup :: QualifiedIdentifier -> CoercibleSelectField -> Maybe SQL.Snippet
 pgFmtGroup _  CoercibleSelectField{csAggFunction=Just _} = Nothing
