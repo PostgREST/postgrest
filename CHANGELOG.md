@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+ - #3498, Fix incorrect parsing of the `for` parameter of the `application/vnd.pgrst.plan` media type - @taimoorzaeem
+
 ## [12.2.8] - 2025-02-10
 
 ### Fixed
