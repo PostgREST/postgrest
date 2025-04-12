@@ -34,6 +34,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3697, #3602, Handle queries on non-existing table gracefully - @taimoorzaeem
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
  - #3013, Fix `order=` with POST, PATCH, PUT and DELETE requests - @taimoorzaeem
+ - #3498, Fix incorrect parsing of the `for` parameter of the `application/vnd.pgrst.plan` media type - @taimoorzaeem
 
 ### Changed
 
