@@ -477,6 +477,8 @@ pgrstParseErrorHint err = case err of
   _               -> "DETAIL must be a JSON object with obligatory keys: 'status', 'headers' and optional key: 'status_text'."
 
 data PgError = PgError Authenticated SQL.UsageError
+  deriving Show
+
 type Authenticated = Bool
 
 instance PgrstError PgError where
@@ -630,12 +632,14 @@ data Error
   | JwtErr JwtError
   | NoSchemaCacheError
   | PgErr PgError
+  deriving Show
 
 data JwtError
   = JwtDecodeError Text
   | JwtSecretMissing
   | JwtTokenRequired
   | JwtClaimsError Text
+  deriving Show
 
 instance PgrstError Error where
   status (ApiRequestError err) = status err
