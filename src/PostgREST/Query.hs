@@ -112,7 +112,7 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
 actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> PgVersion -> SchemaCache -> (DbHandler QueryResult, ByteString)
 -- NOTE: Test handling if wrMedia  is equal to MTApplicationSQL, returns RawSQLResult which will not be queried, instead directly returned
-actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
+actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationJSONSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
@@ -125,7 +125,7 @@ actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationSQL, ..}) AppConfig{.
          countQuery
       )
       (shouldCount preferCount)
-      MTApplicationSQL
+      MTApplicationJSONSQL
       wrHandler
       configDbPreparedStatements
     mainActionQuery = do
@@ -153,7 +153,7 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
       optionalRollback conf apiReq
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
-actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
+actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationJSONSQL, ..}) AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
@@ -162,7 +162,7 @@ actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationSQL, ..}) AppConfig{..
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
       isPut
-      MTApplicationSQL
+      MTApplicationJSONSQL
       mrHandler
       preferRepresentation
       preferResolution
