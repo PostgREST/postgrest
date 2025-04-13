@@ -15,7 +15,6 @@ import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Session                     as SQL (Session)
 import qualified Hasql.Transaction                 as SQL
@@ -49,11 +48,13 @@ import PostgREST.Plan                    (ActionPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
-                                          intercalateSnippet,
+import PostgREST.Query.SqlFragment       (TrackedSnippet,
+                                          escapeIdentList, fromQi,
+                                          intercalateSnippet, rawSQL,
                                           setConfigWithConstantName,
                                           setConfigWithConstantNameJSON,
-                                          setConfigWithDynamicName)
+                                          setConfigWithDynamicName,
+                                          toSnippet)
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
@@ -79,7 +80,7 @@ data QueryResult
   | DbCallResult  CallReadPlan  ResultSet
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
-  | RawSQLResult  ByteString
+  | RawSQLResult ByteString [Maybe ByteString]
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> PgVersion -> Query
 query _ _ _ (NoDb x) _ _ = NoDbQuery $ NoDbResult x
@@ -115,7 +116,7 @@ actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationSQL, ..}) AppConfig{.
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    (_, mainSQLQuery) = Statements.prepareRead
+    (_, mainSQLQuery, params) = Statements.prepareRead
       (QueryBuilder.readPlanToQuery wrReadPlan)
       (if preferCount == Just EstimatedCount then
          -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -128,13 +129,13 @@ actionQuery (DbCrud WrappedReadPlan{wrMedia = MTApplicationSQL, ..}) AppConfig{.
       wrHandler
       configDbPreparedStatements
     mainActionQuery = do
-      pure $ RawSQLResult mainSQLQuery
+      pure $ RawSQLResult mainSQLQuery params
 
 actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    (result, mainSQLQuery) = Statements.prepareRead
+    (result, mainSQLQuery, _) = Statements.prepareRead
       (QueryBuilder.readPlanToQuery wrReadPlan)
       (if preferCount == Just EstimatedCount then
          -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -156,7 +157,7 @@ actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationSQL, ..}) AppConfig{..
   (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
-    (_, mainSQLQuery) = Statements.prepareWrite
+    (_, mainSQLQuery, params) = Statements.prepareWrite
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
@@ -168,13 +169,13 @@ actionQuery (DbCrud MutateReadPlan{mrMedia = MTApplicationSQL, ..}) AppConfig{..
       pkCols
       configDbPreparedStatements
     mainActionQuery = do
-      pure $ RawSQLResult mainSQLQuery
+      pure $ RawSQLResult mainSQLQuery params
 
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ _ =
   (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
-    (result, mainSQLQuery) = Statements.prepareWrite
+    (result, mainSQLQuery, _) = Statements.prepareWrite
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
@@ -190,12 +191,12 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
         failNotSingular mrMedia resultSet
       MutationUpdate -> do
         failNotSingular mrMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
       MutationSingleUpsert -> do
         failPut resultSet
       MutationDelete -> do
         failNotSingular mrMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failMutation resultSet
@@ -205,7 +206,7 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
 actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} pgVer _ =
   (mainActionQuery, mainSQLQuery)
   where
-    (result, mainSQLQuery) = Statements.prepareCall
+    (result, mainSQLQuery, _) = Statements.prepareCall
       crProc
       (QueryBuilder.callPlanToQuery crCallPlan pgVer)
       (QueryBuilder.readPlanToQuery crReadPlan)
@@ -218,7 +219,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       resultSet <- lift $ SQL.statement mempty result
       optionalRollback conf apiReq
       failNotSingular crMedia resultSet
-      failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+      failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
       pure $ DbCallResult plan resultSet
 
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
@@ -247,12 +248,12 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCach
 -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
 failPut :: ResultSet -> DbHandler ()
 failPut RSPlan{} = pure ()
-failPut RSStandard{rsQueryTotal=queryTotal} =
+failPut RSStandard{rsQueryTotal = queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError Error.PutMatchingPkError
 
-resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
+resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> TrackedSnippet -> DbHandler ResultSet
 resultSetWTotal _ _ rs@RSPlan{} _ = return rs
 resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
   case preferCount of
@@ -309,7 +310,7 @@ setPgLocals dbActPlan AppConfig{..} claims role ApiRequest{..} = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
     -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
     -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql))
+    (toSnippet (rawSQL "select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql)))
     HD.noResult configDbPreparedStatements
   where
     methodSql = setConfigWithConstantName ("request.method", iMethod)
@@ -334,7 +335,7 @@ runPreReq :: AppConfig -> DbHandler ()
 runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
   where
     stmt req = SQL.dynamicallyParameterized
-      ("select " <> fromQi req <> "()")
+      (toSnippet (rawSQL "select " <> fromQi req <> rawSQL "()"))
       HD.noResult
       (configDbPreparedStatements conf)
 
