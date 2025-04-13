@@ -303,7 +303,7 @@ locationF pKeys = rawSQL $ encodeUtf8 [trimming|(
     fmtPKeys = T.intercalate "','" pKeys
 
 fromQi :: QualifiedIdentifier -> TrackedSnippet
-fromQi t = (if T.null s then pgFmtIdent n else pgFmtIdent s <> rawSQL ".") <> pgFmtIdent n
+fromQi t = if T.null s then pgFmtIdent n else pgFmtIdent s <> rawSQL "." <> pgFmtIdent n
   where
     n = qiName t
     s = qiSchema t
