@@ -104,9 +104,10 @@ import PostgREST.SchemaCache.Routine     (MediaHandler (..),
 
 import Protolude hiding (Sum, cast)
 
+-- | Wrapper on top of Hasql.Snippet which also able to track parameters encoded to the query
 data TrackedSnippet = TrackedSnippet
   { snippet :: SQL.Snippet
-  , params  :: [Maybe ByteString] -- (Encoder, Description/Value)
+  , params  :: [Maybe ByteString]
   }
 
 -- | Create an empty tracked snippet
