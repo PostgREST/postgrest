@@ -73,7 +73,7 @@ actionResponse (RawSQLResult rawSQL body) _ _ _ _ _ _ =
               let obj =
                     HM.fromList
                       [ ("sql" :: Text, JSON.toJSON sqlText)
-                      , ("body" :: Text, JSON.toJSON bodyTexts)
+                      , ("params" :: Text, JSON.toJSON bodyTexts)
                       ] ::
                       HM.HashMap Text JSON.Value
               obj
