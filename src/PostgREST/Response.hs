@@ -231,7 +231,7 @@ actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versio
 actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ SchemaCache{dbTables} _ _ =
   case HM.lookup qi dbTables of
     Just tbl -> respondInfo $ allowH tbl
-    Nothing  -> Left $ Error.ApiRequestError $ Error.TableNotFound qiSchema qiName (HM.elems dbTables)
+    Nothing  -> Left $ Error.SchemaCacheErr $ Error.TableNotFound qiSchema qiName (HM.elems dbTables)
   where
     allowH table =
       let hasPK = not . null $ tablePKCols table in

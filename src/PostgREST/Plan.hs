@@ -45,7 +45,8 @@ import PostgREST.ApiRequest                  (Action (..),
                                               Payload (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (ApiRequestError (..),
-                                              Error (..))
+                                              Error (..),
+                                              SchemaCacheError (..))
 import PostgREST.MediaType                   (MediaType (..))
 import PostgREST.Query.SqlFragment           (sourceCTEName)
 import PostgREST.RangeQuery                  (NonnegRange, allRange,
@@ -155,7 +156,7 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
-  qi <- mapLeft ApiRequestError $ findTable identifier (dbTables sCache)
+  qi <- findTable identifier (dbTables sCache)
   rPlan <- readPlan qi conf sCache apiRequest
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
@@ -163,7 +164,7 @@ wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Prefe
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
-  qi <- mapLeft ApiRequestError $ findTable identifier (dbTables sCache)
+  qi <- findTable identifier (dbTables sCache)
   rPlan <- readPlan qi conf sCache apiRequest
   mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
@@ -175,7 +176,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv       -> iColumns
-  proc@Function{..} <- mapLeft ApiRequestError $
+  proc@Function{..} <- mapLeft SchemaCacheErr $
     findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
@@ -212,7 +213,7 @@ inspectPlan apiRequest headersOnly schema = do
   Search a pg proc by matching name and arguments keys to parameters. Since a function can be overloaded,
   the name is not enough to find it. An overloaded function can have a different volatility or even a different return type.
 -}
-findProc :: QualifiedIdentifier -> S.Set Text -> RoutineMap -> MediaType -> Bool -> Either ApiRequestError Routine
+findProc :: QualifiedIdentifier -> S.Set Text -> RoutineMap -> MediaType -> Bool -> Either SchemaCacheError Routine
 findProc qi argumentsKeys allProcs contentMediaType isInvPost =
   case matchProc of
     ([], [])     -> Left $ NoRpc (qiSchema qi) (qiName qi) (S.toList argumentsKeys) contentMediaType isInvPost (HM.keys allProcs) lookupProcName
@@ -337,7 +338,6 @@ readPlan qi@QualifiedIdentifier{..} AppConfig{configDbMaxRows, configDbAggregate
     -- JSON output format hardcoded for now. In the future we might want to support other output mappings such as CSV.
     ctx = ResolverContext dbTables dbRepresentations qi "json"
   in
-    mapLeft ApiRequestError $
     treeRestrictRange configDbMaxRows (iAction apiRequest) =<<
     addToManyOrderSelects =<<
     hoistSpreadAggFunctions =<<
@@ -382,7 +382,7 @@ initReadRequest ctx@ResolverContext{qi=QualifiedIdentifier{..}} =
 -- * A select term with a JSON path
 -- * Domain representations
 -- * Aggregates in spread relationships
-addAliases :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addAliases :: ReadPlanTree -> Either Error ReadPlanTree
 addAliases = Right . fmap addAliasToPlan
   where
     addAliasToPlan rp@ReadPlan{select=sel, relSpread=spr} = rp{select=map (aliasSelectField $ isJust spr) sel}
@@ -433,7 +433,7 @@ knownColumnsInContext ResolverContext{..} =
 -- * When there are data representations present.
 -- * When there is an aggregate function in a given ReadPlan or its parent.
 -- * When the ReadPlan is a to-many spread relationship
-expandStars :: ResolverContext -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+expandStars :: ResolverContext -> ReadPlanTree -> Either Error ReadPlanTree
 expandStars ctx rPlanTree = Right $ expandStarsForReadPlan False rPlanTree
   where
     expandStarsForReadPlan :: Bool -> ReadPlanTree -> ReadPlanTree
@@ -478,7 +478,7 @@ expandStarsForTable ctx@ResolverContext{representations, outputType} hasAgg rp@R
     expandStarSelectField _ _ selectField = [selectField]
 
 -- | Enforces the `max-rows` config on the result
-treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+treeRestrictRange :: Maybe Integer -> Action -> ReadPlanTree -> Either Error ReadPlanTree
 treeRestrictRange _ (ActDb (ActRelationMut _ _)) request = Right request
 treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> request
   where
@@ -487,7 +487,7 @@ treeRestrictRange maxRows _ request = pure $ nodeRestrictRange maxRows <$> reque
 
 -- add relationships to the nodes of the tree by traversing the forest while keeping track of the parentNode(https://stackoverflow.com/questions/22721064/get-the-parent-of-a-node-in-data-tree-haskell#comment34627048_22721064)
 -- also adds aliasing
-addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRels :: Schema -> Action -> RelationshipsMap -> Maybe ReadPlanTree -> ReadPlanTree -> Either Error ReadPlanTree
 addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,relAlias,relSpread,depth} forest) =
   case parentNode of
     Just (Node ReadPlan{from=parentNodeQi, fromAlias=parentAlias} _) ->
@@ -523,7 +523,7 @@ addRels schema action allRels parentNode (Node rPlan@ReadPlan{relName,relHint,re
       in
       Node newReadPlan <$> updateForest (Just $ Node newReadPlan forest)
   where
-    updateForest :: Maybe ReadPlanTree -> Either ApiRequestError [ReadPlanTree]
+    updateForest :: Maybe ReadPlanTree -> Either Error [ReadPlanTree]
     updateForest rq = addRels schema action allRels rq `traverse` forest
 
 getJoinConditions :: Maybe Alias -> Maybe Alias -> Relationship -> [JoinCondition]
@@ -553,12 +553,12 @@ getJoinConditions tblAlias parentAlias Relationship{relTable=qi,relForeignTable=
 -- request is ambiguous and we return an error.  In that case the request can
 -- be disambiguated by adding precision to the target or by using a hint:
 -- /origin?select=target!hint(*). The origin can be a table or view.
-findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either ApiRequestError Relationship
+findRel :: Schema -> RelationshipsMap -> NodeName -> NodeName -> Maybe Hint -> Either Error Relationship
 findRel schema allRels origin target hint =
   case rels of
-    []  -> Left $ NoRelBetween origin target hint schema allRels
+    []  -> Left $ SchemaCacheErr $ NoRelBetween origin target hint schema allRels
     [r] -> Right r
-    rs  -> Left $ AmbiguousRelBetween origin target rs
+    rs  -> Left $ SchemaCacheErr $ AmbiguousRelBetween origin target rs
   where
     matchFKSingleCol hint_ card = case card of
       O2M{relColumns=[(col, _)]} -> hint_ == col
@@ -634,7 +634,7 @@ findRel schema allRels origin target hint =
       ) $ fromMaybe mempty $ HM.lookup (QualifiedIdentifier schema origin, schema) allRels
 
 
-addRelSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRelSelects :: ReadPlanTree -> Either Error ReadPlanTree
 addRelSelects node@(Node rp forest)
   | null forest = Right node
   | otherwise   =
@@ -699,7 +699,7 @@ generateSpreadSelectFields ReadPlan{select, relSelect} =
 -- No hoisting is done for to-many spreads
 type HoistedAgg = ((Alias, FieldName), (AggregateFunction, Maybe Cast, Maybe Alias))
 
-hoistSpreadAggFunctions :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+hoistSpreadAggFunctions :: ReadPlanTree -> Either Error ReadPlanTree
 hoistSpreadAggFunctions tree = Right $ fst $ applySpreadAggHoistingToNode tree
 
 applySpreadAggHoistingToNode :: ReadPlanTree -> (ReadPlanTree, [HoistedAgg])
@@ -761,9 +761,9 @@ hoistIntoRelSelectFields _ r = r
 -- * It removes the ordering done in the ReadPlan and moves it to the SpreadType.
 --   We also select the ordering columns and alias them to avoid collisions. This is because it would be impossible
 --   to order once it's aggregated if it's not selected in the inner query beforehand.
-addToManyOrderSelects :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addToManyOrderSelects :: ReadPlanTree -> Either Error ReadPlanTree
 addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, relSpread = Just ToManySpread {}} forest)
-  | anyAggSel || anyAggRelSel = Left $ NotImplemented "Aggregates are not implemented for one-to-many or many-to-many spreads."
+  | anyAggSel || anyAggRelSel = Left $ ApiRequestError $ NotImplemented "Aggregates are not implemented for one-to-many or many-to-many spreads."
   | otherwise = Node rp { order = [], relSpread = newRelSpread } <$> addToManyOrderSelects `traverse` forest
   where
     newRelSpread = Just ToManySpread { stExtraSelect = addSprExtraSelects, stOrder = addSprOrder}
@@ -783,19 +783,19 @@ addToManyOrderSelects (Node rp@ReadPlan{order, select, relAggAlias, relSelect, r
     selOrdAlias name i = relAggAlias <> "_" <> name <> "_" <> show i -- add index to avoid collisions in aliases
 addToManyOrderSelects (Node rp forest) = Node rp <$> addToManyOrderSelects `traverse` forest
 
-validateAggFunctions :: Bool -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+validateAggFunctions :: Bool -> ReadPlanTree -> Either Error ReadPlanTree
 validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
-  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left AggregatesNotAllowed
+  | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left $ ApiRequestError AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 -- | Lookup table in the schema cache before creating read plan
-findTable :: QualifiedIdentifier -> TablesMap -> Either ApiRequestError QualifiedIdentifier
+findTable :: QualifiedIdentifier -> TablesMap -> Either Error QualifiedIdentifier
 findTable qi@QualifiedIdentifier{..} tableMap =
   case HM.lookup qi tableMap of
-    Nothing -> Left (TableNotFound qiSchema qiName (HM.elems tableMap))
+    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName (HM.elems tableMap)
     Just _ -> Right qi
 
-addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addFilters ctx ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
   where
@@ -806,16 +806,16 @@ addFilters ctx ApiRequest{..} rReq =
         ActDb (ActRoutine _ _)       -> qsFilters
         _                            -> qsFiltersNotRoot
 
-    addFilterToNode :: (EmbedPath, Filter) -> Either ApiRequestError ReadPlanTree ->  Either ApiRequestError ReadPlanTree
+    addFilterToNode :: (EmbedPath, Filter) -> Either Error ReadPlanTree ->  Either Error ReadPlanTree
     addFilterToNode =
       updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
 
-addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addOrders ctx ApiRequest{..} rReq = foldr addOrderToNode (Right rReq) qsOrder
   where
     QueryParams.QueryParams{..} = iQueryParams
 
-    addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addOrderToNode :: (EmbedPath, [OrderTerm]) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addOrderToNode = updateNode (\o (Node q f) -> Node q{order=resolveOrder ctx <$> o} f)
 
 resolveOrder :: ResolverContext -> OrderTerm -> CoercibleOrderTerm
@@ -825,7 +825,7 @@ resolveOrder ctx (OrderTerm fld dir nulls) = CoercibleOrderTerm (resolveTypeOrUn
 -- Validates that the related resource on the order is an embedded resource,
 -- e.g. if `clients` is inside the `select` in /projects?order=clients(id)&select=*,clients(*),
 -- and if it's a to-one relationship, it adds the right alias to the OrderRelationTerm so the generated query can succeed.
-addRelatedOrders :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRelatedOrders :: ReadPlanTree -> Either Error ReadPlanTree
 addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
   newOrder <- newRelOrder `traverse` order
   Node rp{order=newOrder} <$> addRelatedOrders `traverse` forest
@@ -839,9 +839,9 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
               name    = fromMaybe relName relAlias in
           if isToOne == Just True
             then Right $ cot{coRelation=relAggAlias}
-            else Left $ RelatedOrderNotToOne (qiName from) name
+            else Left $ ApiRequestError $ RelatedOrderNotToOne (qiName from) name
         Nothing ->
-          Left $ NotEmbedded coRelation
+          Left $ ApiRequestError $ NotEmbedded coRelation
 
 -- | Searches for null filters on embeds, e.g. `projects=not.is.null` on `GET /clients?select=*,projects(*)&projects=not.is.null`
 --
@@ -910,13 +910,13 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nonNullOp subForestPlan)
 -- Right [CoercibleStmnt (CoercibleFilterNullEmbed False "clients_projects_1")]
-addNullEmbedFilters :: ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addNullEmbedFilters :: ReadPlanTree -> Either Error ReadPlanTree
 addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
   let forestReadPlans = rootLabel <$> forest
   newLogic <- newNullFilters forestReadPlans `traverse` curLogic
   Node rp{ReadPlan.where_= newLogic} <$> (addNullEmbedFilters `traverse` forest)
   where
-    newNullFilters :: [ReadPlan] -> CoercibleLogicTree -> Either ApiRequestError CoercibleLogicTree
+    newNullFilters :: [ReadPlan] -> CoercibleLogicTree -> Either Error CoercibleLogicTree
     newNullFilters rPlans = \case
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
@@ -928,25 +928,25 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
       flt@(CoercibleStmnt _) ->
         Right flt
 
-addRanges :: ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addRanges :: ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addRanges ApiRequest{..} rReq =
   case iAction of
     ActDb (ActRelationMut _ _) -> Right rReq
     _                          -> foldr addRangeToNode (Right rReq) =<< ranges
   where
-    ranges :: Either ApiRequestError [(EmbedPath, NonnegRange)]
-    ranges = first QueryParamError $ QueryParams.pRequestRange `traverse` HM.toList iRange
+    ranges :: Either Error [(EmbedPath, NonnegRange)]
+    ranges = first (ApiRequestError . QueryParamError) $ QueryParams.pRequestRange `traverse` HM.toList iRange
 
-    addRangeToNode :: (EmbedPath, NonnegRange) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addRangeToNode :: (EmbedPath, NonnegRange) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addRangeToNode = updateNode (\r (Node q f) -> Node q{range_=r} f)
 
-addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either ApiRequestError ReadPlanTree
+addLogicTrees :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addLogicTrees ctx ApiRequest{..} rReq =
   foldr addLogicTreeToNode (Right rReq) qsLogic
   where
     QueryParams.QueryParams{..} = iQueryParams
 
-    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+    addLogicTreeToNode :: (EmbedPath, LogicTree) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
     addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
 
 resolveLogicTree :: ResolverContext -> LogicTree -> CoercibleLogicTree
@@ -957,12 +957,12 @@ resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld opExpr, opExpr=opExpr}
 
 -- Find a Node of the Tree and apply a function to it
-updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either ApiRequestError ReadPlanTree -> Either ApiRequestError ReadPlanTree
+updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
 updateNode f ([], a) rr = f a <$> rr
 updateNode _ _ (Left e) = Left e
 updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
   case findNode of
-    Nothing -> Left $ NotEmbedded targetNodeName
+    Nothing -> Left $ ApiRequestError $ NotEmbedded targetNodeName
     Just target ->
       (\node -> Node rootNode $ node : delete target forest) <$>
       updateNode f (remainingPath, a) (Right target)
@@ -971,7 +971,7 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq = mapLeft ApiRequestError $
+mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
   case mutation of
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
@@ -986,7 +986,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
               _                                                   -> False) qsFiltersRoot
           then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
         else
-          Left InvalidFilters
+          Left $ ApiRequestError InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
   where
     ctx = ResolverContext dbTables dbRepresentations qi "json"
@@ -1006,9 +1006,9 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     applyDefaults = preferMissing == Just ApplyDefaults
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
-resolveOrError :: ResolverContext -> Table -> FieldName -> Either ApiRequestError CoercibleField
+resolveOrError :: ResolverContext -> Table -> FieldName -> Either Error CoercibleField
 resolveOrError ctx table field = case resolveTableFieldName table field Nothing of
-    CoercibleField{cfIRType=""} -> Left $ ColumnNotFound (tableName table) field
+    CoercibleField{cfIRType=""} -> Left $ SchemaCacheErr $ ColumnNotFound (tableName table) field
     cf                          -> Right $ withJsonParse ctx cf
 
 callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan

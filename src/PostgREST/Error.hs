@@ -10,6 +10,7 @@ module PostgREST.Error
   , ApiRequestError(..)
   , QPError(..)
   , RangeError(..)
+  , SchemaCacheError(..)
   , PgError(..)
   , Error(..)
   , JwtError (..)
@@ -69,16 +70,12 @@ class ErrorBody a where
 
 data ApiRequestError
   = AggregatesNotAllowed
-  | AmbiguousRelBetween Text Text [Relationship]
-  | AmbiguousRpc [Routine]
   | MediaTypeError [ByteString]
   | InvalidBody ByteString
   | InvalidFilters
   | InvalidPreferences [ByteString]
   | InvalidRange RangeError
   | InvalidRpcMethod ByteString
-  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
-  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | NotEmbedded Text
   | NotImplemented Text
   | PutLimitNotAllowedError
@@ -87,8 +84,6 @@ data ApiRequestError
   | UnacceptableFilter Text
   | UnacceptableSchema [Text]
   | UnsupportedMethod ByteString
-  | ColumnNotFound Text Text
-  | TableNotFound Text Text [Table]
   | GucHeadersError
   | GucStatusError
   | PutMatchingPkError
@@ -116,8 +111,6 @@ data RangeError
 
 instance PgrstError ApiRequestError where
   status AggregatesNotAllowed{}      = HTTP.status400
-  status AmbiguousRelBetween{}       = HTTP.status300
-  status AmbiguousRpc{}              = HTTP.status300
   status MediaTypeError{}            = HTTP.status406
   status InvalidBody{}               = HTTP.status400
   status InvalidFilters              = HTTP.status405
@@ -125,8 +118,6 @@ instance PgrstError ApiRequestError where
   status InvalidRpcMethod{}          = HTTP.status405
   status InvalidRange{}              = HTTP.status416
 
-  status NoRelBetween{}              = HTTP.status400
-  status NoRpc{}                     = HTTP.status404
   status NotEmbedded{}               = HTTP.status400
   status NotImplemented{}            = HTTP.status400
   status PutLimitNotAllowedError     = HTTP.status400
@@ -135,8 +126,6 @@ instance PgrstError ApiRequestError where
   status UnacceptableFilter{}        = HTTP.status400
   status UnacceptableSchema{}        = HTTP.status406
   status UnsupportedMethod{}         = HTTP.status405
-  status ColumnNotFound{}            = HTTP.status400
-  status TableNotFound{}             = HTTP.status404
   status GucHeadersError             = HTTP.status500
   status GucStatusError              = HTTP.status500
   status PutMatchingPkError          = HTTP.status400
@@ -192,13 +181,6 @@ instance ErrorBody ApiRequestError where
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
 
-  code NoRelBetween{}              = "PGRST200"
-  code AmbiguousRelBetween{}       = "PGRST201"
-  code NoRpc{}                     = "PGRST202"
-  code AmbiguousRpc{}              = "PGRST203"
-  code ColumnNotFound{}            = "PGRST204"
-  code TableNotFound{}             = "PGRST205"
-
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
   message (InvalidRpcMethod method)    = "Cannot use the " <> T.decodeUtf8 method <> " method on RPC"
@@ -224,19 +206,6 @@ instance ErrorBody ApiRequestError where
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
 
-  message (NoRelBetween parent child _ _ _)  = "Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache"
-  message (AmbiguousRelBetween parent child _) = "Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'"
-  message (NoRpc schema procName argumentKeys contentType isInvPost _ _) = "Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"
-      where
-        onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
-        func = schema <> "." <> procName
-        prms = T.intercalate ", " argumentKeys
-        prmsMsg = "(" <> prms <> ")"
-        fmtPrms p = if null argumentKeys then " without parameters" else p
-  message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
-  message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
-  message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
-
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
   details (InvalidRange rangeError) = Just $
@@ -251,6 +220,58 @@ instance ErrorBody ApiRequestError where
   details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
   details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
   details (NotImplemented details') = Just $ JSON.String details'
+
+  details _ = Nothing
+
+  -- HINT: Maybe JSON.Value
+  hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
+  hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
+
+  hint _ = Nothing
+
+instance JSON.ToJSON ApiRequestError where
+  toJSON err = toJsonPgrstError
+    (code err) (message err) (details err) (hint err)
+
+data SchemaCacheError
+  = AmbiguousRelBetween Text Text [Relationship]
+  | AmbiguousRpc [Routine]
+  | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
+  | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
+  | ColumnNotFound Text Text
+  | TableNotFound Text Text [Table]
+  deriving Show
+
+instance PgrstError SchemaCacheError where
+  status AmbiguousRelBetween{} = HTTP.status300
+  status AmbiguousRpc{}        = HTTP.status300
+  status NoRelBetween{}        = HTTP.status400
+  status NoRpc{}               = HTTP.status404
+  status ColumnNotFound{}      = HTTP.status400
+  status TableNotFound{}       = HTTP.status404
+
+  headers _ = mempty
+
+instance ErrorBody SchemaCacheError where
+  code NoRelBetween{}        = "PGRST200"
+  code AmbiguousRelBetween{} = "PGRST201"
+  code NoRpc{}               = "PGRST202"
+  code AmbiguousRpc{}        = "PGRST203"
+  code ColumnNotFound{}      = "PGRST204"
+  code TableNotFound{}       = "PGRST205"
+
+  message (NoRelBetween parent child _ _ _)  = "Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache"
+  message (AmbiguousRelBetween parent child _) = "Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'"
+  message (NoRpc schema procName argumentKeys contentType isInvPost _ _) = "Could not find the function " <> func <> (if onlySingleParams then "" else fmtPrms prmsMsg) <> " in the schema cache"
+      where
+        onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
+        func = schema <> "." <> procName
+        prms = T.intercalate ", " argumentKeys
+        prmsMsg = "(" <> prms <> ")"
+        fmtPrms p = if null argumentKeys then " without parameters" else p
+  message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
+  message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
+  message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
 
   details (NoRelBetween parent child embedHint schema _) = Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."
   details (AmbiguousRelBetween _ _ rels)       = Just $ JSON.toJSONList (compressedRel <$> rels)
@@ -271,10 +292,6 @@ instance ErrorBody ApiRequestError where
 
   details _ = Nothing
 
-  -- HINT: Maybe JSON.Value
-  hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
-  hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
-
   hint (NoRelBetween parent child _ schema allRels) = JSON.String <$> noRelBetweenHint parent child schema allRels
   hint (AmbiguousRelBetween _ child rels)   = Just $ JSON.String $ "Try changing '" <> child <> "' to one of the following: " <> relHint rels <> ". Find the desired relationship in the 'details' key."
   -- The hint will be null in the case of single unnamed parameter functions
@@ -289,8 +306,7 @@ instance ErrorBody ApiRequestError where
 
   hint _ = Nothing
 
-
-instance JSON.ToJSON ApiRequestError where
+instance JSON.ToJSON SchemaCacheError where
   toJSON err = toJsonPgrstError
     (code err) (message err) (details err) (hint err)
 
@@ -608,10 +624,9 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
     _                       -> HTTP.status500
 
 
--- TODO: separate "SchemaCacheError" from ApiRequestError similar to how we
--- group them in docs
 data Error
   = ApiRequestError ApiRequestError
+  | SchemaCacheErr SchemaCacheError
   | JwtErr JwtError
   | NoSchemaCacheError
   | PgErr PgError
@@ -624,11 +639,13 @@ data JwtError
 
 instance PgrstError Error where
   status (ApiRequestError err) = status err
+  status (SchemaCacheErr err)  = status err
   status (JwtErr err)          = status err
   status NoSchemaCacheError    = HTTP.status503
   status (PgErr err)           = status err
 
   headers (ApiRequestError err)  = proxyStatusHeader (code err) : headers err
+  headers (SchemaCacheErr err)   = proxyStatusHeader (code err) : headers err
   headers (JwtErr err)           = proxyStatusHeader (code err) : headers err
   headers (PgErr err)            = proxyStatusHeader (code err) : headers err
   headers err@NoSchemaCacheError = proxyStatusHeader (code err) : mempty
@@ -639,21 +656,25 @@ instance JSON.ToJSON Error where
 
 instance ErrorBody Error where
   code (ApiRequestError err) = code err
+  code (SchemaCacheErr err)  = code err
   code (JwtErr err)          = code err
   code NoSchemaCacheError    = "PGRST002"
   code (PgErr err)           = code err
 
   message (ApiRequestError err) = message err
+  message (SchemaCacheErr err)  = message err
   message (JwtErr err)          = message err
   message NoSchemaCacheError    = "Could not query the database for the schema cache. Retrying."
   message (PgErr err)           = message err
 
   details (ApiRequestError err) = details err
+  details (SchemaCacheErr err)  = details err
   details (JwtErr err)          = details err
   details NoSchemaCacheError    = Nothing
   details (PgErr err)           = details err
 
   hint (ApiRequestError err) = hint err
+  hint (SchemaCacheErr err)  = hint err
   hint (JwtErr err)          = hint err
   hint NoSchemaCacheError    = Nothing
   hint (PgErr err)           = hint err
