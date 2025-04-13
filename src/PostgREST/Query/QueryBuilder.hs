@@ -124,8 +124,8 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
   fromJsonBodyF body iCols True False applyDefaults <>
   -- Only used for PUT
   (if null putConditions then mempty else rawSQL "WHERE " <> addConfigPgrstInserted True <> rawSQL " AND " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
-  (if null putConditions && mergeDups then rawSQL "WHERE " <> addConfigPgrstInserted True else mempty) <> 
-  maybe mempty ( \(oncDo, oncCols) ->
+  (if null putConditions && mergeDups then rawSQL "WHERE " <> addConfigPgrstInserted True else mempty) <>
+  maybe mempty (\(oncDo, oncCols) ->
     if null oncCols then
       mempty
     else
@@ -134,13 +134,13 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
         rawSQL "DO NOTHING"
       MergeDuplicates  ->
         if null iCols
-            then rawSQL "DO NOTHING"
-            else rawSQL "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const (rawSQL " = EXCLUDED.") <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else rawSQL "WHERE " <> addConfigPgrstInserted False)
+           then rawSQL "DO NOTHING"
+           else rawSQL "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const (rawSQL " = EXCLUDED.") <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else rawSQL "WHERE " <> addConfigPgrstInserted False)
     ) onConflict <> rawSQL " " <>
     returningF mainQi returnings
   where
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
-    mergeDups = case onConflict of Just (MergeDuplicates, _) -> True; _ -> False
+    mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
 mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
   | null uCols =
@@ -181,7 +181,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
       KeyParams []    -> rawSQL "FROM " <> callIt mempty
       KeyParams prms  -> case arguments of
         DirectArgs args -> rawSQL "FROM " <> callIt (fmtArgs prms args)
-        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) Nothing Nothing False) <$> prms) False True False <> rawSQL ", " <> 
+        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) Nothing Nothing False) <$> prms) False True False <> rawSQL ", " <>
                         rawSQL "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: TrackedSnippet -> TrackedSnippet
@@ -197,11 +197,11 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
     fmtArgs prms args = intercalateSnippet ", " $ fmtArg <$> prms
       where
         fmtArg RoutineParam{..} =
-          (if ppVar then rawSQL "VARIADIC " else mempty) <> 
-          pgFmtIdent ppName <> 
+          (if ppVar then rawSQL "VARIADIC " else mempty) <>
+          pgFmtIdent ppName <>
           rawSQL " := " <>
           encodeArg (HM.lookup ppName args) <>
-          rawSQL "::" <> 
+          rawSQL "::" <>
           rawSQL (encodeUtf8 ppTypeMaxLength)
         encodeArg :: Maybe RpcParamValue -> TrackedSnippet
         encodeArg (Just (Variadic v)) = fromSnippet (SQL.encoderAndParam (HE.nonNullable $ HE.foldableArray $ HE.nonNullable HE.text) v)
@@ -239,9 +239,9 @@ readPlanToCountQuery (Node ReadPlan{from = mainQi, fromAlias = tblAlias, where_ 
     fromFrag = fromF rel mainQi tblAlias
     subQueries = foldr existsSubquery [] forest
     existsSubquery :: ReadPlanTree -> [TrackedSnippet] -> [TrackedSnippet]
-    existsSubquery readReq@(Node ReadPlan{relJoinType = joinType} _) rest =
+    existsSubquery readReq@(Node ReadPlan{relJoinType=joinType} _) rest =
       if joinType == Just JTInner
-        then (rawSQL "EXISTS (" <> readPlanToCountQuery readReq <> rawSQL " )") : rest
+        then (rawSQL "EXISTS (" <> readPlanToCountQuery readReq <> rawSQL " )"):rest
         else rest
     findNullEmbedRel fld = find (\(Node ReadPlan{relAggAlias} _) -> fld == relAggAlias) forest
 

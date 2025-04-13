@@ -191,12 +191,12 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
         failNotSingular mrMedia resultSet
       MutationUpdate -> do
         failNotSingular mrMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
+        failExceedsMaxAffectedPref (preferMaxAffected,  preferHandling) resultSet
       MutationSingleUpsert -> do
         failPut resultSet
       MutationDelete -> do
         failNotSingular mrMedia resultSet
-        failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
+        failExceedsMaxAffectedPref (preferMaxAffected,  preferHandling) resultSet
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failMutation resultSet
@@ -219,7 +219,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       resultSet <- lift $ SQL.statement mempty result
       optionalRollback conf apiReq
       failNotSingular crMedia resultSet
-      failExceedsMaxAffectedPref (preferMaxAffected, preferHandling) resultSet
+      failExceedsMaxAffectedPref (preferMaxAffected,  preferHandling) resultSet
       pure $ DbCallResult plan resultSet
 
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCache =
@@ -248,7 +248,7 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ _ sCach
 -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
 failPut :: ResultSet -> DbHandler ()
 failPut RSPlan{} = pure ()
-failPut RSStandard{rsQueryTotal = queryTotal} =
+failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError Error.PutMatchingPkError
