@@ -155,7 +155,7 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         mediaTypeOrError = P.parse tokenizeMediaType "parsec: tokenizeMediaType failed" $ T.unpack mt'
         (mainType, subType, params') = case mediaTypeOrError of
           Right mt'' -> mt''
-          Left _     -> ("*", "*", []) -- TODO: Throw mediatype error, would need refactoring because currently Error module depend on MediaType module
+          Left _     -> (mt',"",[])
         params = fromList $ map (first T.toLower) params' -- normalize parameter names to lowercase, per RFC 7321
         getPlan fmt = MTVndPlan mtFor fmt $
           [PlanAnalyze  | inOpts "analyze" ] ++
