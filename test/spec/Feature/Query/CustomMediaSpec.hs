@@ -375,3 +375,10 @@ spec = describe "custom media types" $ do
           { matchStatus  = 200
           , matchHeaders = ["Content-Type" <:> "application/octet-stream"]
           }
+
+  context "media type parser fails" $ do
+    it "sends media type as is" $
+      request methodGet "/items" (acceptHdrs "undefined") ""
+      `shouldRespondWith`
+      [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: undefined"} |]
+      { matchStatus = 406 }
