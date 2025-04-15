@@ -797,18 +797,37 @@ findTable qi@QualifiedIdentifier{..} tableMap =
 
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addFilters ctx ApiRequest{..} rReq =
-  foldr addFilterToNode (Right rReq) flts
+  foldr addFilterToNode (Right rReq) (flts ++ getFiltersFromLogicTree ++ getNullFiltersFromRelFilters)
   where
     QueryParams.QueryParams{..} = iQueryParams
     flts =
       case iAction of
-        ActDb (ActRelationRead _  _) -> qsFilters
-        ActDb (ActRoutine _ _)       -> qsFilters
-        _                            -> qsFiltersNotRoot
+        ActDb (ActRelationRead _  _) -> newFilter <$> qsFilters
+        ActDb (ActRoutine _ _)       -> newFilter <$> qsFilters
+        _                            -> newFilter <$> qsFiltersNotRoot
 
     addFilterToNode :: (EmbedPath, Filter) -> Either Error ReadPlanTree ->  Either Error ReadPlanTree
     addFilterToNode =
       updateNode (\flt (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=addFilterToLogicForest (resolveFilter ctx{qi=fromTable} flt) lf}  f)
+
+    newFilter :: (EmbedPath, Filter) -> (EmbedPath, Filter)
+    newFilter (ep, rf@(RelFilter rel _ _)) = (ep ++ [rel], rf)
+    newFilter flt = flt
+
+    getNullFiltersFromRelFilters :: [(EmbedPath, Filter)]
+    getNullFiltersFromRelFilters = concatMap (uncurry relToFlt) qsFilters
+
+    relToFlt :: EmbedPath -> Filter -> [(EmbedPath, Filter)]
+    relToFlt ep (RelFilter rel _ _) = [(ep, relEmbedPathToNotIsNull rel)]
+    relToFlt _ _ = []
+
+    getFiltersFromLogicTree :: [(EmbedPath, Filter)]
+    getFiltersFromLogicTree = concatMap (uncurry logicRelToFlt) qsLogic
+
+    logicRelToFlt :: EmbedPath -> LogicTree -> [(EmbedPath, Filter)]
+    logicRelToFlt ep (Stmnt rf@(RelFilter path _ _)) = [(ep ++ [path], rf)]
+    logicRelToFlt ep (Expr _ _ lstTree) = concatMap (logicRelToFlt ep) lstTree
+    logicRelToFlt _ _ = []
 
 addOrders :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addOrders ctx ApiRequest{..} rReq = foldr addOrderToNode (Right rReq) qsOrder
@@ -950,11 +969,16 @@ addLogicTrees ctx ApiRequest{..} rReq =
     addLogicTreeToNode = updateNode (\t (Node q@ReadPlan{from=fromTable, where_=lf} f) -> Node q{ReadPlan.where_=resolveLogicTree ctx{qi=fromTable} t:lf} f)
 
 resolveLogicTree :: ResolverContext -> LogicTree -> CoercibleLogicTree
+resolveLogicTree ctx (Stmnt (RelFilter ep _ _)) = CoercibleStmnt $ resolveFilter ctx (relEmbedPathToNotIsNull ep)
 resolveLogicTree ctx (Stmnt flt) = CoercibleStmnt $ resolveFilter ctx flt
 resolveLogicTree ctx (Expr b op lts) = CoercibleExpr b op (map (resolveLogicTree ctx) lts)
 
 resolveFilter :: ResolverContext -> Filter -> CoercibleFilter
 resolveFilter ctx (Filter fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld opExpr, opExpr=opExpr}
+resolveFilter ctx (RelFilter _ fld opExpr) = CoercibleFilter{field=resolveQueryInputField ctx fld opExpr, opExpr=opExpr}
+
+relEmbedPathToNotIsNull :: FieldName -> Filter
+relEmbedPathToNotIsNull ep = Filter (ep, []) (OpExpr True (Is IsNull))
 
 -- Find a Node of the Tree and apply a function to it
 updateNode :: (a -> ReadPlanTree -> ReadPlanTree) -> (EmbedPath, a) -> Either Error ReadPlanTree -> Either Error ReadPlanTree
