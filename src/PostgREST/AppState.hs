@@ -440,11 +440,11 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
 readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
-  AppConfig{..} <- getConfig appState
+  conf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
-    if configDbConfig then do
-      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig) configDbPreparedStatements)
+    if configDbConfig conf then do
+      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig conf) (configDbPreparedStatements conf))
       case qDbSettings of
         Left e -> do
           observer $ ConfigReadErrorObs e
@@ -453,8 +453,8 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
     else
       pure mempty
   (roleSettings, roleIsolationLvl) <-
-    if configDbConfig then do
-      rSettings <- usePool appState (queryRoleSettings pgVer configDbPreparedStatements)
+    if configDbConfig conf then do
+      rSettings <- usePool appState (queryRoleSettings pgVer (configDbPreparedStatements conf))
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e
@@ -462,7 +462,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         Right x -> pure x
     else
       pure mempty
-  readAppConfig dbSettings configFilePath (Just configDbUri) roleSettings roleIsolationLvl >>= \case
+  readAppConfig dbSettings (configFilePath conf) (Just $ configDbUri conf) roleSettings roleIsolationLvl >>= \case
     Left err   ->
       if startingUp then
         panic err -- die on invalid config if the program is starting up
@@ -470,6 +470,14 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
         observer $ ConfigInvalidObs err
     Right newConf -> do
       putConfig appState newConf
+      -- After the config has reloaded, jwt-secret might have changed, so
+      -- if it has changed, it is important to invalidate the jwt cache
+      -- entries, because they were cached using the old secret
+      if configJwtSecret conf == configJwtSecret newConf then
+        pass
+      else
+        C.purge (getJwtCache appState) -- atomic O(1) operation
+
       if startingUp then
         pass
       else
