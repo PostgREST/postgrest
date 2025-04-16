@@ -1850,3 +1850,38 @@ def test_proxy_status_header(defaultenv, metapostgrest):
         assert response.headers["Proxy-Status"] == "PostgREST; error=57014"
         data = response.json()
         assert data["message"] == "canceling statement due to statement timeout"
+
+
+def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
+    "JWT cache should be emptied after jwt-secret is changed in a config reload"
+
+    headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
+
+    external_secret_file = tmp_path / "jwt-secret-config"
+    external_secret_file.write_text(SECRET)
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_SECRET": f"@{external_secret_file}",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",  # enable cache
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",  # required for NOTIFY
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 200  # jwt gets cached
+
+        # change external file
+        external_secret_file.write_text("invalid" * 5)
+
+        # reload config and external file with NOTIFY
+        # jwt-cache should get empty
+        response = postgrest.session.post("/rpc/reload_pgrst_config")
+        assert response.text == ""
+        assert response.status_code == 204
+        sleep_until_postgrest_config_reload()
+
+        # now the request should fail because the cached token is removed
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
