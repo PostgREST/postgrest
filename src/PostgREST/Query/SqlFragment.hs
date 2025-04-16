@@ -378,13 +378,13 @@ pgFmtFullSelName aggAlias fieldName = case fieldName of
 fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> TrackedSnippet
 fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
   (if includeSelect then rawSQL "SELECT " <> namedCols <> rawSQL " " else emptyTracked) <>
-  rawSQL "FROM (SELECT " <> jsonPlaceHolder <> rawSQL " AS json_data) pgrst_payload, " <> 
+  rawSQL "FROM (SELECT " <> jsonPlaceHolder <> rawSQL " AS json_data) pgrst_payload, " <>
   (if includeDefaults
     then if isJsonObject
       then rawSQL "LATERAL (SELECT " <> defsJsonb <> rawSQL " || pgrst_payload.json_data AS val) pgrst_json_defs, "
       else rawSQL "LATERAL (SELECT jsonb_agg(" <> defsJsonb <> rawSQL " || elem) AS val from jsonb_array_elements(pgrst_payload.json_data) elem) pgrst_json_defs, "
-    else emptyTracked ) <> 
-  rawSQL "LATERAL (SELECT " <> parsedCols <> rawSQL " FROM " <> 
+    else emptyTracked ) <>
+  rawSQL "LATERAL (SELECT " <> parsedCols <> rawSQL " FROM " <>
     (if null fields -- when json keys are empty, e.g. when payload is `{}` or `[{}, {}]`
       then
         if isJsonObject
@@ -415,7 +415,7 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
 
 pgFmtOrderTerm :: QualifiedIdentifier -> CoercibleOrderTerm -> TrackedSnippet
 pgFmtOrderTerm qi ot =
-  fmtOTerm ot <> rawSQL " " <> 
+  fmtOTerm ot <> rawSQL " " <>
   rawSQL ( BS.unwords [
     maybe mempty direction $ coDirection ot,
     maybe mempty nullOrder $ coNullOrder ot])
@@ -460,7 +460,7 @@ pgFmtFilter table (CoercibleFilter fld (OpExpr hasNot oper)) = rawSQL notOp <> r
    -- The above can be fixed by using `PREPARE boolplan AS SELECT * FROM projects where id IS NOT DISTINCT FROM $1;`
    -- However that would not accept the TRUE/FALSE/NULL/"NOT NULL"/UNKNOWN keywords. See: https://stackoverflow.com/questions/6133525/proper-way-to-set-preparedstatement-parameter-to-null-under-postgres.
    -- This is why `IS` operands are whitelisted at the Parsers.hs level
-   Is isVal -> rawSQL " IS " <> 
+   Is isVal -> rawSQL " IS " <>
       case isVal of
         IsNull       -> rawSQL "NULL"
         IsNotNull    -> rawSQL "NOT NULL"

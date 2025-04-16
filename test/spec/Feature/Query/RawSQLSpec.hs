@@ -3,7 +3,7 @@ module Feature.Query.RawSQLSpec where
 import Network.Wai (Application)
 
 import Network.HTTP.Types
-import Network.Wai.Test (SResponse (simpleHeaders, simpleStatus))
+import Network.Wai.Test    (SResponse (simpleHeaders, simpleStatus))
 import Test.Hspec
 import Test.Hspec.Wai
 import Test.Hspec.Wai.JSON
