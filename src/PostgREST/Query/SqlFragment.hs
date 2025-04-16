@@ -8,8 +8,6 @@ Description : Helper functions for PostgREST.QueryBuilder.
 module PostgREST.Query.SqlFragment
   ( TrackedSnippet (..)
   , emptyTracked
-  , trackParam
-  , trackParams
   , rawSQL
   , fromSnippet
   , toSnippet
@@ -117,14 +115,6 @@ emptyTracked = TrackedSnippet mempty []
 -- | Create a tracked snippet from raw SQL with no parameters
 rawSQL :: ByteString -> TrackedSnippet
 rawSQL sql = TrackedSnippet (SQL.sql sql) []
-
--- | Track a single parameter with its SQL snippet
-trackParam :: ByteString -> SQL.Snippet -> TrackedSnippet
-trackParam param snip = TrackedSnippet snip [Just param]
-
--- | Track multiple parameters with their descriptions and encoder
-trackParams :: [Maybe ByteString] -> SQL.Snippet -> TrackedSnippet
-trackParams params snip = TrackedSnippet snip params
 
 -- | Convert SQL.Snippet to TrackedSnippet (for backward compatibility)
 fromSnippet :: SQL.Snippet -> TrackedSnippet
