@@ -9,6 +9,7 @@ module PostgREST.Auth.JwtCache
   ( init
   , JwtCacheState
   , lookupJwtCache
+  , emptyCache
   ) where
 
 import qualified Data.Aeson        as JSON
@@ -77,3 +78,7 @@ getTimeSpec res maxLifetime utc = do
   case expireJSON of
     Just (JSON.Number seconds) -> TimeSpec (sciToInt seconds - utcToSecs utc) 0
     _                          -> TimeSpec (fromIntegral maxLifetime :: Int64) 0
+
+-- | Empty the cache (done when the config is reloaded)
+emptyCache :: JwtCacheState -> IO ()
+emptyCache JwtCacheState{jwtCache} = C.purge jwtCache
