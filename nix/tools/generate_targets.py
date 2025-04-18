@@ -9,8 +9,8 @@ import sys
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-JWT_DURATION = 60
-TOTAL_TARGETS = 40000  # tuned by hand to reduce result variance
+JWT_DURATION = 120
+TOTAL_TARGETS = 30000  # tuned by hand to reduce result variance
 
 
 def base64url_encode(data: bytes) -> str:
