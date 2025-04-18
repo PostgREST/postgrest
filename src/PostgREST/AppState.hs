@@ -5,6 +5,7 @@
 module PostgREST.AppState
   ( AppState
   , AuthResult(..)
+  , JwtCacheState(..)
   , destroy
   , getConfig
   , getSchemaCache
@@ -13,7 +14,7 @@ module PostgREST.AppState
   , getNextDelay
   , getNextListenerDelay
   , getTime
-  , getJwtCache
+  , getJwtCacheState
   , getSocketREST
   , getSocketAdmin
   , init
@@ -83,6 +84,12 @@ data AuthResult = AuthResult
   , authRole   :: BS.ByteString
   }
 
+-- | JWT Cache and IO action that triggers purging old entries from the cache
+data JwtCacheState = JwtCacheState
+  { jwtCache   :: C.Cache ByteString AuthResult
+  , purgeCache :: IO ()
+  }
+
 data AppState = AppState
   -- | Database connection pool
   { statePool              :: SQL.Pool
@@ -107,7 +114,7 @@ data AppState = AppState
   -- | Keeps track of the next delay for the listener
   , stateNextListenerDelay :: IORef Int
   -- | JWT Cache
-  , jwtCache               :: C.Cache ByteString AuthResult
+  , jwtCacheState          :: JwtCacheState
   -- | Network socket for REST API
   , stateSocketREST        :: NS.Socket
   -- | Network socket for the admin UI
@@ -139,6 +146,16 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
 initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
+  cache <- C.newCache Nothing
+  -- purgeExpired has O(n^2) complexity
+  -- so we wrap it in debounce to make sure it:
+  -- 1) is executed asynchronously
+  -- 2) only a single purge operation is running at a time
+  debounce <- mkDebounce defaultDebounceSettings
+    -- debounceFreq is set to default 1 second
+    { debounceAction = C.purgeExpired cache
+    , debounceEdge = leadingEdge
+    }
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -151,7 +168,7 @@ initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
     <*> myThreadId
     <*> newIORef 0
     <*> newIORef 1
-    <*> C.newCache Nothing
+    <*> pure (JwtCacheState cache debounce)
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
@@ -314,8 +331,8 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCache :: AppState -> C.Cache ByteString AuthResult
-getJwtCache = jwtCache
+getJwtCacheState :: AppState -> JwtCacheState
+getJwtCacheState = jwtCacheState
 
 getSocketREST :: AppState -> NS.Socket
 getSocketREST = stateSocketREST
@@ -439,7 +456,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
 -- | Reads the in-db config and reads the config file again
 -- | We don't retry reading the in-db config after it fails immediately, because it could have user errors. We just report the error and continue.
 readInDbConfig :: Bool -> AppState -> IO ()
-readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
+readInDbConfig startingUp appState@AppState{stateObserver=observer, jwtCacheState=JwtCacheState{jwtCache}} = do
   conf <- getConfig appState
   pgVer <- getPgVersion appState
   dbSettings <-
@@ -476,7 +493,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       if configJwtSecret conf == configJwtSecret newConf then
         pass
       else
-        C.purge (getJwtCache appState) -- atomic O(1) operation
+        C.purge jwtCache -- atomic O(1) operation
 
       if startingUp then
         pass
