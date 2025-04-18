@@ -126,11 +126,15 @@ jobs:
         id: get-latest-tag
         with:
           prefix: v
-      - name: Run loadtest
+      - name: Run loadtest (mixed)
         run: |
           postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Run loadtest (jwt)
+        # TODO generate a report for this https://github.com/PostgREST/postgrest/issues/4022
+        run: |
+          postgrest-loadtest-against -k jwt main ${{ steps.get-latest-tag.outputs.tag }}
 
   flake:
     strategy:

@@ -24,3 +24,4 @@ coverage
 loadtest
 .history
 .docs-build
+test/load/gen_targets.http
