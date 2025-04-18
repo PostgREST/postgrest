@@ -29,7 +29,7 @@ import qualified PostgREST.Config   as Config
 
 import Protolude
 
-main :: CLI -> IO ()
+main :: HasCallStack => CLI -> IO ()
 main CLI{cliCommand, cliPath} = withTracer "PostgREST" $ \tracer -> do
   conf@AppConfig{..} <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
