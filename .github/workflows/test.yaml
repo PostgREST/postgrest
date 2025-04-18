@@ -111,6 +111,9 @@ jobs:
 
 
   loadtest:
+    strategy:
+      matrix:
+        kind: ['mixed', 'jwt']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
@@ -126,15 +129,10 @@ jobs:
         id: get-latest-tag
         with:
           prefix: v
-      - name: Run loadtest (mixed)
+      - name: Run loadtest
         run: |
-          postgrest-loadtest-against main ${{ steps.get-latest-tag.outputs.tag }}
+          postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
           postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Run loadtest (jwt)
-        # TODO generate a report for this https://github.com/PostgREST/postgrest/issues/4022
-        run: |
-          postgrest-loadtest-against -k jwt main ${{ steps.get-latest-tag.outputs.tag }}
 
   flake:
     strategy:
