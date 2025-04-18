@@ -29,6 +29,7 @@ let
                                      -max-workers 1 \
                                      -workers 1 \
                                      -rate 0 \
+                                     -duration 60s \
                                      "''${_arg_leftovers[@]}"
       '';
 
@@ -40,8 +41,6 @@ let
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
-          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with unique jwts)], [mixed])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
         workingDir = "/";
@@ -62,29 +61,13 @@ let
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
 
-        case "$_arg_kind" in
-          jwt)
-            ${genTargets} "$_arg_testdir"/gen_targets.http
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} \
-            sh -c "cd \"$_arg_testdir\" && ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
-            ;;
-
-          *)
-
-            # shellcheck disable=SC2145
-            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withSlowPg} \
-            ${withTools.withPgrst} \
-            ${withTools.withSlowPgrst} \
-            sh -c "cd \"$_arg_testdir\" && ${runner} -duration 60s -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
-            ;;
-
-        esac
+        # shellcheck disable=SC2145
+        ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+        ${withTools.withSlowPg} \
+        ${withTools.withPgrst} \
+        ${withTools.withSlowPgrst} \
+        sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+        ${vegeta}/bin/vegeta report -type=text "$_arg_output"
       '';
 
   loadtestAgainst =
@@ -102,7 +85,6 @@ let
           '';
         args = [
           "ARG_POSITIONAL_INF([target], [Commit-ish reference to compare with], 1)"
-          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
         ];
         positionalCompletion =
           ''
@@ -117,7 +99,7 @@ let
 
         cat << EOF
 
-        Running "$_arg_kind" loadtest on "$tgt"...
+        Running loadtest on "$tgt"...
 
         EOF
 
@@ -126,7 +108,7 @@ let
         # Save the results in the current working tree, too,
         # otherwise they'd be lost in the temporary working tree
         # created by withTools.withGit.
-        ${withTools.withGit} "$tgt" ${loadtest} -k "$_arg_kind" --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
+        ${withTools.withGit} "$tgt" ${loadtest} --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
@@ -138,11 +120,11 @@ let
 
         cat << EOF
 
-        Running $_arg_kind" loadtest on HEAD...
+        Running loadtest on HEAD...
 
         EOF
 
-        ${loadtest} -k "$_arg_kind" --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
+        ${loadtest} --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
@@ -198,7 +180,6 @@ let
           | ${toMarkdown}
       '';
 
-  genTargets = writers.writePython3 "postgrest-gen-loadtest-targets" { } (builtins.readFile ./generate_targets.py);
 in
 buildToolbox {
   name = "postgrest-loadtest";
