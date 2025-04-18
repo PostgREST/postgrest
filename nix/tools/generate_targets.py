@@ -10,7 +10,7 @@ import sys
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
 JWT_DURATION = 120
-TOTAL_TARGETS = 30000  # tuned by hand to reduce result variance
+TOTAL_TARGETS = 200_000  # tuned by hand to reduce result variance
 
 
 def base64url_encode(data: bytes) -> str:
@@ -56,7 +56,7 @@ def main():
     lines = []
     for _ in range(TOTAL_TARGETS):
         token = generate_jwt()
-        lines.append(f"GET {URL}/authors_only")
+        lines.append(f"OPTIONS {URL}/authors_only")
         lines.append(f"Authorization: Bearer {token}")
         lines.append("")  # blank line to separate requests
 
