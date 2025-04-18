@@ -66,7 +66,7 @@ import           System.TimeIt                     (timeItT)
 
 type Handler = ExceptT Error
 
-run :: AppState -> IO ()
+run :: HasCallStack => AppState -> IO ()
 run appState = do
   let observer = AppState.getObserver appState
   conf@AppConfig{..} <- AppState.getConfig appState
@@ -100,7 +100,7 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
+postgrest :: HasCallStack => LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLevel appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState .
@@ -132,7 +132,8 @@ postgrest logLevel appState connWorker =
           respond resp
 
 postgrestResponse
-  :: AppState.AppState
+  :: HasCallStack
+  => AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
   -> PgVersion
@@ -176,10 +177,10 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
 
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse :: HasCallStack => ServerTiming -> Response.PgrstResponse -> Wai.Response
     toWaiResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled])) bod
 
-    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
+    withTiming :: HasCallStack => Handler IO a -> Handler IO (Maybe Double, a)
     withTiming f = if configServerTimingEnabled
         then do
           (t, r) <- timeItT f
@@ -188,7 +189,9 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
           r <- f
           pure (Nothing, r)
 
-    withOTel label = inSpanM (getOTelTracer appState) label defaultSpanArguments
+    withOTel :: HasCallStack => Text -> Handler IO a -> Handler IO a
+    withOTel label = do
+      inSpanM (getOTelTracer appState) label defaultSpanArguments
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do
