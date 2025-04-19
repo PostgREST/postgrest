@@ -58,6 +58,7 @@ import qualified Feature.Query.QueryLimitedSpec
 import qualified Feature.Query.QuerySpec
 import qualified Feature.Query.RangeSpec
 import qualified Feature.Query.RawOutputTypesSpec
+import qualified Feature.Query.RawSQLSpec
 import qualified Feature.Query.RelatedQueriesSpec
 import qualified Feature.Query.RpcSpec
 import qualified Feature.Query.ServerTimingSpec
@@ -158,6 +159,7 @@ main = do
         , ("Feature.Query.PreferencesSpec"               , Feature.Query.PreferencesSpec.spec)
         , ("Feature.Query.QuerySpec"                     , Feature.Query.QuerySpec.spec)
         , ("Feature.Query.RawOutputTypesSpec"            , Feature.Query.RawOutputTypesSpec.spec)
+        , ("Feature.Query.RawSQLSpec"                    , Feature.Query.RawSQLSpec.spec)
         , ("Feature.Query.RelatedQueriesSpec"            , Feature.Query.RelatedQueriesSpec.spec)
         , ("Feature.Query.RpcSpec"                       , Feature.Query.RpcSpec.spec)
         , ("Feature.Query.SingularSpec"                  , Feature.Query.SingularSpec.spec)

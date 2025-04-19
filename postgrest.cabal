@@ -241,6 +241,7 @@ test-suite spec
                       Feature.Query.QuerySpec
                       Feature.Query.RangeSpec
                       Feature.Query.RawOutputTypesSpec
+                      Feature.Query.RawSQLSpec
                       Feature.Query.RelatedQueriesSpec
                       Feature.Query.RpcSpec
                       Feature.Query.ServerTimingSpec

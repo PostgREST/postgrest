@@ -43,15 +43,15 @@ import PostgREST.Query.SqlFragment
 
 import Protolude
 
-readPlanToQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicForest,order, range_=readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =
-  "SELECT " <>
+readPlanToQuery :: ReadPlanTree -> TrackedSnippet
+readPlanToQuery node@(Node ReadPlan{select, from = mainQi, fromAlias, where_ = logicForest, order, range_ = readRange, relToParent, relJoinConds, relSelect, relSpread} forest) =
+  rawSQL "SELECT " <>
   intercalateSnippet ", " (selects ++ sprExtraSelects ++ joinsSelects) <>
   fromFrag <>
   intercalateSnippet " " joins <>
   (if null logicForest && null relJoinConds
     then mempty
-    else " WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
+    else rawSQL " WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> rawSQL " " <>
   groupF qi select relSelect <>
   orderF qi order <>
   limitOffsetF readRange
@@ -67,11 +67,11 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
       Just (ToManySpread sels _) -> (\s -> pgFmtSelectItem (maybe qi (QualifiedIdentifier "") $ fst s) $ snd s) <$> sels
       _ -> mempty
 
-getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
+getJoinSelects :: ReadPlanTree -> [TrackedSnippet]
 getJoinSelects (Node ReadPlan{relSelect} _) =
   mapMaybe relSelectToSnippet relSelect
   where
-    relSelectToSnippet :: RelSelectField -> Maybe SQL.Snippet
+    relSelectToSnippet :: RelSelectField -> Maybe TrackedSnippet
     relSelectToSnippet fld =
       let aggAlias = pgFmtIdent $ rsAggAlias fld
       in
@@ -79,13 +79,13 @@ getJoinSelects (Node ReadPlan{relSelect} _) =
           JsonEmbed{rsEmptyEmbed = True} ->
             Nothing
           JsonEmbed{rsSelName, rsEmbedMode = JsonObject} ->
-            Just $ "row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> pgFmtIdent rsSelName
+            Just $ rawSQL "row_to_json(" <> aggAlias <> rawSQL ".*)::jsonb AS " <> pgFmtIdent rsSelName
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
-            Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
+            Just $ rawSQL "COALESCE( " <> aggAlias <> rawSQL "." <> aggAlias <> rawSQL ", '[]') AS " <> pgFmtIdent rsSelName
           Spread{rsSpreadSel, rsAggAlias} ->
             Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
 
-getJoins :: ReadPlanTree -> [SQL.Snippet]
+getJoins :: ReadPlanTree -> [TrackedSnippet]
 getJoins (Node _ []) = []
 getJoins (Node ReadPlan{relSelect} forest) =
   map (\fld ->
@@ -94,49 +94,49 @@ getJoins (Node ReadPlan{relSelect} forest) =
          in getJoin fld matchingNode
       ) relSelect
 
-getJoin :: RelSelectField -> ReadPlanTree -> SQL.Snippet
+getJoin :: RelSelectField -> ReadPlanTree -> TrackedSnippet
 getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
   let
     correlatedSubquery sub al cond =
-      " " <> (if relJoinType == Just JTInner then "INNER" else "LEFT") <> " JOIN LATERAL ( " <> sub <> " ) AS " <> al <> " ON " <> cond
+      rawSQL " " <> (if relJoinType == Just JTInner then rawSQL "INNER" else rawSQL "LEFT") <> rawSQL " JOIN LATERAL ( " <> sub <> rawSQL " ) AS " <> al <> rawSQL " ON " <> cond
     subquery = readPlanToQuery node
     aggAlias = pgFmtIdent $ rsAggAlias fld
-    selectSubqAgg = "SELECT json_agg(" <> aggAlias <> ")::jsonb AS " <> aggAlias
-    fromSubqAgg = " FROM (" <> subquery <> " ) AS " <> aggAlias
-    joinCondition = if relJoinType == Just JTInner then aggAlias <> " IS NOT NULL" else "TRUE"
+    selectSubqAgg = rawSQL "SELECT json_agg(" <> aggAlias <> rawSQL ")::jsonb AS " <> aggAlias
+    fromSubqAgg = rawSQL " FROM (" <> subquery <> rawSQL " ) AS " <> aggAlias
+    joinCondition = if relJoinType == Just JTInner then aggAlias <> rawSQL " IS NOT NULL" else rawSQL "TRUE"
   in
     case fld of
       JsonEmbed{rsEmbedMode = JsonObject} ->
-        correlatedSubquery subquery aggAlias "TRUE"
+        correlatedSubquery subquery aggAlias (rawSQL "TRUE")
       Spread{rsSpreadSel, rsAggAlias} ->
         case relSpread of
           Just (ToManySpread _ sprOrder) ->
-            let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
+            let selSpread = selectSubqAgg <> (if null rsSpreadSel then mempty else rawSQL ", ") <> intercalateSnippet ", " (pgFmtSpreadJoinSelectItem rsAggAlias sprOrder <$> rsSpreadSel)
             in correlatedSubquery (selSpread <> fromSubqAgg) aggAlias joinCondition
           _ ->
-            correlatedSubquery subquery aggAlias "TRUE"
+            correlatedSubquery subquery aggAlias (rawSQL "TRUE")
       JsonEmbed{rsEmbedMode = JsonArray} ->
         correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
-mutatePlanToQuery :: MutatePlan -> SQL.Snippet
+mutatePlanToQuery :: MutatePlan -> TrackedSnippet
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
-  "INSERT INTO " <> fromQi mainQi <> (if null iCols then " " else "(" <> cols <> ") ") <>
+  rawSQL "INSERT INTO " <> fromQi mainQi <> (if null iCols then rawSQL " " else rawSQL "(" <> cols <> rawSQL ") ") <>
   fromJsonBodyF body iCols True False applyDefaults <>
   -- Only used for PUT
-  (if null putConditions then mempty else "WHERE " <> addConfigPgrstInserted True <> " AND " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
-  (if null putConditions && mergeDups then "WHERE " <> addConfigPgrstInserted True else mempty) <>
+  (if null putConditions then mempty else rawSQL "WHERE " <> addConfigPgrstInserted True <> rawSQL " AND " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
+  (if null putConditions && mergeDups then rawSQL "WHERE " <> addConfigPgrstInserted True else mempty) <>
   maybe mempty (\(oncDo, oncCols) ->
     if null oncCols then
       mempty
     else
-      " ON CONFLICT(" <> intercalateSnippet ", " (pgFmtIdent <$> oncCols) <> ") " <> case oncDo of
+      rawSQL " ON CONFLICT(" <> intercalateSnippet ", " (pgFmtIdent <$> oncCols) <> rawSQL ") " <> case oncDo of
       IgnoreDuplicates ->
-        "DO NOTHING"
+        rawSQL "DO NOTHING"
       MergeDuplicates  ->
         if null iCols
-           then "DO NOTHING"
-           else "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const " = EXCLUDED." <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else "WHERE " <> addConfigPgrstInserted False)
-    ) onConflict <> " " <>
+           then rawSQL "DO NOTHING"
+           else rawSQL "DO UPDATE SET " <> intercalateSnippet ", " ((pgFmtIdent . cfName) <> const (rawSQL " = EXCLUDED.") <> (pgFmtIdent . cfName) <$> iCols) <> (if null putConditions && not mergeDups then mempty else rawSQL "WHERE " <> addConfigPgrstInserted False)
+    ) onConflict <> rawSQL " " <>
     returningF mainQi returnings
   where
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
@@ -147,72 +147,72 @@ mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
     -- the select has to be based on "returnings" to make computed overloaded functions not throw
-    "SELECT " <> emptyBodyReturnedColumns <> " FROM " <> fromQi mainQi <> " WHERE false"
+    rawSQL "SELECT " <> emptyBodyReturnedColumns <> rawSQL " FROM " <> fromQi mainQi <> rawSQL " WHERE false"
 
   | otherwise =
-    "UPDATE " <> mainTbl <> " SET " <> cols <> " " <>
+    rawSQL "UPDATE " <> mainTbl <> rawSQL " SET " <> cols <> rawSQL " " <>
     fromJsonBodyF body uCols False False applyDefaults <>
-    whereLogic <> " " <>
+    whereLogic <> rawSQL " " <>
     returningF mainQi returnings
 
   where
-    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    whereLogic = if null logicForest then mempty else rawSQL " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
     mainTbl = fromQi mainQi
-    emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
-    cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
+    emptyBodyReturnedColumns = if null returnings then rawSQL "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
+    cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const (rawSQL " = ") <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
 
 mutatePlanToQuery (Delete mainQi logicForest returnings) =
-  "DELETE FROM " <> fromQi mainQi <> " " <>
-  whereLogic <> " " <>
+  rawSQL "DELETE FROM " <> fromQi mainQi <> rawSQL " " <>
+  whereLogic <> rawSQL " " <>
   returningF mainQi returnings
   where
-    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+    whereLogic = if null logicForest then mempty else rawSQL " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
 
-callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
+callPlanToQuery :: CallPlan -> PgVersion -> TrackedSnippet
 callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
-  "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.pgrst_scalar" else returnedColumns) <> " " <>
+  rawSQL "SELECT " <> (if returnsScalar || returnsSetOfScalar then rawSQL "pgrst_call.pgrst_scalar" else returnedColumns) <> rawSQL " " <>
   fromCall
   where
     jsonArgs = case arguments of
       DirectArgs args -> Just $ JSON.encode args
       JsonArgs json   -> json
     fromCall = case params of
-      OnePosParam prm -> "FROM " <> callIt (singleParameter jsonArgs $ encodeUtf8 $ ppType prm)
-      KeyParams []    -> "FROM " <> callIt mempty
+      OnePosParam prm -> rawSQL "FROM " <> callIt (singleParameter jsonArgs $ encodeUtf8 $ ppType prm)
+      KeyParams []    -> rawSQL "FROM " <> callIt mempty
       KeyParams prms  -> case arguments of
-        DirectArgs args -> "FROM " <> callIt (fmtArgs prms args)
-        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) Nothing Nothing False) <$> prms) False True False <> ", " <>
-                         "LATERAL " <> callIt (fmtParams prms)
+        DirectArgs args -> rawSQL "FROM " <> callIt (fmtArgs prms args)
+        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) Nothing Nothing False) <$> prms) False True False <> rawSQL ", " <>
+                        rawSQL "LATERAL " <> callIt (fmtParams prms)
 
-    callIt :: SQL.Snippet -> SQL.Snippet
-    callIt argument | pgVer < pgVersion130 && returnsCompositeAlias = "(SELECT (" <> fromQi qi <> "(" <> argument <> ")).*) pgrst_call"
-                    | returnsScalar || returnsSetOfScalar           = "(SELECT " <> fromQi qi <> "(" <> argument <> ") pgrst_scalar) pgrst_call"
-                    | otherwise                                     = fromQi qi <> "(" <> argument <> ") pgrst_call"
+    callIt :: TrackedSnippet -> TrackedSnippet
+    callIt argument | pgVer < pgVersion130 && returnsCompositeAlias = rawSQL "(SELECT (" <> fromQi qi <> rawSQL "(" <> argument <> rawSQL ")).*) pgrst_call"
+                    | returnsScalar || returnsSetOfScalar           = rawSQL "(SELECT " <> fromQi qi <> rawSQL "(" <> argument <> rawSQL ") pgrst_scalar) pgrst_call"
+                    | otherwise                                     = fromQi qi <> rawSQL "(" <> argument <> rawSQL ") pgrst_call"
 
-    fmtParams :: [RoutineParam] -> SQL.Snippet
+    fmtParams :: [RoutineParam] -> TrackedSnippet
     fmtParams prms = intercalateSnippet ", "
-      ((\a -> (if ppVar a then "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
+      ((\a -> (if ppVar a then rawSQL "VARIADIC " else mempty) <> pgFmtIdent (ppName a) <> rawSQL " := pgrst_body." <> pgFmtIdent (ppName a)) <$> prms)
 
-    fmtArgs :: [RoutineParam] -> HM.HashMap Text RpcParamValue -> SQL.Snippet
+    fmtArgs :: [RoutineParam] -> HM.HashMap Text RpcParamValue -> TrackedSnippet
     fmtArgs prms args = intercalateSnippet ", " $ fmtArg <$> prms
       where
         fmtArg RoutineParam{..} =
-          (if ppVar then "VARIADIC " else mempty) <>
+          (if ppVar then rawSQL "VARIADIC " else mempty) <>
           pgFmtIdent ppName <>
-          " := " <>
+          rawSQL " := " <>
           encodeArg (HM.lookup ppName args) <>
-          "::" <>
-          SQL.sql (encodeUtf8 ppTypeMaxLength)
-        encodeArg :: Maybe RpcParamValue -> SQL.Snippet
-        encodeArg (Just (Variadic v)) = SQL.encoderAndParam (HE.nonNullable $ HE.foldableArray $ HE.nonNullable HE.text) v
-        encodeArg (Just (Fixed v)) = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 v
+          rawSQL "::" <>
+          rawSQL (encodeUtf8 ppTypeMaxLength)
+        encodeArg :: Maybe RpcParamValue -> TrackedSnippet
+        encodeArg (Just (Variadic v)) = fromSnippet (SQL.encoderAndParam (HE.nonNullable $ HE.foldableArray $ HE.nonNullable HE.text) v)
+        encodeArg (Just (Fixed v)) = fromSnippet (SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 v)
         -- Currently not supported: Calling functions without some of their arguments without DEFAULT.
         -- We could fallback to providing this NULL value in those cases.
-        encodeArg Nothing = "NULL"
+        encodeArg Nothing = rawSQL "NULL"
 
-    returnedColumns :: SQL.Snippet
+    returnedColumns :: TrackedSnippet
     returnedColumns
-      | null returnings = "*"
+      | null returnings = rawSQL "*"
       | otherwise       = intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnings)
 
 -- | SQL query meant for COUNTing the root node of the Tree.
@@ -223,12 +223,12 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
 -- For this case, we use a WHERE EXISTS instead of an INNER JOIN on the count query.
 -- See https://github.com/PostgREST/postgrest/issues/2009#issuecomment-977473031
 -- Only for the nodes that have an INNER JOIN linked to the root level.
-readPlanToCountQuery :: ReadPlanTree -> SQL.Snippet
-readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logicForest, relToParent=rel, relJoinConds} forest) =
-  "SELECT 1 " <> fromFrag <>
+readPlanToCountQuery :: ReadPlanTree -> TrackedSnippet
+readPlanToCountQuery (Node ReadPlan{from = mainQi, fromAlias = tblAlias, where_ = logicForest, relToParent = rel, relJoinConds} forest) =
+  rawSQL "SELECT 1 " <> fromFrag <>
   (if null logicForest && null relJoinConds && null subQueries
     then mempty
-    else " WHERE " ) <>
+    else rawSQL " WHERE " ) <>
   intercalateSnippet " AND " (
     map (pgFmtLogicTreeCount qi) logicForest ++
     map pgFmtJoinCondition relJoinConds ++
@@ -238,26 +238,26 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
     qi = getQualifiedIdentifier rel mainQi tblAlias
     fromFrag = fromF rel mainQi tblAlias
     subQueries = foldr existsSubquery [] forest
-    existsSubquery :: ReadPlanTree -> [SQL.Snippet] -> [SQL.Snippet]
+    existsSubquery :: ReadPlanTree -> [TrackedSnippet] -> [TrackedSnippet]
     existsSubquery readReq@(Node ReadPlan{relJoinType=joinType} _) rest =
       if joinType == Just JTInner
-        then ("EXISTS (" <> readPlanToCountQuery readReq <> " )"):rest
+        then (rawSQL "EXISTS (" <> readPlanToCountQuery readReq <> rawSQL " )"):rest
         else rest
     findNullEmbedRel fld = find (\(Node ReadPlan{relAggAlias} _) -> fld == relAggAlias) forest
 
     -- https://github.com/PostgREST/postgrest/pull/2930#discussion_r1325293698
-    pgFmtLogicTreeCount :: QualifiedIdentifier -> CoercibleLogicTree -> SQL.Snippet
-    pgFmtLogicTreeCount qiCount (CoercibleExpr hasNot op frst) = SQL.sql notOp <> " (" <> intercalateSnippet (opSql op) (pgFmtLogicTreeCount qiCount <$> frst) <> ")"
+    pgFmtLogicTreeCount :: QualifiedIdentifier -> CoercibleLogicTree -> TrackedSnippet
+    pgFmtLogicTreeCount qiCount (CoercibleExpr hasNot op frst) = rawSQL notOp <> rawSQL " (" <> intercalateSnippet (opSql op) (pgFmtLogicTreeCount qiCount <$> frst) <> rawSQL ")"
       where
-        notOp =  if hasNot then "NOT" else mempty
+        notOp = if hasNot then "NOT" else mempty
         opSql And = " AND "
         opSql Or  = " OR "
     pgFmtLogicTreeCount _ (CoercibleStmnt (CoercibleFilterNullEmbed hasNot fld)) =
-      maybe mempty (\x -> (if not hasNot then "NOT " else mempty) <> "EXISTS (" <> readPlanToCountQuery x <> ")") (findNullEmbedRel fld)
+      maybe mempty (\x -> (if not hasNot then rawSQL "NOT " else mempty) <> rawSQL "EXISTS (" <> readPlanToCountQuery x <> rawSQL ")") (findNullEmbedRel fld)
     pgFmtLogicTreeCount qiCount (CoercibleStmnt flt) = pgFmtFilter qiCount flt
 
-limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
-limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
+limitedQuery :: TrackedSnippet -> Maybe Integer -> TrackedSnippet
+limitedQuery query maxRows = query <> rawSQL (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
 
 -- TODO refactor so this function is uneeded and ComputedRelationship QualifiedIdentifier comes from the ReadPlan type
 getQualifiedIdentifier :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> QualifiedIdentifier
@@ -266,14 +266,14 @@ getQualifiedIdentifier rel mainQi tblAlias = case rel of
   _                                      -> maybe mainQi (QualifiedIdentifier mempty) tblAlias
 
 -- FROM clause plus implicit joins
-fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> SQL.Snippet
-fromF rel mainQi tblAlias = " FROM " <>
+fromF :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> TrackedSnippet
+fromF rel mainQi tblAlias = rawSQL " FROM " <>
   (case rel of
     -- Due to the use of CTEs on RPC, we need to cast the parameter to the table name in case of function overloading.
     -- See https://github.com/PostgREST/postgrest/issues/2963#issuecomment-1736557386
-    Just ComputedRelationship{relFunction,relTableAlias,relTable} -> fromQi relFunction <> "(" <> pgFmtIdent (qiName relTableAlias) <> "::" <> fromQi relTable <> ")"
+    Just ComputedRelationship{relFunction,relTableAlias,relTable} -> fromQi relFunction <> rawSQL "(" <> pgFmtIdent (qiName relTableAlias) <> rawSQL "::" <> fromQi relTable <> rawSQL ")"
     _                                                             -> fromQi mainQi) <>
-  maybe mempty (\a -> " AS " <> pgFmtIdent a) tblAlias <>
+  maybe mempty (\a -> rawSQL " AS " <> pgFmtIdent a) tblAlias <>
   (case rel of
-    Just Relationship{relCardinality=M2M Junction{junTable=jt}} -> ", " <> fromQi jt
+    Just Relationship{relCardinality=M2M Junction{junTable=jt}} -> rawSQL ", " <> fromQi jt
     _                                                           -> mempty)

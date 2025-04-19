@@ -1,12 +1,7 @@
 - - - tag: RelAnyElement
-    - tag: MTGeoJSON
-  - - tag: BuiltinOvAggGeoJson
-    - tag: MTGeoJSON
-
-- - - tag: RelAnyElement
-    - tag: MTApplicationJSON
-  - - tag: BuiltinOvAggJson
-    - tag: MTApplicationJSON
+    - tag: MTApplicationJSONSQL
+  - - tag: NoAgg
+    - tag: MTApplicationJSONSQL
 
 - - - tag: RelAnyElement
     - tag: MTTextCSV
@@ -17,3 +12,13 @@
     - tag: MTAny
   - - tag: BuiltinOvAggJson
     - tag: MTApplicationJSON
+
+- - - tag: RelAnyElement
+    - tag: MTApplicationJSON
+  - - tag: BuiltinOvAggJson
+    - tag: MTApplicationJSON
+
+- - - tag: RelAnyElement
+    - tag: MTGeoJSON
+  - - tag: BuiltinOvAggGeoJson
+    - tag: MTGeoJSON

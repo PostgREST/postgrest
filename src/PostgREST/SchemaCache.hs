@@ -1041,10 +1041,11 @@ allViewsKeyDependencies =
 
 initialMediaHandlers :: MediaHandlerMap
 initialMediaHandlers =
-  HM.insert (RelAnyElement, MediaType.MTAny            ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
-  HM.insert (RelAnyElement, MediaType.MTApplicationJSON) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
-  HM.insert (RelAnyElement, MediaType.MTTextCSV        ) (BuiltinOvAggCsv,     MediaType.MTTextCSV) $
-  HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
+  HM.insert (RelAnyElement, MediaType.MTAny               ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
+  HM.insert (RelAnyElement, MediaType.MTApplicationJSON   ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
+  HM.insert (RelAnyElement, MediaType.MTApplicationJSONSQL) (NoAgg,               MediaType.MTApplicationJSONSQL) $
+  HM.insert (RelAnyElement, MediaType.MTTextCSV           ) (BuiltinOvAggCsv,     MediaType.MTTextCSV) $
+  HM.insert (RelAnyElement, MediaType.MTGeoJSON           ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
 mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap

@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + The selected columns in the embedded resources are aggregated into arrays
    + Aggregates are not supported
  - #2967, Add `Proxy-Status` header for better error response - @taimoorzaeem
+ - #4012, Add parameters tracked Snippets to allow for raw sql response with templated parameters, and application/json+sql to return the raw sql - @fauh45
 
 ### Fixed
 
