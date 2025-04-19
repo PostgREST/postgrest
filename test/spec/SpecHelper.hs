@@ -137,7 +137,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtRoleClaimKey           = [JSPKey "role"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
-  , configJwtCacheMaxLifetime       = 0
+  , configJwtCacheMaxEntries        = 0 -- disable cache to allow parallel test runs
   , configLogLevel                  = LogCrit
   , configLogQuery                  = LogQueryDisabled
   , configOpenApiMode               = OAFollowPriv

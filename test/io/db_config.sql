@@ -14,7 +14,7 @@ ALTER ROLE db_config_authenticator SET pgrst.db_root_spec = 'root';
 ALTER ROLE db_config_authenticator SET pgrst.db_schemas = 'test, tenant1, tenant2';
 ALTER ROLE db_config_authenticator SET pgrst.db_tx_end = 'commit-allow-override';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_aud = 'https://example.org';
-ALTER ROLE db_config_authenticator SET pgrst.jwt_cache_max_lifetime = '3600';
+ALTER ROLE db_config_authenticator SET pgrst.jwt_cache_max_entries = '3000';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_role_claim_key = '."a"."role"';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret = 'REALLY=REALLY=REALLY=REALLY=VERY=SAFE';
 ALTER ROLE db_config_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
@@ -68,7 +68,7 @@ ALTER ROLE other_authenticator SET pgrst.db_schemas = 'test, other_tenant1, othe
 ALTER ROLE other_authenticator SET pgrst.jwt_aud = 'https://otherexample.org';
 ALTER ROLE other_authenticator SET pgrst.jwt_secret = 'ODERREALLYREALLYREALLYREALLYVERYSAFE';
 ALTER ROLE other_authenticator SET pgrst.jwt_secret_is_base64 = 'false';
-ALTER ROLE other_authenticator SET pgrst.jwt_cache_max_lifetime = '7200';
+ALTER ROLE other_authenticator SET pgrst.jwt_cache_max_entries = '6000';
 ALTER ROLE other_authenticator SET pgrst.openapi_mode = 'disabled';
 ALTER ROLE other_authenticator SET pgrst.openapi_security_active = 'false';
 ALTER ROLE other_authenticator SET pgrst.openapi_server_proxy_uri = 'https://otherexample.org/api';
