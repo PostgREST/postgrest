@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.10] - 2025-04-18
+
 ### Fixed
 
 - #3889, Fix: JWT cache purging on every request decreases performance - @mkleczek
