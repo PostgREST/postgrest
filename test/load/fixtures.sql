@@ -1,5 +1,7 @@
 CREATE ROLE postgrest_test_anonymous;
+CREATE ROLE postgrest_test_author;
 GRANT postgrest_test_anonymous TO :PGUSER;
+GRANT postgrest_test_author TO :PGUSER;
 CREATE SCHEMA test;
 
 -- PUT+PATCH target needs one record and column to modify
@@ -31,10 +33,19 @@ CREATE TABLE test.roles (
   character TEXT
 );
 
+
+CREATE TABLE test.authors_only ();
+
 CREATE FUNCTION test.call_me (name TEXT) RETURNS TEXT
 STABLE LANGUAGE SQL AS $$
   SELECT 'Hello ' || name || ', how are you?';
 $$;
 
-GRANT USAGE ON SCHEMA test TO postgrest_test_anonymous;
+GRANT USAGE ON SCHEMA test TO postgrest_test_anonymous, postgrest_test_author;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA test TO postgrest_test_anonymous;
+
+REVOKE ALL PRIVILEGES ON TABLE
+      authors_only
+FROM postgrest_test_anonymous;
+
+GRANT ALL ON TABLE authors_only TO postgrest_test_author;
