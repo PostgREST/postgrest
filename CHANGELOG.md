@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + The selected columns in the embedded resources are aggregated into arrays
    + Aggregates are not supported
  - #2967, Add `Proxy-Status` header for better error response - @taimoorzaeem
+ - #4003, Add config `jwt-cache-max-entries` for maximum number of cached entries - @taimoorzaeem
 
 ### Fixed
 
@@ -55,6 +56,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Diagnostic error messages instead of exposed internals
    + Return new `PGRST303` error when jwt claims decoding fails
  - #3906, Return `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
+ - #4003, Remove config `jwt-cache-max-lifetime` and add config `jwt-cache-max-entries` for JWT cache - @taimoorzaeem
 
 ## [12.2.10] - 2025-04-18
 

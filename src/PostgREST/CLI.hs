@@ -203,8 +203,8 @@ exampleConfigFile =
       |# jwt-secret = "secret_with_at_least_32_characters"
       |jwt-secret-is-base64 = false
       |
-      |## Enables and set JWT Cache max lifetime, disables caching with 0
-      |# jwt-cache-max-lifetime = 0
+      |## Maximum number of auth token that can be cached
+      |# jwt-cache-max-entries = 1000
       |
       |## Logging level, the admitted values are: crit, error, warn, info and debug.
       |log-level = "error"

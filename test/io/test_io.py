@@ -146,7 +146,7 @@ def test_jwt_errors(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_JWT_SECRET": SECRET,
     }
 
@@ -159,7 +159,7 @@ def test_jwt_errors(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_JWT_SECRET": SECRET,
     }
 
@@ -1428,7 +1428,7 @@ def test_jwt_cache_server_timing(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1464,7 +1464,7 @@ def test_jwt_cache_without_server_timing(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1485,7 +1485,7 @@ def test_jwt_cache_without_exp_claim(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1737,54 +1737,6 @@ def test_schema_cache_startup_load_with_in_db_config(defaultenv, metapostgrest):
     assert response.status_code == 204
 
 
-def test_jwt_cache_purges_expired_entries(defaultenv):
-    "test expired cache entries are purged on cache miss"
-
-    # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
-    # This test is written for code coverage of purgeExpired function
-
-    relativeSeconds = lambda sec: int(
-        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
-    )
-
-    headers = lambda sec: jwtauthheader(
-        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
-        SECRET,
-    )
-
-    env = {
-        **defaultenv,
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
-        "PGRST_JWT_SECRET": SECRET,
-        "PGRST_DB_CONFIG": "false",
-    }
-
-    with run(env=env) as postgrest:
-
-        # Generate two unique JWT tokens
-        # The 1 second sleep is needed for it generate a unique token
-        hdrs1 = headers(5)
-        postgrest.session.get("/authors_only", headers=hdrs1)
-
-        time.sleep(1)
-
-        hdrs2 = headers(5)
-        postgrest.session.get("/authors_only", headers=hdrs2)
-
-        # Wait 5 seconds for the tokens to expire
-        time.sleep(5)
-
-        hdrs3 = headers(5)
-
-        # Make another request which should cause a cache miss and so
-        # the purgeExpired function will be triggered.
-        #
-        # This should remove the 2 expired tokens but adds another to cache
-        response = postgrest.session.get("/authors_only", headers=hdrs3)
-
-        assert response.status_code == 200
-
-
 def test_pgrst_log_503_client_error_to_stderr(defaultenv):
     "PostgREST should log 503 errors to stderr"
 
@@ -1864,7 +1816,7 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
         **defaultenv,
         "PGRST_JWT_SECRET": f"@{external_secret_file}",
         "PGRST_DB_CHANNEL_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",  # enable cache
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",  # required for NOTIFY
     }
 
@@ -1884,4 +1836,47 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
 
         # now the request should fail because the cached token is removed
         response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == 401
+
+
+def test_jwt_cache_hit_but_entry_expired(defaultenv):
+    "test jwt cache hit but it is expired"
+
+    relativeSeconds = lambda sec: int(
+        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
+    )
+
+    # generate auth header, -31 seconds for clock skew
+    headers = lambda sec: jwtauthheader(
+        {"role": "postgrest_test_author", "exp": relativeSeconds(-31 + sec)},
+        SECRET,
+    )
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_CACHE_MAX_ENTRIES": "1000",  # default
+        "PGRST_JWT_SECRET": SECRET,
+        "PGRST_DB_CONFIG": "false",
+    }
+
+    with run(env=env) as postgrest:
+
+        hdrs = headers(5)  # 5 second expiry
+
+        response = postgrest.session.get("/authors_only", headers=hdrs)
+        assert response.status_code == 200
+
+        # now the jwt is cached
+
+        # wait for 5 seconds for it to expire
+
+        time.sleep(5)
+
+        # make another request with same token
+
+        # it is a cache hit, but the exp claim is expired, so we
+        # delete the token from cache
+
+        # the request should fail
+        response = postgrest.session.get("/authors_only", headers=hdrs)
         assert response.status_code == 401

@@ -160,30 +160,27 @@ middleware appState app req respond = do
 
   let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
-      jwtCacheState = getJwtCacheState appState
+
+  jwtCacheState <- getJwtCacheState appState
 
 -- If ServerTimingEnabled -> calculate JWT validation time
--- If JwtCacheMaxLifetime -> cache JWT validation result
-  req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
-    (True, 0)            -> do
-          (dur, authResult) <- timeItT parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
+  req' <- if configServerTimingEnabled conf then do
 
-    (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+      (dur, authResult) <- timeItT $ case token of
+
+          Just tkn -> lookupJwtCache jwtCacheState tkn parseJwt time
+          Nothing  -> parseJwt
+
+      return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
+
+    else do
+
+        authResult <- case token of
+
+            Just tkn -> lookupJwtCache jwtCacheState tkn parseJwt time
             Nothing  -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
-    (False, 0)           -> do
-          authResult <- parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-    (False, maxLifetime) -> do
-          authResult <- case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
-            Nothing -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+        return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
 

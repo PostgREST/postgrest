@@ -23,6 +23,7 @@ Cloudflare
 config
 cors
 CORS
+cryptographic
 cryptographically
 CSV
 durations
@@ -74,6 +75,7 @@ JSON
 JSPath
 JWK
 JWT
+JWTs
 jwt
 Keycloak
 Kubernetes
@@ -84,6 +86,7 @@ Logins
 LIBPQ
 logins
 lon
+LRU
 lt
 lte
 macOS

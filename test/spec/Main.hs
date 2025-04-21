@@ -85,7 +85,7 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
-  jwtCacheState <- JwtCache.init
+  jwtCacheState <- JwtCache.init (configJwtCacheMaxEntries testCfg)
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 

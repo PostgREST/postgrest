@@ -57,7 +57,6 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.JwtCache           (JwtCacheState)
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -105,8 +104,8 @@ data AppState = AppState
   , stateSocketAdmin       :: Maybe NS.Socket
   -- | Observation handler
   , stateObserver          :: ObservationHandler
-  -- | JWT Cache
-  , stateJwtCache          :: JwtCache.JwtCacheState
+  -- | JWT Cache, disabled when config jwt-cache-max-entries is set to 0
+  , stateJwtCache          :: IORef JwtCache.JwtCacheState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
   }
@@ -120,14 +119,14 @@ data SchemaCacheStatus
 type AppSockets = (NS.Socket, Maybe NS.Socket)
 
 init :: AppConfig -> IO AppState
-init conf@AppConfig{configLogLevel, configDbPoolSize} = do
+init conf = do
   loggerState  <- Logger.init
-  metricsState <- Metrics.init configDbPoolSize
-  let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
+  metricsState <- Metrics.init (configDbPoolSize conf)
+  let observer = liftA2 (>>) (Logger.observationLogger loggerState (configLogLevel conf)) (Metrics.observationMetrics metricsState)
 
   observer $ AppStartObs prettyVersion
 
-  jwtCacheState <- JwtCache.init
+  jwtCacheState <- JwtCache.init (configJwtCacheMaxEntries conf)
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer
@@ -150,7 +149,7 @@ initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState 
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
-    <*> pure jwtCacheState
+    <*> newIORef jwtCacheState
     <*> pure loggerState
     <*> pure metricsState
 
@@ -311,8 +310,8 @@ putConfig = atomicWriteIORef . stateConf
 getTime :: AppState -> IO UTCTime
 getTime = stateGetTime
 
-getJwtCacheState :: AppState -> JwtCacheState
-getJwtCacheState = stateJwtCache
+getJwtCacheState :: AppState -> IO JwtCache.JwtCacheState
+getJwtCacheState = readIORef . stateJwtCache
 
 getSocketREST :: AppState -> NS.Socket
 getSocketREST = stateSocketREST
@@ -473,8 +472,9 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       -- entries, because they were cached using the old secret
       if configJwtSecret conf == configJwtSecret newConf then
         pass
-      else
-        JwtCache.emptyCache (getJwtCacheState appState) -- atomic O(1) operation
+      else do
+        newJwtCacheState <- JwtCache.init (configJwtCacheMaxEntries newConf)
+        atomicWriteIORef (stateJwtCache appState) newJwtCacheState
 
       if startingUp then
         pass

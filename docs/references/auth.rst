@@ -98,9 +98,9 @@ The ``Bearer`` header value can be used with or without capitalization(``bearer`
 JWT Caching
 -----------
 
-PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid this performance overhead.
+PostgREST caches ``JWTs`` on every request to avoid performance overhead of parsing and cryptographic operations.
 
-To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results. The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
+To disable JWT caching, the config :code:`jwt-cache-max-entries` is to be set to ``0``. It is the maximum number of JWTs for which the cache stores their validation results. If the cache reaches its maximum, the `least recently used <https://redis.io/glossary/lru-cache/>`_ entry will be removed. The cache honors :code:`exp` claim. If the JWT does not have an :code:`exp` claim, it is cached until it gets removed by the LRU policy. See :ref:`jwt-cache-max-entries` for configuration details.
 
 .. note::
 
