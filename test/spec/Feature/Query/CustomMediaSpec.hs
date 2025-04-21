@@ -382,3 +382,24 @@ spec = describe "custom media types" $ do
       `shouldRespondWith`
       [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: undefined"} |]
       { matchStatus = 406 }
+
+  context "media type parser allowed characters" $ do
+    it "regression test allowing charset=utf-8" $
+      request methodPost "/rpc/overloaded_default"
+        [("Content-Type", "application/json; charset=utf-8")]
+        [json|{"must_param":1}|]
+        `shouldRespondWith`
+        [json|{"val":1}|]
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
+
+    it "handle unrecognized parameters leniently" $ do
+      request methodPost "/rpc/overloaded_default"
+        [("Content-Type", "application/json; $$ unrecognized-chars=ignored $$")]
+        [json|{"must_param":1}|]
+        `shouldRespondWith`
+        [json|{"val":1}|]
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        }
