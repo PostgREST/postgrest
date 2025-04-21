@@ -1098,7 +1098,7 @@ mediaHandlers =
       union
       select
           typ_sch.nspname as handler_schema,
-          mtype.typname   as handler_name,
+          htype.typname   as handler_name,
           pro_sch.nspname as target_schema,
           proname         as target_name,
           mtype.typname   as media_type,
@@ -1106,7 +1106,8 @@ mediaHandlers =
       from pg_proc proc
         join pg_namespace pro_sch on pro_sch.oid = proc.pronamespace
         join media_types mtype on proc.prorettype = mtype.oid
-        join pg_namespace typ_sch     on typ_sch.oid = mtype.typnamespace
+        join media_types htype on (mtype.oid = htype.oid or htype.typname = '*/*' and mtype.typname <> '*/*')
+        join pg_namespace typ_sch     on typ_sch.oid = htype.typnamespace
       where
         proc.pronamespace = ANY($$1::regnamespace[]) and NOT proretset
         and prokind = 'f'|]
