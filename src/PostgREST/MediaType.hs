@@ -183,14 +183,14 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
 -- >>> P.parse tokenizeMediaType "" "application/vnd.pgrst.plan+text; for=\"text/xml\"; options=analyze|verbose|settings|buffers|wal"
 -- Right ("application","vnd.pgrst.plan+text",[("for","text/xml"),("options","analyze|verbose|settings|buffers|wal")])
 
+-- TODO: Improve mediatype parser as per RFC 2045 https://datatracker.ietf.org/doc/html/rfc2045#section-5.1
 tokenizeMediaType :: P.Parser (Text, Text, [(Text, Text)])
 tokenizeMediaType = do
   mainType <- P.many1 (P.alphaNum <|> P.oneOf ".*")
   P.char '/'
   subType <- P.many1 (P.alphaNum <|> P.oneOf ".*+-")
   params <- P.many pSemicolonSeparatedKeyVals
-  P.optional $ P.try $ P.spaces *> P.char ';' -- ending semicolon
-  P.eof
+  P.optional $ P.try $ P.spaces *> P.char ';' -- ending semicolon, discard input after that because it has already failed or we have hit EOF
   return (T.pack mainType, T.pack subType, params)
     where
       pSemicolonSeparatedKeyVals :: P.Parser (Text, Text)
@@ -198,12 +198,12 @@ tokenizeMediaType = do
         where
           pKeyVal :: P.Parser (Text, Text)
           pKeyVal = do
-            key <- P.many1 P.alphaNum
+            key <- P.many1 (P.alphaNum <|> P.oneOf "-")
             P.spaces
             P.char '='
             P.spaces
             val <- P.try pQuoted <|> P.try pUnQuoted
             return (T.pack key, T.pack val)
               where
-                pUnQuoted = P.many1 (P.alphaNum <|> P.oneOf "|")
+                pUnQuoted = P.many1 (P.alphaNum <|> P.oneOf "|-")
                 pQuoted = P.char '\"' *> P.manyTill P.anyChar (P.char '\"')
