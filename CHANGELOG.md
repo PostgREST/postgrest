@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.11] - 2025-04-21
+
 ### Fixed
 
 - #4030, Fix regression with parameter `charset=utf-8` in mediatype - @taimoorzaeem
