@@ -112,7 +112,7 @@ data AppState = AppState
   , stateLogger            :: Logger.LoggerState
   , stateMetrics           :: Metrics.MetricsState
     -- | OpenTelemetry tracer
-  , oTelTracer             :: Tracer
+  , stateOTelTracer        :: Tracer
   }
 
 -- | Schema cache status
@@ -326,7 +326,7 @@ getSocketAdmin :: AppState -> Maybe NS.Socket
 getSocketAdmin = stateSocketAdmin
 
 getOTelTracer :: AppState -> Tracer
-getOTelTracer = oTelTracer
+getOTelTracer = stateOTelTracer
 
 getMainThreadId :: AppState -> ThreadId
 getMainThreadId = stateMainThreadId
