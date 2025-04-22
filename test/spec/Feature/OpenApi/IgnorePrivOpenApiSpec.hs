@@ -25,7 +25,8 @@ spec = describe "OpenAPI Ignore Privileges" $ do
       `shouldRespondWith`
         ""
         { matchStatus  = 200
-        , matchHeaders = [ "Content-Type" <:> "application/openapi+json; charset=utf-8" ]
+        , matchHeaders = [ "Content-Type" <:> "application/openapi+json; charset=utf-8"
+                         , matchHeaderAbsent hContentLength]
         }
 
   describe "table" $ do

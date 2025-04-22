@@ -33,6 +33,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` (if actualPgVersion >= pgVersion170 then 11.32 else 15.63)
 
@@ -140,6 +141,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 0.06
 
@@ -153,6 +155,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 8.23
 
@@ -166,6 +169,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` (if actualPgVersion >= pgVersion170 then 11.37 else 15.68)
 
@@ -180,6 +184,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 3.55
 
@@ -194,6 +199,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 5.53
 
@@ -248,6 +254,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/vnd.pgrst.object+json\"; options=verbose; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         aggCol `shouldBe` Just [aesonQQ| "COALESCE((json_agg(ROW(projects.id, projects.name, projects.client_id)) -> 0), 'null'::json)" |]
 
   describe "function plan" $ do
@@ -261,6 +268,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 68.56
 
@@ -275,6 +283,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 
@@ -288,6 +297,7 @@ spec actualPgVersion = do
 
       liftIO $ do
         resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+text; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         resBody `shouldSatisfy` (\t -> LBS.take 9 t == "Aggregate")
 

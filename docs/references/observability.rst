@@ -15,14 +15,14 @@ Observability allows measuring a system's current state based on the data it gen
 Logs
 ====
 
-PostgREST logs basic request information to ``stdout``, including the authenticated user if available, the requesting IP address and user agent, the URL requested, and HTTP response status.
+PostgREST logs basic request information to ``stdout``, including the authenticated user if available, the requesting IP address and user agent, the URL requested, the HTTP response status and the response body size in bytes if available.
 
 With :ref:`log-level` set to ``info``, we get:
 
 .. code::
 
-   127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 - "" "curl/7.64.0"
-   127.0.0.1 - anonymous [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 - "" "curl/7.64.0"
+   127.0.0.1 - user [26/Jul/2021:01:56:38 -0500] "GET /clients HTTP/1.1" 200 56 "" "curl/7.64.0"
+   127.0.0.1 - anonymous [26/Jul/2021:01:56:48 -0500] "GET /unexistent HTTP/1.1" 404 162 "" "curl/7.64.0"
 
 For diagnostic information about the server itself, PostgREST logs to ``stderr``:
 
@@ -73,7 +73,7 @@ This will be logged by PostgREST:
 .. code::
 
   17/Feb/2025:17:28:15 -0500: WITH pgrst_source AS ( SELECT "public"."protected_table".* FROM "public"."protected_table"  )  SELECT null::bigint AS total_result_set, pg_catalog.count(_postgrest_t) AS page_total, coalesce(json_agg(_postgrest_t), '[]') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM ( SELECT * FROM pgrst_source ) _postgrest_t
-  127.0.0.1 - web_anon [17/Feb/2025:17:28:15 -0500] "GET /protected_table HTTP/1.1" 401 - "" "curl/8.7.1"
+  127.0.0.1 - web_anon [17/Feb/2025:17:28:15 -0500] "GET /protected_table HTTP/1.1" 401 99 "" "curl/8.7.1"
 
 Database Logs
 -------------
@@ -269,6 +269,27 @@ This header communicates metrics of the different phases in the request-response
 .. note::
 
   We're working on lowering the duration of the ``parse`` and ``plan`` stages on https://github.com/PostgREST/postgrest/issues/2816.
+
+.. _content-length_header:
+
+Content-Length Header
+---------------------
+
+You can verify the response body size in bytes in the `Content-Length header <https://httpwg.org/specs/rfc9110.html#field.content-length>`_.
+
+.. code-block:: bash
+
+  curl -i 'localhost:3000/users'
+
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Content-Length: 104
+
+Note that this header won't be returned on ``HEAD`` requests for optimization purposes (see :ref:`head_req`).
+This is in line with `RFC 9110 <https://httpwg.org/specs/rfc9110.html#field.content-length>`_.
+
+The body size is also present in the :ref:`PostgREST logs <pgrst_logging>`.
 
 .. _explain_plan:
 

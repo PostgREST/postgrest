@@ -56,6 +56,7 @@ spec =
             ""
             { matchStatus = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "X-Custom-Header" <:> "mykey=myval" ]
             }
 
@@ -66,6 +67,7 @@ spec =
           ""
           { matchStatus = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
+                           , matchHeaderAbsent hContentLength
                            , "X-Custom-Header" <:> "mykey=myval" ]
           }
 
@@ -75,6 +77,7 @@ spec =
           ""
           { matchStatus = 204
           , matchHeaders = [ matchHeaderAbsent hContentType
+                           , matchHeaderAbsent hContentLength
                            , "X-Custom-Header" <:> "mykey=myval" ]
           }
     it "can override the Content-Type header" $ do

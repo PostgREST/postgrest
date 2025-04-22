@@ -22,7 +22,10 @@ spec = do
       context "when I don't want the count" $ do
         it "returns range Content-Range with */* for empty range" $
           get "/rpc/getitemrange?min=2&max=2"
-            `shouldRespondWith` [json| [] |] {matchHeaders = ["Content-Range" <:> "*/*"]}
+            `shouldRespondWith` [json| [] |]
+              { matchHeaders = [ "Content-Range" <:> "*/*"
+                               , "Content-Length" <:> "2" ]
+              }
 
         it "returns range Content-Range with range/*" $
           get "/rpc/getitemrange?order=id&min=0&max=15"
@@ -42,7 +45,8 @@ spec = do
                 "hint":null
               }|]
             { matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/0"]
+            , matchHeaders = [ "Content-Range" <:> "*/0"
+                             , "Content-Length" <:> "144"]
             }
 
         it "refuses a range requesting start past last item" $
@@ -65,8 +69,8 @@ spec = do
           r <- request methodGet  "/rpc/getitemrange?min=0&max=15"
                        (rangeHdrs $ ByteRangeFromTo 0 1) mempty
           liftIO $ do
-            simpleHeaders r `shouldSatisfy`
-              matchHeader "Content-Range" "0-1/*"
+            simpleHeaders r `shouldSatisfy` matchHeader "Content-Range" "0-1/*"
+            simpleHeaders r `shouldSatisfy` matchHeader "Content-Length" "22"
             simpleStatus r `shouldBe` ok200
 
         it "understands open-ended ranges" $

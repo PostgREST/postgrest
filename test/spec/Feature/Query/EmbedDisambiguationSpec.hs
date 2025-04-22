@@ -40,7 +40,8 @@ spec =
             }
           |]
           { matchStatus  = 300
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [ matchContentTypeJson
+                           , "Content-Length" <:> "828" ]
           }
 
       it "errs on an ambiguous embed that has a circular reference" $

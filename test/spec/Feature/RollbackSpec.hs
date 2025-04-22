@@ -30,7 +30,9 @@ deleteItems =
     `shouldRespondWith`
       ""
       { matchStatus  = 204
-      , matchHeaders = [matchHeaderAbsent hContentType] }
+      , matchHeaders = [ matchHeaderAbsent hContentType
+                       , matchHeaderAbsent hContentLength ]
+      }
 
 preferDefault  = [("Prefer", "return=representation")]
 preferCommit   = [("Prefer", "return=representation"), ("Prefer", "tx=commit")]
@@ -262,4 +264,3 @@ forced = describe "tx-rollback-all = true, tx-allow-override = false" $ do
     preferRollback `shouldRespondToReads` withoutPreferenceApplied
     preferRollback `shouldNotPersistMutations` withoutPreferenceApplied
     preferRollback `shouldRaiseExceptions` withoutPreferenceApplied
-

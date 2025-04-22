@@ -20,7 +20,7 @@ spec = do
           `shouldRespondWith`
           [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fake' in the schema cache"} |]
           { matchStatus = 404
-          , matchHeaders = []
+          , matchHeaders = ["Content-Length" <:> "157"]
           }
 
 
@@ -31,7 +31,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus  = 204,
-              matchHeaders = [matchHeaderAbsent hContentType]
+              matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength ]
             }
 
     context "with invalid json payload" $
@@ -40,7 +41,8 @@ spec = do
           `shouldRespondWith`
           [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
           { matchStatus  = 400,
-            matchHeaders = [matchContentTypeJson]
+            matchHeaders = [ matchContentTypeJson
+                           , "Content-Length" <:> "80"]
           }
 
     context "with no payload" $
@@ -59,6 +61,7 @@ spec = do
                      "\t \n \r { \"id\": 99 } \t \n \r "
           `shouldRespondWith` [json|[{"id":99}]|]
           { matchStatus  = 200
+          , matchHeaders = ["Content-Length" <:> "11"]
           }
 
     context "in a nonempty table" $ do
@@ -69,6 +72,7 @@ spec = do
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "0-0/*" ]
             }
 
@@ -78,7 +82,8 @@ spec = do
           `shouldRespondWith` "[]"
           {
             matchStatus  = 200,
-            matchHeaders = ["Preference-Applied" <:> "return=representation"]
+            matchHeaders = [ "Preference-Applied" <:> "return=representation"
+                           , "Content-Length" <:> "2"]
           }
 
       it "returns status code 200 when no rows updated" $
@@ -107,6 +112,7 @@ spec = do
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "0-1/*"
                              , "Preference-Applied" <:> "tx=commit" ]
             }
@@ -123,7 +129,8 @@ spec = do
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength ]
             }
 
       it "can set a column to NULL" $ do
@@ -207,6 +214,7 @@ spec = do
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=minimal"]
             }
@@ -217,6 +225,7 @@ spec = do
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "0-0/*"
                              , "Preference-Applied" <:> "return=minimal"]
             }
@@ -230,6 +239,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -240,6 +250,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -250,6 +261,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -261,6 +273,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -271,6 +284,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -281,6 +295,7 @@ spec = do
               ""
               { matchStatus  = 204
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "*/*" ]
               }
 
@@ -350,7 +365,7 @@ spec = do
           `shouldRespondWith`
           [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.articles'","message":"Could not find the table 'test.garlic' in the schema cache"} |]
           { matchStatus  = 404
-          , matchHeaders = []
+          , matchHeaders = ["Content-Length" <:> "158"]
           }
 
       context "apply defaults on missing values" $ do
@@ -613,6 +628,7 @@ spec = do
           ""
           { matchStatus = 204
           , matchHeaders = [matchHeaderAbsent hContentType
+                           , matchHeaderAbsent hContentLength
                            , "Preference-Applied" <:> "return=minimal"]
           }
 
@@ -623,7 +639,8 @@ spec = do
         `shouldRespondWith`
           ""
           { matchStatus = 204
-          , matchHeaders = [matchHeaderAbsent hContentType]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , matchHeaderAbsent hContentLength ]
           }
 
   -- Data representations for payload parsing requires Postgres 10 or above.
@@ -636,6 +653,7 @@ spec = do
           ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "0-0/*" ]
             }
 

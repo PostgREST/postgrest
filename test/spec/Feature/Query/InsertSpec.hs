@@ -30,7 +30,8 @@ spec actualPgVersion = do
           } |] `shouldRespondWith` ""
           { matchStatus  = 201
             -- should not have content type set when body is empty
-          , matchHeaders = [matchHeaderAbsent hContentType]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , "Content-Length" <:> "0"]
           }
 
       it "filters columns in result using &select" $
@@ -42,6 +43,7 @@ spec actualPgVersion = do
           }] |] `shouldRespondWith` [json|[{"integer":14,"varchar":"testing!"}]|]
           { matchStatus  = 201
           , matchHeaders = [matchContentTypeJson
+                           , "Content-Length" <:> "37"
                            , "Preference-Applied" <:> "return=representation"]
           }
 
@@ -187,7 +189,8 @@ spec actualPgVersion = do
             `shouldRespondWith`
               ""
               { matchStatus = 204
-              , matchHeaders = [ matchHeaderAbsent hContentType ]
+              , matchHeaders = [  matchHeaderAbsent hContentType
+                                , matchHeaderAbsent hContentLength ]
               }
 
           request methodPost "/auto_incrementing_pk"
@@ -211,7 +214,7 @@ spec actualPgVersion = do
             [json|{"hint":null,"details":"Failing row contains (null, foo).","code":"23502","message":"null value in column \"k\" violates not-null constraint"}|]
           )
           { matchStatus  = 400
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [ matchContentTypeJson]
           }
 
       context "into a table with no pk" $ do
@@ -286,7 +289,8 @@ spec actualPgVersion = do
         `shouldRespondWith`
         [json|{"message":"Empty or invalid json","code":"PGRST102","details":null,"hint":null}|]
         { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [ matchContentTypeJson,
+                           "Content-Length" <:> "80" ]
         }
 
     context "with no payload" $
@@ -370,7 +374,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            , matchHeaders = [  matchHeaderAbsent hContentType
+                              , matchHeaderAbsent hContentLength ]
             }
 
         request methodPost "/items2"
@@ -388,7 +393,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            , matchHeaders = [  matchHeaderAbsent hContentType
+                              , matchHeaderAbsent hContentLength ]
             }
 
         request methodPost "/items3?select=id"
@@ -623,7 +629,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength ]
             }
 
   describe "CSV insert" $ do

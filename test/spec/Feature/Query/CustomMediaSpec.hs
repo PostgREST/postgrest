@@ -20,6 +20,7 @@ spec = describe "custom media types" $ do
       liftIO $ do
         simpleBody r `shouldBe` readFixtureFile "lines.twkb"
         simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
+        simpleHeaders r `shouldContain` [("Content-Length", "30")]
 
     it "can query by id if there's an aggregate defined for the table" $ do
       r <- request methodGet "/lines?id=eq.1" (acceptHdrs "application/vnd.twkb") ""
@@ -32,7 +33,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"} |]
         { matchStatus  = 406
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [ matchContentTypeJson
+                         , "Content-Length" <:> "110" ]
         }
 
     it "can get raw xml output with Accept: text/xml if there's an aggregate defined" $ do
@@ -40,7 +42,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         "<myxml>foo</myxml>bar<foobar><baz/></foobar>"
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "text/xml; charset=utf-8"
+                         , "Content-Length" <:> "44"]
         }
 
   -- TODO SOH (start of heading) is being added to results
@@ -50,7 +53,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         "\SOH{\"type\": \"FeatureCollection\", \"hello\": \"world\"}"
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "application/vnd.geo2+json"]
+        , matchHeaders = [ "Content-Type" <:> "application/vnd.geo2+json"
+                         , "Content-Length" <:> "48" ]
         }
 
     it "will use the more specific application/vnd.geo2 handler for this table" $ do
@@ -83,14 +87,16 @@ spec = describe "custom media types" $ do
             |</html>
             |]
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/html"]
+        , matchHeaders = [ "Content-Type" <:> "text/html"
+                         , "Content-Length" <:> "117" ]
         }
 
     it "can get raw output with Accept: text/plain" $ do
       request methodGet "/rpc/welcome" (acceptHdrs "text/plain") ""
         `shouldRespondWith` "Welcome to PostgREST"
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "text/plain; charset=utf-8"
+                         , "Content-Length" <:> "20" ]
         }
 
     it "can get raw xml output with Accept: text/xml" $ do
@@ -98,7 +104,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         "<my-xml-tag/>"
         { matchStatus = 200
-        , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "text/xml; charset=utf-8"
+                         , "Content-Length" <:> "13" ]
         }
 
     it "can get raw xml output with Accept: text/xml" $ do
@@ -132,6 +139,7 @@ spec = describe "custom media types" $ do
       liftIO $ do
         simpleBody r `shouldBe` readFixtureFile "A.png"
         simpleHeaders r `shouldContain` [("Content-Type", "image/png")]
+        simpleHeaders r `shouldContain` [("Content-Length", "138")]
 
   context "Proc that returns set of scalars and Accept: text/plain" $
     it "will err because only scalars work with media type domains" $ do
@@ -141,7 +149,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
           [json|{"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"}|]
           { matchStatus = 406
-          , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+          , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                           , "Content-Length" <:> "110"]
           }
 
   context "Proc that returns rows and accepts custom media type" $ do
@@ -173,7 +182,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         [json| {"overridden": "true"} |]
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "application/json; charset=utf-8"
+                         , "Content-Length" <:> "22" ]
         }
 
     -- TODO SOH (start of heading) is being added to results
@@ -182,7 +192,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         "\SOH{\"crs\": {\"type\": \"name\", \"properties\": {\"name\": \"EPSG:4326\"}}, \"type\": \"FeatureCollection\", \"features\": [{\"type\": \"Feature\", \"geometry\": {\"type\": \"LineString\", \"coordinates\": [[1, 1], [5, 5]]}, \"properties\": {\"id\": 1, \"name\": \"line-1\"}}]}"
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "application/geo+json; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "application/geo+json; charset=utf-8"
+                         , "Content-Length" <:> "239" ]
         }
 
     it "will not override vendored media types like application/vnd.pgrst.object" $
@@ -190,7 +201,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         [json|{"id":1,"name":"Windows 7","client_id":1}|]
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "application/vnd.pgrst.object+json; charset=utf-8"
+                         , "Content-Length" <:> "41" ]
         }
 
   context "matches requested media type correctly" $ do
@@ -200,11 +212,13 @@ spec = describe "custom media types" $ do
       liftIO $ do
         simpleBody r1 `shouldBe` readFixtureFile "A.png"
         simpleHeaders r1 `shouldContain` [("Content-Type", "image/png")]
+        simpleHeaders r1 `shouldContain` [("Content-Length", "138")]
 
       r2 <- request methodGet "/rpc/ret_image" (acceptHdrs "text/html,application/xhtml+xml,application/xml;q=0.9,image/png,*/*;q=0.8") ""
       liftIO $ do
         simpleBody r2 `shouldBe` readFixtureFile "A.png"
         simpleHeaders r2 `shouldContain` [("Content-Type", "image/png")]
+        simpleHeaders r2 `shouldContain` [("Content-Length", "138")]
 
     -- https://github.com/PostgREST/postgrest/issues/2170
     it "will match json in presence of text/plain" $ do
@@ -219,7 +233,8 @@ spec = describe "custom media types" $ do
         `shouldRespondWith`
         "id\tname\tclient_id\n1\tWindows 7\t1\n2\tWindows 10\t1\n"
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "text/tab-separated-values"]
+        , matchHeaders = [ "Content-Type" <:> "text/tab-separated-values"
+                         , "Content-Length" <:> "47" ]
         }
 
     -- https://github.com/PostgREST/postgrest/issues/1371#issuecomment-519248984
@@ -229,6 +244,7 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "lines.csv"
         simpleHeaders r `shouldContain` [("Content-Type", "text/csv; charset=utf-8")]
         simpleHeaders r `shouldContain` [("Content-Disposition", "attachment; filename=\"lines.csv\"")]
+        simpleHeaders r `shouldContain` [("Content-Length", "216")]
 
   -- https://github.com/PostgREST/postgrest/issues/3160
   context "using select query parameter" $ do
@@ -239,7 +255,8 @@ spec = describe "custom media types" $ do
             |(2,"Windows 10",1)
             |]
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "pg/outfunc"]
+        , matchHeaders = [ "Content-Type" <:> "pg/outfunc"
+                         , "Content-Length" <:> "37" ]
         }
 
     it "with fewer columns selected" $ do

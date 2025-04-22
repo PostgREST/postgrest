@@ -28,14 +28,17 @@ spec = do
       `shouldRespondWith`
       [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.private_table'","message":"Could not find the table 'test.faketable' in the schema cache"} |]
       { matchStatus = 404
-      , matchHeaders = []
+      , matchHeaders = ["Content-Length" <:> "166"]
       }
 
   describe "Filtering response" $ do
     it "matches with equality" $
       get "/items?id=eq.5"
         `shouldRespondWith` [json| [{"id":5}] |]
-        { matchHeaders = ["Content-Range" <:> "0-0/*"] }
+        { matchHeaders = [
+            "Content-Range" <:> "0-0/*",
+            "Content-Length" <:> "10"
+          ] }
 
     it "matches with equality using not operator" $
       get "/items?id=not.eq.5&order=id"
@@ -511,7 +514,10 @@ spec = do
            "code":"PGRST108",
            "message":"'non_existent_projects' is not an embedded resource in this request"}|]
         { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "204",
+            matchContentTypeJson
+          ]
         }
       get "/clients?select=*,amiga_projects:projects(*)&amiga_projectsss.name=ilike.*Amiga*" `shouldRespondWith`
         [json|
@@ -590,7 +596,7 @@ spec = do
       get "/complex_items?select=id::fakecolumntype"
         `shouldRespondWith` [json| {"hint":null,"details":null,"code":"42704","message":"type \"fakecolumntype\" does not exist"} |]
         { matchStatus  = 400
-        , matchHeaders = []
+        , matchHeaders = ["Content-Length" <:> "94"]
         }
 
     it "can cast types with underscore and numbers" $
@@ -603,7 +609,11 @@ spec = do
     it "requesting parents and children" $
       get "/projects?id=eq.1&select=id, name, clients(*), tasks(id, name)" `shouldRespondWith`
         [json|[{"id":1,"name":"Windows 7","clients":{"id":1,"name":"Microsoft"},"tasks":[{"id":1,"name":"Design w7"},{"id":2,"name":"Code w7"}]}]|]
-        { matchHeaders = [matchContentTypeJson] }
+        { matchHeaders = [
+            "Content-Length" <:> "141",
+            matchContentTypeJson
+          ]
+        }
 
     it "requesting parent and renaming primary key" $
       get "/projects?select=name,client:clients(clientId:id,name)" `shouldRespondWith`
@@ -1145,7 +1155,10 @@ spec = do
       get "/items?order=id.asc.nullslasttt" `shouldRespondWith`
         [json|{"details":"unexpected 't' expecting \",\" or end of input","message":"\"failed to parse order (id.asc.nullslasttt)\" (line 1, column 17)","code":"PGRST100","hint":null}|]
         { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "169",
+            matchContentTypeJson
+          ]
         }
 
   describe "Accept headers" $ do
@@ -1155,7 +1168,10 @@ spec = do
         `shouldRespondWith`
         [json|{"message":"None of these media types are available: text/unknowntype","code":"PGRST107","details":null,"hint":null}|]
         { matchStatus  = 406
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "116",
+            matchContentTypeJson
+          ]
         }
 
     it "should respond correctly to */* in accept header" $
@@ -1194,7 +1210,10 @@ spec = do
               (acceptHdrs "text/csv; version=1") ""
         `shouldRespondWith` "k,extra\nxyyx,u\nxYYx,v"
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "text/csv; charset=utf-8"]
+        , matchHeaders = [
+            "Content-Type" <:> "text/csv; charset=utf-8",
+            "Content-Length" <:> "21"
+          ]
         }
 
   describe "Canonical location" $ do
@@ -1512,7 +1531,10 @@ spec = do
       get "/datarep_todos?select=id,label_color,banana" `shouldRespondWith`
         [json| {"code":"42703","details":null,"hint":null,"message":"column datarep_todos.banana does not exist"} |]
         { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "98",
+            matchContentTypeJson
+          ]
         }
     it "formats columns in views including computed columns" $
       get "/datarep_todos_computed?select=id,label_color,dark_color" `shouldRespondWith`
@@ -1548,8 +1570,8 @@ spec = do
       get "/datarep_todos?id=lt.4" `shouldRespondWith`
         [json| [
           {"id":1,"name":"Report","label_color":"#000000","due_at":"2018-01-02T00:00:00Z","icon_image":"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQAAAAA3bvkkAAAAABBJREFUeJxiYAEAAAAA//8DAAAABgAFBXv6vUAAAAAASUVORK5CYII=","created_at":1513213350,"budget":"12.50"},
- {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
- {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}
+          {"id":2,"name":"Essay","label_color":"#000100","due_at":"2018-01-03T00:00:00Z","icon_image":null,"created_at":1513213350,"budget":"100000000000000.13"},
+          {"id":3,"name":"Algebra","label_color":"#01E240","due_at":"2018-01-01T14:12:34.123456Z","icon_image":null,"created_at":1513213350,"budget":"0.00"}
         ] |]
         { matchHeaders = [matchContentTypeJson] }
     it "formats star and explicit mix" $
@@ -1580,7 +1602,10 @@ spec = do
         -- we prove the parser is not used because it'd replace the Z with `+00:00` and a different error message.
         [json| {"code":"22007","details":null,"hint":null,"message":"invalid input syntax for type timestamp with time zone: \"Z\""} |]
         { matchStatus  = 400
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "117",
+            matchContentTypeJson
+          ]
         }
     it "uses text parser for filter with 'IN' predicates" $
       get "/datarep_todos?select=id,due_at&label_color=in.(000100,01E240)" `shouldRespondWith`
@@ -1607,7 +1632,10 @@ spec = do
           {"code":"42883","details":null,"hint":"No operator matches the given name and argument types. You might need to add explicit type casts.","message":"operator does not exist: public.color ~~* unknown"}
         |]
         { matchStatus  = 404
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [
+            "Content-Length" <:> "200",
+            matchContentTypeJson
+          ]
         }
 
   context "searching for an empty string" $ do
@@ -1624,11 +1652,13 @@ spec = do
     it "return http status 500" $
       get "/infinite_recursion?select=*" `shouldRespondWith`
         [json|{"code":"42P17","message":"infinite recursion detected in rules for relation \"infinite_recursion\"","details":null,"hint":null}|]
-        { matchStatus = 500 }
+        { matchStatus = 500
+        , matchHeaders = ["Content-Length" <:> "128"] }
 
   context "invalid resource path" $ do
     it "return http status 404" $
       get "/first/second/third?select=*"
       `shouldRespondWith`
       [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
-      { matchStatus = 404 }
+      { matchStatus = 404
+      , matchHeaders = ["Content-Length" <:> "96"]}

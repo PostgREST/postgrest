@@ -22,7 +22,8 @@ spec = describe "authorization" $ do
         "code":"42501",
         "message":"permission denied for table authors_only"} |]
       { matchStatus = 401
-      , matchHeaders = ["WWW-Authenticate" <:> "Bearer"]
+      , matchHeaders = [ "WWW-Authenticate" <:> "Bearer"
+                       , "Content-Length" <:> "96" ]
       }
 
   it "denies access to tables that postgrest_test_author does not own" $
@@ -35,7 +36,7 @@ spec = describe "authorization" $ do
         "code":"42501",
         "message":"permission denied for table private_table"} |]
       { matchStatus = 403
-      , matchHeaders = []
+      , matchHeaders = ["Content-Length" <:> "97"]
       }
 
   it "denies execution on functions that anonymous does not own" $
@@ -92,7 +93,8 @@ spec = describe "authorization" $ do
       { matchStatus = 401
       , matchHeaders = [
           "WWW-Authenticate" <:>
-          "Bearer error=\"invalid_token\", error_description=\"Empty JWT is sent in Authorization header\""
+          "Bearer error=\"invalid_token\", error_description=\"Empty JWT is sent in Authorization header\"",
+          "Content-Length" <:> "100"
         ]
       }
 
