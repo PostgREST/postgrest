@@ -108,7 +108,7 @@ postgrest logLevel appState connWorker =
   Logger.middleware logLevel Auth.getRole $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
-    \req respond -> inSpanM (getOTelTracer appState) "respond" defaultSpanArguments $
+    \req respond -> inSpanM (getOTelTracer appState) "request" defaultSpanArguments $
       case fromJust $ Auth.getResult req of
         Left err -> respond $ Error.errorResponseFor err
         Right authResult -> do
@@ -118,7 +118,7 @@ postgrest logLevel appState connWorker =
 
           let
             eitherResponse :: IO (Either Error Wai.Response)
-            eitherResponse = inSpanM (getOTelTracer appState) "eitherResponse" defaultSpanArguments $
+            eitherResponse = inSpanM (getOTelTracer appState) "renderResponse" defaultSpanArguments $
               runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
           response <- either Error.errorResponseFor identity <$> eitherResponse
