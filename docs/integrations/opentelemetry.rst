@@ -20,14 +20,7 @@ Example configuration:
     OTEL_TRACES_SAMPLER='always_on' \
     postgrest
 
-Developer notes
-----------------
-
-At this moment trace spans have to be explicit, by wrapping the code in ``inSpanM`` calls. In order produced spans to have correct code locations, all the functions across the call stack up to the
-``inSpanM`` call must have ``HasCallStack`` constraint, because `GHC is never inferring it`_ for us.
-
 .. _hs-opentelemetry: https://github.com/iand675/hs-opentelemetry/
 
 .. _`OpenTelemetry specification`: https://opentelemetry.io/docs/languages/sdk-configuration/
 
-.. _`GHC is never inferring it`: https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/exts/callstack.html
