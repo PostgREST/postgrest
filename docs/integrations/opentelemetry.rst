@@ -15,8 +15,10 @@ Example configuration:
 
     OTEL_EXPORTER_OTLP_ENDPOINT='https://api.honeycomb.io/' \
     OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=<honeycomb_api_key>"  \
-    OTEL_SERVICE_NAME='PostgREST' OTEL_LOG_LEVEL='debug' OTEL_TRACES_SAMPLER='always_on' \
-    postgrest-run
+    OTEL_SERVICE_NAME='PostgREST'\
+    OTEL_LOG_LEVEL='debug'\
+    OTEL_TRACES_SAMPLER='always_on' \
+    postgrest
 
 Developer notes
 ----------------
