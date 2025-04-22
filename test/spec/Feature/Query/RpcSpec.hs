@@ -31,18 +31,21 @@ spec =
           post "/rpc/getitemrange?limit=1&offset=1" [json| { "min": 2, "max": 4 } |]
              `shouldRespondWith` [json| [{"id":4}] |]
               { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "1-1/*"]
+              , matchHeaders = [ "Content-Range" <:> "1-1/*"
+                               , "Content-Length" <:> "10" ]
               }
           get "/rpc/getitemrange?min=2&max=4&limit=1&offset=1"
              `shouldRespondWith` [json| [{"id":4}] |]
               { matchStatus = 200
-              , matchHeaders = ["Content-Range" <:> "1-1/*"]
+              , matchHeaders = [ "Content-Range" <:> "1-1/*"
+                               , "Content-Length" <:> "10"]
               }
           request methodHead "/rpc/getitemrange?min=2&max=4&limit=1&offset=1" mempty mempty
             `shouldRespondWith`
               ""
               { matchStatus = 200
               , matchHeaders = [ matchContentTypeJson
+                               , matchHeaderAbsent hContentLength
                                , "Content-Range" <:> "1-1/*" ]
               }
 
@@ -210,7 +213,8 @@ spec =
             "code":"PGRST202",
             "details":"Searched for the function test.sayhell without parameters, but no matches were found in the schema cache."} |]
           { matchStatus  = 404
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [ "Content-Length" <:> "291"
+                           , matchContentTypeJson ]
           }
 
       it "should fail with 404 on unknown proc args" $ do
@@ -268,7 +272,8 @@ spec =
             "code":"PGRST203",
             "details":null} |]
           { matchStatus  = 300
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [ "Content-Length" <:> "353"
+                           , matchContentTypeJson ]
           }
 
     it "works when having uppercase identifiers" $ do
@@ -465,7 +470,8 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength]
             }
 
       it "returns null for an integer with null value" $
@@ -613,7 +619,8 @@ spec =
           `shouldRespondWith`
           [json|{"message":"Cannot use the DELETE method on RPC","code":"PGRST101","details":null,"hint":null}|]
           { matchStatus  = 405
-          , matchHeaders = [matchContentTypeJson]
+          , matchHeaders = [ "Content-Length" <:> "94"
+                           , matchContentTypeJson ]
           }
       it "PATCH fails" $
         request methodPatch "/rpc/sayhello" [] ""
@@ -628,7 +635,8 @@ spec =
         `shouldRespondWith`
           ""
           { matchStatus = 204
-          , matchHeaders = [ matchHeaderAbsent hContentType ]
+          , matchHeaders = [ matchHeaderAbsent hContentType
+                           , matchHeaderAbsent hContentLength]
           }
 
       -- now the test
@@ -761,7 +769,8 @@ spec =
       get "/rpc/raise_pt402"
         `shouldRespondWith` [json|{ "hint": "Upgrade your plan", "details": "Quota exceeded", "code": "PT402", "message": "Payment Required" }|]
         { matchStatus  = 402
-        , matchHeaders = [matchContentTypeJson]
+        , matchHeaders = [ "Content-Length" <:> "99"
+                         , matchContentTypeJson ]
         }
 
     it "defaults to status 500 if RAISE code is PT not followed by a number" $
@@ -769,7 +778,8 @@ spec =
         `shouldRespondWith`
         [json|{"hint": null, "details": null, "code": "PT40A", "message": "Wrong"}|]
         { matchStatus  = 500
-        , matchHeaders = [ matchContentTypeJson ]
+        , matchHeaders = [ "Content-Length" <:> "61"
+                         , matchContentTypeJson ]
         }
 
     context "should work with an overloaded function" $ do
@@ -1024,7 +1034,8 @@ spec =
           `shouldRespondWith`
           [json|{"message":"response.headers guc must be a JSON array composed of objects with a single key and a string value","code":"PGRST111","details":null,"hint":null}|]
           { matchStatus  = 500
-          , matchHeaders = [ matchContentTypeJson ]
+          , matchHeaders = [ "Content-Length" <:> "157"
+                           , matchContentTypeJson ]
           }
         get "/rpc/bad_guc_headers_2"
           `shouldRespondWith`
@@ -1051,6 +1062,7 @@ spec =
             ""
             { matchStatus = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Set-Cookie" <:> "sessionid=38afes7a8; HttpOnly; Path=/"
                              , "Set-Cookie" <:> "id=a3fWa; Expires=Wed, 21 Oct 2015 07:28:00 GMT; Secure; HttpOnly" ]
             }
@@ -1113,7 +1125,8 @@ spec =
             `shouldRespondWith`
             [json|{"message":"response.status guc must be a valid status code","code":"PGRST112","details":null,"hint":null}|]
             { matchStatus  = 500
-            , matchHeaders = [ matchContentTypeJson ]
+            , matchHeaders = [ "Content-Length" <:> "106"
+                             , matchContentTypeJson ]
             }
 
       context "single unnamed param" $ do
@@ -1291,7 +1304,8 @@ spec =
                 "details":"line 1: StartTag: invalid element name\n<\n ^"
               }|]
               { matchStatus  = 400
-              , matchHeaders = [matchContentTypeJson]
+              , matchHeaders = [ "Content-Length" <:> "118"
+                               , matchContentTypeJson ]
               }
 
     -- https://github.com/PostgREST/postgrest/issues/1586#issuecomment-696345442
@@ -1304,7 +1318,10 @@ spec =
         post "/rpc/char_param_insert" [json| { "char_": "abcdefg", "char_arr": "{abc,abcdefg}" } |]
            `shouldRespondWith`
              [json| {"code":"22001","details":null,"hint":null,"message":"value too long for type character(5)"} |]
-           { matchStatus = 400 }
+           { matchStatus = 400
+           , matchHeaders = [ "Content-Length" <:> "92"
+                            , matchContentTypeJson ]
+           }
 
       it "modifies the param type from bit to bit varying" $ do
         get "/rpc/bit_param_select?bit_=101010&bit_arr={101,101010}" `shouldRespondWith`
@@ -1314,7 +1331,10 @@ spec =
         post "/rpc/bit_param_insert" [json| { "bit_": "101010", "bit_arr": "{101,101010}" } |]
            `shouldRespondWith`
              [json| {"code":"22026","details":null,"hint":null,"message":"bit string length 6 does not match type bit(5)"} |]
-           { matchStatus = 400 }
+           { matchStatus = 400
+           , matchHeaders = [ "Content-Length" <:> "102"
+                            , matchContentTypeJson ]
+           }
 
     context "get message and details from raise sqlstate" $ do
       it "gets message and details from raise sqlstate PGRST" $ do
@@ -1369,7 +1389,10 @@ spec =
             "message":"Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error",
             "details":"Invalid JSON value for MESSAGE: 'INVALID'",
             "hint":"MESSAGE must be a JSON object with obligatory keys: 'code', 'message' and optional keys: 'details', 'hint'."}|]
-          { matchStatus = 500 }
+          { matchStatus = 500
+          , matchHeaders = [ "Content-Length" <:> "263"
+                           , matchContentTypeJson ]
+           }
 
       it "returns error for invalid JSON in the DETAIL option of the RAISE statement" $
         get "/rpc/raise_sqlstate_invalid_json_details" `shouldRespondWith`
@@ -1395,4 +1418,7 @@ spec =
       it "should return http status 500" $
         request methodGet "/rpc/temp_file_limit" [auth] "" `shouldRespondWith`
           [json|{"code":"53400","message":"temporary file size exceeds temp_file_limit (1kB)","details":null,"hint":null}|]
-          { matchStatus = 500 }
+          { matchStatus = 500
+          , matchHeaders = [ "Content-Length" <:> "105"
+                           , matchContentTypeJson ]
+          }

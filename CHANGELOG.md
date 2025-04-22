@@ -21,6 +21,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + The selected columns in the embedded resources are aggregated into arrays
    + Aggregates are not supported
  - #2967, Add `Proxy-Status` header for better error response - @taimoorzaeem
+ - #4016, Add `Content-Length` response header - @laurenceisla
 
 ### Fixed
 

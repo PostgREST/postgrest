@@ -281,6 +281,9 @@ noBlankHeader = notElem mempty
 noProfileHeader :: [Header] -> Bool
 noProfileHeader headers = isNothing $ find ((== "Content-Profile") . fst) headers
 
+notZeroContentLength :: [Header] -> Bool
+notZeroContentLength headers = maybe False (/= "0") $ lookup hContentLength headers
+
 authHeader :: BS.ByteString -> BS.ByteString -> Header
 authHeader typ creds =
   (hAuthorization, typ <> " " <> creds)

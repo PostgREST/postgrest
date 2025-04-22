@@ -24,7 +24,8 @@ spec = describe "OpenAPI" $ do
       `shouldRespondWith`
         ""
         { matchStatus  = 200
-        , matchHeaders = ["Content-Type" <:> "application/openapi+json; charset=utf-8"]
+        , matchHeaders = [ "Content-Type" <:> "application/openapi+json; charset=utf-8"
+                         , matchHeaderAbsent hContentLength ]
         }
 
   it "should respond to openapi request on none root path with 406" $
@@ -38,11 +39,14 @@ spec = describe "OpenAPI" $ do
       `shouldRespondWith` 406
 
   it "includes postgrest.org current version api docs" $ do
-    r <- simpleBody <$> get "/"
+    r <- get "/"
 
-    let docsUrl = r ^? key "externalDocs" . key "url"
+    let headers = simpleHeaders r
+        docsUrl = simpleBody r ^? key "externalDocs" . key "url"
 
-    liftIO $ docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/references/api.html"))
+    liftIO $ do
+      headers `shouldSatisfy` notZeroContentLength
+      docsUrl `shouldBe` Just (String ("https://postgrest.org/en/" <> docsVersion <> "/references/api.html"))
 
   describe "schema" $ do
 

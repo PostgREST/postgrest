@@ -15,9 +15,9 @@ spec = describe "Allow header" $ do
   context "a table" $ do
     it "includes read/write methods for writeable table" $ do
       r <- request methodOptions "/items" [] ""
-      liftIO $
-        simpleHeaders r `shouldSatisfy`
-          matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+      liftIO $ do
+        simpleHeaders r `shouldSatisfy` matchHeader "Allow" "OPTIONS,GET,HEAD,POST,PUT,PATCH,DELETE"
+        simpleHeaders r `shouldSatisfy` matchHeader "Content-Length" "0"
 
     it "fails with 404 for an unknown table" $
       request methodOptions "/unknown" [] "" `shouldRespondWith` 404

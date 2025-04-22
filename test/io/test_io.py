@@ -964,45 +964,45 @@ def test_log_level(level, defaultenv):
             assert len(output) == 0
         elif level == "error":
             assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
                 output[0],
             )
             assert len(output) == 1
         elif level == "warn":
             assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert len(output) == 2
         elif level == "info":
             assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[2],
             )
             assert len(output) == 3
         elif level == "debug":
             assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 - "" "python-requests/.+"',
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 - "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[2],
             )
 

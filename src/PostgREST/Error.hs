@@ -20,6 +20,7 @@ module PostgREST.Error
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
+import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.CaseInsensitive      as CI
 import qualified Data.FuzzySet             as Fuzzy
 import qualified Data.HashMap.Strict       as HM
@@ -59,8 +60,11 @@ class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
 
   errorResponseFor :: a -> Response
   errorResponseFor err =
-    let baseHeader = MediaType.toContentType MTApplicationJSON in
-    responseLBS (status err) (baseHeader : headers err) $ errorPayload err
+    let
+      baseHeader = MediaType.toContentType MTApplicationJSON
+      cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
+    in
+    responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : headers err) $ errorPayload err
 
 class ErrorBody a where
   code    :: a -> Text

@@ -22,6 +22,7 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "*/*" ]
             }
 
@@ -30,6 +31,7 @@ spec =
           `shouldRespondWith` [json|[{"id":2}]|]
           { matchStatus  = 200
           , matchHeaders = ["Content-Range" <:> "*/1"
+                           , "Content-Length" <:> "10"
                            , "Preference-Applied" <:> "return=representation, count=exact"]
           }
 
@@ -41,6 +43,7 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "*/*" ]
             }
         request methodDelete "/items?id=eq.3&select=id"
@@ -50,6 +53,7 @@ spec =
             ""
             { matchStatus  = 204
             , matchHeaders = [ matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Content-Range" <:> "*/*"
                              , "Preference-Applied" <:> "return=minimal"]
             }
@@ -58,7 +62,8 @@ spec =
         request methodDelete "/complex_items?id=eq.2&select=id,name" [("Prefer", "return=representation")] ""
           `shouldRespondWith` [json|[{"id":2,"name":"Two"}]|]
           { matchStatus  = 200
-          , matchHeaders = ["Content-Range" <:> "*/*"]
+          , matchHeaders = [ "Content-Range" <:> "*/*"
+                           , "Content-Length" <:> "23" ]
           }
 
       it "can rename and cast the selected columns" $
@@ -137,6 +142,7 @@ spec =
             ""
             { matchStatus = 204
             , matchHeaders = [matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength
                              , "Preference-Applied" <:> "return=minimal" ]
             }
 
@@ -147,7 +153,8 @@ spec =
           `shouldRespondWith`
             ""
             { matchStatus = 204
-            , matchHeaders = [matchHeaderAbsent hContentType]
+            , matchHeaders = [matchHeaderAbsent hContentType
+                             , matchHeaderAbsent hContentLength]
             }
 
     context "with ordering" $
