@@ -13,14 +13,20 @@ In order produced spans to have correct code locations, all the functions across
 `inSpanM` call must have `HasCallStack` constraint, because
 [GHC is never inferring it](https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/exts/callstack.html) for us.
 -}
-module PostgREST.OpenTelemetry (withTracer) where
+module PostgREST.OpenTelemetry (withTracer, middleware) where
 
-import OpenTelemetry.Attributes (emptyAttributes)
-import OpenTelemetry.Trace      (InstrumentationLibrary (..), Tracer,
-                                 initializeGlobalTracerProvider,
-                                 makeTracer, shutdownTracerProvider,
-                                 tracerOptions)
-import PostgREST.Version        (prettyVersion)
+import Network.Wai                       (Middleware)
+import OpenTelemetry.Attributes          (emptyAttributes)
+import OpenTelemetry.Instrumentation.Wai (newOpenTelemetryWaiMiddleware')
+import OpenTelemetry.Trace               (InstrumentationLibrary (..),
+                                          Tracer,
+                                          initializeGlobalTracerProvider,
+                                          makeTracer,
+                                          shutdownTracerProvider,
+                                          tracerOptions)
+import OpenTelemetry.Trace.Core          (getTracerTracerProvider)
+import PostgREST.AppState                (AppState, getOTelTracer)
+import PostgREST.Version                 (prettyVersion)
 import Protolude
 
 {- | Wrap user's code with OpenTelemetry Tracer, initializing it with sensible defaults -}
@@ -37,3 +43,5 @@ withTracer label f = bracket
             , librarySchemaUrl = ""
             , libraryAttributes = emptyAttributes}
 
+middleware :: AppState -> Network.Wai.Middleware
+middleware s = newOpenTelemetryWaiMiddleware' $ getTracerTracerProvider $ getOTelTracer s

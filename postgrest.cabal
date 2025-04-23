@@ -120,6 +120,9 @@ library
                     , http-types                >= 0.12.2 && < 0.13
                     , hs-opentelemetry-sdk      >= 0.1.0.0 && < 0.2.0.0
                     , hs-opentelemetry-instrumentation-wai
+                    , hs-opentelemetry-api
+                    -- ^ this is due to hs-otel-sdk is not reexporting getTracerTracerProvider
+                    -- needed to initialize OpenTelemetry.middleware
                     , hs-opentelemetry-utils-exceptions
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , iproute                   >= 1.7.0 && < 1.8
