@@ -58,7 +58,7 @@ let
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
         export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
-        export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
+        export PGRST_JWT_CACHE_MAX_ENTRIES="1000" # default
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"

@@ -4,96 +4,100 @@ Description : PostgREST Jwt Authentication Result Cache.
 
 This module provides functions to deal with the JWT cache
 -}
-{-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.Auth.JwtCache
   ( init
   , JwtCacheState
   , lookupJwtCache
-  , emptyCache
   ) where
 
 import qualified Data.Aeson        as JSON
 import qualified Data.Aeson.KeyMap as KM
-import qualified Data.Cache        as C
+import qualified Data.Cache.LRU    as C
+import qualified Data.IORef        as I
 import qualified Data.Scientific   as Sci
-
-import Control.Debounce
 
 import Data.Time.Clock       (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
-import System.Clock          (TimeSpec (..))
+import GHC.Num               (integerFromInt)
 
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Error      (Error (..))
 
 import Protolude
 
--- | JWT Cache and IO action that triggers purging old entries from the cache
-data JwtCacheState = JwtCacheState
-  { jwtCache   :: C.Cache ByteString AuthResult
-  , purgeCache :: IO ()
+-- | Jwt Cache State
+newtype JwtCacheState = JwtCacheState
+  { maybeJwtCache :: Maybe (I.IORef (C.LRU ByteString AuthResult))
   }
 
 -- | Initialize JwtCacheState
-init :: IO JwtCacheState
-init = do
-  cache <- C.newCache Nothing -- no default expiration
-  -- purgeExpired has O(n^2) complexity
-  -- so we wrap it in debounce to make sure it:
-  -- 1) is executed asynchronously
-  -- 2) only a single purge operation is running at a time
-  debounce <- mkDebounce defaultDebounceSettings
-    -- debounceFreq is set to default 1 second
-    { debounceAction = C.purgeExpired cache
-    , debounceEdge = leadingEdge
-    }
-  pure $ JwtCacheState cache debounce
+init :: Int -> IO JwtCacheState
+init 0          = return $ JwtCacheState Nothing
+init maxEntries = do
+  cache <- I.newIORef $ C.newLRU (Just $ integerFromInt maxEntries)
+  return $ JwtCacheState $ Just cache
+
 
 -- | Used to retrieve and insert JWT to JWT Cache
-lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup jwtCache token
-  authResult <- maybe parseJwt (pure . Right) checkCache
+lookupJwtCache :: JwtCacheState -> ByteString -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
+lookupJwtCache jwtCacheState token parseJwt utc = do
+  case maybeJwtCache jwtCacheState of
+    Nothing            -> parseJwt
+    Just jwtCacheIORef -> do
+      -- get cache from IORef
+      jwtCache <- I.readIORef jwtCacheIORef
 
-  case (authResult,checkCache) of
-    -- From comment:
-    -- https://github.com/PostgREST/postgrest/pull/3801#discussion_r1857987914
-    --
-    -- We purge expired cache entries on a cache miss
-    -- The reasoning is that:
-    --
-    -- 1. We expect it to be rare (otherwise there is no point of the cache)
-    -- 2. It makes sure the cache is not growing (as inserting new entries
-    --    does garbage collection)
-    -- 3. Since this is time expiration based cache there is no real risk of
-    --    starvation - sooner or later we are going to have a cache miss.
+      -- MAKE SURE WE UPDATE THE CACHE ON ALL PATHS AFTER LOOKUP
+      -- This is because it is a pure LRU cache, so lookup returns the
+      -- the cache with new state, hence it should be updated
+      let (jwtCache', maybeVal) = C.lookup token jwtCache
 
-    (Right res, Nothing) -> do -- cache miss
+      case maybeVal of
+        Nothing -> do -- CACHE MISS
 
-      let timeSpec = getTimeSpec res maxLifetime utc
+            -- When we get a cache miss, we get the parse result, insert it
+            -- into the cache. After that, we write the cache IO ref with
+            -- updated cache
+            authResult <- parseJwt
 
-      -- insert new cache entry
-      C.insert' jwtCache (Just timeSpec) token res
+            case authResult of
+              Right result -> do
+                  -- insert token -> update cache -> return token
+                  let jwtCache'' = C.insert token result jwtCache'
+                  I.writeIORef jwtCacheIORef jwtCache''
+                  return $ Right result
+              Left e -> do
+                  -- update cache after lookup -> return error
+                  I.writeIORef jwtCacheIORef jwtCache'
+                  return $ Left e
 
-      -- Execute IO action to purge the cache
-      -- It is assumed this action returns immidiately
-      -- so that request processing is not blocked.
-      purgeCache
+        Just result -> -- CACHE HIT
 
-    _                    -> pure ()
+            -- For cache hit, we get the result from cache, we check the
+            -- exp claim. If it expired, we delete it from cache and parse
+            -- the jwt. Otherwise, the hit result is valid, so we return it
 
-  return authResult
+            if isExpClaimExpired result utc then do
+                -- delete token -> update cache -> parse token
+                let (jwtCache'',_) = C.delete token jwtCache'
+                I.writeIORef jwtCacheIORef jwtCache''
+                parseJwt
+            else do
+                -- update cache after lookup -> return result
+                I.writeIORef jwtCacheIORef jwtCache'
+                return $ Right result
 
--- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
-      utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
-      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
-  case expireJSON of
-    Just (JSON.Number seconds) -> TimeSpec (sciToInt seconds - utcToSecs utc) 0
-    _                          -> TimeSpec (fromIntegral maxLifetime :: Int64) 0
 
--- | Empty the cache (done when the config is reloaded)
-emptyCache :: JwtCacheState -> IO ()
-emptyCache JwtCacheState{jwtCache} = C.purge jwtCache
+type Expired = Bool
+
+-- | Check if exp claim is expired when looked up from cache
+isExpClaimExpired :: AuthResult -> UTCTime -> Expired
+isExpClaimExpired result utc =
+    case expireJSON of
+      Nothing                      -> False -- if exp not present then it is valid
+      Just (JSON.Number expiredAt) -> (sciToInt expiredAt - now) < 0
+      Just _                       -> False -- if exp is not a number then valid
+      where
+        expireJSON = KM.lookup "exp" (authClaims result)
+        now = (floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds) utc :: Int
+        sciToInt = fromMaybe 0 . Sci.toBoundedInteger
