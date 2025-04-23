@@ -55,14 +55,14 @@ import PostgREST.Response.Performance (ServerTiming (..),
 import PostgREST.SchemaCache          (SchemaCache (..))
 import PostgREST.Version              (docsVersion, prettyVersion)
 
-import qualified Data.ByteString.Char8             as BS
-import qualified Data.List                         as L
-import qualified Network.HTTP.Types                as HTTP
-import qualified Network.Socket                    as NS
-import           OpenTelemetry.Trace               (defaultSpanArguments)
-import           OpenTelemetry.Utils.Exceptions    (inSpanM)
-import           Protolude                         hiding (Handler)
-import           System.TimeIt                     (timeItT)
+import qualified Data.ByteString.Char8          as BS
+import qualified Data.List                      as L
+import qualified Network.HTTP.Types             as HTTP
+import qualified Network.Socket                 as NS
+import           OpenTelemetry.Trace            (defaultSpanArguments)
+import           OpenTelemetry.Utils.Exceptions (inSpanM)
+import           Protolude                      hiding (Handler)
+import           System.TimeIt                  (timeItT)
 
 type Handler = ExceptT Error
 
