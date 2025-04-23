@@ -27,18 +27,19 @@ import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
 
-import qualified PostgREST.Admin      as Admin
-import qualified PostgREST.ApiRequest as ApiRequest
-import qualified PostgREST.AppState   as AppState
-import qualified PostgREST.Auth       as Auth
-import qualified PostgREST.Cors       as Cors
-import qualified PostgREST.Error      as Error
-import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.Logger     as Logger
-import qualified PostgREST.Plan       as Plan
-import qualified PostgREST.Query      as Query
-import qualified PostgREST.Response   as Response
-import qualified PostgREST.Unix       as Unix (installSignalHandlers)
+import qualified PostgREST.Admin         as Admin
+import qualified PostgREST.ApiRequest    as ApiRequest
+import qualified PostgREST.AppState      as AppState
+import qualified PostgREST.Auth          as Auth
+import qualified PostgREST.Cors          as Cors
+import qualified PostgREST.Error         as Error
+import qualified PostgREST.Listener      as Listener
+import qualified PostgREST.Logger        as Logger
+import qualified PostgREST.OpenTelemetry as OTel
+import qualified PostgREST.Plan          as Plan
+import qualified PostgREST.Query         as Query
+import qualified PostgREST.Response      as Response
+import qualified PostgREST.Unix          as Unix (installSignalHandlers)
 
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState, getOTelTracer)
@@ -58,7 +59,6 @@ import qualified Data.ByteString.Char8             as BS
 import qualified Data.List                         as L
 import qualified Network.HTTP.Types                as HTTP
 import qualified Network.Socket                    as NS
-import           OpenTelemetry.Instrumentation.Wai (newOpenTelemetryWaiMiddleware)
 import           OpenTelemetry.Trace               (defaultSpanArguments)
 import           OpenTelemetry.Utils.Exceptions    (inSpanM)
 import           Protolude                         hiding (Handler)
@@ -88,9 +88,7 @@ run appState = do
       host <- resolveHost $ AppState.getSocketREST appState
       observer $ AppServerPortObs (fromJust host) port
 
-  oTelMWare <- newOpenTelemetryWaiMiddleware
-
-  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) (oTelMWare app)
+  Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 
 serverSettings :: AppConfig -> Warp.Settings
 serverSettings AppConfig{..} =
@@ -102,6 +100,7 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: HasCallStack => LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLevel appState connWorker =
+  OTel.middleware appState .
   traceHeaderMiddleware appState .
   Cors.middleware appState .
   Auth.middleware appState .
