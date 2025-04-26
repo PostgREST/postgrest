@@ -13,31 +13,26 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/gnuhost.png">
+        <a href="https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/neon.jpg">
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/neon.jpg">
+        <a href="https://code.build/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/code-build.png">
         </a>
       </td>
     </tr>
     <tr></tr>
     <tr>
       <td align="center" valign="middle">
-        <a href="https://code.build/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/code-build.png">
+        <a href="https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/tembo.png">
         </a>
       </td>
       <td align="center" valign="middle">
         <a href="https://supabase.io?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage" target="_blank">
           <img width="296px" src="static/supabase.png">
-        </a>
-      </td>
-      <td align="center" valign="middle">
-        <a href="https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="296px" src="static/tembo.png">
         </a>
       </td>
     </tr>
@@ -91,6 +86,11 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
       <td align="center" valign="middle">
         <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
           <img width="222px" src="static/oblivious.jpg">
+        </a>
+      </td>
+      <td align="center" valign="middle">
+        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="222px" src="static/gnuhost.png">
         </a>
       </td>
     </tr>

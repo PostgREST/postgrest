@@ -38,9 +38,6 @@ Sponsors
     .. image:: ../static/cybertec.svg
       :target: https://www.cybertec-postgresql.com/en/?utm_source=postgrest.org&utm_medium=referral&utm_campaign=postgrest
 
-  .. image:: ../static/gnuhost.png
-    :target: https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest
-
   .. container:: img-dark
 
     .. image:: ../static/neon-dark.jpg
@@ -50,8 +47,6 @@ Sponsors
 
     .. image:: ../static/neon.jpg
       :target: https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest
-
-  |
 
   .. container:: img-dark
 
@@ -63,6 +58,11 @@ Sponsors
     .. image:: ../static/code-build.png
       :target: https://code.build/?utm_source=sponsor&utm_campaign=postgrest
 
+  |
+
+  .. image:: ../static/tembo.png
+    :target: https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest
+
   .. container:: img-dark
 
     .. image:: ../static/supabase-dark.png
@@ -73,8 +73,8 @@ Sponsors
     .. image:: ../static/supabase.png
       :target: https://supabase.com/?utm_source=postgrest%20backers&utm_medium=open%20source%20partner&utm_campaign=postgrest%20backers%20github&utm_term=homepage
 
-  .. image:: ../static/tembo.png
-    :target: https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest
+  .. image:: _static/empty.png
+       :target: #sponsors
 
   .. The static/empty.png(created with `convert -size 320x95 xc:#fcfcfc empty.png`) is an ugly workaround
      to create space and center the logos. It's not easy to layout with restructuredText.
