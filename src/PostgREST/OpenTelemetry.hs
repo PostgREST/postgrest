@@ -30,15 +30,15 @@ import PostgREST.Version                 (prettyVersion)
 import Protolude
 
 {- | Wrap user's code with OpenTelemetry Tracer, initializing it with sensible defaults -}
-withTracer :: Text -> (Tracer -> IO c) -> IO c
-withTracer label f = bracket
+withTracer :: (Tracer -> IO c) -> IO c
+withTracer f = bracket
     initializeGlobalTracerProvider
     shutdownTracerProvider
     (\tracerProvider -> f $ makeTracer tracerProvider instrumentationLibrary tracerOptions)
     where
         instrumentationLibrary =
             InstrumentationLibrary
-            { libraryName = label
+            { libraryName = "PostgREST"
             , libraryVersion = decodeUtf8 prettyVersion
             , librarySchemaUrl = ""
             , libraryAttributes = emptyAttributes}

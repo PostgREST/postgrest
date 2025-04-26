@@ -91,7 +91,7 @@ main = do
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    initApp sCache config = withTracer "PostgREST.Spec" $ \tracer -> do
+    initApp sCache config = withTracer $ \tracer -> do
       appState <- AppState.initWithPool sockets pool config jwtCacheState loggerState metricsState tracer (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
