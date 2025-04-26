@@ -995,7 +995,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     returnings =
       if preferRepresentation == Just None || isNothing preferRepresentation
         then []
-        else inferColsEmbedNeeds readReq pkCols
+        else S.toList $ inferColsEmbedNeeds readReq pkCols
     -- TODO: remove fromJust by refactoring later
     -- we can use fromJust, we have already looked up the table before building mutatePlan
     tbl = fromJust $ HM.lookup qi dbTables
@@ -1029,21 +1029,21 @@ callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
       prms  -> KeyParams $ specifiedParams prms
 
 -- | Infers the columns needed for an embed to be successful after a mutation or a function call.
-inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> [FieldName]
+inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> S.Set FieldName
 inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
   -- if * is part of the select, we must not add pk or fk columns manually -
   -- otherwise those would be selected and output twice
-  | "*" `elem` fldNames = ["*"]
-  | otherwise           = returnings
+  | "*" `S.member` fldNames = S.singleton "*"
+  | otherwise               = returnings
   where
-    fldNames = cfName . csField <$> select
+    fldNames = S.fromList $ cfName . csField <$> select
     -- Without fkCols, when a mutatePlan to
     -- /projects?select=name,clients(name) occurs, the RETURNING SQL part would
     -- be `RETURNING name`(see QueryBuilder).  This would make the embedding
     -- fail because the following JOIN would need the "client_id" column from
     -- projects.  So this adds the foreign key columns to ensure the embedding
     -- succeeds, result would be `RETURNING name, client_id`.
-    fkCols = concat $ mapMaybe (\case
+    fkCols = S.fromList $ concat $ mapMaybe (\case
         Node ReadPlan{relToParent=Just Relationship{relCardinality=O2M _ cols}} _ ->
           Just $ fst <$> cols
         Node ReadPlan{relToParent=Just Relationship{relCardinality=M2O _ cols}} _ ->
@@ -1070,8 +1070,8 @@ inferColsEmbedNeeds (Node ReadPlan{select} forest) pkCols
     -- INSERT/POST
     returnings =
       if not hasComputedRel
-        then S.toList . S.fromList $ fldNames ++ fkCols ++ pkCols
-        else ["*"] -- on computed relationships we cannot know the required columns for an embedding to succeed, so we just return all
+        then fldNames <> fkCols <> S.fromList pkCols
+        else S.singleton "*" -- on computed relationships we cannot know the required columns for an embedding to succeed, so we just return all
 
 -- Traditional filters(e.g. id=eq.1) are added as root nodes of the LogicTree
 -- they are later concatenated with AND in the QueryBuilder
