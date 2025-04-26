@@ -25,7 +25,7 @@ data CallPlan = FunctionCall
   , funCScalar            :: Bool
   , funCSetOfScalar       :: Bool
   , funCRetCompositeAlias :: Bool
-  , funCReturning         :: [FieldName]
+  , funCReturning         :: Set FieldName
   }
 
 data CallParams

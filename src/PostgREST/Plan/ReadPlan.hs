@@ -30,6 +30,7 @@ data JoinCondition =
     (QualifiedIdentifier, FieldName)
   deriving (Eq, Show)
 
+-- TODO: Enforce uniqueness of columns by changing to a Set instead of a List where applicable
 data ReadPlan = ReadPlan
   { select       :: [CoercibleSelectField]
   , from         :: QualifiedIdentifier

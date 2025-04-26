@@ -20,6 +20,7 @@ module PostgREST.Query.QueryBuilder
 import qualified Data.Aeson                      as JSON
 import qualified Data.ByteString.Char8           as BS
 import qualified Data.HashMap.Strict             as HM
+import qualified Data.Set                        as S
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
 
@@ -213,7 +214,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
     returnedColumns :: SQL.Snippet
     returnedColumns
       | null returnings = "*"
-      | otherwise       = intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnings)
+      | otherwise       = intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> S.toList returnings)
 
 -- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.
