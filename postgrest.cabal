@@ -271,6 +271,7 @@ test-suite spec
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
                     , hs-opentelemetry-sdk      >= 0.1.0.0 && < 0.2.0.0
+                    , hs-opentelemetry-instrumentation-hspec
                     , hspec             >= 2.3 && < 2.12
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12

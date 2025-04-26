@@ -142,7 +142,13 @@ let
           sha256 = "sha256-gukjbleRa4PKWcyBXC1J0kSQzohF5Or+ayvp5wxrzT0=";
         }
         { });
-
+      hs-opentelemetry-instrumentation-hspec = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-instrumentation-hspec";
+          ver = "0.0.1.2";
+          sha256 = "sha256-7CRe2xR3vCR6RUoVKHuQ7iwn9OmLyZ/vk19OFZ3+uDs=";
+        }
+        { });
     };
 in
 {
