@@ -117,8 +117,7 @@ postgrest logLevel appState connWorker =
 
           let
             eitherResponse :: IO (Either Error Wai.Response)
-            eitherResponse = inSpanM (getOTelTracer appState) "renderResponse" defaultSpanArguments $
-              runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
+            eitherResponse = runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
           response <- either Error.errorResponseFor identity <$> eitherResponse
           -- Launch the connWorker when the connection is down.  The postgrest
