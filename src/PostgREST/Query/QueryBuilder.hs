@@ -170,7 +170,7 @@ mutatePlanToQuery (Delete mainQi logicForest returnings) =
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
 
 callPlanToQuery :: CallPlan -> PgVersion -> SQL.Snippet
-callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias returnings) pgVer =
+callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar returnsCompositeAlias filterFields returnings) pgVer =
   "SELECT " <> (if returnsScalar || returnsSetOfScalar then "pgrst_call.pgrst_scalar" else returnedColumns) <> " " <>
   fromCall
   where
@@ -211,10 +211,16 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
         -- We could fallback to providing this NULL value in those cases.
         encodeArg Nothing = "NULL"
 
+    -- the columns here would be the returnings + the columns that would later
+    -- be used by a where clause filter, if they intersect, we remove the duplicates
+    -- and if * is returned then no need to explicitly add filter columns
     returnedColumns :: SQL.Snippet
-    returnedColumns
-      | null returnings = "*"
-      | otherwise       = intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> S.toList returnings)
+    returnedColumns = case S.toList returnings of
+      []    -> "*"
+      ["*"] -> pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") "*"
+      _     -> intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty "pgrst_call") <$> returnedColumns')
+        where
+          returnedColumns' = S.toList $ returnings <> filterFields
 
 -- | SQL query meant for COUNTing the root node of the Tree.
 -- It only takes WHERE into account and doesn't include LIMIT/OFFSET because it would reduce the COUNT.

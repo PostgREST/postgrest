@@ -1019,6 +1019,7 @@ callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
 , funCScalar = funcReturnsScalar proc
 , funCSetOfScalar = funcReturnsSetOfScalar proc
 , funCRetCompositeAlias = funcReturnsCompositeAlias proc
+, funCFilterFields = getFilterFieldNames readReq
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
@@ -1027,6 +1028,22 @@ callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
       [prm] | ppName prm == mempty -> OnePosParam prm
             | otherwise            -> KeyParams $ specifiedParams [prm]
       prms  -> KeyParams $ specifiedParams prms
+
+-- | Get filter fields/column names from read plan
+getFilterFieldNames :: ReadPlanTree -> Set FieldName
+getFilterFieldNames rpt = S.fromList $ foldr (\rp names -> names <> rpToFieldNames rp) [] rpt
+  where
+    rpToFieldNames :: ReadPlan -> [FieldName]
+    rpToFieldNames = logicTreesToFieldName . ReadPlan.where_
+
+    logicTreesToFieldName :: [CoercibleLogicTree] -> [FieldName]
+    logicTreesToFieldName = concatMap coLogicTreeToFieldNames
+
+    coLogicTreeToFieldNames :: CoercibleLogicTree -> [FieldName]
+    coLogicTreeToFieldNames = \case
+      CoercibleStmnt (CoercibleFilter{field=CoercibleField{cfName}}) -> [cfName]
+      CoercibleStmnt (CoercibleFilterNullEmbed _ cfName) -> [cfName] -- needs test coverage
+      CoercibleExpr _ _ clts -> concatMap coLogicTreeToFieldNames clts
 
 -- | Infers the columns needed for an embed to be successful after a mutation or a function call.
 inferColsEmbedNeeds :: ReadPlanTree -> [FieldName] -> S.Set FieldName
