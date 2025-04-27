@@ -1422,3 +1422,31 @@ spec =
           , matchHeaders = [ "Content-Length" <:> "105"
                            , matchContentTypeJson ]
           }
+
+    context "test table valued function with filter" $ do
+      it "works with filter on unselected columns" $
+        request methodGet "/rpc/getallprojects?select=id,client_id&name=like.OSX"
+          [] ""
+          `shouldRespondWith`
+          [json| [{"id":4,"client_id":2}] |]
+          { matchStatus = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "works with filter on unselected columns with null embed" $
+        request methodGet "/rpc/getallprojects?select=id,clients(id)&clients.name=not.is.null"
+          [] ""
+          `shouldRespondWith`
+          [json| [{"id":1,"clients":{"id": 1}}, {"id":2,"clients":{"id": 1}}, {"id":3,"clients":{"id": 2}}, {"id":4,"clients":{"id": 2}}, {"id":5,"clients":null}] |]
+          { matchStatus = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+      it "works with logical filter on unselected columns" $
+        request methodGet "/rpc/getallprojects?select=id,client_id&or=(name.like.OSX,name.like.IOS)"
+          [] ""
+          `shouldRespondWith`
+          [json| [{"id":3,"client_id":2}, {"id":4,"client_id":2}] |]
+          { matchStatus = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
