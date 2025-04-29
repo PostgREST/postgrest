@@ -92,7 +92,7 @@ def test_jwt_errors(defaultenv):
         headers = jwtauthheader({}, "other secret")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
-        assert response.json()["message"] == "No suitable key or wrong key type"
+        assert response.json()["message"] == 'No suitable key or wrong key type: "None of the keys was able to decode the JWT"'
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
