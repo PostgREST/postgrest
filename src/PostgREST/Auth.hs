@@ -74,7 +74,7 @@ parseToken AppConfig{..} (Just tkn) time = do
       --   BadAlgorithm
       --   KeyError
       --   BadCrypto
-      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
+      jwtDecodeError (JWT.KeyError err) = JwtDecodeError ("No suitable key or wrong key type: " <> show err)
       jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
       jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed"
       -- Control never reaches here, the decode function only returns the above three
