@@ -56,8 +56,11 @@ admin appState req respond  = do
       in
       respond $ Wai.responseLBS status [] mempty
     ["config"] -> do
-      config <- AppState.getConfig appState
-      respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)
+      config@Config.AppConfig{configAdminServerConfigEnabled} <- AppState.getConfig appState
+      if configAdminServerConfigEnabled then
+        respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)
+      else
+        respond $ Wai.responseLBS HTTP.status404 [] mempty
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)

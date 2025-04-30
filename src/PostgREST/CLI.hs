@@ -128,6 +128,9 @@ exampleConfigFile =
   [str|## Admin server used for checks. It's disabled by default unless a port is specified.
       |# admin-server-port = 3001
       |
+      |## Whether to enable the /config endpoint of the admin server
+      |# admin-server-config-enabled = false
+      |
       |## The database role to use when no client authentication is provided
       |# db-anon-role = "anon"
       |

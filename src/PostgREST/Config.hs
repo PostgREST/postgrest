@@ -110,6 +110,7 @@ data AppConfig = AppConfig
   , configServerUnixSocket         :: Maybe FilePath
   , configServerUnixSocketMode     :: FileMode
   , configAdminServerPort          :: Maybe Int
+  , configAdminServerConfigEnabled :: Bool
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCSleep          :: Maybe Int32
@@ -180,6 +181,7 @@ toText conf =
       ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
       ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
       ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
+      ,("admin-server-config-enabled",             T.toLower . show . configAdminServerConfigEnabled)
       ]
 
     -- quote all app.settings
@@ -286,6 +288,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap T.unpack <$> optString "server-unix-socket")
     <*> parseSocketFileMode "server-unix-socket-mode"
     <*> optInt "admin-server-port"
+    <*> (fromMaybe False <$> optBool "admin-server-config-enabled")
     <*> pure roleSettings
     <*> pure roleIsolationLvl
     <*> optInt "internal-schema-cache-sleep"

@@ -674,6 +674,15 @@ def test_admin_config(defaultenv):
 
     with run(env=defaultenv) as postgrest:
         response = postgrest.admin.get("/config")
+        assert response.status_code == 404
+
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_CONFIG_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.admin.get("/config")
         print(response.text)
         assert response.status_code == 200
         assert "admin-server-port" in response.text
