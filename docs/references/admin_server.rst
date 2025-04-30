@@ -55,10 +55,12 @@ Metrics
 
 Provides :ref:`metrics`.
 
+.. _runtime_config:
+
 Runtime Configuration
 =====================
 
-Provides a ``config`` endpoint that returns the runtime :ref:`configuration`.
+Provides a ``config`` endpoint that returns the runtime :ref:`configuration`. This requires setting :ref:`admin-server-config-enabled`.
 
 .. code-block:: bash
 
@@ -71,6 +73,8 @@ Provides a ``config`` endpoint that returns the runtime :ref:`configuration`.
   db-channel = "pgrst"
   db-channel-enabled = false
   ...
+
+.. _runtime_schema_cache:
 
 Runtime Schema Cache
 ====================

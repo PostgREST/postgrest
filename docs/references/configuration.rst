@@ -161,6 +161,30 @@ admin-server-port
 
   Specifies the port for the :ref:`admin_server`.
 
+.. _admin-server-config-enabled:
+
+admin-server-config-enabled
+---------------------------
+
+  .. danger::
+
+    The ``/config`` endpoint contains sensitive information, don't enable this if you're exposing the Admin Server publicly.
+
+    To safely enable this you can use a proxy like :ref:`nginx` to:
+
+    - Ensure ``/config`` are only available to local networks.
+    - Only expose ``/live`` and ``/ready`` to public networks.
+
+  =============== =================================
+  **Type**        Boolean
+  **Default**     False
+  **Reloadable**  N
+  **Environment** PGRST_ADMIN_SERVER_CONFIG_ENABLED
+  **In-Database** `n/a`
+  =============== =================================
+
+  Enables the admin server :ref:`runtime_config` and :ref:`runtime_schema_cache` endpoints.
+
 .. _app.settings.*:
 
 app.settings.*

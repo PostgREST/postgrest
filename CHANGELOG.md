@@ -5,6 +5,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- #3956, Fix exposing admin server `/config` and `/schema_cache` endpoints by default - @steve-chavez
+  + The above endpoints are now disabled unless the `admin-server-config-enabled` config is set to `true`
+
 ## [12.2.11] - 2025-04-21
 
 ### Fixed
