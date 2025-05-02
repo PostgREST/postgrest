@@ -13,6 +13,7 @@ module PostgREST.ApiRequest
   , DbAction(..)
   , Payload(..)
   , userApiRequest
+  , userPreferences
   ) where
 
 import qualified Data.Aeson            as JSON
@@ -127,10 +128,8 @@ data ApiRequest = ApiRequest {
   }
 
 -- | Examines HTTP request and translates it into user intent.
---
---   TimezoneNames are used by Prefer: timezone
-userApiRequest :: AppConfig -> Request -> RequestBody -> TimezoneNames -> Either ApiRequestError ApiRequest
-userApiRequest conf req reqBody timezones = do
+userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody -> Either ApiRequestError ApiRequest
+userApiRequest conf prefs req reqBody = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
   act <- getAction resource schema method
@@ -142,7 +141,7 @@ userApiRequest conf req reqBody timezones = do
   , iRange = ranges
   , iTopLevelRange = topLevelRange
   , iPayload = payload
-  , iPreferences = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones  hdrs
+  , iPreferences = prefs
   , iQueryParams = qPrms
   , iColumns = columns
   , iHeaders = iHdrs
@@ -162,6 +161,10 @@ userApiRequest conf req reqBody timezones = do
     iCkies = maybe [] parseCookies $ lookupHeader "Cookie"
     contentMediaType = maybe MTApplicationJSON MediaType.decodeMediaType $ lookupHeader "content-type"
     actIsInvokeSafe x = case x of {ActDb (ActRoutine _  (InvRead _)) -> True; _ -> False}
+
+-- | Parses the Prefer header
+userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences
+userPreferences conf req timezones = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones $ requestHeaders req
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
