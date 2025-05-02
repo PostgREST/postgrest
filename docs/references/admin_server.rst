@@ -55,23 +55,6 @@ Metrics
 
 Provides :ref:`metrics`.
 
-Runtime Configuration
-=====================
-
-Provides a ``config`` endpoint that returns the runtime :ref:`configuration`.
-
-.. code-block:: bash
-
-  curl "http://localhost:3001/config"
-
-.. code-block::
-
-  db-aggregates-enabled = false
-  db-anon-role = "web_anon"
-  db-channel = "pgrst"
-  db-channel-enabled = false
-  ...
-
 Runtime Schema Cache
 ====================
 
