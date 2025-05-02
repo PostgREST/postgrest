@@ -50,6 +50,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + This preference was deprecated in favor of Functions with an array of JSON objects
  - #3013, Drop support for Limited updates/deletes
    + The feature was complicated and largely unused.
+ - #3956, Drop `/config` endpoint of admin server - @steve-chavez
+   + The endpoint was at risk of being left unprotected when exposing it.
+   + The accompanying `admin-server-config-enabled` config was also dropped.
  - #3697, #3602, Querying non-existent table now returns `PGRST205` error instead of empty json - @taimoorzaeem
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
    + Return `PGRST301` error when `Bearer` in auth header is sent empty

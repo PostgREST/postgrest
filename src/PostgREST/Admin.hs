@@ -11,8 +11,6 @@ import qualified Network.Wai.Handler.Warp  as Warp
 
 import Control.Monad.Extra (whenJust)
 
-import qualified Data.ByteString.Lazy as LBS
-
 import Network.Socket
 import Network.Socket.ByteString
 
@@ -23,8 +21,6 @@ import PostgREST.Network     (resolveHost)
 import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Config   as Config
-
 
 import Protolude
 
@@ -57,9 +53,6 @@ admin appState req respond  = do
                | otherwise              = HTTP.status500
       in
       respond $ Wai.responseLBS status [] mempty
-    ["config"] -> do
-      config <- AppState.getConfig appState
-      respond $ Wai.responseLBS HTTP.status200 [] (LBS.fromStrict $ encodeUtf8 $ Config.toText config)
     ["schema_cache"] -> do
       sCache <- AppState.getSchemaCache appState
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)
