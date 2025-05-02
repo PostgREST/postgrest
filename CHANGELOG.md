@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [12.2.12] - 2025-05-01
+
 ### Fixed
 
 - #3956, Fix exposing admin server `/config` by default - @steve-chavez
