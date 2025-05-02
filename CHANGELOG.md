@@ -57,6 +57,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
    + Return new `PGRST303` error when jwt claims decoding fails
  - #3906, Return `PGRST125` and `PGRST126` errors instead of empty json - @taimoorzaeem
 
+## [12.2.12] - 2025-05-01
+
+### Fixed
+
+- #3956, Fix exposing admin server `/config` by default - @steve-chavez
+  + The above endpoint is now disabled unless the `admin-server-config-enabled` config is set to `true`
+
 ## [12.2.11] - 2025-04-22
 
 ### Fixed
