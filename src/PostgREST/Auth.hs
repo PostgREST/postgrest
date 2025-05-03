@@ -163,6 +163,8 @@ middleware appState app req respond = do
       jwtCacheState = getJwtCacheState appState
 
 -- If ServerTimingEnabled -> calculate JWT validation time
+      -- Now that we also calculate the timings when Prefer: metrics=timings,
+      -- how do we get that preference here?
 -- If JwtCacheMaxLifetime -> cache JWT validation result
   req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
     (True, 0)            -> do

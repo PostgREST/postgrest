@@ -897,6 +897,10 @@ server-timing-enabled
   Enables the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header.
   See :ref:`server-timing_header`.
 
+.. note::
+
+  When enabled, it impacts performance on **all** requests. To enable this per-request, use :ref:`Metrics Preference Header <prefer_metrics>` instead.
+
 .. _server-unix-socket:
 
 server-unix-socket

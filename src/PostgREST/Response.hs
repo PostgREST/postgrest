@@ -69,7 +69,7 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
       let
         (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
         cLHeader = if headersOnly then mempty else [contentLengthHeaderStrict rsBody]
-        prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+        prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing preferMetrics []
         headers =
           [ contentRange
           , ( "Content-Location"
@@ -100,7 +100,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
       pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
       prefHeader = prefAppliedHeader $
         Preferences (if null pkCols && isNothing (qsOnConflict iQueryParams) then Nothing else preferResolution)
-        preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone Nothing []
+        preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone Nothing preferMetrics []
       headers =
         catMaybes
           [ if null rsLocation then
@@ -141,7 +141,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
       contentRangeHeader =
         Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
+      prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected preferMetrics []
       headers = catMaybes [contentRangeHeader, prefHeader]
 
     let (status, headers', body) =
@@ -160,7 +160,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
 actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone Nothing preferMetrics []
       cLHeader = [contentLengthHeaderStrict rsBody]
       cTHeader = contentTypeHeaders mrMedia ctxApiRequest
 
@@ -184,7 +184,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} 
       contentRangeHeader =
         RangeQuery.contentRangeH 1 0 $
           if shouldCount preferCount then Just rsQueryTotal else Nothing
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected preferMetrics []
       headers = contentRangeHeader : prefHeader
 
     let (status, headers', body) =
@@ -210,7 +210,7 @@ actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=p
           $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         else LBS.fromStrict rsBody
       isHeadMethod = invMethod == InvRead True
-      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+      prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected preferMetrics []
       cLHeader = if isHeadMethod then mempty else [contentLengthHeaderLazy rsOrErrBody]
       headers = contentRange : prefHeader
 

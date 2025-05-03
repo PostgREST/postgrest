@@ -246,7 +246,7 @@ See :ref:`proxy-status_header`.
 Server-Timing Header
 --------------------
 
-You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` on.
+You can enable the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header by setting :ref:`server-timing-enabled` or using :ref:`Metrics Preference Header <prefer_metrics>`.
 This header communicates metrics of the different phases in the request-response cycle.
 
 .. code-block:: bash
