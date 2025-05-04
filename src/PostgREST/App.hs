@@ -99,13 +99,8 @@ postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLevel appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState .
-  Auth.middleware appState .
-  Logger.middleware logLevel Auth.getRole $
-    -- fromJust can be used, because the auth middleware will **always** add
-    -- some AuthResult to the vault.
-    \req respond -> case fromJust $ Auth.getResult req of
-      Left err -> respond $ Error.errorResponseFor err
-      Right authResult -> do
+  Logger.middleware logLevel $
+    \req respond ->  do
         appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
         pgVer <- AppState.getPgVersion appState
@@ -113,7 +108,7 @@ postgrest logLevel appState connWorker =
         let
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
         -- Launch the connWorker when the connection is down.  The postgrest
@@ -130,10 +125,9 @@ postgrestResponse
   -> AppConfig
   -> Maybe SchemaCache
   -> PgVersion
-  -> AuthResult
   -> Wai.Request
   -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -143,13 +137,20 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-      timezones = dbTimezones sCache
-      prefs = ApiRequest.userPreferences conf req timezones
+  -- API-REQUEST/PARSE STAGE
+  let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
+  -- JWT/AUTH STAGE
+  (jwtTime, authResult@AuthResult{..}) <- withTiming $ do
+    eitherAuthResult <- liftIO $ Auth.getAuthResult appState apiReq
+    liftEither eitherAuthResult
+
+  -- PLAN STAGE
+  (planTime, plan) <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+
+  -- QUERY/TRANSACTION STAGE
   let query = Query.query conf authResult apiReq plan sCache pgVer
       logSQL = lift . AppState.getObserver appState . DBQuery (Query.getSQLQuery query)
 
@@ -162,6 +163,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
         when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
         liftEither eitherResp >>= liftEither
 
+  -- RESPONSE STAGE
   (respTime, resp) <- withTiming $ do
     let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
     when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response

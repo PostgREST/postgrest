@@ -10,10 +10,9 @@ module PostgREST.Logger
   , LoggerState
   ) where
 
-import           Control.AutoUpdate    (defaultUpdateSettings,
-                                        mkAutoUpdate, updateAction)
-import           Control.Debounce
-import qualified Data.ByteString.Char8 as BS
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
+                           updateAction)
+import Control.Debounce
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
@@ -56,15 +55,14 @@ logWithDebounce loggerState action = do
       newDebouncer
 
 -- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
-middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
-middleware logLevel getAuthRole =
+middleware :: LogLevel -> Wai.Middleware
+middleware logLevel =
     unsafePerformIO $
       Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
       { Wai.outputFormat =
          Wai.ApacheWithSettings $
            Wai.defaultApacheSettings &
-           Wai.setApacheRequestFilter (\_ res -> shouldLogResponse logLevel $ Wai.responseStatus res) &
-           Wai.setApacheUserGetter getAuthRole
+           Wai.setApacheRequestFilter (\_ res -> shouldLogResponse logLevel $ Wai.responseStatus res)
       , Wai.autoFlush = True
       , Wai.destination = Wai.Handle stdout
       }

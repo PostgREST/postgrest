@@ -12,11 +12,8 @@ very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
-  ( getResult
-  , getJwtDur
-  , getRole
-  , middleware
-  ) where
+  ( getAuthResult )
+  where
 
 import qualified Data.Aeson                      as JSON
 import qualified Data.Aeson.Key                  as K
@@ -25,14 +22,13 @@ import qualified Data.Aeson.Types                as JSON
 import qualified Data.ByteString                 as BS
 import qualified Data.ByteString.Internal        as BS
 import qualified Data.ByteString.Lazy.Char8      as LBS
+import qualified Data.CaseInsensitive            as CI
 import qualified Data.Scientific                 as Sci
 import qualified Data.Text                       as T
-import qualified Data.Vault.Lazy                 as Vault
 import qualified Data.Vector                     as V
 import qualified Jose.Jwk                        as JWT
 import qualified Jose.Jwt                        as JWT
 import qualified Network.HTTP.Types.Header       as HTTP
-import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Middleware.HttpAuth as Wai
 
 import Control.Monad.Except    (liftEither)
@@ -40,9 +36,8 @@ import Data.Either.Combinators (mapLeft)
 import Data.List               (lookup)
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
-import System.IO.Unsafe        (unsafePerformIO)
-import System.TimeIt           (timeItT)
 
+import PostgREST.ApiRequest    (ApiRequest (..))
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
@@ -131,11 +126,12 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
     walkJSPath x                      []                = x
     walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
     walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EqualsCond txt)] = findFirstMatch (==) txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (NotEqualsCond txt)] = findFirstMatch (/=) txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (StartsWithCond txt)] = findFirstMatch T.isPrefixOf txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EndsWithCond txt)] = findFirstMatch T.isSuffixOf txt ar
-    walkJSPath (Just (JSON.Array ar)) [JSPFilter (ContainsCond txt)] = findFirstMatch T.isInfixOf txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter filterCond] = case filterCond of
+        EqualsCond txt     -> findFirstMatch (==) txt ar
+        NotEqualsCond txt  -> findFirstMatch (/=) txt ar
+        StartsWithCond txt -> findFirstMatch T.isPrefixOf txt ar
+        EndsWithCond txt   -> findFirstMatch T.isSuffixOf txt ar
+        ContainsCond txt   -> findFirstMatch T.isInfixOf txt ar
     walkJSPath _                      _                 = Nothing
 
     findFirstMatch matchWith pattern = foldr checkMatch Nothing
@@ -151,55 +147,21 @@ parseClaims AppConfig{..} jclaims@(JSON.Object mclaims) = do
 -- impossible case - just added to please -Wincomplete-patterns
 parseClaims _ _ = return AuthResult { authClaims = KM.empty, authRole = mempty }
 
--- | Validate authorization header.
---   Parse and store JWT claims for future use in the request.
-middleware :: AppState -> Wai.Middleware
-middleware appState app req respond = do
+-- | Perform authentication and authorization
+--   Parse JWT and return AuthResult
+getAuthResult :: AppState -> ApiRequest -> IO (Either Error AuthResult)
+getAuthResult appState ApiRequest{..} = do
   conf <- getConfig appState
   time <- getTime appState
 
-  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+  let ciHdrs = map (first CI.mk) iHeaders
+      token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization ciHdrs
       parseJwt = runExceptT $ parseToken conf token time >>= parseClaims conf
       jwtCacheState = getJwtCacheState appState
 
--- If ServerTimingEnabled -> calculate JWT validation time
--- If JwtCacheMaxLifetime -> cache JWT validation result
-  req' <- case (configServerTimingEnabled conf, configJwtCacheMaxLifetime conf) of
-    (True, 0)            -> do
-          (dur, authResult) <- timeItT parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-
-    (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
-            Nothing  -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-
-    (False, 0)           -> do
-          authResult <- parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-    (False, maxLifetime) -> do
-          authResult <- case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
-            Nothing -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-  app req' respond
-
-authResultKey :: Vault.Key (Either Error AuthResult)
-authResultKey = unsafePerformIO Vault.newKey
-{-# NOINLINE authResultKey #-}
-
-getResult :: Wai.Request -> Maybe (Either Error AuthResult)
-getResult = Vault.lookup authResultKey . Wai.vault
-
-jwtDurKey :: Vault.Key Double
-jwtDurKey = unsafePerformIO Vault.newKey
-{-# NOINLINE jwtDurKey #-}
-
-getJwtDur :: Wai.Request -> Maybe Double
-getJwtDur =  Vault.lookup jwtDurKey . Wai.vault
-
-getRole :: Wai.Request -> Maybe BS.ByteString
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+  case configJwtCacheMaxLifetime conf of
+    0           -> parseJwt -- If 0 then cache is diabled; no lookup
+    maxLifetime -> case token of
+      -- Lookup only if token found in header
+      Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+      Nothing  -> parseJwt
