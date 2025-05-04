@@ -4,27 +4,22 @@ Description : Logging based on the Observation.hs module. Access logs get sent t
 -}
 -- TODO log with buffering enabled to not lose throughput on logging levels higher than LogError
 module PostgREST.Logger
-  ( middleware
-  , observationLogger
+  ( observationLogger
   , init
   , LoggerState
   ) where
 
-import           Control.AutoUpdate    (defaultUpdateSettings,
-                                        mkAutoUpdate, updateAction)
-import           Control.Debounce
-import qualified Data.ByteString.Char8 as BS
+import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
+                           updateAction)
+import Control.Debounce
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
 
-import qualified Network.Wai                          as Wai
-import qualified Network.Wai.Middleware.RequestLogger as Wai
-
 import Network.HTTP.Types.Status (Status, status400, status500)
-import System.IO.Unsafe          (unsafePerformIO)
 
-import PostgREST.Config      (LogLevel (..))
+import PostgREST.Config        (LogLevel (..))
+import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
 
 import Protolude
@@ -54,20 +49,6 @@ logWithDebounce loggerState action = do
            }
       putMVar (stateLogDebouncePoolTimeout loggerState) newDebouncer
       newDebouncer
-
--- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
-middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
-middleware logLevel getAuthRole =
-    unsafePerformIO $
-      Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
-      { Wai.outputFormat =
-         Wai.ApacheWithSettings $
-           Wai.defaultApacheSettings &
-           Wai.setApacheRequestFilter (\_ res -> shouldLogResponse logLevel $ Wai.responseStatus res) &
-           Wai.setApacheUserGetter getAuthRole
-      , Wai.autoFlush = True
-      , Wai.destination = Wai.Handle stdout
-      }
 
 shouldLogResponse :: LogLevel -> Status -> Bool
 shouldLogResponse logLevel = case logLevel of
@@ -100,6 +81,11 @@ observationLogger loggerState logLevel obs = case obs of
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  ResponseObs getAuthRole req status contentLen ->
+    when (shouldLogResponse logLevel status) $ do
+      zTime <- stateGetZTime loggerState
+      let handl = stdout -- doing this indirection since the linter wants to change "hPutStr stdout" to "putStr", but we want "stdout" to appear explicitly
+      hPutStr handl $ apacheFormat getAuthRole (show zTime) req status contentLen
   o ->
     logWithZTime loggerState $ observationMessage o
 

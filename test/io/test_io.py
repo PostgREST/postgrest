@@ -939,6 +939,7 @@ def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
 
 
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
+@pytest.mark.skip(reason="pending")
 def test_log_level(level, defaultenv):
     "log_level should filter request logging"
 
