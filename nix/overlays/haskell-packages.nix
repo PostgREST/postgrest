@@ -66,7 +66,8 @@ let
         }
         { });
 
-      jose-jwt = prev.jose-jwt_0_10_0;
+      # newer nixpkgs already has 0.10., so we fallback to default for forward compat
+      jose-jwt = prev.jose-jwt_0_10_0 or prev.jose-jwt;
 
       postgresql-libpq = lib.dontCheck (prev.callHackageDirect
         {
