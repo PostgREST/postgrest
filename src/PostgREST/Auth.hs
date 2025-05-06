@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 {-|
 Module      : PostgREST.Auth
 Description : PostgREST authentication functions.
@@ -12,66 +11,28 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 module PostgREST.Auth
-  ( getResult
-  , getJwtDur
-  , getRole
-  , middleware
-  ) where
-
-import qualified Data.ByteString                 as BS
-import qualified Data.Vault.Lazy                 as Vault
-import qualified Network.HTTP.Types.Header       as HTTP
-import qualified Network.Wai                     as Wai
-import qualified Network.Wai.Middleware.HttpAuth as Wai
-
-import Data.List        (lookup)
-import PostgREST.TimeIt (timeItT)
-import System.IO.Unsafe (unsafePerformIO)
+  ( getAuthResult )
+  where
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
 import PostgREST.Auth.Jwt      (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
-import PostgREST.Auth.Types    (AuthResult (..))
-import PostgREST.Config        (AppConfig (..))
-import PostgREST.Error         (Error (..))
+import PostgREST.Auth.Types    (AuthResult)
+import PostgREST.Error         (Error)
 
 import Protolude
 
--- | Validate authorization header
---   Parse and store JWT claims for future use in the request.
-middleware :: AppState -> Wai.Middleware
-middleware appState app req respond = do
-  conf@AppConfig{..} <- getConfig appState
+-- | Perform authentication and authorization
+--   Parse JWT and return AuthResult
+getAuthResult :: AppState -> Maybe ByteString -> IO (Either Error AuthResult)
+getAuthResult appState token = do
+  conf <- getConfig appState
   time <- getTime appState
 
-  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseJwt = runExceptT $ lookupJwtCache jwtCacheState token >>= parseClaims conf time
-      jwtCacheState = getJwtCacheState appState
+  let jwtCacheState = getJwtCacheState appState
+      parseJwt = runExceptT $ do
+        claims <- lookupJwtCache jwtCacheState token
+        parseClaims conf time claims
 
-  -- If ServerTimingEnabled -> calculate JWT validation time
-  req' <- if configServerTimingEnabled then do
-      (dur, authResult) <- timeItT parseJwt
-      pure $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-    else do
-      authResult <- parseJwt
-      pure $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-  app req' respond
-
-authResultKey :: Vault.Key (Either Error AuthResult)
-authResultKey = unsafePerformIO Vault.newKey
-{-# NOINLINE authResultKey #-}
-
-getResult :: Wai.Request -> Maybe (Either Error AuthResult)
-getResult = Vault.lookup authResultKey . Wai.vault
-
-jwtDurKey :: Vault.Key Double
-jwtDurKey = unsafePerformIO Vault.newKey
-{-# NOINLINE jwtDurKey #-}
-
-getJwtDur :: Wai.Request -> Maybe Double
-getJwtDur =  Vault.lookup jwtDurKey . Wai.vault
-
-getRole :: Wai.Request -> Maybe BS.ByteString
-getRole req = authRole <$> (rightToMaybe =<< getResult req)
+  parseJwt

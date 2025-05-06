@@ -16,6 +16,7 @@ import qualified Hasql.Connection           as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
+import qualified Network.Wai                as Wai
 import           PostgREST.Config.PgVersion
 import           PostgREST.Query            (MainQuery)
 import           PostgREST.SchemaCache      (QueryTimings)
@@ -52,6 +53,7 @@ data Observation
   | PoolInit Int
   | PoolAcqTimeoutObs
   | HasqlPoolObs SQL.Observation
+  | ResponseObs (Maybe ByteString) Wai.Request Status (Maybe Integer)
   | PoolRequest
   | PoolRequestFullfilled
   | PoolFlushed

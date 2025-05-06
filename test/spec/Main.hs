@@ -90,19 +90,19 @@ main = do
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    initApp sCache st config = do
+    initApp sCache config = do
       appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return (st, postgrest (configLogLevel config) appState (pure ()))
+      return ((), postgrest appState (pure ()))
 
     -- For tests that run with the same schema cache
-    app = initApp baseSchemaCache ()
+    app = initApp baseSchemaCache
 
     -- For tests that run with a different SchemaCache (depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSCache pool config
-      initApp customSchemaCache () config
+      initApp customSchemaCache config
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg

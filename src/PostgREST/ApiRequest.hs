@@ -8,6 +8,7 @@ module PostgREST.ApiRequest
   ( ApiRequest(..)
   , userApiRequest
   , userPreferences
+  , userBearerAuth
   ) where
 
 import qualified Data.CaseInsensitive as CI
@@ -16,13 +17,15 @@ import qualified Data.List.NonEmpty   as NonEmptyList
 import qualified Data.Set             as S
 import qualified Data.Text.Encoding   as T
 
-import Data.List                 (lookup)
-import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
-                                  rangeIsEmpty)
-import Network.HTTP.Types.Header (RequestHeaders, hCookie)
-import Network.Wai               (Request (..))
-import Network.Wai.Parse         (parseHttpAccept)
-import Web.Cookie                (parseCookies)
+import Data.List                       (lookup)
+import Data.Ranged.Ranges              (emptyRange, rangeIntersection,
+                                        rangeIsEmpty)
+import Network.HTTP.Types.Header       (RequestHeaders,
+                                        hAuthorization, hCookie)
+import Network.Wai                     (Request (..))
+import Network.Wai.Middleware.HttpAuth (extractBearerAuth)
+import Network.Wai.Parse               (parseHttpAccept)
+import Web.Cookie                      (parseCookies)
 
 import PostgREST.ApiRequest.Payload      (getPayload)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
@@ -113,6 +116,10 @@ userApiRequest conf prefs req reqBody = do
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences
 userPreferences conf req timezones = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones $ requestHeaders req
+
+-- | Obtains the Bearer Auth
+userBearerAuth :: Request -> Maybe ByteString
+userBearerAuth req = extractBearerAuth =<< lookup hAuthorization (requestHeaders req)
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
