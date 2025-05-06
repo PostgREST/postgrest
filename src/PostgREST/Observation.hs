@@ -21,6 +21,7 @@ import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
 import qualified Network.Socket             as NS
+import qualified Network.Wai                as Wai
 import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
@@ -57,6 +58,7 @@ data Observation
   | PoolInit Int
   | PoolAcqTimeoutObs SQL.UsageError
   | HasqlPoolObs SQL.Observation
+  | ResponseObs (Maybe ByteString) Wai.Request Status (Maybe Integer)
   | PoolRequest
   | PoolRequestFullfilled
 
@@ -142,6 +144,8 @@ observationMessage = \case
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
     )
+  ResponseObs {} ->
+    mempty -- We log this observation early in Logger.hs in apache format
   PoolRequest ->
     "Trying to borrow a connection from pool"
   PoolRequestFullfilled ->
