@@ -137,7 +137,8 @@ main = do
         analyzeTable "child_entities"
 
       specs = uncurry describe <$> [
-          ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
+          ("Feature.Auth.AudienceJwtSecretSpec"          , Feature.Auth.AudienceJwtSecretSpec.disabledSpec)
+        , ("Feature.Auth.AuthSpec"                       , Feature.Auth.AuthSpec.spec)
         , ("Feature.ConcurrentSpec"                      , Feature.ConcurrentSpec.spec)
         , ("Feature.CorsSpec"                            , Feature.CorsSpec.spec)
         , ("Feature.CustomMediaSpec"                     , Feature.Query.CustomMediaSpec.spec)

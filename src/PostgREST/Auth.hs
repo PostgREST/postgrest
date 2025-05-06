@@ -10,6 +10,7 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RecordWildCards #-}
 module PostgREST.Auth
   ( getResult
@@ -99,6 +100,7 @@ parseToken AppConfig{..} (Just tkn) time = do
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
+      allStrings = all (\case (JSON.String _) -> True; _ -> False)
 
       isValidExpClaim :: JSON.Value -> Either JwtError Bool
       isValidExpClaim (JSON.Number secs) = Right $ now <= (sciToInt secs + allowedSkewSeconds)
@@ -113,7 +115,11 @@ parseToken AppConfig{..} (Just tkn) time = do
       isValidIatClaim _ = Left $ JwtClaimsError "The JWT 'iat' claim must be a number"
 
       isValidAudClaim :: JSON.Value -> Either JwtError Bool
+      isValidAudClaim JSON.Null = Right True -- {"aud": null} is valid for all audiences
       isValidAudClaim (JSON.String str) = Right $ maybe (const True) (==) configJwtAudience str
+      isValidAudClaim (JSON.Array arr)
+        | null arr = Right True              -- {"aud": []} is valid for all audiences
+        | allStrings arr = Right $ maybe True (\a -> JSON.String a `elem` arr) configJwtAudience
       isValidAudClaim _ = Left $ JwtClaimsError "The JWT 'aud' claim must be a string or an array of strings"
 
 parseClaims :: Monad m =>
