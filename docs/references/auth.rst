@@ -166,10 +166,27 @@ PostgREST honors the following `JWT claims <https://datatracker.ietf.org/doc/htm
 - ``exp`` Expiration Time
 - ``iat`` Issued At
 - ``nbf`` Not Before
-- ``aud`` Audience, see :ref:`jwt-aud`
+- ``aud`` :ref:`Audience <jwt_aud_validation>`
 
 .. note::
-  PostgREST allows for a 30-second clock skew when validating the ``exp`` and ``iat`` claims. In other words, it gives an extra 30 seconds before the token is rejected if there is a slight discrepancy in the timestamps.
+  PostgREST allows for a 30-second clock skew when validating the ``exp``, ``iat`` and ``nbf`` claims.
+  In other words, it gives an extra 30 seconds before the token is rejected if there is a slight discrepancy in the timestamps.
+
+.. _jwt_aud_validation:
+
+JWT ``aud`` Claim Validation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+PostgREST has built-in validation of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
+It works this way:
+
+- If :ref:`jwt-aud` is not set (the default), PostgREST identifies with all audiences and allows the JWT for any ``aud`` claim.
+- If :ref:`jwt-aud` is set to a specific audience, PostgREST will check if this audience is present in the ``aud`` claim:
+
+  + If the ``aud`` value is a JSON string, it will match it to the :ref:`jwt-aud`.
+  + If the ``aud`` value is a JSON array of strings, it will search every element for a match.
+  + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
+  + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
 
 .. _jwt_role_claim_key_extract:
 
