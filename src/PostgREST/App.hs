@@ -9,6 +9,7 @@ Some of its functionality includes:
 - Producing HTTP Headers according to RFCs.
 - Content Negotiation
 -}
+{-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ViewPatterns        #-}
@@ -24,7 +25,6 @@ import System.IO.Error  (ioeGetErrorType)
 import Control.Monad.Except     (liftEither)
 import Control.Monad.Extra      (whenJust)
 import Data.Either.Combinators  (mapLeft, whenLeft)
-import Data.Maybe               (fromJust)
 import Data.String              (IsString (..))
 import Network.Wai.Handler.Warp (defaultSettings, setHost,
                                  setOnException, setPort,
@@ -33,6 +33,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost,
 import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Network.Wai.Header       as WaiHeader
 
 import qualified PostgREST.Admin      as Admin
 import qualified PostgREST.ApiRequest as ApiRequest
@@ -41,7 +42,6 @@ import qualified PostgREST.Auth       as Auth
 import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
 import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.Logger     as Logger
 import qualified PostgREST.MainTx     as MainTx
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
@@ -51,7 +51,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..))
+import PostgREST.Config               (AppConfig (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
@@ -72,11 +72,9 @@ import qualified Network.Socket            as NS
 import           PostgREST.Unix            (createAndBindDomainSocket)
 import           Protolude                 hiding (Handler)
 
-type Handler = ExceptT Error
-
 run :: AppState -> IO ()
 run appState = do
-  conf@AppConfig{..} <- AppState.getConfig appState
+  conf <- AppState.getConfig appState
 
   AppState.schemaCacheLoader appState -- Loads the initial SchemaCache
   (mainSocket, adminSocket) <- initSockets conf
@@ -89,7 +87,7 @@ run appState = do
 
   Admin.runAdmin appState adminSocket mainSocket (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
+  let app = postgrest appState (AppState.schemaCacheLoader appState)
 
   do
     address <- resolveSocketToAddress mainSocket
@@ -122,48 +120,59 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLevel appState connWorker =
+postgrest :: AppState.AppState -> IO () -> Wai.Application
+postgrest appState connWorker =
   traceHeaderMiddleware appState .
-  Cors.middleware appState .
-  Auth.middleware appState .
-  Logger.middleware logLevel Auth.getRole $
-    -- fromJust can be used, because the auth middleware will **always** add
-    -- some AuthResult to the vault.
+  Cors.middleware appState $
     \req respond -> do
       appConf@AppConfig{..} <- AppState.getConfig appState -- the config must be read again because it can reload
-      case fromJust $ Auth.getResult req of
-        Left err -> respond $ Error.errorResponseFor configClientErrorVerbosity err
-        Right authResult -> do
-          maybeSchemaCache <- AppState.getSchemaCache appState
+      maybeSchemaCache <- AppState.getSchemaCache appState
 
-          let
-            eitherResponse :: IO (Either Error Wai.Response)
-            eitherResponse =
-              runExceptT $ postgrestResponse appState appConf maybeSchemaCache authResult req
+      let observer = AppState.getObserver appState
+          bearerAuth = ApiRequest.userBearerAuth req
 
-          response <- either (Error.errorResponseFor configClientErrorVerbosity) identity <$> eitherResponse
-          -- Launch the connWorker when the connection is down. The postgrest
-          -- function can respond successfully (with a stale schema cache) before
-          -- the connWorker is done. However, when there's an empty schema cache
-          -- postgrest responds with the error `PGRST002`; this means that the schema
-          -- cache is still loading, so we don't launch the connWorker here because
-          -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
-          -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
-          when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
-          resp <- do
-            delay <- AppState.getNextDelay appState
-            return $ addRetryHint delay response
-          respond resp
+      response <- do
+        authResultE <- runExceptT $ withTiming appConf $
+            liftIO (Auth.getAuthResult appState bearerAuth) >>= liftEither
+
+        case authResultE of
+          Left err -> do
+            let resp = Error.errorResponseFor configClientErrorVerbosity err
+            observer $ genResponseObs Nothing req resp
+            pure resp
+
+          Right (jwtTime, authResult@AuthResult{..}) -> do
+            resp <- either (Error.errorResponseFor configClientErrorVerbosity) identity <$>
+              runExceptT (postgrestResponse appState appConf maybeSchemaCache jwtTime authResult req)
+            observer $ genResponseObs (Just authRole) req resp
+            pure resp
+
+      -- Launch the connWorker when the connection is down. The postgrest
+      -- function can respond successfully (with a stale schema cache) before
+      -- the connWorker is done. However, when there's an empty schema cache
+      -- postgrest responds with the error `PGRST002`; this means that the schema
+      -- cache is still loading, so we don't launch the connWorker here because
+      -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
+      -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
+      when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
+      delay <- AppState.getNextDelay appState
+      respond $ addRetryHint delay response
+  where
+    -- TODO WaiHeader.contentLength does a lookup everytime, see: https://hackage.haskell.org/package/wai-extra-3.1.17/docs/src/Network.Wai.Header.html#contentLength
+    -- It might be possible to gain some perf by returning the response length from `postgrestResponse`. We calculate the length manually on Response.hs.
+    genResponseObs :: Maybe ByteString -> Wai.Request -> Wai.Response -> Observation
+    genResponseObs user req resp =
+      ResponseObs user req (Wai.responseStatus resp) (WaiHeader.contentLength $ Wai.responseHeaders resp)
 
 postgrestResponse
   :: AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
+  -> Maybe Double
   -> AuthResult
   -> Wai.Request
-  -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthResult{..} req = do
+  -> ExceptT Error IO Wai.Response
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResult@AuthResult{..} req = do
   let observer = AppState.getObserver appState
 
   sCache <-
@@ -174,20 +183,18 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
         lift $ observer SchemaCacheEmptyObs
         throwError Error.NoSchemaCacheError
 
+  let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
+
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-      timezones = dbTimezones sCache
-      prefs = ApiRequest.userPreferences conf req timezones
-
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming conf $ liftEither . mapLeft Error.ApiRequestErr $ ApiRequest.userApiRequest conf prefs req body
+  (planTime, plan)                   <- withTiming conf $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
-  (txTime, txResult) <- withTiming $ do
+  (txTime, txResult) <- withTiming conf $ do
     case tx of
       MainTx.NoDbTx r -> pure r
       MainTx.DbTx{..} -> do
@@ -200,7 +207,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
         lift $ whenLeft eitherResp $ obsQuery . Error.status
         liftEither eitherResp
 
-  (respTime, resp) <- withTiming $ do
+  (respTime, resp) <- withTiming conf $ do
     let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache
         status' = either Error.status Response.pgrstStatus response
 
@@ -224,14 +231,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
     varyHeaderPresent :: [HTTP.Header] -> Bool
     varyHeaderPresent = any (\(h, _v) -> h == HTTP.hVary)
 
-    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
-    withTiming f = if configServerTimingEnabled
-        then do
-          (t, r) <- timeItT f
-          pure (Just t, r)
-        else do
-          r <- f
-          pure (Nothing, r)
+withTiming :: AppConfig -> ExceptT e IO a -> ExceptT e IO (Maybe Double, a)
+withTiming AppConfig{configServerTimingEnabled} f = if configServerTimingEnabled
+    then do
+      (t, r) <- timeItT f
+      pure (Just t, r)
+    else do
+      r <- f
+      pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do

@@ -7,8 +7,7 @@ Description : Logging based on the Observation.hs module. Access logs get sent t
 -}
 -- TODO log with buffering enabled to not lose throughput on logging levels higher than LogError
 module PostgREST.Logger
-  ( middleware
-  , observationLogger
+  (observationLogger
   , init
   , LoggerState
   ) where
@@ -26,17 +25,14 @@ import qualified Hasql.Statement                   as SQL
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
 
-import qualified Network.Wai                          as Wai
-import qualified Network.Wai.Middleware.RequestLogger as Wai
-
 import Network.HTTP.Types.Status (Status, status400, status500)
-import System.IO.Unsafe          (unsafePerformIO)
 
-import PostgREST.Config      (LogLevel (..), Verbosity (..))
-import PostgREST.Debounce    (makeDebouncer)
+import PostgREST.Config        (LogLevel (..), Verbosity (..))
+import PostgREST.Debounce      (makeDebouncer)
+import PostgREST.Logger.Apache (apacheFormat)
 import PostgREST.Observation
-import PostgREST.Query       (MainQuery (..))
-import PostgREST.SchemaCache (queryTimingsWLabels)
+import PostgREST.Query         (MainQuery (..))
+import PostgREST.SchemaCache   (queryTimingsWLabels)
 
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.Text                  as T
@@ -62,20 +58,6 @@ init = mdo
   debouncePoolTimeout <- makeDebouncer $
     logWithZTime loggerState (observationMessages PoolAcqTimeoutObs) *> threadDelay (5 * oneSecond)
   pure loggerState
-
--- TODO stop using this middleware to reuse the same "observer" pattern for all our logs
-middleware :: LogLevel -> (Wai.Request -> Maybe BS.ByteString) -> Wai.Middleware
-middleware logLevel getAuthRole =
-    unsafePerformIO $
-      Wai.mkRequestLogger Wai.defaultRequestLoggerSettings
-      { Wai.outputFormat =
-         Wai.ApacheWithSettings $
-           Wai.defaultApacheSettings &
-           Wai.setApacheRequestFilter (\_ res -> shouldLogResponse logLevel $ Wai.responseStatus res) &
-           Wai.setApacheUserGetter getAuthRole
-      , Wai.autoFlush = True
-      , Wai.destination = Wai.Handle stdout
-      }
 
 shouldLogResponse :: LogLevel -> Status -> Bool
 shouldLogResponse logLevel = case logLevel of
@@ -109,6 +91,10 @@ observationLogger loggerState logLevel obs = case obs of
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
+  ResponseObs maybeRole req status contentLen ->
+    when (shouldLogResponse logLevel status) $ do
+      zTime <- stateGetZTime loggerState
+      putStr $ apacheFormat maybeRole (BS.pack $ formatZonedTime zTime) req status contentLen -- putStr prints to stdout
   o@PoolFlushed ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessages o
@@ -127,7 +113,11 @@ observationLogger loggerState logLevel obs = case obs of
 logWithZTime :: LoggerState -> [Text] -> IO ()
 logWithZTime loggerState txts = do
   zTime <- stateGetZTime loggerState
-  traverse_ (hPutStrLn stderr . (toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <>)) txts
+  let prefix = toS (formatZonedTime zTime) <> ": "
+  traverse_ (hPutStrLn stderr . (prefix <>)) txts
+
+formatZonedTime :: ZonedTime -> [Char]
+formatZonedTime = formatTime defaultTimeLocale "%d/%b/%Y:%T %z"
 
 -- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
 -- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
@@ -243,6 +233,8 @@ observationMessages = \case
     pure $ "Received termination unix signal " <> signal
   WarpServerObs txt ->
     pure $ "Warp server: " <> txt
+  ResponseObs {} ->
+    mempty -- TODO this message is produced on observationLogger since it depends on Logger state. Merge observationMessages with observationLogger to clear this.
   where
     showMillis :: Double -> Text
     showMillis x = toS $ showFFloat (Just 1) x ""

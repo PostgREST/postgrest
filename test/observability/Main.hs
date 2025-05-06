@@ -58,7 +58,7 @@ main = do
       appState <- AppState.initWithPool pool config loggerState metricsState (Metrics.observationMetrics metricsState <> writeChan obsChan)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return (SpecState appState metricsState stateObsChan, postgrest (configLogLevel config) appState (pure ()))
+      return (SpecState appState metricsState stateObsChan, postgrest appState (pure ()))
 
   -- Run all test modules
   hspec $ do
