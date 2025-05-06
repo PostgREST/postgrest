@@ -82,39 +82,39 @@ parseToken AppConfig{..} (Just tkn) time = do
 
       verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
-        Nothing                    -> Left $ JwtClaimsError "Parsing claims failed"
-        Just (JSON.Object mclaims)
-          | failedExpClaim mclaims -> Left $ JwtClaimsError "JWT expired"
-          | failedNbfClaim mclaims -> Left $ JwtClaimsError "JWT not yet valid"
-          | failedIatClaim mclaims -> Left $ JwtClaimsError "JWT issued at future"
-          | failedAudClaim mclaims -> Left $ JwtClaimsError "JWT not in audience"
-        Just jclaims               -> Right jclaims
+        Just jclaims@(JSON.Object mclaims) ->
+          verifyClaim mclaims "exp" isValidExpClaim "JWT expired" >>
+          verifyClaim mclaims "nbf" isValidNbfClaim "JWT not yet valid" >>
+          verifyClaim mclaims "iat" isValidIatClaim "JWT issued at future" >>
+          verifyClaim mclaims "aud" isValidAudClaim "JWT not in audience" >>
+          return jclaims
+        _ -> Left $ JwtClaimsError "Parsing claims failed"
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _                = Left $ JwtDecodeError "Unsupported token type"
+      verifyClaims _ = Left $ JwtDecodeError "Unsupported token type"
+
+      verifyClaim mclaims claim func err = do
+        isValid <- maybe (Right True) func (KM.lookup claim mclaims)
+        unless isValid $ Left $ JwtClaimsError err
 
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
 
-      failedExpClaim :: KM.KeyMap JSON.Value -> Bool
-      failedExpClaim mclaims = case KM.lookup "exp" mclaims of
-        Just (JSON.Number secs) -> now > (sciToInt secs + allowedSkewSeconds)
-        _                       -> False
+      isValidExpClaim :: JSON.Value -> Either JwtError Bool
+      isValidExpClaim (JSON.Number secs) = Right $ now <= (sciToInt secs + allowedSkewSeconds)
+      isValidExpClaim _ = Left $ JwtClaimsError "The JWT 'exp' claim must be a number"
 
-      failedNbfClaim :: KM.KeyMap JSON.Value -> Bool
-      failedNbfClaim mclaims = case KM.lookup "nbf" mclaims of
-        Just (JSON.Number secs) -> now < (sciToInt secs - allowedSkewSeconds)
-        _                       -> False
+      isValidNbfClaim :: JSON.Value -> Either JwtError Bool
+      isValidNbfClaim (JSON.Number secs) = Right $ now >= (sciToInt secs - allowedSkewSeconds)
+      isValidNbfClaim _ = Left $ JwtClaimsError "The JWT 'nbf' claim must be a number"
 
-      failedIatClaim :: KM.KeyMap JSON.Value -> Bool
-      failedIatClaim mclaims = case KM.lookup "iat" mclaims of
-        Just (JSON.Number secs) -> now < (sciToInt secs - allowedSkewSeconds)
-        _                       -> False
+      isValidIatClaim :: JSON.Value -> Either JwtError Bool
+      isValidIatClaim (JSON.Number secs) = Right $ now >= (sciToInt secs - allowedSkewSeconds)
+      isValidIatClaim _ = Left $ JwtClaimsError "The JWT 'iat' claim must be a number"
 
-      failedAudClaim :: KM.KeyMap JSON.Value -> Bool
-      failedAudClaim mclaims = case KM.lookup "aud" mclaims of
-        Just (JSON.String str) -> maybe (const False) (/=) configJwtAudience str
-        _                      -> False
+      isValidAudClaim :: JSON.Value -> Either JwtError Bool
+      isValidAudClaim (JSON.String str) = Right $ maybe (const True) (==) configJwtAudience str
+      isValidAudClaim _ = Left $ JwtClaimsError "The JWT 'aud' claim must be a string or an array of strings"
 
 parseClaims :: Monad m =>
   AppConfig -> JSON.Value -> ExceptT Error m AuthResult

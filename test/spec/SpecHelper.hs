@@ -10,6 +10,9 @@ import qualified Data.ByteString.Lazy   as BL
 import qualified Data.Map.Strict        as M
 import           Data.Scientific        (toRealFloat)
 import qualified Data.Set               as S
+import qualified Jose.Jwa               as JWT
+import qualified Jose.Jws               as JWT
+import qualified Jose.Jwt               as JWT
 
 import Data.Aeson           ((.=))
 import Data.CaseInsensitive (CI (..), mk, original)
@@ -197,19 +200,17 @@ testPlanEnabledCfg = baseCfg { configDbPlanEnabled = True }
 
 testCfgBinaryJWT :: AppConfig
 testCfgBinaryJWT =
-  let secret = B64.decodeLenient "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
   baseCfg {
-    configJwtSecret = Just secret
-  , configJWKS = rightToMaybe $ parseSecret secret
+    configJwtSecret = Just generateSecret
+  , configJWKS = rightToMaybe $ parseSecret generateSecret
   }
 
 testCfgAudienceJWT :: AppConfig
 testCfgAudienceJWT =
-  let secret = B64.decodeLenient "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU=" in
   baseCfg {
-    configJwtSecret = Just secret
+    configJwtSecret = Just generateSecret
   , configJwtAudience = Just "youraudience"
-  , configJWKS = rightToMaybe $ parseSecret secret
+  , configJWKS = rightToMaybe $ parseSecret generateSecret
   }
 
 testCfgAsymJWK :: AppConfig
@@ -290,6 +291,13 @@ authHeader typ creds =
 
 authHeaderJWT :: BS.ByteString -> Header
 authHeaderJWT = authHeader "Bearer"
+
+generateSecret :: ByteString
+generateSecret = B64.decodeLenient "cmVhbGx5cmVhbGx5cmVhbGx5cmVhbGx5dmVyeXNhZmU="
+
+generateJWT :: BL.ByteString -> ByteString
+generateJWT claims =
+  either mempty JWT.unJwt $ JWT.hmacEncode JWT.HS256 generateSecret (BL.toStrict claims)
 
 -- | Tests whether the text can be parsed as a json object containing
 -- the key "message", and optional keys "details", "hint", "code",
