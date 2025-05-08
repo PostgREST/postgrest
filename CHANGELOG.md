@@ -36,6 +36,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
  - #3013, Fix `order=` with POST, PATCH, PUT and DELETE requests - @taimoorzaeem
  - #3965, Fix filter on unselected columns in a table-valued function - @taimoorzaeem
+ - #4052, Fix schema cache load duplicate objects with different object type but same oid - @taimoorzaeem
 
 ### Changed
 
