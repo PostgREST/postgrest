@@ -1,4 +1,6 @@
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE RecordWildCards    #-}
+{-# LANGUAGE TupleSections      #-}
 module PostgREST.Response.Performance
   ( ServerTiming (..)
   , serverTimingHeader
@@ -23,17 +25,37 @@ data ServerTiming =
 -- | Render the Server-Timing header from a ServerTimingData
 -- The duration precision is milliseconds, per the docs
 --
--- >>> serverTimingHeader ServerTiming { plan=Just 0.1, transaction=Just 0.2, response=Just 0.3, jwt=Just 0.4, parse=Just 0.5}
+-- >>> :{
+--    serverTimingHeader ServerTiming {
+--      plan=Just 0.1,
+--      transaction=Just 0.2,
+--      response=Just 0.3,
+--      jwt=Just 0.4,
+--      parse=Just 0.5
+--    }
+-- :}
 -- ("Server-Timing","jwt;dur=400.0, parse;dur=500.0, plan;dur=100.0, transaction;dur=200.0, response;dur=300.0")
+--
+-- >>> :{
+--    serverTimingHeader ServerTiming {
+--      plan=Nothing,
+--      transaction=Nothing,
+--      response=Just 0.2,
+--      jwt=Nothing,
+--      parse=Just 0.1
+--    }
+-- :}
+-- ("Server-Timing","parse;dur=100.0, response;dur=200.0")
 serverTimingHeader :: ServerTiming -> HTTP.Header
-serverTimingHeader timing =
+serverTimingHeader ServerTiming{..} =
   ("Server-Timing", renderTiming)
   where
-    renderMetric metric = maybe "" (\dur -> BS.concat [metric, BS.pack $ ";dur=" <> showFFloat (Just 1) (dur * 1_000) ""])
-    renderTiming = BS.intercalate ", " $ (\(k, v) -> renderMetric k (v timing)) <$>
-      [ ("jwt", jwt)
-      , ("parse", parse)
-      , ("plan", plan)
-      , ("transaction", transaction)
-      , ("response", response)
+    renderMetric metric dur = BS.concat [metric, BS.pack $ ";dur=" <> showFFloat (Just 1) (dur * 1_000) ""]
+    renderTiming = BS.intercalate ", " $ map (uncurry renderMetric) timings
+    timings = catMaybes [
+        ("jwt",) <$> jwt,
+        ("parse",) <$> parse,
+        ("plan",) <$> plan,
+        ("transaction",) <$> transaction,
+        ("response",) <$> response
       ]

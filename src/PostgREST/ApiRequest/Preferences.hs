@@ -17,6 +17,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferTransaction(..)
   , PreferTimezone(..)
   , PreferMaxAffected(..)
+  , PreferMetrics(..)
   , fromHeaders
   , shouldCount
   , prefAppliedHeader
@@ -42,6 +43,7 @@ import Protolude
 -- >>> deriving instance Show PreferHandling
 -- >>> deriving instance Show PreferTimezone
 -- >>> deriving instance Show PreferMaxAffected
+-- >>> deriving instance Show PreferMetrics
 -- >>> deriving instance Show Preferences
 
 -- | Preferences recognized by the application.
@@ -55,6 +57,7 @@ data Preferences
     , preferHandling       :: Maybe PreferHandling
     , preferTimezone       :: Maybe PreferTimezone
     , preferMaxAffected    :: Maybe PreferMaxAffected
+    , preferMetrics        :: Maybe PreferMetrics
     , invalidPrefs         :: [ByteString]
     }
 
@@ -64,7 +67,7 @@ data Preferences
 -- >>> let sc = S.fromList ["America/Los_Angeles"]
 --
 -- One header with comma-separated values can be used to set multiple preferences:
--- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100")]
+-- >>> pPrint $ fromHeaders True sc [("Prefer", "resolution=ignore-duplicates, count=exact, timezone=America/Los_Angeles, max-affected=100, metrics=timings")]
 -- Preferences
 --     { preferResolution = Just IgnoreDuplicates
 --     , preferRepresentation = Nothing
@@ -76,6 +79,7 @@ data Preferences
 --         ( PreferTimezone "America/Los_Angeles" )
 --     , preferMaxAffected = Just
 --         ( PreferMaxAffected 100 )
+--     , preferMetrics = Just Timings
 --     , invalidPrefs = []
 --     }
 --
@@ -92,6 +96,7 @@ data Preferences
 --     , preferTimezone = Nothing
 --     , preferMaxAffected = Just
 --         ( PreferMaxAffected 5999 )
+--     , preferMetrics = Nothing
 --     , invalidPrefs = [ "invalid" ]
 --     }
 --
@@ -123,6 +128,7 @@ data Preferences
 --     , preferHandling = Just Strict
 --     , preferTimezone = Nothing
 --     , preferMaxAffected = Nothing
+--     , preferMetrics = Nothing
 --     , invalidPrefs = [ "anything" ]
 --     }
 --
@@ -137,6 +143,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     , preferHandling       = parsePrefs [Strict, Lenient]
     , preferTimezone       = if isTimezonePrefAccepted then PreferTimezone <$> timezonePref else Nothing
     , preferMaxAffected    = PreferMaxAffected <$> maxAffectedPref
+    , preferMetrics        = parsePrefs [Timings]
     , invalidPrefs         = filter isUnacceptable prefs
     }
   where
@@ -147,7 +154,8 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
                     mapToHeadVal [ExactCount, PlannedCount, EstimatedCount] ++
                     mapToHeadVal [Commit, Rollback] ++
                     mapToHeadVal [ApplyDefaults, ApplyNulls] ++
-                    mapToHeadVal [Strict, Lenient]
+                    mapToHeadVal [Strict, Lenient] ++
+                    mapToHeadVal [Timings]
 
     prefHeaders = filter ((==) HTTP.hPrefer . fst) headers
     prefs = fmap BS.strip . concatMap (BS.split ',' . snd) $ prefHeaders
@@ -171,7 +179,7 @@ fromHeaders allowTxDbOverride acceptedTzNames headers =
     prefMap = Map.fromList . fmap (\pref -> (toHeaderValue pref, pref))
 
 prefAppliedHeader :: Preferences -> Maybe HTTP.Header
-prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected } =
+prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCount, preferTransaction, preferMissing, preferHandling, preferTimezone, preferMaxAffected, preferMetrics } =
   if null prefsVals
     then Nothing
     else Just (HTTP.hPreferenceApplied, combined)
@@ -186,6 +194,7 @@ prefAppliedHeader Preferences {preferResolution, preferRepresentation, preferCou
       , toHeaderValue <$> preferHandling
       , toHeaderValue <$> preferTimezone
       , if preferHandling == Just Strict then toHeaderValue <$> preferMaxAffected else Nothing
+      , toHeaderValue <$> preferMetrics
       ]
 
 -- |
@@ -284,3 +293,12 @@ newtype PreferMaxAffected = PreferMaxAffected Int64
 
 instance ToHeaderValue PreferMaxAffected where
   toHeaderValue (PreferMaxAffected n) = "max-affected=" <> show n
+
+-- |
+-- Show Performance Metrics
+data PreferMetrics
+  = Timings -- ^ Show server timings for the request
+  deriving Eq
+
+instance ToHeaderValue PreferMetrics where
+  toHeaderValue Timings  = "metrics=timings"

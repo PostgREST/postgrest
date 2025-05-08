@@ -40,19 +40,21 @@ import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
 import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 
-import PostgREST.ApiRequest           (ApiRequest (..))
-import PostgREST.AppState             (AppState)
-import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..),
-                                       LogQuery (..))
-import PostgREST.Config.PgVersion     (PgVersion (..))
-import PostgREST.Error                (Error)
-import PostgREST.Network              (resolveHost)
-import PostgREST.Observation          (Observation (..))
-import PostgREST.Response.Performance (ServerTiming (..),
-                                       serverTimingHeader)
-import PostgREST.SchemaCache          (SchemaCache (..))
-import PostgREST.Version              (docsVersion, prettyVersion)
+import PostgREST.ApiRequest             (ApiRequest (..))
+import PostgREST.ApiRequest.Preferences (PreferMetrics (..),
+                                         Preferences (..))
+import PostgREST.AppState               (AppState)
+import PostgREST.Auth.Types             (AuthResult (..))
+import PostgREST.Config                 (AppConfig (..),
+                                         LogLevel (..), LogQuery (..))
+import PostgREST.Config.PgVersion       (PgVersion (..))
+import PostgREST.Error                  (Error)
+import PostgREST.Network                (resolveHost)
+import PostgREST.Observation            (Observation (..))
+import PostgREST.Response.Performance   (ServerTiming (..),
+                                         serverTimingHeader)
+import PostgREST.SchemaCache            (SchemaCache (..))
+import PostgREST.Version                (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
@@ -143,17 +145,22 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-      timezones = dbTimezones sCache
-      prefs = ApiRequest.userPreferences conf req timezones
+  -- APIREQUEST/PARSE STAGE
+  let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
+      calcTiming = configServerTimingEnabled || preferMetrics prefs == Just Timings
 
-  (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+  (parseTime, apiReq@ApiRequest{..}) <- withTiming calcTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
 
+  let jwtTime = Auth.getJwtDur req
+
+  -- PLAN STAGE
+  (planTime, plan) <- withTiming calcTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+
+  -- QUERY STAGE
   let query = Query.query conf authResult apiReq plan sCache pgVer
       logSQL = lift . AppState.getObserver appState . DBQuery (Query.getSQLQuery query)
 
-  (queryTime, queryResult) <- withTiming $ do
+  (queryTime, queryResult) <- withTiming calcTiming $ do
     case query of
       Query.NoDbQuery r -> pure r
       Query.DbQuery{..} -> do
@@ -162,25 +169,27 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
         when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
         liftEither eitherResp >>= liftEither
 
-  (respTime, resp) <- withTiming $ do
+  -- RESPONSE STAGE
+  (respTime, resp) <- withTiming calcTiming $ do
     let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
     when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response
     liftEither response
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
+  let serverTimings = ServerTiming jwtTime parseTime planTime queryTime respTime
 
+  return $ toWaiResponse (if calcTiming then Just serverTimings else Nothing) resp
   where
-    toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
-    toWaiResponse timing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ ([serverTimingHeader timing | configServerTimingEnabled])) bod
+    toWaiResponse :: Maybe ServerTiming -> Response.PgrstResponse -> Wai.Response
+    toWaiResponse (Just timing) (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st (hdrs ++ [serverTimingHeader timing]) bod
+    toWaiResponse Nothing (Response.PgrstResponse st hdrs bod) = Wai.responseLBS st hdrs bod
 
-    withTiming :: Handler IO a -> Handler IO (Maybe Double, a)
-    withTiming f = if configServerTimingEnabled
-        then do
-          (t, r) <- timeItT f
-          pure (Just t, r)
-        else do
-          r <- f
-          pure (Nothing, r)
+    withTiming :: Bool -> Handler IO a -> Handler IO (Maybe Double, a)
+    withTiming True f = do
+        (t, r) <- timeItT f
+        pure (Just t, r)
+    withTiming False f = do
+        r <- f
+        pure (Nothing, r)
 
 traceHeaderMiddleware :: AppState -> Wai.Middleware
 traceHeaderMiddleware appState app req respond = do

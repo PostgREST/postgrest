@@ -15,6 +15,7 @@ The following preferences are supported.
 - ``Prefer: missing``. See :ref:`prefer_missing`.
 - ``Prefer: max-affected``, See :ref:`prefer_max_affected`.
 - ``Prefer: tx``. See :ref:`prefer_tx`.
+- ``Prefer: metrics``. See :ref:`prefer_metrics`.
 
 .. _prefer_handling:
 
@@ -264,3 +265,23 @@ To illustrate the use of this preference, consider the following scenario where 
       "details": "The query affects 14 rows",
       "hint": null
   }
+
+.. _prefer_metrics:
+
+Metrics
+=======
+
+To observe metrics of the different stages of the request-response cycle, ``Prefer: metrics=timings`` request header can be used.
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/users" -i \
+    -H "Prefer: metrics=timings"
+
+.. code:: http
+
+  HTTP/1.1 200 OK
+
+  Server-Timing: jwt;dur=14.9, parse;dur=71.1, plan;dur=109.0, transaction;dur=353.2, response;dur=4.4
+
+See :ref:`server-timing_header` for details about the meaning of these timings.
