@@ -452,7 +452,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
   JOIN pg_type t ON t.oid = bt.base
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-  LEFT JOIN pg_description as d ON d.objoid = p.oid
+  LEFT JOIN pg_description as d ON d.objoid = p.oid AND d.classoid = 'pg_proc'::regclass
   LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config LIKE 'default_transaction_isolation%'
   LEFT JOIN LATERAL (
     SELECT
@@ -649,7 +649,7 @@ tablesSqlQuery =
           a.attnum::integer AS position
       FROM pg_attribute a
           LEFT JOIN pg_description AS d
-              ON d.objoid = a.attrelid and d.objsubid = a.attnum
+              ON d.objoid = a.attrelid and d.objsubid = a.attnum and d.classoid = 'pg_class'::regclass
           LEFT JOIN pg_attrdef ad
               ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
           JOIN pg_class c
@@ -738,7 +738,7 @@ tablesSqlQuery =
     coalesce(cols_agg.columns, '{}') as columns
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
-  LEFT JOIN pg_description d on d.objoid = c.oid and d.objsubid = 0
+  LEFT JOIN pg_description d on d.objoid = c.oid and d.objsubid = 0 and d.classoid = 'pg_class'::regclass
   LEFT JOIN tbl_pk_cols tpks ON c.oid = tpks.relid
   LEFT JOIN columns_agg cols_agg ON c.oid = cols_agg.relid
   WHERE c.relkind IN ('v','r','m','f','p')
