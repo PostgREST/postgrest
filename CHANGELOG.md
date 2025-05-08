@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.0] - 2025-05-08
+
 ### Added
 
  - #3558, Add the `admin-server-host` config to set the host for the admin server - @develop7
