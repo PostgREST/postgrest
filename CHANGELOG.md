@@ -47,8 +47,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #2052, Dropped support for PostgreSQL 11 - @wolfgangwalther
  - #3508, PostgREST now fails to start when `server-port` and `admin-server-port` config options are the same - @develop7
  - #3607, PostgREST now fails to start when the JWT secret is less than 32 characters long - @laurenceisla
- - #3644, Fail schema cache lookup with invalid db-schemas config - @wolfgangwalther
+ - #3644, Fail schema cache lookup with invalid `db-schemas` or `db-extra-search-path` config - @wolfgangwalther
    - Previously, this would silently return 200 - OK on the root endpoint, but don't provide any usable endpoints.
+   - Note: This also applies when deleting the `public` schema - both config options default to that.
  - #3757, Remove support for `Prefer: params=single-object` - @joelonsql
    + This preference was deprecated in favor of Functions with an array of JSON objects
  - #3013, Drop support for Limited updates/deletes
