@@ -948,7 +948,7 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = sorted(postgrest.read_stdout(nlines=7))
+        output = postgrest.read_stdout(nlines=7)
 
         if level == "crit":
             assert len(output) == 0
@@ -964,7 +964,7 @@ def test_log_level(level, defaultenv):
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
+                r'- - - \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert len(output) == 2
@@ -974,11 +974,11 @@ def test_log_level(level, defaultenv):
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+                r'- - - \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
                 output[2],
             )
             assert len(output) == 3
@@ -988,12 +988,12 @@ def test_log_level(level, defaultenv):
                 output[0],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+                r'- - - \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
                 output[1],
             )
             assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[2],
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
+                output[6],
             )
 
             assert len(output) == 7
