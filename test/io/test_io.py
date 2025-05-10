@@ -234,6 +234,28 @@ def test_role_claim_key(roleclaim, defaultenv):
         assert response.status_code == roleclaim["expected_status"]
 
 
+@pytest.mark.parametrize(
+    "jwtaudroleclaim",
+    FIXTURES["jwtaudroleclaims"],
+    ids=lambda claim: claim["key"] + "_" + str(claim["expected_status"]),
+)
+def test_jwt_aud_in_role_claim_key(jwtaudroleclaim, defaultenv):
+    "Allows authorization with JWT aud claim in role-claim-key"
+
+    env = {
+        **defaultenv,
+        "PGRST_JWT_AUD": "postgrest_test_author",
+        "PGRST_JWT_ROLE_CLAIM_KEY": jwtaudroleclaim["key"],
+        "PGRST_JWT_SECRET": SECRET,
+    }
+
+    headers = jwtauthheader(jwtaudroleclaim["data"], SECRET)
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/authors_only", headers=headers)
+        assert response.status_code == jwtaudroleclaim["expected_status"]
+
+
 def test_iat_claim(defaultenv):
     """
     A claim with an 'iat' (issued at) attribute should be successful.
