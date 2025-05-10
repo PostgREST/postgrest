@@ -718,7 +718,7 @@ log-query
   =============== =================================
 
   Logs the SQL query for the corresponding request at the current :ref:`log-level`.
-  See :ref:``sql_query_logs``.
+  See :ref:`sql_query_logs`.
 
     .. code:: bash
 
