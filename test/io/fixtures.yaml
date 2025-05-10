@@ -196,6 +196,24 @@ roleclaims:
           - obj_key: obj_value
     expected_status: 401 # fails because it compares an object with a string
 
+jwtaudroleclaims:
+  - key: '.aud'
+    data:
+      aud: postgrest_test_author
+    expected_status: 200
+  - key: '.aud'
+    data:
+      aud: postgrest_test_invalid
+    expected_status: 401
+  - key: '.aud[0]'
+    data:
+      aud: [postgrest_test_author]
+    expected_status: 200
+  - key: '.aud[1]' # succeeds the aud claims check, but fail when hits the db
+    data:
+      aud: [postgrest_test_author, postgrest_test_invalid]
+    expected_status: 400
+
 invalidroleclaimkeys:
   - 'role.other'
   - '.role##'
