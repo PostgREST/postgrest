@@ -188,12 +188,12 @@ It works this way:
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
 
-.. _jwt_role_claim_key_extract:
+.. _jwt_role_extract:
 
-JWT Role Claim Key Extraction
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+JWT Role Extraction
+~~~~~~~~~~~~~~~~~~~
 
-A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
+A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. It's configured by :ref:`jwt-role-claim-key`. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
 
 The DSL follows the `JSONPath <https://goessner.net/articles/JsonPath/>`_ expression grammar with extended string comparison operators. Supported operators are:
 

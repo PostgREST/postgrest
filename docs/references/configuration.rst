@@ -616,7 +616,7 @@ jwt-role-claim-key
 
   *For backwards compatibility, this config parameter is also available without prefix as "role-claim-key".*
 
-  See :ref:`jwt_role_claim_key_extract` on how to specify key paths and usage examples.
+  See :ref:`jwt_role_extract` on how to specify key paths and usage examples.
 
 .. _jwt-secret:
 
