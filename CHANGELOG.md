@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- #4074, Allow `db-extra-search-path` and `db-hoisted-tx-settings` to accept empty value - @taimoorzaeem
+
 ## [13.0.0] - 2025-05-08
 
 ### Added

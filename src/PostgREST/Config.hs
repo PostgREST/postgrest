@@ -446,8 +446,9 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     coerceBool _            = Nothing
 
     splitOnCommas :: C.Value -> [Text]
-    splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s
-    splitOnCommas _            = []
+    splitOnCommas (C.String "") = []
+    splitOnCommas (C.String s)  = T.strip <$> T.splitOn "," s
+    splitOnCommas _             = []
 
     defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
 
