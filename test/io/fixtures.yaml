@@ -212,7 +212,7 @@ jwtaudroleclaims:
   - key: '.aud[1]' # succeeds the aud claims check, but fail when hits the db
     data:
       aud: [postgrest_test_author, postgrest_test_invalid]
-    expected_status: 400
+    expected_status: 401
 
 invalidroleclaimkeys:
   - 'role.other'

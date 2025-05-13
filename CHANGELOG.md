@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- #3601, Fix jwt error return status `400` for invalid role - @taimoorzaeem
+
 ## [13.0.0] - 2025-05-08
 
 ### Added

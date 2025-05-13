@@ -595,6 +595,10 @@ pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError
           if BS.isSuffixOf "requires a WHERE clause" m
             then HTTP.status400 -- special case for pg-safeupdate, which we consider as client error
             else HTTP.status500 -- generic function or view server error, e.g. "more than one row returned by a subquery used as an expression"
+        "22023"   -> -- invalid_parameter_value
+          if BS.isPrefixOf "role" m && BS.isSuffixOf "does not exist" m
+            then HTTP.status401 -- role in jwt does not exist
+            else HTTP.status400
         '2':'5':_ -> HTTP.status500 -- invalid tx state
         '2':'8':_ -> HTTP.status403 -- invalid auth specification
         '2':'D':_ -> HTTP.status500 -- invalid tx termination
