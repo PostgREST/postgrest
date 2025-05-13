@@ -57,7 +57,7 @@ import Data.IORef         (IORef, atomicWriteIORef, newIORef,
                            readIORef)
 import Data.Time.Clock    (UTCTime, getCurrentTime)
 
-import PostgREST.Auth.JwtCache           (JwtCacheState)
+import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
                                           addFallbackAppName,
                                           readAppConfig)
@@ -127,7 +127,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   observer $ AppStartObs prettyVersion
 
-  jwtCacheState <- JwtCache.init
+  jwtCacheState <- JwtCache.init conf
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer
@@ -471,10 +471,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       -- After the config has reloaded, jwt-secret might have changed, so
       -- if it has changed, it is important to invalidate the jwt cache
       -- entries, because they were cached using the old secret
-      if configJwtSecret conf == configJwtSecret newConf then
-        pass
-      else
-        JwtCache.emptyCache (getJwtCacheState appState) -- atomic O(1) operation
+      update newConf $ getJwtCacheState appState
 
       if startingUp then
         pass

@@ -5,95 +5,88 @@ Description : PostgREST Jwt Authentication Result Cache.
 This module provides functions to deal with the JWT cache
 -}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase #-}
+
 module PostgREST.Auth.JwtCache
   ( init
+  , update
   , JwtCacheState
   , lookupJwtCache
-  , emptyCache
+  , accessStats
+  , evictionsCount
   ) where
 
 import qualified Data.Aeson        as JSON
 import qualified Data.Aeson.KeyMap as KM
-import qualified Data.Cache        as C
-import qualified Data.Scientific   as Sci
 
-import Control.Debounce
+import PostgREST.Error      (Error (..), JwtError (JwtSecretMissing))
 
-import Data.Time.Clock       (UTCTime, nominalDiffTimeToSeconds)
-import Data.Time.Clock.POSIX (utcTimeToPOSIXSeconds)
-import System.Clock          (TimeSpec (..))
-
-import PostgREST.Auth.Types (AuthResult (..))
-import PostgREST.Error      (Error (..))
-
+import PostgREST.Config (AppConfig (..))
+import qualified PostgREST.Cache.Sieve as SC
+import Jose.Jwk (JwkSet)
+import PostgREST.Cache.Sieve (cacheIO, AccessStats, accessStatsIO, evictionsCountIO)
+import Control.Concurrent.STM ( newTVarIO, writeTVar )
+import PostgREST.Auth.Jwt (parseAndDecodeClaims)
+import Control.Concurrent.STM.TVar (TVar)
+import Control.Monad.Error.Class (liftEither)
+import Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import Data.ByteString hiding (init)
 import Protolude
 
+
+type JwtCacheState = IORef JwtCache
 -- | JWT Cache and IO action that triggers purging old entries from the cache
-data JwtCacheState = JwtCacheState
-  { jwtCache   :: C.Cache ByteString AuthResult
-  , purgeCache :: IO ()
+data JwtCache = JwtNoCache {
+    lookup :: Maybe ByteString ->  ExceptT Error IO JSON.Object,
+    accessStats :: IO AccessStats,
+    evictionsCount :: IO Int64
+  }|
+  JwtCache {
+    lookup :: Maybe ByteString -> ExceptT Error IO JSON.Object,
+    decodingKey :: JwkSet,
+    maxSize :: TVar Int,
+    cache :: SC.Cache IO ByteString (Either Error JSON.Object),
+    accessStats :: IO AccessStats,
+    evictionsCount :: IO Int64
   }
 
+update :: AppConfig -> JwtCacheState -> IO ()
+update config@AppConfig{configJWKS, configJwtCacheMaxSize} jwtCacheState = do
+  readIORef jwtCacheState >>= \case
+    JwtNoCache{} -> newJwtCache config >>= writeIORef jwtCacheState
+    JwtCache{..} ->
+      if configJWKS /= Just decodingKey then do
+        -- key changed - reinit
+        newJwtCache config >>= writeIORef jwtCacheState
+      else
+        -- leave cache but set new maxSize
+        -- the cache is going to resize itself
+        atomically $ writeTVar maxSize configJwtCacheMaxSize
+
+init :: AppConfig -> IO JwtCacheState
+init = newJwtCache >=> newIORef
+
 -- | Initialize JwtCacheState
-init :: IO JwtCacheState
-init = do
-  cache <- C.newCache Nothing -- no default expiration
-  -- purgeExpired has O(n^2) complexity
-  -- so we wrap it in debounce to make sure it:
-  -- 1) is executed asynchronously
-  -- 2) only a single purge operation is running at a time
-  debounce <- mkDebounce defaultDebounceSettings
-    -- debounceFreq is set to default 1 second
-    { debounceAction = C.purgeExpired cache
-    , debounceEdge = leadingEdge
-    }
-  pure $ JwtCacheState cache debounce
+newJwtCache :: AppConfig -> IO JwtCache
+newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} = do
+  maybe (noCache missingSecrets) initCache configJWKS
+  where
+    noTokenOr = maybe $ pure KM.empty
+    missingSecrets = const (throwError $ JwtErr JwtSecretMissing)
+    noCache parse = pure $ JwtNoCache (noTokenOr parse) (pure mempty) (pure 0)
+    initCache key = if configJwtCacheMaxSize > 0 then do
+        maxSize <- newTVarIO configJwtCacheMaxSize
+        c <- cacheIO maxSize (runExceptT . parseAndDecodeClaims key)
+        let lookupCached = lift . SC.cached c >=> liftEither
+        JwtCache
+          (noTokenOr lookupCached)
+          key maxSize <$>
+          cacheIO maxSize (runExceptT . parseAndDecodeClaims key) <*>
+          pure (accessStatsIO c) <*>
+          pure (evictionsCountIO c)
+      else
+        noCache $ parseAndDecodeClaims key
 
--- | Used to retrieve and insert JWT to JWT Cache
-lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt utc = do
-  checkCache <- C.lookup jwtCache token
-  authResult <- maybe parseJwt (pure . Right) checkCache
-
-  case (authResult,checkCache) of
-    -- From comment:
-    -- https://github.com/PostgREST/postgrest/pull/3801#discussion_r1857987914
-    --
-    -- We purge expired cache entries on a cache miss
-    -- The reasoning is that:
-    --
-    -- 1. We expect it to be rare (otherwise there is no point of the cache)
-    -- 2. It makes sure the cache is not growing (as inserting new entries
-    --    does garbage collection)
-    -- 3. Since this is time expiration based cache there is no real risk of
-    --    starvation - sooner or later we are going to have a cache miss.
-
-    (Right res, Nothing) -> do -- cache miss
-
-      let timeSpec = getTimeSpec res maxLifetime utc
-
-      -- insert new cache entry
-      C.insert' jwtCache (Just timeSpec) token res
-
-      -- Execute IO action to purge the cache
-      -- It is assumed this action returns immidiately
-      -- so that request processing is not blocked.
-      purgeCache
-
-    _                    -> pure ()
-
-  return authResult
-
--- Used to extract JWT exp claim and add to JWT Cache
-getTimeSpec :: AuthResult -> Int -> UTCTime -> TimeSpec
-getTimeSpec res maxLifetime utc = do
-  let expireJSON = KM.lookup "exp" (authClaims res)
-      utcToSecs = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
-      sciToInt = fromMaybe 0 . Sci.toBoundedInteger
-  case expireJSON of
-    Just (JSON.Number seconds) -> TimeSpec (sciToInt seconds - utcToSecs utc) 0
-    _                          -> TimeSpec (fromIntegral maxLifetime :: Int64) 0
-
--- | Empty the cache (done when the config is reloaded)
-emptyCache :: JwtCacheState -> IO ()
-emptyCache JwtCacheState{jwtCache} = C.purge jwtCache
+lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
+lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= flip lookup k
