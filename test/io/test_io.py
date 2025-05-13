@@ -96,8 +96,7 @@ def test_jwt_errors(defaultenv):
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
-        # TODO: Should this return 401?
-        assert response.status_code == 400
+        assert response.status_code == 401
         assert response.json()["message"] == 'role "not_existing" does not exist'
 
         # -31 seconds, because we allow clock skew of 30 seconds
