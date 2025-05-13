@@ -21,6 +21,7 @@ import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
 import qualified Network.Socket             as NS
+import           Network.Wai
 import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
@@ -57,6 +58,7 @@ data Observation
   | PoolInit Int
   | PoolAcqTimeoutObs SQL.UsageError
   | HasqlPoolObs SQL.Observation
+  | ResponseObs (Request -> Maybe ByteString) Request Status (Maybe Integer)
   | PoolRequest
   | PoolRequestFullfilled
 
@@ -126,6 +128,8 @@ observationMessage = \case
     "Failed reloading config: " <> err
   ConfigSucceededObs ->
      "Config reloaded"
+  ResponseObs {} ->
+    mempty
   PoolInit poolSize ->
      "Connection Pool initialized with a maximum size of " <> show poolSize <> " connections"
   PoolAcqTimeoutObs usageErr ->
