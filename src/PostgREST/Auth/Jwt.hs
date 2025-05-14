@@ -13,6 +13,7 @@ very simple authentication system inside the PostgreSQL database.
 {-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE ImpredicativeTypes    #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
@@ -85,9 +86,10 @@ checkForErrors time cfgAud = mconcat . fmap checkClaim $
 
       checkTime cond = checkValue (cond. sciToInt)
 
-      checkAud (VAString aud) = liftMaybe cfgAud >>= checkValue (aud /=) jwtNotInAudience
-      checkAud (VAArray auds) | (not . null) auds = liftMaybe cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
-      checkAud _ = mempty
+      checkAud = \case
+        (VAString aud)                     -> liftMaybe cfgAud >>= checkValue (aud /=) jwtNotInAudience
+        (VAArray auds) | (not . null) auds -> liftMaybe cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
+        _                                  -> mempty
 
       liftMaybe = maybe mempty pure
 
