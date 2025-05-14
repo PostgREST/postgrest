@@ -4,9 +4,9 @@ Description : PostgREST Jwt Authentication Result Cache.
 
 This module provides functions to deal with the JWT cache
 -}
-{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE LambdaCase      #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE LambdaCase #-}
 
 module PostgREST.Auth.JwtCache
   ( init
@@ -20,19 +20,22 @@ module PostgREST.Auth.JwtCache
 import qualified Data.Aeson        as JSON
 import qualified Data.Aeson.KeyMap as KM
 
-import PostgREST.Error      (Error (..), JwtError (JwtSecretMissing))
+import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
 
-import PostgREST.Config (AppConfig (..))
-import qualified PostgREST.Cache.Sieve as SC
-import Jose.Jwk (JwkSet)
-import PostgREST.Cache.Sieve (cacheIO, AccessStats, accessStatsIO, evictionsCountIO)
-import Control.Concurrent.STM ( newTVarIO, writeTVar )
-import PostgREST.Auth.Jwt (parseAndDecodeClaims)
-import Control.Concurrent.STM.TVar (TVar)
-import Control.Monad.Error.Class (liftEither)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import Data.ByteString hiding (init)
-import Protolude
+import           Control.Concurrent.STM      (newTVarIO, writeTVar)
+import           Control.Concurrent.STM.TVar (TVar)
+import           Control.Monad.Error.Class   (liftEither)
+import           Data.ByteString             hiding (init)
+import           Data.IORef                  (IORef, newIORef,
+                                              readIORef, writeIORef)
+import           Jose.Jwk                    (JwkSet)
+import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
+import           PostgREST.Cache.Sieve       (AccessStats,
+                                              accessStatsIO, cacheIO,
+                                              evictionsCountIO)
+import qualified PostgREST.Cache.Sieve       as SC
+import           PostgREST.Config            (AppConfig (..))
+import           Protolude
 
 
 type JwtCacheState = IORef JwtCache

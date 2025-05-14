@@ -25,14 +25,14 @@ import qualified Network.HTTP.Types.Header       as HTTP
 import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Middleware.HttpAuth as Wai
 
-import Data.List               (lookup)
-import System.IO.Unsafe        (unsafePerformIO)
-import System.TimeIt           (timeItT)
+import Data.List        (lookup)
+import System.IO.Unsafe (unsafePerformIO)
+import System.TimeIt    (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
-import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Jwt      (parseClaims)
+import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..))
 import PostgREST.Error         (Error (..))
@@ -49,7 +49,7 @@ middleware appState app req respond = do
   let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
       parseJwt = runExceptT $ lookupJwtCache jwtCacheState token >>= parseClaims conf time
       jwtCacheState = getJwtCacheState appState
-  
+
   -- If ServerTimingEnabled -> calculate JWT validation time
   req' <- if configServerTimingEnabled then do
       (dur, authResult) <- timeItT parseJwt

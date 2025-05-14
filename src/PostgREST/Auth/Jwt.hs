@@ -10,27 +10,27 @@ Authentication should always be implemented in an external service.
 In the test suite there is an example of simple login function that can be used for a
 very simple authentication system inside the PostgreSQL database.
 -}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE ImpredicativeTypes    #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 module PostgREST.Auth.Jwt
   ( parseAndDecodeClaims
   , parseClaims) where
 
-import qualified Data.Aeson                      as JSON
-import qualified Data.Aeson.Key                  as K
-import qualified Data.Aeson.KeyMap               as KM
-import qualified Data.ByteString                 as BS
-import qualified Data.ByteString.Internal        as BS
-import qualified Data.ByteString.Lazy.Char8      as LBS
-import qualified Data.Scientific                 as Sci
-import qualified Data.Text                       as T
-import qualified Data.Vector                     as V
-import qualified Jose.Jwk                        as JWT
-import qualified Jose.Jwt                        as JWT
+import qualified Data.Aeson                 as JSON
+import qualified Data.Aeson.Key             as K
+import qualified Data.Aeson.KeyMap          as KM
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Internal   as BS
+import qualified Data.ByteString.Lazy.Char8 as LBS
+import qualified Data.Scientific            as Sci
+import qualified Data.Text                  as T
+import qualified Data.Vector                as V
+import qualified Jose.Jwk                   as JWT
+import qualified Jose.Jwt                   as JWT
 
 import Control.Monad.Except    (liftEither)
 import Data.Either.Combinators (mapLeft)
@@ -38,16 +38,16 @@ import Data.Text               ()
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
-import PostgREST.Auth.Types    (AuthResult (..))
-import PostgREST.Config        (AppConfig (..), FilterExp (..),
-                                JSPath, JSPathExp (..))
-import PostgREST.Error         (Error (..), JwtError (..))
+import PostgREST.Auth.Types (AuthResult (..))
+import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
+                             JSPathExp (..))
+import PostgREST.Error      (Error (..), JwtError (..))
 
-import Protolude hiding (first)
-import Jose.Jwk (JwkSet)
+import Data.Aeson       ((.:?))
+import Data.Aeson.Key   (toString)
 import Data.Aeson.Types (parseMaybe)
-import Data.Aeson ((.:?))
-import Data.Aeson.Key (toString)
+import Jose.Jwk         (JwkSet)
+import Protolude        hiding (first)
 
 parseAndDecodeClaims :: JwkSet -> ByteString -> ExceptT Error IO JSON.Object
 parseAndDecodeClaims jwkSet token = parseToken jwkSet token >>= decodeClaims

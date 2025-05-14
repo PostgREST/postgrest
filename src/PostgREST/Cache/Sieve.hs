@@ -1,8 +1,8 @@
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE RecursiveDo #-}
-{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE ImpredicativeTypes        #-}
+{-# LANGUAGE NamedFieldPuns            #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE RecursiveDo               #-}
 
 module PostgREST.Cache.Sieve (
       AccessStats(..)
@@ -21,49 +21,49 @@ module PostgREST.Cache.Sieve (
 )
 where
 
-import Protolude hiding (head)
-import qualified StmHamt.SizedHamt as SH
-import qualified Focus as F
-import Control.Monad.Extra (whenJustM)
-import qualified Data.Vector as V
-import Data.Vector ((!))
-import Control.Concurrent.STM
-import GHC.Conc (numCapabilities)
+import           Control.Concurrent.STM
+import           Control.Monad.Extra    (whenJustM)
+import           Data.Vector            ((!))
+import qualified Data.Vector            as V
+import qualified Focus                  as F
+import           GHC.Conc               (numCapabilities)
+import           Protolude              hiding (head)
+import qualified StmHamt.SizedHamt      as SH
 
 data Node = Node {
     getVisited :: STM Bool,
-    visit :: STM (),
-    clear :: STM (),
-    remove :: STM (),
-    next :: TVar Node,
-    prev :: TVar Node
+    visit      :: STM (),
+    clear      :: STM (),
+    remove     :: STM (),
+    next       :: TVar Node,
+    prev       :: TVar Node
 }
 
 data Entry k v = Entry {
-    ekey :: k,
+    ekey  :: k,
     value :: v,
-    node :: Node
+    node  :: Node
 }
 
 data Cache m k v =
     Cache {
-        entries :: SH.SizedHamt (Entry k v),
-        maxSize :: TVar Int,
-        head :: Node,
-        getFinger :: STM Node,
-        load :: k -> m v,
-        lookupAndVisit :: k -> STM (Maybe v),
+        entries           :: SH.SizedHamt (Entry k v),
+        maxSize           :: TVar Int,
+        head              :: Node,
+        getFinger         :: STM Node,
+        load              :: k -> m v,
+        lookupAndVisit    :: k -> STM (Maybe v),
 
-        advanceFinger :: STM (),
-        reset :: STM (),
+        advanceFinger     :: STM (),
+        reset             :: STM (),
 
         accessStatsVector :: V.Vector (TVar AccessStats),
-        evictions :: TVar Int64
+        evictions         :: TVar Int64
     }
 
 data AccessStats = AccessStats {
     requests :: Int64,
-    hits :: Int64
+    hits     :: Int64
 }
 
 instance Semigroup AccessStats where
