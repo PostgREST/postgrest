@@ -66,7 +66,7 @@ instance JSON.FromJSON ValidAud where
   parseJSON JSON.Null = pure VANull
   parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
 
-checkForErrors :: (Monad m, Alternative m) => UTCTime -> m Text -> JSON.Object -> m Error
+checkForErrors :: (Monad m, Alternative m) => UTCTime -> Maybe Text -> JSON.Object -> m Error
 checkForErrors time cfgAud = (runKleisli . asum) . fmap (Kleisli . checkClaim) $
   [
     claim "exp" parseNumberError $ inThePast "JWT expired"
@@ -87,8 +87,8 @@ checkForErrors time cfgAud = (runKleisli . asum) . fmap (Kleisli . checkClaim) $
 
       checkTime cond = checkValue (cond. sciToInt)
 
-      checkAud (VAString aud) = cfgAud >>= checkValue (aud /=) jwtNotInAudience
-      checkAud (VAArray auds) | (not . null) auds = cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
+      checkAud (VAString aud) = maybe empty pure cfgAud >>= checkValue (aud /=) jwtNotInAudience
+      checkAud (VAArray auds) | (not . null) auds = maybe empty pure cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
       checkAud _ = empty
 
       jwtNotInAudience = "JWT not in audience"
