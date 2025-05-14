@@ -11,10 +11,10 @@ In the test suite there is an example of simple login function that can be used 
 very simple authentication system inside the PostgreSQL database.
 -}
 {-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 
 module PostgREST.Auth.Jwt
   ( parseAndDecodeClaims
@@ -38,14 +38,12 @@ import Data.Text               ()
 import Data.Time.Clock         (UTCTime, nominalDiffTimeToSeconds)
 import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
---import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), FilterExp (..),
                                 JSPath, JSPathExp (..))
 import PostgREST.Error         (Error (..), JwtError (..))
 
 import Protolude hiding (first)
-import Control.Arrow (Kleisli(Kleisli, runKleisli))
 import Jose.Jwk (JwkSet)
 import Data.Aeson.Types (parseMaybe)
 import Data.Aeson ((.:?))
@@ -59,15 +57,15 @@ decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsError 
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeError "Unsupported token type"
 
 validateClaims :: MonadError Error m => UTCTime -> Maybe Text -> JSON.Object -> m ()
-validateClaims time getConfigAud claims = liftEither $ maybeToLeft () (checkForErrors time getConfigAud claims)
+validateClaims time getConfigAud claims = liftEither $ maybeToLeft () (getAlt $ checkForErrors time getConfigAud claims)
 
 data ValidAud = VANull | VAString Text | VAArray [Text] deriving Generic
 instance JSON.FromJSON ValidAud where
   parseJSON JSON.Null = pure VANull
   parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
 
-checkForErrors :: (Monad m, Alternative m) => UTCTime -> Maybe Text -> JSON.Object -> m Error
-checkForErrors time cfgAud = (runKleisli . asum) . fmap (Kleisli . checkClaim) $
+checkForErrors :: (Monad m, forall a. Monoid (m a)) => UTCTime -> Maybe Text -> JSON.Object -> m Error
+checkForErrors time cfgAud = mconcat . fmap checkClaim $
   [
     claim "exp" parseNumberError $ inThePast "JWT expired"
   , claim "nbf" parseNumberError $ inTheFuture "JWT not yet valid"
@@ -87,9 +85,9 @@ checkForErrors time cfgAud = (runKleisli . asum) . fmap (Kleisli . checkClaim) $
 
       checkTime cond = checkValue (cond. sciToInt)
 
-      checkAud (VAString aud) = maybe empty pure cfgAud >>= checkValue (aud /=) jwtNotInAudience
-      checkAud (VAArray auds) | (not . null) auds = maybe empty pure cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
-      checkAud _ = empty
+      checkAud (VAString aud) = maybe mempty pure cfgAud >>= checkValue (aud /=) jwtNotInAudience
+      checkAud (VAArray auds) | (not . null) auds = maybe mempty pure cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
+      checkAud _ = mempty
 
       jwtNotInAudience = "JWT not in audience"
 
@@ -97,9 +95,9 @@ checkForErrors time cfgAud = (runKleisli . asum) . fmap (Kleisli . checkClaim) $
         if invalid val then
           pure msg
         else
-          empty
+          mempty
 
-      claim key parseError checkParsed = maybe (pure $ parseError (T.pack (toString key))) (maybe empty checkParsed) . parseMaybe (.:? key)
+      claim key parseError checkParsed = maybe (pure $ parseError (T.pack (toString key))) (maybe mempty checkParsed) . parseMaybe (.:? key)
 
       parseNumberError key = mconcat ["The JWT '", key, "' claim must be a number"]
 
