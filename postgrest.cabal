@@ -94,7 +94,7 @@ library
   other-modules:      Paths_postgrest
   build-depends:      base                      >= 4.9 && < 4.20
                     , HTTP                      >= 4000.3.7 && < 4000.5
-                    , Ranged-sets               >= 0.3 && < 0.5
+                    , Ranged-sets >=0.3 && <0.6
                     , aeson                     >= 2.0.3 && < 2.3
                     , auto-update               >= 0.1.4 && < 0.2
                     , base64-bytestring         >= 1 && < 1.3
