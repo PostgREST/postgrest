@@ -140,7 +140,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtRoleClaimKey           = [JSPKey "role"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
-  , configJwtCacheMaxSize           = 0
+  , configJwtCacheMaxSize           = 10
   , configLogLevel                  = LogCrit
   , configLogQuery                  = LogQueryDisabled
   , configOpenApiMode               = OAFollowPriv

@@ -159,13 +159,13 @@ cached Cache{..} k =
                 -- need to evict an entry
                 node <- finger
                 shouldLeaveEntry <- visited node
-                if shouldLeaveEntry then do
+                if shouldLeaveEntry then
                     -- clear and skip visited entry
                     -- not done yet
                     clear node $> empty
-                else
+                else do
                     -- found entry to evict
-                    remove node *>
+                    remove node
                     if currDiff == 0 then
                         -- now there is space
                         -- insert new entry
@@ -180,9 +180,9 @@ cached Cache{..} k =
                 addEntry v $> pure v
 
         addEntry v = do
-            prevNode <- readTVar $ prev head
+            oldNeck <- readTVar $ prev head
             nextTVar <- newTVar head
-            prevTVar <- newTVar prevNode
+            prevTVar <- newTVar oldNeck
             visitedTVar <- newTVar False
             let
                 removeEntry = do
@@ -192,7 +192,7 @@ cached Cache{..} k =
                     writeTVar (prev nextEntry) prevEntry
                     SH.focus F.delete ekey k entries
                     modifyTVar evictions (+ 1)
-                newNode = Node
+                newNeck = Node
                             (readTVar visitedTVar)
                             (writeTVar visitedTVar True)
                             -- both clear and remove advance the finger
@@ -200,9 +200,9 @@ cached Cache{..} k =
                             (removeEntry *> advanceFinger)
                             nextTVar
                             prevTVar
-                newEntry = Entry k v newNode
+                newEntry = Entry k v newNeck
             -- add cache entry
             SH.insert ekey newEntry entries
             -- update pointers
-            writeTVar (next prevNode) newNode
-            writeTVar (prev head) newNode
+            writeTVar (next oldNeck) newNeck
+            writeTVar (prev head) newNeck

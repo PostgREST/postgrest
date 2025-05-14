@@ -36,7 +36,7 @@ import Protolude
 
 
 type JwtCacheState = IORef JwtCache
--- | JWT Cache and IO action that triggers purging old entries from the cache
+-- | JWT caching state
 data JwtCache = JwtNoCache {
     lookup :: Maybe ByteString ->  ExceptT Error IO JSON.Object,
     accessStats :: IO AccessStats,
@@ -51,12 +51,12 @@ data JwtCache = JwtNoCache {
     evictionsCount :: IO Int64
   }
 
-update :: AppConfig -> JwtCacheState -> IO ()
-update config@AppConfig{configJWKS, configJwtCacheMaxSize} jwtCacheState = do
+update :: JwtCacheState -> AppConfig -> IO ()
+update jwtCacheState config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
   readIORef jwtCacheState >>= \case
     JwtNoCache{} -> newJwtCache config >>= writeIORef jwtCacheState
     JwtCache{..} ->
-      if configJWKS /= Just decodingKey then do
+      if configJWKS /= Just decodingKey || configJwtCacheMaxSize <= 0 then
         -- key changed - reinit
         newJwtCache config >>= writeIORef jwtCacheState
       else
@@ -89,4 +89,4 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} = do
         noCache $ parseAndDecodeClaims key
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
-lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= flip lookup k
+lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= (`lookup` k)
