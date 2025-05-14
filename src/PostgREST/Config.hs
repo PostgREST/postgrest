@@ -256,8 +256,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
-    <*> (maybe ["public"] splitOnCommas <$> optValue "db-extra-search-path")
-    <*> (maybe defaultHoistedAllowList splitOnCommas <$> optValue "db-hoisted-tx-settings")
+    <*> (maybe ["public"] splitOnCommas <$> optString "db-extra-search-path")
+    <*> (maybe defaultHoistedAllowList splitOnCommas <$> optString "db-hoisted-tx-settings")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
     <*> (fromMaybe False <$> optBool "db-plan-enabled")
@@ -272,8 +272,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
     <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
                                     (optString "root-spec"))
-    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optValue "db-schemas")
-                                                                    (optValue "db-schema"))
+    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optString "db-schemas")
+                                                                    (optString "db-schema"))
     <*> (fromMaybe True <$> optBool "db-config")
     <*> (fmap toQi <$> optString "db-pre-config")
     <*> parseTxEnd "db-tx-end" snd
@@ -404,9 +404,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
 
-    optValue :: C.Key -> C.Parser C.Config (Maybe C.Value)
-    optValue k = overrideFromDbOrEnvironment C.optional k identity
-
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
 
@@ -445,9 +442,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Nothing -> (> 0) <$> (readMaybe s :: Maybe Integer)
     coerceBool _            = Nothing
 
-    splitOnCommas :: C.Value -> [Text]
-    splitOnCommas (C.String s) = T.strip <$> T.splitOn "," s
-    splitOnCommas _            = []
+    splitOnCommas :: Text -> [Text]
+    splitOnCommas s = T.strip <$> T.splitOn "," s
 
     defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
 
