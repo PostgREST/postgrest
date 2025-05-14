@@ -166,6 +166,7 @@ cached Cache{..} k =
                 else do
                     -- found entry to evict
                     remove
+                    modifyTVar evictions (+ 1)
                     if currDiff == 0 then
                         -- now there is space
                         -- insert new entry
@@ -191,7 +192,6 @@ cached Cache{..} k =
                     writeTVar (next prevEntry) nextEntry
                     writeTVar (prev nextEntry) prevEntry
                     SH.focus F.delete ekey k entries
-                    modifyTVar evictions (+ 1)
                 newNeck = Node
                             (readTVar visitedTVar)
                             (writeTVar visitedTVar True)
