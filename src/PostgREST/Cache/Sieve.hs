@@ -92,7 +92,7 @@ cache maxSize load = mdo
         lookupAndVisit
         advanceFinger
         reset <$>
-        V.replicateM numCapabilities (newTVar $ AccessStats 0 0) <*>
+        V.replicateM numCapabilities (newTVar mempty) <*>
         newTVar 0
     pure cache
     where
