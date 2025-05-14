@@ -31,7 +31,7 @@ import Control.Concurrent.STM
 import GHC.Conc (numCapabilities)
 
 data Node = Node {
-    visited :: STM Bool,
+    getVisited :: STM Bool,
     visit :: STM (),
     clear :: STM (),
     remove :: STM (),
@@ -50,7 +50,7 @@ data Cache m k v =
         entries :: SH.SizedHamt (Entry k v),
         maxSize :: TVar Int,
         head :: Node,
-        finger :: STM Node,
+        getFinger :: STM Node,
         load :: k -> m v,
         lookupAndVisit :: k -> STM (Maybe v),
 
@@ -157,15 +157,15 @@ cached Cache{..} k =
             if currDiff >= 0 then do
                 -- no space in the cache
                 -- need to evict an entry
-                node <- finger
-                shouldLeaveEntry <- visited node
-                if shouldLeaveEntry then
+                Node{getVisited, clear, remove} <- getFinger
+                visited <- getVisited
+                if visited then
                     -- clear and skip visited entry
                     -- not done yet
-                    clear node $> empty
+                    clear $> empty
                 else do
                     -- found entry to evict
-                    remove node
+                    remove
                     if currDiff == 0 then
                         -- now there is space
                         -- insert new entry
