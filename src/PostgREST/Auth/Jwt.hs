@@ -85,9 +85,11 @@ checkForErrors time cfgAud = mconcat . fmap checkClaim $
 
       checkTime cond = checkValue (cond. sciToInt)
 
-      checkAud (VAString aud) = maybe mempty pure cfgAud >>= checkValue (aud /=) jwtNotInAudience
-      checkAud (VAArray auds) | (not . null) auds = maybe mempty pure cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
+      checkAud (VAString aud) = liftMaybe cfgAud >>= checkValue (aud /=) jwtNotInAudience
+      checkAud (VAArray auds) | (not . null) auds = liftMaybe cfgAud >>= checkValue (not . (`elem` auds)) jwtNotInAudience
       checkAud _ = mempty
+
+      liftMaybe = maybe mempty pure
 
       jwtNotInAudience = "JWT not in audience"
 
