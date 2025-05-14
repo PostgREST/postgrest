@@ -58,15 +58,15 @@ decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsError 
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeError "Unsupported token type"
 
 validateClaims :: MonadError Error m => UTCTime -> Maybe Text -> JSON.Object -> m ()
-validateClaims time getConfigAud claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ checkForErrors time getConfigAud claims)
+validateClaims time getConfigAud claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ (JwtClaimsError <$> checkForErrors time getConfigAud claims))
 
 data ValidAud = VANull | VAString Text | VAArray [Text] deriving Generic
 instance JSON.FromJSON ValidAud where
   parseJSON JSON.Null = pure VANull
   parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
 
-checkForErrors :: (Monad m, forall a. Monoid (m a)) => UTCTime -> Maybe Text -> JSON.Object -> m JwtError
-checkForErrors time cfgAud = mconcat . fmap checkClaim $
+checkForErrors :: (Monad m, forall a. Monoid (m a)) => UTCTime -> Maybe Text -> JSON.Object -> m Text
+checkForErrors time cfgAud = mconcat
   [
     claim "exp" parseNumberError $ inThePast "JWT expired"
   , claim "nbf" parseNumberError $ inTheFuture "JWT not yet valid"
@@ -74,8 +74,6 @@ checkForErrors time cfgAud = mconcat . fmap checkClaim $
   , claim "aud" (const "The JWT 'aud' claim must be a string or an array of strings") checkAud
   ]
   where
-      checkClaim = ((JwtClaimsError <$>) .)
-
       allowedSkewSeconds = 30 :: Int64
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
       toSec t = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds t
