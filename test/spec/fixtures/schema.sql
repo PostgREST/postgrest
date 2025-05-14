@@ -3800,3 +3800,18 @@ create table factory_buildings (
   factory_id int references factories(id),
   inspections jsonb
 );
+
+-- collision test as occured in https://github.com/PostgREST/postgrest/issues/4052
+create table test.collision_test_table (id integer);
+comment on table collision_test_table is 'foobarbaz';
+
+create function test.collision_test_func(id integer)
+returns int language sql as $$
+  select 1;
+$$;
+
+update pg_proc
+set oid = 'test.collision_test_table'::regclass::oid
+where oid = 'test.collision_test_func'::regproc::oid;
+
+comment on function test.collision_test_func(id integer) is 'fizzbuzz';

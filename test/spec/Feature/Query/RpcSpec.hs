@@ -1450,3 +1450,11 @@ spec =
           { matchStatus = 200
           , matchHeaders = [matchContentTypeJson]
           }
+
+    context "schema cache duplicate definitions when two entries in pg_description have the same OID" $
+      it "doesn't err with 300 Multiple Choices" $
+        request methodGet "/rpc/collision_test_func?id=1"
+          [] ""
+          `shouldRespondWith`
+          [json| 1 |]
+          { matchStatus = 200 }
