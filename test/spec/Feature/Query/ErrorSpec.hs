@@ -42,10 +42,10 @@ pgErrorCodeMapping = do
       it "works with SchemaCache error" $
         get "/non_existent_table"
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.json_table'","message":"Could not find the table 'test.non_existent_table' in the schema cache"} |]
+          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.collision_test_table'","message":"Could not find the table 'test.non_existent_table' in the schema cache"} |]
           { matchStatus  = 404
           , matchHeaders = [ "Proxy-Status" <:> "PostgREST; error=PGRST205"
-                           , "Content-Length" <:> "172" ]
+                           , "Content-Length" <:> "182" ]
           }
 
       it "works with Jwt error" $ do
