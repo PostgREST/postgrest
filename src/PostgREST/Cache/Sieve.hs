@@ -122,7 +122,7 @@ evictionsCount :: Cache m k v -> STM Int64
 evictionsCount = readTVar . evictions
 
 evictionsCountIO :: Cache m k v -> IO Int64
-evictionsCountIO = atomically . evictionsCount
+evictionsCountIO = readTVarIO . evictions
 
 cached :: (Hashable k, MonadIO m) => Cache m k v -> k -> m v
 cached Cache{..} k =
