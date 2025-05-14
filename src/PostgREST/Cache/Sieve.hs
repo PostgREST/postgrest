@@ -30,20 +30,41 @@ import           GHC.Conc               (numCapabilities)
 import           Protolude              hiding (head)
 import qualified StmHamt.SizedHamt      as SH
 
-data Node = Node {
-    getVisited :: STM Bool,
-    visit      :: STM (),
-    clear      :: STM (),
-    remove     :: STM (),
-    next       :: TVar Node,
-    prev       :: TVar Node
-}
+data Node = Head {
+        next :: TVar Node,
+        prev :: TVar Node
+    } |
+    Node {
+        next    :: TVar Node,
+        prev    :: TVar Node,
+        visited :: TVar Bool
+    } deriving Eq
+
+getVisited :: Node -> STM Bool
+getVisited (Head _ _)    = pure True
+getVisited Node{visited} = readTVar visited
+
+visit :: Node -> STM ()
+visit (Head _ _)    = pure ()
+visit Node{visited} = writeTVar visited True
+
+clear :: Node -> STM ()
+clear (Head _ _)    = pure ()
+clear Node{visited} = writeTVar visited False
+
+remove :: Node -> STM ()
+remove (Head _ _) = pure ()
+remove Node{next=currNext, prev=currPrev} = do
+    nextEntry <- readTVar currNext
+    prevEntry <- readTVar currPrev
+    writeTVar (next prevEntry) nextEntry
+    writeTVar (prev nextEntry) prevEntry
 
 data Entry k v = Entry {
     ekey  :: k,
     value :: v,
     node  :: Node
-}
+} deriving Eq
 
 data Cache m k v =
     Cache {
@@ -76,11 +97,10 @@ cacheIO maxSize = atomically . cache maxSize
 
 cache :: Hashable k => TVar Int -> (k -> m v) -> STM (Cache m k v)
 cache maxSize load = mdo
-    let noop = pure ()
-        advanceFinger = modifyTVarM fingerTVar (readTVar . next)
+    let advanceFinger = modifyTVarM fingerTVar (readTVar . next)
         reset = SH.reset entries *> writeTVar fingerTVar head
         lookupAndVisit = traverse visitEntry <=< flip (SH.lookup ekey) entries
-    head <- Node (pure True) noop advanceFinger advanceFinger <$> newTVar head <*> newTVar head
+    head <- Head <$> newTVar head <*> newTVar head
     entries <- SH.new
     fingerTVar <- newTVar head
     cache <- Cache
@@ -101,7 +121,13 @@ cache maxSize load = mdo
         visitEntry Entry{node, value} = visit node $> value
 
 delete :: Hashable k => Cache m k v -> k -> STM ()
-delete Cache{entries} k = whenJustM (SH.lookup ekey k entries) (remove . node)
+delete Cache{entries, getFinger, advanceFinger} k =
+    whenJustM (SH.focus F.lookupAndDelete ekey k entries) (removeAndCheckFinger . node)
+    where
+        removeAndCheckFinger node = do
+            remove node
+            whenM ((node ==) <$> getFinger)
+                advanceFinger
 
 deleteIO :: Hashable k => Cache m k v -> k -> IO ()
 deleteIO c = atomically . delete c
@@ -157,15 +183,16 @@ cached Cache{..} k =
             if currDiff >= 0 then do
                 -- no space in the cache
                 -- need to evict an entry
-                Node{getVisited, clear, remove} <- getFinger
-                visited <- getVisited
+                node <- getFinger
+                visited <- getVisited node
                 if visited then
                     -- clear and skip visited entry
                     -- not done yet
-                    clear $> empty
+                    clear node *> advanceFinger $> empty
                 else do
                     -- found entry to evict
-                    remove
+                    SH.focus F.delete ekey k entries
+                    remove node *> advanceFinger
                     modifyTVar evictions (+ 1)
                     if currDiff == 0 then
                         -- now there is space
@@ -182,27 +209,9 @@ cached Cache{..} k =
 
         addEntry v = do
             oldNeck <- readTVar $ prev head
-            nextTVar <- newTVar head
-            prevTVar <- newTVar oldNeck
-            visitedTVar <- newTVar False
-            let
-                removeEntry = do
-                    nextEntry <- readTVar nextTVar
-                    prevEntry <- readTVar prevTVar
-                    writeTVar (next prevEntry) nextEntry
-                    writeTVar (prev nextEntry) prevEntry
-                    SH.focus F.delete ekey k entries
-                newNeck = Node
-                            (readTVar visitedTVar)
-                            (writeTVar visitedTVar True)
-                            -- both clear and remove advance the finger
-                            (writeTVar visitedTVar False *> advanceFinger)
-                            (removeEntry *> advanceFinger)
-                            nextTVar
-                            prevTVar
-                newEntry = Entry k v newNeck
+            newNeck <- Node <$> newTVar head <*> newTVar oldNeck <*> newTVar False
             -- add cache entry
-            SH.insert ekey newEntry entries
+            SH.insert ekey (Entry k v newNeck) entries
             -- update pointers
             writeTVar (next oldNeck) newNeck
             writeTVar (prev head) newNeck
