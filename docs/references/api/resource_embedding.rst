@@ -1238,6 +1238,31 @@ You can order the correlated arrays explicitly. For example, to order by the fil
      }
    ]
 
+.. warning::
+
+   Aliasing spreaded columns is recommended since JSON allows duplicate keys. Example:
+
+   .. code-block:: bash
+
+     curl --get "localhost:3000/projects" \
+       -d "select=id,name,...clients(id,name)"
+
+   .. code-block:: json
+
+     [{"id":1,"name":"Windows 7","id":1,"name":"Microsoft"},
+      {"id":2,"name":"Windows 10","id":1,"name":"Microsoft"},
+      {"id":3,"name":"IOS","id":2,"name":"Apple"},
+      {"id":4,"name":"OSX","id":2,"name":"Apple"},
+      {"id":5,"name":"Orphan","id":null,"name":null}]
+
+   This can be a problem in Javascript objects, since only the last duplicated key will be considered. To solve it do:
+
+   .. code-block:: bash
+
+     curl --get "localhost:3000/projects" \
+       -d "select=id,name,...clients(client_id:id,client_name:name)"
+
+
 Multiple Spreads
 ----------------
 
