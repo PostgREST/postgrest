@@ -1238,33 +1238,6 @@ You can order the correlated arrays explicitly. For example, to order by the fil
      }
    ]
 
-Spread a join table
--------------------
-
-Spread can be used to lift the columns of a join table in a :ref:`many-to-many <many-to-many>` relationship. For instance, to lift the ``roles`` join table columns into ``actors``:
-
-.. code-block:: bash
-
-  curl --get "http://localhost:3000/films" \
-    -d "select=title,actors:roles(character,...actors(first_name,last_name))" \
-    -d "title=like.*Lighthouse*"
-
-.. code-block:: json
-
-   [
-     {
-       "title": "The Lighthouse",
-       "actors": [
-          {
-            "character": "Thomas Wake",
-            "first_name": "Willem",
-            "last_name": "Dafoe"
-          }
-       ]
-     }
-   ]
-
-
 Multiple Spreads
 ----------------
 
@@ -1307,3 +1280,31 @@ Note that:
 - All the ``film_*`` arrays are correlated—"Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
 - The ``film_*`` arrays are ordered by ``year`` (due to ``films.order=year``).
 - The bottom level array ``film_characters`` is ordered (due to ``films.roles.order=character``).
+
+Spread a join table
+-------------------
+
+Spread can be used to move the columns of a join table in a :ref:`many-to-many <many-to-many>` to the top object. For instance, to get the ``character`` column of the ``roles`` join table into ``actors``:
+
+.. code-block:: bash
+
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors:roles(character,...actors(first_name,last_name))" \
+    -d "title=like.*Lighthouse*"
+
+.. code-block:: json
+
+   [
+     {
+       "title": "The Lighthouse",
+       "actors": [
+          {
+            "character": "Thomas Wake",
+            "first_name": "Willem",
+            "last_name": "Dafoe"
+          }
+       ]
+     }
+   ]
+
+
