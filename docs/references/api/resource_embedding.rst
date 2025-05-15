@@ -1150,27 +1150,19 @@ For example, to arrange the films in descending order using the director's last 
 Spread embedded resource
 ========================
 
-The ``...`` operator lets you "spread" an embedded resource.
-That is, it removes the surrounding JSON object for the embedded resource columns.
-
-.. note::
-
-  The spread operator ``...`` is borrowed from the Javascript `spread syntax <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Spread_syntax>`_.
+You can modify the shape of the embedded resources by using the spread syntax (``...``).
 
 .. _spread_to_one_embed:
 
 Spread To-One relationships
 ---------------------------
 
-This applies to :ref:`one-to-one <one-to-one>` and :ref:`many-to-one <many-to-one>` relationships.
-Take the following example:
+Spread on resources forming :ref:`one-to-one <one-to-one>` and :ref:`many-to-one <many-to-one>` relationships, will lift the embedded columns to the top object.
 
 .. code-block:: bash
 
-   # curl "http://localhost:3000/films?select=title,...directors(director_last_name:last_name)&title=like.*Workers*"
-
   curl --get "http://localhost:3000/films" \
-    -d "select=title,...directors(director_last_name:last_name)" \
+    -d "select=title,...directors(director_first_name:first_name, director_last_name:last_name)" \
     -d "title=like.*Workers*"
 
 .. code-block:: json
@@ -1178,47 +1170,21 @@ Take the following example:
    [
      {
        "title": "Workers Leaving The Lumière Factory In Lyon",
+       "director_first_name": "Louis",
        "director_last_name": "Lumière"
      }
    ]
 
-Note that there is no ``"directors"`` object. Also the embed columns can be aliased normally.
-
-You can use this to get the columns of a join table in a many-to-many relationship. For instance, to get films and its actors, but including the ``character`` column from the roles table:
-
-.. code-block:: bash
-
-   # curl "http://localhost:3000/films?select=title,actors:roles(character,...actors(first_name,last_name))&title=like.*Lighthouse*"
-
-  curl --get "http://localhost:3000/films" \
-    -d "select=title,actors:roles(character,...actors(first_name,last_name))" \
-    -d "title=like.*Lighthouse*"
-
-.. code-block:: json
-
-   [
-     {
-       "title": "The Lighthouse",
-       "actors": [
-          {
-            "character": "Thomas Wake",
-            "first_name": "Willem",
-            "last_name": "Dafoe"
-          }
-       ]
-     }
-   ]
+Note that there is no wrapping ``"directors"`` object, unlike regularly embedding :ref:`many-to-one <many-to-one>` relationships. Also note that embedded columns can be aliased normally.
 
 .. _spread_to_many_embed:
 
 Spread To-Many relationships
 ----------------------------
 
-The spread columns in :ref:`one-to-many <one-to-many>` or :ref:`many-to-many <many-to-many>` relationships will show the data in arrays.
+Spread on resources forming :ref:`one-to-many <one-to-many>` and :ref:`many-to-many <many-to-many>` relationships, will convert the embedded columns into correlated arrays.
 
 .. code-block:: bash
-
-   # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year)&first_name=like.Quentin*"
 
   curl --get "http://localhost:3000/directors" \
     -d "select=first_name,...films(film_titles:title,film_years:year)" \
@@ -1240,15 +1206,16 @@ The spread columns in :ref:`one-to-many <one-to-many>` or :ref:`many-to-many <ma
      }
    ]
 
-Note that there is no ``films`` array of objects.
+Note that ``films`` is no longer an array of objects, unlike regularly embedding :ref:`one-to-many`. The embedded columns become arrays and they're correlated—in the above result, we can say that "Pulp Fiction" premiered in 1994 and "Reservoir Dogs" in 1992.
 
-By default, the order of the values inside the resulting array is unspecified but `it is safe to assume <https://www.postgresql.org/message-id/15950.1491843689%40sss.pgh.pa.us>`_ that all the columns return the values in the same unspecified order.
-From the previous result, we can say that "Pulp Fiction" premiered in 1994 and "Reservoir Dogs" in 1992.
-You can still order all the resulting arrays explicitly. For example, to order by the release year:
+Order in spread to-many
+~~~~~~~~~~~~~~~~~~~~~~~
+
+In the above example, the order of the values inside the correlated arrays is unspecified, but all the values are guaranteed to be in the same unspecified order.
+
+You can order the correlated arrays explicitly. For example, to order by the film year:
 
 .. code-block:: bash
-
-  # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year)&first_name=like.Quentin*&films.order=year"
 
   curl --get "http://localhost:3000/directors" \
     -d "select=first_name,...films(film_titles:title,film_years:year)" \
@@ -1271,14 +1238,39 @@ You can still order all the resulting arrays explicitly. For example, to order b
      }
    ]
 
-Nesting Spreads
-~~~~~~~~~~~~~~~
+Spread a join table
+-------------------
 
-For example, let's nest ``...technical_specs`` (one-to-one) and ``...roles`` (one-to-many) inside ``...films``:
+Spread can be used to lift the columns of a join table in a :ref:`many-to-many <many-to-many>` relationship. For instance, to lift the ``roles`` join table columns into ``actors``:
 
 .. code-block:: bash
 
-  # curl -g "http://localhost:3000/directors?select=first_name,...films(film_titles:title,film_years:year,...technical_specs(film_runtimes:runtime),...roles(film_characters:character))&first_name=like.Quentin*&films.order=year&films.roles.order=character"
+  curl --get "http://localhost:3000/films" \
+    -d "select=title,actors:roles(character,...actors(first_name,last_name))" \
+    -d "title=like.*Lighthouse*"
+
+.. code-block:: json
+
+   [
+     {
+       "title": "The Lighthouse",
+       "actors": [
+          {
+            "character": "Thomas Wake",
+            "first_name": "Willem",
+            "last_name": "Dafoe"
+          }
+       ]
+     }
+   ]
+
+
+Multiple Spreads
+----------------
+
+You can use multiple spreads at any level. For example, let's spread ``technical_specs`` and ``roles`` into ``films`` and then spread ``films`` into ``directors``:
+
+.. code-block:: bash
 
   curl --get "http://localhost:3000/directors" \
     -d "select=first_name,...films(film_titles:title,film_years:year,...technical_specs(film_runtimes:runtime),...roles(film_characters:character))" \
@@ -1310,6 +1302,8 @@ For example, let's nest ``...technical_specs`` (one-to-one) and ``...roles`` (on
      }
    ]
 
-All the elements inside ``films`` are selected in the same order, including both nested resources.
-For example, we can say that "Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
-Note that the data inside to-many nested resources can also be ordered (``roles`` by the ``character`` name in our example).
+Note that:
+
+- All the ``film_*`` arrays are correlated—"Reservoir Dogs" premiered in 1992, its runtime is 1:39:00 and it has the following characters: ``[ "Mr. Pink", "Mr. White" ]``.
+- The ``film_*`` arrays are ordered by ``year`` (due to ``films.order=year``).
+- The bottom level array ``film_characters`` is ordered (due to ``films.roles.order=character``).
