@@ -86,7 +86,7 @@ data ApiRequestError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
   | UnacceptableFilter Text
-  | UnacceptableSchema [Text]
+  | UnacceptableSchema Text [Text]
   | UnsupportedMethod ByteString
   | GucHeadersError
   | GucStatusError
@@ -191,7 +191,7 @@ instance ErrorBody ApiRequestError where
   message (InvalidBody errorMessage)   = T.decodeUtf8 errorMessage
   message (InvalidRange _)             = "Requested range not satisfiable"
   message InvalidFilters               = "Filters must include all and only primary key columns with 'eq' operators"
-  message (UnacceptableSchema schemas) = "The schema must be one of the following: " <> T.intercalate ", " schemas
+  message (UnacceptableSchema sch _)   = "Invalid schema: " <> sch
   message (MediaTypeError cts)         = "None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)
   message (NotEmbedded resource)       = "'" <> resource <> "' is not an embedded resource in this request"
   message GucHeadersError              = "response.headers guc must be a JSON array composed of objects with a single key and a string value"
@@ -230,6 +230,7 @@ instance ErrorBody ApiRequestError where
   -- HINT: Maybe JSON.Value
   hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
   hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
+  hint (UnacceptableSchema _ schemas) = Just $ JSON.String $ "Only the following schemas are exposed: "  <> T.intercalate ", " schemas
 
   hint _ = Nothing
 
