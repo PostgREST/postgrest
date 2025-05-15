@@ -4,17 +4,17 @@ Description : PostgREST Jwt Authentication Result Cache.
 
 This module provides functions to deal with the JWT cache
 -}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE LambdaCase     #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE StrictData     #-}
 
 module PostgREST.Auth.JwtCache
   ( init
   , update
   , JwtCacheState
   , lookupJwtCache
-  , accessStats
-  , evictionsCount
+  -- , accessStats
+  -- , evictionsCount
   ) where
 
 import qualified Data.Aeson        as JSON
@@ -30,42 +30,33 @@ import           Data.IORef                  (IORef, newIORef,
                                               readIORef, writeIORef)
 import           Jose.Jwk                    (JwkSet)
 import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
-import           PostgREST.Cache.Sieve       (AccessStats,
-                                              accessStatsIO, cacheIO,
-                                              evictionsCountIO)
 import qualified PostgREST.Cache.Sieve       as SC
 import           PostgREST.Config            (AppConfig (..))
 import           Protolude
 
-
 type JwtCacheState = IORef JwtCache
--- | JWT caching state
-data JwtCache = JwtNoCache {
-    lookup :: Maybe ByteString ->  ExceptT Error IO JSON.Object,
-    accessStats :: IO AccessStats,
-    evictionsCount :: IO Int64
-  }|
-  JwtCache {
-    lookup :: Maybe ByteString -> ExceptT Error IO JSON.Object,
-    decodingKey :: JwkSet,
-    maxSize :: TVar Int,
-    cache :: SC.Cache IO ByteString (Either Error JSON.Object),
-    accessStats :: IO AccessStats,
-    evictionsCount :: IO Int64
-  }
+
+data JwtCache =
+  JwtNoJwks | JwtNoCache JwkSet | JwtCache JwkSet (TVar Int) (SC.Cache IO ByteString (Either Error JSON.Object))
+
+decode :: JwtCache -> ByteString -> ExceptT Error IO JSON.Object
+decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
+decode (JwtNoCache key) = parseAndDecodeClaims key
+decode (JwtCache _ _ c) = lift . SC.cached c >=> liftEither
 
 update :: JwtCacheState -> AppConfig -> IO ()
 update jwtCacheState config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
   readIORef jwtCacheState >>= \case
-    JwtNoCache{} -> newJwtCache config >>= writeIORef jwtCacheState
-    JwtCache{..} ->
+    (JwtCache decodingKey maxSize _) ->
       if configJWKS /= Just decodingKey || configJwtCacheMaxSize <= 0 then
-        -- key changed - reinit
+        -- key changed or cache disabled - reinit
         newJwtCache config >>= writeIORef jwtCacheState
       else
         -- leave cache but set new maxSize
         -- the cache is going to resize itself
         atomically $ writeTVar maxSize configJwtCacheMaxSize
+
+    _ -> newJwtCache config >>= writeIORef jwtCacheState
 
 init :: AppConfig -> IO JwtCacheState
 init = newJwtCache >=> newIORef
@@ -73,23 +64,14 @@ init = newJwtCache >=> newIORef
 -- | Initialize JwtCacheState
 newJwtCache :: AppConfig -> IO JwtCache
 newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} = do
-  maybe (noCache missingSecrets) initCache configJWKS
+  maybe (pure JwtNoJwks) initCache configJWKS
   where
-    noTokenOr = maybe $ pure KM.empty
-    missingSecrets = const (throwError $ JwtErr JwtSecretMissing)
-    noCache parse = pure $ JwtNoCache (noTokenOr parse) (pure mempty) (pure 0)
-    initCache key = if configJwtCacheMaxSize > 0 then do
+    initCache key =
+      if configJwtCacheMaxSize > 0 then do
         maxSize <- newTVarIO configJwtCacheMaxSize
-        c <- cacheIO maxSize (runExceptT . parseAndDecodeClaims key)
-        let lookupCached = lift . SC.cached c >=> liftEither
-        JwtCache
-          (noTokenOr lookupCached)
-          key maxSize <$>
-          cacheIO maxSize (runExceptT . parseAndDecodeClaims key) <*>
-          pure (accessStatsIO c) <*>
-          pure (evictionsCountIO c)
+        JwtCache key maxSize <$> SC.cacheIO maxSize (runExceptT . parseAndDecodeClaims key)
       else
-        noCache $ parseAndDecodeClaims key
+        pure $ JwtNoCache key
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
-lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= (`lookup` k)
+lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
