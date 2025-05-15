@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Improve the `PGRST106` error when the requested schema is invalid by @laurenceisla in #4089
+  + It now shows the invalid schema in the `message` field.
+  + The exposed schemas are now listed in the `hint` instead of the `message` field.
+
 ## [13.0.6] - 2025-08-30
 
 ### Fixed
