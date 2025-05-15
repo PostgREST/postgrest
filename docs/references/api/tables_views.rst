@@ -175,23 +175,29 @@ To ensure best performance on larger data sets, an `appropriate index <https://w
 Full-Text Search
 ~~~~~~~~~~~~~~~~
 
-The :code:`fts` filter mentioned above has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming. Suppose that :code:`tsearch` is a table with column :code:`my_tsv`, of type `tsvector <https://www.postgresql.org/docs/current/datatype-textsearch.html>`_. The following examples illustrate the possibilities.
+The :code:`fts` operator has a number of options to support flexible textual queries, namely the choice of plain vs phrase search and the language used for stemming.
+
+The following examples illustrate the possibilities, assuming column :code:`my_tsv` is of type `tsvector <https://www.postgresql.org/docs/current/datatype-textsearch.html>`_.
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_tsv=fts(french).amusant"
+  curl --get "http://localhost:3000/people" \
+    -d "my_tsv=fts(french).amusant"
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_tsv=plfts.The%20Fat%20Cats"
+  curl --get "http://localhost:3000/people" \
+    -d "my_tsv=plfts.The%20Fat%20Cats"
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_tsv=not.phfts(english).The%20Fat%20Cats"
+  curl --get "http://localhost:3000/people" \
+    -d "my_tsv=not.phfts(english).The%20Fat%20Cats"
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_tsv=not.wfts(french).amusant"
+  curl --get "http://localhost:3000/people" \
+    -d "my_tsv=not.wfts(french).amusant"
 
 .. _fts_to_tsvector:
 
@@ -199,15 +205,17 @@ Automatic ``tsvector`` conversion
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If the filtered column is not of type ``tsvector``, then it will be automatically converted using `to_tsvector() <https://www.postgresql.org/docs/current/functions-textsearch.html#TEXTSEARCH-FUNCTIONS-TABLE>`_.
-This allows using ``fts`` on ``text`` and ``json`` types out of the box, for example.
+This allows using the ``fts`` operator on ``text`` and ``json`` types out of the box.
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_text_column=fts(french).amusant"
+  curl --get "http://localhost:3000/people" \
+    -d "my_text_column=fts(french).amusant"
 
 .. code-block:: bash
 
-  curl "http://localhost:3000/tsearch?my_json_column=not.phfts(english).The%20Fat%20Cats"
+  curl --get "http://localhost:3000/people" \
+    -d "my_json_column=not.phfts(english).The%20Fat%20Cats"
 
 .. _v_filter:
 
