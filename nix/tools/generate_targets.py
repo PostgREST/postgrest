@@ -87,7 +87,8 @@ def main():
         sys.exit(1)
 
     elapsed = time.time() - start_time
-    print(f"Created {TOTAL_TARGETS} targets in {args.output} ({elapsed:.2f}s)")
+    print(f"Created {TOTAL_TARGETS} targets with unique JWTs", end=" ")
+    print(f"in {args.output} ({elapsed:.2f}s)")
 
 
 if __name__ == "__main__":
