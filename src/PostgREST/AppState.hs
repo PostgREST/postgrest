@@ -127,7 +127,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   observer $ AppStartObs prettyVersion
 
-  jwtCacheState <- JwtCache.init conf
+  jwtCacheState <- JwtCache.init conf observer
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
   state' <- initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer

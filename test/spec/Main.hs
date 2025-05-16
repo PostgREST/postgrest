@@ -90,7 +90,7 @@ main = do
 
   let
     initApp sCache config = do
-      jwtCacheState <- JwtCache.init config
+      jwtCacheState <- JwtCache.init config $ const $ pure () -- FIXME no observability
       appState <- AppState.initWithPool sockets pool config jwtCacheState loggerState metricsState (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)

@@ -1,34 +1,27 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE ImpredicativeTypes        #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE RecursiveDo               #-}
+{-# LANGUAGE StrictData                #-}
 
 module PostgREST.Cache.Sieve (
-      AccessStats(..)
-    , Cache
+      Cache
     , cache
     , cacheIO
     , cached
     , delete
-    , reset
-    , resetIO
     , deleteIO
-    , accessStats
-    , accessStatsIO
-    , evictionsCount
-    , evictionsCountIO
 )
 where
 
-import           Control.Concurrent.STM
-import           Control.Monad.Extra    (whenJustM)
-import           Data.Vector            ((!))
-import qualified Data.Vector            as V
-import qualified Focus                  as F
-import           GHC.Conc               (numCapabilities)
-import           Protolude              hiding (head)
-import qualified StmHamt.SizedHamt      as SH
+import Control.Concurrent.STM
+import Control.Monad.Extra    (whenJustM, whileM)
+--import           Data.Vector            ((!))
+import qualified Focus             as F
+import           Protolude         hiding (head)
+import qualified StmHamt.SizedHamt as SH
 
 data Node = Head {
         next :: TVar Node,
@@ -46,7 +39,7 @@ getVisited Node{visited} = readTVar visited
 
 visit :: Node -> STM ()
 visit (Head _ _)    = pure ()
-visit Node{visited} = writeTVar visited True
+visit Node{visited} = whenM (not <$> readTVar visited) (writeTVar visited True)
 
 clear :: Node -> STM ()
 clear (Head _ _)    = pure ()
@@ -68,144 +61,116 @@ data Entry k v = Entry {
 
 data Cache m k v =
     Cache {
-        entries           :: SH.SizedHamt (Entry k v),
-        maxSize           :: TVar Int,
-        head              :: Node,
-        getFinger         :: STM Node,
-        load              :: k -> m v,
-        lookupAndVisit    :: k -> STM (Maybe v),
-
-        advanceFinger     :: STM (),
-        reset             :: STM (),
-
-        accessStatsVector :: V.Vector (TVar AccessStats),
-        evictions         :: TVar Int64
+        entries          :: SH.SizedHamt (Entry k v),
+        finger           :: TVar Node,
+        maxSize          :: TVar Int,
+        head             :: Node,
+        load             :: k -> m v,
+        requestListener  :: Bool -> m (),
+        evictionListener :: m ()
     }
 
-data AccessStats = AccessStats {
-    requests :: Int64,
-    hits     :: Int64
-}
+modifyTVarM :: (a -> STM a) -> TVar a -> STM ()
+modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
 
-instance Semigroup AccessStats where
-    (AccessStats r1 h1) <> (AccessStats r2 h2) = AccessStats (r1 + r2) (h1 + h2)
-instance Monoid AccessStats where
-    mempty = AccessStats 0 0
+advance :: TVar Node -> STM ()
+advance = modifyTVarM (readTVar . next)
 
-cacheIO :: Hashable k => TVar Int -> (k -> m v) -> IO (Cache m k v)
-cacheIO maxSize = atomically . cache maxSize
+lookupAndVisit :: Hashable k => SH.SizedHamt (Entry k v) -> k -> STM (Maybe v)
+lookupAndVisit entries = traverse visitEntry <=< flip (SH.lookup ekey) entries
+    where
+        visitEntry Entry{node, value} = visit node $> value
 
-cache :: Hashable k => TVar Int -> (k -> m v) -> STM (Cache m k v)
-cache maxSize load = mdo
-    let advanceFinger = modifyTVarM fingerTVar (readTVar . next)
-        reset = SH.reset entries *> writeTVar fingerTVar head
-        lookupAndVisit = traverse visitEntry <=< flip (SH.lookup ekey) entries
+cacheIO :: Hashable k => TVar Int -> (k -> m v) -> (Bool -> m ()) -> m () -> IO (Cache m k v)
+cacheIO a b c = atomically . cache a b c
+
+cache :: Hashable k => TVar Int -> (k -> m v) -> (Bool -> m ()) -> m () -> STM (Cache m k v)
+cache maxSize load rl el = mdo
     head <- Head <$> newTVar head <*> newTVar head
     entries <- SH.new
     fingerTVar <- newTVar head
-    cache <- Cache
+    pure $ Cache
         entries
+        fingerTVar
         maxSize
         head
-        (readTVar fingerTVar)
         load
-        lookupAndVisit
-        advanceFinger
-        reset <$>
-        V.replicateM numCapabilities (newTVar mempty) <*>
-        newTVar 0
-    pure cache
-    where
-        modifyTVarM v f = readTVar v >>= f >>= writeTVar v
-
-        visitEntry Entry{node, value} = visit node $> value
+        rl
+        el
 
 delete :: Hashable k => Cache m k v -> k -> STM ()
-delete Cache{entries, getFinger, advanceFinger} k =
+delete Cache{entries, finger} k =
     whenJustM (SH.focus F.lookupAndDelete ekey k entries) (removeAndCheckFinger . node)
     where
         removeAndCheckFinger node = do
             remove node
-            whenM ((node ==) <$> getFinger)
-                advanceFinger
+            whenM ((node ==) <$> readTVar finger)
+                (advance finger)
 
 deleteIO :: Hashable k => Cache m k v -> k -> IO ()
 deleteIO c = atomically . delete c
-
-resetIO :: Cache m k v -> IO ()
-resetIO = atomically . reset
-
-accessStats' :: Monoid (f AccessStats) => (forall a. TVar a -> f a) -> Cache m k v -> f AccessStats
-accessStats' readVal = foldMap readVal . accessStatsVector
-
-accessStats :: Cache m k v -> STM AccessStats
-accessStats = accessStats' readTVar
-
-accessStatsIO :: Cache m k v -> IO AccessStats
-accessStatsIO = accessStats' readTVarIO
-
-evictionsCount :: Cache m k v -> STM Int64
-evictionsCount = readTVar . evictions
-
-evictionsCountIO :: Cache m k v -> IO Int64
-evictionsCountIO = readTVarIO . evictions
 
 cached :: (Hashable k, MonadIO m) => Cache m k v -> k -> m v
 cached Cache{..} k =
     tryMaybe
         -- Fast path: lookup value, update stats and return the value if found
-        (liftIO $ atomically $ lookupAndVisit k >>= (<$) <*> updateStats)
+        (liftIO (atomically lookup) >>= (<$) <*> (requestListener . isJust))
         -- Slow path: load/calculate value and insert it (if still not found)
-        (load k >>= untilInserted . tryInsert)
+        (do
+            value <- load k
+            whileM (not <$> tryInsert value)
+            pure value)
     where
+        lookup = lookupAndVisit entries k
         tryMaybe f notFound = f >>= maybe notFound pure
 
-        updateStats result = do
-            let statsTVar = accessStatsVector ! (hash k `mod` length accessStatsVector)
-            modifyTVar statsTVar $ \AccessStats{..} ->
-                AccessStats (requests + 1) (if isJust result then hits + 1 else hits)
-
-        untilInserted x = x >>= maybe (untilInserted x) pure
-
         -- perform a single entry eviction and possibly insertion atomically
-        -- returning Nothing if could not insert
+        -- returning False if could not insert
         -- (either because entry currently pointed by the finger was visited
         --  or because after this entry eviction the cache is still full)
         -- so that other threads don't have to wait when visiting entries.
         -- First check if entry is still not in the cache - this time inside transaction.
         --
-        -- Careful not to use Alternative instance for STM
-        -- (lookupAndVisit k <|> insertStep v) would be wrong
-        tryInsert = liftIO . atomically . liftA2 (<|>) (lookupAndVisit k) . insertStep
+        -- Execute evictionListener if an entry was evicted
+        tryInsert value = do
+            (result, listener) <- (liftIO . atomically) $ runStateT (
+                ifM (isNothing <$> lift lookup)
+                    (insertStep value evictionListener)
+                    (pure True))
+                -- empty eviction listener
+                (pure ())
+            listener $> result
 
-        insertStep v = do
-            currDiff <- liftA2 (-) (SH.size entries) (max 1 <$> readTVar maxSize)
+        insertStep v evictionMarker = do
+            currDiff <- liftA2 (-) (lift $ SH.size entries) (max 1 <$> lift (readTVar maxSize))
             if currDiff >= 0 then do
                 -- no space in the cache
                 -- need to evict an entry
-                node <- getFinger
-                visited <- getVisited node
+                node <- lift $ readTVar finger
+                visited <- lift $ getVisited node
                 if visited then
                     -- clear and skip visited entry
                     -- not done yet
-                    clear node *> advanceFinger $> empty
+                    lift (clear node) *> lift (advance finger) $> False
                 else do
                     -- found entry to evict
-                    SH.focus F.delete ekey k entries
-                    remove node *> advanceFinger
-                    modifyTVar evictions (+ 1)
+                    -- increment eviction count
+                    put evictionMarker
+                    -- remove entry and node
+                    -- advance finger
+                    lift $ SH.focus F.delete ekey k entries
+                    lift (remove node) *> lift (advance finger)
                     if currDiff == 0 then
                         -- now there is space
                         -- insert new entry
-                        -- equivalent point-free (fmap ($>) addEntry <*> pure) v
-                        addEntry v $> pure v
+                        lift (addEntry v) $> True
                     else
                         -- still no space after removal
                         -- not done
-                        pure empty
+                        pure False
             else
                 -- there is space in the cache
-                addEntry v $> pure v
+                lift (addEntry v) $> True
 
         addEntry v = do
             oldNeck <- readTVar $ prev head
