@@ -25,7 +25,7 @@ data MetricsState =
     poolAvailable        :: Gauge,
     poolWaiting          ::Gauge,
     poolMaxSize          :: Gauge,
-    schemaCacheLoads     :: (Vector Label1 Counter),
+    schemaCacheLoads     :: Vector Label1 Counter,
     schemaCacheQueryTime :: Gauge,
     jwtCacheRequests     :: Counter,
     jwtCacheHits         :: Counter,
