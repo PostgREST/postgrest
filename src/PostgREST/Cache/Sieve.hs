@@ -23,29 +23,31 @@ import qualified Focus             as F
 import           Protolude         hiding (head)
 import qualified StmHamt.SizedHamt as SH
 
-data Node = Head {
-        next :: TVar Node,
-        prev :: TVar Node
+data Node k = Head {
+        next :: TVar (Node k),
+        prev :: TVar (Node k)
     } |
     Node {
-        next    :: TVar Node,
-        prev    :: TVar Node,
-        visited :: TVar Bool
+        next     :: TVar (Node k),
+        prev     :: TVar (Node k),
+        visited  :: TVar Bool,
+
+        entryKey :: k
     } deriving Eq
 
-getVisited :: Node -> STM Bool
-getVisited (Head _ _)    = pure True
+getVisited :: Node k -> STM Bool
+getVisited Head{}        = pure True
 getVisited Node{visited} = readTVar visited
 
-visit :: Node -> STM ()
-visit (Head _ _)    = pure ()
+visit :: Node k -> STM ()
+visit Head{}    = pure ()
 visit Node{visited} = whenM (not <$> readTVar visited) (writeTVar visited True)
 
-clear :: Node -> STM ()
-clear (Head _ _)    = pure ()
+clear :: Node k -> STM ()
+clear Head{}        = pure ()
 clear Node{visited} = writeTVar visited False
 
-remove :: Node -> STM ()
+remove :: Node k -> STM ()
 remove (Head _ _) = pure ()
 remove Node{next=currNext, prev=currPrev} = do
     nextEntry <- readTVar currNext
@@ -53,24 +55,28 @@ remove Node{next=currNext, prev=currPrev} = do
     writeTVar (next prevEntry) nextEntry
     writeTVar (prev nextEntry) prevEntry
 
+removeEntry :: (Hashable k) => Node k -> SH.SizedHamt (Entry k v) -> STM ()
+removeEntry Head{} _ = pure ()
+removeEntry Node{entryKey} entries = SH.focus F.delete ekey entryKey entries
+
 data Entry k v = Entry {
     ekey  :: k,
     value :: v,
-    node  :: Node
+    node  :: Node k
 } deriving Eq
 
 data Cache m k v =
     Cache {
         entries          :: SH.SizedHamt (Entry k v),
-        finger           :: TVar Node,
+        finger           :: TVar (Node k),
         maxSize          :: TVar Int,
-        head             :: Node,
+        head             :: Node k,
         load             :: k -> m v,
         requestListener  :: Bool -> m (),
         evictionListener :: m ()
     }
 
-advance :: TVar Node -> STM ()
+advance :: TVar (Node k) -> STM ()
 advance = modifyTVarM (readTVar . next)
     where
         modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
@@ -113,7 +119,7 @@ cached :: (Hashable k, MonadIO m) => Cache m k v -> k -> m v
 cached Cache{..} k =
     tryMaybe
         -- Fast path: lookup value, update stats and return the value if found
-        (liftIO (atomically lookup) >>= (<$) <*> (requestListener . isJust))
+        (liftIO (atomically lookup) >>= (<$) <*> requestListener . isJust)
         -- Slow path: load/calculate value and insert it (if still not found)
         (do
             value <- load k
@@ -132,17 +138,25 @@ cached Cache{..} k =
         --
         -- Execute evictionListener if an entry was evicted
         tryInsert value = do
-            (result, listener) <- (liftIO . atomically) $
-                runStateT
-                    (ifM (isNothing <$> lift lookup)
-                        (insertStep value evictionListener)
-                        (pure True))
-                    -- empty eviction listener
-                    (pure ())
+            (result, listener) <- liftIO . atomically $ SH.focus (insFocus value) ekey k entries
             listener $> result
 
-        insertStep v evictionMarker = do
-            currDiff <- liftA2 (-) (lift $ SH.size entries) (max 1 <$> lift (readTVar maxSize))
+        insFocus v = F.Focus (do
+            (hasSpace, evicted) <- runStateT (evictionStep evictionListener) (pure ())
+            if hasSpace then do
+                entry <- addEntry v
+                -- done, maybe evicted, insert entry
+                pure ((True, evicted), F.Set entry)
+            else
+                -- not done, maybe evicted, don't modify entries
+                pure ((False, evicted), F.Leave))
+            (\entry -> do
+                visit $ node entry
+                -- done, no evictions, don't modify entries
+                pure ((True, pure ()), F.Leave))
+
+        evictionStep evictionMarker = do
+            currDiff <- lift $ liftA2 (-) (SH.size entries) (max 1 <$> readTVar maxSize)
             if currDiff >= 0 then do
                 -- no space in the cache
                 -- need to evict an entry
@@ -151,32 +165,36 @@ cached Cache{..} k =
                 if visited then
                     -- clear and skip visited entry
                     -- not done yet
-                    lift (clear node) *> lift (advance finger) $> False
+                    lift $ clear node *> advance finger $> False
                 else do
                     -- found entry to evict
                     -- increment eviction count
                     put evictionMarker
                     -- remove entry and node
                     -- advance finger
-                    lift $ SH.focus F.delete ekey k entries
-                    lift (remove node) *> lift (advance finger)
+                    lift $ do
+                        removeEntry node entries
+                        remove node
+                        advance finger
                     if currDiff == 0 then
                         -- now there is space
                         -- insert new entry
-                        lift (addEntry v) $> True
+                        pure True
+                        --lift $ pure <$> addEntry v
                     else
                         -- still no space after removal
                         -- not done
                         pure False
             else
                 -- there is space in the cache
-                lift (addEntry v) $> True
+                pure True
+                --lift $ pure <$> addEntry v
 
         addEntry v = do
             oldNeck <- readTVar $ prev head
-            newNeck <- Node <$> newTVar head <*> newTVar oldNeck <*> newTVar False
-            -- add cache entry
-            SH.insert ekey (Entry k v newNeck) entries
+            newNeck <- Node <$> newTVar head <*> newTVar oldNeck <*> newTVar False <*> pure k
             -- update pointers
             writeTVar (next oldNeck) newNeck
             writeTVar (prev head) newNeck
+            -- return HAMT entry
+            pure $ Entry k v newNeck
