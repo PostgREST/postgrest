@@ -132,12 +132,13 @@ cached Cache{..} k =
         --
         -- Execute evictionListener if an entry was evicted
         tryInsert value = do
-            (result, listener) <- (liftIO . atomically) $ runStateT (
-                ifM (isNothing <$> lift lookup)
-                    (insertStep value evictionListener)
-                    (pure True))
-                -- empty eviction listener
-                (pure ())
+            (result, listener) <- (liftIO . atomically) $
+                runStateT
+                    (ifM (isNothing <$> lift lookup)
+                        (insertStep value evictionListener)
+                        (pure True))
+                    -- empty eviction listener
+                    (pure ())
             listener $> result
 
         insertStep v evictionMarker = do
