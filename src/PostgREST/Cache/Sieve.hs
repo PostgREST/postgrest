@@ -70,11 +70,10 @@ data Cache m k v =
         evictionListener :: m ()
     }
 
-modifyTVarM :: (a -> STM a) -> TVar a -> STM ()
-modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
-
 advance :: TVar Node -> STM ()
 advance = modifyTVarM (readTVar . next)
+    where
+        modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
 
 lookupAndVisit :: Hashable k => SH.SizedHamt (Entry k v) -> k -> STM (Maybe v)
 lookupAndVisit entries = traverse visitEntry <=< flip (SH.lookup ekey) entries
