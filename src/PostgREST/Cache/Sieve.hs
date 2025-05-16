@@ -1,6 +1,3 @@
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts          #-}
-{-# LANGUAGE ImpredicativeTypes        #-}
 {-# LANGUAGE NamedFieldPuns            #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE RecursiveDo               #-}
@@ -16,12 +13,11 @@ module PostgREST.Cache.Sieve (
 )
 where
 
-import Control.Concurrent.STM
-import Control.Monad.Extra    (whenJustM, whileM)
---import           Data.Vector            ((!))
-import qualified Focus             as F
-import           Protolude         hiding (head)
-import qualified StmHamt.SizedHamt as SH
+import           Control.Concurrent.STM
+import           Control.Monad.Extra    (whenJustM, whileM)
+import qualified Focus                  as F
+import           Protolude              hiding (head)
+import qualified StmHamt.SizedHamt      as SH
 
 data Node k = Head {
         next :: TVar (Node k),
@@ -34,6 +30,23 @@ data Node k = Head {
 
         entryKey :: k
     } deriving Eq
+
+data Entry k v = Entry {
+    ekey  :: k,
+    value :: v,
+    node  :: Node k
+} deriving Eq
+
+data Cache m k v =
+    Cache {
+        entries          :: SH.SizedHamt (Entry k v),
+        finger           :: TVar (Node k),
+        maxSize          :: TVar Int,
+        head             :: Node k,
+        load             :: k -> m v,
+        requestListener  :: Bool -> m (),
+        evictionListener :: m ()
+    }
 
 getVisited :: Node k -> STM Bool
 getVisited Head{}        = pure True
@@ -59,32 +72,17 @@ removeEntry :: (Hashable k) => Node k -> SH.SizedHamt (Entry k v) -> STM ()
 removeEntry Head{} _ = pure ()
 removeEntry Node{entryKey} entries = SH.focus F.delete ekey entryKey entries
 
-data Entry k v = Entry {
-    ekey  :: k,
-    value :: v,
-    node  :: Node k
-} deriving Eq
-
-data Cache m k v =
-    Cache {
-        entries          :: SH.SizedHamt (Entry k v),
-        finger           :: TVar (Node k),
-        maxSize          :: TVar Int,
-        head             :: Node k,
-        load             :: k -> m v,
-        requestListener  :: Bool -> m (),
-        evictionListener :: m ()
-    }
-
 advance :: TVar (Node k) -> STM ()
 advance = modifyTVarM (readTVar . next)
     where
         modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
 
 lookupAndVisit :: Hashable k => SH.SizedHamt (Entry k v) -> k -> STM (Maybe v)
-lookupAndVisit entries = traverse visitEntry <=< flip (SH.lookup ekey) entries
+lookupAndVisit entries key = SH.focus focus ekey key entries
     where
-        visitEntry Entry{node, value} = visit node $> value
+        focus = F.Focus
+            (pure (Nothing, F.Leave))
+            (\entry -> visit (node entry) $> (Just $ value entry, F.Leave))
 
 cacheIO :: Hashable k => TVar Int -> (k -> m v) -> (Bool -> m ()) -> m () -> IO (Cache m k v)
 cacheIO a b c = atomically . cache a b c
@@ -138,11 +136,12 @@ cached Cache{..} k =
         --
         -- Execute evictionListener if an entry was evicted
         tryInsert value = do
-            (result, listener) <- liftIO . atomically $ SH.focus (insFocus value) ekey k entries
-            listener $> result
+            (result, evicted) <- liftIO . atomically $
+                SH.focus (insFocus value) ekey k entries
+            when evicted evictionListener $> result
 
         insFocus v = F.Focus (do
-            (hasSpace, evicted) <- runStateT (evictionStep evictionListener) (pure ())
+            (hasSpace, evicted) <- runStateT evictionStep False
             if hasSpace then do
                 entry <- addEntry v
                 -- done, maybe evicted, insert entry
@@ -153,9 +152,9 @@ cached Cache{..} k =
             (\entry -> do
                 visit $ node entry
                 -- done, no evictions, don't modify entries
-                pure ((True, pure ()), F.Leave))
+                pure ((True, False), F.Leave))
 
-        evictionStep evictionMarker = do
+        evictionStep = do
             currDiff <- lift $ liftA2 (-) (SH.size entries) (max 1 <$> readTVar maxSize)
             if currDiff >= 0 then do
                 -- no space in the cache
@@ -168,8 +167,8 @@ cached Cache{..} k =
                     lift $ clear node *> advance finger $> False
                 else do
                     -- found entry to evict
-                    -- increment eviction count
-                    put evictionMarker
+                    -- set provided eviction marker
+                    put True
                     -- remove entry and node
                     -- advance finger
                     lift $ do
@@ -177,10 +176,8 @@ cached Cache{..} k =
                         remove node
                         advance finger
                     if currDiff == 0 then
-                        -- now there is space
-                        -- insert new entry
+                        -- now there is space in the cache
                         pure True
-                        --lift $ pure <$> addEntry v
                     else
                         -- still no space after removal
                         -- not done
@@ -188,7 +185,6 @@ cached Cache{..} k =
             else
                 -- there is space in the cache
                 pure True
-                --lift $ pure <$> addEntry v
 
         addEntry v = do
             oldNeck <- readTVar $ prev head
