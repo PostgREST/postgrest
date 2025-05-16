@@ -35,7 +35,7 @@ import           PostgREST.Observation       (Observation (JwtCacheEviction, Jwt
                                               ObservationHandler)
 import           Protolude
 
-type JwtCacheState = IORef ObservableCache
+newtype JwtCacheState = JwtCacheState (IORef ObservableCache)
 
 data JwtCache =
   JwtNoJwks | JwtNoCache JwkSet | JwtCache JwkSet (TVar Int) (SC.Cache IO ByteString (Either Error JSON.Object))
@@ -51,7 +51,7 @@ decode (JwtNoCache key) = parseAndDecodeClaims key
 decode (JwtCache _ _ c) = lift . SC.cached c >=> liftEither
 
 update :: JwtCacheState -> AppConfig -> IO ()
-update jwtCacheState config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
+update (JwtCacheState jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
   readIORef jwtCacheState >>= \case
     (ObservableCache observationHandler (JwtCache decodingKey maxSize _)) ->
       if configJWKS /= Just decodingKey || configJwtCacheMaxSize <= 0 then
@@ -65,7 +65,7 @@ update jwtCacheState config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
     ObservableCache{..} -> newJwtCache config observationHandler >>= writeIORef jwtCacheState
 
 init :: AppConfig -> ObservationHandler -> IO JwtCacheState
-init config = newJwtCache config >=> newIORef
+init config = newJwtCache config >=> newIORef >=> pure . JwtCacheState
 
 -- | Initialize JwtCacheState
 newJwtCache :: AppConfig -> ObservationHandler -> IO ObservableCache
@@ -84,4 +84,4 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
         pure $ JwtNoCache key
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
-lookupJwtCache cacheState k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode . cache
+lookupJwtCache (JwtCacheState cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode . cache
