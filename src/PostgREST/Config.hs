@@ -272,8 +272,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
     <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
                                     (optString "root-spec"))
-    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optString "db-schemas")
-                                                                    (optString "db-schema"))
+    <*> parseDbSchemas "db-schemas" "db-schema"
     <*> (fromMaybe True <$> optBool "db-config")
     <*> (fmap toQi <$> optString "db-pre-config")
     <*> parseTxEnd "db-tx-end" snd
@@ -394,6 +393,13 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
       optString k >>= \case
         Nothing   -> pure Nothing
         Just orig -> pure $ Just (T.strip <$> T.splitOn "," orig)
+
+    parseDbSchemas :: C.Key -> C.Key -> C.Parser C.Config (NonEmpty Text)
+    parseDbSchemas k al =
+      optWithAlias (optString k) (optString al) >>= \case
+        Nothing      -> pure $ fromList ["public"]
+        Just ""      -> fail "Invalid db-schemas. Check your configuration."
+        Just schemas -> pure (fromList $ T.strip <$> T.splitOn "," schemas)
 
     optWithAlias :: C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a) -> C.Parser C.Config (Maybe a)
     optWithAlias orig alias =

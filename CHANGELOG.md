@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix jwt error returning HTTP status `400` for invalid role by @taimoorzaeem in #3601
+- Fix PostgREST not failing to start when `db-schemas` config is set to empty by @taimoorzaeem in #4089
 
 ## [13.0.0] - 2025-05-08
 
