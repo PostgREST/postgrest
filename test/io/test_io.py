@@ -1896,3 +1896,19 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
         # now the request should fail because the cached token is removed
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
+
+
+def test_db_schemas_config_not_allow_empty_strings(defaultenv):
+    "postgrest should fail at startup with empty string in db-schemas config"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMA": "",
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+        exitCode = wait_until_exit(postgrest)
+        assert exitCode == 1
+
+        output = postgrest.read_stdout(nlines=1)
+        assert "Invalid db-schemas. Check your configuration." in output[0]
