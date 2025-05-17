@@ -1,7 +1,8 @@
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE RecursiveDo     #-}
-{-# LANGUAGE StrictData      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NamedFieldPuns             #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE RecursiveDo                #-}
+{-# LANGUAGE StrictData                 #-}
 
 module PostgREST.Cache.Sieve (
       Cache
@@ -19,6 +20,8 @@ import qualified Focus                  as F
 import           Protolude              hiding (head)
 import qualified StmHamt.SizedHamt      as SH
 
+newtype EntryKey k = EntryKey k deriving (Eq, Hashable)
+
 data Node k = Head {
         next :: TVar (Node k),
         prev :: TVar (Node k)
@@ -28,11 +31,11 @@ data Node k = Head {
         prev     :: TVar (Node k),
         visited  :: TVar Bool,
 
-        entryKey :: k
+        entryKey :: EntryKey k
     } deriving Eq
 
 data Entry k v = Entry {
-    ekey  :: k,
+    ekey  :: EntryKey k,
     value :: v,
     node  :: Node k
 } deriving Eq
@@ -77,7 +80,7 @@ advance = modifyTVarM (readTVar . next)
     where
         modifyTVarM f = fmap (>>=) (readTVar >=> f) <*> writeTVar
 
-lookupAndVisit :: Hashable k => SH.SizedHamt (Entry k v) -> k -> STM (Maybe v)
+lookupAndVisit :: Hashable k => SH.SizedHamt (Entry k v) -> EntryKey k -> STM (Maybe v)
 lookupAndVisit entries key = SH.focus focus ekey key entries
     where
         focus = F.Focus
@@ -103,7 +106,7 @@ cache maxSize load rl el = mdo
 
 delete :: Hashable k => Cache m k v -> k -> STM ()
 delete Cache{entries, finger} k =
-    whenJustM (SH.focus F.lookupAndDelete ekey k entries) (removeAndCheckFinger . node)
+    whenJustM (SH.focus F.lookupAndDelete ekey (EntryKey k) entries) (removeAndCheckFinger . node)
     where
         removeAndCheckFinger node = do
             remove node
@@ -124,7 +127,7 @@ cached Cache{..} k =
             whileM (not <$> tryInsert value)
             pure value)
     where
-        lookup = lookupAndVisit entries k
+        lookup = lookupAndVisit entries $ EntryKey k
         tryMaybe f notFound = f >>= maybe notFound pure
 
         -- perform a single entry eviction and possibly insertion atomically
@@ -137,7 +140,7 @@ cached Cache{..} k =
         -- Execute evictionListener if an entry was evicted
         tryInsert value = do
             (result, evicted) <- liftIO . atomically $
-                SH.focus (insFocus value) ekey k entries
+                SH.focus (insFocus value) ekey (EntryKey k) entries
             evicted $> result
 
         insFocus v = F.Focus (do
@@ -193,9 +196,9 @@ cached Cache{..} k =
 
         addEntry v = do
             oldNeck <- readTVar $ prev head
-            newNeck <- Node <$> newTVar head <*> newTVar oldNeck <*> newTVar False <*> pure k
+            newNeck <- Node <$> newTVar head <*> newTVar oldNeck <*> newTVar False <*> pure (EntryKey k)
             -- update pointers
             writeTVar (next oldNeck) newNeck
             writeTVar (prev head) newNeck
             -- return HAMT entry
-            pure $ Entry k v newNeck
+            pure $ Entry (EntryKey k) v newNeck
