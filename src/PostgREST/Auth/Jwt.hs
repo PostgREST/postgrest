@@ -76,7 +76,7 @@ checkForErrors time cfgAud = mconcat
   where
       allowedSkewSeconds = 30 :: Int64
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
-      toSec t = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds t
+      toSec = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       now = toSec time
 
       inTheFuture = checkTime ((now + allowedSkewSeconds) <)
