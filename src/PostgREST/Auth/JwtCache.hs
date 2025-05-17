@@ -74,7 +74,7 @@ update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJ
     _ -> newJwtCache config observationHandler >>= writeIORef jwtCacheState
 
 init :: AppConfig -> ObservationHandler -> IO JwtCacheState
-init config handler = (newJwtCache config handler >>= newIORef) <&> JwtCacheState handler
+init config = fmap (<$>) JwtCacheState <*> (newJwtCache config >=> newIORef)
 
 -- | Initialize JwtCacheState
 newJwtCache :: AppConfig -> ObservationHandler -> IO JwtCache
