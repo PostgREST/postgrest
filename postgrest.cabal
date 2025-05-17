@@ -49,8 +49,10 @@ library
                       PostgREST.App
                       PostgREST.AppState
                       PostgREST.Auth
+                      PostgREST.Auth.Jwt
                       PostgREST.Auth.JwtCache
                       PostgREST.Auth.Types
+                      PostgREST.Cache.Sieve
                       PostgREST.CLI
                       PostgREST.Config
                       PostgREST.Config.Database
@@ -153,6 +155,9 @@ library
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
                     , warp                      >= 3.3.19 && < 3.4
+                    , stm                       >= 2.5 && < 3
+                    , stm-hamt                  >= 1.2 && < 2
+                    , focus                     >= 1.0 && < 2
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
