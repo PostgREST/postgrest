@@ -224,6 +224,9 @@ Usage examples:
     jwt-role-claim-key = ".postgrest.roles[?(@ ==^ \"hor\")]"
     jwt-role-claim-key = ".postgrest.roles[?(@ *== \"utho\")]"
 
+.. note::
+
+  The JSPath DSL used here is implemented as a custom feature and does not strictly follow the `RFC 9535 <https://www.rfc-editor.org/rfc/rfc9535.html>`_.
 
 JWT Security
 ~~~~~~~~~~~~
