@@ -138,10 +138,10 @@ cached Cache{..} k =
         tryInsert value = do
             (result, evicted) <- liftIO . atomically $
                 SH.focus (insFocus value) ekey k entries
-            when evicted evictionListener $> result
+            evicted $> result
 
         insFocus v = F.Focus (do
-            (hasSpace, evicted) <- runStateT evictionStep False
+            (hasSpace, evicted) <- runStateT evictionStep $ pure ()
             if hasSpace then do
                 entry <- addEntry v
                 -- done, maybe evicted, insert entry
@@ -152,8 +152,13 @@ cached Cache{..} k =
             (\entry -> do
                 visit $ node entry
                 -- done, no evictions, don't modify entries
-                pure ((True, False), F.Leave))
+                pure ((True, pure ()), F.Leave))
 
+        -- if the cache is full precoesses a single node
+        -- removing it if it is marked as unvisited
+        -- or clearing visited mark
+        -- returns True if there is space in the cache
+        -- puts evictionListener in state if an entry was evicted
         evictionStep = do
             currDiff <- lift $ liftA2 (-) (SH.size entries) (max 1 <$> readTVar maxSize)
             if currDiff >= 0 then do
@@ -167,8 +172,8 @@ cached Cache{..} k =
                     lift $ clear node *> advance finger $> False
                 else do
                     -- found entry to evict
-                    -- set provided eviction marker
-                    put True
+                    -- set evictionListener
+                    put evictionListener
                     -- remove entry and node
                     -- advance finger
                     lift $ do
