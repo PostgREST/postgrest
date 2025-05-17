@@ -9,7 +9,6 @@ This module provides functions to deal with the JWT cache
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE StrictData                #-}
 {-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
@@ -39,10 +38,15 @@ import           PostgREST.Observation       (Observation (JwtCacheEviction, Jwt
                                               ObservationHandler)
 import           Protolude
 
-newtype JwtCacheState = JwtCacheState (IORef ObservableCache)
+data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
 
 class CacheVariant m v where
   cached :: SC.Cache m ByteString v -> ByteString -> ExceptT Error IO JSON.Object
+
+data JwtCache =
+  JwtNoJwks |
+  JwtNoCache JwkSet |
+  forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
 
 instance CacheVariant IO (Either Error JSON.Object) where
   cached c = lift . SC.cached c >=> liftEither
@@ -50,23 +54,15 @@ instance CacheVariant IO (Either Error JSON.Object) where
 instance CacheVariant (ExceptT Error IO) JSON.Object where
   cached = SC.cached
 
-data JwtCache =
-  JwtNoJwks | JwtNoCache JwkSet | forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
-
-data ObservableCache = ObservableCache {
-  observationHandler :: ObservationHandler,
-  cache              :: JwtCache
-}
-
 decode :: JwtCache -> ByteString -> ExceptT Error IO JSON.Object
 decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
 decode (JwtNoCache key) = parseAndDecodeClaims key
 decode (JwtCache _ _ c) = cached c
 
 update :: JwtCacheState -> AppConfig -> IO ()
-update (JwtCacheState jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
+update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} =
   readIORef jwtCacheState >>= \case
-    (ObservableCache observationHandler (JwtCache decodingKey maxSize _)) ->
+    (JwtCache decodingKey maxSize _) ->
       if configJWKS /= Just decodingKey || configJwtCacheMaxSize <= 0 then
         -- key changed or cache disabled - reinit
         newJwtCache config observationHandler >>= writeIORef jwtCacheState
@@ -75,15 +71,15 @@ update (JwtCacheState jwtCacheState) config@AppConfig{configJWKS, configJwtCache
         -- the cache is going to resize itself
         atomically $ writeTVar maxSize configJwtCacheMaxSize
 
-    ObservableCache{..} -> newJwtCache config observationHandler >>= writeIORef jwtCacheState
+    _ -> newJwtCache config observationHandler >>= writeIORef jwtCacheState
 
 init :: AppConfig -> ObservationHandler -> IO JwtCacheState
-init config = newJwtCache config >=> newIORef >=> pure . JwtCacheState
+init config handler = (newJwtCache config handler >>= newIORef) <&> JwtCacheState handler
 
 -- | Initialize JwtCacheState
-newJwtCache :: AppConfig -> ObservationHandler -> IO ObservableCache
+newJwtCache :: AppConfig -> ObservationHandler -> IO JwtCache
 newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
-  maybe (pure JwtNoJwks) initCache configJWKS <&> ObservableCache observationHandler
+  maybe (pure JwtNoJwks) initCache configJWKS
   where
     initCache key =
       if configJwtCacheMaxSize > 0 then do
@@ -105,4 +101,4 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
             (lift $ observationHandler JwtCacheEviction) -- evictions metrics
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
-lookupJwtCache (JwtCacheState cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode . cache
+lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
