@@ -1,7 +1,7 @@
-{-# LANGUAGE NamedFieldPuns            #-}
-{-# LANGUAGE RecordWildCards           #-}
-{-# LANGUAGE RecursiveDo               #-}
-{-# LANGUAGE StrictData                #-}
+{-# LANGUAGE NamedFieldPuns  #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecursiveDo     #-}
+{-# LANGUAGE StrictData      #-}
 
 module PostgREST.Cache.Sieve (
       Cache
