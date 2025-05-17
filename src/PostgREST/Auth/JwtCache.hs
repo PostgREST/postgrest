@@ -4,10 +4,14 @@ Description : PostgREST Jwt Authentication Result Cache.
 
 This module provides functions to deal with the JWT cache
 -}
-{-# LANGUAGE LambdaCase      #-}
-{-# LANGUAGE NamedFieldPuns  #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE StrictData      #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE NamedFieldPuns            #-}
+{-# LANGUAGE RecordWildCards           #-}
+{-# LANGUAGE StrictData                #-}
+{-# OPTIONS_GHC -Wno-unused-local-binds #-}
 
 module PostgREST.Auth.JwtCache
   ( init
@@ -37,8 +41,17 @@ import           Protolude
 
 newtype JwtCacheState = JwtCacheState (IORef ObservableCache)
 
+class CacheVariant m v where
+  cached :: SC.Cache m ByteString v -> ByteString -> ExceptT Error IO JSON.Object
+
+instance CacheVariant IO (Either Error JSON.Object) where
+  cached c = lift . SC.cached c >=> liftEither
+
+instance CacheVariant (ExceptT Error IO) JSON.Object where
+  cached = SC.cached
+
 data JwtCache =
-  JwtNoJwks | JwtNoCache JwkSet | JwtCache JwkSet (TVar Int) (SC.Cache IO ByteString (Either Error JSON.Object))
+  JwtNoJwks | JwtNoCache JwkSet | forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
 
 data ObservableCache = ObservableCache {
   observationHandler :: ObservationHandler,
@@ -48,7 +61,7 @@ data ObservableCache = ObservableCache {
 decode :: JwtCache -> ByteString -> ExceptT Error IO JSON.Object
 decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
 decode (JwtNoCache key) = parseAndDecodeClaims key
-decode (JwtCache _ _ c) = lift . SC.cached c >=> liftEither
+decode (JwtCache _ _ c) = cached c
 
 update :: JwtCacheState -> AppConfig -> IO ()
 update (JwtCacheState jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} = do
@@ -76,12 +89,20 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
       if configJwtCacheMaxSize > 0 then do
         maxSize <- newTVarIO configJwtCacheMaxSize
         JwtCache key maxSize <$>
-          SC.cacheIO maxSize
+          -- select cachingErrors or notCachingErrors
+          cachingErrors maxSize key
+      else
+        pure $ JwtNoCache key
+
+    cachingErrors maxSize key = SC.cacheIO maxSize
             (runExceptT . parseAndDecodeClaims key)
             (observationHandler . JwtCacheLookup) -- lookup metrics
             (observationHandler JwtCacheEviction) -- evictions metrics
-      else
-        pure $ JwtNoCache key
+
+    notCachingErrors maxSize key = SC.cacheIO maxSize
+            (parseAndDecodeClaims key)
+            (lift . observationHandler . JwtCacheLookup) -- lookup metrics
+            (lift $ observationHandler JwtCacheEviction) -- evictions metrics
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
 lookupJwtCache (JwtCacheState cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode . cache
