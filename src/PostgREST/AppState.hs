@@ -127,14 +127,13 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
 
   observer $ AppStartObs prettyVersion
 
-  jwtCacheState <- JwtCache.init conf observer
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
-  state' <- initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer
+  state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> JwtCache.JwtCacheState -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState observer = do
+initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
+initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
 
   appState <- AppState pool
     <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
@@ -150,7 +149,7 @@ initWithPool (sock, adminSock) pool conf jwtCacheState loggerState metricsState 
     <*> pure sock
     <*> pure adminSock
     <*> pure observer
-    <*> pure jwtCacheState
+    <*> JwtCache.init conf observer
     <*> pure loggerState
     <*> pure metricsState
 
