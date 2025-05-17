@@ -86,7 +86,7 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
         maxSize <- newTVarIO configJwtCacheMaxSize
         JwtCache key maxSize <$>
           -- select cachingErrors or notCachingErrors
-          cachingErrors maxSize key
+          notCachingErrors maxSize key
       else
         pure $ JwtNoCache key
 
