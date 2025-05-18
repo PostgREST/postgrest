@@ -58,7 +58,7 @@ import Protolude
 -- JSON object of JWT claims.
 parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
 parseToken _ Nothing _ = return JSON.emptyObject
-parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header"
+parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header" Nothing
 parseToken AppConfig{..} (Just tkn) time = do
   secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
   tknWith3Parts <- liftEither $ hasThreeParts tkn
@@ -69,17 +69,17 @@ parseToken AppConfig{..} (Just tkn) time = do
       hasThreeParts :: ByteString -> Either Error ByteString
       hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
         3 -> Right token
-        n -> Left $ JwtErr $ JwtDecodeError ("Expected 3 parts in JWT; got " <> show n)
+        n -> Left $ JwtErr $ JwtDecodeError ("Expected 3 parts in JWT; got " <> show n) Nothing
       jwtDecodeError :: JWT.JwtError -> JwtError
       -- The only errors we can get from JWT.decode function are:
       --   BadAlgorithm
       --   KeyError
       --   BadCrypto
-      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
-      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed"
+      jwtDecodeError (JWT.KeyError m)     = JwtDecodeError "No suitable key or wrong key type" (Just m)
+      jwtDecodeError (JWT.BadAlgorithm m) = JwtDecodeError "Wrong or unsupported encoding algorithm" (Just m)
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed" Nothing
       -- Control never reaches here, the decode function only returns the above three
-      jwtDecodeError _                    = JwtDecodeError "JWT couldn't be decoded"
+      jwtDecodeError _                    = JwtDecodeError "JWT couldn't be decoded" Nothing
 
       verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
@@ -91,7 +91,7 @@ parseToken AppConfig{..} (Just tkn) time = do
           return jclaims
         _ -> Left $ JwtClaimsError "Parsing claims failed"
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _ = Left $ JwtDecodeError "Unsupported token type"
+      verifyClaims _ = Left $ JwtDecodeError "Unsupported token type" Nothing
 
       verifyClaim mclaims claim func err = do
         isValid <- maybe (Right True) func (KM.lookup claim mclaims)

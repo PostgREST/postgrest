@@ -644,7 +644,7 @@ data Error
   deriving Show
 
 data JwtError
-  = JwtDecodeError Text
+  = JwtDecodeError Text (Maybe Text)
   | JwtSecretMissing
   | JwtTokenRequired
   | JwtClaimsError Text
@@ -698,27 +698,28 @@ instance PgrstError JwtError where
   status JwtTokenRequired = HTTP.unauthorized401
   status JwtClaimsError{} = HTTP.unauthorized401
 
-  headers (JwtDecodeError m) = [invalidTokenHeader m]
-  headers JwtTokenRequired   = [requiredTokenHeader]
-  headers (JwtClaimsError m) = [invalidTokenHeader m]
-  headers _                  = mempty
+  headers (JwtDecodeError m _) = [invalidTokenHeader m]
+  headers JwtTokenRequired     = [requiredTokenHeader]
+  headers (JwtClaimsError m)   = [invalidTokenHeader m]
+  headers _                    = mempty
 
 instance JSON.ToJSON JwtError where
   toJSON err = toJsonPgrstError
     (code err) (message err) (details err) (hint err)
 
 instance ErrorBody JwtError where
-  code JwtSecretMissing   = "PGRST300"
-  code (JwtDecodeError _) = "PGRST301"
-  code JwtTokenRequired   = "PGRST302"
-  code (JwtClaimsError _) = "PGRST303"
+  code JwtSecretMissing     = "PGRST300"
+  code (JwtDecodeError _ _) = "PGRST301"
+  code JwtTokenRequired     = "PGRST302"
+  code (JwtClaimsError _)   = "PGRST303"
 
-  message JwtSecretMissing     = "Server lacks JWT secret"
-  message (JwtDecodeError msg) = msg
-  message JwtTokenRequired     = "Anonymous access is disabled"
-  message (JwtClaimsError msg) = msg
+  message JwtSecretMissing       = "Server lacks JWT secret"
+  message (JwtDecodeError msg _) = msg
+  message JwtTokenRequired       = "Anonymous access is disabled"
+  message (JwtClaimsError msg)   = msg
 
-  details _ = Nothing
+  details (JwtDecodeError _ dets) = JSON.String <$> dets
+  details _                       = Nothing
 
   hint _    = Nothing
 
