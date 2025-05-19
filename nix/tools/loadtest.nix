@@ -139,18 +139,6 @@ let
         done
 
         cat << EOF
-
-        Running loadtest on HEAD...
-
-        EOF
-
-        ${loadtest} -k "$_arg_kind" --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
-
-        cat << EOF
-
-        Done running on HEAD.
-
-        EOF
       '';
 
   reporter =
