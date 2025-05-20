@@ -137,8 +137,6 @@ let
         EOF
 
         done
-
-        cat << EOF
       '';
 
   reporter =
@@ -166,11 +164,19 @@ let
         import sys
         import pandas as pd
 
-        pd.read_json(sys.stdin) \
+        df = pd.read_json(sys.stdin) \
           .set_index('param') \
           .drop(['branch', 'earliest', 'end', 'latest']) \
-          .convert_dtypes() \
-          .to_markdown(sys.stdout, floatfmt='.0f')
+          .convert_dtypes()
+        cols = df.columns
+        for i in range(len(cols) - 1):
+            col1, col2 = cols[i], cols[i + 1]
+            delta_name = f"{col2} - {col1}"
+            df[delta_name] = df[col2] - df[col1]
+            # Insert new column after new position of col2 from previous
+            # iteration and between current col1 and col2
+            df.insert(i*2 + 1, delta_name, df.pop(delta_name))
+        df.to_markdown(sys.stdout, floatfmt='.0f')
       '';
 
 
