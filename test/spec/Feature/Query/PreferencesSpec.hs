@@ -191,3 +191,21 @@ spec =
           ""
           { matchStatus = 204
           , matchHeaders = ["Preference-Applied" <:> "handling=lenient"]}
+
+      it "should fail with rpc when deleting rows more than prefered" $
+        request methodPost "/rpc/delete_all_items"
+          [("Prefer", "handling=strict, max-affected=10")]
+          ""
+          `shouldRespondWith`
+          [json| {"code":"PGRST124","details":"The query affects 15 rows","hint":null,"message":"Query result exceeds max-affected preference constraint"} |]
+          { matchStatus = 400 }
+
+      it "should succeed with rpc deleting rows less than prefered" $
+        request methodPost "/rpc/delete_all_items"
+          [("Prefer", "handling=strict, max-affected=20")]
+          ""
+          `shouldRespondWith`
+          [json|[{"id":1},{"id":2},{"id":3},{"id":4},{"id":5},{"id":6},{"id":7},
+                 {"id":8},{"id":9},{"id":10},{"id":11},{"id":12},{"id":13},
+                 {"id":14},{"id":15}]|]
+          { matchStatus = 200 }
