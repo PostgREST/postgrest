@@ -242,13 +242,41 @@ Will result in:
 Max Affected
 ============
 
-You can set a limit to the amount of resources affected in a request by sending ``max-affected`` preference. This feature works in combination with ``handling=strict`` preference. ``max-affected`` would be ignored with lenient handling. The "affected resources" are the number of rows returned by ``DELETE`` and ``PATCH`` requests. This is also supported through ``RPC`` calls.
+You can set a limit to the amount of resources affected in a request by sending ``max-affected`` preference. This feature works in combination with ``handling=strict`` preference. ``max-affected`` would be ignored with lenient handling. The "affected resources" are the number of rows returned by ``DELETE`` and ``PATCH`` requests.
 
 To illustrate the use of this preference, consider the following scenario where the ``items`` table contains 14 rows.
 
 .. code-block:: bash
 
   curl -i "http://localhost:3000/items?id=lt.15 -X DELETE \
+    -H "Content-Type: application/json" \
+    -H "Prefer: handling=strict, max-affected=10"
+
+.. code-block:: http
+
+  HTTP/1.1 400 Bad Request
+
+.. code-block:: json
+
+  {
+      "code": "PGRST124",
+      "message": "Query result exceeds max-affected preference constraint",
+      "details": "The query affects 14 rows",
+      "hint": null
+  }
+
+With `RPC <functions>`_, the preference is honored completely on the basis of the number of rows returned in the result set of the function. This can be useful for complex mutation queries using `data-modifying statements <https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING>`_. A simple example:
+
+.. code-block:: postgres
+
+  CREATE FUNCTION test.delete_items()
+  RETURNS SETOF items AS $$
+    DELETE FROM items WHERE id < 15 RETURNING *;
+  $$ LANGUAGE SQL;
+
+.. code-block:: bash
+
+  curl -i "http://localhost:3000/rpc/delete_items" \
     -H "Content-Type: application/json" \
     -H "Prefer: handling=strict, max-affected=10"
 
