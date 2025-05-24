@@ -85,6 +85,33 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       *> request methodGet "/authors_only" [jwt1] ""
       *> request methodGet "/authors_only" [jwt3] ""
 
+  -- This one makes sure we test the scenario when finger
+  -- has to move through the whole list first and pass the head
+  -- The test case was added based on coverage report
+  -- showing this scenario was not covered by previous tests
+  it "Should evict entries even though all were hit" $ do
+    let jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe9"}|]
+        jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe10"}|]
+        jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe11"}|]
+
+    expectCounters
+      [
+        (jwtCacheRequests,  (+ 7))
+      , (jwtCacheHits,      (+ 4))
+      , (jwtCacheEvictions, (+ 1))
+      ] $
+
+         request methodGet "/authors_only" [jwt1] ""
+      *> request methodGet "/authors_only" [jwt2] ""
+      -- these two should hit the cache
+      *> request methodGet "/authors_only" [jwt1] ""
+      *> request methodGet "/authors_only" [jwt2] ""
+      -- this one should trigger eviction of jwt1
+      *> request methodGet "/authors_only" [jwt3] ""
+      -- these two should hit the cache
+      *> request methodGet "/authors_only" [jwt2] ""
+      *> request methodGet "/authors_only" [jwt3] ""
+
   where
       counterToInt f metrics = round @Double @Int <$> getCounter (f metrics)
       expectCounters = stateCheck . fmap (\(f, g) -> StateCheck (counterToInt f) (flip shouldBe . g))
