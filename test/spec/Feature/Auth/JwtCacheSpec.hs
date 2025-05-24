@@ -1,7 +1,7 @@
-{-# LANGUAGE ImpredicativeTypes #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE TypeApplications   #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ImpredicativeTypes        #-}
+{-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE TypeApplications          #-}
 module Feature.Auth.JwtCacheSpec
 
 where
