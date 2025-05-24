@@ -100,14 +100,14 @@ newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
     cachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize
             (runExceptT . parseAndDecodeClaims key)
             (observationHandler . JwtCacheLookup) -- lookup metrics
-            (observationHandler JwtCacheEviction) -- evictions metrics
+            (const . const $ observationHandler JwtCacheEviction) -- evictions metrics
             alwaysValid) -- no invalidation for now
 
     notCachingErrors :: STM Int -> JwkSet -> IO (SC.Cache (ExceptT Error IO) ByteString JSON.Object)
     notCachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize
             (parseAndDecodeClaims key)
             (lift . observationHandler . JwtCacheLookup) -- lookup metrics
-            (lift $ observationHandler JwtCacheEviction) -- evictions metrics
+            (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
             alwaysValid) -- no invalidation for now
 
 lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object

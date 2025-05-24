@@ -62,7 +62,7 @@ data CacheConfig m k v = CacheConfig {
         maxSize          :: STM Int,
         load             :: k -> m v,
         requestListener  :: Bool -> m (),
-        evictionListener :: m (),
+        evictionListener :: k -> v -> m (),
         validator        :: m (k -> v -> Maybe (Discard m v))
 }
 
@@ -139,9 +139,9 @@ cached (Cache head@ListNode{prevNextPtrPtr=neck, elem=Head{..}} CacheConfig{..})
                 -- we need to delete it after
                 (res, evictedKey) <- SH.focus focus (ekey . elem) k entries
                 case evictedKey of
-                    (Just entryKey) -> do
+                    (Just Entry{ekey=entryKey, entryValue}) -> do
                         SH.focus F.delete (ekey . elem) entryKey entries
-                        pure (res, evictionListener)
+                        pure (res, evictionListener entryKey entryValue)
                     Nothing -> pure (res, pure ())
 
             evicted $> result
@@ -180,14 +180,14 @@ cached (Cache head@ListNode{prevNextPtrPtr=neck, elem=Head{..}} CacheConfig{..})
                 -- there is space in the cache
                 pure (True, Nothing)
 
-        evict :: TVar (Some (ListNode k v)) -> STM (NodePtr k v, Maybe k)
+        evict :: TVar (Some (ListNode k v)) -> STM (NodePtr k v, Maybe (NodeElem k v True))
         evict = readTVar >=> \case
-            (Some e@ListNode{nextPtr, prevNextPtrPtr, elem=Entry{visited, ekey=ek}}) -> do
+            (Some e@ListNode{nextPtr, prevNextPtrPtr, elem=elem@Entry{visited}}) -> do
                 ifM (readTVar visited)
 
                     (writeTVar visited False $> (nextPtr, Nothing))
 
-                    (unlinkEntry e *> fmap (, Just ek) (readTVar prevNextPtrPtr))
+                    (unlinkEntry e *> fmap (, Just elem) (readTVar prevNextPtrPtr))
             -- skip head
             (Some ListNode{nextPtr, elem=Head{}}) -> evict nextPtr
 
