@@ -97,7 +97,8 @@ data AppConfig = AppConfig
   , configJwtRoleClaimKey          :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
-  , configJwtCacheMaxLifetime      :: Int
+--  , configJwtCacheMaxLifetime      :: Int
+  , configJwtCacheMaxSize          :: Int
   , configLogLevel                 :: LogLevel
   , configLogQuery                 :: LogQuery
   , configOpenApiMode              :: OpenAPIMode
@@ -177,7 +178,8 @@ toText conf =
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
+--      ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
+      ,("jwt-cache-max-size",                       show . configJwtCacheMaxSize)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("log-query",                 q . dumpLogQuery . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
@@ -287,7 +289,8 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe False <$> optWithAlias
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
-    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
+--    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
+    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-size")
     <*> parseLogLevel "log-level"
     <*> parseLogQuery "log-query"
     <*> parseOpenAPIMode "openapi-mode"
