@@ -1,6 +1,7 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE TypeApplications   #-}
+{-# LANGUAGE ExistentialQuantification #-}
 module Feature.Auth.JwtCacheSpec
 
 where
@@ -17,20 +18,8 @@ import Protolude
 import SpecHelper
 import Test.Hspec.Wai.JSON (json)
 
-expectMetrics :: (Traversable t, Show (t b), Eq (t b)) => t (t2 -> WaiSession t2 b, b -> b) -> WaiSession t2 a -> WaiSession t2 ()
-expectMetrics expectations act = do
-  metrics <- getState
-  expected <- traverse (\(f, toExpected) -> toExpected <$> f metrics) expectations
-  void act
-  result <- traverse (($ metrics) . fst) expectations
-  liftIO $ result `shouldBe` expected
-
 spec :: SpecWith (MetricsState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do
-
-  let counterToInt f metrics = round @Double @Int <$> getCounter (f metrics)
-      expectCounters = expectMetrics . fmap (first counterToInt)
-      genToken = authHeaderJWT . generateJWT
 
   it "Should not have JWT in cache" $ do
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe1"}|]
@@ -79,19 +68,37 @@ spec = describe "Server started with JWT and metrics enabled" $ do
         jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe7"}|]
         jwt3 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe8"}|]
 
-    expectMetrics
+    expectCounters
       [
-        (counterToInt jwtCacheRequests,  (+ 6))
-      , (counterToInt jwtCacheHits,      (+ 3))
-      , (counterToInt jwtCacheEvictions, (+ 1))
+        (jwtCacheRequests,  (+ 6))
+      , (jwtCacheHits,      (+ 3))
+      , (jwtCacheEvictions, (+ 1))
       ] $
 
          request methodGet "/authors_only" [jwt1] ""
       *> request methodGet "/authors_only" [jwt2] ""
       -- this one should hit the cache
       *> request methodGet "/authors_only" [jwt1] ""
-      -- this one should trigger eviction of jwt2
+      -- this one should trigger eviction of jwt2 (not FIFO)
       *> request methodGet "/authors_only" [jwt3] ""
-      -- thiese two should hit the cache
+      -- these two should hit the cache
       *> request methodGet "/authors_only" [jwt1] ""
       *> request methodGet "/authors_only" [jwt3] ""
+
+  where
+      counterToInt f metrics = round @Double @Int <$> getCounter (f metrics)
+      expectCounters = stateCheck . fmap (\(f, g) -> StateCheck (counterToInt f) (flip shouldBe . g))
+      genToken = authHeaderJWT . generateJWT
+
+-- should be moved to helpers???
+data StateCheck st = forall a. (Show a, Eq a) => StateCheck (st -> WaiSession st a) (a -> a -> Expectation)
+
+stateCheck :: (Traversable t) => t (StateCheck st) -> WaiSession st a -> WaiSession st ()
+stateCheck checks act = do
+  metrics <- getState
+  expectations <- traverse (\(StateCheck f expect) -> f metrics >>= createExpectation (f metrics) . expect) checks
+  void act
+  sequenceA_ expectations
+  where
+    createExpectation metrics expect = pure $ metrics >>= liftIO . expect
+
