@@ -44,6 +44,30 @@ spec = describe "Server started with JWT and metrics enabled" $ do
          request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
       *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
 
+  it "Should not cache invalid JWTs" $ do
+    let auth = authHeaderJWT "some random bytes"
+
+    expectCounters
+      [
+        (jwtCacheRequests, (+ 2))
+      , (jwtCacheHits,     (+ 0))
+      ] $
+
+         request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
+      *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
+
+  it "Should cache expired JWTs" $ do
+    let auth = genToken [json|{"exp": 1, "role": "postgrest_test_author", "id": "jdoe2"}|]
+
+    expectCounters
+      [
+        (jwtCacheRequests, (+ 2))
+      , (jwtCacheHits,     (+ 1))
+      ] $
+
+         request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
+      *> request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
+
   it "Should evict entries from the JWT cache" $ do
     let jwt1 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe3"}|]
         jwt2 = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe4"}|]
