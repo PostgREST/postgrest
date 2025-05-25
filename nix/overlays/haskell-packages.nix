@@ -78,6 +78,77 @@ let
         {
           postgresql = super.libpq;
         });
+
+      hs-opentelemetry-sdk = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-sdk";
+          ver = "0.1.0.0";
+          sha256 = "sha256-kg6iYyEW2a/qb7FFXbph/xKPFW/6Wqhl5P9NZotgbVs=";
+        }
+        { });
+      hs-opentelemetry-propagator-datadog = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-datadog";
+          ver = "0.0.1.0";
+          sha256 = "sha256-V2FOsdyrR3X44FILTRpDIDNghc5vPIDx7z0CUGyJXQk=";
+        }
+        { });
+      hs-opentelemetry-exporter-otlp = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-exporter-otlp";
+          ver = "0.1.0.0";
+          sha256 = "sha256-Y0ihGMDIu3GcN7wkjnth4z72WfyBUmqSNrJEvoGxi6M=";
+        }
+        { });
+      hs-opentelemetry-instrumentation-wai = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-instrumentation-wai";
+          ver = "0.1.1.0";
+          sha256 = "sha256-9jz06jEOAfuDtk7RS7cntCDPmORukeS7hHYP04vxGXA=";
+        }
+        { });
+      hs-opentelemetry-api = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-api";
+          ver = "0.2.0.0";
+          sha256 = "sha256-IgyI6J9ZiN9x0A/Jdp9fsdhJTqX3AJyTLlKmk8hFsTk=";
+        }
+        { });
+      hs-opentelemetry-propagator-b3 = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-b3";
+          ver = "0.0.1.2";
+          sha256 = "sha256-hUk4f/xngG5NujSJGGb7lWawNE6EAbvw/8krKsGGsPY=";
+        }
+        { });
+      hs-opentelemetry-propagator-w3c = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-propagator-w3c";
+          ver = "0.0.1.4";
+          sha256 = "sha256-Rq+bcerTD4Pqzr1sznvoOtkKanlV+0Blq3EXXN2HQuU=";
+        }
+        { });
+      hs-opentelemetry-otlp = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-otlp";
+          ver = "0.1.0.0";
+          sha256 = "sha256-xZFIlyx2BKnwo6XCblCZTukNsjv/uG5T3u8uKlKJ1yc=";
+        }
+        { });
+      hs-opentelemetry-utils-exceptions = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-utils-exceptions";
+          ver = "0.2.0.1";
+          sha256 = "sha256-gukjbleRa4PKWcyBXC1J0kSQzohF5Or+ayvp5wxrzT0=";
+        }
+        { });
+      hs-opentelemetry-instrumentation-hspec = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hs-opentelemetry-instrumentation-hspec";
+          ver = "0.0.1.2";
+          sha256 = "sha256-7CRe2xR3vCR6RUoVKHuQ7iwn9OmLyZ/vk19OFZ3+uDs=";
+        }
+        { });
     };
 in
 {

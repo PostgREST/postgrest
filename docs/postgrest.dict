@@ -54,6 +54,7 @@ HMAC
 htmx
 Htmx
 Homebrew
+hs
 hstore
 HTTP
 HTTPS
@@ -105,6 +106,9 @@ Okta
 OpenAPI
 openapi
 OpenSSL
+OpenTelemetry
+opentelemetry
+OTLP
 ov
 parametrized
 passphrase
