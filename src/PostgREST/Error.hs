@@ -93,7 +93,7 @@ data ApiRequestError
   | PutMatchingPkError
   | SingularityError Integer
   | PGRSTParseError RaiseError
-  | MaxAffectedViolationError Integer
+  | MaxAffectedViolationError Text Text
   | InvalidResourcePath
   | OpenAPIDisabled
   deriving Show
@@ -205,7 +205,7 @@ instance ErrorBody ApiRequestError where
   message (PGRSTParseError _)            = "Could not parse JSON in the \"RAISE SQLSTATE 'PGRST'\" error"
   message (InvalidPreferences _)         = "Invalid preferences given with handling=strict"
   message AggregatesNotAllowed           = "Use of aggregate functions is not allowed"
-  message (MaxAffectedViolationError _)  = "Query result exceeds max-affected preference constraint"
+  message (MaxAffectedViolationError m _) = m
   message InvalidResourcePath            = "Invalid path specified in request URL"
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
@@ -222,7 +222,7 @@ instance ErrorBody ApiRequestError where
   details (UnacceptableFilter _)      = Just "Only is null or not is null filters are allowed on embedded resources"
   details (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorDetails raiseErr
   details (InvalidPreferences prefs) = Just $ JSON.String $ T.decodeUtf8 ("Invalid preferences: " <> BS.intercalate ", " prefs)
-  details (MaxAffectedViolationError n) = Just $ JSON.String $ T.unwords ["The query affects", show n, "rows"]
+  details (MaxAffectedViolationError _ d) = Just $ JSON.String d
   details (NotImplemented details') = Just $ JSON.String details'
 
   details _ = Nothing

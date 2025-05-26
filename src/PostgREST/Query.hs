@@ -245,12 +245,15 @@ failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
     lift SQL.condemn
     throwError $ Error.ApiRequestError . Error.SingularityError $ toInteger queryTotal
 
+-- | Fail when max-affected preference is violated in conjunction with handling=strict
 failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
 failExceedsMaxAffectedPref (Nothing,_) _ = pure ()
 failExceedsMaxAffectedPref _ RSPlan{} = pure ()
 failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
   lift SQL.condemn
-  throwError $ Error.ApiRequestError . Error.MaxAffectedViolationError $ toInteger queryTotal
+  throwError $ Error.ApiRequestError $ Error.MaxAffectedViolationError
+    "Query result exceeds max-affected preference constraint"
+    ("The query affects " <> show (toInteger queryTotal) <> " rows")
 
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
