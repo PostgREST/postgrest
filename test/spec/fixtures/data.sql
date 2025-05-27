@@ -961,8 +961,21 @@ INSERT INTO artists
 VALUES (1, 'duster'), (2, 'black country, new road'), (3, 'bjork');
 
 TRUNCATE TABLE albums CASCADE;
-INSERT INTO albums 
+INSERT INTO albums
 VALUES (1, 'stratosphere', 1),
-       (2, 'ants from up above',2), 
+       (2, 'ants from up above',2),
        (3, 'vespertine',3),
        (4, 'contemporary movement', 1);
+
+TRUNCATE TABLE places CASCADE;
+INSERT INTO places (name)
+VALUES ('Lake'), ('Mountain'), ('Beach');
+
+TRUNCATE TABLE visits CASCADE;
+INSERT INTO visits (place_id, start_time, end_time, visit_type)
+VALUES (1, '2025-01-01 10:00','2025-01-01 11:00', 'vacation'),
+       (1, '2025-01-01 15:00','2025-01-01 16:00', 'vacation'),
+       (1, '2025-01-01 20:00', '2025-01-01 21:00', 'work'),
+       (2, '2024-11-01 09:00','2024-11-01 10:00', 'vacation'),
+       (3, '2024-12-02 13:00','2024-12-02 14:00', 'vacation'),
+       (1, '2023-01-02 20:00','2023-01-01 21:00', 'work');
