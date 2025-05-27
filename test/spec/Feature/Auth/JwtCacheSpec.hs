@@ -1,6 +1,10 @@
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE ImpredicativeTypes        #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TypeApplications          #-}
 module Feature.Auth.JwtCacheSpec
 
@@ -9,25 +13,27 @@ where
 import Network.Wai (Application)
 
 import Network.HTTP.Types
-import Test.Hspec
+import Test.Hspec         (Expectation, SpecWith, describe, it,
+                           shouldBe)
 import Test.Hspec.Wai
 
-import PostgREST.Metrics   (MetricsState (..))
-import Prometheus          (getCounter)
+import Data.String                     (String)
+import PostgREST.Metrics               (MetricsState (..))
+import Prometheus                      (getCounter)
 import Protolude
 import SpecHelper
-import Test.Hspec.Wai.JSON (json)
+import Test.Hspec.Expectations.Contrib (annotate)
+import Test.Hspec.Wai.JSON             (json)
 
 spec :: SpecWith (MetricsState, Application)
 spec = describe "Server started with JWT and metrics enabled" $ do
-
   it "Should not have JWT in cache" $ do
     let auth = genToken [json|{"exp": 9999999999, "role": "postgrest_test_author", "id": "jdoe1"}|]
 
     expectCounters
       [
-        (jwtCacheRequests, (+ 1))
-      , (jwtCacheHits,     (+ 0))
+        requests (+ 1)
+      , hits     (+ 0)
       ] $
 
          request methodGet "/authors_only" [auth] ""
@@ -37,8 +43,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests, (+ 2))
-      , (jwtCacheHits,     (+ 1))
+        requests (+ 2)
+      , hits     (+ 1)
       ] $
 
          request methodGet "/authors_only" [auth] "" `shouldRespondWith` 200
@@ -49,8 +55,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests, (+ 2))
-      , (jwtCacheHits,     (+ 0))
+        requests (+ 2)
+      , hits     (+ 0)
       ] $
 
          request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
@@ -61,8 +67,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests, (+ 2))
-      , (jwtCacheHits,     (+ 1))
+        requests (+ 2)
+      , hits     (+ 1)
       ] $
 
          request methodGet "/authors_only" [auth] "" `shouldRespondWith` 401
@@ -75,9 +81,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests,  (+ 6))
-      , (jwtCacheHits,      (+ 0))
-      , (jwtCacheEvictions, (+ 4))
+        requests  (+ 6)
+      , hits      (+ 0)
+      , evictions (+ 4)
       ] $
 
          request methodGet "/authors_only" [jwt1] ""
@@ -94,9 +100,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests,  (+ 6))
-      , (jwtCacheHits,      (+ 3))
-      , (jwtCacheEvictions, (+ 1))
+        requests  (+ 6)
+      , hits      (+ 3)
+      , evictions (+ 1)
       ] $
 
          request methodGet "/authors_only" [jwt1] ""
@@ -120,9 +126,9 @@ spec = describe "Server started with JWT and metrics enabled" $ do
 
     expectCounters
       [
-        (jwtCacheRequests,  (+ 7))
-      , (jwtCacheHits,      (+ 4))
-      , (jwtCacheEvictions, (+ 1))
+        requests  (+ 7)
+      , hits      (+ 4)
+      , evictions (+ 1)
       ] $
 
          request methodGet "/authors_only" [jwt1] ""
@@ -137,19 +143,25 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       *> request methodGet "/authors_only" [jwt3] ""
 
   where
-      counterToInt f metrics = round @Double @Int <$> getCounter (f metrics)
-      expectCounters = stateCheck . fmap (\(f, g) -> StateCheck (counterToInt f) (flip shouldBe . g))
+      counterToInt g = second (fmap (round @Double @Int) . getCounter) . g
+      expectCounters = stateCheck . fmap (\(g, h) -> StateCheck (counterToInt g) (flip shouldBe . h))
       genToken = authHeaderJWT . generateJWT
+      requests = (,) (getF @"jwtCacheRequests")
+      hits = (,) (getF @"jwtCacheHits")
+      evictions = (,) (getF @"jwtCacheEvictions")
+
 
 -- should be moved to helpers???
-data StateCheck st = forall a. (Show a, Eq a) => StateCheck (st -> WaiSession st a) (a -> a -> Expectation)
+getF :: forall s r a. (KnownSymbol s, HasField s r a) => r -> (String, a)
+getF r = (symbolVal (Proxy @s), getField @s r)
+
+data StateCheck st = forall a. (Show a, Eq a) => StateCheck (st -> (String, WaiSession st a)) (a -> a -> Expectation)
 
 stateCheck :: (Traversable t) => t (StateCheck st) -> WaiSession st a -> WaiSession st ()
 stateCheck checks act = do
   metrics <- getState
-  expectations <- traverse (\(StateCheck f expect) -> f metrics >>= createExpectation (f metrics) . expect) checks
+  expectations <- traverse (\(StateCheck g expect) -> let (msg, m) = g metrics in m >>= createExpectation msg m . expect) checks
   void act
   sequenceA_ expectations
   where
-    createExpectation metrics expect = pure $ metrics >>= liftIO . expect
-
+    createExpectation msg metrics expect = pure $ metrics >>= liftIO . annotate msg . expect
