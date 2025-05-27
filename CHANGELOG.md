@@ -20,6 +20,7 @@ All notable changes to this project will be documented in this file. From versio
 - Shutdown should wait for in flight requests by @mkleczek in #4702
 - Fix login with uppercase and mixed case role names by @taimoorzaeem in #4678
 - Remove automatic transaction retries on `40001 (serialization_failure)` errors to prevent replication lag by @laurenceisla in #3673
+- Fix unexpected results when embedding and filtering the same table more than once by @laurenceisla in #4075
 
 ### Changed
 
@@ -29,6 +30,8 @@ All notable changes to this project will be documented in this file. From versio
   + Now fails at startup. Prior to this, it failed with `PGRST205` on requests related to these schemas.
 - Build a static executable for aarch64-linux by @wolfgangwalther in #4193
 - Build the minimal docker image for aarch64-linux by @wolfgangwalther in #4193
+- The name of an embedded table can no longer be used in filters if it has an alias by @laurenceisla in #4075
+  + e.g. `?select=alias:table(*)&table.id=eq.1` is not possible anymore, use `?select=alias:table(*)&alias.id=eq.1` instead.
 
 ## [14.10] - 2026-04-16
 

@@ -3855,3 +3855,18 @@ $_$ language sql;
 create or replace function test.get_tiobe_pls() returns setof test.tiobe_pls as $$
   select * from test.tiobe_pls;
 $$ language sql;
+
+create type visit_type as enum ('vacation', 'work');
+
+create table places (
+  id int primary key generated always as identity,
+  name text not null
+);
+
+create table visits (
+  id int primary key generated always as identity,
+  place_id int not null references places(id),
+  start_time timestamp,
+  end_time timestamp,
+  visit_type visit_type
+);
