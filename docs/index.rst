@@ -61,7 +61,7 @@ Sponsors
   |
 
   .. image:: ../static/tembo.png
-    :target: https://tembo.io/?utm_source=sponsor&utm_campaign=postgrest
+    :target: https://www.tembo.io/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-dark
 
