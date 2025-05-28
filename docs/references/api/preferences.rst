@@ -265,7 +265,7 @@ To illustrate the use of this preference, consider the following scenario where 
       "hint": null
   }
 
-With `RPC <functions>`_, the preference is honored completely on the basis of the number of rows returned in the result set of the function. This can be useful for complex mutation queries using `data-modifying statements <https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING>`_. A simple example:
+With :ref:`RPC <functions>`, the preference is honored completely on the basis of the number of rows returned in the result set of the function. This can be useful for complex mutation queries using `data-modifying statements <https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-MODIFYING>`_. A simple example:
 
 .. code-block:: postgres
 
