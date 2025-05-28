@@ -143,8 +143,8 @@ spec = describe "Server started with JWT and metrics enabled" $ do
       *> request methodGet "/authors_only" [jwt3] ""
 
   where
-      counterToInt g = second (fmap (round @Double @Int) . getCounter) . g
-      expectCounters = stateCheck . fmap (\(g, h) -> StateCheck (counterToInt g) (flip shouldBe . h))
+      counterToInt = second (fmap (round @Double @Int) . getCounter)
+      expectCounters = stateCheck . fmap (\(g, h) -> StateCheck (counterToInt . g) (flip shouldBe . h))
       genToken = authHeaderJWT . generateJWT
       requests = (,) (getF @"jwtCacheRequests")
       hits = (,) (getF @"jwtCacheHits")
