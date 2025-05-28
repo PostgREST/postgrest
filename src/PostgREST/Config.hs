@@ -98,7 +98,7 @@ data AppConfig = AppConfig
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
 --  , configJwtCacheMaxLifetime      :: Int
-  , configJwtCacheMaxSize          :: Int
+  , configJwtCacheMaxSize          :: Maybe Int
   , configLogLevel                 :: LogLevel
   , configLogQuery                 :: LogQuery
   , configOpenApiMode              :: OpenAPIMode
@@ -290,7 +290,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           (optBool "jwt-secret-is-base64")
           (optBool "secret-is-base64"))
 --    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-lifetime")
-    <*> (fromMaybe 0 <$> optInt "jwt-cache-max-size")
+    <*> optInt "jwt-cache-max-size"
     <*> parseLogLevel "log-level"
     <*> parseLogQuery "log-query"
     <*> parseOpenAPIMode "openapi-mode"

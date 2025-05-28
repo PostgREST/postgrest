@@ -28,10 +28,11 @@ import           Control.Concurrent.STM      (newTVarIO, readTVar,
                                               writeTVar)
 import           Control.Concurrent.STM.TVar (TVar)
 import           Control.Monad.Error.Class   (liftEither)
-import           Data.ByteString             hiding (init)
+import           Data.ByteString             hiding (all, init)
 import           Data.IORef                  (IORef, newIORef,
                                               readIORef, writeIORef)
-import           Jose.Jwk                    (JwkSet)
+import           Jose.Jwk                    (Jwk (SymmetricJwk),
+                                              JwkSet (JwkSet))
 import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
 import           PostgREST.Cache.Sieve       (alwaysValid)
 import qualified PostgREST.Cache.Sieve       as SC
@@ -61,6 +62,9 @@ decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
 decode (JwtNoCache key) = parseAndDecodeClaims key
 decode (JwtCache _ _ c) = cached c
 
+defaultCacheMaxSize :: Int
+defaultCacheMaxSize = 1000::Int
+
 update :: JwtCacheState -> AppConfig -> IO ()
 update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} =
   let reinitialize =
@@ -68,14 +72,13 @@ update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJ
           >>= writeIORef jwtCacheState
   in
   readIORef jwtCacheState >>= \case
-    (JwtCache decodingKey maxSize _) ->
-      if configJWKS /= Just decodingKey || configJwtCacheMaxSize <= 0 then
-        -- key changed or cache disabled - reinit
-        reinitialize
-      else
-        -- leave cache but set new maxSize
-        -- the cache is going to resize itself
-        atomically $ writeTVar maxSize configJwtCacheMaxSize
+    (JwtCache decodingKey maxSize _) -> case (configJWKS, configJwtCacheMaxSize) of
+      -- reinitialize if key changed or cache disabled
+      (Just key, Just newMaxSize) | key /= decodingKey || newMaxSize <= 0 -> reinitialize
+      -- max size changed - set it and let the cache shrink itself if necessary
+      (_, Just newMaxSize) -> atomically $ writeTVar maxSize newMaxSize
+      -- key is the same and max size not specified - set max size to default and let the cache shrink itself if necessary
+      _ -> atomically $ writeTVar maxSize defaultCacheMaxSize
 
     _ -> reinitialize
 
@@ -87,14 +90,22 @@ newJwtCache :: AppConfig -> ObservationHandler -> IO JwtCache
 newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
   maybe (pure JwtNoJwks) initCache configJWKS
   where
-    initCache key =
-      if configJwtCacheMaxSize > 0 then do
-        maxSize <- newTVarIO configJwtCacheMaxSize
-        JwtCache key maxSize <$>
-          -- select cachingErrors or notCachingErrors
-          notCachingErrors (readTVar maxSize) key
-      else
-        pure $ JwtNoCache key
+    initCache key = case configJwtCacheMaxSize of
+      Nothing                      -> autoConfigure key
+      (Just maxSize) | maxSize > 0 -> createCache key maxSize
+      (Just _)                     -> pure $ JwtNoCache key
+
+    autoConfigure key@(JwkSet jwks) | all isSymmetric jwks = pure $ JwtNoCache key
+    autoConfigure key = createCache key defaultCacheMaxSize
+
+    isSymmetric (SymmetricJwk {}) = True
+    isSymmetric _                 = False
+
+    createCache key maxSize = do
+          maxSizeTVar <- newTVarIO maxSize
+          JwtCache key maxSizeTVar <$>
+            -- select cachingErrors or notCachingErrors
+            notCachingErrors (readTVar maxSizeTVar) key
 
     cachingErrors :: STM Int -> JwkSet -> IO (SC.Cache IO ByteString (Either Error JSON.Object))
     cachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize

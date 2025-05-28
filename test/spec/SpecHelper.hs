@@ -140,7 +140,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configJwtRoleClaimKey           = [JSPKey "role"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
-  , configJwtCacheMaxSize           = 10
+  , configJwtCacheMaxSize           = Just 10
   , configLogLevel                  = LogCrit
   , configLogQuery                  = LogQueryDisabled
   , configOpenApiMode               = OAFollowPriv
@@ -210,7 +210,7 @@ testCfgJwtCache =
   baseCfg {
     configJwtSecret = Just generateSecret
   , configJWKS = rightToMaybe $ parseSecret generateSecret
-  , configJwtCacheMaxSize = 2
+  , configJwtCacheMaxSize = Just 2
   }
 
 testCfgAudienceJWT :: AppConfig
