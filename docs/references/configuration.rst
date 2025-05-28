@@ -890,7 +890,7 @@ server-timing-enabled
   **In-Database** pgrst.server_timing_enabled
   =============== =================================
 
-  Enables the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Server-Timing>`_ header.
+  Enables the `Server-Timing <https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Server-Timing>`_ header.
   See :ref:`server-timing_header`.
 
 .. _server-unix-socket:
