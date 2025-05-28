@@ -179,7 +179,7 @@ toText conf =
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
 --      ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
-      ,("jwt-cache-max-size",                       show . configJwtCacheMaxSize)
+      ,("jwt-cache-max-size",            maybe (q mempty) show . configJwtCacheMaxSize)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("log-query",                 q . dumpLogQuery . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
