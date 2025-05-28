@@ -45,6 +45,7 @@ let
             "ARG_USE_ENV([PGRST_DB_POOL], [1], [PostgREST pool size])"
             "ARG_USE_ENV([PGRST_DB_POOL_ACQUISITION_TIMEOUT], [1], [PostgREST pool timeout])"
             "ARG_USE_ENV([PGRST_JWT_SECRET], [reallyreallyreallyreallyverysafe], [PostgREST JWT secret])"
+            "ARG_USE_ENV([PGRST_ADMIN_SERVER_PORT], [3001], [PostgREST admin server port])"
             "ARG_LEFTOVERS([PostgREST arguments])"
           ];
         workingDir = "/";
@@ -55,6 +56,7 @@ let
         export PGRST_DB_POOL
         export PGRST_DB_POOL_ACQUISITION_TIMEOUT
         export PGRST_JWT_SECRET
+        export PGRST_ADMIN_SERVER_PORT
 
         exec ${cabal-install}/bin/cabal v2-run ${devCabalOptions} --verbose=0 -- \
           postgrest "''${_arg_leftovers[@]}"
