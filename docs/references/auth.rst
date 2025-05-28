@@ -156,6 +156,19 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 
   jwt-secret = "@rsa.jwk.pub"
 
+JWK ``kid`` validation
+^^^^^^^^^^^^^^^^^^^^^^
+
+PostgREST has built-in validation of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
+It goes as follows:
+
+- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
+
+  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
+  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
+
+- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
+
 .. _jwt_claims_validation:
 
 JWT Claims Validation
