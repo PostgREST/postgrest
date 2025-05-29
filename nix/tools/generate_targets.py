@@ -18,9 +18,7 @@ public_key = key.export_public()
 
 
 def generate_jwt() -> str:
-    """Generate an HS256 JWT"""
-    # Header & payload
-    # header = {"alg": "HS256", "typ": "JWT"}
+    """Generate an RS256 JWT"""
     now = int(time.time())
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
@@ -29,21 +27,6 @@ def generate_jwt() -> str:
     }
 
     return jwt.encode(payload, private_key, "RS256")
-
-
-# We want to ensure 401 Unauthorized responses don't happen during
-# JWT validation, this can happen when the jwt `exp` is too short.
-# At the same time, we want to ensure the `exp` is not too big,
-# so expires will occur and postgREST will have to clean cached expired JWTs.
-# def estimate_adequate_jwt_exp_increase(iteration: int) -> int:
-#     # estimated time takes to build and run postgrest itself
-#     build_run_postgrest_time = 2
-#     # estimated time it takes to generate the targets file
-#     file_generation_time = TOTAL_TARGETS // (10**-5)
-#     # estimated exp time so some JWTs will expire
-#     dynamic_exp_inc = iteration // 1000
-
-#     return build_run_postgrest_time + file_generation_time + dynamic_exp_inc
 
 
 def main():
