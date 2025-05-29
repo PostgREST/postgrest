@@ -256,7 +256,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fmap encodeUtf8 <$> optString "db-anon-role")
     <*> (fromMaybe "pgrst" <$> optString "db-channel")
     <*> (fromMaybe True <$> optBool "db-channel-enabled")
-    <*> (maybe ["public"] splitOnCommas <$> optString "db-extra-search-path")
+    <*> (maybe ["public"] splitOnCommasEmptyable <$> optStringEmptyable "db-extra-search-path")
     <*> (maybe defaultHoistedAllowList splitOnCommas <$> optString "db-hoisted-tx-settings")
     <*> optWithAlias (optInt "db-max-rows")
                      (optInt "max-rows")
@@ -404,6 +404,9 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     optString :: C.Key -> C.Parser C.Config (Maybe Text)
     optString k = mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
 
+    optStringEmptyable :: C.Key -> C.Parser C.Config (Maybe Text)
+    optStringEmptyable k = overrideFromDbOrEnvironment C.optional k coerceText
+
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
 
@@ -444,6 +447,10 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
 
     splitOnCommas :: Text -> [Text]
     splitOnCommas s = T.strip <$> T.splitOn "," s
+
+    splitOnCommasEmptyable :: Text -> [Text]
+    splitOnCommasEmptyable "" = []
+    splitOnCommasEmptyable s  = T.strip <$> T.splitOn "," s
 
     defaultHoistedAllowList = ["statement_timeout","plan_filter.statement_cost_limit","default_transaction_isolation"]
 
