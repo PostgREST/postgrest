@@ -14,6 +14,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix jwt error returning HTTP status `400` for invalid role by @taimoorzaeem in #3601
+- Allow `db-extra-search-path` to accept empty value by @taimoorzaeem in #4074
 
 ## [13.0.0] - 2025-05-08
 
