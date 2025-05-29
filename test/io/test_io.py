@@ -1896,3 +1896,16 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
         # now the request should fail because the cached token is removed
         response = postgrest.session.get("/authors_only", headers=headers)
         assert response.status_code == 401
+
+
+def test_allow_configs_to_be_set_to_empty(defaultenv):
+    'configs that are explicitly set to empty (= "<empty>") should not throw parse error'
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_EXTRA_SEARCH_PATH": "",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
