@@ -11,7 +11,7 @@ URL = "http://postgrest"
 JWT_DURATION = 120
 TOTAL_TARGETS = 50000  # tuned by hand to reduce result variance
 
-key = jwk.JWK.generate(kty='RSA', size=4096)
+key = jwk.JWK.generate(kty="RSA", size=4096)
 
 private_key = jwt.algorithms.RSAAlgorithm.from_jwk(key.export_private())
 public_key = key.export_public()
@@ -28,10 +28,7 @@ def generate_jwt() -> str:
         "role": "postgrest_test_author",
     }
 
-    return jwt.encode(
-        payload,
-        private_key,
-        'RS256')
+    return jwt.encode(payload, private_key, "RS256")
 
 
 # We want to ensure 401 Unauthorized responses don't happen during
@@ -57,10 +54,7 @@ def main():
         "output",
         help="Path to write the generated targets file",
     )
-    parser.add_argument(
-        "jwk",
-        help="Path to write the generated JWK"
-    )
+    parser.add_argument("jwk", help="Path to write the generated JWK")
     args = parser.parse_args()
 
     tokens = [generate_jwt() for _ in range(1000)]
