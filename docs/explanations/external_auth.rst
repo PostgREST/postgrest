@@ -1,6 +1,6 @@
-.. _external_jwt:
+.. _external_auth:
 
-External JWT Generation
+External Authentication
 -----------------------
 
 JWT from Auth0

@@ -77,7 +77,7 @@ If the client included no JWT (or one without a role claim) then PostgREST switc
 JWT Generation
 ~~~~~~~~~~~~~~
 
-You can create a valid JWT either from inside your database (see :ref:`sql_user_management`) or via an external service (see :ref:`external_jwt`).
+You can create a valid JWT either from inside your database (see :ref:`sql_user_management`) or via an external service (see :ref:`external_auth`).
 
 .. _client_auth:
 
