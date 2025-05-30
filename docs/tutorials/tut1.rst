@@ -52,17 +52,31 @@ Check that the :code:`tutorial.conf` (created in the previous tutorial) has the 
 
 If the PostgREST server is still running from the previous tutorial, restart it to load the updated configuration file.
 
+.. _tut1_step3:
+
 Step 3. Sign a Token
 --------------------
 
-Ordinarily your own code in the database or in another server will create and sign authentication tokens, but for this tutorial we will make one "by hand." Go to `jwt.io <https://jwt.io/#debugger-io>`_ and fill in the fields like this:
+Ordinarily your own code in the database or in another server will create and sign authentication tokens, but for this tutorial we will make one "by hand" using ``bash`` and ``openssl``.
 
-.. figure:: ../_static/tuts/tut1-jwt-io.png
-   :alt: jwt.io interface
+.. code:: bash
 
-   How to create a token at https://jwt.io
+  #!/bin/bash
+  set -e
 
-**Remember to fill in the secret you generated rather than the word "secret".** After you have filled in the secret and payload, the encoded data on the left will update. Copy the encoded token.
+  JWT_SECRET='test_secret_that_is_at_least_32_characters_long'
+
+  _base64 () { openssl base64 -e -A | tr '+/' '-_' | tr -d '='; }
+
+  header=$(echo -n '{"alg":"HS256","typ":"JWT"}' | _base64)
+
+  payload=$(echo -n "{\"role\":\"todo_user\"}" | _base64)
+
+  signature=$(echo -n "$header.$payload" | openssl dgst -sha256 -hmac "$JWT_SECRET" -binary | _base64)
+
+  echo -n "$header.$payload.$signature"
+
+**Remember to fill in the secret you generated rather than keeping the "test_secret_that_is_at_least_32_characters_long".** After you have filled in the secret and payload, the encoded data on the left will update. Copy the encoded token.
 
 .. note::
 
@@ -145,14 +159,22 @@ To observe expiration in action, we'll add an :code:`exp` claim of five minutes 
 
   select extract(epoch from now() + '5 minutes'::interval) :: integer;
 
-Go back to jwt.io and change the payload to
+Or in ``bash``:
 
-.. code-block:: json
 
-  {
-    "role": "todo_user",
-    "exp": 123456789
-  }
+.. code-block:: bash
+
+  exp=$(( EPOCHSECONDS + 5*60 ))  # five minutes
+
+  echo $exp
+
+Go back to :ref:`tut1_step3` and change the payload to
+
+.. code-block:: bash
+
+  payload=$(echo -n "{\"role\":\"todo_user\",\"exp\":\"123456789\"}" | _base64)
+
+  echo -n "$header.$payload.$signature"
 
 **NOTE**: Don't forget to change the dummy epoch value :code:`123456789` in the snippet above to the epoch value returned by the :code:`psql` command.
 
