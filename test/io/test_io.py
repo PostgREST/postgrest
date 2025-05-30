@@ -1909,3 +1909,23 @@ def test_allow_configs_to_be_set_to_empty(defaultenv):
     with run(env=env) as postgrest:
         response = postgrest.session.get("/projects")
         assert response.status_code == 200
+
+
+def test_schema_cache_error_observation(defaultenv):
+    "schema cache error observation should be logged with invalid db-schemas or db-extra-search-path"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_EXTRA_SEARCH_PATH": "x",
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+        # TODO: postgrest should exit here, instead it keeps retrying
+        # exitCode = wait_until_exit(postgrest)
+        # assert exitCode == 1
+
+        output = postgrest.read_stdout(nlines=9)
+        assert (
+            "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
+            in output[7]
+        )

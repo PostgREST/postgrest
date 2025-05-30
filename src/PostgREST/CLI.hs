@@ -60,7 +60,7 @@ dumpSchema appState = do
   case result of
     Left e -> do
       let observer = AppState.getObserver appState
-      observer $ SchemaCacheErrorObs e
+      observer $ SchemaCacheErrorObs configDbSchemas configDbExtraSearchPath e
       exitFailure
     Right sCache -> return $ JSON.encode sCache
 
