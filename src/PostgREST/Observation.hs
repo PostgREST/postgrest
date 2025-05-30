@@ -14,6 +14,7 @@ module PostgREST.Observation
   ) where
 
 import qualified Data.ByteString.Lazy       as LBS
+import           Data.List.NonEmpty         (toList)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
 import qualified Hasql.Connection           as SQL
@@ -25,7 +26,7 @@ import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
 
-import Protolude
+import Protolude         hiding (toList)
 import Protolude.Partial (fromJust)
 
 data Observation
@@ -37,7 +38,7 @@ data Observation
   | ExitDBNoRecoveryObs
   | ExitDBFatalError ObsFatalError SQL.UsageError
   | DBConnectedObs Text
-  | SchemaCacheErrorObs SQL.UsageError
+  | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
   | SchemaCacheQueriedObs Double
   | SchemaCacheSummaryObs Text
   | SchemaCacheLoadedObs Double
@@ -88,8 +89,12 @@ observationMessage = \case
     "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false. " <> jsonMessage usageErr
   ExitDBFatalError ServerError08P01 usageErr ->
     "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
-  SchemaCacheErrorObs usageErr ->
-    "Failed to load the schema cache. " <> jsonMessage usageErr
+  SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
+    "Failed to load the schema cache using "
+      <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)
+      <> " and "
+      <> "db-extra-search-path=" <> T.intercalate "," extraPaths
+      <> ". " <> jsonMessage usageErr
   SchemaCacheQueriedObs resultTime ->
     "Schema cache queried in " <> showMillis resultTime  <> " milliseconds"
   SchemaCacheSummaryObs summary ->
