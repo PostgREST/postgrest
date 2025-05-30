@@ -23,7 +23,7 @@ data MetricsState =
   MetricsState {
     poolTimeouts         :: Counter,
     poolAvailable        :: Gauge,
-    poolWaiting          ::Gauge,
+    poolWaiting          :: Gauge,
     poolMaxSize          :: Gauge,
     schemaCacheLoads     :: Vector Label1 Counter,
     schemaCacheQueryTime :: Gauge,
