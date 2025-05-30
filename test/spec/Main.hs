@@ -276,7 +276,7 @@ main = do
     before pgSafeUpdateApp $
       describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
 
-    before (appSt metricsState testCfgJwtCache) $
+    before (initApp baseSchemaCache metricsState testCfgJwtCache) $
       describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
   where
