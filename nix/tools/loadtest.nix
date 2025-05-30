@@ -41,8 +41,10 @@ let
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
-          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with unique jwts)], [mixed])"
+          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with 1000 different jwts)], [mixed])"
+          "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
           "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt])"
+          "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
         workingDir = "/";
@@ -58,7 +60,6 @@ let
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
         export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
-        export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
@@ -66,7 +67,13 @@ let
         case "$_arg_kind" in
           jwt)
 
-            ${genTargets} "$_arg_testdir"/gen_targets.http
+            ${genTargets} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.http
+
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.http"
+
+            if [ "$_arg_jwtcache" = "off" ]; then
+              export PGRST_JWT_CACHE_MAX_SIZE="0"
+            fi
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -200,7 +207,12 @@ let
           | ${toMarkdown}
       '';
 
-  genTargets = writers.writePython3 "postgrest-gen-loadtest-targets" { } (builtins.readFile ./generate_targets.py);
+  genTargets =
+    writers.writePython3 "postgrest-gen-loadtest-targets"
+      {
+        libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
+      }
+      (builtins.readFile ./generate_targets.py);
 in
 buildToolbox {
   name = "postgrest-loadtest";

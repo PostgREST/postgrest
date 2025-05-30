@@ -145,7 +145,7 @@ def test_jwt_errors(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
     }
 
@@ -158,7 +158,7 @@ def test_jwt_errors(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
     }
 
@@ -1439,7 +1439,7 @@ def test_jwt_cache_server_timing(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1475,7 +1475,7 @@ def test_jwt_cache_without_server_timing(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "false",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1496,7 +1496,7 @@ def test_jwt_cache_without_exp_claim(defaultenv):
     env = {
         **defaultenv,
         "PGRST_SERVER_TIMING_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1765,7 +1765,7 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
 
     env = {
         **defaultenv,
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",
         "PGRST_JWT_SECRET": SECRET,
         "PGRST_DB_CONFIG": "false",
     }
@@ -1875,7 +1875,7 @@ def test_invalidate_jwt_cache_when_secret_changes(tmp_path, defaultenv):
         **defaultenv,
         "PGRST_JWT_SECRET": f"@{external_secret_file}",
         "PGRST_DB_CHANNEL_ENABLED": "true",
-        "PGRST_JWT_CACHE_MAX_LIFETIME": "86400",  # enable cache
+        "PGRST_JWT_CACHE_MAX_SIZE": "86400",  # enable cache
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",  # required for NOTIFY
     }
 
