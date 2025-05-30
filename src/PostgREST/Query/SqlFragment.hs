@@ -501,7 +501,7 @@ returningF qi returnings =
 
 limitOffsetF :: NonnegRange -> SQL.Snippet
 limitOffsetF range =
-  if range == allRange then mempty else "LIMIT " <> limit <> " OFFSET " <> offset
+  if range == allRange then mempty else " LIMIT " <> limit <> " OFFSET " <> offset
   where
     limit = maybe "ALL" (\l -> unknownEncoder (BS.pack $ show l)) $ rangeLimit range
     offset = unknownEncoder (BS.pack . show $ rangeOffset range)
@@ -524,7 +524,7 @@ currentSettingF setting =
 
 orderF :: QualifiedIdentifier -> [CoercibleOrderTerm] -> SQL.Snippet
 orderF _ []    = mempty
-orderF qi ordts = "ORDER BY " <> intercalateSnippet ", " (pgFmtOrderTerm qi <$> ordts)
+orderF qi ordts = " ORDER BY " <> intercalateSnippet ", " (pgFmtOrderTerm qi <$> ordts)
 
 -- Hasql Snippet utilities
 unknownEncoder :: ByteString -> SQL.Snippet

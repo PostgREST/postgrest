@@ -223,6 +223,14 @@ spec = do
                              , "Content-Range" <:> "2-4/*" ]
             }
 
+      it "works alongside order by with nulls order" $
+         get "/clients?select=id,projects(id,tasks(id))&order=id.asc.nullslast&limit=1&projects.order=id.asc.nullsfirst&projects.limit=2"
+           `shouldRespondWith`
+           [json|[{"id":1,"projects":[{"id": 1, "tasks": [{"id": 1}, {"id": 2}]}, {"id": 2, "tasks": [{"id": 3}, {"id": 4}]}]}]|]
+           { matchStatus  = 200
+           , matchHeaders = ["Content-Range" <:> "0-0/*"]
+           }
+
       context "succeeds if offset equals 0 as a no-op" $ do
         it  "no items" $ do
           get "/items?offset=0&id=eq.0"
