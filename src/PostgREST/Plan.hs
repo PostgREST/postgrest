@@ -968,7 +968,7 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
       updateNode f (remainingPath, a) (Right target)
   where
     findNode :: Maybe ReadPlanTree
-    findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
+    findNode = find (\(Node ReadPlan{relName, relAlias} _) -> fromMaybe relName relAlias == targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
