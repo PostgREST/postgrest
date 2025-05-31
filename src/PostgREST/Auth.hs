@@ -50,7 +50,8 @@ import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..), FilterExp (..),
                                 JSPath, JSPathExp (..))
-import PostgREST.Error         (Error (..), JwtError (..))
+import PostgREST.Error         (Error (..), JwtClaimsError (..),
+                                JwtDecodeError (..), JwtError (..))
 
 import Protolude
 
@@ -58,7 +59,7 @@ import Protolude
 -- JSON object of JWT claims.
 parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
 parseToken _ Nothing _ = return JSON.emptyObject
-parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeError "Empty JWT is sent in Authorization header"
+parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeErr EmptyAuthHeader
 parseToken AppConfig{..} (Just tkn) time = do
   secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
   tknWith3Parts <- liftEither $ hasThreeParts tkn
@@ -69,33 +70,33 @@ parseToken AppConfig{..} (Just tkn) time = do
       hasThreeParts :: ByteString -> Either Error ByteString
       hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
         3 -> Right token
-        n -> Left $ JwtErr $ JwtDecodeError ("Expected 3 parts in JWT; got " <> show n)
+        n -> Left $ JwtErr $ JwtDecodeErr $ UnexpectedParts n
       jwtDecodeError :: JWT.JwtError -> JwtError
       -- The only errors we can get from JWT.decode function are:
       --   BadAlgorithm
       --   KeyError
       --   BadCrypto
-      jwtDecodeError (JWT.KeyError _)     = JwtDecodeError "No suitable key or wrong key type"
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeError "Wrong or unsupported encoding algorithm"
-      jwtDecodeError JWT.BadCrypto        = JwtDecodeError "JWT cryptographic operation failed"
+      jwtDecodeError (JWT.KeyError _)     = JwtDecodeErr KeyError
+      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeErr BadAlgorithm
+      jwtDecodeError JWT.BadCrypto        = JwtDecodeErr BadCrypto
       -- Control never reaches here, the decode function only returns the above three
-      jwtDecodeError _                    = JwtDecodeError "JWT couldn't be decoded"
+      jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError
 
       verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
       verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
         Just jclaims@(JSON.Object mclaims) ->
-          verifyClaim mclaims "exp" isValidExpClaim "JWT expired" >>
-          verifyClaim mclaims "nbf" isValidNbfClaim "JWT not yet valid" >>
-          verifyClaim mclaims "iat" isValidIatClaim "JWT issued at future" >>
-          verifyClaim mclaims "aud" isValidAudClaim "JWT not in audience" >>
+          verifyClaim mclaims "exp" isValidExpClaim JWTExpired >>
+          verifyClaim mclaims "nbf" isValidNbfClaim JWTNotYetValid >>
+          verifyClaim mclaims "iat" isValidIatClaim JWTIssuedAtFuture >>
+          verifyClaim mclaims "aud" isValidAudClaim JWTNotInAudience >>
           return jclaims
-        _ -> Left $ JwtClaimsError "Parsing claims failed"
+        _ -> Left $ JwtClaimsErr ParsingClaimsFailed
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _ = Left $ JwtDecodeError "Unsupported token type"
+      verifyClaims _ = Left $ JwtDecodeErr UnsupportedTokenType
 
       verifyClaim mclaims claim func err = do
         isValid <- maybe (Right True) func (KM.lookup claim mclaims)
-        unless isValid $ Left $ JwtClaimsError err
+        unless isValid $ Left $ JwtClaimsErr err
 
       allowedSkewSeconds = 30 :: Int64
       now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
@@ -104,15 +105,15 @@ parseToken AppConfig{..} (Just tkn) time = do
 
       isValidExpClaim :: JSON.Value -> Either JwtError Bool
       isValidExpClaim (JSON.Number secs) = Right $ now <= (sciToInt secs + allowedSkewSeconds)
-      isValidExpClaim _ = Left $ JwtClaimsError "The JWT 'exp' claim must be a number"
+      isValidExpClaim _ = Left $ JwtClaimsErr ExpClaimNotNumber
 
       isValidNbfClaim :: JSON.Value -> Either JwtError Bool
       isValidNbfClaim (JSON.Number secs) = Right $ now >= (sciToInt secs - allowedSkewSeconds)
-      isValidNbfClaim _ = Left $ JwtClaimsError "The JWT 'nbf' claim must be a number"
+      isValidNbfClaim _ = Left $ JwtClaimsErr NbfClaimNotNumber
 
       isValidIatClaim :: JSON.Value -> Either JwtError Bool
       isValidIatClaim (JSON.Number secs) = Right $ now >= (sciToInt secs - allowedSkewSeconds)
-      isValidIatClaim _ = Left $ JwtClaimsError "The JWT 'iat' claim must be a number"
+      isValidIatClaim _ = Left $ JwtClaimsErr IatClaimNotNumber
 
       isValidAudClaim :: JSON.Value -> Either JwtError Bool
       isValidAudClaim JSON.Null = Right True -- {"aud": null} is valid for all audiences
@@ -120,7 +121,7 @@ parseToken AppConfig{..} (Just tkn) time = do
       isValidAudClaim (JSON.Array arr)
         | null arr = Right True              -- {"aud": []} is valid for all audiences
         | allStrings arr = Right $ maybe True (\a -> JSON.String a `elem` arr) configJwtAudience
-      isValidAudClaim _ = Left $ JwtClaimsError "The JWT 'aud' claim must be a string or an array of strings"
+      isValidAudClaim _ = Left $ JwtClaimsErr AudClaimNotStringOrArray
 
 parseClaims :: Monad m =>
   AppConfig -> JSON.Value -> ExceptT Error m AuthResult
