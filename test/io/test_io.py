@@ -93,6 +93,9 @@ def test_jwt_errors(defaultenv):
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "No suitable key or wrong key type"
+        assert (
+            response.json()["details"] == "None of the keys was able to decode the JWT"
+        )
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
@@ -141,6 +144,10 @@ def test_jwt_errors(defaultenv):
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "Wrong or unsupported encoding algorithm"
+        assert (
+            response.json()["details"]
+            == "JWT is unsecured but expected 'alg' was not 'none'"
+        )
 
     env = {
         **defaultenv,
