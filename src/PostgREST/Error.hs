@@ -14,6 +14,8 @@ module PostgREST.Error
   , PgError(..)
   , Error(..)
   , JwtError (..)
+  , JwtDecodeError(..)
+  , JwtClaimsError(..)
   , errorPayload
   , status
   ) where
@@ -644,10 +646,32 @@ data Error
   deriving Show
 
 data JwtError
-  = JwtDecodeError Text
+  = JwtDecodeErr JwtDecodeError
   | JwtSecretMissing
   | JwtTokenRequired
-  | JwtClaimsError Text
+  | JwtClaimsErr JwtClaimsError
+  deriving Show
+
+data JwtDecodeError
+  = EmptyAuthHeader
+  | UnexpectedParts Int
+  | KeyError
+  | BadAlgorithm
+  | BadCrypto
+  | UnsupportedTokenType
+  | UnreachableDecodeError
+  deriving Show
+
+data JwtClaimsError
+  = JWTExpired
+  | JWTNotYetValid
+  | JWTIssuedAtFuture
+  | JWTNotInAudience
+  | ParsingClaimsFailed
+  | ExpClaimNotNumber
+  | NbfClaimNotNumber
+  | IatClaimNotNumber
+  | AudClaimNotStringOrArray
   deriving Show
 
 instance PgrstError Error where
@@ -693,14 +717,14 @@ instance ErrorBody Error where
   hint (PgErr err)           = hint err
 
 instance PgrstError JwtError where
-  status JwtDecodeError{} = HTTP.unauthorized401
+  status JwtDecodeErr{}   = HTTP.unauthorized401
   status JwtSecretMissing = HTTP.status500
   status JwtTokenRequired = HTTP.unauthorized401
-  status JwtClaimsError{} = HTTP.unauthorized401
+  status JwtClaimsErr{}   = HTTP.unauthorized401
 
-  headers (JwtDecodeError m) = [invalidTokenHeader m]
+  headers e@(JwtDecodeErr _) = [invalidTokenHeader $ message e]
   headers JwtTokenRequired   = [requiredTokenHeader]
-  headers (JwtClaimsError m) = [invalidTokenHeader m]
+  headers e@(JwtClaimsErr _) = [invalidTokenHeader $ message e]
   headers _                  = mempty
 
 instance JSON.ToJSON JwtError where
@@ -708,15 +732,31 @@ instance JSON.ToJSON JwtError where
     (code err) (message err) (details err) (hint err)
 
 instance ErrorBody JwtError where
-  code JwtSecretMissing   = "PGRST300"
-  code (JwtDecodeError _) = "PGRST301"
-  code JwtTokenRequired   = "PGRST302"
-  code (JwtClaimsError _) = "PGRST303"
+  code JwtSecretMissing = "PGRST300"
+  code (JwtDecodeErr _) = "PGRST301"
+  code JwtTokenRequired = "PGRST302"
+  code (JwtClaimsErr _) = "PGRST303"
 
-  message JwtSecretMissing     = "Server lacks JWT secret"
-  message (JwtDecodeError msg) = msg
-  message JwtTokenRequired     = "Anonymous access is disabled"
-  message (JwtClaimsError msg) = msg
+  message JwtSecretMissing = "Server lacks JWT secret"
+  message (JwtDecodeErr e) = case e of
+    EmptyAuthHeader        -> "Empty JWT is sent in Authorization header"
+    UnexpectedParts n      -> "Expected 3 parts in JWT; got " <> show n
+    KeyError               -> "No suitable key or wrong key type"
+    BadAlgorithm           -> "Wrong or unsupported encoding algorithm"
+    BadCrypto              -> "JWT cryptographic operation failed"
+    UnsupportedTokenType   -> "Unsupported token type"
+    UnreachableDecodeError -> "JWT couldn't be decoded"
+  message JwtTokenRequired = "Anonymous access is disabled"
+  message (JwtClaimsErr e) = case e of
+    JWTExpired               -> "JWT expired"
+    JWTNotYetValid           -> "JWT not yet valid"
+    JWTIssuedAtFuture        -> "JWT issued at future"
+    JWTNotInAudience         -> "JWT not in audience"
+    ParsingClaimsFailed      -> "Parsing claims failed"
+    ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
+    NbfClaimNotNumber        -> "The JWT 'nbf' claim must be a number"
+    IatClaimNotNumber        -> "The JWT 'iat' claim must be a number"
+    AudClaimNotStringOrArray -> "The JWT 'aud' claim must be a string or an array of strings"
 
   details _ = Nothing
 
