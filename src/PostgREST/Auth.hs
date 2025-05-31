@@ -76,8 +76,8 @@ parseToken AppConfig{..} (Just tkn) time = do
       --   BadAlgorithm
       --   KeyError
       --   BadCrypto
-      jwtDecodeError (JWT.KeyError _)     = JwtDecodeErr KeyError
-      jwtDecodeError (JWT.BadAlgorithm _) = JwtDecodeErr BadAlgorithm
+      jwtDecodeError (JWT.KeyError m)     = JwtDecodeErr $ KeyError m
+      jwtDecodeError (JWT.BadAlgorithm m) = JwtDecodeErr $ BadAlgorithm m
       jwtDecodeError JWT.BadCrypto        = JwtDecodeErr BadCrypto
       -- Control never reaches here, the decode function only returns the above three
       jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError

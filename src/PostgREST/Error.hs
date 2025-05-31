@@ -655,8 +655,8 @@ data JwtError
 data JwtDecodeError
   = EmptyAuthHeader
   | UnexpectedParts Int
-  | KeyError
-  | BadAlgorithm
+  | KeyError Text
+  | BadAlgorithm Text
   | BadCrypto
   | UnsupportedTokenType
   | UnreachableDecodeError
@@ -741,8 +741,8 @@ instance ErrorBody JwtError where
   message (JwtDecodeErr e) = case e of
     EmptyAuthHeader        -> "Empty JWT is sent in Authorization header"
     UnexpectedParts n      -> "Expected 3 parts in JWT; got " <> show n
-    KeyError               -> "No suitable key or wrong key type"
-    BadAlgorithm           -> "Wrong or unsupported encoding algorithm"
+    KeyError _             -> "No suitable key or wrong key type"
+    BadAlgorithm _         -> "Wrong or unsupported encoding algorithm"
     BadCrypto              -> "JWT cryptographic operation failed"
     UnsupportedTokenType   -> "Unsupported token type"
     UnreachableDecodeError -> "JWT couldn't be decoded"
@@ -758,6 +758,10 @@ instance ErrorBody JwtError where
     IatClaimNotNumber        -> "The JWT 'iat' claim must be a number"
     AudClaimNotStringOrArray -> "The JWT 'aud' claim must be a string or an array of strings"
 
+  details (JwtDecodeErr jde) = case jde of
+    KeyError dets     -> Just $ JSON.String dets
+    BadAlgorithm dets -> Just $ JSON.String dets
+    _                 -> Nothing
   details _ = Nothing
 
   hint _    = Nothing
