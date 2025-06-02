@@ -26,6 +26,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Network.Wai.Header       as Wai
 
 import qualified PostgREST.Admin      as Admin
 import qualified PostgREST.ApiRequest as ApiRequest
@@ -34,7 +35,6 @@ import qualified PostgREST.Auth       as Auth
 import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
 import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.Logger     as Logger
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
@@ -43,8 +43,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..),
-                                       LogQuery (..))
+import PostgREST.Config               (AppConfig (..), LogQuery (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveHost)
@@ -75,7 +74,7 @@ run appState = do
 
   Admin.runAdmin appState (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
+  let app = postgrest appState (AppState.schemaCacheLoader appState)
 
   case configServerUnixSocket of
     Just path -> do
@@ -95,27 +94,33 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLevel appState connWorker =
+postgrest :: AppState.AppState -> IO () -> Wai.Application
+postgrest appState connWorker =
   traceHeaderMiddleware appState .
-  Cors.middleware appState .
-  Auth.middleware appState .
-  Logger.middleware logLevel Auth.getRole $
-    -- fromJust can be used, because the auth middleware will **always** add
-    -- some AuthResult to the vault.
-    \req respond -> case fromJust $ Auth.getResult req of
-      Left err -> respond $ Error.errorResponseFor err
-      Right authResult -> do
+  Cors.middleware appState $
+    \req respond ->  do
         appConf <- AppState.getConfig appState -- the config must be read again because it can reload
         maybeSchemaCache <- AppState.getSchemaCache appState
         pgVer <- AppState.getPgVersion appState
 
         let
-          eitherResponse :: IO (Either Error Wai.Response)
-          eitherResponse =
-            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
+          observer = AppState.getObserver appState
 
-        response <- either Error.errorResponseFor identity <$> eitherResponse
+          eitherResponseAction :: IO (Either Error (ByteString, Wai.Response))
+          eitherResponseAction =
+            runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer req
+        eitherResponse <- eitherResponseAction
+
+        response <- case eitherResponse of
+          Left err -> do
+            let errResp = Error.errorResponseFor err
+            observer $ genResponseObs Nothing req errResp
+            return errResp
+
+          Right (user,resp) -> do
+            observer $ genResponseObs (Just user) req resp
+            return resp
+
         -- Launch the connWorker when the connection is down.  The postgrest
         -- function can respond successfully (with a stale schema cache) before
         -- the connWorker is done.
@@ -124,16 +129,20 @@ postgrest logLevel appState connWorker =
           delay <- AppState.getNextDelay appState
           return $ addRetryHint delay response
         respond resp
+        where
+          -- TODO Wai.contentLength does a lookup everytime, see https://hackage.haskell.org/package/wai-extra-3.1.17/docs/src/Network.Wai.Header.html#contentLength
+          -- It might be possible to gain some perf by returning the response length from `postgrestResponse`. We calculate the length manually on Response.hs.
+          genResponseObs :: Maybe ByteString -> Wai.Request -> Wai.Response -> Observation
+          genResponseObs user req' resp' = ResponseObs user req' (Wai.responseStatus resp') (Wai.contentLength $ Wai.responseHeaders resp')
 
 postgrestResponse
   :: AppState.AppState
   -> AppConfig
   -> Maybe SchemaCache
   -> PgVersion
-  -> AuthResult
   -> Wai.Request
-  -> Handler IO Wai.Response
-postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@AuthResult{..} req = do
+  -> Handler IO (ByteString, Wai.Response)
+postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer req = do
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
@@ -143,13 +152,20 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
 
   body <- lift $ Wai.strictRequestBody req
 
-  let jwtTime = if configServerTimingEnabled then Auth.getJwtDur req else Nothing
-      timezones = dbTimezones sCache
-      prefs = ApiRequest.userPreferences conf req timezones
+  -- API-REQUEST/PARSE STAGE
+  let prefs = ApiRequest.userPreferences conf req (dbTimezones sCache)
 
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
-  (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
+  -- JWT/AUTH STAGE
+  (jwtTime, authResult@AuthResult{..}) <- withTiming $ do
+    eitherAuthResult <- liftIO $ Auth.getAuthResult appState apiReq
+    liftEither eitherAuthResult
+
+  -- PLAN STAGE
+  (planTime, plan) <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
+
+  -- QUERY/TRANSACTION STAGE
   let query = Query.query conf authResult apiReq plan sCache pgVer
       logSQL = lift . AppState.getObserver appState . DBQuery (Query.getSQLQuery query)
 
@@ -162,12 +178,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache pgVer authResult@
         when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
         liftEither eitherResp >>= liftEither
 
+  -- RESPONSE STAGE
   (respTime, resp) <- withTiming $ do
     let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
     when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response
     liftEither response
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
+  -- We also return the user role with response. It is later used in the logs
+  return (authRole, toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp)
 
   where
     toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response
