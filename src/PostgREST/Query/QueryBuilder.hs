@@ -53,8 +53,8 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
   (if null logicForest && null relJoinConds
     then mempty
     else " WHERE " <> intercalateSnippet " AND " (map (pgFmtLogicTree qi) logicForest ++ map pgFmtJoinCondition relJoinConds)) <> " " <>
-  groupF qi select relSelect <>
-  orderF qi order <>
+  groupF qi select relSelect <> " " <>
+  orderF qi order <> " " <>
   limitOffsetF readRange
   where
     fromFrag = fromF relToParent mainQi fromAlias

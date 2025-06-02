@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- Fix regression that makes `ORDER BY` with nulls-order not work alongside limits by @laurenceisla in #4109
+
 ## [13.0.1] - 2025-06-01
 
 ### Fixed
