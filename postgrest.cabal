@@ -49,6 +49,7 @@ library
                       PostgREST.App
                       PostgREST.AppState
                       PostgREST.Auth
+                      PostgREST.Auth.Jwt
                       PostgREST.Auth.JwtCache
                       PostgREST.Auth.Types
                       PostgREST.CLI
