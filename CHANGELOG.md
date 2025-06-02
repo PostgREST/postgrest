@@ -12,6 +12,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   + The exposed schemas are now listed in the `hint` instead of the `message` field.
 - Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 
+## [13.0.1] - 2025-06-01
+
 ### Fixed
 
 - Fix jwt error returning HTTP status `400` for invalid role by @taimoorzaeem in #3601
