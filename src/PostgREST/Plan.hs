@@ -72,7 +72,8 @@ import PostgREST.SchemaCache.Routine         (MediaHandler (..),
                                               RoutineParam (..),
                                               funcReturnsCompositeAlias,
                                               funcReturnsScalar,
-                                              funcReturnsSetOfScalar)
+                                              funcReturnsSetOfScalar,
+                                              funcReturnsSingle)
 import PostgREST.SchemaCache.Table           (Column (..), Table (..),
                                               TablesMap,
                                               tableColumnsList,
@@ -172,7 +173,7 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
-callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs},..} invMethod = do
+callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs, preferMaxAffected},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv       -> iColumns
@@ -192,9 +193,14 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
       cPlan = callPlan proc apiRequest paramKeys args rPlan
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest relIdentifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
+  failMaxAffectedRpcReturnsSingle (preferMaxAffected, preferHandling) proc
   return $ CallReadPlan rPlan cPlan txMode proc handler mediaType invMethod identifier
   where
     qsParams' = QueryParams.qsParams iQueryParams
+
+    failMaxAffectedRpcReturnsSingle :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> Routine -> Either Error ()
+    failMaxAffectedRpcReturnsSingle (Just (PreferMaxAffected _), Just Strict) rout = if funcReturnsSingle rout then Left $ ApiRequestError MaxAffectedRpcViolation else Right ()
+    failMaxAffectedRpcReturnsSingle _ _ = Right ()
 
 hasDefaultSelect :: ReadPlanTree -> Bool
 hasDefaultSelect (Node ReadPlan{select=[CoercibleSelectField{csField=CoercibleField{cfName}}]} []) = cfName == "*"
