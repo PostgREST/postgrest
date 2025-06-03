@@ -25,3 +25,4 @@ loadtest
 .history
 .docs-build
 gen_targets.http
+gen_jwk.http

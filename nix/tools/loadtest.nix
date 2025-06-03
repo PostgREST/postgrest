@@ -41,8 +41,10 @@ let
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
-          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with unique jwts)], [mixed])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt])"
+          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with 1000 different jwts)], [mixed])"
+          "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs-50k,jwt-rsa-10k])"
+          "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
         workingDir = "/";
@@ -64,9 +66,30 @@ let
         abs_output="$(realpath "$_arg_output")"
 
         case "$_arg_kind" in
-          jwt)
+          jwt-hs-50k)
 
-            ${genTargets} "$_arg_testdir"/gen_targets.http
+            ${genTargets ./generate_targets.py} "$_arg_testdir"/gen_targets.http
+
+            if [ "$_arg_jwtcache" = "off" ]; then
+              export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+            fi
+
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} \
+            sh -c "cd \"$_arg_testdir\" && ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+            ;;
+
+          jwt-rsa-10k)
+
+            ${genTargets ./generate_targets_rsa.py} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.http
+
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.http"
+
+            if [ "$_arg_jwtcache" = "off" ]; then
+              export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+            fi
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
@@ -200,7 +223,12 @@ let
           | ${toMarkdown}
       '';
 
-  genTargets = writers.writePython3 "postgrest-gen-loadtest-targets" { } (builtins.readFile ./generate_targets.py);
+  genTargets = genTargetsScript:
+    writers.writePython3 "postgrest-gen-loadtest-targets"
+      {
+        libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
+      }
+      (builtins.readFile genTargetsScript);
 in
 buildToolbox {
   name = "postgrest-loadtest";
