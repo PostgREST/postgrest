@@ -3817,6 +3817,14 @@ where oid = 'test.collision_test_func'::regproc::oid;
 comment on function test.collision_test_func(id integer) is 'fizzbuzz';
 
 
-create or replace function test.delete_all_items() returns setof items as $$
+create or replace function test.delete_items_returns_setof() returns setof items as $$
   delete from items where id <= 15 returning *; -- deletes 15 items, then return them
+$$ language sql;
+
+create or replace function test.delete_items_returns_table() returns table(id bigint) as $$
+  delete from items where id <= 15 returning *;
+$$ language sql;
+
+create or replace function test.delete_items_returns_void() returns void as $$
+  delete from items;
 $$ language sql;
