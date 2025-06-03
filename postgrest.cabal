@@ -153,7 +153,7 @@ library
                     -- for unix sockets; this is tested in test/io/test_io.py. See
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
-                    , warp                      >= 3.3.19 && < 3.4
+                    , warp >=3.3.19 && <3.5
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
