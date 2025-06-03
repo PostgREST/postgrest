@@ -10,7 +10,6 @@ import random
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-JWT_DURATION = 120
 TOTAL_TARGETS = 50000  # tuned by hand to reduce result variance
 
 

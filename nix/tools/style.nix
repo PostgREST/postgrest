@@ -7,6 +7,7 @@
 , hlint
 , hsie
 , nixpkgs-fmt
+, python3Packages
 , silver-searcher
 , statix
 , stylish-haskell
@@ -62,6 +63,10 @@ let
 
         echo "Scanning nix files for unused code..."
         ${deadnix}/bin/deadnix -f
+
+        echo "Scanning python files for unused code..."
+        ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?py$' . \
+          | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py
 
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases main src
