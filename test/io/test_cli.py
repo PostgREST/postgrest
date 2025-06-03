@@ -3,7 +3,6 @@
 import contextlib
 import dataclasses
 from datetime import datetime
-from itertools import repeat
 from operator import attrgetter
 import os
 import pathlib
