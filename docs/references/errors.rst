@@ -267,6 +267,10 @@ Related to the HTTP request elements.
 |               |             | implemented.                                                |
 | PGRST127      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
+| .. _pgrst128: | 400         | ``max-affected`` preference is violated with ``RPC`` call.  |
+|               |             | See :ref:`prefer_max_affected`.                             |
+| PGRST128      |             |                                                             |
++---------------+-------------+-------------------------------------------------------------+
 
 
 .. _pgrst2**:

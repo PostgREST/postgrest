@@ -292,3 +292,7 @@ With :ref:`RPC <functions>`, the preference is honored completely on the basis o
       "details": "The query affects 14 rows",
       "hint": null
   }
+
+.. note::
+
+  It is important for functions to return ``SETOF`` or ``TABLE`` when called with ``max-affected`` preference. A violation of this would cause a :ref:`PGRST128 <pgrst128>` error.

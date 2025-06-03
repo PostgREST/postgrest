@@ -98,6 +98,7 @@ data ApiRequestError
   | MaxAffectedViolationError Integer
   | InvalidResourcePath
   | OpenAPIDisabled
+  | MaxAffectedRpcViolation
   deriving Show
 
 data QPError = QPError Text Text
@@ -140,6 +141,7 @@ instance PgrstError ApiRequestError where
   status MaxAffectedViolationError{} = HTTP.status400
   status InvalidResourcePath         = HTTP.status404
   status OpenAPIDisabled             = HTTP.status404
+  status MaxAffectedRpcViolation     = HTTP.status400
 
   headers _ = mempty
 
@@ -186,6 +188,7 @@ instance ErrorBody ApiRequestError where
   code InvalidResourcePath         = "PGRST125"
   code OpenAPIDisabled             = "PGRST126"
   code NotImplemented{}            = "PGRST127"
+  code MaxAffectedRpcViolation     = "PGRST128"
 
   -- MESSAGE: Text
   message (QueryParamError (QPError msg _)) = msg
@@ -211,6 +214,7 @@ instance ErrorBody ApiRequestError where
   message InvalidResourcePath            = "Invalid path specified in request URL"
   message OpenAPIDisabled                = "Root endpoint metadata is disabled"
   message (NotImplemented _)             = "Feature not implemented"
+  message MaxAffectedRpcViolation        = "Function must return SETOF or TABLE when max-affected preference is used with handling=strict"
 
   -- DETAILS: Maybe JSON.Value
   details (QueryParamError (QPError _ dets)) = Just $ JSON.String dets
