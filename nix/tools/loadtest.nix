@@ -41,7 +41,7 @@ let
         args = [
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
-          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest (mixed: repeat mixed requests, jwt: run once over many requests with 1000 different jwts)], [mixed])"
+          "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
           "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs-50k,jwt-rsa-10k])"
           "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
