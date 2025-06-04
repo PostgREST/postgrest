@@ -6,9 +6,8 @@ import random
 import jwt
 import jwcrypto.jwk as jwk
 
-SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-JWT_DURATION = 120
+TOTAL_JWTS = 1000
 TOTAL_TARGETS = 50000  # tuned by hand to reduce result variance
 
 key = jwk.JWK.generate(kty="RSA", size=4096)
@@ -40,7 +39,7 @@ def main():
     parser.add_argument("jwk", help="Path to write the generated JWK")
     args = parser.parse_args()
 
-    tokens = [generate_jwt() for _ in range(1000)]
+    tokens = [generate_jwt() for _ in range(TOTAL_JWTS)]
     lines = []
     start_time = time.time()
 
