@@ -68,6 +68,7 @@ library
                       PostgREST.Error
                       PostgREST.Listener
                       PostgREST.Logger
+                      PostgREST.Logger.Apache
                       PostgREST.MediaType
                       PostgREST.Metrics
                       PostgREST.Network
@@ -110,6 +111,7 @@ library
                     , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
+                    , fast-logger               >= 3.2.0
                     , fuzzyset                  >= 0.2.4 && < 0.3
                     , hasql                     >= 1.6.1.1 && < 1.7
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4

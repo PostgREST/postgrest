@@ -94,7 +94,7 @@ main = do
       appState <- AppState.initWithPool sockets pool config jwtCacheState loggerState metricsState (const $ pure ())
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return ((), postgrest (configLogLevel config) appState (pure ()))
+      return ((), postgrest appState (pure ()))
 
     -- For tests that run with the same schema cache
     app = initApp baseSchemaCache
