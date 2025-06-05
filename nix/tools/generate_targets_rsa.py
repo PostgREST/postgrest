@@ -1,5 +1,6 @@
 # generates a file to be used by the vegeta load testing tool
-# It runs TOTAL_TARGETS amount of requests with TOTAL_JWTS amount of JWTs randomly spread among them 
+# It runs TOTAL_TARGETS amount of requests with
+# TOTAL_JWTS amount of JWTs randomly spread among them
 import time
 import argparse
 import sys
