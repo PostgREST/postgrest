@@ -43,7 +43,7 @@ let
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs-50k,jwt-rsa-10k])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs-50k,jwt-rsa-1k])"
           "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -81,7 +81,7 @@ let
             ${vegeta}/bin/vegeta report -type=text "$_arg_output"
             ;;
 
-          jwt-rsa-10k)
+          jwt-rsa-1k)
 
             ${genTargets ./generate_targets_rsa.py} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.http
 
