@@ -26,7 +26,10 @@ data MetricsState =
     poolWaiting          :: Gauge,
     poolMaxSize          :: Gauge,
     schemaCacheLoads     :: Vector Label1 Counter,
-    schemaCacheQueryTime :: Gauge
+    schemaCacheQueryTime :: Gauge,
+    jwtCacheRequests     :: Counter,
+    jwtCacheHits         :: Counter,
+    jwtCacheEvictions    :: Counter
   }
 
 init :: Int -> IO MetricsState
@@ -37,7 +40,10 @@ init configDbPoolSize = do
     register (gauge (Info "pgrst_db_pool_waiting" "Requests waiting to acquire a pool connection")) <*>
     register (gauge (Info "pgrst_db_pool_max" "Max pool connections")) <*>
     register (vector "status" $ counter (Info "pgrst_schema_cache_loads_total" "The total number of times the schema cache was loaded")) <*>
-    register (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load"))
+    register (gauge (Info "pgrst_schema_cache_query_time_seconds" "The query time in seconds of the last schema cache load")) <*>
+    register (counter (Info "pgrst_jwt_cache_requests_total" "The total number of JWT cache lookups")) <*>
+    register (counter (Info "pgrst_jwt_cache_hits_total" "The total number of JWT cache hits")) <*>
+    register (counter (Info "pgrst_jwt_cache_evictions_total" "The total number of JWT cache evictions"))
   setGauge (poolMaxSize metricState) (fromIntegral configDbPoolSize)
   pure metricState
 
@@ -63,6 +69,9 @@ observationMetrics MetricsState{..} obs = case obs of
     setGauge schemaCacheQueryTime resTime
   SchemaCacheErrorObs{} -> do
     withLabel schemaCacheLoads "FAIL" incCounter
+  JwtCacheLookup True -> incCounter jwtCacheRequests *> incCounter jwtCacheHits
+  JwtCacheLookup False -> incCounter jwtCacheRequests
+  JwtCacheEviction -> incCounter jwtCacheEvictions
   _ ->
     pure ()
 
