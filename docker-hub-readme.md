@@ -42,7 +42,7 @@ write from scratch.
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+        <a href="https://www.euronodes.com/postgrest" target="_blank">
           <img width="296px" src="static/euronodes.svg">
         </a>
       </td>

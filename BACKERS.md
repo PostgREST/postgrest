@@ -36,7 +36,7 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
         </a>
       </td>
       <td align="center" valign="middle">
-        <a href="https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+        <a href="https://www.euronodes.com/postgrest" target="_blank">
           <img width="296px" src="static/euronodes.svg">
         </a>
       </td>
