@@ -76,12 +76,12 @@ Sponsors
   .. container:: img-dark
 
     .. image:: ../static/euronodes.svg
-      :target: https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest
+      :target: https://www.euronodes.com/postgrest
 
   .. container:: img-light
 
     .. image:: ../static/euronodes.svg
-      :target: https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest
+      :target: https://www.euronodes.com/postgrest
 
   .. The static/empty.png(created with `convert -size 320x95 xc:#fcfcfc empty.png`) is an ugly workaround
      to create space and center the logos. It's not easy to layout with restructuredText.
