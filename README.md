@@ -44,6 +44,11 @@ API than you are likely to write from scratch.
           <img width="296px" src="static/supabase.png">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/euronodes.svg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
