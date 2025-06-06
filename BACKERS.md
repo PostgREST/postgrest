@@ -35,6 +35,11 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
           <img width="296px" src="static/supabase.png">
         </a>
       </td>
+      <td align="center" valign="middle">
+        <a href="https://euronodes.com/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
+          <img width="296px" src="static/euronodes.svg">
+        </a>
+      </td>
     </tr>
   </tbody>
 </table>
@@ -86,11 +91,6 @@ PostgREST ongoing development is only possible thanks to our Sponsors and Backer
       <td align="center" valign="middle">
         <a href="https://oblivious.ai/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
           <img width="222px" src="static/oblivious.jpg">
-        </a>
-      </td>
-      <td align="center" valign="middle">
-        <a href="https://gnuhost.eu/?utm_source=sponsor&utm_campaign=postgrest" target="_blank">
-          <img width="222px" src="static/gnuhost.png">
         </a>
       </td>
     </tr>
