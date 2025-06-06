@@ -98,7 +98,7 @@ postgrest-loadtest                postgrest-with-postgresql-16
 postgrest-loadtest-against        postgrest-with-postgresql-17
 postgrest-loadtest-report         postgrest-with-slow-pg
 postgrest-nixpkgs-upgrade         postgrest-with-slow-postgrest
-postgrest-parallel-curl
+postgrest-parallel-curl           postgrest-commit-msg-check
 ...
 
 [nix-shell]$

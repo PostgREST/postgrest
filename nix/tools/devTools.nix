@@ -16,6 +16,7 @@
 , haskellPackages
 , ctags
 , openssl
+, writers
 }:
 let
   watch =
@@ -382,6 +383,19 @@ let
 
         LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c32
       '';
+
+  commitCheckScript = writers.writePython3 "postgrest-commit-msg-check-script" { } (builtins.readFile ./commit_msg_check.py);
+
+  commitCheck =
+    checkedShellScript
+      {
+        name = "postgrest-commit-msg-check";
+        docs = "Validate latest commit message using the python script.";
+        workingDir = "/";
+      }
+      ''
+        git log -1 --pretty=%s | ${commitCheckScript}
+      '';
 in
 buildToolbox
 {
@@ -389,6 +403,7 @@ buildToolbox
   tools = {
     inherit
       check
+      commitCheck
       dumpMinimalImports
       gitHooks
       hsieGraphModules
