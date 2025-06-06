@@ -97,7 +97,7 @@ data AppConfig = AppConfig
   , configJwtRoleClaimKey          :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
-  , configJwtCacheMaxSize          :: Maybe Int
+  , configJwtCacheMaxEntries       :: Maybe Int
   , configLogLevel                 :: LogLevel
   , configLogQuery                 :: LogQuery
   , configOpenApiMode              :: OpenAPIMode
@@ -177,7 +177,7 @@ toText conf =
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("jwt-cache-max-entries",            maybe (q mempty) show . configJwtCacheMaxSize)
+      ,("jwt-cache-max-entries",         maybe (q mempty) show . configJwtCacheMaxEntries)
       ,("log-level",                 q . dumpLogLevel . configLogLevel)
       ,("log-query",                 q . dumpLogQuery . configLogQuery)
       ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)

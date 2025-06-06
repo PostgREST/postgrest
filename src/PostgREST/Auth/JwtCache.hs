@@ -66,7 +66,7 @@ defaultCacheMaxSize :: Int
 defaultCacheMaxSize = 1000::Int
 
 update :: JwtCacheState -> AppConfig -> IO ()
-update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxSize} =
+update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxEntries} =
   let reinitialize =
         newJwtCache config observationHandler
           >>= writeIORef jwtCacheState
@@ -76,7 +76,7 @@ update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJ
       if configJWKS /= Just decodingKey then
         -- reinitialize if key changed
         reinitialize
-      else case configJwtCacheMaxSize of
+      else case configJwtCacheMaxEntries of
         -- reinitialize if cache disabled
         (Just newMaxSize) | newMaxSize <= 0 -> reinitialize
         -- max size changed - set it and let the cache shrink itself if necessary
@@ -91,10 +91,10 @@ init config = fmap (<$>) JwtCacheState <*> (newJwtCache config >=> newIORef)
 
 -- | Initialize JwtCacheState
 newJwtCache :: AppConfig -> ObservationHandler -> IO JwtCache
-newJwtCache AppConfig{configJWKS, configJwtCacheMaxSize} observationHandler = do
+newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler = do
   maybe (pure JwtNoJwks) initCache configJWKS
   where
-    initCache key = case configJwtCacheMaxSize of
+    initCache key = case configJwtCacheMaxEntries of
       Nothing                      -> autoConfigure key
       (Just maxSize) | maxSize > 0 -> createCache key maxSize
       (Just _)                     -> pure $ JwtNoCache key
