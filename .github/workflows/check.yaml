@@ -30,3 +30,16 @@ jobs:
         run: postgrest-lint
       - name: Run style check (auto-format with `nix-shell --run postgrest-style`)
         run: postgrest-style-check
+
+  commit-check:
+    name: Commit Message Check
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: commit.check.bin
+      - name: Run Commit Message Checker (check locally with `nix-shell --run postgrest-commit-msg-check`)
+        run: postgrest-commit-msg-check
