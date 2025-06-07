@@ -453,6 +453,23 @@ spec actualPgVersion = do
         aggCol `shouldBe`
           Just [aesonQQ| "twkb_agg(ROW(lines.id, lines.name, lines.geom)::lines)" |]
 
+  describe "plan of upsert with DEFAULT surrogate primary key" $ do
+    it "test case sensitive sequence is properly quoted in nextval()" $ do
+      r <- request methodPost "/Surr_Gen_Default_Upsert?columns=id,name&select=name,extra" [("Prefer", "return=representation, resolution=merge-duplicates, missing=default"), ("Accept", "application/vnd.pgrst.plan+json; options=verbose")]
+        [json| [
+            { "id": 1, "name": "updated value" },
+            { "name": "new value" }
+        ]|]
+
+      let nextValSnip = simpleBody r ^? nth 0 . key "Plan" . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Plans" . nth 0 . key "Output"
+          resHeaders = simpleHeaders r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=verbose; charset=utf-8")
+        nextValSnip `shouldBe`
+          Just [aesonQQ| ["jsonb_agg((jsonb_build_object('id', nextval('\"Surr_Gen_Default_Upsert_id_seq\"'::regclass)) || elem.value))"] |]
+
+
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =
   it "doesn't work if db-plan-enabled=false(the default)" $ do
