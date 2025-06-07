@@ -946,6 +946,9 @@ INSERT INTO surr_serial_upsert(name, extra) VALUES ('value', 'existing value');
 TRUNCATE TABLE surr_gen_default_upsert CASCADE;
 INSERT INTO surr_gen_default_upsert(name, extra) VALUES ('value', 'existing value');
 
+TRUNCATE TABLE "Surr_Gen_Default_Upsert" CASCADE;
+INSERT INTO "Surr_Gen_Default_Upsert"(name, extra) VALUES ('value cs', 'existing value cs');
+
 TRUNCATE TABLE tsearch_to_tsvector CASCADE;
 INSERT INTO tsearch_to_tsvector(text_search) VALUES ('It''s kind of fun to do the impossible');
 INSERT INTO tsearch_to_tsvector(text_search) VALUES ('But also fun to do what is possible');

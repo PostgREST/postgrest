@@ -41,6 +41,7 @@ GRANT USAGE ON SEQUENCE
     , leak_id_seq
     , surr_serial_upsert_id_seq
     , surr_gen_default_upsert_id_seq
+    , "Surr_Gen_Default_Upsert_id_seq"
 TO postgrest_test_anonymous;
 
 GRANT USAGE ON SEQUENCE channels_id_seq TO postgrest_test_anonymous;
