@@ -100,7 +100,7 @@ JWT Caching
 
 PostgREST validates ``JWTs`` on every request. Asymmetric signature validation (such as RSA) is slow and we can cache ``JWT`` validation results to avoid this performance overhead.
 
-JWT caching is automatically enabled if ref:`jwt-secret` is set to an asymmetric key. Otherwise it is disabled and can be enabled by setting the config :code:`jwt-cache-max-entries` to a value greater than 0. Setting it to 0 disables caching regardless of ref:`jwt-secret`
+JWT caching is automatically enabled if ref:`jwt-secret` is set to an asymmetric key. Otherwise it is disabled and can be enabled by setting the config :code:`jwt-cache-max-entries` to a value greater than 0. Setting it to 0 disables caching regardless of ref:`jwt-secret`.
 
 See :ref:`jwt-cache-max-entries` for more details.
 
