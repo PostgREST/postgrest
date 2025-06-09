@@ -35,7 +35,7 @@ import qualified PostgREST.Cors          as Cors
 import qualified PostgREST.Error         as Error
 import qualified PostgREST.Listener      as Listener
 import qualified PostgREST.Logger        as Logger
-import qualified PostgREST.OpenTelemetry as OTel
+-- import qualified PostgREST.OpenTelemetry as OTel
 import qualified PostgREST.Plan          as Plan
 import qualified PostgREST.Query         as Query
 import qualified PostgREST.Response      as Response
@@ -100,7 +100,7 @@ serverSettings AppConfig{..} =
 -- | PostgREST application
 postgrest :: HasCallStack => LogLevel -> AppState.AppState -> IO () -> Wai.Application
 postgrest logLevel appState connWorker =
-  OTel.middleware appState .
+  -- OTel.middleware appState .
   traceHeaderMiddleware appState .
   Cors.middleware appState .
   Auth.middleware appState .
