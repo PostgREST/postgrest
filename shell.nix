@@ -24,6 +24,7 @@ let
       postgrest.loadtest
       postgrest.release
       postgrest.style
+      postgrest.gitTools
       postgrest.tests
       postgrest.withTools
     ]
