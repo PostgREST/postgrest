@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix `max-affected` preference not failing with RPC when `handling=strict` by @taimoorzaeem in #4100
+- Fix regression that makes full-text search not work on domain types based on `tsvector` by @laurenceisla in #4135
 
 ## [13.0.2] - 2025-06-02
 

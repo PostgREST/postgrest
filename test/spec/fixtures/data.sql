@@ -957,15 +957,16 @@ INSERT INTO tsearch_to_tsvector(text_search) VALUES ('C''est un peu amusant de f
 INSERT INTO tsearch_to_tsvector(text_search) VALUES ('Es ist eine Art Spaß, das Unmögliche zu machen');
 
 UPDATE tsearch_to_tsvector SET jsonb_search = jsonb_build_object('text_search', text_search);
-
+UPDATE tsearch_to_tsvector SET text_search_domain = to_tsvector('simple', text_search);
+UPDATE tsearch_to_tsvector SET text_search_rec_domain = to_tsvector('simple', text_search);
 
 TRUNCATE TABLE artists CASCADE;
 INSERT INTO artists
 VALUES (1, 'duster'), (2, 'black country, new road'), (3, 'bjork');
 
 TRUNCATE TABLE albums CASCADE;
-INSERT INTO albums 
+INSERT INTO albums
 VALUES (1, 'stratosphere', 1),
-       (2, 'ants from up above',2), 
+       (2, 'ants from up above',2),
        (3, 'vespertine',3),
        (4, 'contemporary movement', 1);
