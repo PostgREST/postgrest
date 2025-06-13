@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix `max-affected` preference not failing with RPC when `handling=strict` by @taimoorzaeem in #4100
+- Fix a property definition's type in OpenAPI not showing the correct base type of a recursive domain by @laurenceisla in #4136
 
 ## [13.0.2] - 2025-06-02
 

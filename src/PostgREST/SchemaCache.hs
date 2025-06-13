@@ -375,32 +375,40 @@ accessibleFuncs = SQL.Statement sql params decodeFuncs
       (snd >$< arrayParam HE.text)
     sql = funcsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
-funcsSqlQuery :: SqlQuery
-funcsSqlQuery = encodeUtf8 [trimming|
- -- Recursively get the base types of domains
-  WITH
+baseTypesCte :: Text
+baseTypesCte = [trimming|
+  -- Recursively get the base types of domains
   base_types AS (
     WITH RECURSIVE
     recurse AS (
       SELECT
         oid,
         typbasetype,
-        COALESCE(NULLIF(typbasetype, 0), oid) AS base
+        typnamespace AS base_namespace,
+        COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
       FROM pg_type
       UNION
       SELECT
         t.oid,
         b.typbasetype,
-        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base
+        b.typnamespace AS base_namespace,
+        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
       FROM recurse t
       JOIN pg_type b ON t.typbasetype = b.oid
     )
     SELECT
       oid,
-      base
+      base_namespace,
+      base_type
     FROM recurse
     WHERE typbasetype = 0
-  ),
+  )
+|]
+
+funcsSqlQuery :: SqlQuery
+funcsSqlQuery = encodeUtf8 [trimming|
+  WITH
+  $baseTypesCte,
   arguments AS (
     SELECT
       oid,
@@ -440,7 +448,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
      -- if any TABLE, INOUT or OUT arguments present, treat as composite
      or COALESCE(proargmodes::text[] && '{t,b,o}', false)
     ) AS rettype_is_composite,
-    bt.oid <> bt.base as rettype_is_composite_alias,
+    bt.oid <> bt.base_type as rettype_is_composite_alias,
     p.provolatile,
     p.provariadic > 0 as hasvariadic,
     lower((regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1]) AS transaction_isolation_level,
@@ -449,7 +457,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
   LEFT JOIN arguments a ON a.oid = p.oid
   JOIN pg_namespace pn ON pn.oid = p.pronamespace
   JOIN base_types bt ON bt.oid = p.prorettype
-  JOIN pg_type t ON t.oid = bt.base
+  JOIN pg_type t ON t.oid = bt.base_type
   JOIN pg_namespace tn ON tn.oid = t.typnamespace
   LEFT JOIN pg_class comp ON comp.oid = t.typrelid
   LEFT JOIN pg_description as d ON d.objoid = p.oid AND d.classoid = 'pg_proc'::regclass
@@ -615,6 +623,7 @@ tablesSqlQuery =
   -- generated columns are only available from pg >= 10 but the query is agnostic to versions. dep.deptype = 'i' is done because there are other 'a' dependencies on PKs
   encodeUtf8 [trimming|
   WITH
+  $baseTypesCte,
   columns AS (
       SELECT
           c.oid AS relid,
@@ -631,7 +640,7 @@ tablesSqlQuery =
           CASE
               WHEN t.typtype = 'd' THEN
               CASE
-                  WHEN bt.typnamespace = 'pg_catalog'::regnamespace THEN format_type(t.typbasetype, NULL::integer)
+                  WHEN bt.base_namespace = 'pg_catalog'::regnamespace THEN format_type(bt.base_type, NULL::integer)
                   ELSE format_type(a.atttypid, a.atttypmod)
               END
               ELSE
@@ -645,7 +654,7 @@ tablesSqlQuery =
               information_schema._pg_truetypid(a.*, t.*),
               information_schema._pg_truetypmod(a.*, t.*)
           )::integer AS character_maximum_length,
-          COALESCE(bt.oid, t.oid) AS base_type,
+          bt.base_type,
           a.attnum::integer AS position
       FROM pg_attribute a
           LEFT JOIN pg_description AS d
@@ -656,8 +665,8 @@ tablesSqlQuery =
               ON a.attrelid = c.oid
           JOIN pg_type t
               ON a.atttypid = t.oid
-          LEFT JOIN pg_type bt
-              ON t.typtype = 'd' AND t.typbasetype = bt.oid
+          LEFT JOIN base_types bt
+              ON t.oid = bt.oid
           LEFT JOIN pg_depend seq
               ON seq.refobjid = a.attrelid and seq.refobjsubid = a.attnum and seq.deptype = 'i'
       WHERE
