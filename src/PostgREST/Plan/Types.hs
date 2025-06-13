@@ -44,13 +44,14 @@ data CoercibleField = CoercibleField
   , cfToJson     :: Bool
   , cfToTsVector :: Maybe ToTsVector      -- ^ If the field should be converted using to_tsvector(<language>, <field>)
   , cfIRType     :: Text                  -- ^ The native Postgres type of the field, the intermediate (IR) type before mapping.
+  , cfBaseType   :: Text                  -- ^ The base type of the field in case of domains, or just the type otherwise (without modifiers in case of pg_catalog types)
   , cfTransform  :: Maybe TransformerProc -- ^ The optional mapping from irType -> targetType.
   , cfDefault    :: Maybe Text
   , cfFullRow    :: Bool                  -- ^ True if the field represents the whole selected row. Used in spread rels: instead of COUNT(*), it does a COUNT(<row>) in order to not mix with other spreaded resources.
   } deriving (Eq, Show)
 
 unknownField :: FieldName -> JsonPath -> CoercibleField
-unknownField name path = CoercibleField name path False Nothing "" Nothing Nothing False
+unknownField name path = CoercibleField name path False Nothing "" "" Nothing Nothing False
 
 -- | Like an API request LogicTree, but with coercible field information.
 data CoercibleLogicTree

@@ -3750,9 +3750,17 @@ create table surr_gen_default_upsert (
   extra text
 );
 
+create domain tsvector_not_null as tsvector
+  constraint "tsvector is required" check (value is not null);
+
+create domain tsvector_not_empty as tsvector_not_null
+  constraint "tsvector is required and not empty" check (value <> '');
+
 create table tsearch_to_tsvector (
   text_search text,
-  jsonb_search jsonb
+  jsonb_search jsonb,
+  text_search_domain tsvector_not_null default '',
+  text_search_rec_domain tsvector_not_empty default '.'
 );
 
 create function test.get_tsearch_to_tsvector() returns setof test.tsearch_to_tsvector AS $$
