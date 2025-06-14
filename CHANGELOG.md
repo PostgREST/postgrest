@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix `max-affected` preference not failing with RPC when `handling=strict` by @taimoorzaeem in #4100
+- Fix `jwt-aud` config not failing when set to an invalid URI by @taimoorzaeem in #4132
 
 ## [13.0.2] - 2025-06-02
 

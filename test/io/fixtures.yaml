@@ -41,12 +41,11 @@ cli:
     use_defaultenv: true
     env:
       PGRST_SERVER_UNIX_SOCKET_MODE: '778'
-# TODO: Bug needs to be fixed
-#  - name: invalid jwt-aud
-#    expect: error
-#    use_defaultenv: true
-#    env:
-#      PGRST_JWT_AUD: 'htp:/@@localhorst.invalid'
+  - name: invalid jwt-aud
+    expect: error
+    use_defaultenv: true
+    env:
+      PGRST_JWT_AUD: 'http://%%localhorst.invalid'
   - name: invalid log-level
     expect: error
     use_defaultenv: true
