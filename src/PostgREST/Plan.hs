@@ -278,7 +278,7 @@ data ResolverContext = ResolverContext
   }
 
 resolveColumnField :: Column -> Maybe ToTsVector -> CoercibleField
-resolveColumnField col toTsV = CoercibleField (colName col) mempty False toTsV (colNominalType col) Nothing (colDefault col) False
+resolveColumnField col toTsV = CoercibleField (colName col) mempty False toTsV (colNominalType col) (colType col) Nothing (colDefault col) False
 
 resolveTableFieldName :: Table -> FieldName -> Maybe ToTsVector -> CoercibleField
 resolveTableFieldName table fieldName toTsV=
@@ -291,12 +291,12 @@ resolveTypeOrUnknown ResolverContext{..} (fn, jp) toTsV =
   case res of
     -- types that are already json/jsonb don't need to be converted with `to_jsonb` for using arrow operators `data->attr`
     -- this prevents indexes not applying https://github.com/PostgREST/postgrest/issues/2594
-    cf@CoercibleField{cfIRType="json"}     -> cf{cfJsonPath=jp, cfToJson=False}
-    cf@CoercibleField{cfIRType="jsonb"}    -> cf{cfJsonPath=jp, cfToJson=False}
+    cf@CoercibleField{cfIRType="json"}       -> cf{cfJsonPath=jp, cfToJson=False}
+    cf@CoercibleField{cfIRType="jsonb"}      -> cf{cfJsonPath=jp, cfToJson=False}
     -- Do not apply to_tsvector to tsvector types
-    cf@CoercibleField{cfIRType="tsvector"} -> cf{cfJsonPath=jp, cfToJson=True, cfToTsVector=Nothing}
+    cf@CoercibleField{cfBaseType="tsvector"} -> cf{cfJsonPath=jp, cfToJson=True, cfToTsVector=Nothing}
     -- other types will get converted `to_jsonb(col)->attr`, even unknown types
-    cf                                     -> cf{cfJsonPath=jp, cfToJson=True}
+    cf                                       -> cf{cfJsonPath=jp, cfToJson=True}
   where
     res = fromMaybe (unknownField fn jp) $ HM.lookup qi tables >>=
           Just . (\t -> resolveTableFieldName t fn toTsV)
@@ -891,7 +891,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 --       where_ = [
 --         CoercibleStmnt (
 --           CoercibleFilter {
---            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfToTsVector = Nothing, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
+--            field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson=False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False},
 --            opExpr = op
 --           }
 --         )
@@ -907,7 +907,7 @@ addRelatedOrders (Node rp@ReadPlan{order,from} forest) = do
 -- Don't do anything to the filter if there's no embedding (a subtree) on projects. Assume it's a normal filter.
 --
 -- >>> ReadPlan.where_ . rootLabel <$> addNullEmbedFilters (readPlanTree nullOp [])
--- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfToTsVector = Nothing, cfIRType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
+-- Right [CoercibleStmnt (CoercibleFilter {field = CoercibleField {cfName = "projects", cfJsonPath = [], cfToJson = False, cfToTsVector = Nothing, cfIRType = "", cfBaseType = "", cfTransform = Nothing, cfDefault = Nothing, cfFullRow = False}, opExpr = OpExpr True (Is IsNull)})]
 --
 -- If there's an embedding on projects, then change the filter to use the internal aggregate name (`clients_projects_1`) so the filter can succeed later.
 --
@@ -926,7 +926,7 @@ addNullEmbedFilters (Node rp@ReadPlan{where_=curLogic} forest) = do
     newNullFilters rPlans = \case
       (CoercibleExpr b lOp trees) ->
         CoercibleExpr b lOp <$> (newNullFilters rPlans `traverse` trees)
-      flt@(CoercibleStmnt (CoercibleFilter (CoercibleField fld [] _ _ _ _ _ _) opExpr)) ->
+      flt@(CoercibleStmnt (CoercibleFilter CoercibleField{cfName=fld, cfJsonPath=[]} opExpr)) ->
         let foundRP = find (\ReadPlan{relName, relAlias} -> fld == fromMaybe relName relAlias) rPlans in
         case (foundRP, opExpr) of
           (Just ReadPlan{relAggAlias}, OpExpr b (Is IsNull)) -> Right $ CoercibleStmnt $ CoercibleFilterNullEmbed b relAggAlias

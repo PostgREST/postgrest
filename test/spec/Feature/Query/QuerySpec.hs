@@ -294,6 +294,20 @@ spec = do
               ]|]
               { matchHeaders = [matchContentTypeJson] }
 
+          it "works when the column type is a tsvector domain" $ do
+            get "tsearch_to_tsvector?select=text_search_domain&text_search_domain=fts(simple).of" `shouldRespondWith`
+              [json| [
+                {"text_search_domain":"'do':7 'fun':5 'impossible':9 'it':1 'kind':3 'of':4 's':2 'the':8 'to':6"}
+              ]|]
+              { matchHeaders = [matchContentTypeJson] }
+
+          it "works when the column type is a recursive tsvector domain" $ do
+            get "tsearch_to_tsvector?select=text_search_rec_domain&text_search_rec_domain=fts(simple).of" `shouldRespondWith`
+              [json| [
+                {"text_search_rec_domain":"'do':7 'fun':5 'impossible':9 'it':1 'kind':3 'of':4 's':2 'the':8 'to':6"}
+              ]|]
+              { matchHeaders = [matchContentTypeJson] }
+
       context "text and json columns" $ do
         it "finds matches with to_tsquery" $ do
           get "/tsearch_to_tsvector?select=text_search&text_search=fts.impossible" `shouldRespondWith`

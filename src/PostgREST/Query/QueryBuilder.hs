@@ -182,7 +182,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
       KeyParams []    -> "FROM " <> callIt mempty
       KeyParams prms  -> case arguments of
         DirectArgs args -> "FROM " <> callIt (fmtArgs prms args)
-        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) Nothing Nothing False) <$> prms) False True False <> ", " <>
+        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) mempty Nothing Nothing False) <$> prms) False True False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
