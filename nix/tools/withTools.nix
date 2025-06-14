@@ -5,8 +5,10 @@
 , lib
 , postgresqlVersions
 , postgrest
+, python3Packages
 , slocat
 , writeText
+, writers
 }:
 let
   withTmpDb =
@@ -336,6 +338,7 @@ let
           [
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
+            "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
           ];
         positionalCompletion = "_command";
         workingDir = "/";
@@ -377,9 +380,19 @@ let
         }
         echo "done."
 
+        if [[ -n "$_arg_monitor" ]]; then
+          ${monitorPid} "$pid" > "$_arg_monitor" &
+        fi
+
         ("$_arg_command" "''${_arg_leftovers[@]}")
       '';
 
+  monitorPid =
+    writers.writePython3 "postgrest-monitor-pid"
+      {
+        libraries = [ python3Packages.pandas python3Packages.tabulate python3Packages.psutil ];
+      }
+      (builtins.readFile ./monitor_pid.py);
 in
 buildToolbox
 {

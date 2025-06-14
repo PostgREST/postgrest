@@ -44,6 +44,7 @@ let
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
           "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs,jwt-rsa])"
+          "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
           "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -76,7 +77,7 @@ let
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -93,7 +94,7 @@ let
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -103,7 +104,7 @@ let
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withSlowPg} \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
             ${withTools.withSlowPgrst} \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
@@ -139,6 +140,7 @@ let
         workingDir = "/";
       }
       ''
+        # run loadtest for every target
         for tgt in "''${_arg_target[@]}"; do
 
         cat << EOF
@@ -152,7 +154,7 @@ let
         # Save the results in the current working tree, too,
         # otherwise they'd be lost in the temporary working tree
         # created by withTools.withGit.
-        ${withTools.withGit} "$tgt" ${loadtest} -k "$_arg_kind" --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
+        ${withTools.withGit} "$tgt" ${loadtest} -k "$_arg_kind" -m "$PWD/loadtest/$tgt.csv" --output "$PWD/loadtest/$tgt.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
@@ -162,13 +164,15 @@ let
 
         done
 
+        # run loadtest once on HEAD
+
         cat << EOF
 
         Running loadtest on HEAD...
 
         EOF
 
-        ${loadtest} -k "$_arg_kind" --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
+        ${loadtest} -k "$_arg_kind" -m "$PWD/loadtest/head.csv" --output "$PWD/loadtest/head.bin" --testdir "$PWD/test/load"
 
         cat << EOF
 
@@ -218,10 +222,18 @@ let
         workingDir = "/";
       }
       ''
+        echo -e '## Loadtest results\n'
+
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
           | ${jq}/bin/jq '[paths(scalars) as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
           | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
           | ${toMarkdown}
+
+        echo -e '\n\n## Process monitoring results\n'
+
+        find loadtest -type f -iname '*.csv' \
+          | sort -nr \
+          | ${mergeMonitorResults}
       '';
 
   genTargets = genTargetsScript:
@@ -230,6 +242,13 @@ let
         libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
       }
       (builtins.readFile genTargetsScript);
+
+  mergeMonitorResults =
+    writers.writePython3 "postgrest-merge-monitor-results"
+      {
+        libraries = [ python3Packages.pandas python3Packages.tabulate ];
+      }
+      (builtins.readFile ./merge_monitor_result.py);
 in
 buildToolbox {
   name = "postgrest-loadtest";
