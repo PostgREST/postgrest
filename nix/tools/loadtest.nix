@@ -77,8 +77,8 @@ let
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} \
-            sh -c "cd \"$_arg_testdir\" && ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-rsa-1k)
@@ -94,8 +94,8 @@ let
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withPgrst} \
-            sh -c "cd \"$_arg_testdir\" && ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           *)
@@ -105,11 +105,12 @@ let
             ${withTools.withSlowPg} \
             ${withTools.withPgrst} \
             ${withTools.withSlowPgrst} \
-            sh -c "cd \"$_arg_testdir\" && ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-            ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
-
         esac
+
+        ${vegeta}/bin/vegeta report -type=text "$_arg_output"
       '';
 
   loadtestAgainst =
