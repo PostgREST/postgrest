@@ -64,6 +64,7 @@ let
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
+        monitor_file=monitor.md
 
         case "$_arg_kind" in
           jwt-hs-50k)
@@ -76,7 +77,7 @@ let
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$monitor_file" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -93,7 +94,7 @@ let
 
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$monitor_file" \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
@@ -103,7 +104,7 @@ let
             # shellcheck disable=SC2145
             ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
             ${withTools.withSlowPg} \
-            ${withTools.withPgrst} \
+            ${withTools.withPgrst} -m "$monitor_file" \
             ${withTools.withSlowPgrst} \
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
