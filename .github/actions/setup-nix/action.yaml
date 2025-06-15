@@ -7,6 +7,8 @@ inputs:
     description: Token to pass to cachix
   tools:
     description: Tools to install with nix-env -iA <tools>
+  fetch-depth:
+    description: Fetch all commit history instead of default shallow clone history
 
 runs:
   using: composite
