@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix regression that makes full-text search not work on domain types based on `tsvector` by @laurenceisla in #4135
+- Fix `jwt-aud` config not failing when set to an invalid URI by @taimoorzaeem in #4132
 
 ## [13.0.3] - 2025-06-16
 
