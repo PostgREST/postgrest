@@ -1,4 +1,14 @@
 # generates a file to be used by the vegeta load testing tool
+# it generates TOTAL_TARGETS amount of requests that will be run
+
+# This is a worst case scenario for the JWT cache:
+# - all requests will have a unique JWT so no cache hits
+# - all jwts have an expiration that will be long enough to be
+#   valid at time of request but short enough that already
+#   validated jwts will expire later during the loadtest run
+# - the above guarantees JWT cache purging will happen
+#
+# We want this to track resource consumption in the worst case
 import time
 import hmac
 import hashlib
@@ -10,7 +20,7 @@ import random
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-TOTAL_TARGETS = 50000  # tuned by hand to reduce result variance
+TOTAL_TARGETS = 200000  # tuned by hand to reduce result variance
 
 
 def base64url_encode(data: bytes) -> str:
