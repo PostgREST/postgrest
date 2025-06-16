@@ -113,7 +113,7 @@ jobs:
   loadtest:
     strategy:
       matrix:
-        kind: ['mixed', 'jwt-hs-50k', 'jwt-rsa-1k']
+        kind: ['mixed', 'jwt-hs', 'jwt-rsa']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
@@ -130,9 +130,15 @@ jobs:
         with:
           prefix: v
       - name: Run loadtest
+        # echo -e "\n" is added because github summary needs explicit newlines to render properly, see https://github.com/PostgREST/postgrest/pull/4142#issuecomment-2974898594
         run: |
           postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
-          postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo -e "\n## Loadtest results \n";
+            postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
+            echo -e "\n## Process monitoring results \n"
+            cat monitor.md
+          } >> "$GITHUB_STEP_SUMMARY"
 
   flake:
     strategy:
