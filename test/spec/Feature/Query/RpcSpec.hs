@@ -998,6 +998,22 @@ spec =
           |]
           { matchHeaders = [matchContentTypeJson] }
 
+      it "should work with filters that use the fts operator when the column type is a tsvector domain" $
+        get "/rpc/get_tsearch_to_tsvector?select=text_search_domain&text_search_domain=fts(simple).impossible" `shouldRespondWith`
+          [json|[
+            {"text_search_domain":"'do':7 'fun':5 'impossible':9 'it':1 'kind':3 'of':4 's':2 'the':8 'to':6"},
+            {"text_search_domain":"'amusant':5 'c':1 'de':6 'est':2 'faire':7 'impossible':9 'l':8 'peu':4 'un':3"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+
+      it "should work with filters that use the fts operator when the column type is a recursive tsvector domain" $
+        get "/rpc/get_tsearch_to_tsvector?select=text_search_rec_domain&text_search_rec_domain=fts(simple).impossible" `shouldRespondWith`
+          [json|[
+            {"text_search_rec_domain":"'do':7 'fun':5 'impossible':9 'it':1 'kind':3 'of':4 's':2 'the':8 'to':6"},
+            {"text_search_rec_domain":"'amusant':5 'c':1 'de':6 'est':2 'faire':7 'impossible':9 'l':8 'peu':4 'un':3"}]
+          |]
+          { matchHeaders = [matchContentTypeJson] }
+
       it "should work with the phraseto_tsquery function" $
         get "/rpc/get_tsearch?text_search_vector=phfts(english).impossible" `shouldRespondWith`
           [json|[{"text_search_vector":"'fun':5 'imposs':9 'kind':3"}]|]
