@@ -21,6 +21,7 @@ let
       postgrest.cabalTools
       postgrest.devTools
       postgrest.docs
+      postgrest.gitTools
       postgrest.loadtest
       postgrest.release
       postgrest.style

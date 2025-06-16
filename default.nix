@@ -119,6 +119,10 @@ rec {
   docs =
     pkgs.callPackage nix/tools/docs.nix { };
 
+  # Git tools.
+  gitTools =
+    pkgs.callPackage nix/tools/gitTools.nix { };
+
   # Load testing tools.
   loadtest =
     pkgs.callPackage nix/tools/loadtest.nix { inherit withTools; };
