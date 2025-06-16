@@ -43,7 +43,7 @@ let
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_OPTIONAL_SINGLE([jwtcache], [], [JWT Cache on/off], [on])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs-50k,jwt-rsa-1k])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs,jwt-rsa])"
           "ARG_TYPE_GROUP_SET([JWTCACHE], [JWTCACHE], [jwtcache], [on,off])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -66,7 +66,7 @@ let
         abs_output="$(realpath "$_arg_output")"
 
         case "$_arg_kind" in
-          jwt-hs-50k)
+          jwt-hs)
 
             ${genTargets ./generate_targets.py} "$_arg_testdir"/gen_targets.http
 
@@ -81,7 +81,7 @@ let
             ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
-          jwt-rsa-1k)
+          jwt-rsa)
 
             ${genTargets ./generate_targets_rsa.py} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.http
 
