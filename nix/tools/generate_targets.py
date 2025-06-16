@@ -15,7 +15,7 @@ import random
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-TOTAL_TARGETS = 100000  # tuned by hand to reduce result variance
+TOTAL_TARGETS = 200000  # tuned by hand to reduce result variance
 
 
 def base64url_encode(data: bytes) -> str:
@@ -79,7 +79,7 @@ def main():
 
     for i in range(TOTAL_TARGETS):
         token = generate_jwt(estimate_adequate_jwt_exp_increase(i))
-        lines.append(f"OPTIONS {URL}/authors_only")
+        lines.append(f"GET {URL}/authors_only")
         lines.append(f"Authorization: Bearer {token}")
         lines.append("")  # blank line to separate requests
 
