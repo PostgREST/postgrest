@@ -15,6 +15,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix `max-affected` preference not failing with RPC when `handling=strict` by @taimoorzaeem in #4100
+- Fix `jwt-aud` config not failing when set to an invalid URI by @taimoorzaeem in #4132
 - Fix a property definition's type in OpenAPI not showing the correct base type of a recursive domain by @laurenceisla in #4136
 - Fix regression that makes full-text search not work on domain types based on `tsvector` by @laurenceisla in #4135
 
