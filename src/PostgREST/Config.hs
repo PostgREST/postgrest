@@ -48,7 +48,7 @@ import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Jose.Jwk                (Jwk, JwkSet)
-import Network.URI             (escapeURIString,
+import Network.URI             (escapeURIString, isURI,
                                 isUnescapedInURIComponent)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
@@ -281,7 +281,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> pure optPath
     <*> pure Nothing
-    <*> optString "jwt-aud"
+    <*> optStringOrURI "jwt-aud"
     <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
     <*> (fmap encodeUtf8 <$> optString "jwt-secret")
     <*> (fromMaybe False <$> optWithAlias
@@ -406,6 +406,20 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
 
     optStringEmptyable :: C.Key -> C.Parser C.Config (Maybe Text)
     optStringEmptyable k = overrideFromDbOrEnvironment C.optional k coerceText
+
+    optStringOrURI :: C.Key -> C.Parser C.Config (Maybe Text)
+    optStringOrURI k = do
+      stringOrURI <- mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
+      -- If the string contains ':' then it should
+      -- be a valid URI according to RFC 3986
+      case stringOrURI of
+        Just s  -> if T.isInfixOf ":" s then validateURI s else return (Just s)
+        Nothing -> return Nothing
+      where
+        validateURI :: Text -> C.Parser C.Config (Maybe Text)
+        validateURI s = if isURI (T.unpack s)
+                          then return $ Just s
+                          else fail "jwt-aud should be a string or a valid URI"
 
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt
