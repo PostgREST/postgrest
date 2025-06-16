@@ -113,7 +113,7 @@ jobs:
   loadtest:
     strategy:
       matrix:
-        kind: ['mixed', 'jwt-hs-50k', 'jwt-rsa-1k']
+        kind: ['mixed', 'jwt-hs', 'jwt-rsa']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:

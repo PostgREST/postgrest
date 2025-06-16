@@ -1,4 +1,9 @@
 # generates a file to be used by the vegeta load testing tool
+# It runs TOTAL_TARGETS amount of requests with unique jwts
+# during the run:
+# - all jwts have an expiration that will be valid at time of request
+# - but short enough that already validated jwts will expire later
+# - this is so JWT cache purging is ensured to happen
 import time
 import hmac
 import hashlib
@@ -10,7 +15,7 @@ import random
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-TOTAL_TARGETS = 50000  # tuned by hand to reduce result variance
+TOTAL_TARGETS = 100000  # tuned by hand to reduce result variance
 
 
 def base64url_encode(data: bytes) -> str:
