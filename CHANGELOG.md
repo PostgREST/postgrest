@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.3] - 2025-06-16
+
 ### Fixed
 
 - Fix `max-affected` preference not failing with RPC when `handling=strict` by @taimoorzaeem in #4100
