@@ -46,7 +46,9 @@ jobs:
       - name: Run commitlint (check locally with `nix-shell --run postgrest-commitlint`)
         run: |
           # Fetch target branch explicitly
-          git fetch origin ${{ github.base_ref }}
+          # For PRs event  -> github.base_ref
+          # For push event -> github.ref_name
+          git fetch origin ${{ github.base_ref || github.ref_name }}
 
           # Run commitlint
-          postgrest-commitlint --from origin/${{ github.base_ref }} --to HEAD
+          postgrest-commitlint --from origin/${{ github.base_ref || github.ref_name }} --to HEAD
