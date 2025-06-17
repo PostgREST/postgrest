@@ -219,17 +219,22 @@ let
       {
         name = "postgrest-loadtest-report";
         docs = "Create a report of all loadtest reports as markdown.";
+        args = [
+          "ARG_OPTIONAL_SINGLE([group], [g], [Marker to group results])"
+        ];
         workingDir = "/";
       }
       ''
-        echo -e '## Loadtest results\n'
+        marker=''${_arg_group:+$_arg_group}
+
+        echo -e "## Loadtest results ($marker)\n"
 
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
           | ${jq}/bin/jq '[paths(scalars) as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
           | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
           | ${toMarkdown}
 
-        echo -e '\n\n## Process monitoring results\n'
+        echo -e "\n\n## Process monitoring results ($marker)\n"
 
         echo 'Tracks the memory and CPU usage in 1 second intervals for the duration of the loadtest.'
         echo -e 'If a branch finishes its loadtest in less seconds than another branch, it will have blank cells for the missing seconds.\n'

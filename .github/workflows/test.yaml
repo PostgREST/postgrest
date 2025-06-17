@@ -132,7 +132,7 @@ jobs:
       - name: Run loadtest
         run: |
           postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
-          postgrest-loadtest-report >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-report -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
 
   flake:
     strategy:
