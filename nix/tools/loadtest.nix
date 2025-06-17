@@ -231,6 +231,9 @@ let
 
         echo -e '\n\n## Process monitoring results\n'
 
+        echo 'Tracks the memory and CPU usage in 1 second intervals for the duration of the loadtest.'
+        echo -e 'If a branch finishes its loadtest in less seconds than another branch, it will have blank cells for the missing seconds.\n'
+
         find loadtest -type f -iname '*.csv' \
           | sort -nr \
           | ${mergeMonitorResults}
