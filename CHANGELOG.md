@@ -11,6 +11,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   + It now shows the invalid schema in the `message` field.
   + The exposed schemas are now listed in the `hint` instead of the `message` field.
 - Improve error details of `PGRST301` error by @taimoorzaeem in #4051
+- JWT cache based on sieve algorithm
 
 ### Fixed
 
