@@ -32,6 +32,7 @@ jobs:
         run: postgrest-style-check
 
   commit:
+    if: github.event_name != 'push'  # we don't run this on a push, a failure on push disrupts the release workflow
     name: Commit
     runs-on: ubuntu-24.04
     steps:
@@ -46,9 +47,7 @@ jobs:
       - name: Run commitlint (check locally with `nix-shell --run postgrest-commitlint`)
         run: |
           # Fetch target branch explicitly
-          # For PRs event  -> github.base_ref
-          # For push event -> github.ref_name
-          git fetch origin ${{ github.base_ref || github.ref_name }}
+          git fetch origin ${{ github.base_ref }}
 
           # Run commitlint
-          postgrest-commitlint --from origin/${{ github.base_ref || github.ref_name }} --to HEAD
+          postgrest-commitlint --from origin/${{ github.base_ref }} --to HEAD
