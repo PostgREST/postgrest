@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.4] - 2025-06-17
+
 ### Fixed
 
 - Fix regression that makes full-text search not work on domain types based on `tsvector` by @laurenceisla in #4135
