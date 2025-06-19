@@ -240,7 +240,7 @@ let
         echo -e 'If a branch finishes its loadtest in less seconds than another branch, it will have blank cells for the missing seconds.\n'
 
         find loadtest -type f -iname '*.csv' \
-          | sort -nr \
+          | sort -m \
           | ${mergeMonitorResults}
       '';
 

@@ -5,6 +5,7 @@ import psutil
 import pandas as pd
 
 KEY = "Elapsed seconds"
+BASE_METRICS = ["CPU (%)", "MEM (%)", "Real (MB)"]
 SAMPLE_INTERVAL_SECS = 1
 
 if len(sys.argv) != 2 or not sys.argv[1].isdigit():
@@ -53,6 +54,6 @@ end = time.time()
 total_time = end - start
 print(f"Finished {pid} pid monitoring in {total_time:.3f}", file=sys.stderr)
 
-cols = [KEY, "CPU (%)", "MEM (%)", "Real (MB)"]
+cols = [KEY] + BASE_METRICS
 df = pd.DataFrame(records, columns=cols, dtype=str)
 df.to_csv(sys.stdout, index=False)
