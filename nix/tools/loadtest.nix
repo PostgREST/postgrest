@@ -145,7 +145,7 @@ let
 
         cat << EOF
 
-        Running loadtest on "$tgt"...
+        Running "$_arg_kind" loadtest on "$tgt"...
 
         EOF
 
@@ -168,7 +168,7 @@ let
 
         cat << EOF
 
-        Running loadtest on HEAD...
+        Running "$_arg_kind" loadtest on HEAD...
 
         EOF
 
@@ -225,16 +225,16 @@ let
         workingDir = "/";
       }
       ''
-        marker=''${_arg_group:+$_arg_group}
+        marker=''${_arg_group:+"($_arg_group)"}
 
-        echo -e "## Loadtest results ($marker)\n"
+        echo -e "## Loadtest results $marker\n"
 
         find loadtest -type f -iname '*.bin' -exec ${reporter} {} \; \
           | ${jq}/bin/jq '[paths(scalars) as $path | {param: $path | join("."), (.branch): getpath($path)}]' \
           | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
           | ${toMarkdown}
 
-        echo -e "\n\n## Process monitoring results ($marker)\n"
+        echo -e "\n\n## Process monitoring results $marker\n"
 
         echo 'Tracks the memory and CPU usage in 1 second intervals for the duration of the loadtest.'
         echo -e 'If a branch finishes its loadtest in less seconds than another branch, it will have blank cells for the missing seconds.\n'

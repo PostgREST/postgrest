@@ -364,7 +364,10 @@ let
         fi
         echo "done."
 
-        echo -n "Starting postgrest... "
+        ver=$($PGRST_CMD ${legacyConfig} --version)
+
+        echo -n "Starting $ver... "
+
         $PGRST_CMD ${legacyConfig} > "$tmpdir"/run.log 2>&1 &
         pid=$!
         # shellcheck disable=SC2317
