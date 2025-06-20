@@ -69,7 +69,7 @@ let
         case "$_arg_kind" in
           jwt-hs)
 
-            ${genTargets ./generate_targets.py} "$_arg_testdir"/gen_targets.http
+            ${genTargetsHS} "$_arg_testdir"/gen_targets.http
 
             if [ "$_arg_jwtcache" = "off" ]; then
               export PGRST_JWT_CACHE_MAX_LIFETIME="0"
@@ -84,9 +84,9 @@ let
 
           jwt-rsa)
 
-            ${genTargets ./generate_targets_rsa.py} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.http
+            ${genTargetsRSA} "$_arg_testdir"/gen_targets.http "$_arg_testdir"/gen_jwk.json
 
-            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.http"
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
             if [ "$_arg_jwtcache" = "off" ]; then
               export PGRST_JWT_CACHE_MAX_LIFETIME="0"
@@ -245,12 +245,19 @@ let
           | ${mergeMonitorResults}
       '';
 
-  genTargets = genTargetsScript:
-    writers.writePython3 "postgrest-gen-loadtest-targets"
+  genTargetsHS =
+    writers.writePython3 "postgrest-gen-loadtest-targets-hs"
       {
         libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
       }
-      (builtins.readFile genTargetsScript);
+      (builtins.readFile ./generate_targets.py);
+
+  genTargetsRSA =
+    writers.writePython3 "postgrest-gen-loadtest-targets-rsa"
+      {
+        libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
+      }
+      (builtins.readFile ./generate_targets_rsa.py);
 
   mergeMonitorResults =
     writers.writePython3 "postgrest-merge-monitor-results"
