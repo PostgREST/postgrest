@@ -61,7 +61,6 @@ let
         export PGRST_DB_TX_END="rollback-allow-override"
         export PGRST_LOG_LEVEL="crit"
         export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
-        export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"
@@ -72,7 +71,7 @@ let
             ${genTargetsHS} "$_arg_testdir"/gen_targets.http
 
             if [ "$_arg_jwtcache" = "off" ]; then
-              export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+              export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             fi
 
             # shellcheck disable=SC2145
@@ -89,7 +88,7 @@ let
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
 
             if [ "$_arg_jwtcache" = "off" ]; then
-              export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+              export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             fi
 
             # shellcheck disable=SC2145

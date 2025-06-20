@@ -15,15 +15,15 @@ import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
 import SpecHelper
 
-import qualified PostgREST.AppState      as AppState
-import qualified PostgREST.Auth.JwtCache as JwtCache
-import qualified PostgREST.Logger        as Logger
-import qualified PostgREST.Metrics       as Metrics
+import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Logger   as Logger
+import qualified PostgREST.Metrics  as Metrics
 
 import qualified Feature.Auth.AsymmetricJwtSpec
 import qualified Feature.Auth.AudienceJwtSecretSpec
 import qualified Feature.Auth.AuthSpec
 import qualified Feature.Auth.BinaryJwtSecretSpec
+import qualified Feature.Auth.JwtCacheSpec
 import qualified Feature.Auth.NoAnonSpec
 import qualified Feature.Auth.NoJwtSecretSpec
 import qualified Feature.ConcurrentSpec
@@ -85,24 +85,23 @@ main = do
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
   sockets <- AppState.initSockets testCfg
-  jwtCacheState <- JwtCache.init
   loggerState <- Logger.init
   metricsState <- Metrics.init (configDbPoolSize testCfg)
 
   let
-    initApp sCache config = do
-      appState <- AppState.initWithPool sockets pool config jwtCacheState loggerState metricsState (const $ pure ())
+    initApp sCache st config = do
+      appState <- AppState.initWithPool sockets pool config loggerState metricsState (Metrics.observationMetrics metricsState)
       AppState.putPgVersion appState actualPgVersion
       AppState.putSchemaCache appState (Just sCache)
-      return ((), postgrest (configLogLevel config) appState (pure ()))
+      return (st, postgrest (configLogLevel config) appState (pure ()))
 
     -- For tests that run with the same schema cache
-    app = initApp baseSchemaCache
+    app = initApp baseSchemaCache ()
 
     -- For tests that run with a different SchemaCache (depends on configSchemas)
     appDbs config = do
       customSchemaCache <- loadSCache pool config
-      initApp customSchemaCache config
+      initApp customSchemaCache () config
 
   let withApp              = app testCfg
       maxRowsApp           = app testMaxRowsCfg
@@ -275,6 +274,9 @@ main = do
     -- This needs to run last, because once pg safe update is loaded, it can't be unloaded again.
     before pgSafeUpdateApp $
       describe "Feature.Query.PgSafeUpdateSpec.spec" Feature.Query.PgSafeUpdateSpec.spec
+
+    before (initApp baseSchemaCache metricsState testCfgJwtCache) $
+      describe "Feature.Auth.JwtCacheSpec" Feature.Auth.JwtCacheSpec.spec
 
   where
     loadSCache pool conf =

@@ -98,9 +98,11 @@ The ``Bearer`` header value can be used with or without capitalization(``bearer`
 JWT Caching
 -----------
 
-PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid this performance overhead.
+PostgREST validates ``JWTs`` on every request. Asymmetric signature validation (such as RSA) is slow and we can cache ``JWT`` validation results to avoid this performance overhead.
 
-To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results. The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
+JWT caching is automatically enabled if ref:`jwt-secret` is set to an asymmetric key. Otherwise it is disabled and can be enabled by setting the config :code:`jwt-cache-max-entries` to a value greater than 0. Setting it to 0 disables caching regardless of ref:`jwt-secret`.
+
+See :ref:`jwt-cache-max-entries` for more details.
 
 .. note::
 
