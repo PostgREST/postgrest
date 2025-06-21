@@ -92,6 +92,7 @@ rec {
   postgrestPackage = pkgs.lib.pipe postgrest [
     lib.dontCheck
     lib.enableSeparateBinOutput
+    (haskellPackages.generateOptparseApplicativeCompletions [ "postgrest" ])
   ];
 
   # Profiled dynamic executable.
