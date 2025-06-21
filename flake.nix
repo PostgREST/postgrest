@@ -33,8 +33,8 @@
     in
     {
       packages = genSystems (attrs: {
-        default = attrs.postgrestPackage;
-        profiled = attrs.postgrestProfiled;
+        default = attrs.postgrestPackage.bin;
+        profiled = attrs.postgrestProfiled.bin;
       } // nixpkgs.lib.optionalAttrs (attrs ? postgrestStatic) {
         static = attrs.postgrestStatic;
       });
@@ -42,7 +42,7 @@
       apps = genSystems (attrs: {
         default = {
           type = "app";
-          program = "${attrs.postgrestStatic or attrs.postgrestPackage}/bin/postgrest";
+          program = "${attrs.postgrestStatic or attrs.postgrestPackage.bin}/bin/postgrest";
           meta.description = "REST API for any Postgres database";
         };
       });

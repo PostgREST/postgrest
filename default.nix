@@ -62,8 +62,10 @@ let
       { name = "postgresql-12"; postgresql = pkgs.postgresql_12.withPackages (p: [ p.postgis p.pg_safeupdate ]); }
     ];
 
+  haskellPackages = pkgs.haskell.packages."${compiler}";
+
   # Dynamic derivation for PostgREST
-  postgrest = pkgs.lib.pipe (pkgs.haskell.packages."${compiler}".callCabal2nix name src { }) [
+  postgrest = pkgs.lib.pipe (haskellPackages.callCabal2nix name src { }) [
     # To allow ghc-datasize to be used.
     lib.disableLibraryProfiling
     # We are never going to use dynamic haskell libraries anyway. "Dynamic" refers to how
@@ -84,9 +86,13 @@ rec {
 
   # Derivation for the PostgREST Haskell package, including the executable,
   # libraries and documentation. We disable running the test suite on Nix
-  # builds, as they require a database to be set up.
-  postgrestPackage =
-    lib.dontCheck postgrest;
+  # builds, as they require a database to be set up. We split the binary
+  # into a separate output, so that the default distribution via flake.nix
+  # has a much smaller closure size.
+  postgrestPackage = pkgs.lib.pipe postgrest [
+    lib.dontCheck
+    lib.enableSeparateBinOutput
+  ];
 
   # Profiled dynamic executable.
   postgrestProfiled = pkgs.lib.pipe postgrestPackage [
