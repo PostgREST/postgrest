@@ -351,12 +351,13 @@ let
         rm -f result
         if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
           echo -n "Building postgrest (nix)... "
-          nix-build -A postgrestPackage > "$tmpdir"/build.log 2>&1 || {
+          # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
+          nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
             echo "failed, output:"
             cat "$tmpdir"/build.log
             exit 1
           }
-          PGRST_CMD=./result/bin/postgrest
+          PGRST_CMD=$(echo ./result*/bin/postgrest)
         else
           echo -n "Building postgrest (cabal)... "
           postgrest-build
