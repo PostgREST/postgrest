@@ -26,6 +26,7 @@ import Network.Wai.Handler.Warp (defaultSettings, setHost, setPort,
 import qualified Data.Text.Encoding       as T
 import qualified Network.Wai              as Wai
 import qualified Network.Wai.Handler.Warp as Warp
+import qualified Network.Wai.Header       as Wai
 
 import qualified PostgREST.Admin      as Admin
 import qualified PostgREST.ApiRequest as ApiRequest
@@ -34,7 +35,6 @@ import qualified PostgREST.Auth       as Auth
 import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
 import qualified PostgREST.Listener   as Listener
-import qualified PostgREST.Logger     as Logger
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
@@ -43,8 +43,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..),
-                                       LogQuery (..))
+import PostgREST.Config               (AppConfig (..), LogQuery (..))
 import PostgREST.Config.PgVersion     (PgVersion (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveHost)
@@ -75,7 +74,7 @@ run appState = do
 
   Admin.runAdmin appState (serverSettings conf)
 
-  let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
+  let app = postgrest appState (AppState.schemaCacheLoader appState)
 
   case configServerUnixSocket of
     Just path -> do
@@ -95,12 +94,11 @@ serverSettings AppConfig{..} =
     & setServerName ("postgrest/" <> prettyVersion)
 
 -- | PostgREST application
-postgrest :: LogLevel -> AppState.AppState -> IO () -> Wai.Application
-postgrest logLevel appState connWorker =
+postgrest :: AppState.AppState -> IO () -> Wai.Application
+postgrest appState connWorker =
   traceHeaderMiddleware appState .
   Cors.middleware appState .
-  Auth.middleware appState .
-  Logger.middleware logLevel Auth.getRole $
+  Auth.middleware appState $
     -- fromJust can be used, because the auth middleware will **always** add
     -- some AuthResult to the vault.
     \req respond -> case fromJust $ Auth.getResult req of
@@ -111,11 +109,18 @@ postgrest logLevel appState connWorker =
         pgVer <- AppState.getPgVersion appState
 
         let
+          observer = AppState.getObserver appState
           eitherResponse :: IO (Either Error Wai.Response)
           eitherResponse =
             runExceptT $ postgrestResponse appState appConf maybeSchemaCache pgVer authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
+        observer $ ResponseObs Auth.getRole req
+          (Wai.responseStatus response)
+          -- TODO Wai.contentLength does a lookup everytime, see https://hackage.haskell.org/package/wai-extra-3.1.17/docs/src/Network.Wai.Header.html#contentLength
+          -- It might be possible to gain some perf by returning the response length from `postgrestResponse`. We calculate the length manually on Response.hs.
+          (Wai.contentLength $ Wai.responseHeaders response)
+
         -- Launch the connWorker when the connection is down.  The postgrest
         -- function can respond successfully (with a stale schema cache) before
         -- the connWorker is done.
