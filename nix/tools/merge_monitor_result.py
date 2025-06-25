@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 
 KEY = "Elapsed seconds"
-BASE_METRICS = ["CPU (%)", "MEM (%)", "Real (MB)"]
+BASE_METRICS = ["CPU (%)", "Real (MB)"]
 branch_order = []
 merged = None
 

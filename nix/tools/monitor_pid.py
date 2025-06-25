@@ -5,7 +5,7 @@ import psutil
 import pandas as pd
 
 KEY = "Elapsed seconds"
-BASE_METRICS = ["CPU (%)", "MEM (%)", "Real (MB)"]
+BASE_METRICS = ["CPU (%)", "Real (MB)"]
 SAMPLE_INTERVAL_SECS = 1
 
 if len(sys.argv) != 2 or not sys.argv[1].isdigit():
@@ -33,7 +33,6 @@ while True:
 
         elapsed_secs = int(time.time() - start)
         cpu = proc.cpu_percent(None)
-        mem_pct = proc.memory_percent()
         meminfo = proc.memory_info()
         bytes_in_MB = 1024**2
         rss_mb = meminfo.rss / bytes_in_MB
@@ -42,7 +41,6 @@ while True:
             [
                 str(elapsed_secs),
                 f"{cpu:.3f}",
-                f"{mem_pct:.3f}",
                 f"{rss_mb:.3f}",
             ]
         )
