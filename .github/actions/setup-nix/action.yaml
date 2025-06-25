@@ -11,7 +11,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: nixbuild/nix-quick-install-action@5bb6a3b3abe66fd09bbf250dce8ada94f856a703 # v30
+    - uses: nixbuild/nix-quick-install-action@63ca48f939ee3b8d835f4126562537df0fee5b91 # v32
       with:
         nix_conf: |-
           always-allow-substitutes = true
