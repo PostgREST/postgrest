@@ -12,6 +12,7 @@ Description : Manages PostgREST configuration type and parser.
 
 module PostgREST.Config
   ( AppConfig (..)
+  , DbTxEnd (..)
   , Environment
   , JSPath
   , JSPathExp(..)
@@ -88,8 +89,7 @@ data AppConfig = AppConfig
   , configDbSchemas                :: NonEmpty Text
   , configDbConfig                 :: Bool
   , configDbPreConfig              :: Maybe QualifiedIdentifier
-  , configDbTxAllowOverride        :: Bool
-  , configDbTxRollbackAll          :: Bool
+  , configDbTxEnd                  :: DbTxEnd
   , configDbUri                    :: Text
   , configFilePath                 :: Maybe FilePath
   , configJWKS                     :: Maybe JwkSet
@@ -116,6 +116,13 @@ data AppConfig = AppConfig
   , configRoleIsoLvl               :: RoleIsolationLvl
   , configInternalSCSleep          :: Maybe Int32
   }
+
+data DbTxEnd
+  = TxCommit
+  | TxCommitAllowOverride
+  | TxRollback
+  | TxRollbackAllowOverride
+  deriving (Eq)
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
   deriving (Eq, Ord)
@@ -171,7 +178,7 @@ toText conf =
       ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
       ,("db-config",                     T.toLower . show . configDbConfig)
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
-      ,("db-tx-end",                 q . showTxEnd)
+      ,("db-tx-end",                 q . showTxEnd . configDbTxEnd)
       ,("db-uri",                    q . configDbUri)
       ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
@@ -200,16 +207,19 @@ toText conf =
     -- quote strings and replace " with \"
     q s = "\"" <> T.replace "\"" "\\\"" s <> "\""
 
-    showTxEnd c = case (configDbTxRollbackAll c, configDbTxAllowOverride c) of
-      ( False, False ) -> "commit"
-      ( False, True  ) -> "commit-allow-override"
-      ( True , False ) -> "rollback"
-      ( True , True  ) -> "rollback-allow-override"
+    showTxEnd :: DbTxEnd -> Text
+    showTxEnd = \case
+      TxCommit                -> "commit"
+      TxCommitAllowOverride   -> "commit-allow-override"
+      TxRollback              -> "rollback"
+      TxRollbackAllowOverride -> "rollback-allow-override"
+
     showJwtSecret c
       | configJwtSecretIsBase64 c = B64.encode secret
       | otherwise                 = secret
       where
         secret = fromMaybe mempty $ configJwtSecret c
+
     showSocketMode c = showOct (configServerUnixSocketMode c) mempty
 
 -- This class is needed for the polymorphism of overrideFromDbOrEnvironment
@@ -276,8 +286,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
                                                                     (optString "db-schema"))
     <*> (fromMaybe True <$> optBool "db-config")
     <*> (fmap toQi <$> optString "db-pre-config")
-    <*> parseTxEnd "db-tx-end" snd
-    <*> parseTxEnd "db-tx-end" fst
+    <*> parseTxEnd "db-tx-end"
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> pure optPath
     <*> pure Nothing
@@ -373,15 +382,14 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Just "main-query" -> pure  LogQueryMain
         Just _            -> fail "Invalid SQL logging value. Check your configuration."
 
-    parseTxEnd :: C.Key -> ((Bool, Bool) -> Bool) -> C.Parser C.Config Bool
-    parseTxEnd k f =
+    parseTxEnd :: C.Key -> C.Parser C.Config DbTxEnd
+    parseTxEnd k =
       optString k >>= \case
-        --                                          RollbackAll AllowOverride
-        Nothing                        -> pure $ f (False,      False)
-        Just "commit"                  -> pure $ f (False,      False)
-        Just "commit-allow-override"   -> pure $ f (False,      True)
-        Just "rollback"                -> pure $ f (True,       False)
-        Just "rollback-allow-override" -> pure $ f (True,       True)
+        Nothing                        -> pure TxCommit -- default
+        Just "commit"                  -> pure TxCommit
+        Just "commit-allow-override"   -> pure TxCommitAllowOverride
+        Just "rollback"                -> pure TxRollback
+        Just "rollback-allow-override" -> pure TxRollbackAllowOverride
         Just _                         -> fail "Invalid transaction termination. Check your configuration."
 
     parseRoleClaimKey :: C.Key -> C.Key -> C.Parser C.Config JSPath

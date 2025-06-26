@@ -31,6 +31,7 @@ import Text.Heredoc
 
 import Data.String                       (String)
 import PostgREST.Config                  (AppConfig (..),
+                                          DbTxEnd (..),
                                           JSPathExp (..),
                                           LogLevel (..),
                                           LogQuery (..),
@@ -152,8 +153,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configServerTraceHeader         = Nothing
   , configServerUnixSocket          = Nothing
   , configServerUnixSocketMode      = 432
-  , configDbTxAllowOverride         = True
-  , configDbTxRollbackAll           = True
+  , configDbTxEnd                   = TxRollbackAllowOverride
   , configAdminServerHost           = "localhost"
   , configAdminServerPort           = Nothing
   , configRoleSettings              = mempty
@@ -166,10 +166,10 @@ testCfg :: AppConfig
 testCfg = baseCfg
 
 testCfgDisallowRollback :: AppConfig
-testCfgDisallowRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = False }
+testCfgDisallowRollback = baseCfg { configDbTxEnd = TxCommit }
 
 testCfgForceRollback :: AppConfig
-testCfgForceRollback = baseCfg { configDbTxAllowOverride = False, configDbTxRollbackAll = True }
+testCfgForceRollback = baseCfg { configDbTxEnd = TxRollback }
 
 testCfgNoAnon :: AppConfig
 testCfgNoAnon = baseCfg { configDbAnonRole = Nothing }
