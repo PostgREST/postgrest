@@ -125,13 +125,16 @@ jobs:
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
           tools: loadtest.loadtestAgainst.bin loadtest.report.bin
-      - uses: WyriHaximus/github-action-get-previous-tag@04e8485ecb6487243907e330d522ff60f02283ce # v1.4.0
-        id: get-latest-tag
-        with:
-          prefix: v
       - name: Run loadtest
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
         run: |
-          postgrest-loadtest-against -k ${{ matrix.kind }} main ${{ steps.get-latest-tag.outputs.tag }}
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            latest_tag=$(git tag --sort=-creatordate --list "v*" | head -n1)
+          else
+            latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
+          fi
+          postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
           postgrest-loadtest-report -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
 
   flake:
