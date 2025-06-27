@@ -52,6 +52,7 @@ library
                       PostgREST.Auth.Jwt
                       PostgREST.Auth.JwtCache
                       PostgREST.Auth.Types
+                      PostgREST.Cache.Sieve
                       PostgREST.CLI
                       PostgREST.Config
                       PostgREST.Config.Database
@@ -154,6 +155,10 @@ library
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
                     , warp                      >= 3.3.19 && < 3.4
+                    , stm                       >= 2.5 && < 3
+                    , stm-hamt                  >= 1.2 && < 2
+                    , focus                     >= 1.0 && < 2
+                    , some                      >= 1.0.4.1 && < 2
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
@@ -208,6 +213,7 @@ test-suite spec
                       Feature.Auth.AudienceJwtSecretSpec
                       Feature.Auth.AuthSpec
                       Feature.Auth.BinaryJwtSecretSpec
+                      Feature.Auth.JwtCacheSpec
                       Feature.Auth.NoAnonSpec
                       Feature.Auth.NoJwtSecretSpec
                       Feature.ConcurrentSpec
@@ -265,6 +271,7 @@ test-suite spec
                     , hasql-transaction >= 1.0.1 && < 1.1
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.12
+                    , hspec-expectations >= 0.8.4 && < 0.9
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
@@ -274,6 +281,7 @@ test-suite spec
                     , monad-control     >= 1.0.1 && < 1.1
                     , postgrest
                     , process           >= 1.4.2 && < 1.7
+                    , prometheus-client >= 1.1.1 && < 1.2.0
                     , protolude         >= 0.3.1 && < 0.4
                     , regex-tdfa        >= 1.2.2 && < 1.4
                     , scientific        >= 0.3.4 && < 0.4
