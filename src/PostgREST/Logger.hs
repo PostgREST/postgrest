@@ -100,6 +100,12 @@ observationLogger loggerState logLevel obs = case obs of
   o@PoolRequestFullfilled ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
+  o@JwtCacheEviction ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessage o
+  o@(JwtCacheLookup _) ->
+    when (logLevel >= LogDebug) $ do
+      logWithZTime loggerState $ observationMessage o
   o ->
     logWithZTime loggerState $ observationMessage o
 
