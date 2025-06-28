@@ -26,7 +26,7 @@ prettyVersion =
 docsVersion :: Text
 docsVersion
   | isPreRelease = "latest"
-  | otherwise    =  "v" <> (T.intercalate "." . map show . take 1 $ version)
+  | otherwise    =  "v" <> T.intercalate "." (take 1 version)
 
 
 -- | Versions with two components (e.g., '1.1') are treated as pre-releases.
