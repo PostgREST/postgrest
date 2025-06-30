@@ -74,7 +74,7 @@ let
         echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
-          | xargs ${hlint}/bin/hlint -X QuasiQuotes -X NoPatternSynonyms
+          | xargs ${hlint}/bin/hlint -j -X QuasiQuotes -X NoPatternSynonyms
       '';
 
 in
