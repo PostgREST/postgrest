@@ -294,6 +294,23 @@ Let's get its :ref:`explain_plan` when calling it with filters applied:
 
 Notice there's no "Function Scan" node in the plan, which tells us it has been inlined.
 
+Horizontal Filtering
+~~~~~~~~~~~~~~~~~~~~
+
+Table-valued functions support horizontal filtering on selected and unselected columns.
+
+For example, the following RPC with filter on unselected column returns:
+
+.. code-block:: bash
+
+  curl "http://localhost:3000/rpc/getallprojects?select=id,client_id&name=like.OSX"
+
+.. code-block:: json
+
+  [
+    { "id": 4, "client_id": 2 }
+  ]
+
 .. _scalar_functions:
 
 Scalar functions
