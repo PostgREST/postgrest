@@ -45,6 +45,7 @@ import Web.Cookie                (parseCookies)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.Config                  (AppConfig (..),
+                                          DbTxEnd (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.Database         (TimezoneNames)
 import PostgREST.Error                   (ApiRequestError (..),
@@ -164,7 +165,13 @@ userApiRequest conf prefs req reqBody = do
 
 -- | Parses the Prefer header
 userPreferences :: AppConfig -> Request -> TimezoneNames -> Preferences.Preferences
-userPreferences conf req timezones = Preferences.fromHeaders (configDbTxAllowOverride conf) timezones $ requestHeaders req
+userPreferences conf req timezones = Preferences.fromHeaders isTxOverrideAllowed timezones $ requestHeaders req
+  where
+    isTxOverrideAllowed = case configDbTxEnd conf of
+      TxCommitAllowOverride   -> True
+      TxRollbackAllowOverride -> True
+      TxCommit                -> False
+      TxRollback              -> False
 
 getResource :: AppConfig -> [Text] -> Either ApiRequestError Resource
 getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
