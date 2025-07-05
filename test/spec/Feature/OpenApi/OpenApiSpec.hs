@@ -1058,6 +1058,33 @@ spec = describe "OpenAPI" $ do
           }
         |]
 
+    it "only includes POST method for volatile functions" $ do
+      r <- simpleBody <$> get "/"
+      let volatileGet = r ^? key "paths" . key "/rpc/reset_table" . key "get"
+          volatilePost = r ^? key "paths" . key "/rpc/reset_table" . key "post"
+
+      liftIO $ do
+        volatileGet `shouldBe` Nothing
+        volatilePost `shouldNotBe` Nothing
+
+    it "includes GET and POST methods for stable functions" $ do
+      r <- simpleBody <$> get "/"
+      let stableGet = r ^? key "paths" . key "/rpc/getallusers" . key "get"
+          stablePost = r ^? key "paths" . key "/rpc/getallusers" . key "post"
+
+      liftIO $ do
+        stableGet `shouldNotBe` Nothing
+        stablePost `shouldNotBe` Nothing
+
+    it "includes GET and POST methods for immutable functions" $ do
+      r <- simpleBody <$> get "/"
+      let immutableGet = r ^? key "paths" . key "/rpc/jwt_test" . key "get"
+          immutablePost = r ^? key "paths" . key "/rpc/jwt_test" . key "post"
+
+      liftIO $ do
+        immutableGet `shouldNotBe` Nothing
+        immutablePost `shouldNotBe` Nothing
+
   describe "Security" $
     it "does not include security or security definitions by default" $ do
       r <- simpleBody <$> get "/"
