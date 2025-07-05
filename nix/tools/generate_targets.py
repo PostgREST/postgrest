@@ -10,28 +10,18 @@
 #
 # We want this to track resource consumption in the worst case
 import time
-import hmac
-import hashlib
-import base64
-import json
 import argparse
 import sys
 import random
+import jwt
 
 SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
 TOTAL_TARGETS = 200000  # tuned by hand to reduce result variance
 
 
-def base64url_encode(data: bytes) -> str:
-    """URL-safe Base64 encode without padding."""
-    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
-
-
 def generate_jwt(exp_inc: int) -> str:
     """Generate an HS256 JWT"""
-    # Header & payload
-    header = {"alg": "HS256", "typ": "JWT"}
     now = int(time.time())
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
@@ -40,18 +30,7 @@ def generate_jwt(exp_inc: int) -> str:
         "role": "postgrest_test_author",
     }
 
-    # Encode to JSON and then to Base64URL
-    header_b = json.dumps(header, separators=(",", ":")).encode()
-    payload_b = json.dumps(payload, separators=(",", ":")).encode()
-    header_b64 = base64url_encode(header_b)
-    payload_b64 = base64url_encode(payload_b)
-
-    # Sign (HMAC‑SHA256) the "<header>.<payload>" string
-    signing_input = f"{header_b64}.{payload_b64}".encode()
-    signature = hmac.new(SECRET, signing_input, hashlib.sha256).digest()
-    signature_b64 = base64url_encode(signature)
-
-    return f"{header_b64}.{payload_b64}.{signature_b64}"
+    return jwt.encode(payload, SECRET, "HS256")
 
 
 # We want to ensure 401 Unauthorized responses don't happen during
