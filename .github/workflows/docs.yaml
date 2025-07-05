@@ -1,10 +1,10 @@
 name: Docs
 
 on:
-  workflow_call:
-    secrets:
-      CACHIX_AUTH_TOKEN:
-        required: false
+  push:
+    branches:
+      - main
+      - v[0-9]+
   pull_request:
     branches:
       - main
