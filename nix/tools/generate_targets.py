@@ -1,51 +1,53 @@
 # generates a file to be used by the vegeta load testing tool
-# it generates TOTAL_TARGETS amount of requests that will be run
 
-# This is a worst case scenario for the JWT cache:
+# It includes a worst case scenario for the JWT cache:
 # - all requests will have a unique JWT so no cache hits
 # - all jwts have an expiration that will be long enough to be
 #   valid at time of request but short enough that already
 #   validated jwts will expire later during the loadtest run
 # - the above guarantees JWT cache purging will happen
-#
-# We want this to track resource consumption in the worst case
+# - we want this to track resource consumption in the worst case
+
+# And a more normal scenario where non-expiring JWTs are picked
+# from an array
 import time
 import argparse
 import sys
 import random
 import jwt
+import jwcrypto.jwk as jwk
+from typing import Optional
+from pathlib import Path
 
-SECRET = b"reallyreallyreallyreallyverysafe"
 URL = "http://postgrest"
-TOTAL_TARGETS = 200000  # tuned by hand to reduce result variance
+
+secret_key = b"reallyreallyreallyreallyverysafe"
+
+key = jwk.JWK.generate(kty="RSA", size=4096)
+private_key = jwt.algorithms.RSAAlgorithm.from_jwk(key.export_private())
+public_key = key.export_public()
 
 
-def generate_jwt(exp_inc: int) -> str:
-    """Generate an HS256 JWT"""
-    now = int(time.time())
+def generate_jwt(now: int, exp_inc: Optional[int], is_hs: bool) -> str:
+    """Generate an HS256 or RS256 JWT"""
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
-        "exp": now + exp_inc,
         "role": "postgrest_test_author",
     }
 
-    return jwt.encode(payload, SECRET, "HS256")
+    if exp_inc is not None:
+        payload["exp"] = now + exp_inc
+
+    k = secret_key if is_hs else private_key
+    alg = "HS256" if is_hs else "RS256"
+    return jwt.encode(payload, k, alg)
 
 
-# We want to ensure 401 Unauthorized responses don't happen during
-# JWT validation, this can happen when the jwt `exp` is too short.
-# At the same time, we want to ensure the `exp` is not too big,
-# so expires will occur and postgREST will have to clean cached expired JWTs.
-def estimate_adequate_jwt_exp_increase(iteration: int) -> int:
-    # estimated time takes to build and run postgrest itself
-    build_run_postgrest_time = 2
-    # estimated time it takes to generate the targets file
-    file_generation_time = TOTAL_TARGETS // (10**-5)
-    # estimated exp time so some JWTs will expire
-    dynamic_exp_inc = iteration // 1000
-
-    return build_run_postgrest_time + file_generation_time + dynamic_exp_inc
+def append_targets(lines: list[str], token: str):
+    lines.append(f"OPTIONS {URL}/authors_only")
+    lines.append(f"Authorization: Bearer {token}")
+    lines.append("")  # blank line to separate requests
 
 
 def main():
@@ -56,16 +58,77 @@ def main():
         "output",
         help="Path to write the generated targets file",
     )
+    parser.add_argument(
+        "--worst",
+        dest="worst",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Generate worst case targets for a JWT cache",
+    )
+    parser.add_argument(
+        "--rsa",
+        dest="jwk_path",
+        metavar="JWK_PATH",
+        type=Path,
+        default=None,
+        help="Path for generating a RSA JWK file to sign tokens with",
+    )
+
     args = parser.parse_args()
 
-    lines = []
+    is_hs = args.jwk_path is None
+
+    nsamples = 1000
+    if is_hs:
+        ntargets = 200000
+    else:
+        # The asymmetric targets take too long to compute so we reduce them
+        ntargets = 50000
+
+    if not is_hs:
+        try:
+            with open(args.jwk_path, "w") as jwk:
+                jwk.write(public_key)
+                print(f"Created {args.jwk_path} file containing the RSA JWK")
+        except IOError as e:
+            print(f"Error writing to {args.jwk_path}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    print(f"Generating {ntargets} targets...")
+
     start_time = time.time()
 
-    for i in range(TOTAL_TARGETS):
-        token = generate_jwt(estimate_adequate_jwt_exp_increase(i))
-        lines.append(f"OPTIONS {URL}/authors_only")
-        lines.append(f"Authorization: Bearer {token}")
-        lines.append("")  # blank line to separate requests
+    now = int(start_time)
+
+    lines = []
+
+    # We want to ensure 401 Unauthorized responses don't happen during
+    # JWT validation, this can happen when the jwt `exp` is too short.
+    # At the same time, we want to ensure the `exp` is not too big,
+    # so expires will occur and postgREST needs to
+    # clean cached expired JWTs
+    if args.worst:
+        # estimated time takes to build and run postgrest itself
+        build_run_postgrest_time = 2
+        # estimated time it takes to generate the targets file
+        # the division numbers are tuned by hand
+        if is_hs:  # hs generation is much faster
+            gen_time = ntargets // 66666
+        else:  # asymmetric is slower so the time is higher
+            gen_time = ntargets // 220
+
+        # estimated exp time so some JWTs will expire
+        inc = build_run_postgrest_time + gen_time
+
+        for i in range(ntargets):
+            token = generate_jwt(now, inc + i // 1000, is_hs)
+            append_targets(lines, token)
+
+    else:
+        tokens = [generate_jwt(now, None, is_hs) for _ in range(nsamples)]
+        for i in range(ntargets):
+            token = random.choice(tokens)
+            append_targets(lines, token)
 
     try:
         with open(args.output, "w") as f:
@@ -75,7 +138,7 @@ def main():
         sys.exit(1)
 
     elapsed = time.time() - start_time
-    print(f"Created {TOTAL_TARGETS} targets with unique JWTs", end=" ")
+    print(f"Created {ntargets} targets", end=" ")
     print(f"in {args.output} ({elapsed:.2f}s)")
 
 
