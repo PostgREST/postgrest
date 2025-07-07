@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix OpenAPI broken docs link by @taimoorzaeem in #4048
+- Fix OpenAPI specification incorrectly exposing GET methods for volatile functions by @joelonsql in #4174
 
 ## [13.0.4] - 2025-06-17
 
