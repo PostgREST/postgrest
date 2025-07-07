@@ -46,7 +46,7 @@ App
 Auth
 ----
 
-`Auth.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Auth.hs>`_ is in charge  of :ref:`authn`.
+`Auth.hs <https://github.com/PostgREST/postgrest/blob/main/src/PostgREST/Auth.hs>`_ is in charge  of :ref:`jwt_authn`.
 
 Api Request
 -----------

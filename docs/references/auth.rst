@@ -1,7 +1,7 @@
-.. _authn:
+.. _jwt_authn:
 
-Authentication
-==============
+JWT Authentication
+==================
 
 PostgREST is designed to keep the database at the center of API security. All :ref:`authorization happens in the database <db_authz>` . It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
 
