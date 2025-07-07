@@ -30,7 +30,8 @@ import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (Routine (..),
+import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
+                                           Routine (..),
                                            RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Column (..), Table (..),
                                            TablesMap,
@@ -355,9 +356,9 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
       & parameters .~ makeProcGetParams (pdParams pd)
     postOp = procOp
       & parameters .~ makeProcPostParams pd
-    pe = (mempty :: PathItem)
-      & get ?~ getOp
-      & post ?~ postOp
+    pe = case pdVolatility pd of
+      Volatile -> (mempty :: PathItem) & post ?~ postOp
+      _        -> (mempty :: PathItem) & get ?~ getOp & post ?~ postOp
 
 makeRootPathItem :: (FilePath, PathItem)
 makeRootPathItem = ("/", p)
