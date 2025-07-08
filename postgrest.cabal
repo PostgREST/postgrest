@@ -93,7 +93,7 @@ library
                     , HTTP                      >= 4000.3.7 && < 4000.5
                     , Ranged-sets               >= 0.3 && < 0.5
                     , aeson                     >= 2.0.3 && < 2.3
-                    , auto-update               >= 0.1.4 && < 0.2
+                    , auto-update               >= 0.1.4 && < 0.3
                     , base64-bytestring         >= 1 && < 1.3
                     , bytestring                >= 0.10.8 && < 0.13
                     , cache                     >= 0.1.3 && < 0.2.0
@@ -102,7 +102,7 @@ library
                     , clock                     >= 0.8.3 && < 0.9.0
                     , configurator-pg           >= 0.2 && < 0.3
                     , containers                >= 0.5.7 && < 0.7
-                    , cookie                    >= 0.4.2 && < 0.5
+                    , cookie                    >= 0.4.2 && < 0.6
                     , directory                 >= 1.2.6 && < 1.4
                     , either                    >= 4.4.1 && < 5.1
                     , extra                     >= 1.7.0 && < 2.0
@@ -111,17 +111,17 @@ library
                     , hasql-dynamic-statements  >= 0.3.1 && < 0.4
                     , hasql-notifications       >= 0.2.2.2 && < 0.2.3
                     , hasql-pool                >= 1.0.1 && < 1.1
-                    , hasql-transaction         >= 1.0.1 && < 1.1
+                    , hasql-transaction         >= 1.0.1 && < 1.2
                     , heredoc                   >= 0.2 && < 0.3
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , iproute                   >= 1.7.0 && < 1.8
                     , jose-jwt                  >= 0.9.6 && < 0.11
-                    , lens                      >= 4.14 && < 5.3
+                    , lens                      >= 4.14 && < 5.4
                     , lens-aeson                >= 1.0.1 && < 1.3
                     , mtl                       >= 2.2.2 && < 2.4
                     , neat-interpolation        >= 0.5 && < 0.6
-                    , network                   >= 2.6 && < 3.2
+                    , network                   >= 2.6 && < 3.3
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.19
                     , parsec                    >= 3.1.11 && < 3.2
@@ -149,7 +149,7 @@ library
                     -- for unix sockets; this is tested in test/io/test_io.py. See
                     -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
                     , wai-logger                >= 2.4.0
-                    , warp                      >= 3.3.19 && < 3.4
+                    , warp                      >= 3.3.19 && < 3.5
                       -- -fno-spec-constr may help keep compile time memory use in check,
                       --   see https://gitlab.haskell.org/ghc/ghc/issues/16017#note_219304
                       -- -optP-Wno-nonportable-include-path
@@ -258,14 +258,14 @@ test-suite spec
                     , case-insensitive  >= 1.2 && < 1.3
                     , containers        >= 0.5.7 && < 0.7
                     , hasql-pool        >= 1.0.1 && < 1.1
-                    , hasql-transaction >= 1.0.1 && < 1.1
+                    , hasql-transaction >= 1.0.1 && < 1.2
                     , heredoc           >= 0.2 && < 0.3
                     , hspec             >= 2.3 && < 2.12
                     , hspec-wai         >= 0.10 && < 0.12
                     , hspec-wai-json    >= 0.10 && < 0.12
                     , http-types        >= 0.12.3 && < 0.13
                     , jose-jwt          >= 0.9.6 && < 0.11
-                    , lens              >= 4.14 && < 5.3
+                    , lens              >= 4.14 && < 5.4
                     , lens-aeson        >= 1.0.1 && < 1.3
                     , monad-control     >= 1.0.1 && < 1.1
                     , postgrest
