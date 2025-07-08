@@ -12,7 +12,7 @@ Health Check
 
 You can enable a health check to verify if PostgREST is available for client requests. Also to check the status of its internal state.
 
-Two endpoints ``live`` and ``ready`` will then be available.
+Two endpoints ``live`` and ``ready`` will then be available. Both these endpoints reply with a status code and empty response body.
 
 .. important::
 
