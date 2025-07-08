@@ -1,5 +1,5 @@
 freebsd_instance:
-  image_family: freebsd-14-2
+  image_family: freebsd-14-3
 
 build_task:
   # Don't change this name without adjusting .github/workflows/build.yaml
@@ -35,7 +35,7 @@ build_task:
       - find main src -type f -iname '*.hs' -exec md5sum "{}" +
 
   build_script: |
-    stack build -j 1 --local-bin-path . --copy-bins --stack-yaml stack-21.7.yaml
+    stack build -j 1 --local-bin-path . --copy-bins
     strip postgrest
 
   bin_artifacts:

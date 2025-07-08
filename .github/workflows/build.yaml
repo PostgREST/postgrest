@@ -130,7 +130,7 @@ jobs:
       - uses: haskell-actions/setup@96f3dafd067155f32643c2a0757ab71d2910e2c2 # v2.8.0
         with:
           # This must match the version in stack.yaml's resolver
-          ghc-version: 9.6.6
+          ghc-version: 9.6.7
           enable-stack: true
           stack-no-global: true
           stack-setup-ghc: true
@@ -180,7 +180,7 @@ jobs:
   cabal:
     strategy:
       matrix:
-        ghc: ['9.6.6', '9.8.2']
+        ghc: ['9.6.7', '9.8.2']
       fail-fast: false
     name: Cabal - Linux x86-64 - GHC ${{ matrix.ghc }}
     runs-on: ubuntu-24.04
