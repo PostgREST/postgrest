@@ -180,7 +180,7 @@ jobs:
   cabal:
     strategy:
       matrix:
-        ghc: ['9.6.7', '9.8.2']
+        ghc: ['9.6.7', '9.8.4']
       fail-fast: false
     name: Cabal - Linux x86-64 - GHC ${{ matrix.ghc }}
     runs-on: ubuntu-24.04
