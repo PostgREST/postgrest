@@ -72,25 +72,25 @@ The PostgREST utilities available in `nix-shell` all have names that begin with
 ```bash
 # Note: The utilities listed here might not be up to date.
 [nix-shell]$ postgrest-<tab>
-postgrest-build                   postgrest-profiled-run
-postgrest-check                   postgrest-push-cachix
-postgrest-clean                   postgrest-release
-postgrest-commitlint              postgrest-repl
-postgrest-coverage                postgrest-run
-postgrest-coverage-draft-overlay  postgrest-style
-postgrest-docs-build              postgrest-style-check
-postgrest-docs-check              postgrest-test-big-schema
-postgrest-docs-dictcheck          postgrest-test-doctests
-postgrest-docs-linkcheck          postgrest-test-io
-postgrest-docs-render             postgrest-test-memory
-postgrest-docs-serve              postgrest-test-replica
-postgrest-docs-spellcheck         postgrest-test-spec
-postgrest-dump-minimal-imports    postgrest-test-spec-idempotence
-postgrest-dump-schema             postgrest-watch
-postgrest-gen-ctags               postgrest-with-all
-postgrest-gen-jwt                 postgrest-with-git
-postgrest-gen-secret              postgrest-with-pgrst
-postgrest-git-hooks
+postgrest-build                   postgrest-parallel-curl
+postgrest-check                   postgrest-profiled-run
+postgrest-clean                   postgrest-push-cachix
+postgrest-commitlint              postgrest-release
+postgrest-coverage                postgrest-repl
+postgrest-coverage-draft-overlay  postgrest-run
+postgrest-docs-build              postgrest-style
+postgrest-docs-check              postgrest-style-check
+postgrest-docs-dictcheck          postgrest-test-big-schema
+postgrest-docs-linkcheck          postgrest-test-doctests
+postgrest-docs-render             postgrest-test-io
+postgrest-docs-serve              postgrest-test-memory
+postgrest-docs-spellcheck         postgrest-test-replica
+postgrest-dump-minimal-imports    postgrest-test-spec
+postgrest-dump-schema             postgrest-test-spec-idempotence
+postgrest-gen-ctags               postgrest-watch
+postgrest-gen-jwt                 postgrest-with-all
+postgrest-gen-secret              postgrest-with-git
+postgrest-git-hooks               postgrest-with-pgrst
 postgrest-hsie-graph-modules      postgrest-with-postgresql-13
 postgrest-hsie-graph-symbols      postgrest-with-postgresql-14
 postgrest-hsie-minimal-imports    postgrest-with-postgresql-15
@@ -98,7 +98,7 @@ postgrest-lint                    postgrest-with-postgresql-16
 postgrest-loadtest                postgrest-with-postgresql-17
 postgrest-loadtest-against        postgrest-with-slow-pg
 postgrest-loadtest-report         postgrest-with-slow-postgrest
-postgrest-parallel-curl
+postgrest-nixpkgs-upgrade
 ...
 
 [nix-shell]$
@@ -380,7 +380,7 @@ that).
 We also use `default.nix` to load our pinned version of the `nixpkgs`
 repository. This set of packages will always be the same, independently from
 where or when you use it. The pinned version is taken from `flake.lock` and
-can be updated with `nix flake update`.
+can be updated with `postgrest-nixpkgs-upgrade`.
 
 ### `shell.nix`
 

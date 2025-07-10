@@ -133,6 +133,10 @@ rec {
   loadtest =
     pkgs.callPackage nix/tools/loadtest.nix { inherit withTools; };
 
+  # Utility for updating the pinned version of Nixpkgs.
+  nixpkgsTools =
+    pkgs.callPackage nix/tools/nixpkgsTools.nix { };
+
   # Scripts for publishing new releases.
   release =
     pkgs.callPackage nix/tools/release.nix { };
