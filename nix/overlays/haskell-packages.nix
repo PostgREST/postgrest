@@ -49,26 +49,6 @@ let
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
       fuzzyset = prev.fuzzyset_0_2_4;
 
-      # TODO: Remove once available in nixpkgs haskellPackages
-      configurator-pg =
-        prev.callHackageDirect
-          {
-            pkg = "configurator-pg";
-            ver = "0.2.11";
-            sha256 = "sha256-mtGtNawDJgz2ZIEVca+IYXVu4oNw9xsfJiYWAqAbbgc=";
-          }
-          { };
-
-      # TODO: Remove once available in nixpkgs haskellPackages
-      streaming-commons =
-        prev.callHackageDirect
-          {
-            pkg = "streaming-commons";
-            ver = "0.2.3.1";
-            sha256 = "sha256-Gl2eaJcWe1sxmcE/octWlH9uSnERguf+5H66K4fV87s=";
-          }
-          { };
-
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
@@ -77,6 +57,8 @@ let
       hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
       hasql-transaction = lib.dontCheck prev.hasql-transaction_1_1_0_1;
       postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
+      text-builder = prev.text-builder_0_6_10;
+      text-builder-dev = prev.text-builder-dev_0_3_10;
     };
 in
 {

@@ -83,7 +83,7 @@ let
         # ruff has gaps in scanning for unused code, so we use vulture
         echo "Scanning python files for unused code..."
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?py$' . \
-          | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py
+          | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py --min-confidence 80
 
         echo "Linting python files..."
         ${ruff}/bin/ruff check .

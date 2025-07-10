@@ -362,7 +362,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
           | otherwise -> pure $ fromList schemas
           where
             schemas = splitOnCommas s
-            errMsg x = ("db-schemas does not allow schema: '" <> x <> "'")
+            errMsg x = "db-schemas does not allow schema: '" <> x <> "'"
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =

@@ -7,7 +7,6 @@
 , glibcLocales ? null
 , gnugrep
 , hpc-codecov
-, hostPlatform
 , jq
 , lib
 , postgrest
@@ -159,7 +158,7 @@ let
       }
       (
         # required for `hpc markup` in CI; glibcLocales is not available e.g. on Darwin
-        lib.optionalString (stdenv.isLinux && hostPlatform.libc == "glibc") ''
+        lib.optionalString (stdenv.isLinux && stdenv.hostPlatform.libc == "glibc") ''
           export LOCALE_ARCHIVE="${glibcLocales}/lib/locale/locale-archive"
         '' +
 
