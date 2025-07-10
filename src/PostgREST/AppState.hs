@@ -214,21 +214,30 @@ initPool AppConfig{..} observer = do
 -- | Run an action with a database connection.
 usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} sess = do
-  observer PoolRequest
+    observer PoolRequest
 
-  res <- SQL.use statePool sess
+    res <- SQL.use statePool sess
 
-  observer PoolRequestFullfilled
+    observer PoolRequestFullfilled
 
-  whenLeft res (\case
-    SQL.AcquisitionTimeoutUsageError ->
-      observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
-    err@(SQL.ConnectionUsageError e) ->
-      let failureMessage = BS.unpack $ fromMaybe mempty e in
-      when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
-        observer $ ExitDBFatalError ServerAuthError err
-        killThread mainThreadId
-    err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) -> do
+    whenLeft res (\case
+      SQL.AcquisitionTimeoutUsageError ->
+        observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
+      err@(SQL.ConnectionUsageError e) ->
+        let failureMessage = BS.unpack $ fromMaybe mempty e in
+        when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
+          observer $ ExitDBFatalError ServerAuthError err
+          killThread mainThreadId
+      err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) -> handleResultError err tpl resultErr
+      -- Passing the empty template will not work for schema cache queries, see TODO further below.
+      err@(SQL.SessionUsageError (SQL.PipelineError (SQL.ResultError resultErr)))    -> handleResultError err mempty resultErr
+      err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))           -> observer $ QueryErrorCodeHighObs err
+      SQL.SessionUsageError (SQL.PipelineError (SQL.ClientError _))  -> pure ()
+      )
+
+    return res
+  where
+    handleResultError err tpl resultErr = do
       case resultErr of
         SQL.UnexpectedResult{} -> do
           observer $ ExitDBFatalError ServerPgrstBug err
@@ -261,12 +270,6 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
         SQL.ServerError{} ->
           when (Error.status (Error.PgError False err) >= HTTP.status500) $
             observer $ QueryErrorCodeHighObs err
-    err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
-      -- An error on the client-side, usually indicates problems wth connection
-        observer $ QueryErrorCodeHighObs err
-    )
-
-  return res
 
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
