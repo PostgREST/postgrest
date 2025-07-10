@@ -87,7 +87,7 @@ def metapostgrest():
 
 
 class YamlSnapshotExtension(SingleFileSnapshotExtension):
-    _file_extension = "yaml"
+    file_extension = "yaml"
 
 
 @pytest.fixture
