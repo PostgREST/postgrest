@@ -1,6 +1,6 @@
 { system ? builtins.currentSystem
 
-, compiler ? "ghc948"
+, compiler ? "ghc967"
 
 , # Commit of the Nixpkgs repository that we want to use.
   # It defaults to reading the inputs from flake.lock, which serves
