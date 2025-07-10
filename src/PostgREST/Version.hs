@@ -8,6 +8,12 @@ import qualified Data.Text as T
 
 import Protolude
 
+-- Somehow this is not defined in doctests, so when running them
+-- on a file that includes Version.hs, compilation fails.
+#ifndef VERSION_postgrest
+#define VERSION_postgrest "0"
+#endif
+
 version :: [Text]
 version = T.splitOn "." VERSION_postgrest
 

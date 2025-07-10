@@ -9,6 +9,7 @@ Description : Manages PostgREST configuration type and parser.
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RecordWildCards       #-}
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
+{-# LANGUAGE NamedFieldPuns        #-}
 
 module PostgREST.Config
   ( AppConfig (..)
@@ -27,22 +28,25 @@ module PostgREST.Config
   , parseSecret
   , addFallbackAppName
   , addTargetSessionAttrs
+  , toConnectionSettings
   , exampleConfigFile
   , audMatchesCfg
   , Verbosity (..)
   ) where
 
-import qualified Data.Aeson             as JSON
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Base64 as B64
-import qualified Data.CaseInsensitive   as CI
-import qualified Data.Configurator      as C
-import qualified Data.Map.Strict        as M
-import qualified Data.String            as S
-import qualified Data.Text              as T
-import qualified Data.Text.Encoding     as T
-import qualified Jose.Jwa               as JWT
-import qualified Jose.Jwk               as JWT
+import qualified Data.Aeson                          as JSON
+import qualified Data.ByteString                     as BS
+import qualified Data.ByteString.Base64              as B64
+import qualified Data.CaseInsensitive                as CI
+import qualified Data.Configurator                   as C
+import qualified Data.Map.Strict                     as M
+import qualified Data.String                         as S
+import qualified Data.Text                           as T
+import qualified Data.Text.Encoding                  as T
+import qualified Hasql.Connection.Setting            as SQL
+import qualified Hasql.Connection.Setting.Connection as SQL
+import qualified Jose.Jwa                            as JWT
+import qualified Jose.Jwk                            as JWT
 
 import Control.Monad           (fail)
 import Data.Either.Combinators (mapLeft)
@@ -67,7 +71,8 @@ import PostgREST.Config.Proxy            (Proxy (..),
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           toQi)
 
-import Protolude hiding (Proxy, toList)
+import PostgREST.Version (prettyVersion)
+import Protolude         hiding (Proxy, toList)
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg =  maybe (const True) (==) . configJwtAudience
@@ -645,6 +650,12 @@ addFallbackAppName version dbUri = addConnStringOption dbUri "fallback_applicati
 -- "host=localhost port=5432 dbname=postgres target_session_attrs='read-write'"
 addTargetSessionAttrs :: Text -> Text
 addTargetSessionAttrs dbUri = addConnStringOption dbUri "target_session_attrs" "read-write"
+
+toConnectionSettings :: (Text -> Text) -> AppConfig -> [SQL.Setting]
+toConnectionSettings transformUri AppConfig{configDbUri, configDbPreparedStatements} =
+  [ SQL.connection $ SQL.string $ transformUri . addFallbackAppName prettyVersion $ configDbUri
+  , SQL.usePreparedStatements configDbPreparedStatements
+  ]
 
 addConnStringOption :: Text -> Text -> Text -> Text
 addConnStringOption dbUri key val = dbUri <>

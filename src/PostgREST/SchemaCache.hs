@@ -158,23 +158,23 @@ maxDbTablesForFuzzySearch = 500
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- sqlTimedStmt gucTbls  conf   $ allTables prepared
-  keyDeps <- sqlTimedStmt gucKDeps conf   $ allViewsKeyDependencies prepared
-  m2oRels <- sqlTimedStmt gucRels  mempty $ allM2OandO2ORels prepared
-  funcs   <- sqlTimedStmt gucFuncs conf   $ allFunctions prepared
-  cRels   <- sqlTimedStmt gucCRels mempty $ allComputedRels prepared
-  reps    <- sqlTimedStmt gucDReps conf   $ dataRepresentations prepared
-  mHdlers <- sqlTimedStmt gucMHdrs conf   $ mediaHandlers prepared
+  tabs    <- sqlTimedStmt gucTbls  conf   allTables
+  keyDeps <- sqlTimedStmt gucKDeps conf   allViewsKeyDependencies
+  m2oRels <- sqlTimedStmt gucRels  mempty allM2OandO2ORels
+  funcs   <- sqlTimedStmt gucFuncs conf   allFunctions
+  cRels   <- sqlTimedStmt gucCRels mempty allComputedRels
+  reps    <- sqlTimedStmt gucDReps conf   dataRepresentations
+  mHdlers <- sqlTimedStmt gucMHdrs conf   mediaHandlers
   tzones  <- if configDbTimezoneEnabled
-    then sqlTimedStmt gucTzones mempty $ timezones prepared
+    then sqlTimedStmt gucTzones mempty timezones
     else pure S.empty
   _       <-
-    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
+    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult True in
     for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
 
   qsTime <-
     if isLogDebug
-      then Just <$> SQL.statement mempty (extractTimings configDbTimezoneEnabled prepared)
+      then Just <$> SQL.statement mempty (extractTimings configDbTimezoneEnabled)
       else pure Nothing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
@@ -198,7 +198,6 @@ querySchemaCache conf@AppConfig{..} = do
     }
   where
     schemas = toList configDbSchemas
-    prepared = configDbPreparedStatements
     delayEval confDelay result = maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
     isLogDebug = configLogLevel == LogDebug
     sqlTimedStmt = sqlTimedStatement isLogDebug
@@ -364,8 +363,8 @@ decodeRepresentations =
 -- 2. implicit
 -- For the time being it must also be to/from JSON or text, although one can imagine a future where we support special
 -- cases like CSV specific representations.
-dataRepresentations :: Bool -> SQL.Statement AppConfig RepresentationsMap
-dataRepresentations = SQL.Statement sql mempty decodeRepresentations
+dataRepresentations :: SQL.Statement AppConfig RepresentationsMap
+dataRepresentations = SQL.Statement sql mempty decodeRepresentations True
   where
     sql = encodeUtf8 [trimming|
     SELECT
@@ -386,8 +385,8 @@ dataRepresentations = SQL.Statement sql mempty decodeRepresentations
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
-allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
+allFunctions :: SQL.Statement AppConfig RoutineMap
+allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs True
   where
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
@@ -599,8 +598,8 @@ addViewPrimaryKeys tabs keyDeps =
     takeFirstPK = mapMaybe (head . snd)
     indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
-allTables :: Bool -> SQL.Statement AppConfig TablesMap
-allTables = SQL.Statement tablesSqlQuery params decodeTables
+allTables :: SQL.Statement AppConfig TablesMap
+allTables = SQL.Statement tablesSqlQuery params decodeTables True
   where
     params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
 
@@ -747,9 +746,9 @@ tablesSqlQuery =
   ORDER BY table_schema, table_name|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
-allM2OandO2ORels :: Bool -> SQL.Statement () [Relationship]
+allM2OandO2ORels :: SQL.Statement () [Relationship]
 allM2OandO2ORels =
-  SQL.Statement sql HE.noParams decodeRels
+  SQL.Statement sql HE.noParams decodeRels True
  where
   -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
   sql = encodeUtf8 [trimming|
@@ -791,9 +790,9 @@ allM2OandO2ORels =
     AND traint.conparentid = 0
     ORDER BY traint.conrelid, traint.conname|]
 
-allComputedRels :: Bool -> SQL.Statement () [Relationship]
+allComputedRels :: SQL.Statement () [Relationship]
 allComputedRels =
-  SQL.Statement sql HE.noParams (HD.rowList cRelRow)
+  SQL.Statement sql HE.noParams (HD.rowList cRelRow) True
  where
   sql = encodeUtf8 [trimming|
     with
@@ -837,9 +836,9 @@ allComputedRels =
     column HD.bool
 
 -- | Returns all the views' primary keys and foreign keys dependencies
-allViewsKeyDependencies :: Bool -> SQL.Statement AppConfig [ViewKeyDependency]
+allViewsKeyDependencies :: SQL.Statement AppConfig [ViewKeyDependency]
 allViewsKeyDependencies =
-  SQL.Statement sql params decodeViewKeyDeps
+  SQL.Statement sql params decodeViewKeyDeps True
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
@@ -1047,9 +1046,9 @@ initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
-mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap
+mediaHandlers :: SQL.Statement AppConfig MediaHandlerMap
 mediaHandlers =
-  SQL.Statement sql params decodeMediaHandlers
+  SQL.Statement sql params decodeMediaHandlers True
   where
     params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
     sql = encodeUtf8 [trimming|
@@ -1123,8 +1122,8 @@ decodeMediaHandlers =
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
 
-timezones :: Bool -> SQL.Statement () TimezoneNames
-timezones = SQL.Statement sql HE.noParams decodeTimezones
+timezones :: SQL.Statement () TimezoneNames
+timezones = SQL.Statement sql HE.noParams decodeTimezones True
   where
     sql = encodeUtf8 $ unlines
       -- This CTE wrapper is only added for clarifying the query under pg_stat_statements
@@ -1183,8 +1182,8 @@ sqlTimedStatement isLogDebug guc params stmt =
     eFrag = "select set_config('pgrst." <> guc <> "', (clock_timestamp() - current_setting('pgrst." <> guc <> "', false)::timestamptz)::text, true)"
 
 -- Extract all the generated timings (see sqlTimedStatement) converting the value to milliseconds.
-extractTimings :: Bool -> Bool -> SQL.Statement () QueryTimings
-extractTimings hasTimezones = SQL.Statement sql HE.noParams decodeThem
+extractTimings :: Bool -> SQL.Statement () QueryTimings
+extractTimings hasTimezones = SQL.Statement sql HE.noParams decodeThem True
   where
     qFrag setting = "extract('milliseconds' from current_setting('pgrst." <> setting <> "', false)::interval)::text"
     sql = "SELECT " <> BS.intercalate ","
