@@ -10,13 +10,7 @@ nix:
 extra-deps:
   - configurator-pg-0.2.11
   - fuzzyset-0.2.4
-  - hasql-1.6.4.4
-  - hasql-dynamic-statements-0.3.1.5
-  - hasql-implicits-0.1.1.3
-  - hasql-notifications-0.2.2.2
   - hasql-pool-1.0.1
-  - hasql-transaction-1.1.0.1
-  - postgresql-binary-0.13.1.3
   - streaming-commons-0.2.3.1
   # fix build with GCC 15-ish; https://github.com/gregorycollins/hashtables/issues/98 for details
   - hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
