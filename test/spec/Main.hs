@@ -9,7 +9,8 @@ import Data.Function (id)
 import Test.Hspec
 
 import PostgREST.App             (postgrest)
-import PostgREST.Config          (AppConfig (..))
+import PostgREST.Config          (AppConfig (..),
+                                  toConnectionSettings)
 import PostgREST.Config.Database (queryPgVersion)
 import PostgREST.SchemaCache     (querySchemaCache)
 import Protolude                 hiding (toList, toS)
@@ -78,10 +79,10 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    , P.staticConnectionSettings $ toConnectionSettings identity testCfg
     ]
 
-  actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
+  actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
