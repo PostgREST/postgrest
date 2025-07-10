@@ -11,7 +11,6 @@ import qualified Hasql.Notifications   as SQL
 import           PostgREST.AppState    (AppState, getConfig)
 import           PostgREST.Config      (AppConfig (..))
 import           PostgREST.Observation (Observation (..))
-import           PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.AppState as AppState
 import qualified PostgREST.Config   as Config
@@ -37,7 +36,7 @@ runListener appState = do
 -- | This function never returns (but can throw) and return type enforces that.
 retryingListen :: AppState -> IO Void
 retryingListen appState = do
-  AppConfig{..} <- AppState.getConfig appState
+  cfg@AppConfig{..} <- AppState.getConfig appState
   let
     dbChannel = toS configDbChannel
     onError err = do
@@ -62,7 +61,8 @@ retryingListen appState = do
     -- Make sure we don't leak connections on errors
     bracket
       -- acquire connection
-      (SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri))
+      (SQL.acquire $
+        Config.toConnectionSettings Config.addTargetSessionAttrs cfg)
       -- release connection
       (`whenRight` releaseConnection) $
       -- use connection
@@ -70,7 +70,7 @@ retryingListen appState = do
         Right db -> do
           SQL.listen db $ SQL.toPgIdentifier dbChannel
           (pqHost, pqPort) <- SQL.withLibPQConnection db $ bisequence . (LibPQ.host &&& LibPQ.port)
-          pgFullName <- SQL.run (queryPgVersion False) db >>= either throwIO (pure . pgvFullName)
+          pgFullName <- SQL.run queryPgVersion db >>= either throwIO (pure . pgvFullName)
 
           AppState.putIsListenerOn appState True
 

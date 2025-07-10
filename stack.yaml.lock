@@ -19,47 +19,12 @@ packages:
   original:
     hackage: fuzzyset-0.2.4
 - completed:
-    hackage: hasql-1.6.4.4@sha256:a26b346aaf33b903f011f8c47a1a1230ea2b0aa1d8325aaf779da425d6c076c5,4391
+    hackage: hasql-notifications-0.2.4.0@sha256:8e7a0076519a02dbcaa2b914fab37d3c0d6a44b9620fc0e16bc49f6e6eef2810,1998
     pantry-tree:
-      sha256: 120edb520584aa107998b49a7809fa70a1ad4648a9cae26d3b031cfe15bce18e
-      size: 2607
-  original:
-    hackage: hasql-1.6.4.4
-- completed:
-    hackage: hasql-dynamic-statements-0.3.1.5@sha256:2455a5fdd8cc6458a6fa66cbca8a01d25011e16c405e36b0c6d75fc39b15477f,2961
-    pantry-tree:
-      sha256: f4fe881d367499a03290028180fdcb76be050807d1e13effeec6c78ab23b481a
-      size: 595
-  original:
-    hackage: hasql-dynamic-statements-0.3.1.5
-- completed:
-    hackage: hasql-implicits-0.1.1.3@sha256:7a46264113765b0080de33560b22e13d4dfe811ce20e9e805fe600f30a0d418a,1334
-    pantry-tree:
-      sha256: 51278386de1d497546c1b1baabefaf16a63c30cb00dd8f1e8a9dc74291db9aac
-      size: 264
-  original:
-    hackage: hasql-implicits-0.1.1.3
-- completed:
-    hackage: hasql-notifications-0.2.2.2@sha256:d1d6bc0d3ee5e418fc12ea023b78739e0decba6c34e2b43bec55b89e18bd4412,2025
-    pantry-tree:
-      sha256: 83a9cbb179b1efd0b2acd6509583c7afcdbe63469ab033d8581d48d675a80b44
+      sha256: 65a1d22d3fcf908824f312e98549b6f3cae91e1aaea67db16f5c51a9b5e7ec31
       size: 452
   original:
-    hackage: hasql-notifications-0.2.2.2
-- completed:
-    hackage: hasql-pool-1.0.1@sha256:3cfb4c7153a6c536ac7e126c17723e6d26ee03794954deed2d72bcc826d05a40,2302
-    pantry-tree:
-      sha256: d98e1269bdd60989b0eb0b84e1d5357eaa9f92821439d9f206663b7251ee95b2
-      size: 799
-  original:
-    hackage: hasql-pool-1.0.1
-- completed:
-    hackage: hasql-transaction-1.1.0.1@sha256:ca451ad29d2195d9e59e9118ab1b210887fea15383fa175895bba711e92b1d00,3302
-    pantry-tree:
-      sha256: b0435127264b8f40c11e0474d7c208f40278acd470fa2368ba2c6cda3a4f7ced
-      size: 1027
-  original:
-    hackage: hasql-transaction-1.1.0.1
+    hackage: hasql-notifications-0.2.4.0
 - completed:
     hackage: http-semantics-0.4.0@sha256:da8a98d542b2032cc12590847179577b0208a52bb3b9aa9a07c08d27d2a1714c,1513
     pantry-tree:
@@ -75,26 +40,12 @@ packages:
   original:
     hackage: http2-5.4.0
 - completed:
-    hackage: postgresql-binary-0.13.1.3@sha256:4de5ddc90d9d3e586c3edf2860280a0915a484e9b8de3f36316a4cab2b330852,4037
+    hackage: warp-3.4.13@sha256:ccd1fb8765166ca31928635fffdab85569b7a0f2a81cc11c9a5b91eab663eda6,10066
     pantry-tree:
-      sha256: a5e9a06511b2a6a5be2388a4874d3c62babcfe1165b876e425bcc819b0474cde
-      size: 1661
+      sha256: dfe50280b7d9549f7eebedc35f62d633ecb185ba0d9686146bb39074c3055df5
+      size: 4175
   original:
-    hackage: postgresql-binary-0.13.1.3
-- completed:
-    hackage: text-builder-0.6.10@sha256:24e403038fb6b885c8a0f310e782d40ca80eb1b5359b90fbe74db98b84e1094b,2348
-    pantry-tree:
-      sha256: 18cea18e1e6bfba7fe6ff36926bafa6963ef2ba3f20dcfe3f25e9afef5ca8bf8
-      size: 515
-  original:
-    hackage: text-builder-0.6.10
-- completed:
-    hackage: text-builder-dev-0.3.10@sha256:eb86d38ad19eb27ea5db1a9652330d6b0511bccc10a9fac43fedf8e65ba8b7f5,2973
-    pantry-tree:
-      sha256: 136ef4106267630f4b43d6b35076e15a16c6c8d1790fa45cca20a2def4d6b404
-      size: 736
-  original:
-    hackage: text-builder-dev-0.3.10
+    hackage: warp-3.4.13
 snapshots:
 - completed:
     sha256: 655e468f774beee1badf07dc4c45fb50288d5c66ce7bef6f487b7f92891a90b0
