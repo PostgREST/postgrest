@@ -17,7 +17,6 @@ extra-source-files: CHANGELOG.md
 
 tested-with:
     -- nix
-    GHC == 9.4.8
     -- cabal on Ubuntu
   , GHC == 9.6.7
     -- cabal on Ubuntu
