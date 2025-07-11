@@ -3,10 +3,9 @@ resolver: lts-23.28 # 2025-08-17, GHC 9.8.4
 nix:
   packages:
     - libpq
+    - libpq.pg_config
     - pkg-config
     - zlib
-  # disable pure by default so that the test environment can be passed
-  pure: false
 
 extra-deps:
   - configurator-pg-0.2.11
