@@ -3,10 +3,9 @@ resolver: lts-22.44 # 2025-05-02, GHC 9.6.7
 nix:
   packages:
     - libpq
+    - libpq.pg_config
     - pkg-config
     - zlib
-  # disable pure by default so that the test environment can be passed
-  pure: false
 
 extra-deps:
   - fuzzyset-0.2.4
