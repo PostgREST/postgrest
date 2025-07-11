@@ -10,6 +10,7 @@
 , hsie
 , nix
 , silver-searcher
+, stdenv
 , style
 , tests
 , withTools
@@ -53,10 +54,14 @@ let
 
           Requires authentication with `cachix authtoken ...`.
         '';
+        args =
+          [
+            "ARG_OPTIONAL_SINGLE([system], , [System], [${stdenv.system}])"
+          ];
         workingDir = "/";
       }
       ''
-        ${nix}/bin/nix-instantiate \
+        ${nix}/bin/nix-instantiate --argstr system "$_arg_system" \
           | xargs ${nix}/bin/nix-store -qR --include-outputs \
           | ${cachix}/bin/cachix push postgrest
       '';
