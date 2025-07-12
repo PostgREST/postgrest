@@ -136,7 +136,7 @@ library
                     , streaming-commons         >= 0.1.1 && < 0.3
                     , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 2.2
-                    , time                      >= 1.6 && < 1.13
+                    , time >=1.6 && <1.15
                     , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
                     , unix-compat               >= 0.5.4 && < 0.8
