@@ -69,21 +69,21 @@ readPlanToQuery node@(Node ReadPlan{select,from=mainQi,fromAlias,where_=logicFor
 
 getJoinSelects :: ReadPlanTree -> [SQL.Snippet]
 getJoinSelects (Node ReadPlan{relSelect} _) =
-  mapMaybe relSelectToSnippet relSelect
+  join $ map relSelectToSnippet relSelect
   where
-    relSelectToSnippet :: RelSelectField -> Maybe SQL.Snippet
+    relSelectToSnippet :: RelSelectField -> [SQL.Snippet]
     relSelectToSnippet fld =
       let aggAlias = pgFmtIdent $ rsAggAlias fld
       in
         case fld of
           JsonEmbed{rsEmptyEmbed = True} ->
-            Nothing
+            []
           JsonEmbed{rsSelName, rsEmbedMode = JsonObject} ->
-            Just $ "row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> pgFmtIdent rsSelName
+            ["row_to_json(" <> aggAlias <> ".*)::jsonb AS " <> pgFmtIdent rsSelName]
           JsonEmbed{rsSelName, rsEmbedMode = JsonArray} ->
-            Just $ "COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName
+            ["COALESCE( " <> aggAlias <> "." <> aggAlias <> ", '[]') AS " <> pgFmtIdent rsSelName]
           Spread{rsSpreadSel, rsAggAlias} ->
-            Just $ intercalateSnippet ", " (pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel)
+            pgFmtSpreadSelectItem rsAggAlias <$> rsSpreadSel
 
 getJoins :: ReadPlanTree -> [SQL.Snippet]
 getJoins (Node _ []) = []

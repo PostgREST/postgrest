@@ -600,3 +600,37 @@ spec =
           { matchStatus  = 200
           , matchHeaders = [matchContentTypeJson]
           }
+
+    context "empty spreads embeds" $
+      it "should work return the same as empty embeddings" $ do
+        get "/actors?select=*,...films()"
+          `shouldRespondWith`
+          [json| [{"id":1,"name":"john"}, {"id":2,"name":"mary"}] |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+        get "/grandchild_entities?select=name,...child_entities(parent_name:name,...entities())"
+          `shouldRespondWith`
+          [json|
+            [{"name":"grandchild entity 1","parent_name":"child entity 1"},
+             {"name":"grandchild entity 2","parent_name":"child entity 1"},
+             {"name":"grandchild entity 3","parent_name":"child entity 2"},
+             {"name":"(grandchild,entity,4)","parent_name":"child entity 2"},
+             {"name":"(grandchild,entity,5)","parent_name":"child entity 2"}]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
+
+        get "/factories?select=factory:name,...processes()"
+          `shouldRespondWith`
+          [json|
+            [{"factory":"Factory A"},
+             {"factory":"Factory B"},
+             {"factory":"Factory C"},
+             {"factory":"Factory D"}]
+          |]
+          { matchStatus  = 200
+          , matchHeaders = [matchContentTypeJson]
+          }
