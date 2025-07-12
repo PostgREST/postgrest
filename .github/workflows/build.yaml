@@ -130,7 +130,7 @@ jobs:
       - uses: haskell-actions/setup@96f3dafd067155f32643c2a0757ab71d2910e2c2 # v2.8.0
         with:
           # This must match the version in stack.yaml's resolver
-          ghc-version: 9.6.7
+          ghc-version: 9.8.4
           enable-stack: true
           stack-no-global: true
           stack-setup-ghc: true
