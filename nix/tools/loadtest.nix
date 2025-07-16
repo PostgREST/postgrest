@@ -238,10 +238,7 @@ let
           | ${jq}/bin/jq --slurp 'flatten | group_by(.param) | map(add)' \
           | ${toMarkdown}
 
-        echo -e "\n\n## Process monitoring results $marker\n"
-
-        echo 'Tracks the memory and CPU usage in 1 second intervals for the duration of the loadtest.'
-        echo -e 'If a branch finishes its loadtest in less seconds than another branch, it will have blank cells for the missing seconds.\n'
+        echo -e "\n\n## Loadtest elapsed seconds vs CPU/MEM usage $marker\n"
 
         find loadtest -type f -iname '*.csv' \
           | sort -m \
