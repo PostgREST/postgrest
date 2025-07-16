@@ -41,12 +41,12 @@ Sponsors
   .. container:: img-dark
 
     .. image:: ../static/neon-dark.jpg
-      :target: https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest
+      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-light
 
     .. image:: ../static/neon.jpg
-      :target: https://neon.tech/?utm_source=sponsor&utm_campaign=postgrest
+      :target: https://neon.com/?utm_source=sponsor&utm_campaign=postgrest
 
   .. container:: img-dark
 
