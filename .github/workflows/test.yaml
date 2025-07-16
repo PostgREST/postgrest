@@ -110,11 +110,8 @@ jobs:
         run: postgrest-test-memory
 
 
-  loadtest:
-    strategy:
-      matrix:
-        kind: ['mixed', 'jwt-hs', 'jwt-hs-cache', 'jwt-hs-cache-worst', 'jwt-rsa', 'jwt-rsa-cache', 'jwt-rsa-cache-worst']
-    name: Loadtest
+  loadtest-crud:
+    name: Loadtest CRUD
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -134,8 +131,36 @@ jobs:
           else
             latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
           fi
-          postgrest-loadtest-against -k ${{ matrix.kind }} "$TARGET_BRANCH" "$latest_tag"
-          postgrest-loadtest-report -g ${{ matrix.kind }} >> "$GITHUB_STEP_SUMMARY"
+          postgrest-loadtest-against -k mixed "$TARGET_BRANCH" "$latest_tag"
+          postgrest-loadtest-report -g mixed >> "$GITHUB_STEP_SUMMARY"
+
+
+  loadtest-jwt:
+    name: Loadtest JWT
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - name: Setup Nix Environment
+        uses: ./.github/actions/setup-nix
+        with:
+          authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
+          tools: loadtest.loadtestAgainst.bin loadtest.report.bin
+      - name: Run loadtest
+        env:
+          TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
+        run: |
+          if [ "$TARGET_BRANCH" = "main" ]; then
+            latest_tag=$(git tag --sort=-creatordate --list "v*" | head -n1)
+          else
+            latest_tag=$(git tag --merged HEAD --sort=-creatordate "v*" | head -n1)
+          fi
+          for kind in "jwt-hs" "jwt-hs-cache" "jwt-hs-cache-worst" "jwt-rsa" "jwt-rsa-cache" "jwt-rsa-cache-worst"; do
+            postgrest-loadtest-against -k $kind "$TARGET_BRANCH" "$latest_tag"
+            postgrest-loadtest-report -g $kind >> "$GITHUB_STEP_SUMMARY"
+          done
+
 
   flake:
     strategy:
