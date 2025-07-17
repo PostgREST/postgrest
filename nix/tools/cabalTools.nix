@@ -15,7 +15,6 @@ let
         withEnv = postgrest.env;
       }
       ''
-        ${cabal-install}/bin/cabal v2-update
         exec ${cabal-install}/bin/cabal v2-build ${devCabalOptions} "''${_arg_leftovers[@]}"
       '';
 
@@ -32,6 +31,17 @@ let
         # clean old hie files
         find . -name "*.hie" -type f -delete
         exec ${cabal-install}/bin/cabal v2-clean
+      '';
+
+  update =
+    checkedShellScript
+      {
+        name = "postgrest-cabal-update";
+        docs = "Update cabal's package list from hackage.haskell.org";
+        workingDir = "/";
+      }
+      ''
+        exec ${cabal-install}/bin/cabal v2-update
       '';
 
   run =
@@ -85,7 +95,6 @@ let
         export PGRST_DB_POOL_ACQUISITION_TIMEOUT
         export PGRST_JWT_SECRET
 
-        ${cabal-install}/bin/cabal v2-update
         ${cabal-install}/bin/cabal --builddir="dist-prof" v2-build --enable-profiling --disable-shared exe:postgrest
         ${cabal-install}/bin/cabal --builddir="dist-prof" v2-run -- \
           postgrest +RTS -p -h -RTS "''${_arg_leftovers[@]}"
@@ -111,6 +120,7 @@ buildToolbox
     inherit
       build
       clean
+      update
       run
       runProfiled
       repl;

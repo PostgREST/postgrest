@@ -44,7 +44,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests.coverage.bin tests.testDoctests.bin tests.testSpecIdempotence.bin
+          tools: tests.coverage.bin tests.testDoctests.bin tests.testSpecIdempotence.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
 
       - name: Run coverage (IO tests and Spec tests against PostgreSQL 15)
         run: postgrest-coverage
@@ -81,7 +83,9 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests.testSpec.bin tests.testIO.bin tests.testBigSchema.bin withTools.postgresql-${{ matrix.pgVersion }}.bin
+          tools: tests.testSpec.bin tests.testIO.bin tests.testBigSchema.bin withTools.postgresql-${{ matrix.pgVersion }}.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
 
       - name: Run spec tests
         if: always()
@@ -105,7 +109,10 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: tests.testMemory.bin
+          tools: tests.testMemory.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
+
       - name: Run memory tests
         run: postgrest-test-memory
 
@@ -124,7 +131,10 @@ jobs:
         uses: ./.github/actions/setup-nix
         with:
           authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
-          tools: loadtest.loadtestAgainst.bin loadtest.report.bin
+          tools: loadtest.loadtestAgainst.bin loadtest.report.bin cabalTools.update.bin
+
+      - run: postgrest-cabal-update
+
       - name: Run loadtest
         env:
           TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
