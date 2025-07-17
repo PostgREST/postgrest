@@ -30,15 +30,13 @@ import System.TimeIt    (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
+import PostgREST.Auth.Jwt      (parseClaims, parseToken)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..))
-import PostgREST.Error         (Error (..), JwtError (..))
+import PostgREST.Error         (Error (..))
 
-import qualified Data.Aeson.KeyMap  as KM
-import           PostgREST.Auth.Jwt (parseAndDecodeClaims,
-                                     parseClaims)
-import           Protolude
+import Protolude
 
 -- | Validate authorization header.
 --   Parse and store JWT claims for future use in the request.
@@ -48,8 +46,7 @@ middleware appState app req respond = do
   time <- getTime appState
 
   let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseAuthToken = maybe (const $ throwError (JwtErr JwtSecretMissing)) parseAndDecodeClaims configJWKS
-      parseJwt = runExceptT $ maybe (pure KM.empty) parseAuthToken token >>= parseClaims cfg time
+      parseJwt = runExceptT $ parseToken cfg token time >>= parseClaims cfg
       jwtCacheState = getJwtCacheState appState
 
 -- If ServerTimingEnabled -> calculate JWT validation time
