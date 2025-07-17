@@ -43,15 +43,16 @@ data JwtTimeClaim = Exp | Iat | Nbf
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
-parseToken :: AppConfig -> Maybe ByteString -> UTCTime -> ExceptT Error IO JSON.Value
+parseToken :: AppConfig -> Maybe ByteString -> IO UTCTime -> ExceptT Error IO JSON.Value
 parseToken _ Nothing _ = return JSON.emptyObject
 parseToken _ (Just "") _ = throwE . JwtErr $ JwtDecodeErr EmptyAuthHeader
-parseToken AppConfig{..} (Just tkn) time = do
+parseToken AppConfig{..} (Just tkn) timeAction = do
   secret <- liftEither . maybeToRight (JwtErr JwtSecretMissing) $ configJWKS
   tknWith3Parts <- liftEither $ hasThreeParts tkn
   eitherContent <- liftIO $ JWT.decode (JWT.keys secret) Nothing tknWith3Parts
   content <- liftEither . mapLeft (JwtErr . jwtDecodeError) $ eitherContent
-  liftEither $ mapLeft JwtErr $ verifyClaims content
+  time <- liftIO timeAction
+  liftEither $ mapLeft JwtErr $ verifyClaims time content
   where
       hasThreeParts :: ByteString -> Either Error ByteString
       hasThreeParts token = case length $ BS.split (BS.c2w '.') token of
@@ -68,33 +69,33 @@ parseToken AppConfig{..} (Just tkn) time = do
       -- Control never reaches here, the decode function only returns the above three
       jwtDecodeError _                    = JwtDecodeErr UnreachableDecodeError
 
-      verifyClaims :: JWT.JwtContent -> Either JwtError JSON.Value
-      verifyClaims (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
+      verifyClaims :: UTCTime -> JWT.JwtContent -> Either JwtError JSON.Value
+      verifyClaims time (JWT.Jws (_, claims)) = case JSON.decodeStrict claims of
         Just jclaims@(JSON.Object mclaims) ->
-          verifyClaim mclaims "exp" (isValidTimeClaim Exp) JWTExpired >>
-          verifyClaim mclaims "nbf" (isValidTimeClaim Nbf) JWTNotYetValid >>
-          verifyClaim mclaims "iat" (isValidTimeClaim Iat) JWTIssuedAtFuture >>
+          verifyClaim mclaims "exp" (isValidTimeClaim time Exp) JWTExpired >>
+          verifyClaim mclaims "nbf" (isValidTimeClaim time Nbf) JWTNotYetValid >>
+          verifyClaim mclaims "iat" (isValidTimeClaim time Iat) JWTIssuedAtFuture >>
           verifyClaim mclaims "aud" isValidAudClaim JWTNotInAudience >>
           return jclaims
         _ -> Left $ JwtClaimsErr ParsingClaimsFailed
       -- TODO: We could enable JWE support here (encrypted tokens)
-      verifyClaims _ = Left $ JwtDecodeErr UnsupportedTokenType
+      verifyClaims _ _ = Left $ JwtDecodeErr UnsupportedTokenType
 
       verifyClaim mclaims claim isValidFunc err = do
         isValid <- maybe (Right True) isValidFunc (KM.lookup claim mclaims)
         unless isValid $ Left $ JwtClaimsErr err
 
       allowedSkewSeconds = 30 :: Int64
-      now = floor . nominalDiffTimeToSeconds $ utcTimeToPOSIXSeconds time
+      getNow = floor . nominalDiffTimeToSeconds . utcTimeToPOSIXSeconds
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
       allStrings = all (\case (JSON.String _) -> True; _ -> False)
 
-      isValidTimeClaim ::  JwtTimeClaim -> JSON.Value -> Either JwtError Bool
-      isValidTimeClaim jwtClaim (JSON.Number secs) = case jwtClaim of
-        Exp -> Right $ (now - allowedSkewSeconds) < sciToInt secs
-        Nbf -> Right $ (now + allowedSkewSeconds) > sciToInt secs
-        Iat -> Right $ (now + allowedSkewSeconds) > sciToInt secs
-      isValidTimeClaim jwtClaim _ = case jwtClaim of
+      isValidTimeClaim :: UTCTime -> JwtTimeClaim -> JSON.Value -> Either JwtError Bool
+      isValidTimeClaim time jwtClaim (JSON.Number secs) = case jwtClaim of
+        Exp -> Right $ (getNow time - allowedSkewSeconds) < sciToInt secs
+        Nbf -> Right $ (getNow time + allowedSkewSeconds) > sciToInt secs
+        Iat -> Right $ (getNow time + allowedSkewSeconds) > sciToInt secs
+      isValidTimeClaim _ jwtClaim _ = case jwtClaim of
         Exp -> Left $ JwtClaimsErr ExpClaimNotNumber
         Nbf -> Left $ JwtClaimsErr NbfClaimNotNumber
         Iat -> Left $ JwtClaimsErr IatClaimNotNumber

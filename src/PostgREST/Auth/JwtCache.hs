@@ -50,10 +50,11 @@ init = do
   pure $ JwtCacheState cache debounce
 
 -- | Used to retrieve and insert JWT to JWT Cache
-lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> UTCTime -> IO (Either Error AuthResult)
-lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt utc = do
+lookupJwtCache :: JwtCacheState -> ByteString -> Int -> IO (Either Error AuthResult) -> IO UTCTime -> IO (Either Error AuthResult)
+lookupJwtCache JwtCacheState{jwtCache, purgeCache} token maxLifetime parseJwt timeAction = do
   checkCache <- C.lookup jwtCache token
   authResult <- maybe parseJwt (pure . Right) checkCache
+  utc <- timeAction
 
   case (authResult,checkCache) of
     -- From comment:

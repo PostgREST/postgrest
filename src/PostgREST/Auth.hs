@@ -43,10 +43,10 @@ import Protolude
 middleware :: AppState -> Wai.Middleware
 middleware appState app req respond = do
   cfg@AppConfig{..} <- getConfig appState
-  time <- getTime appState
 
-  let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseJwt = runExceptT $ parseToken cfg token time >>= parseClaims cfg
+  let timeAction = getTime appState
+      token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
+      parseJwt = runExceptT $ parseToken cfg token timeAction >>= parseClaims cfg
       jwtCacheState = getJwtCacheState appState
 
 -- If ServerTimingEnabled -> calculate JWT validation time
@@ -58,7 +58,7 @@ middleware appState app req respond = do
 
     (True, maxLifetime)  -> do
           (dur, authResult) <- timeItT $ case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt timeAction
             Nothing  -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
 
@@ -68,7 +68,7 @@ middleware appState app req respond = do
 
     (False, maxLifetime) -> do
           authResult <- case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
+            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt timeAction
             Nothing -> parseJwt
           return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
