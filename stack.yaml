@@ -1,4 +1,4 @@
-resolver: lts-22.44 # 2025-05-02, GHC 9.6.7
+resolver: lts-23.27 # 2025-07-06, GHC 9.8.4
 
 nix:
   packages:
@@ -10,6 +10,15 @@ nix:
 
 extra-deps:
   - fuzzyset-0.2.4
+  - hasql-1.6.4.4
+  - hasql-dynamic-statements-0.3.1.5
+  - hasql-implicits-0.1.1.3
+  - hasql-notifications-0.2.2.2
   - hasql-pool-1.0.1
-  - jose-jwt-0.10.0
-  - postgresql-libpq-0.10.1.0
+  - hasql-transaction-1.1.0.1
+  - postgresql-binary-0.13.1.3
+
+allow-newer: true
+allow-newer-deps:
+  - fuzzyset
+  - hasql
