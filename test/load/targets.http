@@ -1,12 +1,10 @@
 GET http://postgrest/
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
 Prefer: tx=commit
 
 HEAD http://postgrest/actors?actor=eq.1
 Prefer: tx=commit
 
 GET http://postgrest/actors?select=*,roles(*,films(*))
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
 Prefer: tx=commit
 
 POST http://postgrest/films?columns=id,title
@@ -14,7 +12,6 @@ Prefer: tx=rollback
 @post.json
 
 POST http://postgrest/films?columns=id,title,year,runtime,genres,director,actors,plot,posterUrl
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
 Prefer: tx=rollback
 # this bulk.json was obtained from https://github.com/erik-sytnyk/movies-list/blob/master/db.json
 @bulk.json
@@ -24,7 +21,6 @@ Prefer: tx=rollback
 @put.json
 
 PATCH http://postgrest/actors?actor=eq.1
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
 Prefer: tx=rollback
 @patch.json
 
@@ -32,10 +28,8 @@ DELETE http://postgrest/roles
 Prefer: tx=rollback
 
 GET http://postgrest/rpc/call_me?name=John
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
 
 POST http://postgrest/rpc/call_me
 @rpc.json
 
 OPTIONS http://postgrest/actors
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.CUIP5V9thWsGGFsFyGijSZf1fJMfarLHI9CEJL-TGNk
