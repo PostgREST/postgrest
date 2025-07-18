@@ -75,9 +75,10 @@ checkForErrors time cfgAud = mconcat
       now = toSec time
 
       inTheFuture = checkTime ((now + allowedSkewSeconds) <)
-      inThePast = checkTime ((now - allowedSkewSeconds) >)
+      -- add 1 to account for floor in toSec (see above)
+      inThePast = checkTime ((now - allowedSkewSeconds + 1) >)
 
-      checkTime cond = checkValue (cond. sciToInt)
+      checkTime cond = checkValue (cond . sciToInt)
 
       checkAud = \case
         (VAString aud)                     -> liftMaybe cfgAud >>= checkValue (aud /=) JWTNotInAudience
