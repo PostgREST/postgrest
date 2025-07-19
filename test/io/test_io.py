@@ -99,20 +99,20 @@ def test_jwt_errors(defaultenv):
         assert response.status_code == 401
         assert response.json()["message"] == 'role "not_existing" does not exist'
 
-        # -31 seconds, because we allow clock skew of 30 seconds
-        headers = jwtauthheader({"exp": relativeSeconds(-31)}, SECRET)
+        # -35 seconds, because we allow clock skew of 30 seconds
+        headers = jwtauthheader({"exp": relativeSeconds(-35)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "JWT expired"
 
-        # 31 seconds, because we allow clock skew of 30 seconds
-        headers = jwtauthheader({"nbf": relativeSeconds(31)}, SECRET)
+        # 35 seconds, because we allow clock skew of 30 seconds
+        headers = jwtauthheader({"nbf": relativeSeconds(35)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "JWT not yet valid"
 
-        # 31 seconds, because we allow clock skew of 30 seconds
-        headers = jwtauthheader({"iat": relativeSeconds(31)}, SECRET)
+        # 35 seconds, because we allow clock skew of 35 seconds
+        headers = jwtauthheader({"iat": relativeSeconds(35)}, SECRET)
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "JWT issued at future"
