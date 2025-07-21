@@ -1,22 +1,35 @@
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
--- TODO: This module shouldn't depend on SchemaCache
+{-|
+Module      : PostgREST.Query
+Description : PostgREST query executor
+
+This module parametrizes, prepares, executes SQL queries and decodes their results.
+
+TODO: This module shouldn't depend on SchemaCache
+-}
 module PostgREST.Query
   ( Query (..)
   , QueryResult (..)
+  , ResultSet (..)
   , query
   , getSQLQuery
   ) where
 
+import           Control.Lens                      ((^?))
 import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.KeyMap                 as KM
-import qualified Data.ByteString                   as BS
+import qualified Data.Aeson.Lens                   as L
+import qualified Data.ByteString                   as BS hiding
+                                                         (break)
+import qualified Data.ByteString.Char8             as BS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
-import qualified Hasql.DynamicStatements.Snippet   as SQL (Snippet)
+import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Session                     as SQL (Session)
+import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
@@ -47,7 +60,6 @@ import PostgREST.Plan                    (ActionPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine     (Routine (..), RoutineMap)
@@ -72,6 +84,27 @@ data QueryResult
   | DbCallResult  CallReadPlan  ResultSet
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
+
+-- | Standard result set format used for all queries
+data ResultSet
+  = RSStandard
+  { rsTableTotal :: Maybe Int64
+  -- ^ count of all the table rows
+  , rsQueryTotal :: Int64
+  -- ^ count of the query rows
+  , rsLocation   :: [(BS.ByteString, BS.ByteString)]
+  -- ^ The Location header(only used for inserts) is represented as a list of strings containing
+  -- variable bindings like @"k1=eq.42"@, or the empty list if there is no location header.
+  , rsBody       :: BS.ByteString
+  -- ^ the aggregated body of the query
+  , rsGucHeaders :: Maybe BS.ByteString
+  -- ^ the HTTP headers to be added to the response
+  , rsGucStatus  :: Maybe Text
+  -- ^ the HTTP status to be added to the response
+  , rsInserted   :: Maybe Int64
+  -- ^ the number of rows inserted (Only used for upserts)
+  }
+  | RSPlan BS.ByteString -- ^ the plan of the query
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
 query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
@@ -106,7 +139,7 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    (result, mainSQLQuery) = Statements.prepareRead
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareRead
       (QueryBuilder.readPlanToQuery wrReadPlan)
       (if preferCount == Just EstimatedCount then
          -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -117,18 +150,23 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
       (shouldCount preferCount)
       wrMedia
       wrHandler
-      configDbPreparedStatements
+      ) decodeIt configDbPreparedStatements
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failNotSingular wrMedia resultSet
       optionalRollback conf apiReq
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
 
+    decodeIt :: HD.Result ResultSet
+    decodeIt = case wrMedia of
+      MTVndPlan{} -> planRow
+      _           -> HD.singleRow $ standardRow True
+
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
     (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
-    (result, mainSQLQuery) = Statements.prepareWrite
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareWrite
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
       isInsert
@@ -137,8 +175,7 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       mrHandler
       preferRepresentation
       preferResolution
-      pkCols
-      configDbPreparedStatements
+      pkCols) decodeIt configDbPreparedStatements
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular mrMedia resultSet
@@ -156,24 +193,34 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       optionalRollback conf apiReq
       pure $ DbCrudResult plan resultSet
 
+    decodeIt :: HD.Result ResultSet
+    decodeIt = case mrMedia of
+      MTVndPlan{} -> planRow
+      _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
+
 actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
-    (result, mainSQLQuery) = Statements.prepareCall
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareCall
       crProc
       (QueryBuilder.callPlanToQuery crCallPlan)
       (QueryBuilder.readPlanToQuery crReadPlan)
       (QueryBuilder.readPlanToCountQuery crReadPlan)
       (shouldCount preferCount)
       crMedia
-      crHandler
-      configDbPreparedStatements
+      crHandler) decodeIt configDbPreparedStatements
+
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       optionalRollback conf apiReq
       failNotSingular crMedia resultSet
       failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
       pure $ DbCallResult plan resultSet
+
+    decodeIt :: HD.Result ResultSet
+    decodeIt = case crMedia of
+      MTVndPlan{} -> planRow
+      _           -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
 actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
   (mainActionQuery, mempty)
@@ -225,8 +272,15 @@ resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStan
       return rs
   where
     explain =
-      lift . SQL.statement mempty . Statements.preparePlanRows countQuery $
+      lift . SQL.statement mempty $
+        SQL.dynamicallyParameterized (Statements.preparePlanRows countQuery)
+        decodeIt
         configDbPreparedStatements
+
+    decodeIt :: HD.Result (Maybe Int64)
+    decodeIt =
+      let row = HD.singleRow $ column HD.bytea in
+      (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
@@ -274,3 +328,30 @@ runPreReqQuery conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPr
 getSQLQuery :: Query -> ByteString
 getSQLQuery DbQuery{dqSQL} = dqSQL
 getSQLQuery _              = mempty
+
+-- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
+planRow :: HD.Result ResultSet
+planRow = RSPlan . BS.unlines <$> HD.rowList (column HD.bytea)
+
+column :: HD.Value a -> HD.Row a
+column = HD.column . HD.nonNullable
+
+nullableColumn :: HD.Value a -> HD.Row (Maybe a)
+nullableColumn = HD.column . HD.nullable
+
+arrayColumn :: HD.Value a -> HD.Row [a]
+arrayColumn = column . HD.listArray . HD.nonNullable
+
+standardRow :: Bool -> HD.Row ResultSet
+standardRow noLocation =
+  RSStandard <$> nullableColumn HD.int8 <*> column HD.int8
+             <*> (if noLocation then pure mempty else fmap splitKeyValue <$> arrayColumn HD.bytea)
+             <*> (fromMaybe mempty <$> nullableColumn HD.bytea)
+             <*> nullableColumn HD.bytea
+             <*> nullableColumn HD.text
+             <*> nullableColumn HD.int8
+  where
+    splitKeyValue :: ByteString -> (ByteString, ByteString)
+    splitKeyValue kv =
+      let (k, v) = BS.break (== '=') kv in
+      (k, BS.tail v)

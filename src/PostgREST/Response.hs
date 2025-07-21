@@ -40,8 +40,8 @@ import PostgREST.Plan                    (CallReadPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query                   (QueryResult (..))
-import PostgREST.Query.Statements        (ResultSet (..))
+import PostgREST.Query                   (QueryResult (..),
+                                          ResultSet (..))
 import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
