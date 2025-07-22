@@ -142,6 +142,10 @@ You can help PostgREST ongoing maintenance and development by making a regular d
 
 Every donation will be spent on making PostgREST better for the whole community.
 
+## Contributing
+
+Contributions are always welcome and appreciated. Please see the [Contributing guidelines](https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md).
+
 ## Thanks
 
 The PostgREST organization is grateful to:

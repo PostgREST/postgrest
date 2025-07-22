@@ -258,4 +258,4 @@ Testimonials
 Contributing
 ------------
 
-Please see the `Contributing guidelines <https://github.com/PostgREST/postgrest/blob/main/.github/CONTRIBUTING.md>`_ in the main PostgREST repository.
+Please see the `Contributing guidelines <https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md>`_ in the main PostgREST repository.
