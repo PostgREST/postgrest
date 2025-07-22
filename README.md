@@ -144,7 +144,7 @@ Every donation will be spent on making PostgREST better for the whole community.
 
 ## Contributing
 
-Contributions and always welcomed and appreciated. Please see the [Contributing guidelines](https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md).
+Contributions are always welcome and appreciated. Please see the [Contributing guidelines](https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md).
 
 ## Thanks
 
