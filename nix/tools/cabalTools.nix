@@ -95,9 +95,8 @@ let
         export PGRST_DB_POOL_ACQUISITION_TIMEOUT
         export PGRST_JWT_SECRET
 
-        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-build --enable-profiling --disable-shared exe:postgrest
-        ${cabal-install}/bin/cabal --builddir="dist-prof" v2-run -- \
-          postgrest +RTS -p -h -RTS "''${_arg_leftovers[@]}"
+        exec ${cabal-install}/bin/cabal --builddir="dist-prof" v2-run --enable-profiling --disable-shared exe:postgrest -- \
+          +RTS -p -h -RTS "''${_arg_leftovers[@]}"
       '';
 
   repl =
