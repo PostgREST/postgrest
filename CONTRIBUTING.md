@@ -21,7 +21,7 @@ For questions on how to use PostgREST, please use
 ### Reporting an Issue
 
 * Make sure you test against the latest [stable release](https://github.com/PostgREST/postgrest/releases/latest)
-  and also against the latest [nightly release](https://github.com/PostgREST/postgrest/releases/tag/nightly).
+  and also against the latest [devel release](https://github.com/PostgREST/postgrest/releases/tag/devel).
   It is possible we already fixed the bug you're experiencing.
 
 * Provide steps to reproduce the issue, including your OS version and
