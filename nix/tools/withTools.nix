@@ -5,6 +5,7 @@
 , lib
 , postgresqlVersions
 , postgrest
+, procps
 , python3Packages
 , slocat
 , writeText
@@ -373,6 +374,8 @@ let
         pid=$!
         # shellcheck disable=SC2317
         cleanup() {
+          # Send INT to all child processes. Workaround to trigger writing postgrest.prof for postgrest-profiled-run
+          ${procps}/bin/pkill --echo --signal=INT --parent="$pid"
           kill "$pid" || true
         }
         trap cleanup EXIT
