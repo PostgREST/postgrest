@@ -92,7 +92,7 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
 -- A setting on the database only will have no effect: ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
 queryDbSettings :: Maybe Text -> Bool -> Session [(Text, Text)]
 queryDbSettings preConfFunc prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  let transaction = if prepared then SQL.transactionNoRetry else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings prepared
   where
     sql = encodeUtf8 [trimming|
@@ -133,7 +133,7 @@ queryDbSettings preConfFunc prepared =
 
 queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
 queryRoleSettings pgVer prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
+  let transaction = if prepared then SQL.transactionNoRetry else SQL.unpreparedTransaction in
   transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
   where
     sql = encodeUtf8 [trimming|

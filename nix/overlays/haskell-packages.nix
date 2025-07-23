@@ -49,6 +49,16 @@ let
       # Before upgrading fuzzyset to 0.3, check: https://github.com/PostgREST/postgrest/issues/3329
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
+
+      hasql = lib.dontCheck prev.hasql_1_9_1_2;
+      hasql-pool = lib.dontCheck prev.hasql-pool_1_3_0_1;
+      hasql-transaction = lib.dontCheck (prev.callHackageDirect {
+        pkg = "hasql-transaction";
+        ver = "1.2.1";
+        sha256 = "sha256-7Q7gt5ts4OoGU58dp6PJFZmVjfwjozANHNg2u1PJf6Q=";
+      }
+      { });
+      text-builder = lib.dontCheck prev.text-builder_1_0_0_3;
     };
 in
 {

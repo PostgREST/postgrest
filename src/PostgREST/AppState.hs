@@ -404,7 +404,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
       (resultTime, result) <-
-        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+        let transaction = if configDbPreparedStatements then SQL.transactionNoRetry else SQL.unpreparedTransaction in
         timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do
