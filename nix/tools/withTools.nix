@@ -348,20 +348,22 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
-        rm -f result
-        if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
-          echo -n "Building postgrest (nix)... "
-          # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
-          nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
-            echo "failed, output:"
-            cat "$tmpdir"/build.log
-            exit 1
-          }
-          PGRST_CMD=$(echo ./result*/bin/postgrest)
-        else
-          echo -n "Building postgrest (cabal)... "
-          postgrest-build
-          PGRST_CMD=postgrest-run
+        if [ -z "''${PGRST_CMD:-}" ]; then
+          rm -f result
+          if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
+            echo -n "Building postgrest (nix)... "
+            # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
+            nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
+              echo "failed, output:"
+              cat "$tmpdir"/build.log
+              exit 1
+            }
+            PGRST_CMD=$(echo ./result*/bin/postgrest)
+          else
+            echo -n "Building postgrest (cabal)... "
+            postgrest-build
+            PGRST_CMD=postgrest-run
+          fi
         fi
         echo "done."
 
