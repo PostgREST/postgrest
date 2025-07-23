@@ -278,4 +278,4 @@ main = do
 
   where
     loadSCache pool conf =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+      either (panic.show) id <$> P.use pool (HTtransactionNoRetry HT.ReadCommitted HT.Read $ querySchemaCache conf)
