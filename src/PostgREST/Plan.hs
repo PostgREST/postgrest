@@ -4,7 +4,8 @@ Description : PostgREST Request Planner
 
 This module is in charge of building an intermediate
 representation between the HTTP request and the
-final resulting SQL query.
+final response, which may or not result in SQL execution
+(computing OpenAPI or OPTIONS requests don't require database interaction)
 
 A query tree is built in case of resource embedding. By inferring the
 relationship between tables, join conditions are added for every embedded
@@ -90,6 +91,7 @@ import Protolude hiding (from)
 -- Setup for doctests
 -- >>> import Data.Ranged.Ranges (fullRange)
 
+-- Plan for reading or writing to the db
 data CrudPlan
   = WrappedReadPlan
   { wrReadPlan :: ReadPlanTree
@@ -109,6 +111,7 @@ data CrudPlan
   , crudQi       :: QualifiedIdentifier
   }
 
+-- Plan for calling a function
 data CallReadPlan = CallReadPlan {
     crReadPlan :: ReadPlanTree
   , crCallPlan :: CallPlan
@@ -120,6 +123,7 @@ data CallReadPlan = CallReadPlan {
   , crQi       :: QualifiedIdentifier
   }
 
+-- Plan for reading db object metadadta
 data InspectPlan = InspectPlan {
     ipMedia    :: MediaType
   , ipTxmode   :: SQL.Mode
@@ -127,9 +131,22 @@ data InspectPlan = InspectPlan {
   , ipSchema   :: Schema
   }
 
-data DbActionPlan = DbCrud CrudPlan | DbCall CallReadPlan | MaybeDb InspectPlan
-data InfoPlan     = RelInfoPlan QualifiedIdentifier | RoutineInfoPlan CallReadPlan | SchemaInfoPlan
-data ActionPlan   = Db DbActionPlan | NoDb InfoPlan
+-- A Plan may use the the database or not
+data ActionPlan
+  = Db DbActionPlan
+  | NoDb InfoPlan
+
+-- A db plan can consist on read/write, rpc call or reading metadata (which may use the db or just use cached objects)
+data DbActionPlan
+  = DbCrud CrudPlan
+  | DbCall CallReadPlan
+  | MayUseDb InspectPlan
+
+-- Plans that don't use the database
+data InfoPlan
+  = RelInfoPlan QualifiedIdentifier -- info about relation
+  | RoutineInfoPlan CallReadPlan -- info about function
+  | SchemaInfoPlan -- info about schema cache
 
 actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan act conf apiReq sCache = case act of
@@ -147,7 +164,7 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
   ActRoutine identifier invMethod ->
     DbCall <$> callReadPlan identifier conf sCache apiReq invMethod
   ActSchemaRead tSchema headersOnly ->
-    MaybeDb <$> inspectPlan apiReq headersOnly tSchema
+    MayUseDb <$> inspectPlan apiReq headersOnly tSchema
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
