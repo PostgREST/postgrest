@@ -71,6 +71,7 @@ library
                       PostgREST.Network
                       PostgREST.Observation
                       PostgREST.Query
+                      PostgREST.Query.PreQuery
                       PostgREST.Query.QueryBuilder
                       PostgREST.Query.SqlFragment
                       PostgREST.Query.Statements
