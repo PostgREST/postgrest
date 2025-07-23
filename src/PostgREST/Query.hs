@@ -11,7 +11,6 @@ module PostgREST.Query
 import qualified Data.Aeson                        as JSON
 import qualified Data.Aeson.KeyMap                 as KM
 import qualified Data.ByteString                   as BS
-import qualified Data.ByteString.Lazy.Char8        as LBS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
@@ -22,6 +21,7 @@ import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
 import qualified PostgREST.Error              as Error
+import qualified PostgREST.Query.PreQuery     as PreQuery
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
 import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.SchemaCache        as SchemaCache
@@ -32,7 +32,6 @@ import PostgREST.ApiRequest              (ApiRequest (..),
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
-                                          PreferTimezone (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
@@ -48,11 +47,6 @@ import PostgREST.Plan                    (ActionPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
-                                          intercalateSnippet,
-                                          setConfigWithConstantName,
-                                          setConfigWithConstantNameJSON,
-                                          setConfigWithDynamicName)
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
@@ -90,8 +84,8 @@ query config AuthResult{..} apiReq (Db plan) sCache =
     txMode = planTxMode plan
     (mainActionQuery, mainSQLQuery) = actionQuery plan config apiReq sCache
     dbHandler = do
-      setPgLocals plan config authClaims authRole apiReq
-      runPreReq config
+      runTxVarQuery plan config authClaims authRole apiReq
+      runPreReqQuery config
       mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
@@ -263,38 +257,17 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
     shouldRollback =
       preferTransaction == Just Rollback
 
--- | Set transaction scoped settings
-setPgLocals :: DbActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
-setPgLocals dbActPlan AppConfig{..} claims role ApiRequest{..} = lift $
+runTxVarQuery :: DbActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
+runTxVarQuery dbActPlan conf@AppConfig{..} claims role apireq = lift $
   SQL.statement mempty $ SQL.dynamicallyParameterized
-    -- To ensure `GRANT SET ON PARAMETER <superuser_setting> TO authenticator` works, the role settings must be set before the impersonated role.
-    -- Otherwise the GRANT SET would have to be applied to the impersonated role. See https://github.com/PostgREST/postgrest/issues/3045
-    ("select " <> intercalateSnippet ", " (searchPathSql : roleSettingsSql ++ roleSql ++ claimsSql ++ [methodSql, pathSql] ++ headersSql ++ cookiesSql ++ timezoneSql ++ funcSettingsSql ++ appSettingsSql))
+    (PreQuery.txVarQuery dbActPlan conf claims role apireq)
     HD.noResult configDbPreparedStatements
-  where
-    methodSql = setConfigWithConstantName ("request.method", iMethod)
-    pathSql = setConfigWithConstantName ("request.path", iPath)
-    headersSql = setConfigWithConstantNameJSON "request.headers" iHeaders
-    cookiesSql = setConfigWithConstantNameJSON "request.cookies" iCookies
-    claimsSql = [setConfigWithConstantName ("request.jwt.claims", LBS.toStrict $ JSON.encode claims)]
-    roleSql = [setConfigWithConstantName ("role", role)]
-    roleSettingsSql = setConfigWithDynamicName <$> HM.toList (fromMaybe mempty $ HM.lookup role configRoleSettings)
-    appSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> configAppSettings
-    timezoneSql = maybe mempty (\(PreferTimezone tz) -> [setConfigWithConstantName ("timezone", tz)]) $ preferTimezone iPreferences
-    funcSettingsSql = setConfigWithDynamicName . join bimap toUtf8 <$> funcSettings
-    searchPathSql =
-      let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
-      setConfigWithConstantName ("search_path", schemas)
-    funcSettings = case dbActPlan of
-      DbCall CallReadPlan{crProc} -> pdFuncSettings crProc
-      _                           -> mempty
 
--- | Runs the pre-request function.
-runPreReq :: AppConfig -> DbHandler ()
-runPreReq conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
+runPreReqQuery :: AppConfig -> DbHandler ()
+runPreReqQuery conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
   where
     stmt req = SQL.dynamicallyParameterized
-      ("select " <> fromQi req <> "()")
+      (PreQuery.preReqQuery req)
       HD.noResult
       (configDbPreparedStatements conf)
 
