@@ -122,9 +122,9 @@ query config AuthResult{..} apiReq (Db plan) sCache =
       mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
-planTxMode (DbCrud x)  = pTxMode x
-planTxMode (DbCall x)  = crTxMode x
-planTxMode (MaybeDb x) = ipTxmode x
+planTxMode (DbCrud x)   = pTxMode x
+planTxMode (DbCall x)   = crTxMode x
+planTxMode (MayUseDb x) = ipTxmode x
 
 planIsoLvl :: AppConfig -> ByteString -> DbActionPlan -> SQL.IsolationLevel
 planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
@@ -165,7 +165,9 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
-    (isPut, isInsert, pkCols) = case mrMutatePlan of {Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols); _ -> (False,False, mempty);}
+    (isPut, isInsert, pkCols) = case mrMutatePlan of
+      Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols)
+      _ -> (False,False, mempty);
     result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareWrite
       (QueryBuilder.readPlanToQuery mrReadPlan)
       (QueryBuilder.mutatePlanToQuery mrMutatePlan)
@@ -222,7 +224,7 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       MTVndPlan{} -> planRow
       _           -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
-actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
+actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
   (mainActionQuery, mempty)
   where
     mainActionQuery = lift $
