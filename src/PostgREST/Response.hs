@@ -24,15 +24,15 @@ import qualified PostgREST.MediaType        as MediaType
 import qualified PostgREST.RangeQuery       as RangeQuery
 import qualified PostgREST.Response.OpenAPI as OpenAPI
 
-import PostgREST.ApiRequest              (ApiRequest (..),
-                                          InvokeMethod (..),
-                                          Mutation (..))
+import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferRepresentation (..),
                                           PreferResolution (..),
                                           Preferences (..),
                                           prefAppliedHeader,
                                           shouldCount)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
+import PostgREST.ApiRequest.Types        (InvokeMethod (..),
+                                          Mutation (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (CallReadPlan (..),

@@ -85,6 +85,7 @@ library
                       PostgREST.ApiRequest
                       PostgREST.ApiRequest.Preferences
                       PostgREST.ApiRequest.QueryParams
+                      PostgREST.ApiRequest.Payload
                       PostgREST.ApiRequest.Types
                       PostgREST.Response
                       PostgREST.Response.OpenAPI

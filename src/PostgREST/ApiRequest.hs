@@ -6,44 +6,30 @@ Description : PostgREST functions to translate HTTP request to a domain type cal
 {-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.ApiRequest
   ( ApiRequest(..)
-  , InvokeMethod(..)
-  , Mutation(..)
-  , MediaType(..)
-  , Action(..)
-  , DbAction(..)
-  , Payload(..)
   , userApiRequest
   , userPreferences
   ) where
 
-import qualified Data.Aeson            as JSON
-import qualified Data.Aeson.Key        as K
-import qualified Data.Aeson.KeyMap     as KM
-import qualified Data.ByteString.Char8 as BS
-import qualified Data.ByteString.Lazy  as LBS
-import qualified Data.CaseInsensitive  as CI
-import qualified Data.Csv              as CSV
-import qualified Data.HashMap.Strict   as HM
-import qualified Data.List.NonEmpty    as NonEmptyList
-import qualified Data.Map.Strict       as M
-import qualified Data.Set              as S
-import qualified Data.Text.Encoding    as T
-import qualified Data.Vector           as V
+import qualified Data.CaseInsensitive as CI
+import qualified Data.HashMap.Strict  as HM
+import qualified Data.List.NonEmpty   as NonEmptyList
+import qualified Data.Set             as S
+import qualified Data.Text.Encoding   as T
 
-import Data.Either.Combinators (mapBoth)
-
-import Control.Arrow             ((***))
-import Data.Aeson.Types          (emptyArray, emptyObject)
 import Data.List                 (lookup)
 import Data.Ranged.Ranges        (emptyRange, rangeIntersection,
                                   rangeIsEmpty)
 import Network.HTTP.Types.Header (RequestHeaders, hCookie)
-import Network.HTTP.Types.URI    (parseSimpleQuery)
 import Network.Wai               (Request (..))
 import Network.Wai.Parse         (parseHttpAccept)
 import Web.Cookie                (parseCookies)
 
+import PostgREST.ApiRequest.Payload      (getPayload)
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
+import PostgREST.ApiRequest.Types        (Action (..), DbAction (..),
+                                          InvokeMethod (..),
+                                          Mutation (..), Payload (..),
+                                          RequestBody, Resource (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
 import PostgREST.Config.Database         (TimezoneNames)
@@ -63,44 +49,6 @@ import qualified PostgREST.ApiRequest.QueryParams as QueryParams
 import qualified PostgREST.MediaType              as MediaType
 
 import Protolude
-
-
-type RequestBody = LBS.ByteString
-
-data Payload
-  = ProcessedJSON -- ^ Cached attributes of a JSON payload
-      { payRaw  :: LBS.ByteString
-      -- ^ This is the raw ByteString that comes from the request body.  We
-      -- cache this instead of an Aeson Value because it was detected that for
-      -- large payloads the encoding had high memory usage, see
-      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
-      , payKeys :: S.Set Text
-      -- ^ Keys of the object or if it's an array these keys are guaranteed to
-      -- be the same across all its objects
-      }
-  | ProcessedUrlEncoded { payArray  :: [(Text, Text)], payKeys :: S.Set Text }
-  | RawJSON { payRaw  :: LBS.ByteString }
-  | RawPay  { payRaw  :: LBS.ByteString }
-
-data InvokeMethod = Inv | InvRead Bool  deriving Eq
-data Mutation = MutationCreate | MutationDelete | MutationSingleUpsert | MutationUpdate deriving Eq
-
-data Resource
-  = ResourceRelation Text
-  | ResourceRoutine Text
-  | ResourceSchema
-
-data DbAction
-  = ActRelationRead {dbActQi :: QualifiedIdentifier, actHeadersOnly :: Bool}
-  | ActRelationMut  {dbActQi :: QualifiedIdentifier, actMutation :: Mutation}
-  | ActRoutine      {dbActQi :: QualifiedIdentifier, actInvMethod :: InvokeMethod}
-  | ActSchemaRead   Schema Bool
-
-data Action
-  = ActDb           DbAction
-  | ActRelationInfo QualifiedIdentifier
-  | ActRoutineInfo  QualifiedIdentifier InvokeMethod
-  | ActSchemaInfo
 
 {-|
   Describes what the user wants to do. This data type is a
@@ -240,103 +188,3 @@ getRanges method QueryParams{qsRanges} hdrs
     -- The only emptyRange allowed is the limit zero range
     isInvalidRange = topLevelRange == emptyRange && not (hasLimitZero limitRange)
     topLevelRange = fromMaybe allRange $ HM.lookup "limit" ranges -- if no limit is specified, get all the request rows
-
-getPayload :: RequestBody -> MediaType -> QueryParams.QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
-getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
-  checkedPayload <- if shouldParsePayload then payload else Right Nothing
-  let cols = case (checkedPayload, columns) of
-        (Just ProcessedJSON{payKeys}, _)       -> payKeys
-        (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
-        (Just RawJSON{}, Just cls)             -> cls
-        _                                      -> S.empty
-  return (checkedPayload, cols)
-  where
-    payload :: Either ApiRequestError (Maybe Payload)
-    payload = mapBoth InvalidBody Just $ case (contentMediaType, isProc) of
-      (MTApplicationJSON, _) ->
-        if isJust columns
-          then Right $ RawJSON reqBody
-          else note "All object keys must match" . payloadAttributes reqBody
-                 =<< if LBS.null reqBody && isProc
-                       then Right emptyObject
-                       else first BS.pack $
-                          -- Drop parsing error message in favor of generic one (https://github.com/PostgREST/postgrest/issues/2344)
-                          maybe (Left "Empty or invalid json") Right $ JSON.decode reqBody
-      (MTTextCSV, _) -> do
-        json <- csvToJson <$> first BS.pack (CSV.decodeByName reqBody)
-        note "All lines must have same number of fields" $ payloadAttributes (JSON.encode json) json
-      (MTUrlEncoded, True) ->
-        Right $ ProcessedUrlEncoded params (S.fromList $ fst <$> params)
-      (MTUrlEncoded, False) ->
-        let paramsMap = HM.fromList $ (identity *** JSON.String) <$> params in
-        Right $ ProcessedJSON (JSON.encode paramsMap) $ S.fromList (HM.keys paramsMap)
-      (MTTextPlain, True) -> Right $ RawPay reqBody
-      (MTTextXML, True) -> Right $ RawPay reqBody
-      (MTOctetStream, True) -> Right $ RawPay reqBody
-      (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
-
-    shouldParsePayload = case action of
-      ActDb (ActRelationMut _ MutationDelete) -> False
-      ActDb (ActRelationMut _ _)              -> True
-      ActDb (ActRoutine _  Inv)               -> True
-      _                                       -> False
-
-    columns = case action of
-      ActDb (ActRelationMut _ MutationCreate) -> qsColumns
-      ActDb (ActRelationMut _ MutationUpdate) -> qsColumns
-      ActDb (ActRoutine     _ Inv)            -> qsColumns
-      _                                       -> Nothing
-
-    isProc = case action of
-      ActDb (ActRoutine _ _) -> True
-      _                      -> False
-    params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
-
-type CsvData = V.Vector (M.Map Text LBS.ByteString)
-
-{-|
-  Converts CSV like
-  a,b
-  1,hi
-  2,bye
-
-  into a JSON array like
-  [ {"a": "1", "b": "hi"}, {"a": 2, "b": "bye"} ]
-
-  The reason for its odd signature is so that it can compose
-  directly with CSV.decodeByName
--}
-csvToJson :: (CSV.Header, CsvData) -> JSON.Value
-csvToJson (_, vals) =
-  JSON.Array $ V.map rowToJsonObj vals
- where
-  rowToJsonObj = JSON.Object . KM.fromMapText .
-    M.map (\str ->
-        if str == "NULL"
-          then JSON.Null
-          else JSON.String . T.decodeUtf8 $ LBS.toStrict str
-      )
-
-payloadAttributes :: RequestBody -> JSON.Value -> Maybe Payload
-payloadAttributes raw json =
-  -- Test that Array contains only Objects having the same keys
-  case json of
-    JSON.Array arr ->
-      case arr V.!? 0 of
-        Just (JSON.Object o) ->
-          let canonicalKeys = S.fromList $ K.toText <$> KM.keys o
-              areKeysUniform = all (\case
-                JSON.Object x -> S.fromList (K.toText <$> KM.keys x) == canonicalKeys
-                _ -> False) arr in
-          if areKeysUniform
-            then Just $ ProcessedJSON raw canonicalKeys
-            else Nothing
-        Just _ -> Nothing
-        Nothing -> Just emptyPJArray
-
-    JSON.Object o -> Just $ ProcessedJSON raw (S.fromList $ K.toText <$> KM.keys o)
-
-    -- truncate everything else to an empty array.
-    _ -> Just emptyPJArray
-  where
-    emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty

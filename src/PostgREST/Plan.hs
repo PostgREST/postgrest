@@ -37,12 +37,7 @@ import Data.List               (delete, lookup)
 import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
-import PostgREST.ApiRequest                  (Action (..),
-                                              ApiRequest (..),
-                                              DbAction (..),
-                                              InvokeMethod (..),
-                                              Mutation (..),
-                                              Payload (..))
+import PostgREST.ApiRequest                  (ApiRequest (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (ApiRequestError (..),
                                               Error (..),

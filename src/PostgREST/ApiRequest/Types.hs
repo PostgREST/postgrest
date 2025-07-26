@@ -30,11 +30,68 @@ module PostgREST.ApiRequest.Types
   , QuantOperator(..)
   , FtsOperator(..)
   , SelectItem(..)
+  , Payload (..)
+  , InvokeMethod (..)
+  , Mutation (..)
+  , Resource (..)
+  , DbAction (..)
+  , Action (..)
+  , RequestBody
   ) where
 
-import PostgREST.SchemaCache.Identifiers (FieldName)
+import qualified Data.ByteString.Lazy as LBS
+import qualified Data.Set             as S
+
+import PostgREST.SchemaCache.Identifiers (FieldName,
+                                          QualifiedIdentifier (..),
+                                          Schema)
 
 import Protolude
+
+data InvokeMethod = Inv | InvRead Bool
+  deriving Eq
+
+data Mutation
+  = MutationCreate
+  | MutationDelete
+  | MutationSingleUpsert
+  | MutationUpdate
+  deriving Eq
+
+data Resource
+  = ResourceRelation Text
+  | ResourceRoutine Text
+  | ResourceSchema
+
+data DbAction
+  = ActRelationRead {dbActQi :: QualifiedIdentifier, actHeadersOnly :: Bool}
+  | ActRelationMut  {dbActQi :: QualifiedIdentifier, actMutation :: Mutation}
+  | ActRoutine      {dbActQi :: QualifiedIdentifier, actInvMethod :: InvokeMethod}
+  | ActSchemaRead   Schema Bool
+
+data Action
+  = ActDb           DbAction
+  | ActRelationInfo QualifiedIdentifier
+  | ActRoutineInfo  QualifiedIdentifier InvokeMethod
+  | ActSchemaInfo
+
+type RequestBody = LBS.ByteString
+
+data Payload
+  = ProcessedJSON -- ^ Cached attributes of a JSON payload
+      { payRaw  :: LBS.ByteString
+      -- ^ This is the raw ByteString that comes from the request body.  We
+      -- cache this instead of an Aeson Value because it was detected that for
+      -- large payloads the encoding had high memory usage, see
+      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
+      , payKeys :: S.Set Text
+      -- ^ Keys of the object or if it's an array these keys are guaranteed to
+      -- be the same across all its objects
+      }
+  | ProcessedUrlEncoded { payArray  :: [(Text, Text)], payKeys :: S.Set Text }
+  | RawJSON { payRaw  :: LBS.ByteString }
+  | RawPay  { payRaw  :: LBS.ByteString }
+
 
 -- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`
 data SelectItem
