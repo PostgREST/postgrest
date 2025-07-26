@@ -27,14 +27,14 @@ import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.SchemaCache        as SchemaCache
 
 
-import PostgREST.ApiRequest              (ApiRequest (..),
-                                          Mutation (..))
+import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
                                           PreferTransaction (..),
                                           Preferences (..),
                                           shouldCount)
+import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
                                           OpenAPIMode (..))
