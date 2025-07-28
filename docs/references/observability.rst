@@ -201,6 +201,38 @@ pgrst_db_pool_max
 
 Max pool connections.
 
+JWT Cache Metrics
+-----------------
+
+Metrics related to the :ref:`jwt_caching`.
+
+pgrst_jwt_cache_requests_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of JWT cache lookups.
+
+pgrst_jwt_cache_hits_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of JWT cache hits.
+
+pgrst_jwt_cache_evictions_total
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+======== =======
+**Type** Counter
+======== =======
+
+The total number of JWT cache evictions.
+
 Traces
 ======
 
