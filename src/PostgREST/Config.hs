@@ -151,47 +151,91 @@ toText conf =
   unlines $ (\(k, v) -> k <> " = " <> v) <$> pgrstSettings ++ appSettings
   where
     -- apply conf to all pgrst settings
-    pgrstSettings = (\(k, v) -> (k, v conf)) <$>
-      [("db-aggregates-enabled",         T.toLower . show . configDbAggregates)
-      ,("db-anon-role",              q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole)
-      ,("db-channel",                q . configDbChannel)
-      ,("db-channel-enabled",            T.toLower . show . configDbChannelEnabled)
-      ,("db-extra-search-path",      q . T.intercalate "," . configDbExtraSearchPath)
-      ,("db-hoisted-tx-settings",    q . T.intercalate "," . configDbHoistedTxSettings)
-      ,("db-max-rows",                   maybe "\"\"" show . configDbMaxRows)
-      ,("db-plan-enabled",               T.toLower . show . configDbPlanEnabled)
-      ,("db-pool",                       show . configDbPoolSize)
-      ,("db-pool-acquisition-timeout",   show . configDbPoolAcquisitionTimeout)
-      ,("db-pool-max-lifetime",          show . configDbPoolMaxLifetime)
-      ,("db-pool-max-idletime",          show . configDbPoolMaxIdletime)
-      ,("db-pool-automatic-recovery",    T.toLower . show . configDbPoolAutomaticRecovery)
-      ,("db-pre-request",            q . maybe mempty dumpQi . configDbPreRequest)
-      ,("db-prepared-statements",        T.toLower . show . configDbPreparedStatements)
-      ,("db-root-spec",              q . maybe mempty dumpQi . configDbRootSpec)
-      ,("db-schemas",                q . T.intercalate "," . toList . configDbSchemas)
-      ,("db-config",                     T.toLower . show . configDbConfig)
-      ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
-      ,("db-tx-end",                 q . showTxEnd)
-      ,("db-uri",                    q . configDbUri)
-      ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
-      ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
-      ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
-      ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
-      ,("jwt-cache-max-lifetime",                   show . configJwtCacheMaxLifetime)
-      ,("log-level",                 q . dumpLogLevel . configLogLevel)
-      ,("log-query",                 q . dumpLogQuery . configLogQuery)
-      ,("openapi-mode",              q . dumpOpenApiMode . configOpenApiMode)
-      ,("openapi-security-active",       T.toLower . show . configOpenApiSecurityActive)
-      ,("openapi-server-proxy-uri",  q . fromMaybe mempty . configOpenApiServerProxyUri)
-      ,("server-cors-allowed-origins",      q . maybe "" (T.intercalate ",") . configServerCorsAllowedOrigins)
-      ,("server-host",               q . configServerHost)
-      ,("server-port",                   show . configServerPort)
-      ,("server-trace-header",       q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader)
-      ,("server-timing-enabled",         T.toLower . show . configServerTimingEnabled)
-      ,("server-unix-socket",        q . maybe mempty T.pack . configServerUnixSocket)
-      ,("server-unix-socket-mode",   q . T.pack . showSocketMode)
-      ,("admin-server-host",         q . configAdminServerHost)
-      ,("admin-server-port",             maybe "\"\"" show . configAdminServerPort)
+    pgrstSettings = (\(k, v) -> (k, v conf)) <$> zip fileConfigNames configValues
+    fileConfigNames =
+      ["db-aggregates-enabled"
+       ,"db-anon-role"
+       ,"db-channel"
+       ,"db-channel-enabled"
+       ,"db-extra-search-path"
+       ,"db-hoisted-tx-settings"
+       ,"db-max-rows"
+       ,"db-plan-enabled"
+       ,"db-pool"
+       ,"db-pool-acquisition-timeout"
+       ,"db-pool-max-lifetime"
+       ,"db-pool-max-idletime"
+       ,"db-pool-automatic-recovery"
+       ,"db-pre-request"
+       ,"db-prepared-statements"
+       ,"db-root-spec"
+       ,"db-schemas"
+       ,"db-config"
+       ,"db-pre-config"
+       ,"db-tx-end"
+       ,"db-uri"
+       ,"jwt-aud"
+       ,"jwt-role-claim-key"
+       ,"jwt-secret"
+       ,"jwt-secret-is-base64"
+       ,"jwt-cache-max-lifetime"
+       ,"log-level"
+       ,"log-query"
+       ,"openapi-mode"
+       ,"openapi-security-active"
+       ,"openapi-server-proxy-uri"
+       ,"server-cors-allowed-origins"
+       ,"server-host"
+       ,"server-port"
+       ,"server-trace-header"
+       ,"server-timing-enabled"
+       ,"server-unix-socket"
+       ,"server-unix-socket-mode"
+       ,"admin-server-host"
+       ,"admin-server-port"
+       ]
+
+    configValues = [
+                                 T.toLower . show . configDbAggregates,
+                  q . T.decodeUtf8 . fromMaybe "" . configDbAnonRole,
+                                                q . configDbChannel,
+                                 T.toLower . show . configDbChannelEnabled,
+                            q . T.intercalate "," . configDbExtraSearchPath,
+                            q . T.intercalate "," . configDbHoistedTxSettings,
+                                maybe "\"\"" show . configDbMaxRows,
+                                 T.toLower . show . configDbPlanEnabled,
+                                             show . configDbPoolSize,
+                                             show . configDbPoolAcquisitionTimeout,
+                                             show . configDbPoolMaxLifetime,
+                                             show . configDbPoolMaxIdletime,
+                                 T.toLower . show . configDbPoolAutomaticRecovery,
+                          q . maybe mempty dumpQi . configDbPreRequest,
+                                 T.toLower . show . configDbPreparedStatements,
+                          q . maybe mempty dumpQi . configDbRootSpec,
+                   q . T.intercalate "," . toList . configDbSchemas,
+                                 T.toLower . show . configDbConfig,
+                          q . maybe mempty dumpQi . configDbPreConfig,
+                                                q . showTxEnd,
+                                                q . configDbUri,
+                             q . fromMaybe mempty . configJwtAudience,
+       q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey,
+                                 q . T.decodeUtf8 . showJwtSecret,
+                                 T.toLower . show . configJwtSecretIsBase64,
+                                             show . configJwtCacheMaxLifetime,
+                                 q . dumpLogLevel . configLogLevel,
+                                 q . dumpLogQuery . configLogQuery,
+                              q . dumpOpenApiMode . configOpenApiMode,
+                                 T.toLower . show . configOpenApiSecurityActive,
+                             q . fromMaybe mempty . configOpenApiServerProxyUri,
+                 q . maybe "" (T.intercalate ",") . configServerCorsAllowedOrigins,
+                                                q . configServerHost,
+                                             show . configServerPort,
+      q . T.decodeUtf8 . maybe mempty CI.original . configServerTraceHeader,
+                                 T.toLower . show . configServerTimingEnabled,
+                          q . maybe mempty T.pack . configServerUnixSocket,
+                                       q . T.pack . showSocketMode,
+                                                q . configAdminServerHost,
+                                maybe "\"\"" show . configAdminServerPort
       ]
 
     -- quote all app.settings
