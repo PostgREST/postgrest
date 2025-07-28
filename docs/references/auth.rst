@@ -204,15 +204,19 @@ It goes as follows:
 JWT Cache
 ---------
 
-PostgREST validates ``JWTs`` on every request. Signature validation (especially asymmetric such as RSA) is slow and we can cache ``JWT`` validation results to avoid this performance overhead.
+JWT signature validation (specially :ref:`asym_keys` such as RSA) is slow, we can cache ``JWT`` validation results to avoid this performance overhead.
 
-JWT caching is automatically enabled unless the config :code:`jwt-cache-max-entries` is set to 0.
+The JWT cache is bounded and uses the `SIEVE algorithm <https://cachemon.github.io/SIEVE-website>`_ for efficient eviction. The cache is enabled by default and can be configured with :ref:`jwt-cache-max-entries`.
 
-See :ref:`jwt-cache-max-entries` for more details.
+It's recommended to leave the JWT cache enabled as our load tests indicate ~20% more throughput for simple GET requests when using it. This while reducing CPU utilization in exchange for a bit more memory.
+
+:ref:`jwt_cache_metrics` are available.
 
 .. note::
 
-  You can use the :ref:`server-timing_header` to see the effect of JWT caching.
+  - If the ``jwt-secret`` is changed and the config is reloaded, the JWT cache will reset.
+  - Invalid JWTs (such as expired ones), are cached. This to ensure responses stays fast under failure cases.
+  - You can use the :ref:`server-timing_header` to see the peformance benefit of JWT caching.
 
 .. _jwt_role_extract:
 

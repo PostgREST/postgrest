@@ -201,6 +201,8 @@ pgrst_db_pool_max
 
 Max pool connections.
 
+.. _jwt_cache_metrics:
+
 JWT Cache Metrics
 -----------------
 
