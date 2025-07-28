@@ -260,7 +260,7 @@ This header communicates metrics of the different phases in the request-response
   Server-Timing: jwt;dur=14.9, parse;dur=71.1, plan;dur=109.0, transaction;dur=353.2, response;dur=4.4
 
 - All the durations (``dur``) are in milliseconds.
-- The ``jwt`` stage is when :ref:`jwt_impersonation` is done. This duration can be lowered with :ref:`jwt_caching`.
+- The ``jwt`` stage is when :ref:`jwt_auth` is done. This duration can be lowered with :ref:`jwt_caching`.
 - On the ``parse`` stage, the :ref:`url_grammar` is parsed.
 - On the ``plan`` stage, the :ref:`schema_cache` is used to generate the :ref:`main_query` of the transaction.
 - The ``transaction`` stage corresponds to the database transaction. See :ref:`transactions`.

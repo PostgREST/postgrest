@@ -43,7 +43,7 @@ As in :ref:`sql_user_management`, we create the :code:`pgcrypto` and :code:`pgjw
   CREATE EXTENSION pgcrypto WITH SCHEMA ext_pgcrypto;
 
 
-Concerning the `pgjwt extension <https://github.com/michelp/pgjwt>`_, please cf. to :ref:`client_auth`.
+Concerning the `pgjwt extension <https://github.com/michelp/pgjwt>`_, please cf. to :ref:`jwt-from-sql`.
 
 .. code-block:: postgres
 
@@ -157,7 +157,7 @@ Here we use the username instead of the email address to identify a user.
 Logins
 ~~~~~~
 
-As described in :ref:`client_auth`, we'll create a JWT token inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure (at least thirty-two character) secret of your choosing.
+As described in :ref:`jwt-from-sql`, we'll create a JWT token inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure (at least thirty-two character) secret of your choosing.
 
 
 .. code-block:: postgres

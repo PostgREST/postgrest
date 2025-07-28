@@ -110,6 +110,8 @@ Then, add ``db-anon-role`` to the configuration file to allow anonymous requests
 
   db-anon-role = "anon"
 
+.. _jwt-from-sql:
+
 JWT from SQL
 ~~~~~~~~~~~~
 

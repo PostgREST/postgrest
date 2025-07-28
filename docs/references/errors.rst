@@ -329,7 +329,7 @@ Related to the authentication process using JWT. You can follow the :ref:`tut1` 
 | PGRST301      |             |                                                             |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst302: | 401         | Attempted to do a request without                           |
-|               |             | :ref:`authentication <client_auth>` when the anonymous role |
+|               |             | :ref:`bearer_auth` when the anonymous role                  |
 | PGRST302      |             | is disabled by not setting it in :ref:`db-anon-role`.       |
 +---------------+-------------+-------------------------------------------------------------+
 | .. _pgrst303: | 401         | :ref:`JWT claims validation <jwt_claims_validation>`        |

@@ -31,7 +31,7 @@ The authenticator role is used for connecting to the database and should be conf
 .. _user_impersonation:
 
 User Impersonation
-------------------
+~~~~~~~~~~~~~~~~~~
 
 The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role (if it's set in :ref:`db-anon-role`).
 
@@ -43,12 +43,13 @@ This role switching mechanism is called **user impersonation**. In PostgreSQL it
 
   The impersonated roles will have their settings applied. See :ref:`impersonated_settings`.
 
-.. _jwt_impersonation:
+.. _jwt_auth:
 
-JWT-Based User Impersonation
-----------------------------
+JWT Authentication
+------------------
 
-We use `JSON Web Tokens <https://jwt.io/>`_ to authenticate API requests, this allows us to be stateless and not require database lookups for verification. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
+We use `JSON Web Tokens <https://datatracker.ietf.org/doc/html/rfc7519/>`_ to authenticate API requests, this allows us to be stateless and not require database lookups for verification.
+As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role (configurable with :ref:`jwt_role_extract`).
 
 .. code:: json
 
@@ -72,17 +73,10 @@ Note that the database administrator must allow the authenticator role to switch
 
 If the client included no JWT (or one without a role claim) then PostgREST switches into the anonymous role. The database administrator must set the anonymous role permissions correctly to prevent anonymous users from seeing or changing things they shouldn't.
 
-.. _jwt_generation:
+.. _bearer_auth:
 
-JWT Generation
-~~~~~~~~~~~~~~
-
-You can create a valid JWT either from inside your database (see :ref:`sql_user_management`) or via an external service (see :ref:`external_auth`).
-
-.. _client_auth:
-
-Client Auth
-~~~~~~~~~~~
+Bearer Authentication
+~~~~~~~~~~~~~~~~~~~~~
 
 To make an authenticated request the client must include an :code:`Authorization` HTTP header with the value :code:`Bearer <jwt>`. For instance:
 
@@ -93,24 +87,27 @@ To make an authenticated request the client must include an :code:`Authorization
 
 The ``Bearer`` header value can be used with or without capitalization(``bearer``).
 
-.. _jwt_caching:
+.. _jwt_generation:
 
-JWT Caching
------------
+JWT Generation
+~~~~~~~~~~~~~~
 
-PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid this performance overhead.
+You can create a valid JWT either from inside your database (see :ref:`sql_user_management`) or via an external service (see :ref:`external_auth`).
 
-To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results. The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
+JWT Keys
+--------
 
-.. note::
-
-  You can use the :ref:`server-timing_header` to see the effect of JWT caching.
+PostgREST supports both symmetric and asymmetric keys for signing and verifying the token.
 
 Symmetric Keys
 ~~~~~~~~~~~~~~
 
-Each token is cryptographically signed with a secret key. In the case of symmetric cryptography the signer and verifier share the same secret passphrase, which can be configured with :ref:`jwt-secret`.
-If it is set to a simple string value like "reallyreallyreallyreallyverysafe" then PostgREST interprets it as an HMAC-SHA256 passphrase.
+In the case of symmetric cryptography the signer and verifier share the same secret passphrase, which can be configured with :ref:`jwt-secret`.
+If it is set to a simple string then PostgREST interprets it as an HMAC-SHA256 passphrase.
+
+.. code-block:: ini
+
+  jwt-secret = "reallyreallyreallyreallyverysafe"
 
 .. _asym_keys:
 
@@ -156,39 +153,26 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 
   jwt-secret = "@rsa.jwk.pub"
 
-JWK ``kid`` validation
-^^^^^^^^^^^^^^^^^^^^^^
-
-PostgREST has built-in validation of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
-It goes as follows:
-
-- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
-
-  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
-  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
-
-- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
-
 .. _jwt_claims_validation:
 
 JWT Claims Validation
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
-PostgREST honors the following `JWT claims <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_:
+JWT ``exp``, ``iat`` , ``nbf`` Validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_ are validated:
 
 - ``exp`` Expiration Time
 - ``iat`` Issued At
 - ``nbf`` Not Before
-- ``aud`` :ref:`Audience <jwt_aud_validation>`
 
-.. note::
-  PostgREST allows for a 30-second clock skew when validating the ``exp``, ``iat`` and ``nbf`` claims.
-  In other words, it gives an extra 30 seconds before the token is rejected if there is a slight discrepancy in the timestamps.
+We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
 
 .. _jwt_aud_validation:
 
-JWT ``aud`` Claim Validation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+JWT ``aud`` Validation
+~~~~~~~~~~~~~~~~~~~~~~
 
 PostgREST has built-in validation of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
 It works this way:
@@ -201,10 +185,38 @@ It works this way:
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
 
+JWK ``kid`` validation
+~~~~~~~~~~~~~~~~~~~~~~
+
+PostgREST has built-in validation of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
+It goes as follows:
+
+- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
+
+  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
+  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
+
+- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
+
+
+.. _jwt_caching:
+
+JWT Cache
+---------
+
+PostgREST validates ``JWTs`` on every request. We can cache ``JWTs`` to avoid this performance overhead.
+
+To enable JWT caching, the config :code:`jwt-cache-max-lifetime` is to be set. It is the maximum number of seconds for which the cache stores the JWT validation results.
+The cache uses the :code:`exp` claim to set the cache entry lifetime. If the JWT does not have an :code:`exp` claim, it uses the config value. See :ref:`jwt-cache-max-lifetime` for more details.
+
+.. note::
+
+  You can use the :ref:`server-timing_header` to see the effect of JWT caching.
+
 .. _jwt_role_extract:
 
 JWT Role Extraction
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 A JSPath DSL that specifies the location of the :code:`role` key in the JWT claims. It's configured by :ref:`jwt-role-claim-key`. This can be used to consume a JWT provided by a third party service like Auth0, Okta, Microsoft Entra or Keycloak.
 
@@ -242,7 +254,7 @@ Usage examples:
   The string comparison operators are implemented as a custom extension to the JSPath and does not strictly follow the `RFC 9535 <https://www.rfc-editor.org/rfc/rfc9535.html>`_.
 
 JWT Security
-~~~~~~~~~~~~
+------------
 
 There are at least three types of common critiques against using JWT: 1) against the standard itself, 2) against using libraries with known security vulnerabilities, and 3) against using JWT for web sessions. We'll briefly explain each critique, how PostgREST deals with it, and give recommendations for appropriate user action.
 
