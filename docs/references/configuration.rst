@@ -316,7 +316,7 @@ db-extra-search-path
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
 
 .. important::
-  
+
   We default this config to ``public`` because it is the most common schema used to install PostgreSQL extensions such as :ref:`PostGIS <ww_postgis>`. You can disable this by setting this config to ``""``.
 
 .. _db-hoisted-tx-settings:
@@ -603,7 +603,7 @@ jwt-aud
   **In-Database** pgrst.jwt_aud
   =============== =================================
 
-    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud_validation`.
+    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud_verification`.
 
 .. _jwt-role-claim-key:
 
@@ -658,20 +658,20 @@ jwt-secret-is-base64
 
   When this is set to :code:`true`, the value derived from :code:`jwt-secret` will be treated as a base64 encoded secret.
 
-.. _jwt-cache-max-lifetime:
+.. _jwt-cache-max-entries:
 
-jwt-cache-max-lifetime
+jwt-cache-max-entries
 ----------------------
 
   =============== =================================
   **Type**        Int
-  **Default**     0
+  **Default**     1000
   **Reloadable**  Y
-  **Environment** PGRST_JWT_CACHE_MAX_LIFETIME
-  **In-Database** pgrst.jwt_cache_max_lifetime
+  **Environment** PGRST_JWT_CACHE_MAX_ENTRIES
+  **In-Database** pgrst.jwt_cache_max_entries
   =============== =================================
 
-  Maximum number of seconds of lifetime for cached entries. The default :code:`0` disables caching. See :ref:`jwt_caching`.
+  Maximum number of entries in JWT cache. The value :code:`0` disables JWT caching. See :ref:`jwt_caching`.
 
 .. _log-level:
 

@@ -30,50 +30,32 @@ import System.TimeIt    (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
+import PostgREST.Auth.Jwt      (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
 import PostgREST.Config        (AppConfig (..))
-import PostgREST.Error         (Error (..), JwtError (..))
+import PostgREST.Error         (Error (..))
 
-import qualified Data.Aeson.KeyMap  as KM
-import           PostgREST.Auth.Jwt (parseAndDecodeClaims,
-                                     parseClaims)
-import           Protolude
+import Protolude
 
--- | Validate authorization header.
+-- | Validate authorization header
 --   Parse and store JWT claims for future use in the request.
 middleware :: AppState -> Wai.Middleware
 middleware appState app req respond = do
-  cfg@AppConfig{..} <- getConfig appState
+  conf@AppConfig{..} <- getConfig appState
   time <- getTime appState
 
   let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseAuthToken = maybe (const $ throwError (JwtErr JwtSecretMissing)) parseAndDecodeClaims configJWKS
-      parseJwt = runExceptT $ maybe (pure KM.empty) parseAuthToken token >>= parseClaims cfg time
+      parseJwt = runExceptT $ lookupJwtCache jwtCacheState token >>= parseClaims conf time
       jwtCacheState = getJwtCacheState appState
 
--- If ServerTimingEnabled -> calculate JWT validation time
--- If JwtCacheMaxLifetime -> cache JWT validation result
-  req' <- case (configServerTimingEnabled, configJwtCacheMaxLifetime) of
-    (True, 0)            -> do
-          (dur, authResult) <- timeItT parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-
-    (True, maxLifetime)  -> do
-          (dur, authResult) <- timeItT $ case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
-            Nothing  -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
-
-    (False, 0)           -> do
-          authResult <- parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
-
-    (False, maxLifetime) -> do
-          authResult <- case token of
-            Just tkn -> lookupJwtCache jwtCacheState tkn maxLifetime parseJwt time
-            Nothing -> parseJwt
-          return $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
+  -- If ServerTimingEnabled -> calculate JWT validation time
+  req' <- if configServerTimingEnabled then do
+      (dur, authResult) <- timeItT parseJwt
+      pure $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult & Vault.insert jwtDurKey dur }
+    else do
+      authResult <- parseJwt
+      pure $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
 
