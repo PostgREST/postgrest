@@ -94,10 +94,12 @@ JWT Generation
 
 You can create a valid JWT either from inside your database (see :ref:`sql_user_management`) or via an external service (see :ref:`external_auth`).
 
-JWT Keys
---------
+.. _jwt_signature:
 
-PostgREST supports both symmetric and asymmetric keys for signing and verifying the token.
+JWT Signature Verification
+--------------------------
+
+PostgREST supports both symmetric and asymmetric keys for verifying the signature of the token.
 
 Symmetric Keys
 ~~~~~~~~~~~~~~
@@ -153,28 +155,25 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 
   jwt-secret = "@rsa.jwk.pub"
 
-.. _jwt_claims_validation:
+``kid`` verification
+^^^^^^^^^^^^^^^^^^^^
 
-JWT Claims Validation
----------------------
+PostgREST has built-in verification of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
+It goes as follows:
 
-JWT ``exp``, ``iat`` , ``nbf`` Validation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
 
-The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_ are validated:
+  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
+  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
 
-- ``exp`` Expiration Time
-- ``iat`` Issued At
-- ``nbf`` Not Before
+- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
 
-We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
+.. _jwt_aud_verification:
 
-.. _jwt_aud_validation:
+``aud`` verification
+~~~~~~~~~~~~~~~~~~~~
 
-JWT ``aud`` Validation
-~~~~~~~~~~~~~~~~~~~~~~
-
-PostgREST has built-in validation of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
+PostgREST has built-in verification of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
 It works this way:
 
 - If :ref:`jwt-aud` is not set (the default), PostgREST identifies with all audiences and allows the JWT for any ``aud`` claim.
@@ -185,19 +184,18 @@ It works this way:
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
 
-JWK ``kid`` validation
-~~~~~~~~~~~~~~~~~~~~~~
+.. _jwt_claims_validation:
 
-PostgREST has built-in validation of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
-It goes as follows:
+JWT Claims Validation
+---------------------
 
-- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
+The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_ are validated:
 
-  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
-  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
+- ``exp`` Expiration Time
+- ``iat`` Issued At
+- ``nbf`` Not Before
 
-- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
-
+We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
 
 .. _jwt_caching:
 
@@ -215,7 +213,7 @@ It's recommended to leave the JWT cache enabled as our load tests indicate ~20% 
 .. note::
 
   - If the ``jwt-secret`` is changed and the config is reloaded, the JWT cache will reset.
-  - Invalid JWTs (such as expired ones), are cached. This to ensure responses stays fast under failure cases.
+  - JWTs that pass :ref:`jwt_signature` are cached, regardless if they pass :ref:`jwt_claims_validation`. We do this to ensure responses stays fast under common failure cases (such as expired JWTs).
   - You can use the :ref:`server-timing_header` to see the peformance benefit of JWT caching.
 
 .. _jwt_role_extract:
