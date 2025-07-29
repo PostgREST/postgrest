@@ -316,7 +316,7 @@ db-extra-search-path
   Multiple schemas can be added in a comma-separated string, e.g. ``public, extensions``.
 
 .. important::
-  
+
   We default this config to ``public`` because it is the most common schema used to install PostgreSQL extensions such as :ref:`PostGIS <ww_postgis>`. You can disable this by setting this config to ``""``.
 
 .. _db-hoisted-tx-settings:
@@ -603,7 +603,7 @@ jwt-aud
   **In-Database** pgrst.jwt_aud
   =============== =================================
 
-    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud_validation`.
+    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud_verification`.
 
 .. _jwt-role-claim-key:
 
