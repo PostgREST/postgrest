@@ -54,7 +54,7 @@ dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
   result <-
-    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
+    let transaction = if configDbPreparedStatements then SQL.transactionNoRetry else SQL.unpreparedTransaction in
     AppState.usePool appState
       (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
