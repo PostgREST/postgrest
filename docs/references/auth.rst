@@ -296,3 +296,23 @@ doing custom logic based on the web user info.
     END IF;
   END
   $$ LANGUAGE plpgsql;
+
+.. raw:: html
+
+  <script type="text/javascript">
+    let hash = window.location.hash;
+
+    const redirects = {
+      '#jwt-based-user-impersonation': '#jwt-authentication',
+      '#client-auth': '#bearer-authentication',
+      '#jwt-caching': '#jwt-cache',
+      '#jwk-kid-validation': '#kid-verification',
+      '#jwt-aud-claim-validation': '#aud-validation',
+    };
+
+    let willRedirectTo = redirects[hash];
+
+    if (willRedirectTo) {
+      window.location.href = willRedirectTo;
+    }
+  </script>
