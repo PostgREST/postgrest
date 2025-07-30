@@ -12,8 +12,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   + The exposed schemas are now listed in the `hint` instead of the `message` field.
 - Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 
-### Changed
-- #4084, Implemented fixed size JWT cache based on sieve algorithm
 ### Fixed
 
 - Fix OpenAPI broken docs link by @taimoorzaeem in #4080
@@ -23,6 +21,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Drop support for PostgreSQL EOL version 12 by @wolfgangwalther in #3865
+- Implement JWT cache based on sieve algorithm by @mkleczek in #4084
+  + Replaces `jwt-cache-max-lifetime` config with `jwt-cache-max-entries`.
+  + It now uses a fixed size cache instead of arbitrary sized cache.
 
 ## [13.0.4] - 2025-06-17
 
