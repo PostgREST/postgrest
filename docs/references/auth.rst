@@ -168,12 +168,28 @@ It goes as follows:
 
 - If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
 
-.. _jwt_aud_verification:
+.. _jwt_claims_validation:
 
-``aud`` verification
-~~~~~~~~~~~~~~~~~~~~
+JWT Claims Validation
+---------------------
 
-PostgREST has built-in verification of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
+Time-Based claims validation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_ are validated:
+
+- ``exp`` Expiration Time
+- ``iat`` Issued At
+- ``nbf`` Not Before
+
+We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
+
+.. _jwt_aud:
+
+``aud`` validation
+~~~~~~~~~~~~~~~~~~
+
+PostgREST has built-in validation of the `JWT audience claim <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.3>`_.
 It works this way:
 
 - If :ref:`jwt-aud` is not set (the default), PostgREST identifies with all audiences and allows the JWT for any ``aud`` claim.
@@ -183,19 +199,6 @@ It works this way:
   + If the ``aud`` value is a JSON array of strings, it will search every element for a match.
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
-
-.. _jwt_claims_validation:
-
-JWT Claims Validation
----------------------
-
-The time-based JWT claims specified in `RFC 7519 <https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4>`_ are validated:
-
-- ``exp`` Expiration Time
-- ``iat`` Issued At
-- ``nbf`` Not Before
-
-We allow a 30-second clock skew when validating the above claims. In other words, we give an extra 30 seconds before the JWT is rejected if there is a slight discrepancy in the timestamps.
 
 .. _jwt_caching:
 

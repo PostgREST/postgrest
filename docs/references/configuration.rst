@@ -603,7 +603,7 @@ jwt-aud
   **In-Database** pgrst.jwt_aud
   =============== =================================
 
-    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud_verification`.
+    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud`.
 
 .. _jwt-role-claim-key:
 
