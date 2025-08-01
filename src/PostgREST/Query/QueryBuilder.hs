@@ -119,6 +119,7 @@ getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
         correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
+-- INSERT: Corresponds to HTTP POST and PUT methods
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
   "INSERT INTO " <> fromQi mainQi <> (if null iCols then " " else "(" <> cols <> ") ") <>
   fromJsonBodyF body iCols True False applyDefaults <>
@@ -142,6 +143,7 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
+-- UPDATE: Corresponds to HTTP PATCH method
 mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
@@ -161,12 +163,44 @@ mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
 
+-- DELETE: Corresponds to HTTP DELETE method
 mutatePlanToQuery (Delete mainQi logicForest returnings) =
   "DELETE FROM " <> fromQi mainQi <> " " <>
   whereLogic <> " " <>
   returningF mainQi returnings
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+
+-- PGRST PATCH: HTTP PATCH method with "vnd.pgrst.patch+json" Content-Type
+mutatePlanToQuery (PgrstPatch mainQi body logicForest returnings) =
+  "UPDATE " <> fromQi mainQi <> " SET "
+  <> "(" <> intercalateSnippet "," cols <> ")"
+  <> " = "
+  <> "ROW(" <> intercalateSnippet "," vals <> ") "
+  <> whereLogic <> " "
+  <> returningF mainQi returnings
+  where
+    -- TODO: At this stage, there must be a body. The Maybe comes from
+    --       ApiRequest which should be refactored later to avoid 'fromJust'
+    patchBody = fromJust body
+
+    cols :: [SQL.Snippet]
+    cols = map getFieldName patchBody
+      where
+        getFieldName :: PgrstPatchOp -> SQL.Snippet
+        getFieldName (Incr field _) = pgFmtIdent field
+
+    vals :: [SQL.Snippet]
+    vals = map getValAndApplyOp patchBody
+      where
+        intToSnip = SQL.sql . BS.pack . show
+
+        getValAndApplyOp :: PgrstPatchOp -> SQL.Snippet
+        getValAndApplyOp (Incr field val) =
+          pgFmtIdent field <> " + CAST(" <> intToSnip val <> " AS INTEGER)"
+
+    whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar filterFields returnings) =

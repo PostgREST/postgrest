@@ -1,14 +1,19 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module PostgREST.ApiRequest.Types
   ( AggregateFunction(..)
+  , Action (..)
   , Alias
   , Cast
+  , DbAction (..)
   , Depth
   , EmbedParam(..)
   , EmbedPath
   , Field
   , Filter(..)
+  , FtsOperator(..)
   , Hint
+  , InvokeMethod (..)
+  , IsVal(..)
   , JoinType(..)
   , JsonOperand(..)
   , JsonOperation(..)
@@ -17,26 +22,22 @@ module PostgREST.ApiRequest.Types
   , ListVal
   , LogicOperator(..)
   , LogicTree(..)
+  , Mutation (..)
   , NodeName
   , OpExpr(..)
-  , Operation (..)
   , OpQuantifier(..)
+  , Operation (..)
   , OrderDirection(..)
   , OrderNulls(..)
   , OrderTerm(..)
-  , SingleVal
-  , IsVal(..)
-  , SimpleOperator(..)
-  , QuantOperator(..)
-  , FtsOperator(..)
-  , SelectItem(..)
   , Payload (..)
-  , InvokeMethod (..)
-  , Mutation (..)
-  , Resource (..)
-  , DbAction (..)
-  , Action (..)
+  , PgrstPatchOp (..)
+  , QuantOperator(..)
   , RequestBody
+  , Resource (..)
+  , SelectItem(..)
+  , SimpleOperator(..)
+  , SingleVal
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
@@ -56,6 +57,7 @@ data Mutation
   | MutationDelete
   | MutationSingleUpsert
   | MutationUpdate
+  | MutationPgrstPatch
   deriving Eq
 
 data Resource
@@ -88,10 +90,15 @@ data Payload
       -- ^ Keys of the object or if it's an array these keys are guaranteed to
       -- be the same across all its objects
       }
-  | ProcessedUrlEncoded { payArray  :: [(Text, Text)], payKeys :: S.Set Text }
-  | RawJSON { payRaw  :: LBS.ByteString }
-  | RawPay  { payRaw  :: LBS.ByteString }
+  | ProcessedUrlEncoded { payArray :: [(Text, Text)], payKeys :: S.Set Text }
+  | RawJSON      { payRaw   :: LBS.ByteString }
+  | RawPay       { payRaw   :: LBS.ByteString }
+  | PgrstPatchPay { payPgrstPatch :: [PgrstPatchOp] } -- ^ PgrstPatchPay is a list of patch updates
 
+
+data PgrstPatchOp
+  = Incr FieldName Int
+  -- We can add more operations in the future
 
 -- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`
 data SelectItem
