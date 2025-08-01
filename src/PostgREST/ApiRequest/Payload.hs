@@ -6,6 +6,7 @@
 --
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE NamedFieldPuns #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 module PostgREST.ApiRequest.Payload
   ( getPayload
   ) where
@@ -18,13 +19,16 @@ import qualified Data.ByteString.Lazy  as LBS
 import qualified Data.Csv              as CSV
 import qualified Data.HashMap.Strict   as HM
 import qualified Data.Map.Strict       as M
+import qualified Data.Scientific       as Sci
 import qualified Data.Set              as S
 import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
 
 import Control.Arrow           ((***))
+import Control.Monad           (fail)
+import Data.Aeson              ((.:))
 import Data.Aeson.Types        (emptyArray, emptyObject)
-import Data.Either.Combinators (mapBoth)
+import Data.Either.Combinators (mapBoth, mapLeft)
 import Network.HTTP.Types.URI  (parseSimpleQuery)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
@@ -44,6 +48,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
         (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)             -> cls
+        (Just PgrstPatchPay{}, Just cls)       -> cls
         _                                      -> S.empty
   return (checkedPayload, cols)
   where
@@ -69,7 +74,11 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       (MTTextPlain, True) -> Right $ RawPay reqBody
       (MTTextXML, True) -> Right $ RawPay reqBody
       (MTOctetStream, True) -> Right $ RawPay reqBody
+      (MTVndPgrstPatch, False) -> PgrstPatchPay <$> parsePgrstPatch reqBody
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
+
+    parsePgrstPatch :: LBS.ByteString -> Either ByteString [PgrstPatchOp]
+    parsePgrstPatch = mapLeft BS.pack . JSON.eitherDecode
 
     shouldParsePayload = case action of
       ActDb (ActRelationMut _ MutationDelete) -> False
@@ -87,6 +96,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       ActDb (ActRoutine _ _) -> True
       _                      -> False
     params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
+
 
 type CsvData = V.Vector (M.Map Text LBS.ByteString)
 
@@ -136,3 +146,32 @@ payloadAttributes raw json =
     _ -> Just emptyPJArray
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
+
+
+instance JSON.FromJSON PgrstPatchOp where
+  parseJSON (JSON.Object o) = do
+    op    <- parseString o "op"
+    path  <- parseString o "path"
+    -- TODO: We need to decide what JSON "value"s are allowed in our
+    --       our Pgrst Patch implementation.
+    --       For now, we only have incr operator, so it's number only
+    case op of
+      "incr" -> Incr path <$> parseNumber o "value"
+      _      -> fail $ "Unknown Pgrst Patch operation " ++ show op
+    where
+      parseString obj key = do
+        val <- obj .: key
+        case val of
+          JSON.String txt -> pure txt
+          _               -> fail $ "Expected JSON string for " ++ show key
+
+      parseNumber obj key = do
+        val <- obj .: key
+        case val of
+          JSON.Number num -> pure $ sciToInt num
+          _               -> fail $ "Expected JSON number for " ++ show key
+        where
+          sciToInt :: Sci.Scientific -> Int
+          sciToInt = fromMaybe 0 . Sci.toBoundedInteger
+
+  parseJSON _ = mzero

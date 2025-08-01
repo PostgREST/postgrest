@@ -988,6 +988,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
         else
           Left $ ApiRequestError InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
+    MutationPgrstPatch -> Right $ PgrstPatch qi pgrstPatchBody combinedLogic returnings
   where
     ctx = ResolverContext dbTables dbRepresentations qi "json"
     confCols = fromMaybe pkCols qsOnConflict
@@ -1003,6 +1004,7 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     logic = map (resolveLogicTree ctx . snd) qsLogic
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
+    pgrstPatchBody = payPgrstPatch <$> iPayload
     applyDefaults = preferMissing == Just ApplyDefaults
     typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
