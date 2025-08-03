@@ -50,8 +50,8 @@ import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.Query.Statements        (ResultSet (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
-import PostgREST.SchemaCache.Routine     (Routine (..), RoutineMap)
-import PostgREST.SchemaCache.Table       (TablesMap)
+import PostgREST.SchemaCache.Routine     (Routine (..))
+import PostgREST.SchemaCache.Table       (Table)
 
 import Protolude hiding (Handler)
 
@@ -70,7 +70,7 @@ data Query
 data QueryResult
   = DbCrudResult  CrudPlan ResultSet
   | DbCallResult  CallReadPlan  ResultSet
-  | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
+  | MaybeDbResult InspectPlan (Maybe ([Table], [Routine], Maybe Text))
   | NoDbResult    InfoPlan
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
@@ -181,15 +181,16 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache 
     mainActionQuery = lift $
       case configOpenApiMode of
         OAFollowPriv -> do
-          tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
+          tableAccess <- SQL.statement tSchema (SchemaCache.accessibleTables configDbPreparedStatements)
+          funcAccess  <- SQL.statement tSchema (SchemaCache.accessibleFuncs configDbPreparedStatements)
           MaybeDbResult plan . Just <$> ((,,)
-                (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-            <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
+                (snd <$> HM.toList (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache))
+            <$> (pure $ concatMap (filter (\r -> S.member (pdIdent r) funcAccess)) (HM.elems $ SchemaCache.dbRoutines sCache))
             <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
         OAIgnorePriv ->
           (MaybeDbResult plan . Just) . (,,)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
+                (snd <$> HM.toList (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache))
+                (concat . HM.elems $ HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
             <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements)
         OADisabled ->
           pure $ MaybeDbResult plan Nothing

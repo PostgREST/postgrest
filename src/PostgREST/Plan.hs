@@ -62,7 +62,7 @@ import PostgREST.SchemaCache.Representations (DataRepresentation (..),
 import PostgREST.SchemaCache.Routine         (MediaHandler (..),
                                               MediaHandlerMap,
                                               ResolvedHandler,
-                                              Routine (..),
+                                              Routine (..), FuncIdent(..),
                                               RoutineMap,
                                               RoutineParam (..),
                                               funcReturnsScalar,
@@ -171,7 +171,7 @@ callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferenc
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
         Inv       -> iColumns
-  proc@Function{..} <- mapLeft SchemaCacheErr $
+  proc@Function{pdIdent=FuncIdent{..},..} <- mapLeft SchemaCacheErr $
     findProc identifier paramKeys (dbRoutines sCache) iContentMediaType (invMethod == Inv)
   let relIdentifier = QualifiedIdentifier pdSchema (fromMaybe pdName $ Routine.funcTableName proc) -- done so a set returning function can embed other relations
   rPlan <- readPlan relIdentifier conf sCache apiRequest
@@ -236,7 +236,7 @@ findProc qi argumentsKeys allProcs contentMediaType isInvPost =
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
     -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam Function{pdParams=[RoutineParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
+    hasSingleUnnamedParam Function{pdIdent=FuncIdent{pdParams=[RoutineParam{ppType}]}} = isInvPost && case (contentMediaType, ppType) of
       (MTApplicationJSON, "json")  -> True
       (MTApplicationJSON, "jsonb") -> True
       (MTTextPlain, "text")        -> True
@@ -246,7 +246,7 @@ findProc qi argumentsKeys allProcs contentMediaType isInvPost =
     hasSingleUnnamedParam _ = False
     matchesParams proc =
       let
-        params = pdParams proc
+        params = pdParams $ pdIdent proc
       in
       -- If the function has no parameters, the arguments keys must be empty as well
       if null params
@@ -1013,7 +1013,7 @@ resolveOrError ctx table field = case resolveTableFieldName table field Nothing 
 
 callPlan :: Routine -> ApiRequest -> S.Set FieldName -> CallArgs -> ReadPlanTree -> CallPlan
 callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
-  funCQi = QualifiedIdentifier (pdSchema proc) (pdName proc)
+  funCQi = QualifiedIdentifier (pdSchema ident) (pdName ident)
 , funCParams = callParams
 , funCArgs = args
 , funCScalar = funcReturnsScalar proc
@@ -1022,8 +1022,9 @@ callPlan proc ApiRequest{} paramKeys args readReq = FunctionCall {
 , funCReturning = inferColsEmbedNeeds readReq []
 }
   where
+    ident = pdIdent proc
     specifiedParams = filter (\x -> ppName x `S.member` paramKeys)
-    callParams = case pdParams proc of
+    callParams = case pdParams ident of
       [prm] | ppName prm == mempty -> OnePosParam prm
             | otherwise            -> KeyParams $ specifiedParams [prm]
       prms  -> KeyParams $ specifiedParams prms

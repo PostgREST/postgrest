@@ -47,7 +47,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Junction (..),
                                            Relationship (..),
                                            RelationshipsMap)
-import PostgREST.SchemaCache.Routine      (Routine (..),
+import PostgREST.SchemaCache.Routine      (Routine (..), FuncIdent (..),
                                            RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
@@ -280,7 +280,7 @@ instance ErrorBody SchemaCacheError where
         prms = T.intercalate ", " argumentKeys
         prmsMsg = "(" <> prms <> ")"
         fmtPrms p = if null argumentKeys then " without parameters" else p
-  message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
+  message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema (pdIdent p) <> "." <> pdName (pdIdent p) <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams $ pdIdent p] <> ")" | p <- procs]
   message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
   message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
 
@@ -417,7 +417,7 @@ noRpcHint schema procName params allProcs overloadedProcs =
   fmap (("Perhaps you meant to call the function " <> schema <> ".") <>) possibleProcs
   where
     fuzzySetOfProcs  = Fuzzy.fromList [qiName k | k <- allProcs, qiSchema k == schema]
-    fuzzySetOfParams = Fuzzy.fromList $ listToText <$> [[ppName prm | prm <- pdParams ov] | ov <- overloadedProcs]
+    fuzzySetOfParams = Fuzzy.fromList $ listToText <$> [[ppName prm | prm <- pdParams $ pdIdent ov] | ov <- overloadedProcs]
     -- Cannot do a fuzzy search like: Fuzzy.getOne [[Text]] [Text], where [[Text]] is the list of params for each
     -- overloaded function and [Text] the given params. This converts those lists to text to make fuzzy search possible.
     -- E.g. ["val", "param", "name"] into "(name, param, val)"

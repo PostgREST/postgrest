@@ -229,9 +229,9 @@ actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=p
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders crMedia ctxApiRequest) $ LBS.fromStrict plan
 
-actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} body) _ versions conf sCache schema negotiatedByProfile =
+actionResponse (MaybeDbResult InspectPlan{ipHdrsOnly=headersOnly} resOpenApi) _ versions conf sCache schema negotiatedByProfile =
   let
-    rsBody = maybe mempty (\(x, y, z) -> if headersOnly then mempty else OpenAPI.encode versions conf sCache x y z) body
+    rsBody = maybe mempty (\rs -> if headersOnly then mempty else OpenAPI.encode versions conf sCache rs) resOpenApi
     cLHeader = if headersOnly then mempty else [contentLengthHeaderLazy rsBody]
   in
   Right $ PgrstResponse HTTP.status200 (MediaType.toContentType MTOpenAPI : cLHeader ++ maybeToList (profileHeader schema negotiatedByProfile)) rsBody

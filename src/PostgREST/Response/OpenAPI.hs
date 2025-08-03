@@ -31,24 +31,23 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            Relationship (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
-                                           Routine (..),
+                                           Routine (..), FuncIdent(..),
                                            RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Column (..), Table (..),
-                                           TablesMap,
                                            tableColumnsList)
 
 import PostgREST.MediaType
 
 import Protolude hiding (Proxy, get)
 
-encode :: (Text, Text) -> AppConfig -> SchemaCache -> TablesMap -> HM.HashMap k [Routine] -> Maybe Text -> LBS.ByteString
-encode versions conf sCache tables procs schemaDescription =
+encode :: (Text, Text) -> AppConfig -> SchemaCache -> ([Table], [Routine], Maybe Text) -> LBS.ByteString
+encode versions conf sCache (tables, procs, schemaDescription) =
   JSON.encode $
     postgrestSpec
       versions
       (dbRelationships sCache)
-      (concat $ HM.elems procs)
-      (snd <$> HM.toList tables)
+      procs
+      tables
       (proxyUri conf)
       schemaDescription
       (configOpenApiSecurityActive conf)
@@ -151,8 +150,10 @@ makeProcSchema pd =
   (mempty :: Schema)
   & description .~ pdDescription pd
   & type_ ?~ SwaggerObject
-  & properties .~ fromList (fmap makeProcProperty (pdParams pd))
-  & required .~ fmap ppName (filter ppReq (pdParams pd))
+  & properties .~ fromList (fmap makeProcProperty prms)
+  & required .~ fmap ppName (filter ppReq prms)
+  where
+    prms = pdParams $ pdIdent pd
 
 makeProcProperty :: RoutineParam -> (Text, Referenced Schema)
 makeProcProperty (RoutineParam n t _ _ _) = (n, Inline s)
@@ -340,8 +341,9 @@ makePathItem t = ("/" ++ T.unpack tn, p $ tableInsertable t || tableUpdatable t 
     ref = Ref . Reference
 
 makeProcPathItem :: Routine -> (FilePath, PathItem)
-makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
+makeProcPathItem pd = ("/rpc/" ++ toS (pdName fIdent), pe)
   where
+    fIdent = pdIdent pd
     -- Use first line of proc description as summary; rest as description (if present)
     -- We strip leading newlines from description so that users can include a blank line between summary and description
     (pSum, pDesc) = fmap fst &&& fmap (T.dropWhile (=='\n') . snd) $
@@ -349,11 +351,11 @@ makeProcPathItem pd = ("/rpc/" ++ toS (pdName pd), pe)
     procOp = (mempty :: Operation)
       & summary .~ pSum
       & description .~ mfilter (/="") pDesc
-      & tags .~ Set.fromList ["(rpc) " <> pdName pd]
+      & tags .~ Set.fromList ["(rpc) " <> pdName fIdent]
       & produces ?~ makeMimeList [MTApplicationJSON, MTVndSingularJSON True, MTVndSingularJSON False]
       & at 200 ?~ "OK"
     getOp = procOp
-      & parameters .~ makeProcGetParams (pdParams pd)
+      & parameters .~ makeProcGetParams (pdParams $ pdIdent pd)
     postOp = procOp
       & parameters .~ makeProcPostParams pd
     pe = case pdVolatility pd of

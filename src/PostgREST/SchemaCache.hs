@@ -25,6 +25,7 @@ module PostgREST.SchemaCache
   , accessibleFuncs
   , schemaDescription
   , showSummary
+  , AccessFuncSet
   ) where
 
 import Control.Monad.Extra (whenJust)
@@ -62,7 +63,7 @@ import PostgREST.SchemaCache.Routine         (FuncVolatility (..),
                                               MediaHandlerMap,
                                               PgType (..),
                                               RetType (..),
-                                              Routine (..),
+                                              Routine (..), FuncIdent(..),
                                               RoutineMap,
                                               RoutineParam (..))
 import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
@@ -279,51 +280,6 @@ viewKeyDepFromRow (s1,t1,s2,v2,cons,consType,sCols) = ViewKeyDependency (Qualifi
            | consType == "f" = FKDep
            | otherwise       = FKDepRef -- f_ref, we build this type in the query
 
-decodeFuncs :: HD.Result RoutineMap
-decodeFuncs =
-  -- Duplicate rows for a function means they're overloaded, order these by least args according to Routine Ord instance
-  map sort . HM.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList funcRow
-  where
-    funcRow = Function
-              <$> column HD.text
-              <*> column HD.text
-              <*> nullableColumn HD.text
-              <*> compositeArrayColumn
-                  (RoutineParam
-                  <$> compositeField HD.text
-                  <*> compositeField HD.text
-                  <*> compositeField HD.text
-                  <*> compositeField HD.bool
-                  <*> compositeField HD.bool)
-              <*> (parseRetType
-                  <$> column HD.text
-                  <*> column HD.text
-                  <*> column HD.bool
-                  <*> column HD.bool
-                  <*> column HD.bool)
-              <*> (parseVolatility <$> column HD.char)
-              <*> column HD.bool
-              <*> nullableColumn (toIsolationLevel <$> HD.text)
-              <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
-
-    addKey :: Routine -> (QualifiedIdentifier, Routine)
-    addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
-
-    parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> RetType
-    parseRetType schema name isSetOf isComposite isCompositeAlias
-      | isSetOf   = SetOf pgType
-      | otherwise = Single pgType
-      where
-        qi = QualifiedIdentifier schema name
-        pgType
-          | isComposite = Composite qi isCompositeAlias
-          | otherwise   = Scalar qi
-
-    parseVolatility :: Char -> FuncVolatility
-    parseVolatility v | v == 'i' = Immutable
-                      | v == 's' = Stable
-                      | otherwise = Volatile -- only 'v' can happen here
-
 decodeRepresentations :: HD.Result RepresentationsMap
 decodeRepresentations =
   HM.fromList . map (\rep@DataRepresentation{drSourceType, drTargetType} -> ((drSourceType, drTargetType), rep)) <$> HD.rowList row
@@ -361,19 +317,127 @@ dataRepresentations = SQL.Statement sql mempty decodeRepresentations
     |]
 
 allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
-allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
+allFunctions = SQL.Statement sql params decodeFuncs
   where
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbHoistedTxSettings >$< arrayParam HE.text)
+    sql = encodeUtf8 [trimming|
+      WITH
+      $baseTypesCte,
+      $argumentsCte
+      SELECT
+        pn.nspname AS proc_schema,
+        p.proname AS proc_name,
+        COALESCE(a.args, '{}') AS args,
+        d.description AS proc_description,
+        tn.nspname AS schema,
+        COALESCE(comp.relname, t.typname) AS name,
+        p.proretset AS rettype_is_setof,
+        (t.typtype = 'c'
+         -- if any TABLE, INOUT or OUT arguments present, treat as composite
+         or COALESCE(proargmodes::text[] && '{t,b,o}', false)
+        ) AS rettype_is_composite,
+        bt.oid <> bt.base_type as rettype_is_composite_alias,
+        p.provolatile,
+        p.provariadic > 0 as hasvariadic,
+        lower((regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1]) AS transaction_isolation_level,
+        coalesce(func_settings.kvs, '{}') as kvs
+      FROM pg_proc p
+      LEFT JOIN arguments a ON a.oid = p.oid
+      JOIN pg_namespace pn ON pn.oid = p.pronamespace
+      JOIN base_types bt ON bt.oid = p.prorettype
+      JOIN pg_type t ON t.oid = bt.base_type
+      JOIN pg_namespace tn ON tn.oid = t.typnamespace
+      LEFT JOIN pg_class comp ON comp.oid = t.typrelid
+      LEFT JOIN pg_description as d ON d.objoid = p.oid AND d.classoid = 'pg_proc'::regclass
+      LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config LIKE 'default_transaction_isolation%'
+      LEFT JOIN LATERAL (
+        SELECT
+          array_agg(row(
+            substr(setting, 1, strpos(setting, '=') - 1),
+            substr(setting, strpos(setting, '=') + 1)
+          )) as kvs
+        FROM unnest(proconfig) setting
+        WHERE setting ~ ANY($$2)
+      ) func_settings ON TRUE
+      WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
+      AND prokind = 'f'
+      AND p.pronamespace = ANY($$1::regnamespace[]) |]
 
-accessibleFuncs :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
-accessibleFuncs = SQL.Statement sql params decodeFuncs
+decodeFuncs :: HD.Result RoutineMap
+decodeFuncs =
+  -- Duplicate rows for a function means they're overloaded, order these by least args according to Routine Ord instance
+  map sort . HM.fromListWith (++) . map ((\(x,y) -> (x, [y])) . addKey) <$> HD.rowList decodeFuncRow
   where
-    params =
-      (fst >$< arrayParam HE.text) <>
-      (snd >$< arrayParam HE.text)
-    sql = funcsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
+    addKey :: Routine -> (QualifiedIdentifier, Routine)
+    addKey pd = (QualifiedIdentifier (pdSchema $ pdIdent pd) (pdName $ pdIdent pd), pd)
+
+    decodeFuncRow :: HD.Row Routine
+    decodeFuncRow = Function
+              <$> decodeFuncIdent
+              <*> nullableColumn HD.text
+              <*> (parseRetType
+                  <$> column HD.text
+                  <*> column HD.text
+                  <*> column HD.bool
+                  <*> column HD.bool
+                  <*> column HD.bool)
+              <*> (parseVolatility <$> column HD.char)
+              <*> column HD.bool
+              <*> nullableColumn (toIsolationLevel <$> HD.text)
+              <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
+      where
+        parseRetType :: Text -> Text -> Bool -> Bool -> Bool -> RetType
+        parseRetType schema name isSetOf isComposite isCompositeAlias
+          | isSetOf   = SetOf pgType
+          | otherwise = Single pgType
+          where
+            pgType
+              | isComposite = Composite qi isCompositeAlias
+              | otherwise   = Scalar qi
+            qi = QualifiedIdentifier schema name
+
+        parseVolatility :: Char -> FuncVolatility
+        parseVolatility v | v == 'i' = Immutable
+                          | v == 's' = Stable
+                          | otherwise = Volatile -- only 'v' can happen here
+
+decodeFuncIdent :: HD.Row FuncIdent
+decodeFuncIdent =
+  FuncIdent
+  <$> column HD.text
+  <*> column HD.text
+  <*> compositeArrayColumn
+      (RoutineParam
+      <$> compositeField HD.text
+      <*> compositeField HD.text
+      <*> compositeField HD.text
+      <*> compositeField HD.bool
+      <*> compositeField HD.bool)
+
+type AccessFuncSet = S.Set FuncIdent
+
+accessibleFuncs :: Bool -> SQL.Statement Schema AccessFuncSet
+accessibleFuncs = SQL.Statement sql params decoder
+  where
+    params = escapeIdent >$< param HE.text
+    sql = encodeUtf8 [trimming|
+      WITH
+      $argumentsCte
+      SELECT
+        pn.nspname AS proc_schema,
+        p.proname AS proc_name,
+        COALESCE(a.args, '{}') AS args
+      FROM pg_proc p
+      LEFT JOIN arguments a ON a.oid = p.oid
+      JOIN pg_namespace pn ON pn.oid = p.pronamespace
+      WHERE COALESCE(a.callable, true)
+      AND prokind = 'f'
+      AND p.pronamespace = $$1::regnamespace
+      AND has_function_privilege(p.oid, 'execute')
+    |]
+    decoder = S.fromList <$> HD.rowList decodeFuncIdent
 
 baseTypesCte :: Text
 baseTypesCte = [trimming|
@@ -405,10 +469,9 @@ baseTypesCte = [trimming|
   )
 |]
 
-funcsSqlQuery :: SqlQuery
-funcsSqlQuery = encodeUtf8 [trimming|
-  WITH
-  $baseTypesCte,
+argumentsCte :: Text
+argumentsCte = [trimming|
+  -- Recursively get the base types of domains
   arguments AS (
     SELECT
       oid,
@@ -436,44 +499,7 @@ funcsSqlQuery = encodeUtf8 [trimming|
     WHERE type IS NOT NULL -- only input arguments
     GROUP BY oid
   )
-  SELECT
-    pn.nspname AS proc_schema,
-    p.proname AS proc_name,
-    d.description AS proc_description,
-    COALESCE(a.args, '{}') AS args,
-    tn.nspname AS schema,
-    COALESCE(comp.relname, t.typname) AS name,
-    p.proretset AS rettype_is_setof,
-    (t.typtype = 'c'
-     -- if any TABLE, INOUT or OUT arguments present, treat as composite
-     or COALESCE(proargmodes::text[] && '{t,b,o}', false)
-    ) AS rettype_is_composite,
-    bt.oid <> bt.base_type as rettype_is_composite_alias,
-    p.provolatile,
-    p.provariadic > 0 as hasvariadic,
-    lower((regexp_split_to_array((regexp_split_to_array(iso_config, '='))[2], ','))[1]) AS transaction_isolation_level,
-    coalesce(func_settings.kvs, '{}') as kvs
-  FROM pg_proc p
-  LEFT JOIN arguments a ON a.oid = p.oid
-  JOIN pg_namespace pn ON pn.oid = p.pronamespace
-  JOIN base_types bt ON bt.oid = p.prorettype
-  JOIN pg_type t ON t.oid = bt.base_type
-  JOIN pg_namespace tn ON tn.oid = t.typnamespace
-  LEFT JOIN pg_class comp ON comp.oid = t.typrelid
-  LEFT JOIN pg_description as d ON d.objoid = p.oid AND d.classoid = 'pg_proc'::regclass
-  LEFT JOIN LATERAL unnest(proconfig) iso_config ON iso_config LIKE 'default_transaction_isolation%'
-  LEFT JOIN LATERAL (
-    SELECT
-      array_agg(row(
-        substr(setting, 1, strpos(setting, '=') - 1),
-        substr(setting, strpos(setting, '=') + 1)
-      )) as kvs
-    FROM unnest(proconfig) setting
-    WHERE setting ~ ANY($$2)
-  ) func_settings ON TRUE
-  WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
-  AND prokind = 'f'
-  AND p.pronamespace = ANY($$1::regnamespace[]) |]
+|]
 
 schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
 schemaDescription =
@@ -481,11 +507,11 @@ schemaDescription =
   where
     sql = "SELECT pg_catalog.obj_description($1::regnamespace, 'pg_namespace')"
 
-accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
+accessibleTables :: Bool -> SQL.Statement Schema AccessSet
 accessibleTables =
   SQL.Statement sql params decodeAccessibleIdentifiers
  where
-  params = map escapeIdent >$< arrayParam HE.text
+  params = escapeIdent >$< param HE.text
   sql = encodeUtf8 [trimming|
     SELECT
       n.nspname AS table_schema,
@@ -493,7 +519,7 @@ accessibleTables =
     FROM pg_class c
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relkind IN ('v','r','m','f','p')
-    AND c.relnamespace = ANY($$1::regnamespace[])
+    AND c.relnamespace = $$1::regnamespace
     AND (
       pg_has_role(c.relowner, 'USAGE')
       or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')

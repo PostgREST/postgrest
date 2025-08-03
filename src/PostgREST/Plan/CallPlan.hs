@@ -13,7 +13,7 @@ import qualified Data.ByteString.Lazy              as LBS
 import qualified Data.HashMap.Strict               as HM
 import           PostgREST.SchemaCache.Identifiers (FieldName,
                                                     QualifiedIdentifier)
-import           PostgREST.SchemaCache.Routine     (Routine (..),
+import           PostgREST.SchemaCache.Routine     (Routine (..), FuncIdent(..),
                                                     RoutineParam (..))
 
 import Protolude
@@ -61,4 +61,4 @@ toRpcParamValue :: Routine -> (Text, Text) -> (Text, RpcParamValue)
 toRpcParamValue proc (k, v) | prmIsVariadic k = (k, Variadic [v])
                             | otherwise       = (k, Fixed v)
   where
-    prmIsVariadic prm = isJust $ find (\RoutineParam{ppName, ppVar} -> ppName == prm && ppVar) $ pdParams proc
+    prmIsVariadic prm = isJust $ find (\RoutineParam{ppName, ppVar} -> ppName == prm && ppVar) $ pdParams (pdIdent proc)
