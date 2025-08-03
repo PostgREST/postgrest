@@ -23,7 +23,6 @@ module PostgREST.SchemaCache
   , querySchemaCache
   , accessibleTables
   , accessibleFuncs
-  , schemaDescription
   , showSummary
   ) where
 
@@ -73,26 +72,28 @@ import qualified PostgREST.MediaType as MediaType
 import Protolude
 
 data SchemaCache = SchemaCache
-  { dbTables          :: TablesMap
-  , dbRelationships   :: RelationshipsMap
-  , dbRoutines        :: RoutineMap
-  , dbRepresentations :: RepresentationsMap
-  , dbMediaHandlers   :: MediaHandlerMap
-  , dbTimezones       :: TimezoneNames
+  { dbTables             :: TablesMap
+  , dbRelationships      :: RelationshipsMap
+  , dbRoutines           :: RoutineMap
+  , dbRepresentations    :: RepresentationsMap
+  , dbMediaHandlers      :: MediaHandlerMap
+  , dbTimezones          :: TimezoneNames
+  , dbSchemaDescriptions :: SchemaDescriptionsMap
   }
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps hdlers tzs) = JSON.object [
-      "dbTables"          .= JSON.toJSON tabs
-    , "dbRelationships"   .= JSON.toJSON rels
-    , "dbRoutines"        .= JSON.toJSON routs
-    , "dbRepresentations" .= JSON.toJSON reps
-    , "dbMediaHandlers"   .= JSON.toJSON hdlers
-    , "dbTimezones"       .= JSON.toJSON tzs
+  toJSON (SchemaCache tabs rels routs reps hdlers tzs schDescs) = JSON.object [
+      "dbTables"             .= JSON.toJSON tabs
+    , "dbRelationships"      .= JSON.toJSON rels
+    , "dbRoutines"           .= JSON.toJSON routs
+    , "dbRepresentations"    .= JSON.toJSON reps
+    , "dbMediaHandlers"      .= JSON.toJSON hdlers
+    , "dbTimezones"          .= JSON.toJSON tzs
+    , "dbSchemaDescriptions" .= JSON.toJSON schDescs
     ]
 
 showSummary :: SchemaCache -> Text
-showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs) =
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs schDescs) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
@@ -100,6 +101,7 @@ showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs) =
   , show (HM.size reps)       <> " Domain Representations"
   , show (HM.size mediaHdlrs) <> " Media Type Handlers"
   , show (S.size tzs)         <> " Timezones"
+  , show (HM.size schDescs)   <> " Schema Descriptions"
   ]
 
 -- | A view foreign key or primary key dependency detected on its source table
@@ -152,6 +154,7 @@ querySchemaCache conf@AppConfig{..} = do
   reps    <- SQL.statement conf $ dataRepresentations prepared
   mHdlers <- SQL.statement conf $ mediaHandlers prepared
   tzones  <- SQL.statement mempty $ timezones prepared
+  sDescs  <- SQL.statement mempty $ schemaDescriptions prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
     whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
@@ -166,6 +169,7 @@ querySchemaCache conf@AppConfig{..} = do
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
+    , dbSchemaDescriptions = sDescs
     }
   where
     schemas = toList configDbSchemas
@@ -195,13 +199,14 @@ getOverrideRelationshipsMap rels cRels =
 removeInternal :: [Schema] -> SchemaCache -> SchemaCache
 removeInternal schemas dbStruct =
   SchemaCache {
-      dbTables          = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
-    , dbRelationships   = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
-                          HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
-    , dbRoutines        = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
-    , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
-    , dbMediaHandlers   = dbMediaHandlers dbStruct
-    , dbTimezones       = dbTimezones dbStruct
+      dbTables             = HM.filterWithKey (\(QualifiedIdentifier sch _) _ -> sch `elem` schemas) $ dbTables dbStruct
+    , dbRelationships      = filter (\r -> qiSchema (relForeignTable r) `elem` schemas && not (hasInternalJunction r)) <$>
+                             HM.filterWithKey (\(QualifiedIdentifier sch _, _) _ -> sch `elem` schemas ) (dbRelationships dbStruct)
+    , dbRoutines           = dbRoutines dbStruct -- procs are only obtained from the exposed schemas, no need to filter them.
+    , dbRepresentations    = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
+    , dbMediaHandlers      = dbMediaHandlers dbStruct
+    , dbTimezones          = dbTimezones dbStruct
+    , dbSchemaDescriptions = dbSchemaDescriptions dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False
@@ -475,11 +480,23 @@ funcsSqlQuery = encodeUtf8 [trimming|
   AND prokind = 'f'
   AND p.pronamespace = ANY($$1::regnamespace[]) |]
 
-schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
-schemaDescription =
-    SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
+type SchemaDescriptionsMap = HM.HashMap Text (Maybe Text)
+
+schemaDescriptions :: Bool -> SQL.Statement Schema SchemaDescriptionsMap
+schemaDescriptions =
+  SQL.Statement sql mempty decoder
   where
-    sql = "SELECT pg_catalog.obj_description($1::regnamespace, 'pg_namespace')"
+    sql = encodeUtf8 [trimming|
+      select
+        x.nspname as schema_name,
+        pg_catalog.obj_description(x.oid, 'pg_namespace') as comment
+      from pg_catalog.pg_namespace as x
+      order by x.nspname|];
+    decoder = HM.fromList <$> HD.rowList row
+    row :: HD.Row (Text, Maybe Text)
+    row =
+      (,) <$> column HD.text
+          <*> nullableColumn HD.text
 
 accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables =

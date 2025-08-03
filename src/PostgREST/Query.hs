@@ -185,12 +185,13 @@ actionQuery (MaybeDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache 
           MaybeDbResult plan . Just <$> ((,,)
                 (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
             <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
-            <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
+            <*> pure (join $ HM.lookup tSchema $ SchemaCache.dbSchemaDescriptions sCache))
         OAIgnorePriv ->
-          (MaybeDbResult plan . Just) . (,,)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
-            <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements)
+          pure $ MaybeDbResult plan $ Just (
+                 HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache
+               , HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache
+               , join $ HM.lookup tSchema $ SchemaCache.dbSchemaDescriptions sCache
+               )
         OADisabled ->
           pure $ MaybeDbResult plan Nothing
 
