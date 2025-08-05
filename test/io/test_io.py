@@ -1137,6 +1137,18 @@ def test_no_pool_connection_required_on_bad_embedding(defaultenv):
         assert response.status_code == 400
 
 
+def test_no_pool_connection_required_on_unavailable_postgis(defaultenv):
+    "no pool connection should be consumed when PostGIS is not available, the request should be quickly rejected at the plan level"
+
+    headers = {
+        "Accept": "application/geo+json",
+    }
+
+    with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
+        response = postgrest.session.get("/projects", headers=headers)
+        assert response.status_code == 406
+
+
 # https://github.com/PostgREST/postgrest/issues/2620
 def test_notify_reloading_catalog_cache(defaultenv):
     "notify should reload the connection catalog cache"
