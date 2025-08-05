@@ -1,8 +1,14 @@
 name: Linkcheck
 
 on:
+  pull_request: # Temporarily test using PR, remove this before merge
+    branches:
+      - main
   schedule:
     - cron: '1 2 * * 3'
+
+permissions:
+  issues: write
 
 jobs:
   linkcheck:
@@ -15,3 +21,15 @@ jobs:
         authToken: '${{ secrets.CACHIX_AUTH_TOKEN }}'
         tools: docs.linkcheck.bin
     - run: postgrest-docs-linkcheck
+
+  on-linkcheck-fail:
+    runs-on: ubuntu-latest
+    needs: linkcheck
+    if: ${{ always() && needs.linkcheck.result == 'failure' }}
+    steps:
+    - name: Notify on linkcheck failure by commenting
+      uses: peter-evans/create-or-update-comment@v4
+      with:
+        issue-number: 4106
+        body: |
+          ❌ **Linkcheck Job Failed!**
