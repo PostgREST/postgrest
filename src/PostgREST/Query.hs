@@ -150,6 +150,8 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       MutationDelete -> do
         failNotSingular mrMedia resultSet
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+      MutationPgrstPatch -> do
+        failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failMutation resultSet
