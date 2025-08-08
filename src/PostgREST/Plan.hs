@@ -38,6 +38,8 @@ import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
+import PostgREST.ApiRequest.Payload          (Payload (..),
+                                              PgrstPatchOp (..))
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Error                       (ApiRequestError (..),
                                               Error (..),
@@ -974,9 +976,9 @@ mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> Re
 mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
   case mutation of
     MutationCreate ->
-      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) (typedColumnsOrError $ S.toList iColumns)
     MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) (typedColumnsOrError $ S.toList iColumns)
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&
@@ -984,11 +986,20 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
            all (\case
               Filter _ (OpExpr False (OpQuant OpEqual Nothing _)) -> True
               _                                                   -> False) qsFiltersRoot
-          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) typedColumnsOrError
+          then mapRight (\typedColumns -> Insert qi typedColumns body (Just (MergeDuplicates, pkCols)) combinedLogic returnings mempty False) (typedColumnsOrError $ S.toList iColumns)
         else
           Left $ ApiRequestError InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
+    MutationPgrstPatch ->
+      case pgrstPatchBody of
+        Just bdy ->
+          mapRight (\typedColumns -> PgrstPatch qi typedColumns pgrstPatchBody combinedLogic returnings) (typedColumnsOrError $ map getPgrstPatchFieldName bdy)
+        Nothing ->
+          Left $ ApiRequestError $ InvalidBody "PGRST Patch Body is missing"
   where
+    getPgrstPatchFieldName :: PgrstPatchOp -> FieldName
+    getPgrstPatchFieldName (Set f _) = f
+
     ctx = ResolverContext dbTables dbRepresentations qi "json"
     confCols = fromMaybe pkCols qsOnConflict
     QueryParams.QueryParams{..} = iQueryParams
@@ -1003,8 +1014,9 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
     logic = map (resolveLogicTree ctx . snd) qsLogic
     combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
     body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
+    pgrstPatchBody = payPgrstPatch <$> iPayload
     applyDefaults = preferMissing == Just ApplyDefaults
-    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
+    typedColumnsOrError mutCols = resolveOrError ctx tbl `traverse` mutCols
 
 resolveOrError :: ResolverContext -> Table -> FieldName -> Either Error CoercibleField
 resolveOrError ctx table field = case resolveTableFieldName table field Nothing of
