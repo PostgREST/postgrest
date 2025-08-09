@@ -50,14 +50,22 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
-      # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
-      hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
-      hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
-      hasql-implicits = lib.dontCheck prev.hasql-implicits_0_1_1_3;
-      hasql-notifications = lib.dontCheck prev.hasql-notifications_0_2_2_2;
-      hasql-pool = lib.dontCheck prev.hasql-pool_1_0_1;
-      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_1_0_1;
-      postgresql-binary = lib.dontCheck (lib.doJailbreak prev.postgresql-binary_0_13_1_3);
+      hasql = lib.dontCheck prev.hasql_1_9_1_2;
+      hasql-pool = lib.dontCheck prev.hasql-pool_1_3_0_1;
+      hasql-notifications = lib.dontCheck (
+        prev.callCabal2nixWithOptions "hasql-notifications"
+          (super.fetchFromGitHub {
+            owner = "laurenceisla";
+            repo = "hasql-notifications";
+            rev = "962ae984cd81cfedc667808c38e418f7be382548";
+            sha256 = "sha256-m34bS2qeKFewzMbZsVQtQFvf6a4cyL5FyLvi8wOMF+c=";
+          }) "--subpath=."
+          { }
+      );
+      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_2_0_1;
+
+      # Needed for hasql 1.9
+      text-builder = lib.dontCheck prev.text-builder_1_0_0_3;
     };
 in
 {

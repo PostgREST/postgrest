@@ -1,8 +1,10 @@
 module Main where
 
-import qualified Hasql.Pool                 as P
-import qualified Hasql.Pool.Config          as P
-import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Connection.Setting            as C
+import qualified Hasql.Connection.Setting.Connection as C
+import qualified Hasql.Pool                          as P
+import qualified Hasql.Pool.Config                   as P
+import qualified Hasql.Transaction.Sessions          as HT
 
 import Data.Function (id)
 
@@ -77,7 +79,7 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    , P.staticConnectionSettings [ C.connection $ C.string $ configDbUri testCfg ]
     ]
 
   actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
