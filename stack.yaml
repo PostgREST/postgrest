@@ -10,13 +10,15 @@ nix:
 
 extra-deps:
   - fuzzyset-0.2.4
-  - hasql-1.8.1.4
+  - hasql-1.9.1.2
   - hasql-dynamic-statements-0.3.1.8
   - hasql-implicits-0.2.0.1
-  - hasql-notifications-0.2.3.2
-  - hasql-pool-1.2.0.3
-  - hasql-transaction-1.1.1.2
+  - hasql-notifications-0.2.4.0
+  - hasql-pool-1.3.0.1
+  - hasql-transaction-1.2.0.1
   - jose-jwt-0.10.0
   - postgresql-binary-0.14.0.1
   - postgresql-libpq-0.11.0.0
   - postgresql-libpq-configure-0.11
+  - text-builder-1.0.0.4
+  - witherable-0.4.2

@@ -30,22 +30,24 @@ module PostgREST.AppState
   , isPending
   ) where
 
-import qualified Data.ByteString.Char8      as BS
-import           Data.Either.Combinators    (whenLeft)
-import qualified Data.Text                  as T (unpack)
-import qualified Hasql.Pool                 as SQL
-import qualified Hasql.Pool.Config          as SQL
-import qualified Hasql.Session              as SQL
-import qualified Hasql.Transaction.Sessions as SQL
-import qualified Network.HTTP.Types.Status  as HTTP
-import qualified Network.Socket             as NS
-import qualified PostgREST.Auth.JwtCache    as JwtCache
-import qualified PostgREST.Error            as Error
-import qualified PostgREST.Logger           as Logger
-import qualified PostgREST.Metrics          as Metrics
+import qualified Data.ByteString.Char8               as BS
+import           Data.Either.Combinators             (whenLeft)
+import qualified Data.Text                           as T (unpack)
+import qualified Hasql.Connection.Setting            as SQL
+import qualified Hasql.Connection.Setting.Connection as SQL
+import qualified Hasql.Pool                          as SQL
+import qualified Hasql.Pool.Config                   as SQL
+import qualified Hasql.Session                       as SQL
+import qualified Hasql.Transaction.Sessions          as SQL
+import qualified Network.HTTP.Types.Status           as HTTP
+import qualified Network.Socket                      as NS
+import qualified PostgREST.Auth.JwtCache             as JwtCache
+import qualified PostgREST.Error                     as Error
+import qualified PostgREST.Logger                    as Logger
+import qualified PostgREST.Metrics                   as Metrics
 import           PostgREST.Observation
-import           PostgREST.Version          (prettyVersion)
-import           System.TimeIt              (timeItT)
+import           PostgREST.Version                   (prettyVersion)
+import           System.TimeIt                       (timeItT)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
@@ -207,7 +209,10 @@ initPool AppConfig{..} observer = do
     , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
     , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
     , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-    , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+    , SQL.staticConnectionSettings [
+        SQL.connection $ SQL.string (addFallbackAppName prettyVersion configDbUri),
+        SQL.usePreparedStatements configDbPreparedStatements
+      ]
     , SQL.observationHandler $ observer . HasqlPoolObs
     ]
 
@@ -403,8 +408,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
       (resultTime, result) <-
-        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (SQL.transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
