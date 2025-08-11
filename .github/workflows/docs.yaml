@@ -15,7 +15,7 @@ jobs:
     name: Build docs
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - uses: cachix/install-nix-action@c134e4c9e34bac6cab09cf239815f9339aaaf84e # v31
     - run: nix-env -f docs/default.nix -iA build
     - run: postgrest-docs-build
@@ -24,7 +24,7 @@ jobs:
     name: Run spellcheck
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - uses: cachix/install-nix-action@c134e4c9e34bac6cab09cf239815f9339aaaf84e # v31
     - run: nix-env -f docs/default.nix -iA spellcheck
     - run: postgrest-docs-spellcheck
@@ -33,7 +33,7 @@ jobs:
     name: Run dictcheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - uses: cachix/install-nix-action@c134e4c9e34bac6cab09cf239815f9339aaaf84e # v31
       - run: nix-env -f docs/default.nix -iA dictcheck
       - run: postgrest-docs-dictcheck
@@ -43,7 +43,7 @@ jobs:
     if: github.base_ref == 'main'
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - uses: cachix/install-nix-action@c134e4c9e34bac6cab09cf239815f9339aaaf84e # v31
     - run: nix-env -f docs/default.nix -iA linkcheck
     - run: postgrest-docs-linkcheck
