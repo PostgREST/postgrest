@@ -59,7 +59,13 @@ let
           sha256 = "sha256-5NsF0WyiZuqkZemlQfA/J7rAJttkE56oPJK4zgqMbZ4=";
         }
         { });
-      hasql-transaction = lib.dontCheck prev.hasql-transaction_1_2_0_1;
+      hasql-transaction = lib.dontCheck (prev.callHackageDirect
+        {
+          pkg = "hasql-transaction";
+          ver = "1.2.1";
+          sha256 = "sha256-7Q7gt5ts4OoGU58dp6PJFZmVjfwjozANHNg2u1PJf6Q=";
+        }
+        { });
 
       # Needed for hasql 1.9
       text-builder = lib.dontCheck prev.text-builder_1_0_0_3;
