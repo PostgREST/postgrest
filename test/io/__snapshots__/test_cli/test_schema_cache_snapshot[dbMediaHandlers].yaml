@@ -4,6 +4,11 @@
     - tag: MTTextCSV
 
 - - - tag: RelAnyElement
+    - tag: MTGeoJSON
+  - - tag: BuiltinOvAggGeoJson
+    - tag: MTGeoJSON
+
+- - - tag: RelAnyElement
     - tag: MTApplicationJSON
   - - tag: BuiltinOvAggJson
     - tag: MTApplicationJSON
