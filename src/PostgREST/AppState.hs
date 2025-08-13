@@ -408,7 +408,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
       (resultTime, result) <-
-        timeItT $ usePool appState (SQL.transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending

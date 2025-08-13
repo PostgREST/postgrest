@@ -76,7 +76,7 @@ data QueryResult
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
 query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
 query config AuthResult{..} apiReq (Db plan) sCache =
-  DbQuery isoLvl txMode dbHandler SQL.transaction mainSQLQuery
+  DbQuery isoLvl txMode dbHandler SQL.transactionNoRetry mainSQLQuery
   where
     isoLvl = planIsoLvl config authRole plan
     txMode = planTxMode plan
