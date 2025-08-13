@@ -152,7 +152,6 @@ querySchemaCache conf@AppConfig{..} = do
   reps    <- SQL.statement conf $ dataRepresentations prepared
   mHdlers <- SQL.statement conf $ mediaHandlers prepared
   tzones  <- SQL.statement mempty $ timezones prepared
-  hasPgis <- SQL.statement conf $ postgisFunc prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
     whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
@@ -165,7 +164,7 @@ querySchemaCache conf@AppConfig{..} = do
     , dbRelationships = getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
     , dbRepresentations = reps
-    , dbMediaHandlers = HM.union mHdlers $ initialMediaHandlers hasPgis -- the custom handlers will override the initial ones
+    , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
     }
   where
@@ -1049,14 +1048,12 @@ allViewsKeyDependencies =
       having ncol = array_length(array_agg(row(col.attname, view_columns) order by pks_fks.ord), 1)
       |]
 
-initialMediaHandlers :: Bool -> MediaHandlerMap
-initialMediaHandlers hasPostgisFunc =
+initialMediaHandlers :: MediaHandlerMap
+initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTAny            ) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
   HM.insert (RelAnyElement, MediaType.MTApplicationJSON) (BuiltinOvAggJson,    MediaType.MTApplicationJSON) $
   HM.insert (RelAnyElement, MediaType.MTTextCSV        ) (BuiltinOvAggCsv,     MediaType.MTTextCSV) $
-  (if hasPostgisFunc
-    then HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
-    else mempty)
+  HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
 mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap
@@ -1141,35 +1138,6 @@ timezones = SQL.Statement sql HE.noParams decodeTimezones
     sql = "SELECT name FROM pg_timezone_names"
     decodeTimezones :: HD.Result TimezoneNames
     decodeTimezones = S.fromList <$> HD.rowList (column HD.text)
-
-
--- Find the postgis function that has the signature:
--- st_asgeojson(record,...) returns text
-postgisFunc :: Bool -> SQL.Statement AppConfig Bool
-postgisFunc = SQL.Statement sql params decoder
-  where
-    params =
-      (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
-      (map escapeIdent . toList . configDbExtraSearchPath >$< arrayParam HE.text)
-    decoder = HD.singleRow (column HD.bool)
-    sql = encodeUtf8 [trimming|
-    SELECT
-      exists(
-        SELECT
-          1
-        FROM pg_catalog.pg_proc      AS p
-        JOIN pg_catalog.pg_depend    AS d
-          ON  d.objid   = p.oid
-          AND d.deptype = 'e'
-        JOIN pg_catalog.pg_extension AS e
-          ON e.oid   = d.refobjid
-        WHERE p.pronamespace   = ANY($$1::regnamespace[] || $$2::regnamespace[])
-          AND p.proname        = 'st_asgeojson'
-          AND e.extname        = 'postgis'
-          AND p.proargtypes[0] = 'record'::regtype
-          AND pg_get_function_result(p.oid) = 'text'
-      );
-    |]
 
 param :: HE.Value a -> HE.Params a
 param = HE.param . HE.nonNullable
