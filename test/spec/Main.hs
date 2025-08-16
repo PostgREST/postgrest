@@ -50,6 +50,7 @@ import qualified Feature.Query.InsertSpec
 import qualified Feature.Query.JsonOperatorSpec
 import qualified Feature.Query.MultipleSchemaSpec
 import qualified Feature.Query.NullsStripSpec
+import qualified Feature.Query.PgrstPatchSpec
 import qualified Feature.Query.PgSafeUpdateSpec
 import qualified Feature.Query.PlanSpec
 import qualified Feature.Query.PostGISSpec
@@ -152,6 +153,7 @@ main = do
         , ("Feature.Query.InsertSpec"                    , Feature.Query.InsertSpec.spec actualPgVersion)
         , ("Feature.Query.JsonOperatorSpec"              , Feature.Query.JsonOperatorSpec.spec)
         , ("Feature.Query.NullsStripSpec"                , Feature.Query.NullsStripSpec.spec)
+        , ("Feature.Query.PgrstPatchSpec"                 , Feature.Query.PgrstPatchSpec.spec)
         , ("Feature.Query.PgErrorCodeMappingSpec"        , Feature.Query.ErrorSpec.pgErrorCodeMapping)
         , ("Feature.Query.PgSafeUpdateSpec.disabledSpec" , Feature.Query.PgSafeUpdateSpec.disabledSpec)
         , ("Feature.Query.PlanSpec.disabledSpec"         , Feature.Query.PlanSpec.disabledSpec)

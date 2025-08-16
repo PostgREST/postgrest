@@ -5,12 +5,12 @@ where
 
 import qualified Data.ByteString.Lazy as LBS
 
+import PostgREST.ApiRequest.Payload      (PgrstPatchOp (..))
 import PostgREST.ApiRequest.Preferences  (PreferResolution)
 import PostgREST.Plan.Types              (CoercibleField,
                                           CoercibleLogicTree)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier)
-
 
 import Protolude
 
@@ -35,6 +35,13 @@ data MutatePlan
       }
   | Delete
       { in_       :: QualifiedIdentifier
+      , where_    :: [CoercibleLogicTree]
+      , returning :: [FieldName]
+      }
+  | PgrstPatch -- A modified version of JSON Patch
+      { in_       :: QualifiedIdentifier
+      , patchCols :: [CoercibleField]
+      , patchBody :: Maybe [PgrstPatchOp]
       , where_    :: [CoercibleLogicTree]
       , returning :: [FieldName]
       }
