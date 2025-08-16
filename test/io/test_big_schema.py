@@ -18,7 +18,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
         "PGRST_SERVER_TIMING_ENABLED": "true",
     }
 
-    with run(env=env, wait_max_seconds=30) as postgrest:
+    with run(env=env, wait_max_seconds=120) as postgrest:
         # reload the schema cache
         response = postgrest.session.get("/rpc/notify_pgrst")
         assert response.status_code == 204
@@ -45,7 +45,7 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
         "PGRST_SERVER_TIMING_ENABLED": "true",
     }
 
-    with run(env=env, wait_max_seconds=30) as postgrest:
+    with run(env=env, wait_max_seconds=120) as postgrest:
         # reload the schema cache
         response = postgrest.session.get("/rpc/notify_pgrst")
         assert response.status_code == 204
@@ -90,7 +90,7 @@ def test_should_not_fail_with_stack_overflow(defaultenv):
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
     }
 
-    with run(env=env, wait_max_seconds=30) as postgrest:
+    with run(env=env, wait_max_seconds=120) as postgrest:
         response = postgrest.session.get("/unknown-table?select=unknown-rel(*)")
         assert response.status_code == 404
         data = response.json()

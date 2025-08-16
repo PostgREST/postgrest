@@ -3843,3 +3843,9 @@ $$ language sql;
 create or replace function test.delete_items_returns_void() returns void as $$
   delete from items;
 $$ language sql;
+
+
+CREATE TABLE test_pgrst_patch (
+  id INTEGER PRIMARY KEY,
+  name TEXT
+);

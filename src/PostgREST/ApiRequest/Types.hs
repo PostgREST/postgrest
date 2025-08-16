@@ -1,14 +1,19 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 module PostgREST.ApiRequest.Types
   ( AggregateFunction(..)
+  , Action (..)
   , Alias
   , Cast
+  , DbAction (..)
   , Depth
   , EmbedParam(..)
   , EmbedPath
   , Field
   , Filter(..)
+  , FtsOperator(..)
   , Hint
+  , InvokeMethod (..)
+  , IsVal(..)
   , JoinType(..)
   , JsonOperand(..)
   , JsonOperation(..)
@@ -17,30 +22,23 @@ module PostgREST.ApiRequest.Types
   , ListVal
   , LogicOperator(..)
   , LogicTree(..)
+  , Mutation (..)
   , NodeName
   , OpExpr(..)
-  , Operation (..)
   , OpQuantifier(..)
+  , Operation (..)
   , OrderDirection(..)
   , OrderNulls(..)
   , OrderTerm(..)
-  , SingleVal
-  , IsVal(..)
-  , SimpleOperator(..)
   , QuantOperator(..)
-  , FtsOperator(..)
-  , SelectItem(..)
-  , Payload (..)
-  , InvokeMethod (..)
-  , Mutation (..)
-  , Resource (..)
-  , DbAction (..)
-  , Action (..)
   , RequestBody
+  , Resource (..)
+  , SelectItem(..)
+  , SimpleOperator(..)
+  , SingleVal
   ) where
 
 import qualified Data.ByteString.Lazy as LBS
-import qualified Data.Set             as S
 
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
@@ -56,6 +54,7 @@ data Mutation
   | MutationDelete
   | MutationSingleUpsert
   | MutationUpdate
+  | MutationPgrstPatch
   deriving Eq
 
 data Resource
@@ -76,22 +75,6 @@ data Action
   | ActSchemaInfo
 
 type RequestBody = LBS.ByteString
-
-data Payload
-  = ProcessedJSON -- ^ Cached attributes of a JSON payload
-      { payRaw  :: LBS.ByteString
-      -- ^ This is the raw ByteString that comes from the request body.  We
-      -- cache this instead of an Aeson Value because it was detected that for
-      -- large payloads the encoding had high memory usage, see
-      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
-      , payKeys :: S.Set Text
-      -- ^ Keys of the object or if it's an array these keys are guaranteed to
-      -- be the same across all its objects
-      }
-  | ProcessedUrlEncoded { payArray  :: [(Text, Text)], payKeys :: S.Set Text }
-  | RawJSON { payRaw  :: LBS.ByteString }
-  | RawPay  { payRaw  :: LBS.ByteString }
-
 
 -- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`
 data SelectItem

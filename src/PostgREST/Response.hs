@@ -63,6 +63,7 @@ data PgrstResponse = PgrstResponse {
 
 actionResponse :: QueryResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
+-- GET Response
 actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, crudQi=identifier} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ =
   case resultSet of
     RSStandard{..} -> do
@@ -94,6 +95,7 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
     RSPlan plan ->
       Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders wrMedia ctxApiRequest) $ LBS.fromStrict plan
 
+-- POST Response
 actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, mrMedia, crudQi=QualifiedIdentifier{..}} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = case resultSet of
   RSStandard{..} -> do
     let
@@ -135,6 +137,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
+-- PATCH Response
 actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard{..} -> do
     let
@@ -157,6 +160,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
+-- PUT Response
 actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
@@ -178,6 +182,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrM
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
+-- DELETE Response
 actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let
@@ -200,6 +205,29 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} 
   RSPlan plan ->
     Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
 
+-- PGRST PATCH Response
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationPgrstPatch, mrMedia} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = case resultSet of
+  RSStandard{..} -> do
+    let
+      contentRangeHeader =
+        Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
+          if shouldCount preferCount then Just rsQueryTotal else Nothing
+      prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
+      headers = catMaybes [contentRangeHeader, prefHeader]
+
+    let (status, headers', body) =
+          case preferRepresentation of
+            Just Full -> (HTTP.status200, headers ++ [contentLengthHeaderStrict rsBody] ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
+            _         -> (HTTP.status204, headers, mempty)
+
+    (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
+
+    Right $ PgrstResponse ovStatus ovHeaders body
+
+  RSPlan plan ->
+    Right $ PgrstResponse HTTP.status200 (contentLengthHeaderStrict plan : contentTypeHeaders mrMedia ctxApiRequest) $ LBS.fromStrict plan
+
+-- RPC Response
 actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc} resultSet) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = case resultSet of
   RSStandard {..} -> do
     let

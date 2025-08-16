@@ -8,6 +8,8 @@
 {-# LANGUAGE NamedFieldPuns #-}
 module PostgREST.ApiRequest.Payload
   ( getPayload
+  , Payload (..)
+  , PgrstPatchOp (..)
   ) where
 
 import qualified Data.Aeson            as JSON
@@ -23,8 +25,10 @@ import qualified Data.Text.Encoding    as T
 import qualified Data.Vector           as V
 
 import Control.Arrow           ((***))
+import Control.Monad           (fail)
+import Data.Aeson              ((.:))
 import Data.Aeson.Types        (emptyArray, emptyObject)
-import Data.Either.Combinators (mapBoth)
+import Data.Either.Combinators (mapBoth, mapLeft)
 import Network.HTTP.Types.URI  (parseSimpleQuery)
 
 import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
@@ -37,6 +41,29 @@ import qualified PostgREST.MediaType as MediaType
 
 import Protolude
 
+data Payload
+  = ProcessedJSON -- ^ Cached attributes of a JSON payload
+      { payRaw  :: LBS.ByteString
+      -- ^ This is the raw ByteString that comes from the request body.  We
+      -- cache this instead of an Aeson Value because it was detected that for
+      -- large payloads the encoding had high memory usage, see
+      -- https://github.com/PostgREST/postgrest/pull/1005 for more details
+      , payKeys :: S.Set Text
+      -- ^ Keys of the object or if it's an array these keys are guaranteed to
+      -- be the same across all its objects
+      }
+  | ProcessedUrlEncoded { payArray :: [(Text, Text)], payKeys :: S.Set Text }
+  | RawJSON      { payRaw   :: LBS.ByteString }
+  | RawPay       { payRaw   :: LBS.ByteString }
+  | PgrstPatchPay { payPgrstPatch :: [PgrstPatchOp] } -- ^ PgrstPatchPay is a list of patch updates
+
+-- This type should be in the Types.hs module, but because we
+-- are defining a JSON.FromJSON instance for this type, we need to have
+-- this type here to avoid "no-orphan-instances" warning.
+data PgrstPatchOp
+  = Set FieldName Text
+  -- We can add more operations in the future
+
 getPayload :: RequestBody -> MediaType -> QueryParams -> Action -> Either ApiRequestError (Maybe Payload, S.Set FieldName)
 getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
   checkedPayload <- if shouldParsePayload then payload else Right Nothing
@@ -44,6 +71,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
         (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)             -> cls
+        (Just PgrstPatchPay{}, Just cls)       -> cls
         _                                      -> S.empty
   return (checkedPayload, cols)
   where
@@ -69,7 +97,11 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       (MTTextPlain, True) -> Right $ RawPay reqBody
       (MTTextXML, True) -> Right $ RawPay reqBody
       (MTOctetStream, True) -> Right $ RawPay reqBody
+      (MTVndPgrstPatch, False) -> PgrstPatchPay <$> parsePgrstPatch reqBody
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
+
+    parsePgrstPatch :: LBS.ByteString -> Either ByteString [PgrstPatchOp]
+    parsePgrstPatch = mapLeft BS.pack . JSON.eitherDecode
 
     shouldParsePayload = case action of
       ActDb (ActRelationMut _ MutationDelete) -> False
@@ -77,6 +109,8 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       ActDb (ActRoutine _  Inv)               -> True
       _                                       -> False
 
+    -- this indicates the &columns= query param only supported
+    -- for INSERTS, UPDATES and RPC invocation
     columns = case action of
       ActDb (ActRelationMut _ MutationCreate) -> qsColumns
       ActDb (ActRelationMut _ MutationUpdate) -> qsColumns
@@ -87,6 +121,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       ActDb (ActRoutine _ _) -> True
       _                      -> False
     params = (T.decodeUtf8 *** T.decodeUtf8) <$> parseSimpleQuery (LBS.toStrict reqBody)
+
 
 type CsvData = V.Vector (M.Map Text LBS.ByteString)
 
@@ -136,3 +171,22 @@ payloadAttributes raw json =
     _ -> Just emptyPJArray
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
+
+
+instance JSON.FromJSON PgrstPatchOp where
+  parseJSON (JSON.Object o) = do
+    op    <- parseString o "op"
+    path  <- parseString o "path"
+    -- TODO: We need to decide what JSON "value"s are allowed in our
+    --       our Pgrst Patch implementation.
+    case op of
+      "set" -> Set path <$> parseString o "value"
+      _     -> fail $ "Unknown Pgrst Patch operation " ++ show op
+      where
+        parseString obj key = do
+          val <- obj .: key
+          case val of
+            JSON.String txt -> pure txt
+            _ -> fail $ "Expected JSON string for " ++ show key
+
+  parseJSON _ = mzero
