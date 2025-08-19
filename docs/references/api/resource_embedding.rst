@@ -251,6 +251,12 @@ Computed Relationships
 
 You can manually define relationships by using functions. This is useful for database objects that can't define foreign keys, like `Foreign Data Wrappers <https://wiki.postgresql.org/wiki/Foreign_data_wrappers>`_.
 
+Computed relationships have good performance as their intended design enable `function inlining <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
+
+.. important::
+
+  - Always use ``SETOF`` when creating computed relationships. Functions can return a table without using ``SETOF``, but bear in mind that PostgreSQL will not inline them. e.g. ``RETURNS <table_name>`` is not inlinable.
+
 Assuming there's a foreign table ``premieres`` that we want to relate to ``films``.
 
 .. code-block:: postgres
@@ -282,6 +288,10 @@ The name of the function ``film`` is arbitrary and can be used to do the embeddi
     },
     ".."
   ]
+
+.. warning::
+
+  - Make sure to correctly label the ``to-one`` part of the relationship. When using the ``ROWS 1`` estimation, PostgREST will expect a single row to be returned. If that is not the case, it will unnest the embedding and return repeated values for the top level resource.
 
 Now let's define the opposite one-to-many relationship.
 
@@ -330,12 +340,6 @@ Thanks to overloaded functions, you can use the same function name for different
   $$ stable language sql;
 
 Computed relationships have good performance as their intended design enable `function inlining <https://wiki.postgresql.org/wiki/Inlining_of_SQL_functions#Inlining_conditions_for_table_functions>`_.
-
-.. warning::
-
-  - Always use ``SETOF`` when creating computed relationships. Functions can return a table without using ``SETOF``, but bear in mind that PostgreSQL will not inline them.
-
-  - Make sure to correctly label the ``to-one`` part of the relationship. When using the ``ROWS 1`` estimation, PostgREST will expect a single row to be returned. If that is not the case, it will unnest the embedding and return repeated values for the top level resource.
 
 .. _embed_disamb:
 .. _target_disamb:
