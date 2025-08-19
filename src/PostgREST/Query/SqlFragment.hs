@@ -314,41 +314,45 @@ pgFmtFullSelName aggAlias fieldName = case fieldName of
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
 fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> SQL.Snippet
 fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
-  (if includeSelect then "SELECT " <> namedCols <> " " else mempty) <>
-  "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, " <>
-  (if includeDefaults
-    then if isJsonObject
-      then "LATERAL (SELECT " <> defsJsonb <> " || pgrst_payload.json_data AS val) pgrst_json_defs, "
-      else "LATERAL (SELECT jsonb_agg(" <> defsJsonb <> " || elem) AS val from jsonb_array_elements(pgrst_payload.json_data) elem) pgrst_json_defs, "
-    else mempty) <>
-  "LATERAL (SELECT " <> parsedCols <> " FROM " <>
-    (if null fields -- when json keys are empty, e.g. when payload is `{}` or `[{}, {}]`
-      then SQL.sql $
-        if isJsonObject
-          then "(values(1)) _ "                                  -- only 1 row for an empty json object '{}'
-          else jsonArrayElementsF <> "(" <> finalBodyF <> ") _ " -- extract rows of a json array of empty objects `[{}, {}]`
-      else jsonToRecordsetF <> "(" <> SQL.sql finalBodyF <> ") AS _(" <> typedCols <> ") " <> if includeLimitOne then "LIMIT 1" else mempty
-    ) <>
-  ") pgrst_body "
+  selectClause <> fromClause <> defaultsClause <> lateralClause <> " pgrst_body "
   where
+    selectClause = if includeSelect then "SELECT " <> namedCols <> " " else mempty
+    fromClause = "FROM (SELECT " <> jsonPlaceHolder <> " AS json_data) pgrst_payload, "
+    defaultsClause
+      | includeDefaults && isJsonObject     = "LATERAL (SELECT " <> defsJsonb <> " || pgrst_payload.json_data AS val) pgrst_json_defs, "
+      | includeDefaults && not isJsonObject = "LATERAL (SELECT jsonb_agg(" <> defsJsonb <> " || elem) AS val from jsonb_array_elements(pgrst_payload.json_data) elem) pgrst_json_defs, "
+      | otherwise = mempty
+    lateralClause = "LATERAL (SELECT " <> parsedCols <> " FROM " <> lateralFieldsSource <> ")"
+
     namedCols = intercalateSnippet ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . cfName <$> fields
     parsedCols = intercalateSnippet ", " $ pgFmtCoerceNamed <$> fields
     typedCols = intercalateSnippet ", " $ pgFmtIdent . cfName <> const " " <> SQL.sql . encodeUtf8 . cfIRType <$> fields
+
+    lateralFieldsSource = if null fields then emptyFieldsSource else nonEmptyFieldsSource
+      where
+        limitClause = if includeLimitOne then "LIMIT 1" else mempty
+        nonEmptyFieldsSource = jsonToRecordsetF <> "(" <> finalBodyF <> ") AS _(" <> typedCols <> ") " <> limitClause
+        -- when json keys are empty, e.g. when payload is `{}` or `[{}, {}]`
+        emptyFieldsSource = if isJsonObject
+                              then "(values(1)) _ " -- only 1 row for an empty json object '{}'
+                              else jsonArrayElementsF <> "(" <> finalBodyF <> ") _ " -- extract rows of a json array of empty objects `[{}, {}]`
+
     defsJsonb = SQL.sql $ "jsonb_build_object(" <> BS.intercalate "," fieldsWDefaults <> ")"
-    fieldsWDefaults = mapMaybe (\case
-        CoercibleField{cfName=nam, cfDefault=Just def} -> Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
-        CoercibleField{cfDefault=Nothing} -> Nothing
-      ) fields
+    fieldsWDefaults = mapMaybe extractFieldDefault fields
+      where
+        extractFieldDefault CoercibleField{cfName=nam, cfDefault=Just def} = Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
+        extractFieldDefault CoercibleField{cfDefault=Nothing}              = Nothing
+
     (finalBodyF, jsonArrayElementsF, jsonToRecordsetF) =
       if includeDefaults
         then ("pgrst_json_defs.val", "jsonb_array_elements", if isJsonObject then "jsonb_to_record" else "jsonb_to_recordset")
         else ("pgrst_payload.json_data", "json_array_elements", if isJsonObject then "json_to_record" else "json_to_recordset")
+
     jsonPlaceHolder = SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
     isJsonObject = -- light validation as pg's json_to_record(set) already validates that the body is valid JSON. We just need to know whether the body looks like an object or not.
-      let
-        insignificantWhitespace = [32,9,10,13] --" \t\n\r" [32,9,10,13] https://datatracker.ietf.org/doc/html/rfc8259#section-2
-      in
       LBS.take 1 (LBS.dropWhile (`elem` insignificantWhitespace) (fromMaybe mempty body)) == "{"
+        where
+          insignificantWhitespace = [32,9,10,13] --" \t\n\r" [32,9,10,13] https://datatracker.ietf.org/doc/html/rfc8259#section-2
 
 pgFmtOrderTerm :: QualifiedIdentifier -> CoercibleOrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
