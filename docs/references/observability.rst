@@ -128,6 +128,11 @@ The ``metrics`` endpoint on the :ref:`admin_server` endpoint provides metrics in
 
   curl "http://localhost:3001/metrics"
 
+.. code-block:: http
+
+  HTTP/1.1 200 OK
+  Content-Type: text/plain; charset=utf-8
+
   # HELP pgrst_schema_cache_query_time_seconds The query time in seconds of the last schema cache load
   # TYPE pgrst_schema_cache_query_time_seconds gauge
   pgrst_schema_cache_query_time_seconds 1.5937927e-2
