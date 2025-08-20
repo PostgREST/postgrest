@@ -16,6 +16,7 @@ import Network.Socket.ByteString
 
 import PostgREST.AppState    (AppState)
 import PostgREST.Config      (AppConfig (..))
+import PostgREST.MediaType   (MediaType (..), toContentType)
 import PostgREST.Metrics     (metricsToText)
 import PostgREST.Network     (resolveHost)
 import PostgREST.Observation (Observation (..))
@@ -58,7 +59,7 @@ admin appState req respond  = do
       respond $ Wai.responseLBS HTTP.status200 [] (maybe mempty JSON.encode sCache)
     ["metrics"] -> do
       mets <- metricsToText
-      respond $ Wai.responseLBS HTTP.status200 [] mets
+      respond $ Wai.responseLBS HTTP.status200 [toContentType MTTextPlain] mets -- Content-Type is required for prometheus compliance
     _ ->
       respond $ Wai.responseLBS HTTP.status404 [] mempty
 
