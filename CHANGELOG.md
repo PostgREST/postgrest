@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
+
 ## [13.0.5] - 2025-08-24
 
 ### Fixed
