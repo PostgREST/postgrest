@@ -26,12 +26,13 @@ data MutatePlan
       , applyDefs  :: Bool
       }
   | Update
-      { in_       :: QualifiedIdentifier
-      , updCols   :: [CoercibleField]
-      , updBody   :: Maybe LBS.ByteString
-      , where_    :: [CoercibleLogicTree]
-      , returning :: [FieldName]
-      , applyDefs :: Bool
+      { in_          :: QualifiedIdentifier
+      , updCols      :: [CoercibleField]
+      , updBody      :: Maybe LBS.ByteString
+      , where_       :: [CoercibleLogicTree]
+      , returning    :: [FieldName]
+      , applyDefs    :: Bool
+      , isPgrstPatch :: Bool
       }
   | Delete
       { in_       :: QualifiedIdentifier
