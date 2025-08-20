@@ -108,11 +108,8 @@ observationMessage = \case
   DBListenStart channel -> do
     "Listening for database notifications on the " <> show channel <> " channel"
   DBListenFail channel listenErr ->
-    "Failed listening for database notifications on the " <> show channel <> " channel. " <> (
-      case listenErr of
-        Left err  -> show err
-        Right err -> showListenerError err
-    )
+    "Failed listening for database notifications on the " <> show channel <> " channel. " <>
+      either showListenerConnError showListenerException listenErr
   DBListenRetry delay ->
     "Retrying listening for database notifications in " <> (show delay::Text) <> " seconds..."
   DBListenerGotSCacheMsg channel ->
@@ -157,8 +154,11 @@ observationMessage = \case
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
 
-    showListenerError :: Either SomeException () -> Text
-    showListenerError (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
-    showListenerError (Left e)  =
-      let showOnSingleLine txt = T.intercalate " " $ T.filter (/= '\t') <$> T.lines txt in -- the errors from hasql-notifications come intercalated with "\t\n"
-      showOnSingleLine $ show e
+    showOnSingleLine txt = T.intercalate " " $ T.filter (/= '\t') <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"
+
+    showListenerConnError :: SQL.ConnectionError -> Text
+    showListenerConnError = maybe "Connection error" (showOnSingleLine . T.decodeUtf8)
+
+    showListenerException :: Either SomeException () -> Text
+    showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
+    showListenerException (Left e)  = showOnSingleLine $ show e
