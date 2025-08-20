@@ -19,6 +19,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix OpenAPI specification incorrectly exposing GET methods for volatile functions by @joelonsql in #4174
 - Fix empty spread embeddings return unexpected SQL error by @taimoorzaeem in #3887
 - Fix `/metrics` endpoint not responding with `Content-Type` header by @taimoorzaeem in #4271
+- Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
 
 ### Changed
 

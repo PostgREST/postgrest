@@ -1937,3 +1937,21 @@ def test_schema_cache_error_observation(defaultenv):
             "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
             in output[7]
         )
+
+
+def test_log_listener_connection_errors(defaultenv):
+    "The logs should show the listener connection error message in a single line"
+
+    env = {
+        **defaultenv,
+        "PGHOST": "no_host",
+        "PGRST_DB_CHANNEL_ENABLED": "true",
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+        output = postgrest.read_stdout(nlines=5)
+        assert any(
+            'Failed listening for database notifications on the "pgrst" channel. could not translate host name "no_host" to address:'
+            in line
+            for line in output
+        )
