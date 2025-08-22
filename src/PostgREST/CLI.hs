@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -12,6 +13,7 @@ import qualified Data.Aeson                 as JSON
 import qualified Data.ByteString.Char8      as BS
 import qualified Data.ByteString.Lazy       as LBS
 import qualified Hasql.Transaction.Sessions as SQL
+import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Options.Applicative        as O
 
 import Text.Heredoc (str)
@@ -24,6 +26,7 @@ import PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Client   as Client
 import qualified PostgREST.Config   as Config
 
 import Protolude
@@ -31,16 +34,28 @@ import Protolude
 
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do
-  conf@AppConfig{..} <-
+  conf <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
+  case cliCommand of
+    Admin adminCmd -> runAdminCommand conf adminCmd
+    Run runCmd     -> runAppCommand conf runCmd
 
+-- | Run command using http-client to communicate with an already running postgrest
+runAdminCommand :: AppConfig -> AdminCommand -> IO ()
+runAdminCommand conf CmdReady = Client.ready conf >>= \case
+  status | status >= HTTP.status200 && status < HTTP.status300 -> exitSuccess
+         | otherwise -> exitWith $ ExitFailure 1
+
+-- | Run postgrest with command
+runAppCommand :: AppConfig -> RunCommand -> IO ()
+runAppCommand conf@AppConfig{..} runCmd = do
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
     (AppState.init conf)
     AppState.destroy
-    (\appState -> case cliCommand of
+    (\appState -> case runCmd of
       CmdDumpConfig -> do
         when configDbConfig $ AppState.readInDbConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
@@ -71,6 +86,13 @@ data CLI = CLI
   }
 
 data Command
+  = Admin AdminCommand
+  | Run RunCommand
+
+data AdminCommand
+  = CmdReady
+
+data RunCommand
   = CmdRun
   | CmdDumpConfig
   | CmdDumpSchema
@@ -105,7 +127,7 @@ readCLIShowHelp =
     cliParser :: O.Parser CLI
     cliParser =
       CLI
-        <$> (dumpConfigFlag <|> dumpSchemaFlag)
+        <$> (dumpConfigFlag <|> dumpSchemaFlag <|> readyFlag)
         <*> O.optional configFileOption
 
     configFileOption =
@@ -114,14 +136,19 @@ readCLIShowHelp =
         <> O.help "Path to configuration file"
 
     dumpConfigFlag =
-      O.flag CmdRun CmdDumpConfig $
+      O.flag (Run CmdRun) (Run CmdDumpConfig) $
         O.long "dump-config"
         <> O.help "Dump loaded configuration and exit"
 
     dumpSchemaFlag =
-      O.flag CmdRun CmdDumpSchema $
+      O.flag (Run CmdRun) (Run CmdDumpSchema) $
         O.long "dump-schema"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+
+    readyFlag =
+      O.flag (Run CmdRun) (Admin CmdReady) $
+        O.long "ready"
+        <> O.help "healthcheck flag that verifies that postgrest is runnong and schema cache is loaded"
 
 exampleConfigFile :: [Char]
 exampleConfigFile =

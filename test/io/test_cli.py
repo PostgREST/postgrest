@@ -289,3 +289,60 @@ def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
     with pytest.raises(PostgrestError):
         dump = cli(["--dump-config"], env=env).split("\n")
         assert "jwt-aud should be a string or a valid URI" in dump
+
+
+def test_cli_ready_flag_success(defaultenv):
+    "Return PostgREST ready status"
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_PORT": "3001",
+    }
+
+    # Run postgrest process
+    command = [POSTGREST_BIN]
+    env["HPCTIXFILE"] = hpctixfile()
+
+    pgrst_process = subprocess.Popen(command, env=env)
+
+    # Wait some seconds for the first process to start
+    time.sleep(5)
+
+    try:
+        # Run healthcheck process
+        command = [POSTGREST_BIN] + ["--ready"]
+
+        healthcheck_process = subprocess.run(command, env=env, capture_output=True)
+
+        assert healthcheck_process.returncode == 0
+
+    finally:
+        pgrst_process.kill()
+        pgrst_process.wait()
+
+
+def test_cli_ready_flag_fail(defaultenv):
+    "Return PostgREST ready status"
+    env = {
+        **defaultenv,
+        "PGRST_ADMIN_SERVER_PORT": "3001",
+    }
+
+    # Run postgrest process
+    command = [POSTGREST_BIN]
+    env["HPCTIXFILE"] = hpctixfile()
+
+    pgrst_process = subprocess.Popen(command, env=env)
+
+    # No waiting and instantly run the healthcheck process
+    time.sleep(0)
+
+    try:
+        # Run healthcheck process
+        command = [POSTGREST_BIN] + ["--ready"]
+
+        healthcheck_process = subprocess.run(command, env=env, capture_output=True)
+        assert healthcheck_process.returncode == 1
+
+    finally:
+        pgrst_process.kill()
+        pgrst_process.wait()
