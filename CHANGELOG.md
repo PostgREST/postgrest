@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.5] - 2025-08-24
+
 ### Fixed
 
 - Fix OpenAPI broken docs link by @taimoorzaeem in #4048
