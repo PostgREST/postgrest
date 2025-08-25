@@ -55,8 +55,12 @@ data Mutation
   = MutationCreate
   | MutationDelete
   | MutationSingleUpsert
-  | MutationUpdate
+  | MutationUpdate PgrstPatch
+  -- ^ We have two types of updates, regular updates
+  --   and json patch style updates
   deriving Eq
+
+type PgrstPatch = Bool
 
 data Resource
   = ResourceRelation Text
@@ -91,6 +95,10 @@ data Payload
   | ProcessedUrlEncoded { payArray  :: [(Text, Text)], payKeys :: S.Set Text }
   | RawJSON { payRaw  :: LBS.ByteString }
   | RawPay  { payRaw  :: LBS.ByteString }
+  | PgrstPatch
+      { payRaw    :: LBS.ByteString
+      , payFields :: S.Set Text -- ^ These are columns that are to be patched.
+      }
 
 
 -- | The value in `/tbl?select=alias:field.aggregateFunction()::cast`

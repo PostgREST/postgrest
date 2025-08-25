@@ -142,7 +142,7 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular mrMedia resultSet
-      MutationUpdate -> do
+      MutationUpdate _ -> do
         failNotSingular mrMedia resultSet
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
       MutationSingleUpsert -> do
