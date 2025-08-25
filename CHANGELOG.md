@@ -15,10 +15,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
-- Fix OpenAPI broken docs link by @taimoorzaeem in #4080
-- Fix OpenAPI specification incorrectly exposing GET methods for volatile functions by @joelonsql in #4174
-- Fix empty spread embeddings return unexpected SQL error by @taimoorzaeem in #3887
-- Fix `/metrics` endpoint not responding with `Content-Type` header by @taimoorzaeem in #4271
 - Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
 
 ### Changed
@@ -27,6 +23,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
   + Replaces `jwt-cache-max-lifetime` config with `jwt-cache-max-entries`.
   + It now uses a fixed size cache instead of arbitrary sized cache.
+
+## [13.0.5] - 2025-08-24
+
+### Fixed
+
+- Fix OpenAPI broken docs link by @taimoorzaeem in #4080
+- Fix OpenAPI specification incorrectly exposing GET methods for volatile functions by @joelonsql in #4174
+- Fix empty spread embeddings return unexpected SQL error by @taimoorzaeem in #3887
+- Fix `/metrics` endpoint not responding with `Content-Type` header by @taimoorzaeem in #4271
 
 ## [13.0.4] - 2025-06-17
 
