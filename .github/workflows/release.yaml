@@ -75,6 +75,9 @@ jobs:
 
           mkdir -p release-bundle
 
+          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-aarch64.tar.xz" \
+            -C artifacts/postgrest-linux-static-aarch64 postgrest
+
           tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-linux-static-x86-64.tar.xz" \
             -C artifacts/postgrest-linux-static-x86-64 postgrest
 
@@ -86,9 +89,6 @@ jobs:
 
           tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-freebsd-x86-64.tar.xz" \
             -C artifacts/postgrest-freebsd-x86-64 postgrest
-
-          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-ubuntu-aarch64.tar.xz" \
-            -C artifacts/postgrest-ubuntu-aarch64 postgrest
 
           zip --junk-paths "release-bundle/postgrest-${GITHUB_REF_NAME}-windows-x86-64.zip" \
             artifacts/postgrest-windows-x86-64/postgrest.exe
@@ -139,49 +139,43 @@ jobs:
       DOCKER_REPO: ${{ vars.DOCKER_REPO }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Download aarch64 Docker image
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: postgrest-docker-aarch64
       - name: Download x86-64 Docker image
         uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
         with:
           name: postgrest-docker-x86-64
-      - name: Download aarch64 binary
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
-        with:
-          name: postgrest-ubuntu-aarch64
       - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
         with:
           username: ${{ vars.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
-      - name: Build aarch64 Docker image
-        run: |
-          # This only pushes the image via digest, not a tag. This will not appear
-          # in the image list on Docker Hub, yet. It will be later added to the main
-          # tag's manifest.
-          docker buildx build \
-            -t "$DOCKER_REPO/postgrest" \
-            --platform linux/arm64 \
-            --output push-by-digest=true,type=image,push=true \
-            --metadata-file metadata.json \
-            .
-          echo "SHA256_ARM=$(jq -r '."containerimage.digest"' metadata.json)" >> "$GITHUB_ENV"
       - name: Publish images on Docker Hub
         run: |
-          docker load -i postgrest-docker.tar.gz
-
+          docker load -i postgrest-docker-aarch64.tar.gz
           docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
           docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
-          docker buildx imagetools create --append \
-            -t "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}" \
-            "$DOCKER_REPO/postgrest@$SHA256_ARM"
+          SHA256_ARM64=$(docker inspect postgrest:latest | jq -r '.[0].Id')
+
+          docker load -i postgrest-docker-x86-64.tar.gz
+          docker tag postgrest:latest "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          docker push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
+          SHA256_AMD64=$(docker inspect postgrest:latest | jq -r '.[0].Id')
+
+          docker manifest create "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}" \
+            "$DOCKER_REPO/postgrest@$SHA256_ARM64" \
+            "$DOCKER_REPO/postgrest@$SHA256_AMD64"
+          docker manifest push "$DOCKER_REPO/postgrest:${GITHUB_REF_NAME}"
 
           # Only tag 'latest' for full releases
           if [ "${GITHUB_REF_NAME}" != "devel" ]; then
             echo "Pushing to 'latest' tag for full release of ${GITHUB_REF_NAME} ..."
-            docker tag postgrest:latest "$DOCKER_REPO"/postgrest:latest
-            docker push "$DOCKER_REPO"/postgrest:latest
-            docker buildx imagetools create --append \
-              -t "$DOCKER_REPO/postgrest:latest" \
-              "$DOCKER_REPO/postgrest@$SHA256_ARM"
+            docker manifest create "$DOCKER_REPO/postgrest:latest" \
+              "$DOCKER_REPO/postgrest@$SHA256_ARM64" \
+              "$DOCKER_REPO/postgrest@$SHA256_AMD64"
+            docker manifest push "$DOCKER_REPO/postgrest:latest"
           else
             echo "Skipping push to 'latest' tag for pre-release..."
           fi
