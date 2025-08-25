@@ -10,6 +10,10 @@ $$ language sql;
 
 create table replica.items as select x as id from generate_series(1, 10) x;
 
+create table replica.conflict as select x as id from generate_series(1, 1000000) x;
+
+create view replica.conflict_view as select * from replica.conflict where (pg_sleep(0.01) is not null);
+
 DROP ROLE IF EXISTS postgrest_test_anonymous;
 CREATE ROLE postgrest_test_anonymous;
 

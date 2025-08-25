@@ -12,12 +12,47 @@ packages:
   original:
     hackage: fuzzyset-0.2.4
 - completed:
-    hackage: hasql-pool-1.0.1@sha256:3cfb4c7153a6c536ac7e126c17723e6d26ee03794954deed2d72bcc826d05a40,2302
+    hackage: hasql-1.8.1.4@sha256:9f8b036b1485994da1fc804cead2bdf0eccebcb31fe109e8c0aaa49dea6ad72b,5696
     pantry-tree:
-      sha256: d98e1269bdd60989b0eb0b84e1d5357eaa9f92821439d9f206663b7251ee95b2
-      size: 799
+      sha256: a429280972f8c8f4624b2e84ea550a05e1d9a9cd7d8b2cdbcf27253feb6f98a1
+      size: 3438
   original:
-    hackage: hasql-pool-1.0.1
+    hackage: hasql-1.8.1.4
+- completed:
+    hackage: hasql-dynamic-statements-0.3.1.8@sha256:7665dae003849430980b835f864c571f1a7aa8c8a2640876c94576955c98444e,2537
+    pantry-tree:
+      sha256: 68c29c16f70bf1450926c8e511a54755cebd25002c06d0664202b8913b523c15
+      size: 595
+  original:
+    hackage: hasql-dynamic-statements-0.3.1.8
+- completed:
+    hackage: hasql-implicits-0.2.0.1@sha256:63ca855a4b857e762d48757f6a9562a2cb9fd895c3d38c941260768278c4923c,1336
+    pantry-tree:
+      sha256: cb9e593c1579dd8de430cb587643896c39eff09e6c45a1432324e9d6af2ca876
+      size: 264
+  original:
+    hackage: hasql-implicits-0.2.0.1
+- completed:
+    hackage: hasql-notifications-0.2.3.2@sha256:547c1c677227b3063042f3af4d150dd224c1219545e936428da6d6b05e56c5fb,1998
+    pantry-tree:
+      sha256: 6e0427de378fe97da347ec977b0353001940e8f8ff772a310eb2acac95ef7b12
+      size: 452
+  original:
+    hackage: hasql-notifications-0.2.3.2
+- completed:
+    hackage: hasql-pool-1.2.0.3@sha256:27cfef3f4921c9cdaf4cae095f802c9977976a434842792d2b073537681b16c8,2389
+    pantry-tree:
+      sha256: f380573da2665b994fa9fb31e55c272f3757598f57f850fdb31d1b7fbe184a5e
+      size: 982
+  original:
+    hackage: hasql-pool-1.2.0.3
+- completed:
+    hackage: hasql-transaction-1.1.1.2@sha256:be4fb0e49da04f55c9bfbd5828f7025f1cf3165340ecf79b57ec286f4bde2368,2592
+    pantry-tree:
+      sha256: 41a8a96841e612787f2a744c49a57b5d5f4aa3fbaec3efe5ed1d37441f54c3b5
+      size: 1027
+  original:
+    hackage: hasql-transaction-1.1.1.2
 - completed:
     hackage: jose-jwt-0.10.0@sha256:6ed175a01c721e317ceea15eb251a81de145c03711a977517935633a5cdec1d4,3546
     pantry-tree:
@@ -26,12 +61,26 @@ packages:
   original:
     hackage: jose-jwt-0.10.0
 - completed:
-    hackage: postgresql-libpq-0.10.1.0@sha256:6b580c9d5068e78eecc13e655b2885c8e79cdacfca513c5d1e5a6b9dc61d9758,3166
+    hackage: postgresql-binary-0.14.0.1@sha256:06366fd82deda89f9237b885e9493eafe0b9903d05c19761288b048dcc9a99ee,4027
     pantry-tree:
-      sha256: ae81e7628a8f3d1ef33ace71fa0845c073c003ca7f1150cc9d9ba1e55fc84236
-      size: 1096
+      sha256: ca58c715b5e5ad2abbfc1d87e3a620f27b93007591168acd2e60617880be35fa
+      size: 1661
   original:
-    hackage: postgresql-libpq-0.10.1.0
+    hackage: postgresql-binary-0.14.0.1
+- completed:
+    hackage: postgresql-libpq-0.11.0.0@sha256:ca7facdf755f7ad3950e75eee4a388f52179b027ca983be362c400ab0a37a4c4,2702
+    pantry-tree:
+      sha256: d401e0dd176fcbb8badb3ea9fd57614bb70c1a486cbe202c271a911f91d1556c
+      size: 1048
+  original:
+    hackage: postgresql-libpq-0.11.0.0
+- completed:
+    hackage: postgresql-libpq-configure-0.11@sha256:019c5d83da0b4dc0b4487e0e868f2eed5efa25e0688f5cfc2ba8191a80e527aa,1309
+    pantry-tree:
+      sha256: 04a70f52cfacce71901efb1eafe3ae3103d133c1c4ee89ba7a51877c67503041
+      size: 353
+  original:
+    hackage: postgresql-libpq-configure-0.11
 snapshots:
 - completed:
     sha256: 238fa745b64f91184f9aa518fe04bdde6552533d169b0da5256670df83a0f1a9
