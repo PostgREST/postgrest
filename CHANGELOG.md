@@ -17,6 +17,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 - Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
 - Fix format of `IPv6` address logged at PostgREST startup by @taimoorzaeem in #4291
+- Fix empty enum in `preferParams` OpenAPI parameter by @laurenceisla in #4292
 
 ### Changed
 

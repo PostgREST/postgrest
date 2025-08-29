@@ -1085,6 +1085,13 @@ spec = describe "OpenAPI" $ do
         immutableGet `shouldNotBe` Nothing
         immutablePost `shouldNotBe` Nothing
 
+    it "does not include empty enum in the preferParams parameter" $ do
+      r <- simpleBody <$> get "/"
+      let preferParams = r ^? key "parameters" . key "preferParams" . key "enum"
+
+      liftIO $ do
+        preferParams `shouldBe` Nothing
+
   describe "Security" $
     it "does not include security or security definitions by default" $ do
       r <- simpleBody <$> get "/"
