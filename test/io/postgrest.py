@@ -96,7 +96,9 @@ def run(
         if port:
             env["PGRST_SERVER_PORT"] = str(port)
             env["PGRST_SERVER_HOST"] = host or "localhost"
-            baseurl = f"http://localhost:{port}"
+            # When constructing IPv6 address, host address should be bracketed like [host]
+            apihost = f"[{host}]" if host and is_ipv6(host) else "localhost"
+            baseurl = f"http://{apihost}:{port}"
         else:
             socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
             env["PGRST_SERVER_UNIX_SOCKET"] = str(socketfile)
@@ -104,7 +106,8 @@ def run(
 
         adminport = freeport(port)
         env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
-        adminurl = f"http://localhost:{adminport}"
+        adminhost = f"[{host}]" if host and is_ipv6(host) else "localhost"
+        adminurl = f"http://{adminhost}:{adminport}"
 
         command = [POSTGREST_BIN]
         env["HPCTIXFILE"] = hpctixfile()
@@ -218,3 +221,11 @@ def sleep_pool_connection(url, seconds):
         session.get(url + f"/rpc/sleep?seconds={seconds}", timeout=0.1)
     except requests.exceptions.ReadTimeout:
         pass
+
+
+def is_ipv6(addr):
+    try:
+        socket.inet_pton(socket.AF_INET6, addr)
+        return True
+    except OSError:
+        return False
