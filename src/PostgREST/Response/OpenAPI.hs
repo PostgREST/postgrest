@@ -171,8 +171,9 @@ makePreferParam ts =
   & schema .~ ParamOther ((mempty :: ParamOtherSchema)
     & in_ .~ ParamHeader
     & type_ ?~ SwaggerString
-    & enum_ .~ JSON.decode (JSON.encode $ foldl (<>) [] (val <$> ts)))
+    & enum_ .~ if null enu then Nothing else JSON.decode (JSON.encode enu))
   where
+    enu = foldl (<>) [] (val <$> ts)
     val :: Text -> [Text]
     val = \case
       "count"      -> ["count=none"]
