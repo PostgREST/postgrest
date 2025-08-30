@@ -1362,17 +1362,24 @@ def test_log_postgrest_version(defaultenv):
         assert "Starting PostgREST %s..." % version in output[0]
 
 
-@pytest.mark.parametrize("host", ["127.0.0.1", "::1"])
+@pytest.mark.parametrize(
+    "host", ["127.0.0.1", "::1", None], ids=["IPv4", "IPv6", "Unix"]
+)
 def test_log_postgrest_host_and_port(host, defaultenv):
     "PostgREST should output the host and port it is bound to."
-    port = freeport()
+
+    # We run postgrest on unix socket when host and port are set to None
+    is_unix = host is None
+    port = None if is_unix else freeport()
 
     with run(
         env=defaultenv, host=host, port=port, no_startup_stdout=False
     ) as postgrest:
         output = postgrest.read_stdout(nlines=10)
 
-        if is_ipv6(host):  # IPv6
+        if is_unix:
+            re.match(r'API server listening on unix socket "/tmp/.*\.sock"', output[2])
+        elif is_ipv6(host):
             assert f"API server listening on [{host}]:{port}" in output[2]
         else:  # IPv4
             assert f"API server listening on {host}:{port}" in output[2]
