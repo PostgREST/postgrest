@@ -214,6 +214,7 @@ Here are some companies that use PostgREST in production.
   - See how Nimbus uses PostgREST in `Paul Copplestone's blog post <https://paul.copplest.one/blog/nimbus-tech-2019-04.html>`_.
 * `OpenBooking <https://openbooking.ch>`_
 * `Supabase <https://supabase.com>`_
+* `Fake link <https://fake.postgrest.com>`_ .. TODD remove this before merge
 
 Testimonials
 ------------
