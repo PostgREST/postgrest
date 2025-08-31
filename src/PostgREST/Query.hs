@@ -37,6 +37,7 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
 import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
+                                          DbTxEnd (..),
                                           OpenAPIMode (..))
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
@@ -248,7 +249,7 @@ failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQ
 -- | Set a transaction to roll back if requested
 optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
 optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
-  lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
+  lift $ when (shouldRollback || (isTxRollback && not shouldCommit)) $ do
     SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
     SQL.condemn
   where
@@ -256,6 +257,11 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Commit
     shouldRollback =
       preferTransaction == Just Rollback
+    isTxRollback = case configDbTxEnd of
+      TxRollback              -> True
+      TxRollbackAllowOverride -> True
+      TxCommit                -> False
+      TxCommitAllowOverride   -> False
 
 runTxVarQuery :: DbActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
 runTxVarQuery dbActPlan conf@AppConfig{..} claims role apireq = lift $
