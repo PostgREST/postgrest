@@ -21,19 +21,16 @@ import qualified Hasql.Connection           as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
-import qualified Network.Socket             as NS
 import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
 
-import Protolude         hiding (toList)
-import Protolude.Partial (fromJust)
+import Protolude hiding (toList)
 
 data Observation
-  = AdminStartObs (Maybe Text) (Maybe Int)
+  = AdminStartObs Text
   | AppStartObs ByteString
-  | AppServerPortObs Text NS.PortNumber
-  | AppServerUnixObs FilePath
+  | AppServerAddressObs Text
   | ExitUnsupportedPgVersion PgVersion PgVersion
   | ExitDBNoRecoveryObs
   | ExitDBFatalError ObsFatalError SQL.UsageError
@@ -69,14 +66,12 @@ type ObservationHandler = Observation -> IO ()
 
 observationMessage :: Observation -> Text
 observationMessage = \case
-  AdminStartObs host port ->
-    "Admin server listening on " <> fromJust host <> ":" <> show (fromIntegral (fromJust port) :: Integer)
+  AdminStartObs address ->
+    "Admin server listening on " <> address
   AppStartObs ver ->
     "Starting PostgREST " <> T.decodeUtf8 ver <> "..."
-  AppServerPortObs host port ->
-    "API server listening on " <> host <> ":" <> show port
-  AppServerUnixObs sock ->
-    "API server listening on unix socket " <> show sock
+  AppServerAddressObs address ->
+    "API server listening on " <> address
   DBConnectedObs ver ->
     "Successfully connected to " <> ver
   ExitUnsupportedPgVersion pgVer minPgVer ->
