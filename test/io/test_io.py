@@ -1378,7 +1378,7 @@ def test_log_postgrest_host_and_port(host, defaultenv):
         output = postgrest.read_stdout(nlines=10)
 
         if is_unix:
-            re.match(r'API server listening on unix socket "/tmp/.*\.sock"', output[2])
+            re.match(r'API server listening on "/tmp/.*\.sock"', output[2])
         elif is_ipv6(host):
             assert f"API server listening on [{host}]:{port}" in output[2]
         else:  # IPv4

@@ -18,6 +18,7 @@ main =
     , "src/PostgREST/Config.hs"
     , "src/PostgREST/Error.hs"
     , "src/PostgREST/MediaType.hs"
+    , "src/PostgREST/Network.hs"
     , "src/PostgREST/Plan.hs"
     , "src/PostgREST/Query/SqlFragment.hs"
     , "src/PostgREST/Response.hs"

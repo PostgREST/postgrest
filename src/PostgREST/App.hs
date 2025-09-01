@@ -46,7 +46,7 @@ import PostgREST.Auth.Types           (AuthResult (..))
 import PostgREST.Config               (AppConfig (..), LogLevel (..),
                                        LogQuery (..))
 import PostgREST.Error                (Error)
-import PostgREST.Network              (resolveHost)
+import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
@@ -56,7 +56,6 @@ import PostgREST.Version              (docsVersion, prettyVersion)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Network.HTTP.Types    as HTTP
-import qualified Network.Socket        as NS
 import           Protolude             hiding (Handler)
 import           System.TimeIt         (timeItT)
 
@@ -76,13 +75,9 @@ run appState = do
 
   let app = postgrest configLogLevel appState (AppState.schemaCacheLoader appState)
 
-  case configServerUnixSocket of
-    Just path -> do
-      observer $ AppServerUnixObs path
-    Nothing   -> do
-      port <- NS.socketPort $ AppState.getSocketREST appState
-      host <- resolveHost $ AppState.getSocketREST appState
-      observer $ AppServerPortObs (fromJust host) port
+  do
+    address <- resolveSocketToAddress (AppState.getSocketREST appState)
+    observer $ AppServerAddressObs address
 
   Warp.runSettingsSocket (serverSettings conf) (AppState.getSocketREST appState) app
 

@@ -1,5 +1,3 @@
-{-# LANGUAGE NamedFieldPuns #-}
-
 module PostgREST.Admin
   ( runAdmin
   ) where
@@ -9,16 +7,14 @@ import qualified Network.HTTP.Types.Status as HTTP
 import qualified Network.Wai               as Wai
 import qualified Network.Wai.Handler.Warp  as Warp
 
-import Control.Monad.Extra (whenJust)
-
-import Network.Socket
+import Control.Monad.Extra       (whenJust)
+import Network.Socket            hiding (addrFamily)
 import Network.Socket.ByteString
 
 import PostgREST.AppState    (AppState)
-import PostgREST.Config      (AppConfig (..))
 import PostgREST.MediaType   (MediaType (..), toContentType)
 import PostgREST.Metrics     (metricsToText)
-import PostgREST.Network     (resolveHost)
+import PostgREST.Network     (resolveSocketToAddress)
 import PostgREST.Observation (Observation (..))
 
 import qualified PostgREST.AppState as AppState
@@ -27,10 +23,9 @@ import Protolude
 
 runAdmin :: AppState -> Warp.Settings -> IO ()
 runAdmin appState settings = do
-  AppConfig{configAdminServerPort} <- AppState.getConfig appState
   whenJust (AppState.getSocketAdmin appState) $ \adminSocket -> do
-    host <- resolveHost adminSocket
-    observer $ AdminStartObs host configAdminServerPort
+    address <- resolveSocketToAddress adminSocket
+    observer $ AdminStartObs address
     void . forkIO $ Warp.runSettingsSocket settings adminSocket adminApp
   where
     adminApp = admin appState
