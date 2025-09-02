@@ -45,8 +45,7 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
                                           PreferTransaction (..),
-                                          Preferences (..),
-                                          shouldCount)
+                                          Preferences (..))
 import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
@@ -59,7 +58,6 @@ import PostgREST.Plan                    (ActionPlan (..),
                                           DbActionPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
-import PostgREST.Plan.MutatePlan         (MutatePlan (..))
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Routine     (Routine (..), RoutineMap)
@@ -139,18 +137,9 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
   (mainActionQuery, mainSQLQuery)
   where
     countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareRead
-      (QueryBuilder.readPlanToQuery wrReadPlan)
-      (if preferCount == Just EstimatedCount then
-         -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
-         QueryBuilder.limitedQuery countQuery ((+ 1) <$> configDbMaxRows)
-       else
-         countQuery
-      )
-      (shouldCount preferCount)
-      wrMedia
-      wrHandler
-      ) decodeIt configDbPreparedStatements
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
+      (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows wrMedia wrHandler)
+      decodeIt configDbPreparedStatements
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failNotSingular wrMedia resultSet
@@ -165,19 +154,9 @@ actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiReque
 actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
-    (isPut, isInsert, pkCols) = case mrMutatePlan of
-      Insert{where_,insPkCols} -> ((not . null) where_, True, insPkCols)
-      _ -> (False,False, mempty);
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareWrite
-      (QueryBuilder.readPlanToQuery mrReadPlan)
-      (QueryBuilder.mutatePlanToQuery mrMutatePlan)
-      isInsert
-      isPut
-      mrMedia
-      mrHandler
-      preferRepresentation
-      preferResolution
-      pkCols) decodeIt configDbPreparedStatements
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
+      (Statements.mainWrite mrReadPlan mrMutatePlan mrMedia mrHandler preferRepresentation preferResolution)
+      decodeIt configDbPreparedStatements
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular mrMedia resultSet
@@ -203,14 +182,9 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
 actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
   (mainActionQuery, mainSQLQuery)
   where
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized (Statements.prepareCall
-      crProc
-      (QueryBuilder.callPlanToQuery crCallPlan)
-      (QueryBuilder.readPlanToQuery crReadPlan)
-      (QueryBuilder.readPlanToCountQuery crReadPlan)
-      (shouldCount preferCount)
-      crMedia
-      crHandler) decodeIt configDbPreparedStatements
+    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
+      (Statements.mainCall crProc crCallPlan crReadPlan preferCount crMedia crHandler)
+      decodeIt configDbPreparedStatements
 
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
@@ -275,7 +249,7 @@ resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStan
   where
     explain =
       lift . SQL.statement mempty $
-        SQL.dynamicallyParameterized (Statements.preparePlanRows countQuery)
+        SQL.dynamicallyParameterized (Statements.postExplain countQuery)
         decodeIt
         configDbPreparedStatements
 
