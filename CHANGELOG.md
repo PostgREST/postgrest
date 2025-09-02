@@ -13,18 +13,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
 
-### Fixed
-
-- Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
-- Fix format of `IPv6` address logged at PostgREST startup by @taimoorzaeem in #4291
-- Fix empty enum in `preferParams` OpenAPI parameter by @laurenceisla in #4292
-
 ### Changed
 
 - Drop support for PostgreSQL EOL version 12 by @wolfgangwalther in #3865
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
   + Replaces `jwt-cache-max-lifetime` config with `jwt-cache-max-entries`.
   + It now uses a fixed size cache instead of arbitrary sized cache.
+
+## [13.0.6] - 2025-08-30
+
+### Fixed
+
+- Fix logging the Haskell type instead of the listener error message directly by @laurenceisla in #3588
+- Fix format of `IPv6` address logged at PostgREST startup by @taimoorzaeem in #4291
+- Fix empty enum in `preferParams` OpenAPI parameter by @laurenceisla in #4292
 
 ## [13.0.5] - 2025-08-24
 
