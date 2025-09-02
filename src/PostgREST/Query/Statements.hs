@@ -1,12 +1,13 @@
+{-# LANGUAGE NamedFieldPuns #-}
 {-|
 Module      : PostgREST.Query.Statements
-Description : PostgREST SQL statements.
+Description : PostgREST main queries
 -}
 module PostgREST.Query.Statements
-  ( prepareWrite
-  , prepareRead
-  , prepareCall
-  , preparePlanRows
+  ( mainWrite
+  , mainRead
+  , mainCall
+  , postExplain
   ) where
 
 import qualified Hasql.DynamicStatements.Snippet as SQL
@@ -14,15 +15,19 @@ import qualified Hasql.DynamicStatements.Snippet as SQL
 import PostgREST.ApiRequest.Preferences
 import PostgREST.MediaType              (MTVndPlanFormat (..),
                                          MediaType (..))
+import PostgREST.Plan.CallPlan
+import PostgREST.Plan.MutatePlan        as MTPlan
+import PostgREST.Plan.ReadPlan
+import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
 import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine,
                                          funcReturnsSingle)
 
 import Protolude
 
-prepareWrite :: SQL.Snippet -> SQL.Snippet -> Bool -> Bool -> MediaType -> MediaHandler ->
-                Maybe PreferRepresentation -> Maybe PreferResolution -> [Text] -> SQL.Snippet
-prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pKeys = mtSnippet mt snippet
+mainWrite :: ReadPlanTree -> MutatePlan -> MediaType -> MediaHandler ->
+             Maybe PreferRepresentation -> Maybe PreferResolution -> SQL.Snippet
+mainWrite rPlan mtplan mt handler rep resolution = mtSnippet mt snippet
  where
   checkUpsert snip = if isInsert && (isPut || resolution == Just MergeDuplicates) then snip else "''"
   pgrstInsertedF = checkUpsert "nullif(current_setting('pgrst.inserted', true),'')::int"
@@ -42,7 +47,7 @@ prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pK
     if isInsert && rep == Just HeadersOnly
       then
         "CASE WHEN pg_catalog.count(_postgrest_t) = 1 " <>
-          "THEN coalesce(" <> locationF pKeys <> ", " <> noLocationF <> ") " <>
+          "THEN coalesce(" <> locationF pkCols <> ", " <> noLocationF <> ") " <>
           "ELSE " <> noLocationF <> " " <>
         "END"
       else noLocationF
@@ -52,8 +57,15 @@ prepareWrite selectQuery mutateQuery isInsert isPut mt handler rep resolution pK
     | handler == NoAgg = "SELECT * FROM " <> sourceCTE
     | otherwise        = selectQuery
 
-prepareRead :: SQL.Snippet -> SQL.Snippet -> Bool -> MediaType -> MediaHandler -> SQL.Snippet
-prepareRead selectQuery countQuery countTotal mt handler = mtSnippet mt snippet
+  selectQuery = readPlanToQuery rPlan
+  mutateQuery = mutatePlanToQuery mtplan
+  (isPut, isInsert, pkCols) = case mtplan of
+    MTPlan.Insert{MTPlan.where_,insPkCols} -> ((not . null) where_, True, insPkCols)
+    _ -> (False,False, mempty);
+
+mainRead :: ReadPlanTree -> SQL.Snippet -> Maybe PreferCount -> Maybe Integer ->
+            MediaType -> MediaHandler -> SQL.Snippet
+mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
  where
   snippet =
     "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
@@ -67,12 +79,18 @@ prepareRead selectQuery countQuery countTotal mt handler = mtSnippet mt snippet
       "''" <> " AS response_inserted " <>
     "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
-  (countCTEF, countResultF) = countF countQuery countTotal
+  (countCTEF, countResultF) = countF countQ $ shouldCount pCount
+  selectQuery = readPlanToQuery rPlan
+  countQ =
+    if pCount == Just EstimatedCount then
+      -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
+      limitedQuery countQuery ((+ 1) <$> maxRows)
+    else
+      countQuery
 
-
-prepareCall :: Routine -> SQL.Snippet -> SQL.Snippet -> SQL.Snippet -> Bool ->
-               MediaType -> MediaHandler -> SQL.Snippet
-prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler = mtSnippet mt snippet
+mainCall :: Routine -> CallPlan -> ReadPlanTree -> Maybe PreferCount ->
+            MediaType -> MediaHandler -> SQL.Snippet
+mainCall rout cPlan rPlan pCount mt handler = mtSnippet mt snippet
   where
     snippet =
       "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
@@ -88,11 +106,14 @@ prepareCall rout callProcQuery selectQuery countQuery countTotal mt handler = mt
         "''" <> " AS response_inserted " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
-    (countCTEF, countResultF) = countF countQuery countTotal
+    (countCTEF, countResultF) = countF countQuery $ shouldCount pCount
+    selectQuery = readPlanToQuery rPlan
+    callProcQuery = callPlanToQuery cPlan
+    countQuery = readPlanToCountQuery rPlan
 
-
-preparePlanRows :: SQL.Snippet -> SQL.Snippet
-preparePlanRows = explainF PlanJSON mempty
+-- This occurs after the main query runs, that's why it's prefixed with "post"
+postExplain :: SQL.Snippet -> SQL.Snippet
+postExplain = explainF PlanJSON mempty
 
 mtSnippet :: MediaType -> SQL.Snippet -> SQL.Snippet
 mtSnippet mediaType snippet = case mediaType of
