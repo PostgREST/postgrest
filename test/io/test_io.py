@@ -1033,13 +1033,7 @@ def test_log_level(level, defaultenv):
 def test_log_query(level, defaultenv):
     "log_query=true should log the SQL query according to the log_level"
 
-    env = {
-        **defaultenv,
-        "PGRST_LOG_LEVEL": level,
-        "PGRST_LOG_QUERY": "main-query",
-        # The root path can only log SQL when a function is set in db-root-spec
-        "PGRST_DB_ROOT_SPEC": "root",
-    }
+    env = {**defaultenv, "PGRST_LOG_LEVEL": level, "PGRST_LOG_QUERY": "main-query"}
 
     with run(env=env) as postgrest:
         response = postgrest.session.get("/")
@@ -1051,7 +1045,9 @@ def test_log_query(level, defaultenv):
         response = postgrest.session.get("/infinite_recursion")
         assert response.status_code == 500
 
-        root_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."root"\(\) pgrst_scalar.+_postgrest_t'
+        root_2xx_regx_ln1 = r".+: SELECT   n.nspname AS table_schema, .+ FROM pg_class c .+ ORDER BY table_schema, table_name"
+        root_2xx_regx_ln2 = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND p.pronamespace = \$1::regnamespace"
+        root_2xx_regx_ln3 = r".+: SELECT pg_catalog\.obj_description\(\$1::regnamespace, 'pg_namespace'\)"
         get_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
         infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
 
@@ -1067,15 +1063,19 @@ def test_log_query(level, defaultenv):
             assert re.match(infinite_recursion_5xx_regx, output[1])
             assert len(output) == 2
         elif level == "info":
-            output = postgrest.read_stdout(nlines=6)
-            assert re.match(root_2xx_regx, output[0])
-            assert re.match(get_2xx_regx, output[2])
-            assert re.match(infinite_recursion_5xx_regx, output[5])
-            assert len(output) == 6
+            output = postgrest.read_stdout(nlines=8)
+            assert re.match(root_2xx_regx_ln1, output[0])
+            assert re.match(root_2xx_regx_ln2, output[1])
+            assert re.match(root_2xx_regx_ln3, output[2])
+            assert re.match(get_2xx_regx, output[4])
+            assert re.match(infinite_recursion_5xx_regx, output[7])
+            assert len(output) == 8
         elif level == "debug":
-            output_root = postgrest.read_stdout(nlines=6)
-            assert re.match(root_2xx_regx, output_root[4])
-            assert len(output_root) == 6
+            output_root = postgrest.read_stdout(nlines=8)
+            assert re.match(root_2xx_regx_ln1, output_root[4])
+            assert re.match(root_2xx_regx_ln2, output_root[5])
+            assert re.match(root_2xx_regx_ln3, output_root[6])
+            assert len(output_root) == 8
             output_get = postgrest.read_stdout(nlines=6)
             assert re.match(get_2xx_regx, output_get[4])
             assert len(output_get) == 6

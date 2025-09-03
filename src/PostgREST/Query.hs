@@ -7,13 +7,15 @@ Description : PostgREST query executor
 This module parametrizes, prepares, executes SQL queries and decodes their results.
 
 TODO: This module shouldn't depend on SchemaCache: once OpenAPI is removed, this can be done
+TOOD: Split the SQL transaction concerns module into another one so Query.hs is pure
 -}
 module PostgREST.Query
   ( Query (..)
   , QueryResult (..)
   , ResultSet (..)
-  , query
-  , getSQLQuery
+  , mainTx
+  , mainQuery
+  , MainQuery (..)
   ) where
 
 import           Control.Lens                      ((^?))
@@ -28,7 +30,6 @@ import qualified Hasql.Decoders                    as HD
 import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Session                     as SQL (Session)
-import qualified Hasql.Statement                   as SQL
 import qualified Hasql.Transaction                 as SQL
 import qualified Hasql.Transaction.Sessions        as SQL
 
@@ -73,7 +74,6 @@ data Query
     , dqTxMode      :: SQL.Mode
     , dqDbHandler   :: DbHandler QueryResult
     , dqTransaction :: SQL.IsolationLevel -> SQL.Mode -> SQL.Transaction (Either Error QueryResult) -> SQL.Session (Either Error QueryResult)
-    , dqSQL         :: ByteString
     }
   | NoDbQuery QueryResult
 
@@ -82,6 +82,16 @@ data QueryResult
   | DbCallResult  CallReadPlan  ResultSet
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
+
+-- The Queries that run on every request
+data MainQuery = MainQuery
+  { mqTxVars  :: SQL.Snippet       -- ^ the transaction variables that always run on each query
+  , mqPreReq  :: Maybe SQL.Snippet -- ^ the pre-request function that runs if enabled
+  , mqCount   :: SQL.Snippet       -- ^ this count query is actually a fragment of the main query, but the same count query also runs after the main one in the case of `count=estimated`, so it's cached here.
+  -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
+  , mqMain    :: SQL.Snippet
+  , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
+  }
 
 -- | Standard result set format used for all queries
 data ResultSet
@@ -104,21 +114,21 @@ data ResultSet
   }
   | RSPlan BS.ByteString -- ^ the plan of the query
 
-query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
-query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
-query conf@AppConfig{..} auth@AuthResult{..} apiReq (Db plan) sCache =
-  DbQuery isoLvl txMode dbHandler transaction mainSQLQuery
+mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
+mainTx _ _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
+mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
+  DbQuery isoLvl txMode dbHandler transaction
   where
     transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction
     isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan
-    (mainActionQuery, mainSQLQuery) = actionQuery plan conf apiReq sCache
+    mainActionQuery = actionQuery genQ plan conf apiReq sCache
     dbHandler = do
-      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
-        (PreQuery.txVarQuery plan conf auth apiReq)
-        HD.noResult configDbPreparedStatements
-      lift $ whenJust configDbPreRequest $ \prereq -> do
-        SQL.statement mempty $ SQL.dynamicallyParameterized (PreQuery.preReqQuery prereq) HD.noResult configDbPreparedStatements
+      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqTxVars
+          HD.noResult configDbPreparedStatements
+      lift $ whenJust mqPreReq $ \q ->
+        SQL.statement mempty $ SQL.dynamicallyParameterized q
+          HD.noResult configDbPreparedStatements
       mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
@@ -133,32 +143,42 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
+mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
+mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty mempty (mempty, mempty, mempty)
+mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} authRes preReq =
+  let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
+  case plan of
+    DbCrud WrappedReadPlan{..} ->
+      let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan in
+      genQ countQuery (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows wrMedia wrHandler) (mempty, mempty, mempty)
+    DbCrud MutateReadPlan{..} ->
+      genQ mempty (Statements.mainWrite mrReadPlan mrMutatePlan mrMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty)
+    DbCall CallReadPlan{..} ->
+      genQ mempty (Statements.mainCall crProc crCallPlan crReadPlan preferCount crMedia crHandler) (mempty, mempty, mempty)
+    MayUseDb InspectPlan{ipSchema=tSchema} ->
+      genQ mempty mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema)
+
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
-actionQuery :: DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> (DbHandler QueryResult, ByteString)
-actionQuery (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  (mainActionQuery, mainSQLQuery)
+actionQuery :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> DbHandler QueryResult
+actionQuery MainQuery{..} (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq _ =
+  mainActionQuery
   where
-    countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
-      (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows wrMedia wrHandler)
-      decodeIt configDbPreparedStatements
+    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
       failNotSingular wrMedia resultSet
       optionalRollback conf apiReq
-      DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet countQuery
+      DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet mqCount
 
     decodeIt :: HD.Result ResultSet
     decodeIt = case wrMedia of
       MTVndPlan{} -> planRow
       _           -> HD.singleRow $ standardRow True
 
-actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  (mainActionQuery, mainSQLQuery)
+actionQuery MainQuery{..} (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
+  mainActionQuery
   where
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
-      (Statements.mainWrite mrReadPlan mrMutatePlan mrMedia mrHandler preferRepresentation preferResolution)
-      decodeIt configDbPreparedStatements
+    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular mrMedia resultSet
@@ -181,12 +201,10 @@ actionQuery (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiReques
       MTVndPlan{} -> planRow
       _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  (mainActionQuery, mainSQLQuery)
+actionQuery MainQuery{..} (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
+  mainActionQuery
   where
-    result@(SQL.Statement mainSQLQuery _ _ _) = SQL.dynamicallyParameterized
-      (Statements.mainCall crProc crCallPlan crReadPlan preferCount crMedia crHandler)
-      decodeIt configDbPreparedStatements
+    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
 
     mainActionQuery = do
       resultSet <- lift $ SQL.statement mempty result
@@ -200,15 +218,15 @@ actionQuery (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{
       MTVndPlan{} -> planRow
       _           -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
-actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
-  (mainActionQuery, mempty)
+actionQuery MainQuery{mqOpenAPI=(tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
+  mainActionQuery
   where
     mainActionQuery = lift $
       case configOpenApiMode of
         OAFollowPriv -> do
-          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.accessibleTables tSchema) decodeAccessibleIdentifiers configDbPreparedStatements
-          accFuncs <-  SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.accessibleFuncs tSchema) SchemaCache.decodeFuncs configDbPreparedStatements
-          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements
+          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ  decodeAccessibleIdentifiers configDbPreparedStatements
+          accFuncs <-  SQL.statement mempty $ SQL.dynamicallyParameterized   funcsQ   SchemaCache.decodeFuncs configDbPreparedStatements
+          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized     schQ decodeSchemaDesc configDbPreparedStatements
           let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
 
           pure $ MaybeDbResult plan (Just (tbls, accFuncs, schDesc))
@@ -303,10 +321,6 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Commit
     shouldRollback =
       preferTransaction == Just Rollback
-
-getSQLQuery :: Query -> ByteString
-getSQLQuery DbQuery{dqSQL} = dqSQL
-getSQLQuery _              = mempty
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result ResultSet

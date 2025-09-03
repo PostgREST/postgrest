@@ -5,6 +5,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Fixed
+
+- Fix not logging OpenAPI queries when `log-query=main-query` is enabled by @steve-chavez in #4226
+
 ### Added
 
 - Improve the `PGRST106` error when the requested schema is invalid by @laurenceisla in #4089

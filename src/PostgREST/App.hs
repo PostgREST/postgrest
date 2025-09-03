@@ -142,21 +142,30 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
   (parseTime, apiReq@ApiRequest{..}) <- withTiming $ liftEither . mapLeft Error.ApiRequestError $ ApiRequest.userApiRequest conf prefs req body
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
-  let query = Query.query conf authResult apiReq plan sCache
-      logSQL = lift . AppState.getObserver appState . DBQuery (Query.getSQLQuery query)
+  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
+      query = Query.mainTx mainQ conf authResult apiReq plan sCache
+      observer = AppState.getObserver appState
+      obsQuery s = when (configLogQuery /= LogQueryDisabled) $ observer $ QueryObs mainQ s
 
   (queryTime, queryResult) <- withTiming $ do
     case query of
       Query.NoDbQuery r -> pure r
       Query.DbQuery{..} -> do
         dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
-        let eitherResp = mapLeft Error.PgErr . mapLeft (Error.PgError (Just authRole /= configDbAnonRole)) $ dbRes
-        when (configLogQuery /= LogQueryDisabled) $ whenLeft eitherResp $ logSQL . Error.status
-        liftEither eitherResp >>= liftEither
+        let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
+
+        -- TODO: we use obsQuery twice, one here and one below because in case of an error with the usePool above, the request will finish here and return an error message.
+        -- This is because of a combination of ExceptT + our Error module which has Wai.responseLBS.
+        -- This needs refactoring so only the below obsQuery is used.
+        lift $ whenLeft eitherResp $ obsQuery . Error.status
+        liftEither eitherResp
 
   (respTime, resp) <- withTiming $ do
     let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
-    when (configLogQuery /= LogQueryDisabled) $ logSQL $ either Error.status Response.pgrstStatus response
+        status' = either Error.status Response.pgrstStatus response
+
+    -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
+    lift $ obsQuery status'
     liftEither response
 
   return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
