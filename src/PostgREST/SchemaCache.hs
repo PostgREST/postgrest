@@ -21,7 +21,6 @@ These queries are executed once at startup or when PostgREST is reloaded.
 module PostgREST.SchemaCache
   ( SchemaCache(..)
   , querySchemaCache
-  , accessibleTables
   , accessibleFuncs
   , showSummary
   ) where
@@ -46,7 +45,7 @@ import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               toIsolationLevel)
 import PostgREST.Query.SqlFragment           (escapeIdent)
-import PostgREST.SchemaCache.Identifiers     (AccessSet, FieldName,
+import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
                                               Schema, isAnyElement)
@@ -207,14 +206,6 @@ removeInternal schemas dbStruct =
     hasInternalJunction Relationship{relCardinality=card} = case card of
       M2M Junction{junTable} -> qiSchema junTable `notElem` schemas
       _                      -> False
-
-decodeAccessibleIdentifiers :: HD.Result AccessSet
-decodeAccessibleIdentifiers =
- S.fromList <$> HD.rowList row
- where
-  row = QualifiedIdentifier
-    <$> column HD.text
-    <*> column HD.text
 
 decodeTables :: HD.Result TablesMap
 decodeTables =
@@ -473,28 +464,6 @@ funcsSqlQuery = encodeUtf8 [trimming|
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
   AND prokind = 'f'
   AND p.pronamespace = ANY($$1::regnamespace[]) |]
-
-accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
-accessibleTables =
-  SQL.Statement sql params decodeAccessibleIdentifiers
- where
-  params = map escapeIdent >$< arrayParam HE.text
-  sql = encodeUtf8 [trimming|
-    SELECT
-      n.nspname AS table_schema,
-      c.relname AS table_name
-    FROM pg_class c
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE c.relkind IN ('v','r','m','f','p')
-    AND c.relnamespace = ANY($$1::regnamespace[])
-    AND (
-      pg_has_role(c.relowner, 'USAGE')
-      or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
-      or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
-    )
-    AND not c.relispartition
-    ORDER BY table_schema, table_name|]
-
 {-
 Adds M2O and O2O relationships for views to tables, tables to views, and views to views. The example below is taken from the test fixtures, but the views names/colnames were modified.
 

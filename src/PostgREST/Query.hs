@@ -205,8 +205,8 @@ actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache
     mainActionQuery = lift $
       case configOpenApiMode of
         OAFollowPriv -> do
-          tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
-          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements)
+          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.accessibleTables tSchema) decodeAccessibleIdentifiers configDbPreparedStatements
+          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements
 
           MaybeDbResult plan . Just <$> ((,,)
                 (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
@@ -214,6 +214,7 @@ actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache
             <*> pure schDesc)
         OAIgnorePriv -> do
           schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements)
+
           let tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbTables sCache)
               routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbRoutines sCache)
 
@@ -223,6 +224,15 @@ actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache
 
     decodeSchemaDesc :: HD.Result (Maybe Text)
     decodeSchemaDesc = join <$> HD.rowMaybe (nullableColumn HD.text)
+
+    decodeAccessibleIdentifiers :: HD.Result (S.Set QualifiedIdentifier)
+    decodeAccessibleIdentifiers =
+      let
+        row = QualifiedIdentifier
+          <$> column HD.text
+          <*> column HD.text
+      in
+      S.fromList <$> HD.rowList row
 
 -- Makes sure the querystring pk matches the payload pk
 -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,

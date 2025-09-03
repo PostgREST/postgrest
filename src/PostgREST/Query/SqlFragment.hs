@@ -41,6 +41,7 @@ module PostgREST.Query.SqlFragment
   , escapeIdent
   , escapeIdentList
   , schemaDescription
+  , accessibleTables
   ) where
 
 import qualified Data.Aeson                      as JSON
@@ -597,3 +598,22 @@ schemaDescription schema =
   "SELECT pg_catalog.obj_description(" <> encoded <> "::regnamespace, 'pg_namespace')"
   where
     encoded = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 schema
+
+accessibleTables :: Text -> SQL.Snippet
+accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
+  SELECT
+    n.nspname AS table_schema,
+    c.relname AS table_name
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE c.relkind IN ('v','r','m','f','p')
+  AND c.relnamespace = |]) <> encodedSchema <> "::regnamespace " <> SQL.sql (encodeUtf8 [trimming|
+  AND (
+    pg_has_role(c.relowner, 'USAGE')
+    or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+    or has_any_column_privilege(c.oid, 'SELECT, INSERT, UPDATE, REFERENCES')
+  )
+  AND not c.relispartition
+  ORDER BY table_schema, table_name|])
+  where
+    encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
