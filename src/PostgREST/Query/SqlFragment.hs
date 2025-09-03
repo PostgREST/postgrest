@@ -40,6 +40,7 @@ module PostgREST.Query.SqlFragment
   , setConfigWithConstantNameJSON
   , escapeIdent
   , escapeIdentList
+  , schemaDescription
   ) where
 
 import qualified Data.Aeson                      as JSON
@@ -590,3 +591,9 @@ handlerF rout = \case
   BuiltinOvAggCsv            -> asCsvF
   CustomFunc funcQi target   -> customFuncF rout funcQi target
   NoAgg                      -> "''::text"
+
+schemaDescription :: Text -> SQL.Snippet
+schemaDescription schema =
+  "SELECT pg_catalog.obj_description(" <> encoded <> "::regnamespace, 'pg_namespace')"
+  where
+    encoded = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 schema
