@@ -17,8 +17,7 @@ module PostgREST.Query
   ) where
 
 import           Control.Lens                      ((^?))
-import qualified Data.Aeson                        as JSON
-import qualified Data.Aeson.KeyMap                 as KM
+import           Control.Monad.Extra               (whenJust)
 import qualified Data.Aeson.Lens                   as L
 import qualified Data.ByteString                   as BS hiding
                                                          (break)
@@ -107,17 +106,19 @@ data ResultSet
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
 query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
-query config AuthResult{..} apiReq (Db plan) sCache =
+query conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
   DbQuery isoLvl txMode dbHandler transaction mainSQLQuery
   where
-    transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction
-    prepared = configDbPreparedStatements config
-    isoLvl = planIsoLvl config authRole plan
+    transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction
+    isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan
-    (mainActionQuery, mainSQLQuery) = actionQuery plan config apiReq sCache
+    (mainActionQuery, mainSQLQuery) = actionQuery plan conf apiReq sCache
     dbHandler = do
-      runTxVarQuery plan config authClaims authRole apiReq
-      runPreReqQuery config
+      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
+        (PreQuery.txVarQuery plan conf authClaims authRole apiReq)
+        HD.noResult configDbPreparedStatements
+      lift $ whenJust configDbPreRequest $ \prereq -> do
+        SQL.statement mempty $ SQL.dynamicallyParameterized (PreQuery.preReqQuery prereq) HD.noResult configDbPreparedStatements
       mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
@@ -302,20 +303,6 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Commit
     shouldRollback =
       preferTransaction == Just Rollback
-
-runTxVarQuery :: DbActionPlan -> AppConfig -> KM.KeyMap JSON.Value -> BS.ByteString -> ApiRequest -> DbHandler ()
-runTxVarQuery dbActPlan conf@AppConfig{..} claims role apireq = lift $
-  SQL.statement mempty $ SQL.dynamicallyParameterized
-    (PreQuery.txVarQuery dbActPlan conf claims role apireq)
-    HD.noResult configDbPreparedStatements
-
-runPreReqQuery :: AppConfig -> DbHandler ()
-runPreReqQuery conf = lift $ traverse_ (SQL.statement mempty . stmt) (configDbPreRequest conf)
-  where
-    stmt req = SQL.dynamicallyParameterized
-      (PreQuery.preReqQuery req)
-      HD.noResult
-      (configDbPreparedStatements conf)
 
 getSQLQuery :: Query -> ByteString
 getSQLQuery DbQuery{dqSQL} = dqSQL
