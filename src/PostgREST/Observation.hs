@@ -11,6 +11,7 @@ module PostgREST.Observation
   , ObsFatalError(..)
   , observationMessage
   , ObservationHandler
+  , showOnSingleLine
   ) where
 
 import qualified Data.ByteString.Lazy       as LBS
@@ -24,6 +25,7 @@ import           Network.HTTP.Types.Status  (Status)
 import           Numeric                    (showFFloat)
 import           PostgREST.Config.PgVersion
 import qualified PostgREST.Error            as Error
+import           PostgREST.Query            (MainQuery)
 
 import Protolude hiding (toList)
 
@@ -45,7 +47,7 @@ data Observation
   | DBListenRetry Int
   | DBListenerGotSCacheMsg ByteString
   | DBListenerGotConfigMsg ByteString
-  | DBQuery ByteString Status
+  | QueryObs MainQuery Status
   | ConfigReadErrorObs SQL.UsageError
   | ConfigInvalidObs Text
   | ConfigSucceededObs
@@ -113,8 +115,8 @@ observationMessage = \case
     "Received a schema cache reload message on the " <> show channel <> " channel"
   DBListenerGotConfigMsg channel ->
     "Received a config reload message on the " <> show channel <> " channel"
-  DBQuery sql _ ->
-    T.decodeUtf8 sql
+  QueryObs{} ->
+    mempty -- TODO pending refactor: The logic for printing the query cannot be done here. Join the observationMessage function into observationLogger to avoid this mempty.
   ConfigReadErrorObs usageErr ->
     "Failed to query database settings for the config parameters." <> jsonMessage usageErr
   QueryRoleSettingsErrorObs usageErr ->
@@ -155,11 +157,14 @@ observationMessage = \case
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
 
-    showOnSingleLine txt = T.intercalate " " $ T.filter (/= '\t') <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"
 
     showListenerConnError :: SQL.ConnectionError -> Text
-    showListenerConnError = maybe "Connection error" (showOnSingleLine . T.decodeUtf8)
+    showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
 
     showListenerException :: Either SomeException () -> Text
     showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result
-    showListenerException (Left e)  = showOnSingleLine $ show e
+    showListenerException (Left e)  = showOnSingleLine '\t' $ show e
+
+
+showOnSingleLine :: Char -> Text -> Text
+showOnSingleLine split txt = T.intercalate " " $ T.filter (/= split) <$> T.lines txt -- the errors from hasql-notifications come intercalated with "\t\n"

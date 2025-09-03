@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-|
 Module      : PostgREST.Logger
 Description : Logging based on the Observation.hs module. Access logs get sent to stdout and server diagnostic get sent to stderr.
@@ -10,10 +11,16 @@ module PostgREST.Logger
   , LoggerState
   ) where
 
-import           Control.AutoUpdate    (defaultUpdateSettings,
-                                        mkAutoUpdate, updateAction)
+import           Control.AutoUpdate                (defaultUpdateSettings,
+                                                    mkAutoUpdate,
+                                                    updateAction)
 import           Control.Debounce
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Char8             as BS
+import qualified Data.Text.Encoding                as T
+import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Snippet   as SQL hiding (sql)
+import qualified Hasql.DynamicStatements.Statement as SQL
+import qualified Hasql.Statement                   as SQL
 
 import Data.Time (ZonedTime, defaultTimeLocale, formatTime,
                   getZonedTime)
@@ -26,6 +33,7 @@ import System.IO.Unsafe          (unsafePerformIO)
 
 import PostgREST.Config      (LogLevel (..))
 import PostgREST.Observation
+import PostgREST.Query       (MainQuery (..))
 
 import Protolude
 
@@ -90,10 +98,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
-  o@(DBQuery sql status) -> do
-    -- Does not log SQL when it's empty (for OPTIONS requests or for the default OpenAPI output)
-    when (sql /= mempty && shouldLogResponse logLevel status) $ do
-      logWithZTime loggerState $ observationMessage o
+  QueryObs gq status -> do
+    when (shouldLogResponse logLevel status) $
+      logMainQ loggerState gq
   o@PoolRequest ->
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o
@@ -113,3 +120,20 @@ logWithZTime :: LoggerState -> Text -> IO ()
 logWithZTime loggerState txt = do
   zTime <- stateGetZTime loggerState
   hPutStrLn stderr $ toS (formatTime defaultTimeLocale "%d/%b/%Y:%T %z: " zTime) <> txt
+
+logMainQ :: LoggerState -> MainQuery -> IO ()
+logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
+  let snipts  = renderSnippet <$> [mqMain, x, y, z]
+      -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
+      logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' $ T.decodeUtf8 q in
+  mapM_ logQ snipts
+
+-- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
+-- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
+renderSnippet :: SQL.Snippet -> ByteString
+renderSnippet snippet =
+  let SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder prepared
+      decoder = HD.noResult -- unused
+      prepared = False  -- unused
+  in
+    sql
