@@ -8,13 +8,11 @@ module PostgREST.SchemaCache.Identifiers
   , Schema
   , TableName
   , FieldName
-  , AccessSet
   , dumpQi
   , toQi
   ) where
 
 import qualified Data.Aeson as JSON
-import qualified Data.Set   as S
 import qualified Data.Text  as T
 
 import Protolude
@@ -51,5 +49,3 @@ toQi txt = case T.drop 1 <$> T.breakOn "." txt of
 type Schema = Text
 type TableName = Text
 type FieldName = Text
-
-type AccessSet = S.Set QualifiedIdentifier
