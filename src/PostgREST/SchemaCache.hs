@@ -23,7 +23,6 @@ module PostgREST.SchemaCache
   , querySchemaCache
   , accessibleTables
   , accessibleFuncs
-  , schemaDescription
   , showSummary
   ) where
 
@@ -474,12 +473,6 @@ funcsSqlQuery = encodeUtf8 [trimming|
   WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
   AND prokind = 'f'
   AND p.pronamespace = ANY($$1::regnamespace[]) |]
-
-schemaDescription :: Bool -> SQL.Statement Schema (Maybe Text)
-schemaDescription =
-    SQL.Statement sql (param HE.text) (join <$> HD.rowMaybe (nullableColumn HD.text))
-  where
-    sql = "SELECT pg_catalog.obj_description($1::regnamespace, 'pg_namespace')"
 
 accessibleTables :: Bool -> SQL.Statement [Schema] AccessSet
 accessibleTables =

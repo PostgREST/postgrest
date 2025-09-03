@@ -36,6 +36,7 @@ import qualified Hasql.Transaction.Sessions        as SQL
 import qualified PostgREST.Error              as Error
 import qualified PostgREST.Query.PreQuery     as PreQuery
 import qualified PostgREST.Query.QueryBuilder as QueryBuilder
+import qualified PostgREST.Query.SqlFragment  as SqlFragment
 import qualified PostgREST.Query.Statements   as Statements
 import qualified PostgREST.SchemaCache        as SchemaCache
 
@@ -205,17 +206,23 @@ actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache
       case configOpenApiMode of
         OAFollowPriv -> do
           tableAccess <- SQL.statement [tSchema] (SchemaCache.accessibleTables configDbPreparedStatements)
+          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements)
+
           MaybeDbResult plan . Just <$> ((,,)
                 (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
             <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
-            <*> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements))
-        OAIgnorePriv ->
-          (MaybeDbResult plan . Just) . (,,)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbTables sCache)
-                (HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) $ SchemaCache.dbRoutines sCache)
-            <$> SQL.statement tSchema (SchemaCache.schemaDescription configDbPreparedStatements)
+            <*> pure schDesc)
+        OAIgnorePriv -> do
+          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements)
+          let tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbTables sCache)
+              routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbRoutines sCache)
+
+          pure $ MaybeDbResult plan (Just (tbls, routs, schDesc))
         OADisabled ->
           pure $ MaybeDbResult plan Nothing
+
+    decodeSchemaDesc :: HD.Result (Maybe Text)
+    decodeSchemaDesc = join <$> HD.rowMaybe (nullableColumn HD.text)
 
 -- Makes sure the querystring pk matches the payload pk
 -- e.g. PUT /items?id=eq.1 { "id" : 1, .. } is accepted,
