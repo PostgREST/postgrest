@@ -106,7 +106,7 @@ data ResultSet
 
 query :: AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
 query _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
-query conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
+query conf@AppConfig{..} auth@AuthResult{..} apiReq (Db plan) sCache =
   DbQuery isoLvl txMode dbHandler transaction mainSQLQuery
   where
     transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction
@@ -115,7 +115,7 @@ query conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
     (mainActionQuery, mainSQLQuery) = actionQuery plan conf apiReq sCache
     dbHandler = do
       lift $ SQL.statement mempty $ SQL.dynamicallyParameterized
-        (PreQuery.txVarQuery plan conf authClaims authRole apiReq)
+        (PreQuery.txVarQuery plan conf auth apiReq)
         HD.noResult configDbPreparedStatements
       lift $ whenJust configDbPreRequest $ \prereq -> do
         SQL.statement mempty $ SQL.dynamicallyParameterized (PreQuery.preReqQuery prereq) HD.noResult configDbPreparedStatements
