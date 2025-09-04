@@ -42,6 +42,7 @@ module PostgREST.Query.SqlFragment
   , escapeIdentList
   , schemaDescription
   , accessibleTables
+  , accessibleFuncs
   ) where
 
 import qualified Data.Aeson                      as JSON
@@ -617,3 +618,92 @@ accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
   ORDER BY table_schema, table_name|])
   where
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
+
+accessibleFuncs :: Text -> SQL.Snippet
+accessibleFuncs schema = baseFuncSqlQuery <> "AND p.pronamespace = " <> encodedSchema <> "::regnamespace"
+  where
+    encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
+
+baseFuncSqlQuery :: SQL.Snippet
+baseFuncSqlQuery = SQL.sql $ encodeUtf8 [trimming|
+  WITH
+  base_types AS (
+    WITH RECURSIVE
+    recurse AS (
+      SELECT
+        oid,
+        typbasetype,
+        typnamespace AS base_namespace,
+        COALESCE(NULLIF(typbasetype, 0), oid) AS base_type
+      FROM pg_type
+      UNION
+      SELECT
+        t.oid,
+        b.typbasetype,
+        b.typnamespace AS base_namespace,
+        COALESCE(NULLIF(b.typbasetype, 0), b.oid) AS base_type
+      FROM recurse t
+      JOIN pg_type b ON t.typbasetype = b.oid
+    )
+    SELECT
+      oid,
+      base_namespace,
+      base_type
+    FROM recurse
+    WHERE typbasetype = 0
+  ),
+  arguments AS (
+    SELECT
+      oid,
+      array_agg((
+        COALESCE(name, ''), -- name
+        type::regtype::text, -- type
+        CASE type
+          WHEN 'bit'::regtype THEN 'bit varying'
+          WHEN 'bit[]'::regtype THEN 'bit varying[]'
+          WHEN 'character'::regtype THEN 'character varying'
+          WHEN 'character[]'::regtype THEN 'character varying[]'
+          ELSE type::regtype::text
+        END, -- convert types that ignore the length and accept any value till maximum size
+        idx <= (pronargs - pronargdefaults), -- is_required
+        COALESCE(mode = 'v', FALSE) -- is_variadic
+      ) ORDER BY idx) AS args,
+      CASE COUNT(*) - COUNT(name) -- number of unnamed arguments
+        WHEN 0 THEN true
+        WHEN 1 THEN (array_agg(type))[1] IN ('bytea'::regtype, 'json'::regtype, 'jsonb'::regtype, 'text'::regtype, 'xml'::regtype)
+        ELSE false
+      END AS callable
+    FROM pg_proc,
+         unnest(proargnames, proargtypes, proargmodes)
+           WITH ORDINALITY AS _ (name, type, mode, idx)
+    WHERE type IS NOT NULL -- only input arguments
+    GROUP BY oid
+  )
+  SELECT
+    pn.nspname AS proc_schema,
+    p.proname AS proc_name,
+    d.description AS proc_description,
+    COALESCE(a.args, '{}') AS args,
+    tn.nspname AS schema,
+    COALESCE(comp.relname, t.typname) AS name,
+    p.proretset AS rettype_is_setof,
+    (t.typtype = 'c'
+     -- if any TABLE, INOUT or OUT arguments present, treat as composite
+     or COALESCE(proargmodes::text[] && '{t,b,o}', false)
+    ) AS rettype_is_composite,
+    bt.oid <> bt.base_type as rettype_is_composite_alias,
+    p.provolatile,
+    p.provariadic > 0 as hasvariadic,
+    'ignored' AS transaction_isolation_level,
+    '{}'::text[] as kvs
+  FROM pg_proc p
+  LEFT JOIN arguments a ON a.oid = p.oid
+  JOIN pg_namespace pn ON pn.oid = p.pronamespace
+  JOIN base_types bt ON bt.oid = p.prorettype
+  JOIN pg_type t ON t.oid = bt.base_type
+  JOIN pg_namespace tn ON tn.oid = t.typnamespace
+  LEFT JOIN pg_class comp ON comp.oid = t.typrelid
+  LEFT JOIN pg_description as d ON d.objoid = p.oid AND d.classoid = 'pg_proc'::regclass
+  WHERE t.oid <> 'trigger'::regtype AND COALESCE(a.callable, true)
+  AND has_function_privilege(p.oid, 'execute')
+  AND prokind = 'f' |]

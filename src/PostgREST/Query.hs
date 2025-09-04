@@ -6,7 +6,7 @@ Description : PostgREST query executor
 
 This module parametrizes, prepares, executes SQL queries and decodes their results.
 
-TODO: This module shouldn't depend on SchemaCache
+TODO: This module shouldn't depend on SchemaCache: once OpenAPI is removed, this can be done
 -}
 module PostgREST.Query
   ( Query (..)
@@ -206,12 +206,11 @@ actionQuery (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache
       case configOpenApiMode of
         OAFollowPriv -> do
           tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.accessibleTables tSchema) decodeAccessibleIdentifiers configDbPreparedStatements
+          accFuncs <-  SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.accessibleFuncs tSchema) SchemaCache.decodeFuncs configDbPreparedStatements
           schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements
+          let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
 
-          MaybeDbResult plan . Just <$> ((,,)
-                (HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache)
-            <$> SQL.statement ([tSchema], configDbHoistedTxSettings) (SchemaCache.accessibleFuncs configDbPreparedStatements)
-            <*> pure schDesc)
+          pure $ MaybeDbResult plan (Just (tbls, accFuncs, schDesc))
         OAIgnorePriv -> do
           schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized (SqlFragment.schemaDescription tSchema) decodeSchemaDesc configDbPreparedStatements)
 

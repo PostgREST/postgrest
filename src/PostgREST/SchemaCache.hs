@@ -21,8 +21,8 @@ These queries are executed once at startup or when PostgREST is reloaded.
 module PostgREST.SchemaCache
   ( SchemaCache(..)
   , querySchemaCache
-  , accessibleFuncs
   , showSummary
+  , decodeFuncs
   ) where
 
 import Control.Monad.Extra (whenJust)
@@ -356,14 +356,6 @@ allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
       (configDbHoistedTxSettings >$< arrayParam HE.text)
-
-accessibleFuncs :: Bool -> SQL.Statement ([Schema], [Text]) RoutineMap
-accessibleFuncs = SQL.Statement sql params decodeFuncs
-  where
-    params =
-      (fst >$< arrayParam HE.text) <>
-      (snd >$< arrayParam HE.text)
-    sql = funcsSqlQuery <> " AND has_function_privilege(p.oid, 'execute')"
 
 baseTypesCte :: Text
 baseTypesCte = [trimming|
