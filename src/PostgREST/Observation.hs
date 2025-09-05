@@ -133,13 +133,17 @@ observationMessage = \case
     "Connection " <> show uuid <> (
       case status of
         SQL.ConnectingConnectionStatus   -> " is being established"
-        SQL.ReadyForUseConnectionStatus  -> " is available"
+        SQL.ReadyForUseConnectionStatus reason -> " is available due to " <> case reason of
+          SQL.EstablishedConnectionReadyForUseReason      -> "connection establishment"
+          SQL.SessionFailedConnectionReadyForUseReason _  -> "session failure"
+          SQL.SessionSucceededConnectionReadyForUseReason -> "session success"
         SQL.InUseConnectionStatus        -> " is used"
         SQL.TerminatedConnectionStatus reason -> " is terminated due to " <> case reason of
           SQL.AgingConnectionTerminationReason          -> "max lifetime"
           SQL.IdlenessConnectionTerminationReason       -> "max idletime"
           SQL.ReleaseConnectionTerminationReason        -> "release"
           SQL.NetworkErrorConnectionTerminationReason _ -> "network error" -- usage error is already logged, no need to repeat the same message.
+          SQL.InitializationErrorTerminationReason _    -> "init failure"
     )
   PoolRequest ->
     "Trying to borrow a connection from pool"
