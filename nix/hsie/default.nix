@@ -1,4 +1,4 @@
-{ ghcWithPackages
+{ haskell
 , runCommand
 }:
 let
@@ -14,7 +14,7 @@ let
     ps.ghc-paths
     ps.optparse-applicative
   ];
-  ghc = ghcWithPackages modules;
+  ghc = haskell.packages.ghc94.ghcWithPackages modules;
   hsie =
     runCommand "haskellimports" { inherit name src; }
       ''
