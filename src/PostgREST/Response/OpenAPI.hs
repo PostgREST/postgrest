@@ -25,6 +25,8 @@ import Data.Swagger
 
 import PostgREST.Config                   (AppConfig (..), Proxy (..),
                                            isMalformedProxyUri, toURI)
+import PostgREST.MediaType
+import PostgREST.Network                  (escapeHostName)
 import PostgREST.SchemaCache              (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..))
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -36,8 +38,6 @@ import PostgREST.SchemaCache.Routine      (FuncVolatility (..),
 import PostgREST.SchemaCache.Table        (Column (..), Table (..),
                                            TablesMap,
                                            tableColumnsList)
-
-import PostgREST.MediaType
 
 import Protolude hiding (Proxy, get)
 
@@ -383,14 +383,6 @@ makeSecurityDefinitions secName allow
   where
     secSchType = SecuritySchemeApiKey (ApiKeyParams "Authorization" ApiKeyHeader)
     secSchDescription = Just "Add the token prepending \"Bearer \" (without quotes) to it"
-
-escapeHostName :: Text -> Text
-escapeHostName "*"  = "0.0.0.0"
-escapeHostName "*4" = "0.0.0.0"
-escapeHostName "!4" = "0.0.0.0"
-escapeHostName "*6" = "0.0.0.0"
-escapeHostName "!6" = "0.0.0.0"
-escapeHostName h    = h
 
 postgrestSpec :: (Text, Text) -> RelationshipsMap -> [Routine] -> [Table] -> (Text, Text, Integer, Text) -> Maybe Text -> Bool -> Swagger
 postgrestSpec (prettyVersion, docsVersion) rels pds ti (s, h, p, b) sd allowSecurityDef = (mempty :: Swagger)

@@ -1,5 +1,6 @@
 module PostgREST.Network
   ( resolveSocketToAddress
+  , escapeHostName
   ) where
 
 import           Data.String    (IsString (..))
@@ -35,3 +36,16 @@ resolveSocketToAddress sock = do
 -- "/tmp/pgrst.sock"
 showSocketAddr :: NS.SockAddr -> Text
 showSocketAddr = fromString . show
+
+-- | When printing special addresses like !4 or *6, we use the following mapping.
+--   These special addresses come from:
+--     https://hackage.haskell.org/package/streaming-commons-0.2.3.0/docs/\
+--     Data-Streaming-Network.html#t:HostPreference
+-- TODO: "!6" should not be printed as "0.0.0.0" address.
+escapeHostName :: Text -> Text
+escapeHostName "*"  = "0.0.0.0"
+escapeHostName "*4" = "0.0.0.0"
+escapeHostName "!4" = "0.0.0.0"
+escapeHostName "*6" = "0.0.0.0"
+escapeHostName "!6" = "0.0.0.0"
+escapeHostName h    = h
