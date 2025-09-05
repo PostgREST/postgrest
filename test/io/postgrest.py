@@ -230,3 +230,19 @@ def is_ipv6(addr):
         return True
     except OSError:
         return False
+
+
+def run_postgrest_binary(env):
+    "Runs a the postgrest using the binary and return the running process"
+
+    command = [POSTGREST_BIN]
+    env["HPCTIXFILE"] = hpctixfile()
+    pgrst_process = subprocess.Popen(command, env=env)
+    return pgrst_process
+
+
+def kill_pgrst_process(process):
+    "Kill the given postgrest process"
+
+    process.kill()  # Send SIGKILL
+    process.wait()  # Wait for termination
