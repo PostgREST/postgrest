@@ -46,6 +46,13 @@ packages:
       size: 2374
   original:
     hackage: streaming-commons-0.2.3.1
+- completed:
+    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
+    pantry-tree:
+      sha256: 65107f0c970351b971ea1f676a5e00b61e37c298a4c83c867d937f2a774501eb
+      size: 2895
+  original:
+    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
 snapshots:
 - completed:
     sha256: 238fa745b64f91184f9aa518fe04bdde6552533d169b0da5256670df83a0f1a9
