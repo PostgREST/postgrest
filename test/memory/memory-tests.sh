@@ -13,6 +13,7 @@ export PGRST_SERVER_HOST="127.0.0.1"
 export PGRST_SERVER_PORT="$pgrPort"
 export PGRST_JWT_SECRET="reallyreallyreallyreallyverysafe"
 export PGRST_DB_CONFIG="false"
+export OTEL_TRACES_SAMPLER="always_off" # minimize the impact of tracing on memory usage
 
 trap "kill 0" int term exit
 
