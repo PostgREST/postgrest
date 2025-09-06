@@ -9,6 +9,7 @@ nix:
   pure: false
 
 extra-deps:
+  - hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386 # fixes build with GCC 15-ish; https://github.com/gregorycollins/hashtables/issues/98 for details
   - fuzzyset-0.2.4
   - hasql-pool-1.0.1
   - jose-jwt-0.10.0
