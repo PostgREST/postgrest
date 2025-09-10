@@ -61,26 +61,39 @@ def itemgetter(*items):
 
 
 class PostgrestError(Exception):
-    "Postgrest exited with a non-zero return code."
+    "Postgrest exited unexpectedly."
 
 
-def cli(args, env=None, stdin=None):
-    "Run PostgREST and return stdout."
+def cli(args, env=None, stdin=None, expect_error=False):
+    "Run PostgREST and return stdout or stderr."
     env = env or {}
 
     command = [POSTGREST_BIN] + args
     env["HPCTIXFILE"] = hpctixfile()
 
     process = subprocess.Popen(
-        command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE
+        command,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
     process.stdin.write(stdin or b"")
     try:
-        result = process.communicate(timeout=5)[0]
-        if process.returncode != 0:
-            raise PostgrestError()
-        return result.decode()
+        (stdout_output, stderr_output) = process.communicate(timeout=5)
+        if expect_error:  # When expected to fail, return stderr, else stdout
+            if process.returncode == 0:
+                raise PostgrestError(
+                    "PostgREST unexpectedly exited with return code zero."
+                )
+            return stderr_output.decode()
+        else:
+            if process.returncode != 0:
+                raise PostgrestError(
+                    "PostgREST unexpectedly exited with non-zero return code."
+                )
+            return stdout_output.decode()
     finally:
         process.kill()
         process.wait()
@@ -126,9 +139,8 @@ def test_server_port_and_admin_port_same_value(defaultenv):
     "PostgREST should exit with an error message in output if server-port and admin-server-port are the same."
     env = {**defaultenv, "PGRST_SERVER_PORT": "3000", "PGRST_ADMIN_SERVER_PORT": "3000"}
 
-    with pytest.raises(PostgrestError):
-        dump = cli(["--dump-config"], env=env).split("\n")
-        assert "admin-server-port cannot be the same as server-port" in dump
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "admin-server-port cannot be the same as server-port" in error
 
 
 @pytest.mark.parametrize(
@@ -232,11 +244,8 @@ def test_invalid_role_claim_key(invalidroleclaimkey, defaultenv):
         "PGRST_JWT_ROLE_CLAIM_KEY": invalidroleclaimkey,
     }
 
-    with pytest.raises(PostgrestError):
-        dump = dumpconfig(env=env)
-        for line in dump.split("\n"):
-            if line.startswith("jwt-role-claim-key"):
-                print(line)
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert f"failed to parse role-claim-key value ({invalidroleclaimkey})" in error
 
 
 @pytest.mark.parametrize("invalidopenapimodes", FIXTURES["invalidopenapimodes"])
@@ -247,11 +256,8 @@ def test_invalid_openapi_mode(invalidopenapimodes, defaultenv):
         "PGRST_OPENAPI_MODE": invalidopenapimodes,
     }
 
-    with pytest.raises(PostgrestError):
-        dump = dumpconfig(CONFIGSDIR / "defaults.config", env=env)
-        for line in dump.split("\n"):
-            if line.startswith("openapi-mode"):
-                print(line)
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "Invalid openapi-mode. Check your configuration." in error
 
 
 # If this test is failing, run postgrest-test-io --snapshot-update -k test_schema_cache_snapshot
@@ -286,6 +292,5 @@ def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
         "PGRST_JWT_AUD": "foo://%%$$^^.com",
     }
 
-    with pytest.raises(PostgrestError):
-        dump = cli(["--dump-config"], env=env).split("\n")
-        assert "jwt-aud should be a string or a valid URI" in dump
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "jwt-aud should be a string or a valid URI" in error
