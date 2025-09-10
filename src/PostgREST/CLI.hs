@@ -53,10 +53,7 @@ main CLI{cliCommand, cliPath} = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
-  result <-
-    let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-    AppState.usePool appState
-      (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+  result <- AppState.usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
   case result of
     Left e -> do
       let observer = AppState.getObserver appState
