@@ -119,9 +119,10 @@ getJoin fld node@(Node ReadPlan{relJoinType, relSpread} _) =
         correlatedSubquery (selectSubqAgg <> fromSubqAgg) aggAlias joinCondition
 
 mutatePlanToQuery :: MutatePlan -> SQL.Snippet
+-- INSERT: Corresponds to HTTP POST and PUT methods
 mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings _ applyDefaults) =
   "INSERT INTO " <> fromQi mainQi <> (if null iCols then " " else "(" <> cols <> ") ") <>
-  fromJsonBodyF body iCols True False applyDefaults <>
+  fromJsonBodyF body iCols True False applyDefaults False <>
   -- Only used for PUT
   (if null putConditions then mempty else "WHERE " <> addConfigPgrstInserted True <> " AND " <> intercalateSnippet " AND " (pgFmtLogicTree (QualifiedIdentifier mempty "pgrst_body") <$> putConditions)) <>
   (if null putConditions && mergeDups then "WHERE " <> addConfigPgrstInserted True else mempty) <>
@@ -142,7 +143,8 @@ mutatePlanToQuery (Insert mainQi iCols body onConflict putConditions returnings 
     cols = intercalateSnippet ", " $ pgFmtIdent . cfName <$> iCols
     mergeDups = case onConflict of {Just (MergeDuplicates,_) -> True; _ -> False;}
 
-mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults)
+-- UPDATE: Corresponds to HTTP PATCH method
+mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults isPgrstPatch)
   | null uCols =
     -- if there are no columns we cannot do UPDATE table SET {empty}, it'd be invalid syntax
     -- selecting an empty resultset from mainQi gives us the column names to prevent errors when using &select=
@@ -151,7 +153,7 @@ mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults
 
   | otherwise =
     "UPDATE " <> mainTbl <> " SET " <> cols <> " " <>
-    fromJsonBodyF body uCols False False applyDefaults <>
+    fromJsonBodyF body uCols False False applyDefaults isPgrstPatch <>
     whereLogic <> " " <>
     returningF mainQi returnings
 
@@ -161,12 +163,14 @@ mutatePlanToQuery (Update mainQi uCols body logicForest returnings applyDefaults
     emptyBodyReturnedColumns = if null returnings then "NULL" else intercalateSnippet ", " (pgFmtColumn (QualifiedIdentifier mempty $ qiName mainQi) <$> returnings)
     cols = intercalateSnippet ", " (pgFmtIdent . cfName <> const " = " <> pgFmtColumn (QualifiedIdentifier mempty "pgrst_body") . cfName <$> uCols)
 
+-- DELETE: Corresponds to HTTP DELETE method
 mutatePlanToQuery (Delete mainQi logicForest returnings) =
   "DELETE FROM " <> fromQi mainQi <> " " <>
   whereLogic <> " " <>
   returningF mainQi returnings
   where
     whereLogic = if null logicForest then mempty else " WHERE " <> intercalateSnippet " AND " (pgFmtLogicTree mainQi <$> logicForest)
+
 
 callPlanToQuery :: CallPlan -> SQL.Snippet
 callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScalar filterFields returnings) =
@@ -181,7 +185,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
       KeyParams []    -> "FROM " <> callIt mempty
       KeyParams prms  -> case arguments of
         DirectArgs args -> "FROM " <> callIt (fmtArgs prms args)
-        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) mempty Nothing Nothing False) <$> prms) False True False <> ", " <>
+        JsonArgs json   -> fromJsonBodyF json ((\p -> CoercibleField (ppName p) mempty False Nothing (ppTypeMaxLength p) mempty Nothing Nothing False) <$> prms) False True False False <> ", " <>
                          "LATERAL " <> callIt (fmtParams prms)
 
     callIt :: SQL.Snippet -> SQL.Snippet
