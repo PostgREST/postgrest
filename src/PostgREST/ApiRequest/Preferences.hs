@@ -19,6 +19,7 @@ module PostgREST.ApiRequest.Preferences
   , PreferMaxAffected(..)
   , fromHeaders
   , shouldCount
+  , shouldExplainCount
   , prefAppliedHeader
   ) where
 
@@ -237,6 +238,10 @@ instance ToHeaderValue PreferCount where
 shouldCount :: Maybe PreferCount -> Bool
 shouldCount prefCount =
   prefCount == Just ExactCount || prefCount == Just EstimatedCount
+
+shouldExplainCount :: Maybe PreferCount -> Bool
+shouldExplainCount prefCount =
+  prefCount == Just PlannedCount || prefCount == Just EstimatedCount
 
 -- | Whether to commit or roll back transactions.
 data PreferTransaction

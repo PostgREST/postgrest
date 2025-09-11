@@ -46,7 +46,8 @@ import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
                                           PreferTransaction (..),
-                                          Preferences (..))
+                                          Preferences (..),
+                                          shouldExplainCount)
 import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..),
@@ -86,10 +87,10 @@ data QueryResult
 data MainQuery = MainQuery
   { mqTxVars  :: SQL.Snippet       -- ^ the transaction variables that always run on each query
   , mqPreReq  :: Maybe SQL.Snippet -- ^ the pre-request function that runs if enabled
-  , mqCount   :: SQL.Snippet       -- ^ this count query is actually a fragment of the main query, but the same count query also runs after the main one in the case of `count=estimated`, so it's cached here.
   -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
   , mqMain    :: SQL.Snippet
   , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
+  , mqExplain :: Maybe SQL.Snippet     -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
   }
 
 -- | Standard result set format used for the mqMain query
@@ -142,34 +143,50 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
 
 
 mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty mempty (mempty, mempty, mempty)
+mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
 mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of
     DbCrud _ WrappedReadPlan{..} ->
       let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan in
-      genQ countQuery (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows pMedia wrHandler) (mempty, mempty, mempty)
+      genQ (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows pMedia wrHandler) (mempty, mempty, mempty)
+      (if shouldExplainCount preferCount then Just (Statements.postExplain countQuery) else Nothing)
     DbCrud _ MutateReadPlan{..} ->
-      genQ mempty (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty)
+      genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
     DbCrud _ CallReadPlan{..} ->
-      genQ mempty (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty)
+      genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty) mempty
     MayUseDb InspectPlan{ipSchema=tSchema} ->
-      genQ mempty mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema)
+      genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema) mempty
 
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
-actionQuery :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> DbHandler QueryResult
+actionQuery :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction QueryResult
 actionQuery MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
   explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
   optionalRollback conf apiReq
   pure $ DbPlanResult (pMedia plan) explRes
 
-actionQuery MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq _ = do
-  resultSet <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
+actionQuery MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+  resultSet@RSStandard{rsTableTotal=tableTotal} <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
   failNotSingular pMedia resultSet
   optionalRollback conf apiReq
-  DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet mqCount
+  explainTotal <- lift . fmap join $ traverse (\snip ->
+                    SQL.statement mempty $ SQL.dynamicallyParameterized snip decodeExplain configDbPreparedStatements)
+                    mqExplain
+
+  pure $ DbCrudResult plan
+    resultSet{rsTableTotal=case preferCount of
+      Just PlannedCount   -> explainTotal
+      Just EstimatedCount -> if tableTotal > (fromIntegral <$> configDbMaxRows)
+        then max <$> tableTotal <*> explainTotal
+        else tableTotal
+      _                   -> tableTotal}
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
+
+    decodeExplain :: HD.Result (Maybe Int64)
+    decodeExplain =
+      let row = HD.singleRow $ column HD.bytea in
+      (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 actionQuery MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
@@ -245,34 +262,6 @@ failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError Error.PutMatchingPkError
-
-resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
-resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
-  case preferCount of
-    Just PlannedCount -> do
-      total <- explain
-      return rs{rsTableTotal=total}
-    Just EstimatedCount ->
-      if tableTotal > (fromIntegral <$> configDbMaxRows) then do
-        total <- max tableTotal <$> explain
-        return rs{rsTableTotal=total}
-      else
-        return rs
-    Just ExactCount ->
-      return rs
-    Nothing ->
-      return rs
-  where
-    explain =
-      lift . SQL.statement mempty $
-        SQL.dynamicallyParameterized (Statements.postExplain countQuery)
-        decodeIt
-        configDbPreparedStatements
-
-    decodeIt :: HD.Result (Maybe Int64)
-    decodeIt =
-      let row = HD.singleRow $ column HD.bytea in
-      (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
 -- |
 -- Fail a response if a single JSON object was requested and not exactly one
