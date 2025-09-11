@@ -158,15 +158,15 @@ You can specify the literal value as we saw earlier, or reference a filename to 
 ``kid`` verification
 ^^^^^^^^^^^^^^^^^^^^
 
-PostgREST has built-in verification of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JWK Set.
+PostgREST has built-in verification of the `key ID parameter <https://www.rfc-editor.org/rfc/rfc7517#section-4.5>`_, useful when working with a JSON Web Key Set.
 It goes as follows:
 
-- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JWK in the :ref:`jwt-secret`.
+- If the JWT contains a ``kid`` parameter, then PostgREST will look for the JSON Web Key in the :ref:`jwt-secret`.
 
-  + If no JWK matches the same ``kid`` value (or if they do not have a ``kid``), then the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
-  + If a JWK matches the ``kid`` value then it will validate the token against that JWK accordingly.
+  + If no key has a matching ``kid`` (or if they don't have one defined), the token will be rejected with a :ref:`401 Unauthorized <pgrst301>` error.
+  + If a key matches the ``kid`` value then it will validate the token against that key accordingly.
 
-- If the JWT does not have a ``kid`` parameter, then PostgREST will validate the token against each JWK in the :ref:`jwt-secret`.
+- If the JWT doesn't have a ``kid``, PostgREST  will try each key in the :ref:`jwt-secret` one by one until it finds one that works.
 
 .. _jwt_claims_validation:
 
