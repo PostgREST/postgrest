@@ -122,6 +122,9 @@ This project adheres to [Semantic Versioning](http://semver.org/).
  - #3956, Drop `/config` endpoint of admin server - @steve-chavez
    + The endpoint was at risk of being left unprotected when exposing it.
    + The accompanying `admin-server-config-enabled` config was also dropped.
+ - #3598, PostgREST now validates the `kid` parameter of the JWT - @wolfgangwalther
+   + If the JWT contains a ``kid`` parameter, then PostgREST will look for the JSON Web Key in the `jwt-secret`.
+   + If the JWT doesn't contain a `kid`, the behavior should be backwards compatible. PostgREST  will try each key in the `jwt-secret` one by one until it finds one that works.
  - #3697, #3602, Querying non-existent table now returns `PGRST205` error instead of empty json - @taimoorzaeem
  - #3600, #3926, Improve JWT errors - @taimoorzaeem
    + Return `PGRST301` error when `Bearer` in auth header is sent empty
