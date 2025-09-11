@@ -123,7 +123,7 @@ logWithZTime loggerState txt = do
 
 logMainQ :: LoggerState -> MainQuery -> IO ()
 logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
-  let snipts  = renderSnippet <$> [mqMain, x, y, z]
+  let snipts  = renderSnippet <$> [mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
       logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' $ T.decodeUtf8 q in
   mapM_ logQ snipts

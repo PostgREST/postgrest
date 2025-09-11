@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Fix not logging OpenAPI queries when `log-query=main-query` is enabled by @steve-chavez in #4226
+- Fix not logging explain query when `log-query=main-query` is enabled by @steve-chavez in #4319
 
 ### Added
 

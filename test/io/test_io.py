@@ -1029,6 +1029,16 @@ def test_log_query(level, defaultenv):
         response = postgrest.session.get("/projects")
         assert response.status_code == 200
 
+        response = postgrest.session.get(
+            "/projects", headers={"Prefer": "count=estimated"}
+        )
+        assert response.status_code == 206
+
+        response = postgrest.session.get(
+            "/projects", headers={"Prefer": "count=planned"}
+        )
+        assert response.status_code == 206
+
         response = postgrest.session.get("/infinite_recursion")
         assert response.status_code == 500
 
@@ -1036,6 +1046,9 @@ def test_log_query(level, defaultenv):
         root_2xx_regx_ln2 = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND p.pronamespace = \$1::regnamespace"
         root_2xx_regx_ln3 = r".+: SELECT pg_catalog\.obj_description\(\$1::regnamespace, 'pg_namespace'\)"
         get_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
+        get_2xx_count_regx = (
+            r'.+: EXPLAIN \(FORMAT JSON\) SELECT 1  FROM "public"."projects"'
+        )
         infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
 
         if level == "crit":
@@ -1050,13 +1063,21 @@ def test_log_query(level, defaultenv):
             assert re.match(infinite_recursion_5xx_regx, output[1])
             assert len(output) == 2
         elif level == "info":
-            output = postgrest.read_stdout(nlines=8)
-            assert re.match(root_2xx_regx_ln1, output[0])
-            assert re.match(root_2xx_regx_ln2, output[1])
-            assert re.match(root_2xx_regx_ln3, output[2])
-            assert re.match(get_2xx_regx, output[4])
-            assert re.match(infinite_recursion_5xx_regx, output[7])
-            assert len(output) == 8
+            output_root = postgrest.read_stdout(nlines=4)
+            assert re.match(root_2xx_regx_ln1, output_root[0])
+            assert re.match(root_2xx_regx_ln2, output_root[1])
+            assert re.match(root_2xx_regx_ln3, output_root[2])
+            assert len(output_root) == 4
+            output_get = postgrest.read_stdout(nlines=8)
+            assert re.match(get_2xx_regx, output_get[0])
+            assert re.match(get_2xx_regx, output_get[2])
+            assert re.match(get_2xx_count_regx, output_get[3])
+            assert re.match(get_2xx_regx, output_get[5])
+            assert re.match(get_2xx_count_regx, output_get[6])
+            assert len(output_get) == 8
+            output_err = postgrest.read_stdout(nlines=2)
+            assert re.match(infinite_recursion_5xx_regx, output_err[1])
+            assert len(output_err) == 2
         elif level == "debug":
             output_root = postgrest.read_stdout(nlines=8)
             assert re.match(root_2xx_regx_ln1, output_root[4])
@@ -1066,6 +1087,14 @@ def test_log_query(level, defaultenv):
             output_get = postgrest.read_stdout(nlines=6)
             assert re.match(get_2xx_regx, output_get[4])
             assert len(output_get) == 6
+            output_get_estimated = postgrest.read_stdout(nlines=7)
+            assert re.match(get_2xx_regx, output_get_estimated[4])
+            assert re.match(get_2xx_count_regx, output_get_estimated[5])
+            assert len(output_get_estimated) == 7
+            output_get_planned = postgrest.read_stdout(nlines=7)
+            assert re.match(get_2xx_regx, output_get_planned[4])
+            assert re.match(get_2xx_count_regx, output_get_planned[5])
+            assert len(output_get_planned) == 7
             output_err = postgrest.read_stdout(nlines=6)
             assert re.match(infinite_recursion_5xx_regx, output_err[5])
             assert len(output_err) == 6
