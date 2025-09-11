@@ -80,6 +80,7 @@ data Query
 data QueryResult
   = DbCrudResult  CrudPlan ResultSet
   | DbCallResult  CallReadPlan  ResultSet
+  | DbPlanResult    MediaType BS.ByteString
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
 
@@ -93,7 +94,7 @@ data MainQuery = MainQuery
   , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
   }
 
--- | Standard result set format used for all queries
+-- | Standard result set format used for the mqMain query
 data ResultSet
   = RSStandard
   { rsTableTotal :: Maybe Int64
@@ -112,7 +113,6 @@ data ResultSet
   , rsInserted   :: Maybe Int64
   -- ^ the number of rows inserted (Only used for upserts)
   }
-  | RSPlan BS.ByteString -- ^ the plan of the query
 
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> Query
 mainTx _ _ _ _ (NoDb x) _ = NoDbQuery $ NoDbResult x
@@ -161,24 +161,32 @@ mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preference
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
 actionQuery :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> DbHandler QueryResult
 actionQuery MainQuery{..} (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq _ =
-  mainActionQuery
-  where
-    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
-    mainActionQuery = do
-      resultSet <- lift $ SQL.statement mempty result
+  case wrMedia of
+    MTVndPlan{} -> do
+      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
+      optionalRollback conf apiReq
+      pure $ DbPlanResult wrMedia explRes
+    _ -> do
+      resultSet <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
       failNotSingular wrMedia resultSet
       optionalRollback conf apiReq
       DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet mqCount
-
-    decodeIt :: HD.Result ResultSet
-    decodeIt = case wrMedia of
-      MTVndPlan{} -> planRow
-      _           -> HD.singleRow $ standardRow True
+  where
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
 
 actionQuery MainQuery{..} (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  mainActionQuery
+  case mrMedia of
+    MTVndPlan{} -> do
+      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
+      optionalRollback conf apiReq
+      pure $ DbPlanResult mrMedia explRes
+    _ -> do
+      resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
+      failMutation resultSet
+      optionalRollback conf apiReq
+      pure $ DbCrudResult plan resultSet
   where
-    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular mrMedia resultSet
@@ -190,33 +198,23 @@ actionQuery MainQuery{..} (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} ap
       MutationDelete -> do
         failNotSingular mrMedia resultSet
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-    mainActionQuery = do
-      resultSet <- lift $ SQL.statement mempty result
-      failMutation resultSet
-      optionalRollback conf apiReq
-      pure $ DbCrudResult plan resultSet
-
-    decodeIt :: HD.Result ResultSet
-    decodeIt = case mrMedia of
-      MTVndPlan{} -> planRow
-      _           -> fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
+    decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
 actionQuery MainQuery{..} (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  mainActionQuery
-  where
-    result = SQL.dynamicallyParameterized mqMain decodeIt configDbPreparedStatements
-
-    mainActionQuery = do
-      resultSet <- lift $ SQL.statement mempty result
+  case crMedia of
+    MTVndPlan{} -> do
+      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
+      optionalRollback conf apiReq
+      pure $ DbPlanResult crMedia explRes
+    _ -> do
+      resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
       optionalRollback conf apiReq
       failNotSingular crMedia resultSet
       failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
       pure $ DbCallResult plan resultSet
-
-    decodeIt :: HD.Result ResultSet
-    decodeIt = case crMedia of
-      MTVndPlan{} -> planRow
-      _           -> fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
+  where
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
+    decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
 actionQuery MainQuery{mqOpenAPI=(tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
   mainActionQuery
@@ -258,14 +256,12 @@ actionQuery MainQuery{mqOpenAPI=(tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPla
 -- If this condition is not satisfied then nothing is inserted,
 -- check the WHERE for INSERT in QueryBuilder.hs to see how it's done
 failPut :: ResultSet -> DbHandler ()
-failPut RSPlan{} = pure ()
 failPut RSStandard{rsQueryTotal=queryTotal} =
   when (queryTotal /= 1) $ do
     lift SQL.condemn
     throwError $ Error.ApiRequestError Error.PutMatchingPkError
 
 resultSetWTotal :: AppConfig -> ApiRequest -> ResultSet -> SQL.Snippet -> DbHandler ResultSet
-resultSetWTotal _ _ rs@RSPlan{} _ = return rs
 resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStandard{rsTableTotal=tableTotal} countQuery =
   case preferCount of
     Just PlannedCount -> do
@@ -297,7 +293,6 @@ resultSetWTotal AppConfig{..} ApiRequest{iPreferences=Preferences{..}} rs@RSStan
 -- Fail a response if a single JSON object was requested and not exactly one
 -- was found.
 failNotSingular :: MediaType -> ResultSet -> DbHandler ()
-failNotSingular _ RSPlan{} = pure ()
 failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
   when (elem mediaType [MTVndSingularJSON True, MTVndSingularJSON False] && queryTotal /= 1) $ do
     lift SQL.condemn
@@ -305,7 +300,6 @@ failNotSingular mediaType RSStandard{rsQueryTotal=queryTotal} =
 
 failExceedsMaxAffectedPref :: (Maybe PreferMaxAffected, Maybe PreferHandling) -> ResultSet -> DbHandler ()
 failExceedsMaxAffectedPref (Nothing,_) _ = pure ()
-failExceedsMaxAffectedPref _ RSPlan{} = pure ()
 failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQueryTotal=queryTotal} = when ((queryTotal > n) && (handling == Just Strict)) $ do
   lift SQL.condemn
   throwError $ Error.ApiRequestError . Error.MaxAffectedViolationError $ toInteger queryTotal
@@ -323,8 +317,8 @@ optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
       preferTransaction == Just Rollback
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
-planRow :: HD.Result ResultSet
-planRow = RSPlan . BS.unlines <$> HD.rowList (column HD.bytea)
+planRow :: HD.Result BS.ByteString
+planRow = BS.unlines <$> HD.rowList (column HD.bytea)
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
