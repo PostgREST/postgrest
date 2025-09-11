@@ -294,3 +294,12 @@ def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
 
     error = cli(["--dump-config"], env=env, expect_error=True)
     assert "jwt-aud should be a string or a valid URI" in error
+
+
+def test_jwt_secret_min_length(defaultenv):
+    "Should log error and not load the config when the secret is shorter than the minimum admitted length"
+
+    env = {**defaultenv, "PGRST_JWT_SECRET": "short_secret"}
+
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert "The JWT secret must be at least 32 characters long." in error
