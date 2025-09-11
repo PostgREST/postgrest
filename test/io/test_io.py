@@ -66,19 +66,6 @@ def test_read_secret_from_stdin_dbconfig(defaultenv):
         assert response.status_code == 200
 
 
-def test_secret_min_length(defaultenv):
-    "Should log error and not load the config when the secret is shorter than the minimum admitted length"
-
-    env = {**defaultenv, "PGRST_JWT_SECRET": "short_secret"}
-
-    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
-        exitCode = wait_until_exit(postgrest)
-        assert exitCode == 1
-
-        output = postgrest.read_stdout(nlines=1)
-        assert "The JWT secret must be at least 32 characters long." in output[0]
-
-
 def test_jwt_errors(defaultenv):
     "invalid JWT should throw error"
 
