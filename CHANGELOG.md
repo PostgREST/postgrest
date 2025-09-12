@@ -16,6 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
   + The exposed schemas are now listed in the `hint` instead of the `message` field.
 - Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
+- Introduced producing OpenTelemetry traces by @develop7 in #3140
 
 ### Changed
 
