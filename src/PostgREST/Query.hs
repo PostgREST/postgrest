@@ -54,7 +54,6 @@ import PostgREST.Config                  (AppConfig (..),
 import PostgREST.Error                   (Error)
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (ActionPlan (..),
-                                          CallReadPlan (..),
                                           CrudPlan (..),
                                           DbActionPlan (..),
                                           InfoPlan (..),
@@ -79,7 +78,6 @@ data Query
 
 data QueryResult
   = DbCrudResult  CrudPlan ResultSet
-  | DbCallResult  CallReadPlan  ResultSet
   | DbPlanResult    MediaType BS.ByteString
   | MaybeDbResult InspectPlan  (Maybe (TablesMap, RoutineMap, Maybe Text))
   | NoDbResult    InfoPlan
@@ -132,86 +130,73 @@ mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCa
       mainActionQuery
 
 planTxMode :: DbActionPlan -> SQL.Mode
-planTxMode (DbCrud x)   = pTxMode x
-planTxMode (DbCall x)   = crTxMode x
+planTxMode (DbCrud _ x) = pTxMode x
 planTxMode (MayUseDb x) = ipTxmode x
 
 planIsoLvl :: AppConfig -> ByteString -> DbActionPlan -> SQL.IsolationLevel
 planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
-  DbCall CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
+  DbCrud _ CallReadPlan{crProc} -> fromMaybe roleIsoLvl $ pdIsoLvl crProc
   _                           -> roleIsoLvl
   where
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
+
 
 mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
 mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty mempty (mempty, mempty, mempty)
 mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} authRes preReq =
   let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of
-    DbCrud WrappedReadPlan{..} ->
+    DbCrud _ WrappedReadPlan{..} ->
       let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan in
-      genQ countQuery (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows wrMedia wrHandler) (mempty, mempty, mempty)
-    DbCrud MutateReadPlan{..} ->
-      genQ mempty (Statements.mainWrite mrReadPlan mrMutatePlan mrMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty)
-    DbCall CallReadPlan{..} ->
-      genQ mempty (Statements.mainCall crProc crCallPlan crReadPlan preferCount crMedia crHandler) (mempty, mempty, mempty)
+      genQ countQuery (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows pMedia wrHandler) (mempty, mempty, mempty)
+    DbCrud _ MutateReadPlan{..} ->
+      genQ mempty (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty)
+    DbCrud _ CallReadPlan{..} ->
+      genQ mempty (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty)
     MayUseDb InspectPlan{ipSchema=tSchema} ->
       genQ mempty mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema)
 
 -- TODO: Generate the Hasql Statement in a diferent module after the OpenAPI functionality is removed
 actionQuery :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> DbHandler QueryResult
-actionQuery MainQuery{..} (DbCrud plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq _ =
-  case wrMedia of
-    MTVndPlan{} -> do
-      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
-      optionalRollback conf apiReq
-      pure $ DbPlanResult wrMedia explRes
-    _ -> do
-      resultSet <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
-      failNotSingular wrMedia resultSet
-      optionalRollback conf apiReq
-      DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet mqCount
+actionQuery MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
+  explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
+  optionalRollback conf apiReq
+  pure $ DbPlanResult (pMedia plan) explRes
+
+actionQuery MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq _ = do
+  resultSet <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
+  failNotSingular pMedia resultSet
+  optionalRollback conf apiReq
+  DbCrudResult plan <$> resultSetWTotal conf apiReq resultSet mqCount
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
 
-actionQuery MainQuery{..} (DbCrud plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  case mrMedia of
-    MTVndPlan{} -> do
-      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
-      optionalRollback conf apiReq
-      pure $ DbPlanResult mrMedia explRes
-    _ -> do
-      resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-      failMutation resultSet
-      optionalRollback conf apiReq
-      pure $ DbCrudResult plan resultSet
+actionQuery MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+  resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
+  failMutation resultSet
+  optionalRollback conf apiReq
+  pure $ DbCrudResult plan resultSet
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
-        failNotSingular mrMedia resultSet
+        failNotSingular pMedia resultSet
       MutationUpdate -> do
-        failNotSingular mrMedia resultSet
+        failNotSingular pMedia resultSet
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
       MutationSingleUpsert -> do
         failPut resultSet
       MutationDelete -> do
-        failNotSingular mrMedia resultSet
+        failNotSingular pMedia resultSet
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
     decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-actionQuery MainQuery{..} (DbCall plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ =
-  case crMedia of
-    MTVndPlan{} -> do
-      explRes <- lift $ SQL.statement mempty $ dynStmt planRow
-      optionalRollback conf apiReq
-      pure $ DbPlanResult crMedia explRes
-    _ -> do
-      resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-      optionalRollback conf apiReq
-      failNotSingular crMedia resultSet
-      failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
-      pure $ DbCallResult plan resultSet
+actionQuery MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+  resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
+  optionalRollback conf apiReq
+  failNotSingular pMedia resultSet
+  failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
+  pure $ DbCrudResult plan resultSet
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
     decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)

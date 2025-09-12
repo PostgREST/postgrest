@@ -35,8 +35,7 @@ import PostgREST.ApiRequest.Types        (InvokeMethod (..),
                                           Mutation (..))
 import PostgREST.Config                  (AppConfig (..))
 import PostgREST.MediaType               (MediaType (..))
-import PostgREST.Plan                    (CallReadPlan (..),
-                                          CrudPlan (..),
+import PostgREST.Plan                    (CrudPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
@@ -63,7 +62,7 @@ data PgrstResponse = PgrstResponse {
 
 actionResponse :: QueryResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
-actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
+actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
   let
     (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     cLHeader = if headersOnly then mempty else [contentLengthHeaderStrict rsBody]
@@ -77,7 +76,7 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
         )
       ]
       ++ cLHeader
-      ++ contentTypeHeaders wrMedia ctxApiRequest
+      ++ contentTypeHeaders pMedia ctxApiRequest
       ++ prefHeader
     bod | status == HTTP.status416 = Error.errorPayload $ Error.ApiRequestError $ Error.InvalidRange $
                                      Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
@@ -88,7 +87,7 @@ actionResponse (DbCrudResult WrappedReadPlan{wrMedia, wrHdrsOnly=headersOnly, cr
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, mrMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = do
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, pMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = do
   let
     pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
     prefHeader = prefAppliedHeader $
@@ -117,7 +116,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
           HTTP.status201
     status = maybe HTTP.status200 isInsertIfGTZero rsInserted
     (headers', bod) = case preferRepresentation of
-      Just Full -> (headers ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
+      Just Full -> (headers ++ contentTypeHeaders pMedia ctxApiRequest, LBS.fromStrict rsBody)
       Just None -> (headers, mempty)
       Just HeadersOnly -> (headers, mempty)
       Nothing -> (headers, mempty)
@@ -126,7 +125,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
   let
     contentRangeHeader =
       Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
@@ -136,7 +135,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
 
   let (status, headers', body) =
         case preferRepresentation of
-          Just Full -> (HTTP.status200, headers ++ [contentLengthHeaderStrict rsBody] ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
+          Just Full -> (HTTP.status200, headers ++ [contentLengthHeaderStrict rsBody] ++ contentTypeHeaders pMedia ctxApiRequest, LBS.fromStrict rsBody)
           Just None -> (HTTP.status204, headers, mempty)
           _         -> (HTTP.status204, headers, mempty)
 
@@ -144,11 +143,11 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, mrMedia} 
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
   let
     prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
     cLHeader = [contentLengthHeaderStrict rsBody]
-    cTHeader = contentTypeHeaders mrMedia ctxApiRequest
+    cTHeader = contentTypeHeaders pMedia ctxApiRequest
 
   let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
       upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
@@ -161,14 +160,14 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, mrM
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
   let
     contentRangeHeader = RangeQuery.contentRangeH 1 0 $ if shouldCount preferCount then Just rsQueryTotal else Nothing
     prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
     headers = contentRangeHeader : prefHeader
     (status, headers', body) =
         case preferRepresentation of
-            Just Full -> (HTTP.status200, headers ++ [contentLengthHeaderStrict rsBody] ++ contentTypeHeaders mrMedia ctxApiRequest, LBS.fromStrict rsBody)
+            Just Full -> (HTTP.status200, headers ++ [contentLengthHeaderStrict rsBody] ++ contentTypeHeaders pMedia ctxApiRequest, LBS.fromStrict rsBody)
             Just None -> (HTTP.status204, headers, mempty)
             _ -> (HTTP.status204, headers, mempty)
 
@@ -176,7 +175,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, mrMedia} 
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
+actionResponse (DbCrudResult CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
   let
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
@@ -193,7 +192,7 @@ actionResponse (DbCallResult CallReadPlan{crMedia, crInvMthd=invMethod, crProc=p
             (HTTP.status204, headers, mempty)
           else
             (status,
-              headers ++ cLHeader ++ contentTypeHeaders crMedia ctxApiRequest,
+              headers ++ cLHeader ++ contentTypeHeaders pMedia ctxApiRequest,
               if isHeadMethod then mempty else rsOrErrBody)
 
   (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status' headers'
@@ -224,7 +223,7 @@ actionResponse (NoDbResult (RelInfoPlan qi@QualifiedIdentifier{..})) _ _ _ Schem
           ["PATCH" | tableUpdatable table] ++
           ["DELETE" | tableDeletable table]
 
-actionResponse (NoDbResult (RoutineInfoPlan CallReadPlan{crProc=proc})) _ _ _ _ _ _
+actionResponse (NoDbResult (RoutineInfoPlan proc)) _ _ _ _ _ _
   | pdVolatility proc == Volatile = respondInfo "OPTIONS,POST"
   | otherwise                     = respondInfo "OPTIONS,GET,HEAD,POST"
 

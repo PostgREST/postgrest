@@ -21,7 +21,7 @@ import PostgREST.ApiRequest.Preferences  (PreferTimezone (..),
                                           Preferences (..))
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
-import PostgREST.Plan                    (CallReadPlan (..),
+import PostgREST.Plan                    (CrudPlan (..),
                                           DbActionPlan (..))
 import PostgREST.Query.SqlFragment       (escapeIdentList, fromQi,
                                           intercalateSnippet,
@@ -56,8 +56,8 @@ txVarQuery dbActPlan AppConfig{..} AuthResult{..} ApiRequest{..} =
       let schemas = escapeIdentList (iSchema : configDbExtraSearchPath) in
       setConfigWithConstantName ("search_path", schemas)
     funcSettings = case dbActPlan of
-      DbCall CallReadPlan{crProc} -> pdFuncSettings crProc
-      _                           -> mempty
+      DbCrud _ CallReadPlan{crProc} -> pdFuncSettings crProc
+      _                             -> mempty
 
 -- runs the pre-request function
 preReqQuery :: QualifiedIdentifier -> SQL.Snippet
