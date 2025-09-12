@@ -23,7 +23,6 @@ module PostgREST.Plan
   , InspectPlan(..)
   , InfoPlan(..)
   , CrudPlan(..)
-  , CallReadPlan(..)
   ) where
 
 import qualified Data.HashMap.Strict           as HM
@@ -97,7 +96,7 @@ data CrudPlan
   { wrReadPlan :: ReadPlanTree
   , pTxMode    :: SQL.Mode
   , wrHandler  :: MediaHandler
-  , wrMedia    :: MediaType
+  , pMedia     :: MediaType
   , wrHdrsOnly :: Bool
   , crudQi     :: QualifiedIdentifier
   }
@@ -106,19 +105,17 @@ data CrudPlan
   , mrMutatePlan :: MutatePlan
   , pTxMode      :: SQL.Mode
   , mrHandler    :: MediaHandler
-  , mrMedia      :: MediaType
+  , pMedia       :: MediaType
   , mrMutation   :: Mutation
   , crudQi       :: QualifiedIdentifier
   }
-
--- Plan for calling a function
-data CallReadPlan = CallReadPlan {
+  | CallReadPlan {
     crReadPlan :: ReadPlanTree
   , crCallPlan :: CallPlan
-  , crTxMode   :: SQL.Mode
+  , pTxMode    :: SQL.Mode
   , crProc     :: Routine
   , crHandler  :: MediaHandler
-  , crMedia    :: MediaType
+  , pMedia     :: MediaType
   , crInvMthd  :: InvokeMethod
   , crQi       :: QualifiedIdentifier
   }
@@ -136,35 +133,42 @@ data ActionPlan
   = Db DbActionPlan
   | NoDb InfoPlan
 
+type IsDbExplain = Bool
+
 -- A db plan can consist on read/write, rpc call or reading metadata (which may use the db or just use cached objects)
 data DbActionPlan
-  = DbCrud CrudPlan
-  | DbCall CallReadPlan
+  = DbCrud   IsDbExplain CrudPlan
   | MayUseDb InspectPlan
 
 -- Plans that don't use the database
 data InfoPlan
   = RelInfoPlan QualifiedIdentifier -- info about relation
-  | RoutineInfoPlan CallReadPlan -- info about function
+  | RoutineInfoPlan Routine -- info about function
   | SchemaInfoPlan -- info about schema cache
 
 actionPlan :: Action -> AppConfig -> ApiRequest -> SchemaCache -> Either Error ActionPlan
 actionPlan act conf apiReq sCache = case act of
-    ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
-    ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
-    ActRoutineInfo ident inv -> NoDb . RoutineInfoPlan <$> callReadPlan ident conf sCache apiReq inv
-    ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
+  ActDb dbAct              -> Db <$> dbActionPlan dbAct conf apiReq sCache
+  ActRelationInfo ident    -> pure . NoDb $ RelInfoPlan ident
+  ActRoutineInfo ident inv ->
+    let crPln = callReadPlan ident conf sCache apiReq inv in
+    NoDb . RoutineInfoPlan . crProc <$> crPln
+  ActSchemaInfo            -> pure $ NoDb SchemaInfoPlan
 
 dbActionPlan :: DbAction -> AppConfig -> ApiRequest -> SchemaCache -> Either Error DbActionPlan
 dbActionPlan dbAct conf apiReq sCache = case dbAct of
   ActRelationRead identifier headersOnly ->
-    DbCrud <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
+    toDbActPlan <$> wrappedReadPlan identifier conf sCache apiReq headersOnly
   ActRelationMut identifier mut ->
-    DbCrud <$> mutateReadPlan mut apiReq identifier conf sCache
+    toDbActPlan <$> mutateReadPlan mut apiReq identifier conf sCache
   ActRoutine identifier invMethod ->
-    DbCall <$> callReadPlan identifier conf sCache apiReq invMethod
+    toDbActPlan <$> callReadPlan identifier conf sCache apiReq invMethod
   ActSchemaRead tSchema headersOnly ->
     MayUseDb <$> inspectPlan apiReq headersOnly tSchema
+  where
+    toDbActPlan pl = case pMedia pl of
+      MTVndPlan{} -> DbCrud True pl
+      _           -> DbCrud False pl
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
@@ -183,7 +187,7 @@ mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} 
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
 
-callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CallReadPlan
+callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CrudPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs, preferMaxAffected},..} invMethod = do
   let paramKeys = case invMethod of
         InvRead _ -> S.fromList $ fst <$> qsParams'
