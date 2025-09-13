@@ -14,6 +14,8 @@ module PostgREST.Error
   , PgError(..)
   , Error(..)
   , JwtError (..)
+  , JwtDecodeError(..)
+  , JwtClaimsError(..)
   , errorPayload
   , status
   ) where
@@ -86,7 +88,7 @@ data ApiRequestError
   | QueryParamError QPError
   | RelatedOrderNotToOne Text Text
   | UnacceptableFilter Text
-  | UnacceptableSchema [Text]
+  | UnacceptableSchema Text [Text]
   | UnsupportedMethod ByteString
   | GucHeadersError
   | GucStatusError
@@ -194,7 +196,7 @@ instance ErrorBody ApiRequestError where
   message (InvalidBody errorMessage)   = T.decodeUtf8 errorMessage
   message (InvalidRange _)             = "Requested range not satisfiable"
   message InvalidFilters               = "Filters must include all and only primary key columns with 'eq' operators"
-  message (UnacceptableSchema schemas) = "The schema must be one of the following: " <> T.intercalate ", " schemas
+  message (UnacceptableSchema sch _)   = "Invalid schema: " <> sch
   message (MediaTypeError cts)         = "None of these media types are available: " <> T.intercalate ", " (map T.decodeUtf8 cts)
   message (NotEmbedded resource)       = "'" <> resource <> "' is not an embedded resource in this request"
   message GucHeadersError              = "response.headers guc must be a JSON array composed of objects with a single key and a string value"
@@ -234,6 +236,7 @@ instance ErrorBody ApiRequestError where
   -- HINT: Maybe JSON.Value
   hint (NotEmbedded resource) = Just $ JSON.String $ "Verify that '" <> resource <> "' is included in the 'select' query parameter."
   hint (PGRSTParseError raiseErr) = Just $ JSON.String $ pgrstParseErrorHint raiseErr
+  hint (UnacceptableSchema _ schemas) = Just $ JSON.String $ "Only the following schemas are exposed: "  <> T.intercalate ", " schemas
 
   hint _ = Nothing
 
@@ -647,10 +650,32 @@ data Error
   deriving Show
 
 data JwtError
-  = JwtDecodeError Text
+  = JwtDecodeErr JwtDecodeError
   | JwtSecretMissing
   | JwtTokenRequired
-  | JwtClaimsError Text
+  | JwtClaimsErr JwtClaimsError
+  deriving Show
+
+data JwtDecodeError
+  = EmptyAuthHeader
+  | UnexpectedParts Int
+  | KeyError Text
+  | BadAlgorithm Text
+  | BadCrypto
+  | UnsupportedTokenType
+  | UnreachableDecodeError
+  deriving Show
+
+data JwtClaimsError
+  = JWTExpired
+  | JWTNotYetValid
+  | JWTIssuedAtFuture
+  | JWTNotInAudience
+  | ParsingClaimsFailed
+  | ExpClaimNotNumber
+  | NbfClaimNotNumber
+  | IatClaimNotNumber
+  | AudClaimNotStringOrArray
   deriving Show
 
 instance PgrstError Error where
@@ -696,14 +721,14 @@ instance ErrorBody Error where
   hint (PgErr err)           = hint err
 
 instance PgrstError JwtError where
-  status JwtDecodeError{} = HTTP.unauthorized401
+  status JwtDecodeErr{}   = HTTP.unauthorized401
   status JwtSecretMissing = HTTP.status500
   status JwtTokenRequired = HTTP.unauthorized401
-  status JwtClaimsError{} = HTTP.unauthorized401
+  status JwtClaimsErr{}   = HTTP.unauthorized401
 
-  headers (JwtDecodeError m) = [invalidTokenHeader m]
+  headers e@(JwtDecodeErr _) = [invalidTokenHeader $ message e]
   headers JwtTokenRequired   = [requiredTokenHeader]
-  headers (JwtClaimsError m) = [invalidTokenHeader m]
+  headers e@(JwtClaimsErr _) = [invalidTokenHeader $ message e]
   headers _                  = mempty
 
 instance JSON.ToJSON JwtError where
@@ -711,16 +736,36 @@ instance JSON.ToJSON JwtError where
     (code err) (message err) (details err) (hint err)
 
 instance ErrorBody JwtError where
-  code JwtSecretMissing   = "PGRST300"
-  code (JwtDecodeError _) = "PGRST301"
-  code JwtTokenRequired   = "PGRST302"
-  code (JwtClaimsError _) = "PGRST303"
+  code JwtSecretMissing = "PGRST300"
+  code (JwtDecodeErr _) = "PGRST301"
+  code JwtTokenRequired = "PGRST302"
+  code (JwtClaimsErr _) = "PGRST303"
 
-  message JwtSecretMissing     = "Server lacks JWT secret"
-  message (JwtDecodeError msg) = msg
-  message JwtTokenRequired     = "Anonymous access is disabled"
-  message (JwtClaimsError msg) = msg
+  message JwtSecretMissing = "Server lacks JWT secret"
+  message (JwtDecodeErr e) = case e of
+    EmptyAuthHeader        -> "Empty JWT is sent in Authorization header"
+    UnexpectedParts n      -> "Expected 3 parts in JWT; got " <> show n
+    KeyError _             -> "No suitable key or wrong key type"
+    BadAlgorithm _         -> "Wrong or unsupported encoding algorithm"
+    BadCrypto              -> "JWT cryptographic operation failed"
+    UnsupportedTokenType   -> "Unsupported token type"
+    UnreachableDecodeError -> "JWT couldn't be decoded"
+  message JwtTokenRequired = "Anonymous access is disabled"
+  message (JwtClaimsErr e) = case e of
+    JWTExpired               -> "JWT expired"
+    JWTNotYetValid           -> "JWT not yet valid"
+    JWTIssuedAtFuture        -> "JWT issued at future"
+    JWTNotInAudience         -> "JWT not in audience"
+    ParsingClaimsFailed      -> "Parsing claims failed"
+    ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
+    NbfClaimNotNumber        -> "The JWT 'nbf' claim must be a number"
+    IatClaimNotNumber        -> "The JWT 'iat' claim must be a number"
+    AudClaimNotStringOrArray -> "The JWT 'aud' claim must be a string or an array of strings"
 
+  details (JwtDecodeErr jde) = case jde of
+    KeyError dets     -> Just $ JSON.String dets
+    BadAlgorithm dets -> Just $ JSON.String dets
+    _                 -> Nothing
   details _ = Nothing
 
   hint _    = Nothing

@@ -72,9 +72,9 @@ spec =
           , matchHeaders = []
           }
 
-      it "fails trying to read table from unkown schema" $
-        request methodGet "/parents" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+      it "fails trying to read table from unknown schema" $
+        request methodGet "/parents" [("Accept-Profile", "unknown")] "" `shouldRespondWith`
+          [json|{"message":"Invalid schema: unknown","code":"PGRST106","details":null,"hint":"Only the following schemas are exposed: v1, v2, SPECIAL \"@/\\#~_-"}|]
           {
             matchStatus = 406
           }
@@ -151,7 +151,7 @@ spec =
         request methodPost "/children" [("Content-Profile", "unknown")]
           [json|{"name": "child 4", "parent_id": 4}|]
           `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+          [json|{"message":"Invalid schema: unknown","code":"PGRST106","details":null,"hint":"Only the following schemas are exposed: v1, v2, SPECIAL \"@/\\#~_-"}|]
           {
             matchStatus = 406
           }
@@ -389,9 +389,9 @@ spec =
           let def = simpleBody r ^? key "definitions" . key "another_table"
           def `shouldBe` Nothing
 
-      it "fails trying to read definitions from unkown schema" $
-        request methodGet "/" [("Accept-Profile", "unkown")] "" `shouldRespondWith`
-          [json|{"message":"The schema must be one of the following: v1, v2, SPECIAL \"@/\\#~_-","code":"PGRST106","details":null,"hint":null}|]
+      it "fails trying to read definitions from unknown schema" $
+        request methodGet "/" [("Accept-Profile", "unknown")] "" `shouldRespondWith`
+          [json|{"message":"Invalid schema: unknown","code":"PGRST106","details":null,"hint":"Only the following schemas are exposed: v1, v2, SPECIAL \"@/\\#~_-"}|]
           {
             matchStatus = 406
           }

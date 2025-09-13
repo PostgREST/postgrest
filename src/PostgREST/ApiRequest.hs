@@ -207,7 +207,7 @@ getAction resource schema method =
 getSchema :: AppConfig -> RequestHeaders -> ByteString -> Either ApiRequestError (Schema, Bool)
 getSchema AppConfig{configDbSchemas} hdrs method = do
   case profile of
-    Just p | p `notElem` configDbSchemas -> Left $ UnacceptableSchema $ toList configDbSchemas
+    Just p | p `notElem` configDbSchemas -> Left $ UnacceptableSchema p $ toList configDbSchemas
            | otherwise                   -> Right (p, True)
     Nothing -> Right (defaultSchema, length configDbSchemas /= 1) -- if we have many schemas, assume the default schema was negotiated
   where
