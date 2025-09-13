@@ -57,6 +57,7 @@ class PostgrestProcess:
     admin: object
     process: object
     session: object
+    config: object
 
     def read_stdout(self, nlines=1):
         "Wait for line(s) on standard output."
@@ -143,6 +144,7 @@ def run(
                 process=process,
                 session=PostgrestSession(baseurl),
                 admin=PostgrestSession(adminurl),
+                config=env,
             )
         finally:
             remaining_output = process.stdout.read()
