@@ -24,6 +24,7 @@ from syrupy.extensions.json import SingleFileSnapshotExtension
 import yaml
 
 from config import *
+from postgrest import *
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
@@ -90,6 +91,8 @@ def cli(args, env=None, stdin=None, expect_error=False):
             return stderr_output.decode()
         else:
             if process.returncode != 0:
+                print(stdout_output)
+                print(stderr_output)
                 raise PostgrestError(
                     "PostgREST unexpectedly exited with non-zero return code."
                 )
@@ -303,3 +306,22 @@ def test_jwt_secret_min_length(defaultenv):
 
     error = cli(["--dump-config"], env=env, expect_error=True)
     assert "The JWT secret must be at least 32 characters long." in error
+
+
+def test_cli_ready_flag_success(defaultenv):
+    "PostgREST ready flag succeeds when ready"
+
+    port = freeport()
+
+    with run(env=defaultenv, port=port) as postgrest:
+        output = cli(["--ready"], env=postgrest.config)
+
+        adminHost = postgrest.config.get(
+            "PGRST_ADMIN_SERVER_HOST", postgrest.config["PGRST_SERVER_HOST"]
+        )
+        adminPort = postgrest.config["PGRST_ADMIN_SERVER_PORT"]
+        assert f"OK: http://{adminHost}:{adminPort}/ready" in output
+
+
+def test_cli_ready_flag_fail(defaultenv):
+    pass  # TODO

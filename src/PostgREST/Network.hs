@@ -1,6 +1,7 @@
 module PostgREST.Network
   ( resolveSocketToAddress
   , escapeHostName
+  , isSpecialHostName
   ) where
 
 import           Data.String    (IsString (..))
@@ -49,3 +50,12 @@ escapeHostName "!4" = "0.0.0.0"
 escapeHostName "*6" = "0.0.0.0"
 escapeHostName "!6" = "0.0.0.0"
 escapeHostName h    = h
+
+-- | Check if a hostname is special
+isSpecialHostName :: Text -> Bool
+isSpecialHostName "*"  = True
+isSpecialHostName "*4" = True
+isSpecialHostName "!4" = True
+isSpecialHostName "*6" = True
+isSpecialHostName "!6" = True
+isSpecialHostName _    = False
