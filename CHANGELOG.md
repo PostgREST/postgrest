@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.7] - 2025-09-14
+
 ### Added
 
 - Improve the `PGRST106` error when the requested schema is invalid by @laurenceisla in #4089
