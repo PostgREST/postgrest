@@ -67,6 +67,7 @@ library
                       PostgREST.Error
                       PostgREST.Listener
                       PostgREST.Logger
+                      PostgREST.MainTx
                       PostgREST.MediaType
                       PostgREST.Metrics
                       PostgREST.Network

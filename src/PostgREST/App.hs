@@ -35,6 +35,7 @@ import qualified PostgREST.Cors       as Cors
 import qualified PostgREST.Error      as Error
 import qualified PostgREST.Listener   as Listener
 import qualified PostgREST.Logger     as Logger
+import qualified PostgREST.MainTx     as MainTx
 import qualified PostgREST.Plan       as Plan
 import qualified PostgREST.Query      as Query
 import qualified PostgREST.Response   as Response
@@ -143,14 +144,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
   (planTime, plan)                   <- withTiming $ liftEither $ Plan.actionPlan iAction conf apiReq sCache
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
-      query = Query.mainTx mainQ conf authResult apiReq plan sCache
+      tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       observer = AppState.getObserver appState
       obsQuery s = when (configLogQuery /= LogQueryDisabled) $ observer $ QueryObs mainQ s
 
-  (queryTime, queryResult) <- withTiming $ do
-    case query of
-      Query.NoDbQuery r -> pure r
-      Query.DbQuery{..} -> do
+  (txTime, txResult) <- withTiming $ do
+    case tx of
+      MainTx.NoDbTx r -> pure r
+      MainTx.DbTx{..} -> do
         dbRes <- lift $ AppState.usePool appState (dqTransaction dqIsoLevel dqTxMode $ runExceptT dqDbHandler)
         let eitherResp = join $ mapLeft (Error.PgErr . Error.PgError (Just authRole /= configDbAnonRole)) dbRes
 
@@ -161,14 +162,14 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
         liftEither eitherResp
 
   (respTime, resp) <- withTiming $ do
-    let response = Response.actionResponse queryResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
+    let response = Response.actionResponse txResult apiReq (T.decodeUtf8 prettyVersion, docsVersion) conf sCache iSchema iNegotiatedByProfile
         status' = either Error.status Response.pgrstStatus response
 
     -- TODO: see above obsQuery, only this obsQuery should remain after refactoring (because the QueryObs depends on the status)
     lift $ obsQuery status'
     liftEither response
 
-  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime queryTime respTime) resp
+  return $ toWaiResponse (ServerTiming jwtTime parseTime planTime txTime respTime) resp
 
   where
     toWaiResponse :: ServerTiming -> Response.PgrstResponse -> Wai.Response

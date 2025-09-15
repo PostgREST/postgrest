@@ -34,13 +34,13 @@ import PostgREST.ApiRequest.QueryParams  (QueryParams (..))
 import PostgREST.ApiRequest.Types        (InvokeMethod (..),
                                           Mutation (..))
 import PostgREST.Config                  (AppConfig (..))
+import PostgREST.MainTx                  (DbResult (..),
+                                          ResultSet (..))
 import PostgREST.MediaType               (MediaType (..))
 import PostgREST.Plan                    (CrudPlan (..),
                                           InfoPlan (..),
                                           InspectPlan (..))
 import PostgREST.Plan.MutatePlan         (MutatePlan (..))
-import PostgREST.Query                   (QueryResult (..),
-                                          ResultSet (..))
 import PostgREST.Response.GucHeader      (GucHeader, unwrapGucHeader)
 import PostgREST.SchemaCache             (SchemaCache (..))
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
@@ -60,7 +60,7 @@ data PgrstResponse = PgrstResponse {
 , pgrstBody    :: LBS.ByteString
 }
 
-actionResponse :: QueryResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
+actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
 actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
   let
