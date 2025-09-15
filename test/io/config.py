@@ -4,6 +4,7 @@ import shutil
 import signal
 
 import pytest
+import uuid
 import yaml
 
 
@@ -80,10 +81,19 @@ def slow_schema_cache_env(defaultenv):
 
 
 def hpctixfile():
-    "Returns an individual filename for each test, if the HPCTIXFILE environment variable is set."
+    """
+    Returns a unique filename for each postgrest process that is
+    run, if the HPCTIXFILE environment variable is set.
+
+    Later, we combine these files using "hpc sum" to get the
+    complete coverage.
+    """
+
     if "HPCTIXFILE" not in os.environ:
         return ""
 
     tixfile = pathlib.Path(os.environ["HPCTIXFILE"])
-    test = hash(os.environ["PYTEST_CURRENT_TEST"])
+    # 12 chars are unique enough and chances of collisions are
+    # astronomically low.
+    test = uuid.uuid4().hex[:12]
     return tixfile.with_suffix(f".{test}.tix")
