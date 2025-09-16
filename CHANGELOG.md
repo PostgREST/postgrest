@@ -12,10 +12,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- Improve the `PGRST106` error when the requested schema is invalid by @laurenceisla in #4089
-  + It now shows the invalid schema in the `message` field.
-  + The exposed schemas are now listed in the `hint` instead of the `message` field.
-- Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
 
 ### Changed
@@ -24,6 +20,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
   + Replaces `jwt-cache-max-lifetime` config with `jwt-cache-max-entries`.
   + It now uses a fixed size cache instead of arbitrary sized cache.
+
+## [13.0.7] - 2025-09-14
+
+### Added
+
+- Improve the `PGRST106` error when the requested schema is invalid by @laurenceisla in #4089
+  + It now shows the invalid schema in the `message` field.
+  + The exposed schemas are now listed in the `hint` instead of the `message` field.
+- Improve error details of `PGRST301` error by @taimoorzaeem in #4051
 
 ## [13.0.6] - 2025-08-30
 
