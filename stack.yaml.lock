@@ -5,6 +5,13 @@
 
 packages:
 - completed:
+    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
+    pantry-tree:
+      sha256: 65107f0c970351b971ea1f676a5e00b61e37c298a4c83c867d937f2a774501eb
+      size: 2895
+  original:
+    hackage: hashtables-1.4.2@sha256:4940cab94a15d469845ccf5225f9cb3d354c15e8127ebb58425c8b681f7721d9,10386
+- completed:
     hackage: fuzzyset-0.2.4@sha256:f1b6de8bf33277bf6255207541d65028f1f1ea93af5541b654c86b5674995485,1618
     pantry-tree:
       sha256: cee68e8d88f530e9e0588b81b260236936fe3318ef9a66e9f43f680b4cd5f76e

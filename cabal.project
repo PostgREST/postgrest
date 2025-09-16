@@ -2,3 +2,7 @@ packages: postgrest.cabal
 tests: true
 package *
   ghc-options: -split-sections
+
+-- avoid hashtables pre-1.4.1 that fail to build with GCC 15; see https://github.com/gregorycollins/hashtables/issues/98
+constraints:
+  hashtables >= 1.4.1
