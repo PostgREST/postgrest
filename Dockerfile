@@ -2,7 +2,7 @@
 # The x86-64 is a single-static-binary image built via Nix, see:
 # nix/tools/docker/README.md
 
-FROM ubuntu:noble@sha256:590e57acc18d58cd25d00254d4ca989bbfcd7d929ca6b521892c9c904c391f50 AS postgrest
+FROM ubuntu:noble@sha256:353675e2a41babd526e2b837d7ec780c2a05bca0164f7ea5dbbd433d21d166fc AS postgrest
 
 RUN apt-get update -y \
     && apt install -y --no-install-recommends libpq-dev zlib1g-dev jq gcc libnuma-dev \
