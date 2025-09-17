@@ -95,6 +95,9 @@ create function notify_do_nothing() returns void as $_$
   notify pgrst, 'nothing';
 $_$ language sql;
 
+create function do_nothing() returns void as $_$
+$_$ language sql;
+
 create function reset_invalid_role_claim_key() returns void as $_$
 begin
   alter role postgrest_test_authenticator reset pgrst.jwt_role_claim_key;
