@@ -595,23 +595,6 @@ def test_db_prepared_statements_disable(defaultenv):
         assert response.text == "false"
 
 
-def set_statement_timeout(postgrest, role, milliseconds):
-    """Set the statement timeout for the given role.
-    For this to work reliably with low previous timeout settings,
-    use a postgrest instance that doesn't use the affected role."""
-
-    response = postgrest.session.post(
-        "/rpc/set_statement_timeout", data={"role": role, "milliseconds": milliseconds}
-    )
-    assert response.text == ""
-    assert response.status_code == 204
-
-
-def reset_statement_timeout(postgrest, role):
-    "Reset the statement timeout for the given role to the default 0 (no timeout)"
-    set_statement_timeout(postgrest, role, 0)
-
-
 def test_statement_timeout(defaultenv, metapostgrest):
     "Statement timeout times out slow statements"
 
