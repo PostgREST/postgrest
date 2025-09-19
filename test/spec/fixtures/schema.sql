@@ -3843,3 +3843,6 @@ $$ language sql;
 create or replace function test.delete_items_returns_void() returns void as $$
   delete from items;
 $$ language sql;
+
+create function do_nothing() returns void as $_$
+$_$ language sql;
