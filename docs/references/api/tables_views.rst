@@ -224,7 +224,7 @@ This allows using the ``fts`` operator on ``text`` and ``json`` types out of the
   .. code-block:: postgres
 
     CREATE INDEX idx_people_col ON people
-    USING GIN (to_tsvector(my_text_column));
+    USING GIN (to_tsvector('french', my_text_column));
 
 .. _v_filter:
 
