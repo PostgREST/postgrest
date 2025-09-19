@@ -49,3 +49,21 @@ Dump Schema
   $ postgrest [--dump-schema]
 
 Dumps the schema cache in JSON format.
+
+Ready Flag
+----------
+
+.. code-block:: bash
+
+  $ postgrest [--ready]
+
+Makes a request to the ``/ready`` endpoint of the :ref:`admin_server`. It exits with a return code of ``0`` on success and ``1`` on failure.
+
+.. code-block:: bash
+
+  $ postgrest --ready
+  OK: http://localhost:3001/ready
+
+.. note::
+
+  The ``--ready`` flag cannot be used when :ref:`server-host` is configured with special hostnames. We suggest to change it to ``localhost``.

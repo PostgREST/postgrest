@@ -142,6 +142,7 @@ To avoid having to install the database at all, you can run both it and the serv
       ports:
         - "3000:3000"
       environment:
+        PGRST_SERVER_HOST: 127.0.0.1
         PGRST_DB_URI: postgres://app_user:password@db:5432/app_db
         PGRST_OPENAPI_SERVER_PROXY_URI: http://127.0.0.1:3000
       depends_on:
