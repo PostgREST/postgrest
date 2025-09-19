@@ -1020,11 +1020,19 @@ def test_log_level(level, defaultenv):
 def test_log_query(level, defaultenv):
     "log_query=true should log the SQL query according to the log_level"
 
+    def drain_stdout(proc):
+        lines = []
+        while True:
+            chunk = proc.read_stdout(nlines=20)
+            if not chunk:
+                break
+            lines.extend(chunk)
+        return lines
+
     env = {
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
         "PGRST_LOG_QUERY": "main-query",
-        "PGRST_DB_PRE_REQUEST": "do_nothing",
     }
 
     with run(env=env) as postgrest:
@@ -1058,16 +1066,6 @@ def test_log_query(level, defaultenv):
         set_config_regx = (
             r".+: select set_config\('search_path', \$1, true\), set_config\("
         )
-        pre_request_regx = r'.+: select "do_nothing"()'
-
-        def drain_stdout(proc):
-            lines = []
-            while True:
-                chunk = proc.read_stdout(nlines=20)
-                if not chunk:
-                    break
-                lines.extend(chunk)
-            return lines
 
         output = drain_stdout(postgrest)
 
@@ -1080,11 +1078,9 @@ def test_log_query(level, defaultenv):
         root_procs = [line for line in output if re.match(root_procs_regx, line)]
         root_descr = [line for line in output if re.match(root_descr_regx, line)]
         set_configs = [line for line in output if re.match(set_config_regx, line)]
-        pre_reqs = [line for line in output if re.match(pre_request_regx, line)]
 
         if level == "crit":
             assert not set_configs
-            assert not pre_reqs
             assert not project_queries
             assert not project_counts
             assert not infinite_queries
@@ -1093,7 +1089,6 @@ def test_log_query(level, defaultenv):
             assert not root_descr
         elif level in {"error", "warn"}:
             assert len(set_configs) == 1
-            assert len(pre_reqs) == 1
             assert len(infinite_queries) == 1
             assert not project_queries
             assert not project_counts
@@ -1102,7 +1097,6 @@ def test_log_query(level, defaultenv):
             assert not root_descr
         elif level == "info":
             assert len(set_configs) == 5
-            assert len(pre_reqs) == 5
             assert len(project_queries) == 3
             assert len(project_counts) == 2
             assert len(infinite_queries) == 1
@@ -1111,13 +1105,35 @@ def test_log_query(level, defaultenv):
             assert len(root_descr) == 1
         elif level == "debug":
             assert len(set_configs) == 5
-            assert len(pre_reqs) == 5
             assert len(project_queries) == 3
             assert len(project_counts) == 2
             assert len(infinite_queries) == 1
             assert len(root_tables) == 1
             assert len(root_procs) == 1
             assert len(root_descr) == 1
+
+    pre_req_env = {
+        **env,
+        "PGRST_DB_PRE_REQUEST": "do_nothing",
+    }
+
+    with run(env=pre_req_env) as postgrest:
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 200
+
+        output = drain_stdout(postgrest)
+
+        pre_request_regx = r'.+: select "do_nothing"()'
+        pre_reqs = [line for line in output if re.match(pre_request_regx, line)]
+
+        if level == "crit":
+            assert not pre_reqs
+        elif level in {"error", "warn"}:
+            assert not pre_reqs
+        elif level == "info":
+            assert len(pre_reqs) == 1
+        elif level == "debug":
+            assert len(pre_reqs) == 1
 
 
 def test_no_pool_connection_required_on_bad_http_logic(defaultenv):
