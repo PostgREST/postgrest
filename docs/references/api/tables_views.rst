@@ -217,6 +217,15 @@ This allows using the ``fts`` operator on ``text`` and ``json`` types out of the
   curl --get "http://localhost:3000/people" \
     -d "my_json_column=not.phfts(english).The%20Fat%20Cats"
 
+.. important::
+
+  To ensure this operation is fast, you need to create an index on the expression:
+
+  .. code-block:: postgres
+
+    CREATE INDEX idx_people_col ON people
+    USING GIN (to_tsvector('french', my_text_column));
+
 .. _v_filter:
 
 Vertical Filtering
