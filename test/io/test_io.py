@@ -5,9 +5,7 @@ from operator import attrgetter
 import os
 import re
 import signal
-import socket
 import time
-
 import pytest
 
 from config import *

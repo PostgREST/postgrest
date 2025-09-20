@@ -1,7 +1,5 @@
 "IO tests for PostgREST started on replicas"
 
-import pytest
-
 from config import *
 from util import *
 from postgrest import *
