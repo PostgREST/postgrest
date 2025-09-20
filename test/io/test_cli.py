@@ -1,25 +1,8 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-import contextlib
-import dataclasses
-from datetime import datetime
 from operator import attrgetter
-import os
-import pathlib
-import re
-import shutil
-import signal
-import socket
 import subprocess
-import tempfile
-import threading
-import time
-import urllib.parse
-
-import jwt
 import pytest
-import requests
-import requests_unixsocket
 from syrupy.extensions.json import SingleFileSnapshotExtension
 import yaml
 

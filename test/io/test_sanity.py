@@ -1,13 +1,5 @@
 "Sanity checks for the PostgREST black box testing infrastructure."
 
-from datetime import datetime
-from operator import attrgetter
-import os
-import re
-import signal
-import socket
-import time
-
 import pytest
 
 from config import *
