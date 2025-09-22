@@ -1014,6 +1014,7 @@ def test_log_query(level, defaultenv):
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
         "PGRST_LOG_QUERY": "main-query",
+        "PGRST_DB_TX_END": "commit-allow-override",
     }
 
     with run(env=env) as postgrest:
@@ -1033,6 +1034,11 @@ def test_log_query(level, defaultenv):
         )
         assert response.status_code == 206
 
+        response = postgrest.session.delete(
+            "/items_w_isolation_level?id=eq.5", headers={"Prefer": "tx=rollback"}
+        )
+        assert response.status_code == 204
+
         response = postgrest.session.get("/infinite_recursion")
         assert response.status_code == 500
 
@@ -1047,6 +1053,7 @@ def test_log_query(level, defaultenv):
         set_config_regx = (
             r".+: select set_config\('search_path', \$1, true\), set_config\("
         )
+        set_constraints_regx = r".+: SET CONSTRAINTS ALL IMMEDIATE"
 
         output = drain_stdout(postgrest)
 
@@ -1059,6 +1066,9 @@ def test_log_query(level, defaultenv):
         root_procs = [line for line in output if re.match(root_procs_regx, line)]
         root_descr = [line for line in output if re.match(root_descr_regx, line)]
         set_configs = [line for line in output if re.match(set_config_regx, line)]
+        set_constraints = [
+            line for line in output if re.match(set_constraints_regx, line)
+        ]
 
         if level == "crit":
             assert not set_configs
@@ -1068,6 +1078,7 @@ def test_log_query(level, defaultenv):
             assert not root_tables
             assert not root_procs
             assert not root_descr
+            assert not set_constraints
         elif level in {"error", "warn"}:
             assert len(set_configs) == 1
             assert len(infinite_queries) == 1
@@ -1076,22 +1087,25 @@ def test_log_query(level, defaultenv):
             assert not root_tables
             assert not root_procs
             assert not root_descr
+            assert not set_constraints
         elif level == "info":
-            assert len(set_configs) == 5
+            assert len(set_configs) == 6
             assert len(project_queries) == 3
             assert len(project_counts) == 2
             assert len(infinite_queries) == 1
             assert len(root_tables) == 1
             assert len(root_procs) == 1
             assert len(root_descr) == 1
+            assert len(set_constraints) == 1
         elif level == "debug":
-            assert len(set_configs) == 5
+            assert len(set_configs) == 6
             assert len(project_queries) == 3
             assert len(project_counts) == 2
             assert len(infinite_queries) == 1
             assert len(root_tables) == 1
             assert len(root_procs) == 1
             assert len(root_descr) == 1
+            assert len(set_constraints) == 1
 
     pre_req_env = {
         **env,

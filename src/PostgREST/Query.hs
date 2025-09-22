@@ -19,7 +19,8 @@ import qualified PostgREST.Query.Statements   as Statements
 
 
 import PostgREST.ApiRequest              (ApiRequest (..))
-import PostgREST.ApiRequest.Preferences  (Preferences (..),
+import PostgREST.ApiRequest.Preferences  (PreferTransaction (..),
+                                          Preferences (..),
                                           shouldExplainCount)
 import PostgREST.Auth.Types              (AuthResult (..))
 import PostgREST.Config                  (AppConfig (..))
@@ -33,26 +34,37 @@ import Protolude hiding (Handler)
 
 -- The Queries that run on every request
 data MainQuery = MainQuery
-  { mqTxVars  :: SQL.Snippet       -- ^ the transaction variables that always run on each query
-  , mqPreReq  :: Maybe SQL.Snippet -- ^ the pre-request function that runs if enabled
+  { mqTxVars         :: SQL.Snippet       -- ^ the transaction variables that always run on each query
+  , mqPreReq         :: Maybe SQL.Snippet -- ^ the pre-request function that runs if enabled
   -- TODO only one of the following queries actually runs on each request, once OpenAPI is removed from core it will be easier to refactor this
-  , mqMain    :: SQL.Snippet
-  , mqOpenAPI :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
-  , mqExplain :: Maybe SQL.Snippet     -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
+  , mqMain           :: SQL.Snippet
+  , mqOpenAPI        :: (SQL.Snippet, SQL.Snippet, SQL.Snippet)
+  , mqSetConstraints :: Maybe SQL.Snippet -- ^ the query that gets generated for the "Prefer: tx=rollback" case, https://www.postgresql.org/docs/current/sql-set-constraints.html
+  , mqExplain        :: Maybe SQL.Snippet     -- ^ the explain query that gets generated for the "Prefer: count=estimated" case
   }
 
 mainQuery :: ActionPlan -> AppConfig -> ApiRequest -> AuthResult -> Maybe QualifiedIdentifier -> MainQuery
-mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty
+mainQuery (NoDb _) _ _ _ _ = MainQuery mempty Nothing mempty (mempty, mempty, mempty) mempty Nothing
 mainQuery (Db plan) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} authRes preReq =
-  let genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq) in
   case plan of
     DbCrud _ WrappedReadPlan{..} ->
       let countQuery = QueryBuilder.readPlanToCountQuery wrReadPlan in
       genQ (Statements.mainRead wrReadPlan countQuery preferCount configDbMaxRows pMedia wrHandler) (mempty, mempty, mempty)
+      setConstraints
       (if shouldExplainCount preferCount then Just (Statements.postExplain countQuery) else Nothing)
     DbCrud _ MutateReadPlan{..} ->
-      genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) mempty
+      genQ (Statements.mainWrite mrReadPlan mrMutatePlan pMedia mrHandler preferRepresentation preferResolution) (mempty, mempty, mempty) setConstraints Nothing
     DbCrud _ CallReadPlan{..} ->
-      genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty) mempty
+      genQ (Statements.mainCall crProc crCallPlan crReadPlan preferCount pMedia crHandler) (mempty, mempty, mempty) setConstraints Nothing
     MayUseDb InspectPlan{ipSchema=tSchema} ->
-      genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema) mempty
+      genQ mempty (SqlFragment.accessibleTables tSchema, SqlFragment.accessibleFuncs tSchema, SqlFragment.schemaDescription tSchema) setConstraints Nothing
+  where
+    genQ = MainQuery (PreQuery.txVarQuery plan conf authRes apiReq) (PreQuery.preReqQuery <$> preReq)
+    setConstraints =
+      if shouldRollback || (configDbTxRollbackAll && not shouldCommit)
+        then Just "SET CONSTRAINTS ALL IMMEDIATE"
+        else Nothing
+    shouldCommit =
+      preferTransaction == Just Commit
+    shouldRollback =
+      preferTransaction == Just Rollback

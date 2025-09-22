@@ -22,6 +22,7 @@ import qualified Data.ByteString.Char8             as BS
 import qualified Data.HashMap.Strict               as HM
 import qualified Data.Set                          as S
 import qualified Hasql.Decoders                    as HD
+import qualified Hasql.DynamicStatements.Snippet   as SQL
 import qualified Hasql.DynamicStatements.Statement as SQL
 import qualified Hasql.Session                     as SQL (Session)
 import qualified Hasql.Transaction                 as SQL
@@ -35,7 +36,6 @@ import PostgREST.ApiRequest              (ApiRequest (..))
 import PostgREST.ApiRequest.Preferences  (PreferCount (..),
                                           PreferHandling (..),
                                           PreferMaxAffected (..),
-                                          PreferTransaction (..),
                                           Preferences (..))
 import PostgREST.ApiRequest.Types        (Mutation (..))
 import PostgREST.Auth.Types              (AuthResult (..))
@@ -121,15 +121,15 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
 actionResult :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction DbResult
-actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
+actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} _ _ = do
   explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
-  optionalRollback conf apiReq
+  optionalRollback conf mqSetConstraints
   pure $ DbPlanResult (pMedia plan) explRes
 
-actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet@RSStandard{rsTableTotal=tableTotal} <- lift $ SQL.statement mempty $ dynStmt (HD.singleRow $ standardRow True)
   failNotSingular pMedia resultSet
-  optionalRollback conf apiReq
+  optionalRollback conf mqSetConstraints
   explainTotal <- lift . fmap join $ traverse (\snip ->
                     SQL.statement mempty $ SQL.dynamicallyParameterized snip decodeExplain configDbPreparedStatements)
                     mqExplain
@@ -149,10 +149,10 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
       let row = HD.singleRow $ column HD.bytea in
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
-actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
   failMutation resultSet
-  optionalRollback conf apiReq
+  optionalRollback conf mqSetConstraints
   pure $ DbCrudResult plan resultSet
   where
     dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
@@ -169,9 +169,9 @@ actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..}
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
     decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
-  optionalRollback conf apiReq
+  optionalRollback conf mqSetConstraints
   failNotSingular pMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure $ DbCrudResult plan resultSet
@@ -240,16 +240,11 @@ failExceedsMaxAffectedPref (Just (PreferMaxAffected n), handling) RSStandard{rsQ
   throwError $ Error.ApiRequestError . Error.MaxAffectedViolationError $ toInteger queryTotal
 
 -- | Set a transaction to roll back if requested
-optionalRollback :: AppConfig -> ApiRequest -> DbHandler ()
-optionalRollback AppConfig{..} ApiRequest{iPreferences=Preferences{..}} = do
-  lift $ when (shouldRollback || (configDbTxRollbackAll && not shouldCommit)) $ do
-    SQL.sql "SET CONSTRAINTS ALL IMMEDIATE"
-    SQL.condemn
-  where
-    shouldCommit =
-      preferTransaction == Just Commit
-    shouldRollback =
-      preferTransaction == Just Rollback
+optionalRollback :: AppConfig -> Maybe SQL.Snippet -> DbHandler ()
+optionalRollback AppConfig{..} query = do
+  lift $ whenJust query (\q -> do
+    SQL.statement mempty $ SQL.dynamicallyParameterized q HD.noResult configDbPreparedStatements
+    SQL.condemn)
 
 -- | We use rowList because when doing EXPLAIN (FORMAT TEXT), the result comes as many rows. FORMAT JSON comes as one.
 planRow :: HD.Result BS.ByteString
