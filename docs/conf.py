@@ -300,6 +300,7 @@ linkcheck_ignore = [
     # 403 only in CI / GitHub Actions
     r"https://www.patreon.com/postgrest",
     r"https://blog.frankel.ch/poor-man-api",
+    r"https://www.cybertec-postgresql.com/.*",
     # Odd SSL error
     r"https://www.dripdepot.com",
     # New GitHub UI delays comment load, so anchor fails
