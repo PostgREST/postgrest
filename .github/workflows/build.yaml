@@ -30,8 +30,18 @@ concurrency:
 
 jobs:
   static:
-    name: Nix - Linux x86-64 static
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux aarch64
+            runs-on: ubuntu-24.04-arm
+            artifact: aarch64
+          - name: Linux x86-64
+            runs-on: ubuntu-24.04
+            artifact: x86-64
+    name: Nix - ${{ matrix.name }} static
+    runs-on: ${{ matrix.runs-on }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Setup Nix Environment
@@ -44,17 +54,17 @@ jobs:
       - name: Save built executable as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: postgrest-linux-static-x86-64
+          name: postgrest-linux-static-${{ matrix.artifact }}
           path: result/bin/postgrest
           if-no-files-found: error
 
       - name: Build Docker image
-        run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
+        run: nix-build -A docker.image --out-link postgrest-docker-${{ matrix.artifact }}.tar.gz
       - name: Save built Docker image as artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: postgrest-docker-x86-64
-          path: postgrest-docker.tar.gz
+          name: postgrest-docker-${{ matrix.artifact }}
+          path: postgrest-docker-${{ matrix.artifact }}.tar.gz
           if-no-files-found: error
 
 
@@ -87,15 +97,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Linux aarch64
-            runs-on: ubuntu-24.04-arm
-            cache: |
-              ~/.stack/pantry
-              ~/.stack/snapshots
-              ~/.stack/stack.sqlite3
-            artifact: postgrest-ubuntu-aarch64
-            deps: sudo apt-get update && sudo apt-get install libpq-dev
-
           - name: MacOS aarch64
             runs-on: macos-14
             cache: |
