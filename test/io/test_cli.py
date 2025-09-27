@@ -1,12 +1,14 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
 from operator import attrgetter
+import signal
 import subprocess
 import pytest
 from syrupy.extensions.json import SingleFileSnapshotExtension
 import yaml
 
 from config import *
+from postgrest import *
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
@@ -286,3 +288,105 @@ def test_jwt_secret_min_length(defaultenv):
 
     error = cli(["--dump-config"], env=env, expect_error=True)
     assert "The JWT secret must be at least 32 characters long." in error
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1"], ids=["IPv4", "IPv6"])
+def test_cli_ready_flag_success(host, defaultenv):
+    "test PostgREST ready flag succeeds when ready"
+
+    port = freeport()
+
+    with run(env=defaultenv, host=host, port=port) as postgrest:
+        output = cli(["--ready"], env=postgrest.config)
+
+        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+
+        if is_ipv6(host):
+            assert f"OK: http://[{admin_host}]:{admin_port}/ready" in output
+        else:
+            assert f"OK: http://{admin_host}:{admin_port}/ready" in output
+
+
+def test_cli_ready_flag_fail_when_schema_cache_not_loaded(defaultenv, metapostgrest):
+    "test PosgREST ready flag fail when schema cache not loaded"
+
+    role = "timeout_authenticator"
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "500",
+    }
+
+    port = freeport()
+
+    with run(env=env, port=port) as postgrest:
+        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
+        set_statement_timeout(metapostgrest, role, 400)
+
+        # force a reconnection so the new role setting is picked up
+        postgrest.process.send_signal(signal.SIGUSR1)
+
+        postgrest.wait_until_scache_starts_loading()
+
+        output = cli(["--ready"], env=postgrest.config, expect_error=True)
+        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+
+        assert f"ERROR: http://{admin_host}:{admin_port}/ready" in output
+
+
+def test_cli_ready_flag_fail_with_http_exception(defaultenv):
+    "test PostgREST ready flag fail when http exception occurs"
+
+    port = freeport()
+
+    # when healthcheck process sends the request to a wrong endpoint
+    with run(env=defaultenv, port=port) as postgrest:
+        # we set it to some freeport where admin is not running
+        postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(freeport())
+        output = cli(["--ready"], env=postgrest.config, expect_error=True)
+        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+
+        assert (
+            f"ERROR: connection refused to http://{admin_host}:{admin_port}/ready"
+            in output
+        )
+
+    # When client sends the request to invalid URL
+    with run(env=defaultenv, port=port) as postgrest:
+        postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(-1)
+        output = cli(["--ready"], env=postgrest.config, expect_error=True)
+        (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
+
+        assert f"ERROR: invalid url - http://{admin_host}:{admin_port}/ready" in output
+
+
+def test_cli_ready_flag_fail_with_special_hostname(defaultenv):
+    "test PostgREST ready flag fail when http exception occurs"
+
+    port = freeport()
+    host = "*4"
+
+    with run(env=defaultenv, host=host, port=port) as postgrest:
+        output = cli(["--ready"], env=postgrest.config, expect_error=True)
+
+        assert (
+            f'ERROR: The `--ready` flag cannot be used when server-host is configured as "{host}". Please update your server-host config to "localhost".'
+            in output
+        )
+
+
+def test_cli_ready_flag_fail_when_no_admin_server(defaultenv):
+    "test PostgREST ready flag fail when admin server not running"
+
+    with run(env=defaultenv) as postgrest:
+        # We set admin-server-port to <empty> to disable admin server
+        postgrest.config["PGRST_ADMIN_SERVER_PORT"] = ""
+        output = cli(["--ready"], env=postgrest.config, expect_error=True)
+
+        assert (
+            "ERROR: Admin server is not running. Please check admin-server-port config."
+            in output
+        )
