@@ -52,6 +52,7 @@ library
                       PostgREST.Auth.Types
                       PostgREST.Cache.Sieve
                       PostgREST.CLI
+                      PostgREST.Client
                       PostgREST.Config
                       PostgREST.Config.Database
                       PostgREST.Config.JSPath
@@ -118,6 +119,7 @@ library
                     , hasql-pool                >= 1.0.1 && < 1.1
                     , hasql-transaction         >= 1.0.1 && < 1.2
                     , heredoc                   >= 0.2 && < 0.3
+                    , http-client               >= 0.7.19 && < 0.8
                     , http-types                >= 0.12.2 && < 0.13
                     , insert-ordered-containers >= 0.2.2 && < 0.3
                     , iproute                   >= 1.7.0 && < 1.8

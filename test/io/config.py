@@ -95,3 +95,9 @@ def hpctixfile():
     # astronomically low.
     test = uuid.uuid4().hex[:12]
     return tixfile.with_suffix(f".{test}.tix")
+
+
+def get_admin_host_and_port_from_config(config):
+    admin_host = config.get("PGRST_ADMIN_SERVER_HOST", config["PGRST_SERVER_HOST"])
+    admin_port = config["PGRST_ADMIN_SERVER_PORT"]
+    return (admin_host, admin_port)
