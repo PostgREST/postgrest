@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE QuasiQuotes     #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -24,6 +25,7 @@ import PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.App      as App
 import qualified PostgREST.AppState as AppState
+import qualified PostgREST.Client   as Client
 import qualified PostgREST.Config   as Config
 
 import Protolude
@@ -31,16 +33,26 @@ import Protolude
 
 main :: CLI -> IO ()
 main CLI{cliCommand, cliPath} = do
-  conf@AppConfig{..} <-
+  conf <-
     either panic identity <$> Config.readAppConfig mempty cliPath Nothing mempty mempty
+  case cliCommand of
+    Client adminCmd -> runClientCommand conf adminCmd
+    Run runCmd      -> runAppCommand conf runCmd
 
+-- | Run command using http-client to communicate with an already running postgrest
+runClientCommand :: AppConfig -> ClientCommand -> IO ()
+runClientCommand conf CmdReady = Client.ready conf
+
+-- | Run postgrest with command
+runAppCommand :: AppConfig -> RunCommand -> IO ()
+runAppCommand conf@AppConfig{..} runCmd = do
   -- Per https://github.com/PostgREST/postgrest/issues/268, we want to
   -- explicitly close the connections to PostgreSQL on shutdown.
   -- 'AppState.destroy' takes care of that.
   bracket
     (AppState.init conf)
     AppState.destroy
-    (\appState -> case cliCommand of
+    (\appState -> case runCmd of
       CmdDumpConfig -> do
         when configDbConfig $ AppState.readInDbConfig True appState
         putStr . Config.toText =<< AppState.getConfig appState
@@ -71,6 +83,13 @@ data CLI = CLI
   }
 
 data Command
+  = Client ClientCommand
+  | Run RunCommand
+
+data ClientCommand
+  = CmdReady
+
+data RunCommand
   = CmdRun
   | CmdDumpConfig
   | CmdDumpSchema
@@ -105,7 +124,7 @@ readCLIShowHelp =
     cliParser :: O.Parser CLI
     cliParser =
       CLI
-        <$> (dumpConfigFlag <|> dumpSchemaFlag)
+        <$> (dumpConfigFlag <|> dumpSchemaFlag <|> readyFlag)
         <*> O.optional configFileOption
 
     configFileOption =
@@ -114,14 +133,20 @@ readCLIShowHelp =
         <> O.help "Path to configuration file"
 
     dumpConfigFlag =
-      O.flag CmdRun CmdDumpConfig $
+      O.flag (Run CmdRun) (Run CmdDumpConfig) $
         O.long "dump-config"
         <> O.help "Dump loaded configuration and exit"
 
     dumpSchemaFlag =
-      O.flag CmdRun CmdDumpSchema $
+      O.flag (Run CmdRun) (Run CmdDumpSchema) $
         O.long "dump-schema"
         <> O.help "Dump loaded schema as JSON and exit (for debugging, output structure is unstable)"
+
+    readyFlag =
+      O.flag (Run CmdRun) (Client CmdReady) $
+        O.long "ready"
+        <> O.help "Checks the health of PostgREST by doing a request on the admin server /ready endpoint"
+
 
 exampleConfigFile :: [Char]
 exampleConfigFile =
