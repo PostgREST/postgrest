@@ -109,10 +109,14 @@ postgrest logLevel appState connWorker =
             runExceptT $ postgrestResponse appState appConf maybeSchemaCache authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
-        -- Launch the connWorker when the connection is down.  The postgrest
+        -- Launch the connWorker when the connection is down. The postgrest
         -- function can respond successfully (with a stale schema cache) before
-        -- the connWorker is done.
-        when (isServiceUnavailable response) connWorker
+        -- the connWorker is done. However, when there's an empty schema cache
+        -- postgrest responds with the error `PGRST002`; this means that the schema
+        -- cache is still loading, so we don't launch the connWorker here because
+        -- it would duplicate the loading process, e.g. https://github.com/PostgREST/postgrest/issues/3704
+        -- TODO: this process may be unnecessary when the Listener is enabled. Revisit once https://github.com/PostgREST/postgrest/issues/1766 is done
+        when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
         resp <- do
           delay <- AppState.getNextDelay appState
           return $ addRetryHint delay response
