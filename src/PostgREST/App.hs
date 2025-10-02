@@ -44,8 +44,7 @@ import qualified PostgREST.Unix       as Unix (installSignalHandlers)
 import PostgREST.ApiRequest           (ApiRequest (..))
 import PostgREST.AppState             (AppState)
 import PostgREST.Auth.Types           (AuthResult (..))
-import PostgREST.Config               (AppConfig (..), LogLevel (..),
-                                       LogQuery (..))
+import PostgREST.Config               (AppConfig (..), LogLevel (..))
 import PostgREST.Error                (Error)
 import PostgREST.Network              (resolveSocketToAddress)
 import PostgREST.Observation          (Observation (..))
@@ -146,7 +145,7 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       observer = AppState.getObserver appState
-      obsQuery s = when (configLogQuery /= LogQueryDisabled) $ observer $ QueryObs mainQ s
+      obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
   (txTime, txResult) <- withTiming $ do
     case tx of

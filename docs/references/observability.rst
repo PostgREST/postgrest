@@ -52,14 +52,12 @@ For diagnostic information about the server itself, PostgREST logs to ``stderr``
 SQL Query Logs
 --------------
 
-To log the :ref:`main SQL query <main_query>` executed for a request, set the :ref:`log-query` to ``main-query``.
-It will be logged based on the current :ref:`log-level` setting.
-For example, with this configuration:
+To log the SQL queries executed for a request, set the :ref:`log-query` to ``true``. It will be logged based on the current :ref:`log-level` setting.
 
 .. code-block:: bash
 
   log-level = "warn"
-  log-query = "main-query"
+  log-query = "true"
 
 The SQL queries will only be logged on ``400`` HTTP errors and up.
 So, if the user requests a resource without sufficient privileges:
