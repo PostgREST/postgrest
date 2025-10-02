@@ -110,10 +110,12 @@ postgrest logLevel appState connWorker =
             runExceptT $ postgrestResponse appState appConf maybeSchemaCache authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
-        -- Launch the connWorker when the connection is down.  The postgrest
+        -- Launch the connWorker when the connection is down. The postgrest
         -- function can respond successfully (with a stale schema cache) before
-        -- the connWorker is done.
-        when (isServiceUnavailable response) connWorker
+        -- the connWorker is done. However it won't launch the connWorker if
+        -- the schema cache was not loaded beforehand, i.e. on startup.
+        -- TODO(wip): this looks a bit brittle, are there cases where this condition won't ever trigger the connWorker?
+        when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
         resp <- do
           delay <- AppState.getNextDelay appState
           return $ addRetryHint delay response
