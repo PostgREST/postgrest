@@ -37,6 +37,7 @@ data Observation
   | ExitDBNoRecoveryObs
   | ExitDBFatalError ObsFatalError SQL.UsageError
   | DBConnectedObs Text
+  | SchemaCacheEmptyObs
   | SchemaCacheErrorObs (NonEmpty Text) [Text] SQL.UsageError
   | SchemaCacheQueriedObs Double
   | SchemaCacheSummaryObs Text
@@ -88,6 +89,8 @@ observationMessage = \case
     "If you are using connection poolers in transaction mode, try setting db-prepared-statements to false. " <> jsonMessage usageErr
   ExitDBFatalError ServerError08P01 usageErr ->
     "Connection poolers in statement mode are not supported." <> jsonMessage usageErr
+  SchemaCacheEmptyObs ->
+    T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.NoSchemaCacheError
   SchemaCacheErrorObs dbSchemas extraPaths usageErr ->
     "Failed to load the schema cache using "
       <> "db-schemas=" <> T.intercalate "," (toList dbSchemas)

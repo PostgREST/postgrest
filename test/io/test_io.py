@@ -1871,6 +1871,27 @@ def test_pgrst_log_503_client_error_to_stderr(defaultenv):
         assert any(log_message in line for line in output)
 
 
+def test_log_error_when_empty_schema_cache_on_startup_to_stderr(defaultenv):
+    "Should log the 503 error message when there is an empty schema cache on startup"
+
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "300",
+    }
+
+    with run(env=env, wait_for_readiness=False) as postgrest:
+        postgrest.wait_until_scache_starts_loading()
+
+        response = postgrest.session.get("/projects")
+        assert response.status_code == 503
+
+        output_start = postgrest.read_stdout(nlines=10)
+
+        log_err_message = '{"code":"PGRST002","details":null,"hint":null,"message":"Could not query the database for the schema cache. Retrying."}'
+
+        assert any(log_err_message in line for line in output_start)
+
+
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])
 def test_log_pool_req_observation(level, defaultenv):
     "PostgREST should log PoolRequest and PoolRequestFullfilled observation when log-level=debug"

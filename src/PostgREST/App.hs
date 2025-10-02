@@ -126,11 +126,14 @@ postgrestResponse
   -> Wai.Request
   -> Handler IO Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthResult{..} req = do
+  let observer = AppState.getObserver appState
+
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
         return sCache
-      Nothing ->
+      Nothing -> do
+        lift $ observer SchemaCacheEmptyObs
         throwError Error.NoSchemaCacheError
 
   body <- lift $ Wai.strictRequestBody req
@@ -144,7 +147,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      observer = AppState.getObserver appState
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
   (txTime, txResult) <- withTiming $ do
