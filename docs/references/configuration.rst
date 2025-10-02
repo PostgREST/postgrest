@@ -714,23 +714,14 @@ log-query
 ---------
 
   =============== =================================
-  **Type**        String
-  **Default**     "disabled"
+  **Type**        Boolean
+  **Default**     False
   **Reloadable**  Y
   **Environment** PGRST_LOG_QUERY
   **In-Database** `n/a`
   =============== =================================
 
-  Logs the SQL query for the corresponding request at the current :ref:`log-level`.
-  See :ref:`sql_query_logs`.
-
-    .. code:: bash
-
-        # Logs the main SQL query
-        log-query = "main-query"
-
-        # Disables logging the SQL query
-        log-query = "disabled"
+  Logs the SQL query for the corresponding request at the current :ref:`log-level`. See :ref:`sql_query_logs`.
 
 .. _openapi-mode:
 

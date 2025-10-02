@@ -1013,7 +1013,7 @@ def test_log_query(level, defaultenv):
     env = {
         **defaultenv,
         "PGRST_LOG_LEVEL": level,
-        "PGRST_LOG_QUERY": "main-query",
+        "PGRST_LOG_QUERY": "true",
     }
 
     with run(env=env) as postgrest:
