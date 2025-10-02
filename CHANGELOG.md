@@ -12,6 +12,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix not logging transaction variables and db-pre-request function when `log-query=main-query` is enabled by @steve-chavez in #3934
 - Fix loading utf-8 config files with `ASCII` locale set in #4386
 - Fix not logging the JSON message to stderr on a `PGRST002` error by @laurenceisla in #4129
+- Fix reloading the Schema Cache unnecessarily on a `PGRST002` error by @laurenceisla in #4367
 
 ### Added
 
