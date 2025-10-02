@@ -14,14 +14,13 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 - Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
+  + It now uses a fixed size cache instead of arbitrary sized cache.
 - Add `--ready` flag for postgrest healthcheck by @taimoorzaeem in #4239
 
 ### Changed
 
 - Drop support for PostgreSQL EOL version 12 by @wolfgangwalther in #3865
-- Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
-  + Replaces `jwt-cache-max-lifetime` config with `jwt-cache-max-entries`.
-  + It now uses a fixed size cache instead of arbitrary sized cache.
+- Replaced `jwt-cache-max-lifetime` config with `jwt-cache-max-entries` by @mkleczek in #4084
 
 ## [13.0.7] - 2025-09-14
 
