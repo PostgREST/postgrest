@@ -1,10 +1,8 @@
 "Sanity checks for the PostgREST black box testing infrastructure."
 
 import pytest
-from config import *
-from util import *
 
-from postgrest import *
+from postgrest import freeport, run
 
 
 def test_port_connection(defaultenv):

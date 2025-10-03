@@ -1,10 +1,9 @@
 "IO tests for PostgREST started on the big schema."
 
 import pytest
-from config import *
-from util import *
+from util import parse_server_timings_header
 
-from postgrest import *
+from postgrest import run
 
 
 def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaultenv):

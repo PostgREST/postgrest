@@ -6,10 +6,10 @@ from operator import attrgetter
 
 import pytest
 import yaml
-from config import *
+from config import CONFIGSDIR, FIXTURES, POSTGREST_BIN, get_admin_host_and_port_from_config, hpctixfile
 from syrupy.extensions.json import SingleFileSnapshotExtension
 
-from postgrest import *
+from postgrest import freeport, is_ipv6, run, set_statement_timeout
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
