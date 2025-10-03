@@ -13,8 +13,7 @@ import urllib.parse
 import pytest
 import requests
 import requests_unixsocket
-
-from config import *
+from config import POSTGREST_BIN, hpctixfile
 
 
 def sleep_until_postgrest_scache_reload():
@@ -75,9 +74,7 @@ class PostgrestProcess:
     def wait_until_scache_starts_loading(self, max_seconds=1):
         "Wait for the admin /ready return a status of 503"
 
-        wait_until_status_code(
-            self.admin.baseurl + "/ready", max_seconds=max_seconds, status_code=503
-        )
+        wait_until_status_code(self.admin.baseurl + "/ready", max_seconds=max_seconds, status_code=503)
 
 
 @contextlib.contextmanager
@@ -153,7 +150,7 @@ def run(
             process.terminate()
             try:
                 process.wait(timeout=1)
-            except:
+            except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
 
@@ -239,9 +236,7 @@ def set_statement_timeout(postgrest, role, milliseconds):
     For this to work reliably with low previous timeout settings,
     use a postgrest instance that doesn't use the affected role."""
 
-    response = postgrest.session.post(
-        "/rpc/set_statement_timeout", data={"role": role, "milliseconds": milliseconds}
-    )
+    response = postgrest.session.post("/rpc/set_statement_timeout", data={"role": role, "milliseconds": milliseconds})
     assert response.text == ""
     assert response.status_code == 204
 

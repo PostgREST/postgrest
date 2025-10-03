@@ -1,16 +1,27 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from datetime import datetime, timedelta, timezone
-from operator import attrgetter
 import os
 import re
 import signal
 import time
-import pytest
+from datetime import datetime, timedelta, timezone
+from operator import attrgetter
 
-from config import *
-from util import *
-from postgrest import *
+import pytest
+from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
+from util import Thread, authheader, jwtauthheader, parse_server_timings_header
+
+from postgrest import (
+    freeport,
+    is_ipv6,
+    reset_statement_timeout,
+    run,
+    set_statement_timeout,
+    sleep_until_postgrest_config_reload,
+    sleep_until_postgrest_full_reload,
+    sleep_until_postgrest_scache_reload,
+    wait_until_exit,
+)
 
 
 @pytest.mark.parametrize(
@@ -69,18 +80,15 @@ def test_jwt_errors(defaultenv):
 
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
 
-    relativeSeconds = lambda sec: int(
-        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
-    )
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
     with run(env=env) as postgrest:
         headers = jwtauthheader({}, "other secret")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "No suitable key or wrong key type"
-        assert (
-            response.json()["details"] == "None of the keys was able to decode the JWT"
-        )
+        assert response.json()["details"] == "None of the keys was able to decode the JWT"
 
         headers = jwtauthheader({"role": "not_existing"}, SECRET)
         response = postgrest.session.get("/", headers=headers)
@@ -123,16 +131,11 @@ def test_jwt_errors(defaultenv):
         assert response.json()["message"] == "JWT cryptographic operation failed"
 
         # token with algorithm "none"
-        headers = authheader(
-            "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI"
-        )
+        headers = authheader("eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.e30.yOBhlOIqn56T-4NvyEXCjfi3UmyQZ-BzXtePMO2NgRI")
         response = postgrest.session.get("/", headers=headers)
         assert response.status_code == 401
         assert response.json()["message"] == "Wrong or unsupported encoding algorithm"
-        assert (
-            response.json()["details"]
-            == "JWT is unsecured but expected 'alg' was not 'none'"
-        )
+        assert response.json()["details"] == "JWT is unsecured but expected 'alg' was not 'none'"
 
     env = {
         **defaultenv,
@@ -163,7 +166,7 @@ def test_jwt_errors(defaultenv):
 
 def test_fail_with_invalid_password(defaultenv):
     "Connecting with an invalid password should fail without retries."
-    uri = f'postgresql://?dbname={defaultenv["PGDATABASE"]}&host={defaultenv["PGHOST"]}&user=some_protected_user&password=invalid_pass'
+    uri = f"postgresql://?dbname={defaultenv['PGDATABASE']}&host={defaultenv['PGHOST']}&user=some_protected_user&password=invalid_pass"
     env = {**defaultenv, "PGRST_DB_URI": uri}
     with run(env=env, wait_for_readiness=False) as postgrest:
         exitCode = wait_until_exit(postgrest)
@@ -173,9 +176,7 @@ def test_fail_with_invalid_password(defaultenv):
 def test_connect_with_dburi(dburi, defaultenv):
     "Connecting with db-uri instead of LIPQ* environment variables should work."
     defaultenv_without_libpq = {
-        key: value
-        for key, value in defaultenv.items()
-        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+        key: value for key, value in defaultenv.items() if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
     }
     env = {**defaultenv_without_libpq, "PGRST_DB_URI": dburi.decode()}
     with run(env=env):
@@ -185,9 +186,7 @@ def test_connect_with_dburi(dburi, defaultenv):
 def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
     "Reading the dburi from stdin with a single line should work."
     defaultenv_without_libpq = {
-        key: value
-        for key, value in defaultenv.items()
-        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+        key: value for key, value in defaultenv.items() if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
     }
     env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
 
@@ -198,9 +197,7 @@ def test_read_dburi_from_stdin_without_eol(dburi, defaultenv):
 def test_read_dburi_from_stdin_with_eol(dburi, defaultenv):
     "Reading the dburi from stdin containing a newline should work."
     defaultenv_without_libpq = {
-        key: value
-        for key, value in defaultenv.items()
-        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+        key: value for key, value in defaultenv.items() if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
     }
     env = {**defaultenv_without_libpq, "PGRST_DB_URI": "@/dev/stdin"}
 
@@ -208,9 +205,7 @@ def test_read_dburi_from_stdin_with_eol(dburi, defaultenv):
         pass
 
 
-@pytest.mark.parametrize(
-    "roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"]
-)
+@pytest.mark.parametrize("roleclaim", FIXTURES["roleclaims"], ids=lambda claim: claim["key"])
 def test_role_claim_key(roleclaim, defaultenv):
     "Authorization should depend on a correct role-claim-key and JWT claim."
     env = {
@@ -318,7 +313,7 @@ def test_flush_pool_no_interrupt(defaultenv):
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
-    with run(env=defaultenv, port="0") as postgrest:
+    with run(env=defaultenv, port="0"):
         assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
 
 
@@ -428,9 +423,7 @@ def test_db_schema_reload(tmp_path, defaultenv):
         assert response.text == '"\\"public\\", \\"public\\""'
 
         # change setting
-        configfile.write_text(
-            config.replace('db-schemas = "public"', 'db-schemas = "v1"')
-        )
+        configfile.write_text(config.replace('db-schemas = "public"', 'db-schemas = "v1"'))
 
         # reload config
         postgrest.process.send_signal(signal.SIGUSR2)
@@ -454,9 +447,7 @@ def test_db_schema_notify_reload(defaultenv):
         assert response.text == '"\\"public\\", \\"public\\""'
 
         # change db-schemas config on the db and reload config and cache with notify
-        postgrest.session.post(
-            "/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"}
-        )
+        postgrest.session.post("/rpc/change_db_schema_and_full_reload", data={"schemas": "v1"})
 
         sleep_until_postgrest_full_reload()
 
@@ -514,9 +505,7 @@ def test_max_rows_notify_reload(defaultenv):
         assert response.headers["Content-Range"] == "0-4/*"
 
         # change max-rows config on the db and reload with notify
-        postgrest.session.post(
-            "/rpc/change_max_rows_config", data={"val": 1, "notify": True}
-        )
+        postgrest.session.post("/rpc/change_max_rows_config", data={"val": 1, "notify": True})
 
         sleep_until_postgrest_config_reload()
 
@@ -714,10 +703,7 @@ def test_pool_acquisition_timeout(level, defaultenv, metapostgrest):
             assert len(output) == 0
         else:
             assert any(" 504 " in line for line in output)
-            assert any(
-                "Timed out acquiring connection from connection pool." in line
-                for line in output
-            )
+            assert any("Timed out acquiring connection from connection pool." in line for line in output)
 
 
 def test_change_statement_timeout_held_connection(defaultenv, metapostgrest):
@@ -866,11 +852,7 @@ def test_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
         response = postgrest.admin.get("/metrics", timeout=1)
         assert response.status_code == 200
 
-        metrics = float(
-            re.search(
-                r'pgrst_schema_cache_loads_total{status="FAIL"} (\d+)', response.text
-            ).group(1)
-        )
+        metrics = float(re.search(r'pgrst_schema_cache_loads_total{status="FAIL"} (\d+)', response.text).group(1))
         assert metrics == 1.0
 
     reset_statement_timeout(metapostgrest, role)
@@ -1023,38 +1005,32 @@ def test_log_query(level, defaultenv):
         response = postgrest.session.get("/projects")
         assert response.status_code == 200
 
-        response = postgrest.session.get(
-            "/projects", headers={"Prefer": "count=estimated"}
-        )
+        response = postgrest.session.get("/projects", headers={"Prefer": "count=estimated"})
         assert response.status_code == 206
 
-        response = postgrest.session.get(
-            "/projects", headers={"Prefer": "count=planned"}
-        )
+        response = postgrest.session.get("/projects", headers={"Prefer": "count=planned"})
         assert response.status_code == 206
 
         response = postgrest.session.get("/infinite_recursion")
         assert response.status_code == 500
 
-        get_2xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
-        get_2xx_count_regx = (
-            r'.+: EXPLAIN \(FORMAT JSON\) SELECT 1  FROM "public"."projects"'
+        get_2xx_regx = (
+            r'.+: WITH pgrst_source AS.+SELECT "public"\."projects"\.\* FROM "public"\."projects".+_postgrest_t'
         )
+        get_2xx_count_regx = r'.+: EXPLAIN \(FORMAT JSON\) SELECT 1  FROM "public"."projects"'
         infinite_recursion_5xx_regx = r'.+: WITH pgrst_source AS.+SELECT "public"\."infinite_recursion"\.\* FROM "public"\."infinite_recursion".+_postgrest_t'
-        root_tables_regx = r".+: SELECT   n.nspname AS table_schema, .+ FROM pg_class c .+ ORDER BY table_schema, table_name"
+        root_tables_regx = (
+            r".+: SELECT   n.nspname AS table_schema, .+ FROM pg_class c .+ ORDER BY table_schema, table_name"
+        )
         root_procs_regx = r".+: WITH base_types AS \(.+\) SELECT   pn.nspname AS proc_schema, .+ FROM pg_proc p.+AND p.pronamespace = \$1::regnamespace"
         root_descr_regx = r".+: SELECT pg_catalog\.obj_description\(\$1::regnamespace, 'pg_namespace'\)"
-        set_config_regx = (
-            r".+: select set_config\('search_path', \$1, true\), set_config\("
-        )
+        set_config_regx = r".+: select set_config\('search_path', \$1, true\), set_config\("
 
         output = drain_stdout(postgrest)
 
         project_queries = [line for line in output if re.match(get_2xx_regx, line)]
         project_counts = [line for line in output if re.match(get_2xx_count_regx, line)]
-        infinite_queries = [
-            line for line in output if re.match(infinite_recursion_5xx_regx, line)
-        ]
+        infinite_queries = [line for line in output if re.match(infinite_recursion_5xx_regx, line)]
         root_tables = [line for line in output if re.match(root_tables_regx, line)]
         root_procs = [line for line in output if re.match(root_procs_regx, line)]
         root_descr = [line for line in output if re.match(root_descr_regx, line)]
@@ -1176,9 +1152,7 @@ def test_notify_reloading_catalog_cache(defaultenv):
 
     with run(env=defaultenv) as postgrest:
         # first the id col is an uuid
-        response = postgrest.session.get(
-            "/cats?id=eq.dea27321-f988-4a57-93e4-8eeb38f3cf1e"
-        )
+        response = postgrest.session.get("/cats?id=eq.dea27321-f988-4a57-93e4-8eeb38f3cf1e")
         assert response.status_code == 200
 
         # change it to a bigint
@@ -1206,9 +1180,7 @@ def test_role_settings(defaultenv):
         assert response.text == '"2s"'
 
         # reload statement_timeout with NOTIFY
-        response = postgrest.session.post(
-            "/rpc/change_role_statement_timeout", data={"timeout": "5s"}
-        )
+        response = postgrest.session.post("/rpc/change_role_statement_timeout", data={"timeout": "5s"})
         assert response.text == ""
         assert response.status_code == 204
 
@@ -1222,15 +1194,11 @@ def test_role_settings(defaultenv):
 
         # statement_timeout for postgrest_test_author
         headers = jwtauthheader({"role": "postgrest_test_author"}, SECRET)
-        response = postgrest.session.get(
-            "/rpc/get_guc_value?name=statement_timeout", headers=headers
-        )
+        response = postgrest.session.get("/rpc/get_guc_value?name=statement_timeout", headers=headers)
         assert response.text == '"10s"'
 
         # reset statement timeout to original value
-        response = postgrest.session.post(
-            "/rpc/change_role_statement_timeout", data={"timeout": "2s"}
-        )
+        response = postgrest.session.post("/rpc/change_role_statement_timeout", data={"timeout": "2s"})
         assert response.status_code == 204
 
 
@@ -1244,16 +1212,12 @@ def test_isolation_level(defaultenv):
 
     with run(env=env) as postgrest:
         # default isolation level for postgrest_test_anonymous
-        response = postgrest.session.get(
-            "/items_w_isolation_level?select=isolation_level&limit=1"
-        )
+        response = postgrest.session.get("/items_w_isolation_level?select=isolation_level&limit=1")
         assert response.text == '[{"isolation_level":"read committed"}]'
 
         # isolation level for postgrest_test_repeatable_read on GET
         headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
-        response = postgrest.session.get(
-            "/items_w_isolation_level?select=isolation_level&limit=1", headers=headers
-        )
+        response = postgrest.session.get("/items_w_isolation_level?select=isolation_level&limit=1", headers=headers)
         assert response.text == '[{"isolation_level":"repeatable read"}]'
 
         # isolation level for postgrest_test_serializable on POST
@@ -1290,9 +1254,7 @@ def test_isolation_level(defaultenv):
 
         # changes with role isolation level
         headers = jwtauthheader({"role": "postgrest_test_repeatable_read"}, SECRET)
-        response = postgrest.session.get(
-            "/rpc/default_isolation_level", headers=headers
-        )
+        response = postgrest.session.get("/rpc/default_isolation_level", headers=headers)
         assert response.text == '"repeatable read"'
 
         # isolation level can be set per function
@@ -1310,9 +1272,7 @@ def test_isolation_level(defaultenv):
 def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
     "schema cache should be up-to-date whenever a notification is sent while another reload is in progress, see https://github.com/PostgREST/postgrest/issues/2791"
 
-    internal_sleep = (
-        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"]) / 1000
-    )
+    internal_sleep = int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"]) / 1000
 
     with run(env=slow_schema_cache_env, wait_for_readiness=False) as postgrest:
         time.sleep(2 * internal_sleep + 0.1)  # wait for readiness manually
@@ -1322,18 +1282,14 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         assert response.text == ""
         assert response.status_code == 204
 
-        time.sleep(
-            internal_sleep / 2
-        )  # wait to be inside the schema cache reload process
+        time.sleep(internal_sleep / 2)  # wait to be inside the schema cache reload process
 
         # second request, change the same function and do another schema cache reload
         response = postgrest.session.post("/rpc/migrate_function")
         assert response.text == ""
         assert response.status_code == 204
 
-        time.sleep(
-            2 * internal_sleep
-        )  # wait enough time to get the final schema cache state
+        time.sleep(2 * internal_sleep)  # wait enough time to get the final schema cache state
 
         # confirm the schema cache is up-to-date and the 2nd reload wasn't lost
         response = postgrest.session.get("/rpc/mult_them?c=3&d=4")
@@ -1345,9 +1301,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
 def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
     defaultenv_without_libpq = {
-        key: value
-        for key, value in defaultenv.items()
-        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+        key: value for key, value in defaultenv.items() if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
     }
 
     env = {
@@ -1358,27 +1312,21 @@ def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, default
 
     with run(env=env[dburi_type]) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        version = '"%s"' % response.headers["Server"].replace(
-            "postgrest/", "PostgREST "
-        )
+        version = '"%s"' % response.headers["Server"].replace("postgrest/", "PostgREST ")
         assert response.text == version
 
 
 def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a keyword/value format"
-    uri = f'dbname={defaultenv["PGDATABASE"]} host={defaultenv["PGHOST"]} user={defaultenv["PGUSER"]}'
+    uri = f"dbname={defaultenv['PGDATABASE']} host={defaultenv['PGHOST']} user={defaultenv['PGUSER']}"
     defaultenv_without_libpq = {
-        key: value
-        for key, value in defaultenv.items()
-        if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
+        key: value for key, value in defaultenv.items() if key not in ["PGDATABASE", "PGHOST", "PGUSER"]
     }
     env = {**defaultenv_without_libpq, "PGRST_DB_URI": uri}
 
     with run(env=env) as postgrest:
         response = postgrest.session.post("/rpc/get_pgrst_version")
-        version = '"%s"' % response.headers["Server"].replace(
-            "postgrest/", "PostgREST "
-        )
+        version = '"%s"' % response.headers["Server"].replace("postgrest/", "PostgREST ")
         assert response.text == version
 
 
@@ -1387,7 +1335,7 @@ def test_log_postgrest_version(defaultenv):
 
     env = {**defaultenv, "PGRST_LOG_LEVEL": "crit"}
 
-    with run(env=defaultenv, no_startup_stdout=False) as postgrest:
+    with run(env=env, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
         output = postgrest.read_stdout(nlines=1)
@@ -1395,9 +1343,7 @@ def test_log_postgrest_version(defaultenv):
         assert "Starting PostgREST %s..." % version in output[0]
 
 
-@pytest.mark.parametrize(
-    "host", ["127.0.0.1", "::1", None], ids=["IPv4", "IPv6", "Unix"]
-)
+@pytest.mark.parametrize("host", ["127.0.0.1", "::1", None], ids=["IPv4", "IPv6", "Unix"])
 def test_log_postgrest_host_and_port(host, defaultenv):
     "PostgREST should output the host and port it is bound to."
 
@@ -1405,9 +1351,7 @@ def test_log_postgrest_host_and_port(host, defaultenv):
     is_unix = host is None
     port = None if is_unix else freeport()
 
-    with run(
-        env=defaultenv, host=host, port=port, no_startup_stdout=False
-    ) as postgrest:
+    with run(env=defaultenv, host=host, port=port, no_startup_stdout=False) as postgrest:
         output = postgrest.read_stdout(nlines=10)
 
         if is_unix:
@@ -1439,19 +1383,15 @@ def test_get_granted_superuser_setting(defaultenv):
         response_ver = postgrest.session.get("/rpc/get_postgres_version")
         pg_ver = eval(response_ver.text)
         if pg_ver >= 150000:
-            headers = jwtauthheader(
-                {"role": "postgrest_test_w_superuser_settings"}, SECRET
-            )
-            response = postgrest.session.get(
-                "/rpc/get_guc_value?name=log_min_duration_sample", headers=headers
-            )
+            headers = jwtauthheader({"role": "postgrest_test_w_superuser_settings"}, SECRET)
+            response = postgrest.session.get("/rpc/get_guc_value?name=log_min_duration_sample", headers=headers)
             assert response.text == '"12345ms"'
 
 
 def test_fail_with_invalid_dbname_and_automatic_recovery_disabled(defaultenv):
     "Should fail without retries when automatic recovery is disabled and dbname is invalid"
     dbname = "INVALID"
-    uri = f'postgresql://?dbname={dbname}&host={defaultenv["PGHOST"]}&user={defaultenv["PGUSER"]}'
+    uri = f"postgresql://?dbname={dbname}&host={defaultenv['PGHOST']}&user={defaultenv['PGUSER']}"
     env = {
         **defaultenv,
         "PGRST_DB_URI": uri,
@@ -1497,9 +1437,7 @@ def test_jwt_cache_server_timing(defaultenv):
     headers = jwtauthheader(
         {
             "role": "postgrest_test_author",
-            "exp": int(
-                (datetime.now(timezone.utc) + timedelta(minutes=30)).timestamp()
-            ),
+            "exp": int((datetime.now(timezone.utc) + timedelta(minutes=30)).timestamp()),
         },
         SECRET,
     )
@@ -1726,13 +1664,9 @@ def test_multiple_func_settings(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get(
-            "/rpc/rpc_with_two_hoisted?select=get_work_mem,get_statement_timeout"
-        )
+        response = postgrest.session.get("/rpc/rpc_with_two_hoisted?select=get_work_mem,get_statement_timeout")
 
-        assert (
-            response.text == '{"get_work_mem":"5000kB","get_statement_timeout":"10s"}'
-        )
+        assert response.text == '{"get_work_mem":"5000kB","get_statement_timeout":"10s"}'
 
 
 def test_first_hoisted_setting_is_applied(defaultenv):
@@ -1744,9 +1678,7 @@ def test_first_hoisted_setting_is_applied(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get(
-            "/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout"
-        )
+        response = postgrest.session.get("/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout")
 
         assert response.text == '{"get_work_mem":"3000kB","get_statement_timeout":"2s"}'
 
@@ -1760,9 +1692,7 @@ def test_second_hoisted_setting_is_applied(defaultenv):
     }
 
     with run(env=env) as postgrest:
-        response = postgrest.session.get(
-            "/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout"
-        )
+        response = postgrest.session.get("/rpc/rpc_with_one_hoisted?select=get_work_mem,get_statement_timeout")
 
         assert response.text == '{"get_work_mem":"4MB","get_statement_timeout":"7s"}'
 
@@ -1805,14 +1735,11 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
     # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
     # This test is written for code coverage of purgeExpired function
 
-    relativeSeconds = lambda sec: int(
-        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
-    )
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
-    headers = lambda sec: jwtauthheader(
-        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
-        SECRET,
-    )
+    def headers(sec):
+        return jwtauthheader({"role": "postgrest_test_author", "exp": relativeSeconds(sec)}, SECRET)
 
     env = {
         **defaultenv,
@@ -1822,7 +1749,6 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
     }
 
     with run(env=env) as postgrest:
-
         # Generate two unique JWT tokens
         # The 1 second sleep is needed for it generate a unique token
         hdrs1 = headers(5)
@@ -1856,7 +1782,6 @@ def test_pgrst_log_503_client_error_to_stderr(defaultenv):
     }
 
     with run(env=env) as postgrest:
-
         postgrest.session.get("/rpc/terminate_pgrst?appname=test-io")
 
         output = postgrest.read_stdout(nlines=6)
@@ -1878,7 +1803,6 @@ def test_log_pool_req_observation(level, defaultenv):
     pool_req_fullfill = "Borrowed a connection from the pool"
 
     with run(env=env) as postgrest:
-
         postgrest.session.get("/authors_only", headers=headers)
 
         if level == "debug":
@@ -1976,10 +1900,7 @@ def test_schema_cache_error_observation(defaultenv):
         # assert exitCode == 1
 
         output = postgrest.read_stdout(nlines=9)
-        assert (
-            "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x"
-            in output[7]
-        )
+        assert "Failed to load the schema cache using db-schemas=public and db-extra-search-path=x" in output[7]
 
 
 def test_log_listener_connection_errors(defaultenv):

@@ -1,14 +1,15 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from operator import attrgetter
 import signal
 import subprocess
-import pytest
-from syrupy.extensions.json import SingleFileSnapshotExtension
-import yaml
+from operator import attrgetter
 
-from config import *
-from postgrest import *
+import pytest
+import yaml
+from config import CONFIGSDIR, FIXTURES, POSTGREST_BIN, get_admin_host_and_port_from_config, hpctixfile
+from syrupy.extensions.json import SingleFileSnapshotExtension
+
+from postgrest import freeport, is_ipv6, run, set_statement_timeout
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):
@@ -69,15 +70,11 @@ def cli(args, env=None, stdin=None, expect_error=False):
         (stdout_output, stderr_output) = process.communicate(timeout=5)
         if expect_error:  # When expected to fail, return stderr, else stdout
             if process.returncode == 0:
-                raise PostgrestError(
-                    "PostgREST unexpectedly exited with return code zero."
-                )
+                raise PostgrestError("PostgREST unexpectedly exited with return code zero.")
             return stderr_output.decode()
         else:
             if process.returncode != 0:
-                raise PostgrestError(
-                    "PostgREST unexpectedly exited with non-zero return code."
-                )
+                raise PostgrestError("PostgREST unexpectedly exited with non-zero return code.")
             return stdout_output.decode()
     finally:
         process.kill()
@@ -349,10 +346,7 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
         (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
 
-        assert (
-            f"ERROR: connection refused to http://{admin_host}:{admin_port}/ready"
-            in output
-        )
+        assert f"ERROR: connection refused to http://{admin_host}:{admin_port}/ready" in output
 
     # When client sends the request to invalid URL
     with run(env=defaultenv, port=port) as postgrest:
@@ -386,7 +380,4 @@ def test_cli_ready_flag_fail_when_no_admin_server(defaultenv):
         postgrest.config["PGRST_ADMIN_SERVER_PORT"] = ""
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
 
-        assert (
-            "ERROR: Admin server is not running. Please check admin-server-port config."
-            in output
-        )
+        assert "ERROR: Admin server is not running. Please check admin-server-port config." in output
