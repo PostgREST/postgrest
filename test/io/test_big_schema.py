@@ -28,9 +28,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
         response = postgrest.session.get("/tpopmassn?select=*,tpop(*)")
         assert response.status_code == 200
 
-        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[
-            "plan"
-        ]
+        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])["plan"]
         assert plan_dur > 10000.0
 
 
@@ -55,9 +53,7 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
         response = postgrest.session.get("/tpopmassn")
         assert response.status_code == 200
 
-        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[
-            "plan"
-        ]
+        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])["plan"]
         assert plan_dur < 10000.0
 
 

@@ -51,9 +51,7 @@ def append_targets(lines: list[str], token: str):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate Vegeta targets with unique JWTs"
-    )
+    parser = argparse.ArgumentParser(description="Generate Vegeta targets with unique JWTs")
     parser.add_argument(
         "output",
         help="Path to write the generated targets file",
