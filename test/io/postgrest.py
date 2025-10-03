@@ -151,7 +151,7 @@ def run(
             process.terminate()
             try:
                 process.wait(timeout=1)
-            except:
+            except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
 
