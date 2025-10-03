@@ -80,7 +80,8 @@ def test_jwt_errors(defaultenv):
 
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
 
-    relativeSeconds = lambda sec: int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
     with run(env=env) as postgrest:
         headers = jwtauthheader({}, "other secret")
@@ -1734,12 +1735,11 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
     # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
     # This test is written for code coverage of purgeExpired function
 
-    relativeSeconds = lambda sec: int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
-    headers = lambda sec: jwtauthheader(
-        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
-        SECRET,
-    )
+    def headers(sec):
+        return jwtauthheader({"role": "postgrest_test_author", "exp": relativeSeconds(sec)}, SECRET)
 
     env = {
         **defaultenv,
