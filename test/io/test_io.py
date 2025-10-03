@@ -301,7 +301,7 @@ def test_flush_pool_no_interrupt(defaultenv):
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
-    with run(env=defaultenv, port="0") as postgrest:
+    with run(env=defaultenv, port="0"):
         assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
 
 
@@ -1323,7 +1323,7 @@ def test_log_postgrest_version(defaultenv):
 
     env = {**defaultenv, "PGRST_LOG_LEVEL": "crit"}
 
-    with run(env=defaultenv, no_startup_stdout=False) as postgrest:
+    with run(env=env, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
         output = postgrest.read_stdout(nlines=1)
