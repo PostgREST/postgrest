@@ -315,8 +315,8 @@ pgFmtFullSelName aggAlias fieldName = case fieldName of
   _   -> pgFmtIdent aggAlias <> "." <> pgFmtIdent fieldName
 
 -- TODO: At this stage there shouldn't be a Maybe since ApiRequest should ensure that an INSERT/UPDATE has a body
-fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> SQL.Snippet
-fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
+fromJsonBodyF :: Maybe LBS.ByteString -> [CoercibleField] -> Bool -> Bool -> Bool -> Bool -> SQL.Snippet
+fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults isPgrstPatch =
   selectClause <> fromClause <> defaultsClause <> lateralClause <> " pgrst_body "
   where
     selectClause = if includeSelect then "SELECT " <> namedCols <> " " else mempty
@@ -346,12 +346,25 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
         extractFieldDefault CoercibleField{cfName=nam, cfDefault=Just def} = Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
         extractFieldDefault CoercibleField{cfDefault=Nothing}              = Nothing
 
-    (finalBodyF, jsonArrayElementsF, jsonToRecordsetF) =
+    (finalBodyF, jsonArrayElementsF, jsonToRecordsetF, jsonObjectAggF, jsonCastF, jsonBuildArrayF) =
       if includeDefaults
-        then ("pgrst_json_defs.val", "jsonb_array_elements", if isJsonObject then "jsonb_to_record" else "jsonb_to_recordset")
-        else ("pgrst_payload.json_data", "json_array_elements", if isJsonObject then "json_to_record" else "json_to_recordset")
-
-    jsonPlaceHolder = SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
+        then ("pgrst_json_defs.val", "jsonb_array_elements", if isJsonObject then "jsonb_to_record" else "jsonb_to_recordset", "jsonb_object_agg", "::jsonb", "jsonb_build_array")
+        else ("pgrst_payload.json_data", "json_array_elements", if isJsonObject then "json_to_record" else "json_to_recordset", "json_object_agg", "::json", "json_build_array")
+    jsonPlaceHolder =
+      if isPgrstPatch
+        -- For pgrst patch updates, given json:
+        --   [{"op":"set","path":"name","value":"john"},
+        --    {"op":"set","path":"age" ,"value":20}]
+        -- We extract the key,values using pg json functions and convert
+        -- it to a regular json, so we get: {"name":"john","age": 20}.
+        then
+          "( SELECT " <> jsonBuildArrayF <> "( " <> jsonObjectAggF <> "(patch_row ->> 'path', patch_row ->> 'value') ) "
+          <> "FROM " <> jsonArrayElementsF <> "("
+          <> SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
+          <> jsonCastF <> ") as patch_row )"
+        -- For regular updates, we encode the complete body as is, e.g {"name":"john","age":20}
+        else
+          SQL.encoderAndParam (HE.nullable $ if includeDefaults then HE.jsonbLazyBytes else HE.jsonLazyBytes) body
     isJsonObject = -- light validation as pg's json_to_record(set) already validates that the body is valid JSON. We just need to know whether the body looks like an object or not.
       LBS.take 1 (LBS.dropWhile (`elem` insignificantWhitespace) (fromMaybe mempty body)) == "{"
         where

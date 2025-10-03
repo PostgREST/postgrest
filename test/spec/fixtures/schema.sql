@@ -3846,3 +3846,8 @@ $$ language sql;
 
 create function do_nothing() returns void as $_$
 $_$ language sql;
+
+CREATE TABLE test_pgrst_patch (
+  id INTEGER PRIMARY KEY,
+  name TEXT
+);
