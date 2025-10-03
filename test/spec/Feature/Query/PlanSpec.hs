@@ -145,6 +145,22 @@ spec actualPgVersion = do
         resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
         totalCost `shouldBe` 8.23
 
+    it "outputs the total cost for a pgrst patch" $ do
+      r <- request methodPatch "/projects?id=eq.3"
+          [("Accept","application/vnd.pgrst.plan+json"),
+           ("Content-Type","application/vnd.pgrst.patch+json")]
+          [json|[{"op":"set","path":"name","value":"Patched Project"}]|]
+
+      let totalCost  = planCost r
+          resHeaders = simpleHeaders r
+          resStatus  = simpleStatus r
+
+      liftIO $ do
+        resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; charset=utf-8")
+        resHeaders `shouldSatisfy` notZeroContentLength
+        resStatus `shouldBe` Status { statusCode = 200, statusMessage="OK" }
+        totalCost `shouldBe` 14.21
+
     it "outputs the total cost for a delete" $ do
       r <- request methodDelete "/projects?id=in.(1,2,3)"
              (acceptHdrs "application/vnd.pgrst.plan+json") ""

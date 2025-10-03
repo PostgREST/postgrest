@@ -996,8 +996,8 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
   case mutation of
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
-    MutationUpdate ->
-      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults) typedColumnsOrError
+    MutationUpdate pgrstPatch ->
+      mapRight (\typedColumns -> Update qi typedColumns body combinedLogic returnings applyDefaults pgrstPatch) typedColumnsOrError
     MutationSingleUpsert ->
         if null qsLogic &&
            qsFilterFields == S.fromList pkCols &&

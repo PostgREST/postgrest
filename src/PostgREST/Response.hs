@@ -82,7 +82,6 @@ actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, cru
                                      Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
         | headersOnly              = mempty
         | otherwise                = LBS.fromStrict rsBody
-
   (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers
 
   Right $ PgrstResponse ovStatus ovHeaders bod
@@ -125,7 +124,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate _, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
   let
     contentRangeHeader =
       Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
