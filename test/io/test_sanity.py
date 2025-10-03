@@ -21,5 +21,5 @@ def test_plain_get(defaultenv):
 def test_no_pool_connection_available(defaultenv):
     "no_pool_connection_available option is functional"
     with run(env=defaultenv, no_pool_connection_available=True) as postgrest:
-        with pytest.raises(Exception) as e:
+        with pytest.raises(Exception):
             postgrest.session.get("/projects", timeout=1)

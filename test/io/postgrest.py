@@ -63,9 +63,9 @@ class PostgrestProcess:
         output = []
         for _ in range(10):
             self.process.stdout.flush()
-            l = self.process.stdout.readline()
-            if l:
-                output.append(l.decode())
+            line = self.process.stdout.readline()
+            if line:
+                output.append(line.decode())
                 if len(output) >= nlines:
                     break
             time.sleep(0.1)
@@ -152,7 +152,7 @@ def run(
             process.terminate()
             try:
                 process.wait(timeout=1)
-            except:
+            except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait()
 

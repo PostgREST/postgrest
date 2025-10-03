@@ -79,9 +79,8 @@ def test_jwt_errors(defaultenv):
 
     env = {**defaultenv, "PGRST_JWT_SECRET": SECRET, "PGRST_JWT_AUD": "io tests"}
 
-    relativeSeconds = lambda sec: int(
-        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
-    )
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
     with run(env=env) as postgrest:
         headers = jwtauthheader({}, "other secret")
@@ -328,7 +327,7 @@ def test_flush_pool_no_interrupt(defaultenv):
 def test_random_port_bound(defaultenv):
     "PostgREST should bind to a random port when PGRST_SERVER_PORT is 0."
 
-    with run(env=defaultenv, port="0") as postgrest:
+    with run(env=defaultenv, port="0"):
         assert True  # liveness check is done by run(), so we just need to check that it doesn't fail
 
 
@@ -1394,9 +1393,6 @@ def test_get_pgrst_version_with_keyval_connection_string(defaultenv):
 
 def test_log_postgrest_version(defaultenv):
     "Should show the PostgREST version in the logs"
-
-    env = {**defaultenv, "PGRST_LOG_LEVEL": "crit"}
-
     with run(env=defaultenv, no_startup_stdout=False) as postgrest:
         version = postgrest.session.head("/").headers["Server"].split("/")[1]
 
@@ -1815,14 +1811,13 @@ def test_jwt_cache_purges_expired_entries(defaultenv):
     # The verification of actual cache size reduction is done manually, see https://github.com/PostgREST/postgrest/pull/3801#issuecomment-2620776041
     # This test is written for code coverage of purgeExpired function
 
-    relativeSeconds = lambda sec: int(
-        (datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp()
-    )
+    def relativeSeconds(sec):
+        return int((datetime.now(timezone.utc) + timedelta(seconds=sec)).timestamp())
 
-    headers = lambda sec: jwtauthheader(
-        {"role": "postgrest_test_author", "exp": relativeSeconds(sec)},
-        SECRET,
-    )
+    def headers(sec):
+        return jwtauthheader(
+            {"role": "postgrest_test_author", "exp": relativeSeconds(sec)}, SECRET
+        )
 
     env = {
         **defaultenv,
