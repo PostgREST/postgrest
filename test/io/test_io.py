@@ -1,15 +1,16 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from datetime import datetime, timedelta, timezone
-from operator import attrgetter
 import os
 import re
 import signal
 import time
-import pytest
+from datetime import datetime, timedelta, timezone
+from operator import attrgetter
 
+import pytest
 from config import *
 from util import *
+
 from postgrest import *
 
 

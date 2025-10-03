@@ -8,16 +8,18 @@
 # - the above guarantees JWT cache purging will happen
 # - we want this to track resource consumption in the worst case
 
+import argparse
+import random
+import sys
+
 # And a more normal scenario where non-expiring JWTs are picked
 # from an array
 import time
-import argparse
-import sys
-import random
-import jwt
-import jwcrypto.jwk as jwk
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+import jwcrypto.jwk as jwk
+import jwt
 
 URL = "http://postgrest"
 

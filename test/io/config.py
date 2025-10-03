@@ -1,10 +1,10 @@
 import os
 import pathlib
 import shutil
-import pytest
 import uuid
-import yaml
 
+import pytest
+import yaml
 
 BASEDIR = pathlib.Path(os.path.realpath(__file__)).parent
 CONFIGSDIR = BASEDIR / "configs"

@@ -1,13 +1,14 @@
 "Unit tests for Input/Ouput of PostgREST seen as a black box."
 
-from operator import attrgetter
 import signal
 import subprocess
-import pytest
-from syrupy.extensions.json import SingleFileSnapshotExtension
-import yaml
+from operator import attrgetter
 
+import pytest
+import yaml
 from config import *
+from syrupy.extensions.json import SingleFileSnapshotExtension
+
 from postgrest import *
 
 

@@ -13,7 +13,6 @@ import urllib.parse
 import pytest
 import requests
 import requests_unixsocket
-
 from config import *
 
 
