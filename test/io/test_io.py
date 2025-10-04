@@ -8,9 +8,19 @@ import signal
 import time
 import pytest
 
-from config import *
-from util import *
-from postgrest import *
+from config import BASEDIR, CONFIGSDIR, FIXTURES, SECRET
+from util import Thread, authheader, jwtauthheader, parse_server_timings_header
+from postgrest import (
+    freeport,
+    is_ipv6,
+    reset_statement_timeout,
+    run,
+    set_statement_timeout,
+    sleep_until_postgrest_config_reload,
+    sleep_until_postgrest_full_reload,
+    sleep_until_postgrest_scache_reload,
+    wait_until_exit,
+)
 
 
 @pytest.mark.parametrize(
