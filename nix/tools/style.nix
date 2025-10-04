@@ -8,9 +8,11 @@
 , hsie
 , nixpkgs-fmt
 , python3Packages
+, ruff
 , silver-searcher
 , statix
 , stylish-haskell
+, writeText
 }:
 let
   style =
@@ -50,6 +52,13 @@ let
         ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix' '*.py'
       '';
 
+  ruffConfig = writeText "ruff.toml" ''
+    # Ruff Config
+    ignore = [
+      "F811" # redefinition of unused name, this conflicts with how pytest fixtures are defined and extended (redefined)
+    ]
+  '';
+
   lint =
     checkedShellScript
       {
@@ -64,9 +73,13 @@ let
         echo "Scanning nix files for unused code..."
         ${deadnix}/bin/deadnix -f
 
+        # ruff has gaps in scanning for unused code, so we use vulture
         echo "Scanning python files for unused code..."
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?py$' . \
           | xargs ${python3Packages.vulture}/bin/vulture --exclude docs/conf.py
+
+        echo "Linting python files..."
+        ${ruff}/bin/ruff check --config ${ruffConfig} .
 
         echo "Checking consistency of import aliases in Haskell code..."
         ${hsie} check-aliases main src
