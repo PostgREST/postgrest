@@ -2,8 +2,8 @@
 
 import pytest
 
-from util import *
-from postgrest import *
+from util import parse_server_timings_header
+from postgrest import run
 
 
 def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaultenv):
