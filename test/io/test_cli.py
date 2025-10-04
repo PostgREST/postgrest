@@ -6,8 +6,14 @@ import subprocess
 import pytest
 import yaml
 
-from config import *
-from postgrest import *
+from config import (
+    CONFIGSDIR,
+    FIXTURES,
+    POSTGREST_BIN,
+    get_admin_host_and_port_from_config,
+    hpctixfile,
+)
+from postgrest import freeport, is_ipv6, run, set_statement_timeout
 
 
 class ExtraNewLinesDumper(yaml.SafeDumper):

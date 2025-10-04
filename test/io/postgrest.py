@@ -13,7 +13,7 @@ import urllib.parse
 import requests
 import requests_unixsocket
 
-from config import *
+from config import POSTGREST_BIN, hpctixfile
 
 
 def sleep_until_postgrest_scache_reload():
