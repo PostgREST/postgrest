@@ -702,7 +702,7 @@ exampleConfigFile = S.unlines
   , "log-level = \"error\""
   , ""
   , "## Log the SQL query at the current log-level."
-  , "log-query = \"disabled\""
+  , "log-query = false"
   , ""
   , "## Determine if the OpenAPI output should follow or ignore role privileges or be disabled entirely."
   , "## Admitted values: follow-privileges, ignore-privileges, disabled"
