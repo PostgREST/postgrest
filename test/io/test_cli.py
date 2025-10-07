@@ -4,7 +4,6 @@ from operator import attrgetter
 import signal
 import subprocess
 import pytest
-from syrupy.extensions.json import SingleFileSnapshotExtension
 import yaml
 
 from config import *
@@ -18,15 +17,6 @@ class ExtraNewLinesDumper(yaml.SafeDumper):
         super().write_line_break(data)
         if len(self.indents) == 1:
             super().write_line_break()
-
-
-class YamlSnapshotExtension(SingleFileSnapshotExtension):
-    _file_extension = "yaml"
-
-
-@pytest.fixture
-def snapshot_yaml(snapshot):
-    return snapshot.use_extension(YamlSnapshotExtension)
 
 
 def itemgetter(*items):

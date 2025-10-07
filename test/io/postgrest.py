@@ -10,7 +10,6 @@ import tempfile
 import time
 import urllib.parse
 
-import pytest
 import requests
 import requests_unixsocket
 
@@ -156,23 +155,6 @@ def run(
             except:
                 process.kill()
                 process.wait()
-
-
-@pytest.fixture(scope="module")
-def metapostgrest():
-    "A shared postgrest instance to use for interacting with the database independently of the instance under test"
-    role = "meta_authenticator"
-    env = {
-        "PGDATABASE": os.environ["PGDATABASE"],
-        "PGHOST": os.environ["PGHOST"],
-        "PGUSER": role,
-        "PGRST_DB_ANON_ROLE": role,
-        "PGRST_DB_CONFIG": "true",
-        "PGRST_LOG_LEVEL": "info",
-        "PGRST_DB_POOL": "1",
-    }
-    with run(env=env) as postgrest:
-        yield postgrest
 
 
 def freeport(used_port=None):
