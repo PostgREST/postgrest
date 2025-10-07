@@ -33,7 +33,7 @@ write from scratch.
     <tr>
       <td align="center" valign="middle">
         <a href="https://www.euronodes.com/postgrest" target="_blank">
-          <img width="296px" src="static/euronodes.svg">
+          <img width="296px" src="https://raw.githubusercontent.com/PostgREST/postgrest/main/static/euronodes.svg">
         </a>
       </td>
       <td align="center" valign="middle">
