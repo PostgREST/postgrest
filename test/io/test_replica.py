@@ -1,6 +1,5 @@
 "IO tests for PostgREST started on replicas"
 
-from config import *
 from util import *
 from postgrest import *
 
