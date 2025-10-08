@@ -75,7 +75,11 @@ You can get the `official PostgREST Docker image <https://hub.docker.com/r/postg
 
 .. code-block:: bash
 
+  # pull the latest version
   docker pull postgrest/postgrest
+
+  # to pull a particular version, use one of the versions on https://hub.docker.com/r/postgrest/postgrest/tags
+  docker pull postgrest/postgrest:<version>
 
 To configure the container image, use :ref:`env_variables_config`.
 
