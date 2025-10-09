@@ -75,7 +75,7 @@ let
 
   # Options passed to cabal in dev tools and tests
   devCabalOptions =
-    "-f dev --test-show-detail=direct --disable-shared";
+    "-f dev --test-show-detail=direct";
 
   inherit (pkgs.haskell) lib;
 in
