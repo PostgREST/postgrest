@@ -26,7 +26,7 @@ tested-with:
 
 source-repository head
   type:     git
-  location: git://github.com/PostgREST/postgrest.git
+  location: https://github.com/PostgREST/postgrest.git
 
 flag dev
   default:     False
