@@ -109,10 +109,11 @@ postgrest logLevel appState connWorker =
             runExceptT $ postgrestResponse appState appConf maybeSchemaCache authResult req
 
         response <- either Error.errorResponseFor identity <$> eitherResponse
-        -- Launch the connWorker when the connection is down.  The postgrest
+        -- Launch the connWorker when the connection is down. The postgrest
         -- function can respond successfully (with a stale schema cache) before
-        -- the connWorker is done.
-        when (isServiceUnavailable response) connWorker
+        -- the connWorker is done. However it won't launch the connWorker if
+        -- the schema cache was not loaded beforehand, i.e. on startup.
+        when (isServiceUnavailable response && isJust maybeSchemaCache) connWorker
         resp <- do
           delay <- AppState.getNextDelay appState
           return $ addRetryHint delay response
@@ -126,11 +127,14 @@ postgrestResponse
   -> Wai.Request
   -> Handler IO Wai.Response
 postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthResult{..} req = do
+  let observer = AppState.getObserver appState
+
   sCache <-
     case maybeSchemaCache of
       Just sCache ->
         return sCache
-      Nothing ->
+      Nothing -> do
+        lift $ observer SchemaCacheEmptyObs
         throwError Error.NoSchemaCacheError
 
   body <- lift $ Wai.strictRequestBody req
@@ -144,7 +148,6 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache authResult@AuthRe
 
   let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
-      observer = AppState.getObserver appState
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
   (txTime, txResult) <- withTiming $ do

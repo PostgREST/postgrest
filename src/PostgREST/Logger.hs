@@ -95,6 +95,9 @@ observationLogger loggerState logLevel obs = case obs of
   o@(QueryErrorCodeHighObs _) -> do
     when (logLevel >= LogError) $ do
       logWithZTime loggerState $ observationMessage o
+  o@SchemaCacheEmptyObs ->
+    when (logLevel >= LogError) $ do
+    logWithZTime loggerState $ observationMessage o
   o@(HasqlPoolObs _) -> do
     when (logLevel >= LogDebug) $ do
       logWithZTime loggerState $ observationMessage o

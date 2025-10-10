@@ -717,7 +717,7 @@ instance ErrorBody Error where
   hint (ApiRequestError err) = hint err
   hint (SchemaCacheErr err)  = hint err
   hint (JwtErr err)          = hint err
-  hint NoSchemaCacheError    = Nothing
+  hint NoSchemaCacheError    = Just "This usually happens when PostgREST is starting up. Try again later."
   hint (PgErr err)           = hint err
 
 instance PgrstError JwtError where
