@@ -37,6 +37,7 @@ data MediaType
   -- vendored media types
   | MTVndArrayJSONStrip
   | MTVndSingularJSON Bool
+  | MTVndPgrstPatch
   -- TODO MTVndPlan should only have its options as [Text]. Its ResultAggregate should have the typed attributes.
   | MTVndPlan MediaType MTVndPlanFormat [MTVndPlanOption]
   deriving (Eq, Show, Generic, JSON.ToJSON)
@@ -72,6 +73,7 @@ toMime MTTextXML              = "text/xml"
 toMime MTOpenAPI              = "application/openapi+json"
 toMime (MTVndSingularJSON True)  = "application/vnd.pgrst.object+json;nulls=stripped"
 toMime (MTVndSingularJSON False) = "application/vnd.pgrst.object+json"
+toMime MTVndPgrstPatch        = "application/vnd.pgrst.patch+json"
 toMime MTUrlEncoded           = "application/x-www-form-urlencoded"
 toMime MTOctetStream          = "application/octet-stream"
 toMime MTAny                  = "*/*"
@@ -121,6 +123,9 @@ toMimePlanFormat PlanText = "text"
 -- >>> decodeMediaType "application/vnd.pgrst.object+json"
 -- MTVndSingularJSON False
 --
+-- >>> decodeMediaType "application/vnd.pgrst.patch+json"
+-- MTVndPgrstPatch
+--
 -- Test uppercase is parsed correctly (per issue #3478)
 -- >>> decodeMediaType "ApplicatIon/vnd.PgRsT.object+json"
 -- MTVndSingularJSON False
@@ -147,6 +152,7 @@ decodeMediaType mt = decodeMediaType' $ decodeLatin1 mt
         ("application", "vnd.pgrst.plan+json", _)   -> getPlan PlanJSON
         ("application", "vnd.pgrst.object+json", _) -> MTVndSingularJSON strippedNulls
         ("application", "vnd.pgrst.object", _)      -> MTVndSingularJSON strippedNulls
+        ("application", "vnd.pgrst.patch+json", _)  -> MTVndPgrstPatch
         ("application", "vnd.pgrst.array+json", _)  -> checkArrayNullStrip
         ("application", "vnd.pgrst.array", _)       -> checkArrayNullStrip
         ("*","*",_)                                 -> MTAny

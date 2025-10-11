@@ -44,6 +44,7 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
         (Just ProcessedJSON{payKeys}, _)       -> payKeys
         (Just ProcessedUrlEncoded{payKeys}, _) -> payKeys
         (Just RawJSON{}, Just cls)             -> cls
+        (Just PgrstPatch{payFields}, _)        -> payFields
         _                                      -> S.empty
   return (checkedPayload, cols)
   where
@@ -69,6 +70,12 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       (MTTextPlain, True) -> Right $ RawPay reqBody
       (MTTextXML, True) -> Right $ RawPay reqBody
       (MTOctetStream, True) -> Right $ RawPay reqBody
+      (MTVndPgrstPatch, False) ->
+        if isJust columns
+          then Right $ RawJSON reqBody
+          -- Error message too generic?
+          else note "All objects should contain 3 key-vals: 'op','path' and 'value', where op and path must be a string"
+            (pgrstPatchPayloadFields reqBody =<< JSON.decode reqBody)
       (ct, _) -> Left $ "Content-Type not acceptable: " <> MediaType.toMime ct
 
     shouldParsePayload = case action of
@@ -78,10 +85,10 @@ getPayload reqBody contentMediaType QueryParams{qsColumns} action = do
       _                                       -> False
 
     columns = case action of
-      ActDb (ActRelationMut _ MutationCreate) -> qsColumns
-      ActDb (ActRelationMut _ MutationUpdate) -> qsColumns
-      ActDb (ActRoutine     _ Inv)            -> qsColumns
-      _                                       -> Nothing
+      ActDb (ActRelationMut _ MutationCreate)     -> qsColumns
+      ActDb (ActRelationMut _ (MutationUpdate _)) -> qsColumns
+      ActDb (ActRoutine     _ Inv)                -> qsColumns
+      _                                           -> Nothing
 
     isProc = case action of
       ActDb (ActRoutine _ _) -> True
@@ -136,3 +143,45 @@ payloadAttributes raw json =
     _ -> Just emptyPJArray
   where
     emptyPJArray = ProcessedJSON (JSON.encode emptyArray) S.empty
+
+-- Here, we verify the following about pgrst patch body:
+-- 1. The JSON must be a json array.
+-- 2. All objects in the array must have only these three fields:
+--    'op', 'path', 'value'.
+-- 3. Finally, extract the 'path' values as fields
+--
+-- TODO: Return (Either ByteString Payload) for better error messages
+pgrstPatchPayloadFields :: RequestBody -> JSON.Value -> Maybe Payload
+pgrstPatchPayloadFields raw (JSON.Array arr) =
+      if V.all isValidPatchObject arr
+        then PgrstPatch raw . S.fromList <$> getPaths arr
+        else Nothing
+      where
+        isValidPatchObject (JSON.Object o) =
+          KM.member "op" o    &&
+          KM.member "path" o  &&
+          KM.member "value" o &&
+          length (KM.keys o) == 3
+        isValidPatchObject _ = False
+
+        getPaths :: V.Vector JSON.Value -> Maybe [Text]
+        getPaths ar = if any isNothing maybePaths || not (all extractOp $ V.toList ar)
+                        then Nothing
+                        else Just $ catMaybes maybePaths
+          where
+            maybePaths :: [Maybe Text]
+            maybePaths = map extractPath $ V.toList ar
+
+            extractOp (JSON.Object o) =
+              case KM.lookup "op" o of
+                Just op -> op == "set" -- we only have "set" operation, for now
+                Nothing -> False
+            extractOp _ = False
+
+            extractPath (JSON.Object o) =
+              case KM.lookup "path" o of
+                Just (JSON.String path) -> Just path
+                _                       -> Nothing
+            extractPath _ = Nothing
+
+pgrstPatchPayloadFields _ _ = Nothing

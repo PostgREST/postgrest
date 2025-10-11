@@ -970,3 +970,6 @@ VALUES (1, 'stratosphere', 1),
        (2, 'ants from up above',2),
        (3, 'vespertine',3),
        (4, 'contemporary movement', 1);
+
+TRUNCATE TABLE test_pgrst_patch CASCADE;
+INSERT INTO test_pgrst_patch VALUES (1,'ed'), (2,'edd'), (3,'eddy');

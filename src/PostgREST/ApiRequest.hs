@@ -80,7 +80,7 @@ userApiRequest :: AppConfig -> Preferences.Preferences -> Request -> RequestBody
 userApiRequest conf prefs req reqBody = do
   resource <- getResource conf $ pathInfo req
   (schema, negotiatedByProfile) <- getSchema conf hdrs method
-  act <- getAction resource schema method
+  act <- getAction resource schema method contentMediaType
   qPrms <- first QueryParamError $ QueryParams.parse (actIsInvokeSafe act) $ rawQueryString req
   (topLevelRange, ranges) <- getRanges method qPrms hdrs
   (payload, columns) <- getPayload reqBody contentMediaType qPrms act
@@ -126,8 +126,8 @@ getResource AppConfig{configOpenApiMode, configDbRootSpec} = \case
   ["rpc", pName] -> Right $ ResourceRoutine pName
   _              -> Left InvalidResourcePath
 
-getAction :: Resource -> Schema -> ByteString -> Either ApiRequestError Action
-getAction resource schema method =
+getAction :: Resource -> Schema -> ByteString -> MediaType -> Either ApiRequestError Action
+getAction resource schema method mediaType =
   case (resource, method) of
     (ResourceRoutine rout, "HEAD")    -> Right . ActDb $ ActRoutine (qi rout) $ InvRead True
     (ResourceRoutine rout, "GET")     -> Right . ActDb $ ActRoutine (qi rout) $ InvRead False
@@ -139,7 +139,7 @@ getAction resource schema method =
     (ResourceRelation rel, "GET")     -> Right . ActDb $ ActRelationRead (qi rel) False
     (ResourceRelation rel, "POST")    -> Right . ActDb $ ActRelationMut  (qi rel) MutationCreate
     (ResourceRelation rel, "PUT")     -> Right . ActDb $ ActRelationMut  (qi rel) MutationSingleUpsert
-    (ResourceRelation rel, "PATCH")   -> Right . ActDb $ ActRelationMut  (qi rel) MutationUpdate
+    (ResourceRelation rel, "PATCH")   -> Right . ActDb $ ActRelationMut (qi rel) $ MutationUpdate (mediaType == MTVndPgrstPatch)
     (ResourceRelation rel, "DELETE")  -> Right . ActDb $ ActRelationMut  (qi rel) MutationDelete
     (ResourceRelation rel, "OPTIONS") -> Right $ ActRelationInfo (qi rel)
 
