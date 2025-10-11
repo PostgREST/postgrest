@@ -1,6 +1,6 @@
 { system ? builtins.currentSystem
 
-, compiler ? "ghc948"
+, compiler ? "ghc967"
 
 , # Commit of the Nixpkgs repository that we want to use.
   # It defaults to reading the inputs from flake.lock, which serves
@@ -104,9 +104,7 @@ rec {
 
   # Tooling for analyzing Haskell imports and exports.
   hsie =
-    pkgs.callPackage nix/hsie {
-      inherit (pkgs.haskell.packages."${compiler}") ghcWithPackages;
-    };
+    pkgs.callPackage nix/hsie { };
 
   ### Tools
 
