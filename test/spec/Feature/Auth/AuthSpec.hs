@@ -182,7 +182,7 @@ spec = describe "authorization" $ do
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
+        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string, URI or an array of mixed strings or URIs"}|]
         { matchStatus = 401 }
 
   it "fails when the aud claim is an array but it has non-string elements" $ do
@@ -194,7 +194,7 @@ spec = describe "authorization" $ do
         auth = authHeaderJWT $ generateJWT jwtPayload
     request methodGet "/authors_only" [auth] ""
       `shouldRespondWith`
-        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string or an array of strings"}|]
+        [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string, URI or an array of mixed strings or URIs"}|]
         { matchStatus = 401 }
 
   describe "custom pre-request proc acting on id claim" $ do

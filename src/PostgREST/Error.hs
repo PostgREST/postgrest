@@ -675,7 +675,7 @@ data JwtClaimsError
   | ExpClaimNotNumber
   | NbfClaimNotNumber
   | IatClaimNotNumber
-  | AudClaimNotStringOrArray
+  | AudClaimNotStringOrURIOrArray
   deriving Show
 
 instance PgrstError Error where
@@ -752,15 +752,15 @@ instance ErrorBody JwtError where
     UnreachableDecodeError -> "JWT couldn't be decoded"
   message JwtTokenRequired = "Anonymous access is disabled"
   message (JwtClaimsErr e) = case e of
-    JWTExpired               -> "JWT expired"
-    JWTNotYetValid           -> "JWT not yet valid"
-    JWTIssuedAtFuture        -> "JWT issued at future"
-    JWTNotInAudience         -> "JWT not in audience"
-    ParsingClaimsFailed      -> "Parsing claims failed"
-    ExpClaimNotNumber        -> "The JWT 'exp' claim must be a number"
-    NbfClaimNotNumber        -> "The JWT 'nbf' claim must be a number"
-    IatClaimNotNumber        -> "The JWT 'iat' claim must be a number"
-    AudClaimNotStringOrArray -> "The JWT 'aud' claim must be a string or an array of strings"
+    JWTExpired                    -> "JWT expired"
+    JWTNotYetValid                -> "JWT not yet valid"
+    JWTIssuedAtFuture             -> "JWT issued at future"
+    JWTNotInAudience              -> "JWT not in audience"
+    ParsingClaimsFailed           -> "Parsing claims failed"
+    ExpClaimNotNumber             -> "The JWT 'exp' claim must be a number"
+    NbfClaimNotNumber             -> "The JWT 'nbf' claim must be a number"
+    IatClaimNotNumber             -> "The JWT 'iat' claim must be a number"
+    AudClaimNotStringOrURIOrArray -> "The JWT 'aud' claim must be a string, URI or an array of mixed strings or URIs"
 
   details (JwtDecodeErr jde) = case jde of
     KeyError dets     -> Just $ JSON.String dets

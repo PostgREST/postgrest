@@ -19,6 +19,9 @@ module PostgREST.Config
   , LogLevel(..)
   , OpenAPIMode(..)
   , Proxy(..)
+  , CfgAud
+  , audMatchesCfg
+  , parseCfgAud
   , toText
   , isMalformedProxyUri
   , readAppConfig
@@ -28,6 +31,7 @@ module PostgREST.Config
   , addFallbackAppName
   , addTargetSessionAttrs
   , exampleConfigFile
+  , defaultCfgAud
   ) where
 
 import qualified Data.Aeson             as JSON
@@ -49,7 +53,7 @@ import Data.List.NonEmpty      (fromList, toList)
 import Data.Maybe              (fromJust)
 import Data.Scientific         (floatingOrInteger)
 import Jose.Jwk                (Jwk, JwkSet)
-import Network.URI             (escapeURIString, isURI,
+import Network.URI             (escapeURIString,
                                 isUnescapedInURIComponent)
 import Numeric                 (readOct, showOct)
 import System.Environment      (getEnvironment)
@@ -65,8 +69,24 @@ import PostgREST.Config.Proxy            (Proxy (..),
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
                                           toQi)
 
-import Protolude hiding (Proxy, toList)
+import           Protolude       hiding (Proxy, toList)
+import qualified Text.Regex.TDFA as R
 
+data ParsedValue a = ParsedValue {
+  sourceValue :: Text,
+  parsedValue :: a
+}
+
+newtype CfgAud = CfgAud { unCfgAud :: ParsedValue R.Regex }
+
+parseCfgAud :: Text -> CfgAud
+parseCfgAud = CfgAud . (ParsedValue <*> (R.makeRegex . ("\\`(" <>) . (<> "\\')")))
+
+defaultCfgAud :: CfgAud
+defaultCfgAud = parseCfgAud ""
+
+audMatchesCfg :: CfgAud -> Text -> Bool
+audMatchesCfg = R.matchTest . parsedValue . unCfgAud
 
 data AppConfig = AppConfig
   { configAppSettings              :: [(Text, Text)]
@@ -94,7 +114,7 @@ data AppConfig = AppConfig
   , configDbUri                    :: Text
   , configFilePath                 :: Maybe FilePath
   , configJWKS                     :: Maybe JwkSet
-  , configJwtAudience              :: Maybe Text
+  , configJwtAudience              :: CfgAud
   , configJwtRoleClaimKey          :: JSPath
   , configJwtSecret                :: Maybe BS.ByteString
   , configJwtSecretIsBase64        :: Bool
@@ -166,7 +186,7 @@ toText conf =
       ,("db-pre-config",             q . maybe mempty dumpQi . configDbPreConfig)
       ,("db-tx-end",                 q . showTxEnd)
       ,("db-uri",                    q . configDbUri)
-      ,("jwt-aud",                   q . fromMaybe mempty . configJwtAudience)
+      ,("jwt-aud",                   q . sourceValue . unCfgAud . configJwtAudience)
       ,("jwt-role-claim-key",        q . T.intercalate mempty . fmap dumpJSPath . configJwtRoleClaimKey)
       ,("jwt-secret",                q . T.decodeUtf8 . showJwtSecret)
       ,("jwt-secret-is-base64",          T.toLower . show . configJwtSecretIsBase64)
@@ -274,7 +294,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe "postgresql://" <$> optString "db-uri")
     <*> pure optPath
     <*> pure Nothing
-    <*> optStringOrURI "jwt-aud"
+    <*> (maybe defaultCfgAud parseCfgAud <$> optString "jwt-aud")
     <*> parseRoleClaimKey "jwt-role-claim-key" "role-claim-key"
     <*> (fmap encodeUtf8 <$> optString "jwt-secret")
     <*> (fromMaybe False <$> optWithAlias
@@ -391,20 +411,6 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
 
     optStringEmptyable :: C.Key -> C.Parser C.Config (Maybe Text)
     optStringEmptyable k = overrideFromDbOrEnvironment C.optional k coerceText
-
-    optStringOrURI :: C.Key -> C.Parser C.Config (Maybe Text)
-    optStringOrURI k = do
-      stringOrURI <- mfilter (/= "") <$> overrideFromDbOrEnvironment C.optional k coerceText
-      -- If the string contains ':' then it should
-      -- be a valid URI according to RFC 3986
-      case stringOrURI of
-        Just s  -> if T.isInfixOf ":" s then validateURI s else return (Just s)
-        Nothing -> return Nothing
-      where
-        validateURI :: Text -> C.Parser C.Config (Maybe Text)
-        validateURI s = if isURI (T.unpack s)
-                          then return $ Just s
-                          else fail "jwt-aud should be a string or a valid URI"
 
     optInt :: (Read i, Integral i) => C.Key -> C.Parser C.Config (Maybe i)
     optInt k = join <$> overrideFromDbOrEnvironment C.optional k coerceInt

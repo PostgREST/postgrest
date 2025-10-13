@@ -266,17 +266,6 @@ def test_schema_cache_snapshot(baseenv, key, snapshot_yaml):
     assert formatted == snapshot_yaml
 
 
-def test_jwt_aud_config_set_to_invalid_uri(defaultenv):
-    "PostgREST should exit with an error message in output if jwt-aud config is set to an invalid URI"
-    env = {
-        **defaultenv,
-        "PGRST_JWT_AUD": "foo://%%$$^^.com",
-    }
-
-    error = cli(["--dump-config"], env=env, expect_error=True)
-    assert "jwt-aud should be a string or a valid URI" in error
-
-
 def test_jwt_secret_min_length(defaultenv):
     "Should log error and not load the config when the secret is shorter than the minimum admitted length"
 
