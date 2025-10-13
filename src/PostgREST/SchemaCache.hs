@@ -566,7 +566,7 @@ addViewPrimaryKeys tabs keyDeps =
     --   so we don't need to know about the other references.
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
-    indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
+    indexedDeps = fmap reverse $ HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
 allTables :: Bool -> SQL.Statement AppConfig TablesMap
 allTables = SQL.Statement tablesSqlQuery params decodeTables
