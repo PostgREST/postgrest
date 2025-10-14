@@ -62,10 +62,9 @@ instance JSON.FromJSON StringOrURI where
     where
       isValidURI = (||) <$> not . T.isInfixOf ":" <*> isURI . T.unpack
 
-data ValidAud = VANull | VAString StringOrURI | VAArray [StringOrURI] deriving Generic
+data ValidAud = VAString StringOrURI | VAArray [StringOrURI] deriving Generic
 instance JSON.FromJSON ValidAud where
-  parseJSON JSON.Null = pure VANull
-  parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
+  parseJSON = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue }
 
 checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
 checkForErrors time audMatches = mconcat
@@ -89,7 +88,6 @@ checkForErrors time audMatches = mconcat
       validAud = \case
         (VAString aud) -> validAudString aud
         (VAArray auds) -> null auds || any validAudString auds
-        _ -> True
       validAudString = audMatches . unStringOrURI
 
       checkValue invalid msg val =
@@ -99,6 +97,7 @@ checkForErrors time audMatches = mconcat
           mempty
 
       claim key parseError checkParsed = maybe (pure parseError) (maybe mempty checkParsed) . parseMaybe (.:? key)
+
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
