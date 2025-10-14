@@ -67,13 +67,11 @@ instance JSON.FromJSON ValidAud where
   parseJSON = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue }
 
 checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
-checkForErrors time audMatches = mconcat
-  [
-    claim "exp" ExpClaimNotNumber $ inThePast JWTExpired
-  , claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid
-  , claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture
-  , claim "aud" AudClaimNotStringOrURIOrArray $ checkValue (not . validAud) JWTNotInAudience
-  ]
+checkForErrors time audMatches =
+     claim "exp" ExpClaimNotNumber (inThePast JWTExpired)
+  <> claim "nbf" NbfClaimNotNumber (inTheFuture JWTNotYetValid)
+  <> claim "iat" IatClaimNotNumber (inTheFuture JWTIssuedAtFuture)
+  <> claim "aud" AudClaimNotStringOrURIOrArray (checkValue (not . validAud) JWTNotInAudience)
   where
       allowedSkewSeconds = 30 :: Int64
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
