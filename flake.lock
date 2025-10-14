@@ -2,16 +2,16 @@
   "nodes": {
     "nixpkgs": {
       "locked": {
-        "lastModified": 1752006229,
-        "narHash": "sha256-BeuAPwNM2RBc5bvUTb0j4GRs2yBkDeRCw/8Y3v9Xesc=",
-        "owner": "nixos",
+        "lastModified": 1751899146,
+        "narHash": "sha256-XmyGMCVZEVvY/KbWoAX+4LqDfvpzUny83RUzGsX3CjI=",
+        "owner": "wolfgangwalther",
         "repo": "nixpkgs",
-        "rev": "c80edd02003fe3d8af527215a3ac069be9cfd47f",
+        "rev": "abd8015915201ea44889ee0f1286b47fb900577a",
         "type": "github"
       },
       "original": {
-        "owner": "nixos",
-        "ref": "nixpkgs-25.05-darwin",
+        "owner": "wolfgangwalther",
+        "ref": "haskell-static-template-haskell",
         "repo": "nixpkgs",
         "type": "github"
       }
