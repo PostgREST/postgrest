@@ -94,8 +94,7 @@ checkForErrors time audMatches =
         else
           mempty
 
-      claim key parseError checkParsed = maybe (pure parseError) (maybe mempty checkParsed) . parseMaybe (.:? key)
-
+      claim key parseError checkParsed = maybe (pure parseError) (foldMap checkParsed) . parseMaybe (.:? key)
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
