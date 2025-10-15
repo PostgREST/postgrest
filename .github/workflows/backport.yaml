@@ -1,0 +1,54 @@
+name: Backport
+
+on:
+  pull_request_target:
+    types: [closed]
+  issue_comment:
+    types: [created]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  backport:
+    name: Backport
+    runs-on: ubuntu-latest
+    if: >
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association)
+      )
+    steps:
+      - uses: actions/checkout@v4
+      - name: Get target branch
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+        id: get_target_branch
+        run: |
+
+          # The comment must start with '/backport to ' followed by branch name, e.g v13
+
+          if [[ "$COMMENT" =~ /backport[[:space:]]+to[[:space:]]+([^[:space:]]+) ]]; then
+            BRANCH="${BASH_REMATCH[1]}"
+            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+            echo "Target branch: $BRANCH"
+          else
+            echo "No branch specified in comment"
+            exit 1
+          fi
+
+          # Validate branch exist
+          git fetch --all --quiet
+          if git show-ref --verify --quiet "refs/remotes/origin/$BRANCH"; then
+            echo "Branch $BRANCH exists."
+          else
+            echo "Invalid branch specified, $BRANCH branch does not exist."
+            exit 1
+          fi
+
+      - name: Create backport PR
+        uses: korthout/backport-action@v3
+        with:
+          pull_title: '${target_branch}: ${pull_title}'
+          pull_description: 'Backport for #${pull_number}.'
+          target_branches: ${{ steps.get_target_branch.outputs.branch }}
