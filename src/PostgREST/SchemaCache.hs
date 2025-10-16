@@ -556,7 +556,7 @@ addViewPrimaryKeys tabs keyDeps =
     else tbl) <$> tabs
   where
     findViewPKCols sch vw =
-      concatMap (\(ViewKeyDependency _ _ _ _ pkCols) -> takeFirstPK pkCols) $
+      concatMap (takeFirstPK . keyDepCols) $
       fold $ HM.lookup (PKDep, QualifiedIdentifier sch vw) indexedDeps
     -- In the case of multiple reference to the same PK (see comment for ViewKeyDependency) we take the first reference available.
     -- We assume this to be safe to do, because:
@@ -564,6 +564,10 @@ addViewPrimaryKeys tabs keyDeps =
     --   so we don't need to know about the other references.
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
+    -- HM.fromListWith reverses order when merging values with ++ during map building
+    -- Need to reverse it back to maintain the order of input ViewKeyDependency list in ViewKeyDependency{keyDepCols}
+    -- Added to make sure introduction of indexedDeps is backwards compatible
+    -- with previous linear scan of input ViewKeyDependency list
     indexedDeps = fmap reverse $ HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
 allTables :: Bool -> SQL.Statement AppConfig TablesMap
