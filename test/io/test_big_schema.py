@@ -2,7 +2,6 @@
 
 import pytest
 
-from util import parse_server_timings_header
 from postgrest import run
 
 
@@ -14,7 +13,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
         "PGRST_DB_SCHEMAS": "apflora",
         "PGRST_DB_POOL": "2",
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
-        "PGRST_SERVER_TIMING_ENABLED": "true",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
     }
 
     with run(env=env, wait_max_seconds=30) as postgrest:
@@ -27,10 +26,7 @@ def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaulten
         response = postgrest.session.get("/tpopmassn?select=*,tpop(*)")
         assert response.status_code == 200
 
-        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[
-            "plan"
-        ]
-        assert plan_dur > 10000.0
+        assert response.elapsed.total_seconds() > 5
 
 
 def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaultenv):
@@ -41,7 +37,8 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
         "PGRST_DB_SCHEMAS": "apflora",
         "PGRST_DB_POOL": "2",
         "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
-        "PGRST_SERVER_TIMING_ENABLED": "true",
+        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1100",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5000",
     }
 
     with run(env=env, wait_max_seconds=30) as postgrest:
@@ -54,10 +51,10 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
         response = postgrest.session.get("/tpopmassn")
         assert response.status_code == 200
 
-        plan_dur = parse_server_timings_header(response.headers["Server-Timing"])[
-            "plan"
-        ]
-        assert plan_dur < 10000.0
+        assert (
+            response.elapsed.total_seconds() > 1
+            and response.elapsed.total_seconds() < 5
+        )
 
 
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122

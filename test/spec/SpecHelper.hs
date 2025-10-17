@@ -157,7 +157,9 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configAdminServerPort           = Nothing
   , configRoleSettings              = mempty
   , configRoleIsoLvl                = mempty
-  , configInternalSCSleep           = Nothing
+  , configInternalSCQuerySleep      = Nothing
+  , configInternalSCLoadSleep       = Nothing
+  , configInternalSCRelLoadSleep    = Nothing
   , configServerTimingEnabled       = True
   }
 
