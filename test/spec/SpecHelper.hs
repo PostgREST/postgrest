@@ -34,6 +34,7 @@ import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
+                                          defaultCfgAud, parseCfgAud,
                                           parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (get, toS)
@@ -135,7 +136,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbUri                     = "postgresql://"
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
-  , configJwtAudience               = Nothing
+  , configJwtAudience               = defaultCfgAud
   , configJwtRoleClaimKey           = [JSPKey "role"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
@@ -218,7 +219,7 @@ testCfgAudienceJWT :: AppConfig
 testCfgAudienceJWT =
   baseCfg {
     configJwtSecret = Just generateSecret
-  , configJwtAudience = Just "youraudience"
+  , configJwtAudience = parseCfgAud "urn..uriaudience|youraudience"
   , configJWKS = rightToMaybe $ parseSecret generateSecret
   }
 

@@ -40,6 +40,20 @@ spec = describe "test handling of aud claims in JWT when the jwt-aud config is s
           [json|{"code":"PGRST303","details":null,"hint":null,"message":"JWT not in audience"}|]
           { matchStatus = 401 }
 
+    it "fails when the audience claim matches but is not a valid URI" $ do
+      let jwtPayload = [json|
+            {
+              "exp": 9999999999,
+              "role": "postgrest_test_author",
+              "id": "jdoe",
+              "aud": "urn:\\uriaudience"
+            }|]
+          auth = authHeaderJWT $ generateJWT jwtPayload
+      request methodGet "/authors_only" [auth] ""
+        `shouldRespondWith`
+          [json|{"code":"PGRST303","details":null,"hint":null,"message":"The JWT 'aud' claim must be a string, URI or an array of mixed strings or URIs"}|]
+          { matchStatus = 401 }
+
     it "fails when the audience claim is empty" $ do
       let jwtPayload = [json|
             {
@@ -151,7 +165,7 @@ disabledSpec :: SpecWith ((), Application)
 disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud config is not set" $ do
 
   context "when the audience claim is a string" $ do
-    it "ignores the audience claim and suceeds" $ do
+    it "fails when it is not empty" $ do
       let jwtPayload =
             [json|{
               "exp": 9999999999,
@@ -161,7 +175,7 @@ disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud con
             }|]
           auth = authHeaderJWT $ generateJWT jwtPayload
       request methodGet "/authors_only" [auth] ""
-        `shouldRespondWith` 200
+        `shouldRespondWith` 401
 
     it "ignores the audience claim and suceeds when it's empty" $ do
       let jwtPayload =
@@ -176,7 +190,7 @@ disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud con
         `shouldRespondWith` 200
 
   context "when the audience is an array of strings" $ do
-    it "ignores the audience claim and suceeds when it has 1 element" $ do
+    it "fails it has 1 element" $ do
       let jwtPayload = [json|
             {
               "exp": 9999999999,
@@ -186,9 +200,9 @@ disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud con
             }|]
           auth = authHeaderJWT $ generateJWT jwtPayload
       request methodGet "/authors_only" [auth] ""
-        `shouldRespondWith` 200
+        `shouldRespondWith` 401
 
-    it "ignores the audience claim and suceeds when it has more than 1 element" $ do
+    it "fails when it has more than 1 element" $ do
       let jwtPayload = [json|
             {
               "exp": 9999999999,
@@ -198,7 +212,7 @@ disabledSpec = describe "test handling of aud claims in JWT when the jwt-aud con
             }|]
           auth = authHeaderJWT $ generateJWT jwtPayload
       request methodGet "/authors_only" [auth] ""
-        `shouldRespondWith` 200
+        `shouldRespondWith` 401
 
     it "ignores the audience claim and suceeds when it's empty" $ do
       let jwtPayload = [json|

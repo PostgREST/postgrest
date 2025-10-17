@@ -35,14 +35,15 @@ import Data.Time.Clock.POSIX   (utcTimeToPOSIXSeconds)
 
 import PostgREST.Auth.Types (AuthResult (..))
 import PostgREST.Config     (AppConfig (..), FilterExp (..), JSPath,
-                             JSPathExp (..))
+                             JSPathExp (..), audMatchesCfg)
 import PostgREST.Error      (Error (..),
-                             JwtClaimsError (AudClaimNotStringOrArray, ExpClaimNotNumber, IatClaimNotNumber, JWTExpired, JWTIssuedAtFuture, JWTNotInAudience, JWTNotYetValid, NbfClaimNotNumber, ParsingClaimsFailed),
+                             JwtClaimsError (AudClaimNotStringOrURIOrArray, ExpClaimNotNumber, IatClaimNotNumber, JWTExpired, JWTIssuedAtFuture, JWTNotInAudience, JWTNotYetValid, NbfClaimNotNumber, ParsingClaimsFailed),
                              JwtDecodeError (..), JwtError (..))
 
 import Data.Aeson       ((.:?))
 import Data.Aeson.Types (parseMaybe)
 import Jose.Jwk         (JwkSet)
+import Network.URI      (isURI)
 import Protolude        hiding (first)
 
 parseAndDecodeClaims :: (MonadError Error m, MonadIO m) => JwkSet -> ByteString -> m JSON.Object
@@ -52,22 +53,25 @@ decodeClaims :: MonadError Error m => JWT.JwtContent -> m JSON.Object
 decodeClaims (JWT.Jws (_, claims)) = maybe (throwError (JwtErr $ JwtClaimsErr ParsingClaimsFailed)) pure (JSON.decodeStrict claims)
 decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 
-validateClaims :: MonadError Error m => UTCTime -> Maybe Text -> JSON.Object -> m ()
-validateClaims time getConfigAud claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time getConfigAud claims)
+validateClaims :: MonadError Error m => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
+validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
 
-data ValidAud = VANull | VAString Text | VAArray [Text] deriving Generic
+newtype StringOrURI = StringOrURI { unStringOrURI :: Text }
+instance JSON.FromJSON StringOrURI where
+  parseJSON = fmap StringOrURI . mfilter isValidURI . JSON.parseJSON
+    where
+      isValidURI = (||) <$> not . T.isInfixOf ":" <*> isURI . T.unpack
+
+data ValidAud = VAString StringOrURI | VAArray [StringOrURI] deriving Generic
 instance JSON.FromJSON ValidAud where
-  parseJSON JSON.Null = pure VANull
-  parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
+  parseJSON = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue }
 
-checkForErrors :: (Monad m, forall a. Monoid (m a)) => UTCTime -> Maybe Text -> JSON.Object -> m JwtClaimsError
-checkForErrors time cfgAud = mconcat
-  [
-    claim "exp" ExpClaimNotNumber $ inThePast JWTExpired
-  , claim "nbf" NbfClaimNotNumber $ inTheFuture JWTNotYetValid
-  , claim "iat" IatClaimNotNumber $ inTheFuture JWTIssuedAtFuture
-  , claim "aud" AudClaimNotStringOrArray checkAud
-  ]
+checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
+checkForErrors time audMatches =
+     claim "exp" ExpClaimNotNumber (inThePast JWTExpired)
+  <> claim "nbf" NbfClaimNotNumber (inTheFuture JWTNotYetValid)
+  <> claim "iat" IatClaimNotNumber (inTheFuture JWTIssuedAtFuture)
+  <> claim "aud" AudClaimNotStringOrURIOrArray (checkValue (not . validAud) JWTNotInAudience)
   where
       allowedSkewSeconds = 30 :: Int64
       sciToInt = fromMaybe 0 . Sci.toBoundedInteger
@@ -79,12 +83,10 @@ checkForErrors time cfgAud = mconcat
 
       checkTime cond = checkValue (cond. sciToInt)
 
-      checkAud = \case
-        (VAString aud)                     -> liftMaybe cfgAud >>= checkValue (aud /=) JWTNotInAudience
-        (VAArray auds) | (not . null) auds -> liftMaybe cfgAud >>= checkValue (not . (`elem` auds)) JWTNotInAudience
-        _                                  -> mempty
-
-      liftMaybe = maybe mempty pure
+      validAud = \case
+        (VAString aud) -> validAudString aud
+        (VAArray auds) -> null auds || any validAudString auds
+      validAudString = audMatches . unStringOrURI
 
       checkValue invalid msg val =
         if invalid val then
@@ -92,7 +94,7 @@ checkForErrors time cfgAud = mconcat
         else
           mempty
 
-      claim key parseError checkParsed = maybe (pure parseError) (maybe mempty checkParsed) . parseMaybe (.:? key)
+      claim key parseError checkParsed = maybe (pure parseError) (foldMap checkParsed) . parseMaybe (.:? key)
 
 -- | Receives the JWT secret and audience (from config) and a JWT and returns a
 -- JSON object of JWT claims.
@@ -123,7 +125,7 @@ parseToken secret tkn = do
 
 parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> UTCTime -> JSON.Object -> m AuthResult
 parseClaims AppConfig{configJwtAudience, configJwtRoleClaimKey, configDbAnonRole} time mclaims = do
-  validateClaims time configJwtAudience mclaims
+  validateClaims time (audMatchesCfg configJwtAudience) mclaims
   -- role defaults to anon if not specified in jwt
   role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
     unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
