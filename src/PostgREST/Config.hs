@@ -115,7 +115,9 @@ data AppConfig = AppConfig
   , configAdminServerPort          :: Maybe Int
   , configRoleSettings             :: RoleSettings
   , configRoleIsoLvl               :: RoleIsolationLvl
-  , configInternalSCSleep          :: Maybe Int32
+  , configInternalSCQuerySleep     :: Maybe Int32
+  , configInternalSCLoadSleep      :: Maybe Int32
+  , configInternalSCRelLoadSleep   :: Maybe Int32
   }
 
 data LogLevel = LogCrit | LogError | LogWarn | LogInfo | LogDebug
@@ -298,7 +300,9 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> parseAdminServerPort "admin-server-port"
     <*> pure roleSettings
     <*> pure roleIsolationLvl
-    <*> optInt "internal-schema-cache-sleep"
+    <*> optInt "internal-schema-cache-query-sleep"
+    <*> optInt "internal-schema-cache-load-sleep"
+    <*> optInt "internal-schema-cache-relationship-load-sleep"
   where
     parseAppSettings :: C.Key -> C.Parser C.Config [(Text, Text)]
     parseAppSettings key = addFromEnv . fmap (fmap coerceText) <$> C.subassocs key C.value

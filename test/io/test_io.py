@@ -825,11 +825,11 @@ def test_admin_ready_includes_schema_cache_state(defaultenv, metapostgrest):
         **defaultenv,
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
-        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "500",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
     }
 
     with run(env=env) as postgrest:
-        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP above.
         # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
         set_statement_timeout(metapostgrest, role, 400)
 
@@ -855,11 +855,11 @@ def test_metrics_include_schema_cache_fails(defaultenv, metapostgrest):
     env = {
         **defaultenv,
         "PGUSER": role,
-        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "50",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "50",
     }
 
     with run(env=env) as postgrest:
-        # The schema cache query takes at least 20ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # The schema cache query takes at least 20ms, due to PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP above.
         # Make it impossible to load the schema cache, by setting statement timeout to 100ms.
         set_statement_timeout(metapostgrest, role, 20)
 
@@ -1320,7 +1320,7 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
     "schema cache should be up-to-date whenever a notification is sent while another reload is in progress, see https://github.com/PostgREST/postgrest/issues/2791"
 
     internal_sleep = (
-        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_SLEEP"]) / 1000
+        int(slow_schema_cache_env["PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP"]) / 1000
     )
 
     with run(env=slow_schema_cache_env, wait_for_readiness=False) as postgrest:

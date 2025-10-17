@@ -25,8 +25,6 @@ module PostgREST.SchemaCache
   , decodeFuncs
   ) where
 
-import Control.Monad.Extra (whenJust)
-
 import           Data.Aeson                 ((.=))
 import qualified Data.Aeson                 as JSON
 import qualified Data.HashMap.Strict        as HM
@@ -69,6 +67,7 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 import qualified PostgREST.MediaType as MediaType
 
 import Protolude
+import System.IO.Unsafe (unsafePerformIO)
 
 data SchemaCache = SchemaCache
   { dbTables          :: TablesMap
@@ -152,14 +151,16 @@ querySchemaCache conf@AppConfig{..} = do
   tzones  <- SQL.statement mempty $ timezones prepared
   _       <-
     let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
-    whenJust configInternalSCSleep (`SQL.statement` sleepCall) -- only used for testing
+    for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
       rels          = addInverseRels $ addM2MRels tabsWViewsPks $ addViewM2OAndO2ORels keyDeps m2oRels
 
-  return $ removeInternal schemas $ SchemaCache {
+  -- Add delay in loading schema cache when internal-schema-cache-load-sleep config is set
+  return $ delayEval configInternalSCLoadSleep $ removeInternal schemas $ SchemaCache {
       dbTables = tabsWViewsPks
-    , dbRelationships = getOverrideRelationshipsMap rels cRels
+    -- Add delay in loading relationships when internal-schema-cache-relationship-load-sleep config is set
+    , dbRelationships = delayEval configInternalSCRelLoadSleep $ getOverrideRelationshipsMap rels cRels
     , dbRoutines = funcs
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
@@ -168,6 +169,7 @@ querySchemaCache conf@AppConfig{..} = do
   where
     schemas = toList configDbSchemas
     prepared = configDbPreparedStatements
+    delayEval confDelay result = maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
 getOverrideRelationshipsMap :: [Relationship] -> [Relationship] -> RelationshipsMap

@@ -312,13 +312,13 @@ def test_cli_ready_flag_fail_when_schema_cache_not_loaded(defaultenv, metapostgr
         **defaultenv,
         "PGUSER": role,
         "PGRST_DB_ANON_ROLE": role,
-        "PGRST_INTERNAL_SCHEMA_CACHE_SLEEP": "500",
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "500",
     }
 
     port = freeport()
 
     with run(env=env, port=port) as postgrest:
-        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_SLEEP above.
+        # The schema cache query takes at least 500ms, due to PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP above.
         # Make it impossible to load the schema cache, by setting statement timeout to 400ms.
         set_statement_timeout(metapostgrest, role, 400)
 
