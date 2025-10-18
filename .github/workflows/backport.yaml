@@ -1,0 +1,42 @@
+name: Backport
+
+on:
+  pull_request_target:
+    types: [closed, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  backport:
+    name: Backport
+    runs-on: ubuntu-24.04
+    if: github.event.pull_request.merged
+    steps:
+
+      # This actions creates the github token using the postgrest-bot secrets
+      - name: Create Github App Token
+        id: app-token
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        with:
+          app-id: ${{ secrets.POSTGREST_TEST_BOT_APP_ID }}
+          private-key: ${{ secrets.POSTGREST_TEST_BOT_PRIVATE_KEY }}
+
+      # This is required for backport action to cherry-pick the PR
+      - name: Fetch git history
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          # Fetching full history might take a while, so 100 seems fine for now.
+          # It is unlikely we would backport a PR further than that
+          fetch-depth: 100
+
+      # Backport actions that creates the PR with given configurations
+      - name: Create backport PR
+        uses: korthout/backport-action@d07416681cab29bf2661702f925f020aaa962997 # v3.4.1
+        with:
+          git_committer_name: 'postgrest-test-bot[bot]'
+          git_committer_email: 'postgrest-test-bot[bot]@users.noreply.github.com'
+          github_token: ${{ steps.app-token.outputs.token }}
+          pull_description: 'Backport for #${pull_number}.'
+          pull_title: '${target_branch}: ${pull_title}'
