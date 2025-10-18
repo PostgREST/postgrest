@@ -52,8 +52,8 @@ Big thanks to our sponsors! You can join them by supporting PostgREST on [Patreo
 
 ## Usage
 
-1. Download the binary ([latest release](https://github.com/PostgREST/postgrest/releases/latest))
-   for your platform.
+1. See the docs for [how to install PostgREST on your platform](https://docs.postgrest.org/en/stable/explanations/install.html). You can also [use Docker](https://docs.postgrest.org/en/stable/explanations/install.html#docker).
+
 2. Invoke for help:
 
     ```bash
