@@ -66,7 +66,7 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 
 import qualified PostgREST.MediaType as MediaType
 
-import Control.Arrow ((&&&))
+import Control.Arrow    ((&&&))
 import Protolude
 import System.IO.Unsafe (unsafePerformIO)
 
