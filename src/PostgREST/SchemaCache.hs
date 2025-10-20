@@ -480,8 +480,7 @@ addViewM2OAndO2ORels keyDeps rels =
   where
     isM2O card = case card of {M2O _ _       -> True; _ -> False;}
     isO2O card = case card of {O2O _ _ False -> True; _ -> False;}
-    viewRels Relationship{relTable,relForeignTable,relCardinality=card} =
-      if isM2O card || isO2O card then
+    viewRels Relationship{relTable,relForeignTable,relCardinality=card} | isM2O card || isO2O card =
       let
         cons = relCons card
         relCols = relColumns card
@@ -525,7 +524,6 @@ addViewM2OAndO2ORels keyDeps rels =
         , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
         , tblVw <- tableViewRels
         , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw ]
-      else []
     viewRels _ = []
     expandKeyDepCols kdc = zip (fst <$> kdc) <$> traverse snd kdc
     indexedKeyDeps = HM.fromListWith (<>) $ fmap ((keyDepTable &&& keyDepCons &&& keyDepType) &&& pure) keyDeps
