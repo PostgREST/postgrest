@@ -28,6 +28,7 @@ module PostgREST.Config
   , addFallbackAppName
   , addTargetSessionAttrs
   , exampleConfigFile
+  , audMatchesCfg
   ) where
 
 import qualified Data.Aeson             as JSON
@@ -67,6 +68,8 @@ import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
 
 import Protolude hiding (Proxy, toList)
 
+audMatchesCfg :: AppConfig -> Text -> Bool
+audMatchesCfg =  maybe (const True) (==) . configJwtAudience
 
 data AppConfig = AppConfig
   { configAppSettings              :: [(Text, Text)]
