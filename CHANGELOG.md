@@ -10,10 +10,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix not logging OpenAPI queries when `log-query=main-query` is enabled by @steve-chavez in #4226
 - Fix not logging explain query when `log-query=main-query` is enabled by @steve-chavez in #4319
 - Fix not logging transaction variables and db-pre-request function when `log-query=main-query` is enabled by @steve-chavez in #3934
-- Fix loading utf-8 config files with `ASCII` locale set in #4386
+- Fix loading utf-8 config files with `ASCII` locale set by @taimoorzaeem in #4386
 - Fix not logging the JSON message to stderr on a `PGRST002` error by @laurenceisla in #4129
 - Fix reloading the Schema Cache unnecessarily on a `PGRST002` error by @laurenceisla in #4367
-- Fix schema cache loading taking long time for larche schemas  #4360  #3704
+- Fix schema cache loading taking a long time for large schemas by @mkleczek in #4360, #3704
 
 ### Added
 
