@@ -55,10 +55,9 @@ decodeClaims _ = throwError $ JwtErr $ JwtDecodeErr UnsupportedTokenType
 validateClaims :: MonadError Error m => UTCTime -> (Text -> Bool) -> JSON.Object -> m ()
 validateClaims time audMatches claims = liftEither $ maybeToLeft () (fmap JwtErr . getAlt $ JwtClaimsErr <$> checkForErrors time audMatches claims)
 
-data ValidAud = VANull | VAString Text | VAArray [Text] deriving Generic
+data ValidAud = VAString Text | VAArray [Text] deriving Generic
 instance JSON.FromJSON ValidAud where
-  parseJSON JSON.Null = pure VANull
-  parseJSON o = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue } o
+  parseJSON = JSON.genericParseJSON JSON.defaultOptions { JSON.sumEncoding = JSON.UntaggedValue }
 
 checkForErrors :: (Applicative m, Monoid (m JwtClaimsError)) => UTCTime -> (Text -> Bool) -> JSON.Object -> m JwtClaimsError
 checkForErrors time audMatches = mconcat
@@ -82,7 +81,6 @@ checkForErrors time audMatches = mconcat
       validAud = \case
         (VAString aud) -> audMatches aud
         (VAArray auds) -> null auds || any audMatches auds
-        _ -> True
 
       checkValue invalid msg val =
         if invalid val then
