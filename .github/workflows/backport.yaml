@@ -1,0 +1,52 @@
+name: Backport
+
+on:
+  pull_request_target:
+    types:
+      - closed
+      - labeled
+
+jobs:
+  backport:
+    name: Backport
+    runs-on: ubuntu-24.04
+    # It triggers only when PR is already merged on either:
+    #
+    # - The merge event itself (action != labeled) or
+    # - A label event with the right label (backport ...).
+    #
+    # The result will be that we can add the label before or after merge,
+    # but the workflow will only run once the PR had been merged.
+    if: >
+      github.event.pull_request.merged &&
+      (
+        github.event.action != 'labeled' ||
+        startsWith(github.event.label.name, 'backport')
+      )
+    steps:
+
+      # This actions creates the github token using the postgrest app secrets
+      - name: Create Github App Token
+        id: app-token
+        uses: actions/create-github-app-token@67018539274d69449ef7c02e8e71183d1719ab42 # v2.1.4
+        with:
+          app-id: ${{ secrets.POSTGREST_CI_APP_ID }}
+          private-key: ${{ secrets.POSTGREST_CI_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write # required when backporting CI changes
+
+      # This is required for backport action to cherry-pick the PR
+      - name: Fetch PR ref
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+
+      # Backport action that creates the PR with given settings
+      - name: Create backport PR
+        uses: korthout/backport-action@d07416681cab29bf2661702f925f020aaa962997 # v3.4.1
+        with:
+          github_token: ${{ steps.app-token.outputs.token }}
+          pull_description: 'Backport for #${pull_number}.'
+          pull_title: '${target_branch}: ${pull_title}'
