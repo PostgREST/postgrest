@@ -1,5 +1,7 @@
 "IO tests for PostgREST started on the big schema."
 
+import re
+
 import pytest
 
 from postgrest import run
@@ -55,6 +57,35 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
             response.elapsed.total_seconds() > 1
             and response.elapsed.total_seconds() < 5
         )
+
+
+def test_schema_cache_load_max_duration(defaultenv):
+    "schema cache load should not surpass a max_duration of elapsed milliseconds"
+
+    max_duration = 500.0
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "apflora",
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=30, no_startup_stdout=False) as postgrest:
+        log_lines = postgrest.read_stdout(nlines=50)
+        schema_cache_lines = [
+            line for line in log_lines if "Schema cache loaded in" in line
+        ]
+
+        match = re.search(
+            r"Schema cache loaded in ([0-9]+(?:\.[0-9])?) milliseconds",
+            schema_cache_lines[-1],
+        )
+
+        assert match, f"unexpected log format: {schema_cache_lines[-1]}"
+        duration_ms = float(match.group(1))
+
+        assert duration_ms < max_duration
 
 
 # TODO: This test fails now because of https://github.com/PostgREST/postgrest/pull/2122
