@@ -66,6 +66,7 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 
 import qualified PostgREST.MediaType as MediaType
 
+import Control.Arrow    ((&&&))
 import Protolude
 import System.IO.Unsafe (unsafePerformIO)
 
@@ -132,7 +133,7 @@ data KeyDep
   = PKDep    -- ^ PK dependency
   | FKDep    -- ^ FK dependency
   | FKDepRef -- ^ FK reference dependency
-  deriving (Eq)
+  deriving (Eq, Generic, Hashable)
 
 -- | A SQL query that can be executed independently
 type SqlQuery = ByteString
@@ -479,14 +480,13 @@ addViewM2OAndO2ORels keyDeps rels =
   where
     isM2O card = case card of {M2O _ _       -> True; _ -> False;}
     isO2O card = case card of {O2O _ _ False -> True; _ -> False;}
-    viewRels Relationship{relTable,relForeignTable,relCardinality=card} =
-      if isM2O card || isO2O card then
+    viewRels Relationship{relTable,relForeignTable,relCardinality=card} | isM2O card || isO2O card =
       let
         cons = relCons card
         relCols = relColumns card
         buildCard cns cls = if isM2O card then M2O cns cls else O2O cns cls False
-        viewTableRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relTable        && keyDepCons == cons && keyDepType == FKDep)    keyDeps
-        tableViewRels = filter (\ViewKeyDependency{keyDepTable, keyDepCons, keyDepType} -> keyDepTable == relForeignTable && keyDepCons == cons && keyDepType == FKDepRef) keyDeps
+        viewTableRels = fold $ HM.lookup (relTable, (cons, FKDep)) indexedKeyDeps
+        tableViewRels = fold $ HM.lookup (relForeignTable, (cons, FKDepRef)) indexedKeyDeps
       in
         [ Relationship
             (keyDepView vwTbl)
@@ -524,9 +524,9 @@ addViewM2OAndO2ORels keyDeps rels =
         , keyDepColsVwTbl <- expandKeyDepCols $ keyDepCols vwTbl
         , tblVw <- tableViewRels
         , keyDepColsTblVw <- expandKeyDepCols $ keyDepCols tblVw ]
-      else []
     viewRels _ = []
     expandKeyDepCols kdc = zip (fst <$> kdc) <$> traverse snd kdc
+    indexedKeyDeps = HM.fromListWith (<>) $ fmap ((keyDepTable &&& keyDepCons &&& keyDepType) &&& pure) keyDeps
 
 addInverseRels :: [Relationship] -> [Relationship]
 addInverseRels rels =
@@ -544,9 +544,10 @@ addM2MRels tbls rels = rels ++ catMaybes
       then Just $ Relationship t ft (t == ft) (M2M $ Junction jt1 cons1 cons2 (swap <$> cols) (swap <$> fcols)) tblIsView fTblisView
       else Nothing
   | Relationship jt1 t  _ (M2O cons1 cols)  _ tblIsView <- rels
-  , Relationship jt2 ft _ (M2O cons2 fcols) _ fTblisView <- rels
-  , jt1 == jt2
+  , Relationship _ ft _ (M2O cons2 fcols) _ fTblisView <- fold $ HM.lookup jt1 indexedRels
   , cons1 /= cons2]
+  where
+    indexedRels = HM.fromListWith (<>) $ fmap (relTable &&& pure) rels
 
 addViewPrimaryKeys :: TablesMap -> [ViewKeyDependency] -> TablesMap
 addViewPrimaryKeys tabs keyDeps =
@@ -556,13 +557,14 @@ addViewPrimaryKeys tabs keyDeps =
   where
     findViewPKCols sch vw =
       concatMap (\(ViewKeyDependency _ _ _ _ pkCols) -> takeFirstPK pkCols) $
-      filter (\(ViewKeyDependency _ viewQi _ dep _) -> dep == PKDep && viewQi == QualifiedIdentifier sch vw) keyDeps
+      fold $ HM.lookup (PKDep, QualifiedIdentifier sch vw) indexedDeps
     -- In the case of multiple reference to the same PK (see comment for ViewKeyDependency) we take the first reference available.
     -- We assume this to be safe to do, because:
     -- * We don't have any logic that requires the client to name a PK column (compared to the column hints in embedding for FKs),
     --   so we don't need to know about the other references.
     -- * We need to choose a single reference for each column, otherwise we'd output too many columns in location headers etc.
     takeFirstPK = mapMaybe (head . snd)
+    indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
 allTables :: Bool -> SQL.Statement AppConfig TablesMap
 allTables = SQL.Statement tablesSqlQuery params decodeTables
