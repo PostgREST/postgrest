@@ -126,6 +126,7 @@ main = do
 
       extraSearchPathApp   = appDbs testCfgExtraSearchPath
       unicodeApp           = appDbs testUnicodeCfg
+      nonexistentSchemaApp = appDbs testNonexistentSchemaCfg
       multipleSchemaApp    = appDbs testMultipleSchemaCfg
       ignorePrivOpenApi    = appDbs testIgnorePrivOpenApiCfg
 
@@ -220,6 +221,10 @@ main = do
     -- this test runs with asymmetric JWKSet
     parallel $ before asymJwkSetApp $
       describe "Feature.Auth.AsymmetricJwtSpec" Feature.Auth.AsymmetricJwtSpec.spec
+
+    -- this test runs with a nonexistent db-schema
+    parallel $ before nonexistentSchemaApp $
+      describe "Feature.Query.NonExistentSchemaErrorSpec" Feature.Query.ErrorSpec.nonExistentSchema
 
     -- this test runs with an extra search path
     parallel $ before extraSearchPathApp $ do
