@@ -53,3 +53,15 @@ Check the [development docs](https://github.com/PostgREST/postgrest/blob/main/ni
 ### Running Tests
 
 For instructions on running tests, see the [development docs](https://github.com/PostgREST/postgrest/blob/main/nix/README.md#testing).
+
+### Structuring commits in pull requests
+
+To simplify reviews, make it easy to split pull requests if deemed necessary, and to maintain clean and meaningful history of changes, you will be asked to update your PR if it does not follow the below rules:
+
+* It must be possible to merge the PR branch into target using `git merge --ff-only`, ie. the source branch must be rebased on top of target.
+* No merge commits in the source branch.
+* All commits in the source branch must be self contained, meaning: it should be possible to treat each commit as a separate PR.
+* Commits in the source branch must contain only related changes (related means the changes target a single problem/goal). For example, any refactorings should be isolated from the actual change implementation into separate commits.
+* Tests, documentation, and changelog updates should be contained in the same commits as the actual code changes they relate to. An exception to this rule is when test or documentation changes are made in separate PR.
+* Commit messages must be prefixed with one of the prefixes defined in [the list used by commit verification scripts](https://github.com/PostgREST/postgrest/blob/main/nix/tools/gitTools.nix#L11).
+* Commit messages should contain a longer description of the purpose of the changes contained in the commit and, for non-trivial changes, a description of the changes themselves.
