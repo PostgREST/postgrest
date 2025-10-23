@@ -9,6 +9,7 @@ nix:
   pure: false
 
 extra-deps:
+  - configurator-pg-0.2.11
   - fuzzyset-0.2.4
   - hasql-pool-1.0.1
   - jose-jwt-0.10.0
