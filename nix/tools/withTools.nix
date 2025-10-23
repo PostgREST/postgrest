@@ -5,7 +5,6 @@
 , lib
 , postgresqlVersions
 , postgrest
-, procps
 , python3Packages
 , slocat
 , writeText
@@ -330,6 +329,22 @@ let
         done
       '';
 
+  # Broadcast SIGINT to any running postgrest instances on the host. Uses python for cross-platform compatibility.
+  signalPostgrest =
+    writers.writePython3 "postgrest-signal-int"
+      { libraries = [ python3Packages.psutil ]; }
+      ''
+        import psutil
+        import signal
+
+        for proc in psutil.process_iter(["name"]):
+            try:
+                if proc.info["name"] == "postgrest":
+                    proc.send_signal(signal.SIGINT)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+      '';
+
   withPgrst =
     checkedShellScript
       {
@@ -381,7 +396,7 @@ let
           # would reap neighbor postgrest instances as well, because INT is asking
           # the process to terminate too.
           # TODO: consider cgroups to make this cleaner
-          ${procps}/bin/pkill --echo --signal=INT --exact postgrest
+          ${signalPostgrest}
           kill "$pid" || true
         }
         trap cleanup EXIT
