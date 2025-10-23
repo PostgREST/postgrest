@@ -50,6 +50,16 @@ let
       # jailbreak, because hspec limit for tests
       fuzzyset = prev.fuzzyset_0_2_4;
 
+      # TODO: Remove once available in nixpkgs haskellPackages
+      configurator-pg =
+        prev.callHackageDirect
+          {
+            pkg = "configurator-pg";
+            ver = "0.2.11";
+            sha256 = "sha256-mtGtNawDJgz2ZIEVca+IYXVu4oNw9xsfJiYWAqAbbgc=";
+          }
+          { };
+
       hasql-pool = lib.dontCheck (prev.callHackageDirect
         {
           pkg = "hasql-pool";

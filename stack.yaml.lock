@@ -5,6 +5,13 @@
 
 packages:
 - completed:
+    hackage: configurator-pg-0.2.11@sha256:de0c56386591e85159436b0af04a8f15a4f4e156354e99709676c2c2ee959505,2850
+    pantry-tree:
+      sha256: 7b4daa4ea970335414f26b313a168cd12182b7b34ea8af2616c83d38699c4301
+      size: 2527
+  original:
+    hackage: configurator-pg-0.2.11
+- completed:
     hackage: fuzzyset-0.2.4@sha256:f1b6de8bf33277bf6255207541d65028f1f1ea93af5541b654c86b5674995485,1618
     pantry-tree:
       sha256: cee68e8d88f530e9e0588b81b260236936fe3318ef9a66e9f43f680b4cd5f76e
