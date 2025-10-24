@@ -5,6 +5,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+## [13.0.8] - 2025-10-24
+
 ### Fixed
 
 - Fix loading utf-8 config files with `ASCII` locale set by @taimoorzaeem in #4386
