@@ -5,6 +5,12 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Unreleased
 
+### Added
+
+- Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
+  + It now uses a fixed size cache instead of arbitrary sized cache.
+- Add `--ready` flag for postgrest healthcheck by @taimoorzaeem in #4239
+
 ### Fixed
 
 - Fix not logging OpenAPI queries when `log-query=main-query` is enabled by @steve-chavez in #4226
@@ -14,12 +20,6 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 - Fix not logging the JSON message to stderr on a `PGRST002` error by @laurenceisla in #4129
 - Fix reloading the Schema Cache unnecessarily on a `PGRST002` error by @laurenceisla in #4367
 - Fix schema cache loading taking a long time for large schemas by @mkleczek in #4360, #3704
-
-### Added
-
-- Bounded JWT cache using the SIEVE algorithm by @mkleczek in #4084
-  + It now uses a fixed size cache instead of arbitrary sized cache.
-- Add `--ready` flag for postgrest healthcheck by @taimoorzaeem in #4239
 
 ### Changed
 
