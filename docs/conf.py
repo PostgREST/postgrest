@@ -49,7 +49,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # This is overriden by readthedocs with the version tag anyway
-version = "devel"
+version = "14"
 # To avoid repetition in <title> we set this to an empty string.
 release = ""
 
