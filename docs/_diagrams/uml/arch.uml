@@ -40,8 +40,13 @@ database "PostgreSQL" {
 
 :user:
 hexagon Proxy
-:user: .r-> Proxy
+:user: .r-> Proxy : request with JWT
 HTTPAPI <.l- Proxy
+
+hexagon ExternalAuth
+ExternalAuth -u[hidden]- Proxy
+:user: .r-> ExternalAuth : login
+:user: <.r- ExternalAuth : JWT
 
 :operator: .d-> HTTPADMIN
 :operator: .d-> CLI
@@ -51,9 +56,8 @@ PostgreSQL <.developer : "\t"
 Listener -r.> "PostgreSQL"
 "Connection Pool" -r.> "PostgreSQL" : "\t\t"
 
-
 note bottom of Auth
-  Authenticates the user request
+  Validates the JWT
 end note
 
 note bottom of ApiRequest
@@ -72,6 +76,7 @@ note top of Listener
   LISTEN session
 end note
 
+url of ExternalAuth is [[../explanations/external_auth.html]]
 url of Admin is [[../references/admin_server.html#admin-server]]
 url of API is [[../explanations/schema_isolation.html]]
 url of Auth is [[../references/auth.html#authn]]
