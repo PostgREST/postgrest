@@ -23,6 +23,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Drop support for PostgreSQL EOL version 12 by @wolfgangwalther in #3865
+- From now on PostgREST will follow a `MAJOR.PATCH` two-part versioning. Only even-numbered MAJOR versions will be released, reserving odd-numbered MAJOR versions for development.
 - Replaced `jwt-cache-max-lifetime` config with `jwt-cache-max-entries` by @mkleczek in #4084
 - `log-query` config now takes a boolean instead of a string value by @steve-chavez in #3934
 

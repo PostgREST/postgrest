@@ -106,10 +106,17 @@ Getting Support
 
 The project has a friendly and growing community. For discussions, use the Github `discussions page <https://github.com/PostgREST/postgrest/discussions>`_. You can also report or search for bugs/features on the Github `issues <https://github.com/PostgREST/postgrest/issues>`_ page.
 
-Release Notes
--------------
+Releases
+--------
 
-The release notes are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_.
+PostgREST follows ``MAJOR.PATCH`` two-part versioning:
+
+- ``MAJOR``: feature release, may deprecate or remove things.
+- ``PATCH``: fix/security release only; no features, no behavior changes.
+
+Starting from ``v14.0``, only even-numbered MAJOR versions will be released, reserving odd-numbered MAJOR versions for development.
+
+All the releases are published on `PostgREST's GitHub release page <https://github.com/PostgREST/postgrest/releases>`_.
 
 Tutorials
 ---------
@@ -259,3 +266,20 @@ Contributing
 ------------
 
 Please see the `Contributing guidelines <https://github.com/PostgREST/postgrest/blob/main/CONTRIBUTING.md>`_ in the main PostgREST repository.
+
+.. raw:: html
+
+  <script type="text/javascript">
+    let hash = window.location.hash;
+
+    const redirects = {
+      // Tables and Views
+      '#release-notes': '#releases',
+    };
+
+    let willRedirectTo = redirects[hash];
+
+    if (willRedirectTo) {
+      window.location.href = willRedirectTo;
+    }
+  </script>
