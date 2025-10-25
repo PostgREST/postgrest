@@ -57,7 +57,7 @@ jobs:
         run: |
           cabal_version="$(grep -oP '^version:\s*\K.*' postgrest.cabal)"
 
-          if [[ "$cabal_version" == *.*.*.* ]]; then
+          if [[ "$cabal_version" == *.* ]]; then
             git fetch --tags
 
             if [ -z "$(git tag --list "v$cabal_version")" ]; then
