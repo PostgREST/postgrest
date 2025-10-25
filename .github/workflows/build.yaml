@@ -42,7 +42,7 @@ jobs:
       - name: Build static executable
         run: nix-build -A postgrestStatic
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: postgrest-linux-static-x86-64
           path: result/bin/postgrest
@@ -51,7 +51,7 @@ jobs:
       - name: Build Docker image
         run: nix-build -A docker.image --out-link postgrest-docker.tar.gz
       - name: Save built Docker image as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: postgrest-docker-x86-64
           path: postgrest-docker.tar.gz
@@ -155,7 +155,7 @@ jobs:
       - name: Strip Executable
         run: strip result/postgrest*
       - name: Save built executable as artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: ${{ matrix.artifact }}
           path: |
