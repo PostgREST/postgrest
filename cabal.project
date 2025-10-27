@@ -1,2 +1,27 @@
 packages: postgrest.cabal
 tests: true
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql
+  tag: db939c49c55a8853d912962086e6c5f819a02f7a
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-dynamic-statements
+  tag: b0bcf696685c4ca5f7b4fb8bd14f9285fc133658
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-transaction
+  tag: b355efa7c666f73c1e07a2dcdeba8073da14c0ab
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-pool
+  tag: ae8957ba43af7804a707fffa29bbf807dd217f41
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-notifications
+  tag: fdb39124518c57219d00be08e34f1f830a93adc3
