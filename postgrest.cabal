@@ -68,6 +68,7 @@ library
                       PostgREST.Error
                       PostgREST.Error.Algebra
                       PostgREST.Error.ApiRequestError
+                      PostgREST.Error.SchemaCacheError
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx
