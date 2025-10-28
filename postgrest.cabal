@@ -72,6 +72,7 @@ library
                       PostgREST.Error.SchemaCacheError
                       PostgREST.Error.ResultError
                       PostgREST.Error.ResultError.RaisePgrst
+                      PostgREST.Error.UsageError
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx
