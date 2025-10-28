@@ -28,3 +28,11 @@ class ErrorBody a where
   message :: a -> Text
   details :: a -> Maybe JSON.Value
   hint    :: a -> Maybe JSON.Value
+
+toJsonPgrstError :: Text -> Text -> Maybe JSON.Value -> Maybe JSON.Value -> JSON.Value
+toJsonPgrstError code' message' details' hint' = JSON.object [
+    "code"     JSON..= code'
+  , "message"  JSON..= message'
+  , "details"  JSON..= details'
+  , "hint"     JSON..= hint'
+  ]
