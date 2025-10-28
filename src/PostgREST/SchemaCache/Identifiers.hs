@@ -2,13 +2,13 @@
 {-# LANGUAGE DeriveGeneric  #-}
 
 module PostgREST.SchemaCache.Identifiers
-  ( QualifiedIdentifier(..)
+  ( FieldName
+  , QualifiedIdentifier(..)
   , RelIdentifier(..)
-  , isAnyElement
   , Schema
   , TableName
-  , FieldName
   , dumpQi
+  , isAnyElement
   , toQi
   ) where
 
