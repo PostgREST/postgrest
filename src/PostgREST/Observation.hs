@@ -18,7 +18,7 @@ import qualified Data.ByteString.Lazy       as LBS
 import           Data.List.NonEmpty         (toList)
 import qualified Data.Text                  as T
 import qualified Data.Text.Encoding         as T
-import qualified Hasql.Connection           as SQL
+import qualified Hasql.Errors               as SQL
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Observation     as SQL
 import           Network.HTTP.Types.Status  (Status)
@@ -137,10 +137,11 @@ observationMessage = \case
   HasqlPoolObs (SQL.ConnectionObservation uuid status) ->
     "Connection " <> show uuid <> (
       case status of
-        SQL.ConnectingConnectionStatus   -> " is being established"
-        SQL.ReadyForUseConnectionStatus  -> " is available"
-        SQL.InUseConnectionStatus        -> " is used"
+        SQL.ConnectingConnectionStatus        -> " is being established"
+        SQL.ReadyForUseConnectionStatus _     -> " is available"
+        SQL.InUseConnectionStatus             -> " is used"
         SQL.TerminatedConnectionStatus reason -> " is terminated due to " <> case reason of
+          SQL.InitializationErrorTerminationReason _    -> "initialization error"
           SQL.AgingConnectionTerminationReason          -> "max lifetime"
           SQL.IdlenessConnectionTerminationReason       -> "max idletime"
           SQL.ReleaseConnectionTerminationReason        -> "release"
@@ -162,7 +163,7 @@ observationMessage = \case
 
 
     showListenerConnError :: SQL.ConnectionError -> Text
-    showListenerConnError = maybe "Connection error" (showOnSingleLine '\t' . T.decodeUtf8)
+    showListenerConnError = showOnSingleLine '\t' . SQL.toErrorMessage
 
     showListenerException :: Either SomeException () -> Text
     showListenerException (Right _) = "Failed getting notifications" -- should not happen as the listener will never finish (hasql-notifications uses `forever` internally) with a Right result

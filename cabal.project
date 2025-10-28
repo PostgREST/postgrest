@@ -1,2 +1,29 @@
+with-compiler: ghc-9.4.8
+
 packages: postgrest.cabal
 tests: true
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql
+  tag: 3b9cb47a20b7c3fa8b86a89e202fc10686211416
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-dynamic-statements
+  tag: fe059d76f381e4bc486dffce928cde767cc54f6a
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-transaction
+  tag: b355efa7c666f73c1e07a2dcdeba8073da14c0ab
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-pool
+  tag: ae8957ba43af7804a707fffa29bbf807dd217f41
+
+source-repository-package
+  type: git
+  location: https://github.com/nikita-volkov/hasql-notifications
+  tag: fdb39124518c57219d00be08e34f1f830a93adc3

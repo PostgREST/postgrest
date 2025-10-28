@@ -2,6 +2,7 @@
 module PostgREST.Version
   ( docsVersion
   , prettyVersion
+  , prettyVersionText
   ) where
 
 import qualified Data.Text as T
@@ -14,8 +15,13 @@ version = T.splitOn "." VERSION_postgrest
 -- | User friendly version number such as '14.0'.
 -- Pre-release versions are tagged as such, e.g., '15 (pre-release)'.
 prettyVersion :: ByteString
-prettyVersion =
-  (encodeUtf8 . T.intercalate "." $ take 2 version) <> preRelease
+prettyVersion = encodeUtf8 prettyVersionText
+
+-- | User friendly version number such as '14.0'.
+-- Pre-release versions are tagged as such, e.g., '15 (pre-release)'.
+prettyVersionText :: Text
+prettyVersionText =
+  (T.intercalate "." $ take 2 version) <> preRelease
   where
     preRelease = if isPreRelease then " (pre-release)" else mempty
 

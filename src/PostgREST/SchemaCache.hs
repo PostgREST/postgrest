@@ -136,22 +136,22 @@ data KeyDep
   deriving (Eq, Generic, Hashable)
 
 -- | A SQL query that can be executed independently
-type SqlQuery = ByteString
+type SqlQuery = Text
 
 
 querySchemaCache :: AppConfig -> SQL.Transaction SchemaCache
 querySchemaCache conf@AppConfig{..} = do
   SQL.sql "set local schema ''" -- This voids the search path. The following queries need this for getting the fully qualified name(schema.name) of every db object
-  tabs    <- SQL.statement conf $ allTables prepared
-  keyDeps <- SQL.statement conf $ allViewsKeyDependencies prepared
-  m2oRels <- SQL.statement mempty $ allM2OandO2ORels prepared
-  funcs   <- SQL.statement conf $ allFunctions prepared
-  cRels   <- SQL.statement mempty $ allComputedRels prepared
-  reps    <- SQL.statement conf $ dataRepresentations prepared
-  mHdlers <- SQL.statement conf $ mediaHandlers prepared
-  tzones  <- SQL.statement mempty $ timezones prepared
+  tabs    <- SQL.statement conf allTables
+  keyDeps <- SQL.statement conf allViewsKeyDependencies
+  m2oRels <- SQL.statement mempty allM2OandO2ORels
+  funcs   <- SQL.statement conf allFunctions
+  cRels   <- SQL.statement mempty allComputedRels
+  reps    <- SQL.statement conf dataRepresentations
+  mHdlers <- SQL.statement conf mediaHandlers
+  tzones  <- SQL.statement mempty timezones
   _       <-
-    let sleepCall = SQL.Statement "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult prepared in
+    let sleepCall = SQL.preparable "select pg_sleep($1 / 1000.0)" (param HE.int4) HD.noResult in
     for_ configInternalSCQuerySleep (`SQL.statement` sleepCall) -- only used for testing
 
   let tabsWViewsPks = addViewPrimaryKeys tabs keyDeps
@@ -169,7 +169,6 @@ querySchemaCache conf@AppConfig{..} = do
     }
   where
     schemas = toList configDbSchemas
-    prepared = configDbPreparedStatements
     delayEval confDelay result = maybe result (unsafePerformIO . (($> result) . (threadDelay . (1000 *) . fromIntegral))) confDelay
 
 -- | overrides detected relationships with the computed relationships and gets the RelationshipsMap
@@ -223,7 +222,7 @@ decodeTables =
     <*> column HD.bool
     <*> column HD.bool
     <*> arrayColumn HD.text
-    <*> parseCols (compositeArrayColumn
+    <*> parseCols (recordArrayColumn
       (Column
         <$> compositeField HD.text
         <*> nullableCompositeField HD.text
@@ -249,7 +248,7 @@ decodeRels =
     (QualifiedIdentifier <$> column HD.text <*> column HD.text) <*>
     column HD.bool <*>
     column HD.text <*>
-    compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) <*>
+    recordArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) <*>
     column HD.bool
 
 decodeViewKeyDeps :: HD.Result [ViewKeyDependency]
@@ -260,7 +259,7 @@ decodeViewKeyDeps =
     <$> column HD.text <*> column HD.text
     <*> column HD.text <*> column HD.text
     <*> column HD.text <*> column HD.text
-    <*> compositeArrayColumn
+    <*> recordArrayColumn
         ((,)
         <$> compositeField HD.text
         <*> compositeFieldArray HD.text)
@@ -281,7 +280,7 @@ decodeFuncs =
               <$> column HD.text
               <*> column HD.text
               <*> nullableColumn HD.text
-              <*> compositeArrayColumn
+              <*> recordArrayColumn
                   (RoutineParam
                   <$> compositeField HD.text
                   <*> compositeField HD.text
@@ -297,7 +296,7 @@ decodeFuncs =
               <*> (parseVolatility <$> column HD.char)
               <*> column HD.bool
               <*> nullableColumn (toIsolationLevel <$> HD.text)
-              <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
+              <*> recordArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text) -- function setting
 
     addKey :: Routine -> (QualifiedIdentifier, Routine)
     addKey pd = (QualifiedIdentifier (pdSchema pd) (pdName pd), pd)
@@ -331,10 +330,10 @@ decodeRepresentations =
 -- 2. implicit
 -- For the time being it must also be to/from JSON or text, although one can imagine a future where we support special
 -- cases like CSV specific representations.
-dataRepresentations :: Bool -> SQL.Statement AppConfig RepresentationsMap
-dataRepresentations = SQL.Statement sql mempty decodeRepresentations
+dataRepresentations :: SQL.Statement AppConfig RepresentationsMap
+dataRepresentations = SQL.preparable sql mempty decodeRepresentations
   where
-    sql = encodeUtf8 [trimming|
+    sql = [trimming|
     SELECT
       c.castsource::regtype::text,
       c.casttarget::regtype::text,
@@ -353,8 +352,8 @@ dataRepresentations = SQL.Statement sql mempty decodeRepresentations
        OR (dst_t.typtype = 'd' AND c.castsource IN ('json'::regtype::oid , 'text'::regtype::oid)))
     |]
 
-allFunctions :: Bool -> SQL.Statement AppConfig RoutineMap
-allFunctions = SQL.Statement funcsSqlQuery params decodeFuncs
+allFunctions :: SQL.Statement AppConfig RoutineMap
+allFunctions = SQL.preparable funcsSqlQuery params decodeFuncs
   where
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
@@ -391,7 +390,7 @@ baseTypesCte = [trimming|
 |]
 
 funcsSqlQuery :: SqlQuery
-funcsSqlQuery = encodeUtf8 [trimming|
+funcsSqlQuery = [trimming|
   WITH
   $baseTypesCte,
   arguments AS (
@@ -566,8 +565,8 @@ addViewPrimaryKeys tabs keyDeps =
     takeFirstPK = mapMaybe (head . snd)
     indexedDeps = HM.fromListWith (++) $ fmap ((keyDepType &&& keyDepView) &&& pure) keyDeps
 
-allTables :: Bool -> SQL.Statement AppConfig TablesMap
-allTables = SQL.Statement tablesSqlQuery params decodeTables
+allTables :: SQL.Statement AppConfig TablesMap
+allTables = SQL.preparable tablesSqlQuery params decodeTables
   where
     params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
 
@@ -579,7 +578,7 @@ tablesSqlQuery =
   -- (pg_has_role(ss.relowner, 'USAGE'::text) OR has_column_privilege(ss.roid, a.attnum, 'SELECT, INSERT, UPDATE, REFERENCES'::text));
   -- on the "columns" CTE, left joining on pg_depend and pg_class is used to obtain the sequence name as a column default in case there are GENERATED .. AS IDENTITY,
   -- generated columns are only available from pg >= 10 but the query is agnostic to versions. dep.deptype = 'i' is done because there are other 'a' dependencies on PKs
-  encodeUtf8 [trimming|
+  [trimming|
   WITH
   $baseTypesCte,
   columns AS (
@@ -714,12 +713,12 @@ tablesSqlQuery =
   ORDER BY table_schema, table_name|]
 
 -- | Gets many-to-one relationships and one-to-one(O2O) relationships, which are a refinement of the many-to-one's
-allM2OandO2ORels :: Bool -> SQL.Statement () [Relationship]
+allM2OandO2ORels :: SQL.Statement () [Relationship]
 allM2OandO2ORels =
-  SQL.Statement sql HE.noParams decodeRels
+  SQL.preparable sql HE.noParams decodeRels
  where
   -- We use jsonb_agg for comparing the uniques/pks instead of array_agg to avoid the ERROR:  cannot accumulate arrays of different dimensionality
-  sql = encodeUtf8 [trimming|
+  sql = [trimming|
     WITH
     pks_uniques_cols AS (
       SELECT
@@ -758,11 +757,11 @@ allM2OandO2ORels =
     AND traint.conparentid = 0
     ORDER BY traint.conrelid, traint.conname|]
 
-allComputedRels :: Bool -> SQL.Statement () [Relationship]
+allComputedRels :: SQL.Statement () [Relationship]
 allComputedRels =
-  SQL.Statement sql HE.noParams (HD.rowList cRelRow)
+  SQL.preparable sql HE.noParams (HD.rowList cRelRow)
  where
-  sql = encodeUtf8 [trimming|
+  sql = [trimming|
     with
     all_relations as (
       select reltype
@@ -804,9 +803,9 @@ allComputedRels =
     column HD.bool
 
 -- | Returns all the views' primary keys and foreign keys dependencies
-allViewsKeyDependencies :: Bool -> SQL.Statement AppConfig [ViewKeyDependency]
+allViewsKeyDependencies :: SQL.Statement AppConfig [ViewKeyDependency]
 allViewsKeyDependencies =
-  SQL.Statement sql params decodeViewKeyDeps
+  SQL.preparable sql params decodeViewKeyDeps
   -- query explanation at:
   --  * rationale: https://gist.github.com/wolfgangwalther/5425d64e7b0d20aad71f6f68474d9f19
   --  * json transformation: https://gist.github.com/wolfgangwalther/3a8939da680c24ad767e93ad2c183089
@@ -814,7 +813,7 @@ allViewsKeyDependencies =
     params =
       (map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text) <>
       (map escapeIdent . toList . configDbExtraSearchPath >$< arrayParam HE.text)
-    sql = encodeUtf8 [trimming|
+    sql = [trimming|
       with recursive
       pks_fks as (
         -- pk + fk referencing col
@@ -1014,12 +1013,12 @@ initialMediaHandlers =
   HM.insert (RelAnyElement, MediaType.MTGeoJSON        ) (BuiltinOvAggGeoJson, MediaType.MTGeoJSON)
   HM.empty
 
-mediaHandlers :: Bool -> SQL.Statement AppConfig MediaHandlerMap
+mediaHandlers :: SQL.Statement AppConfig MediaHandlerMap
 mediaHandlers =
-  SQL.Statement sql params decodeMediaHandlers
+  SQL.preparable sql params decodeMediaHandlers
   where
     params = map escapeIdent . toList . configDbSchemas >$< arrayParam HE.text
-    sql = encodeUtf8 [trimming|
+    sql = [trimming|
       with
       all_relations as (
         select reltype
@@ -1090,8 +1089,8 @@ decodeMediaHandlers =
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
               <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
 
-timezones :: Bool -> SQL.Statement () TimezoneNames
-timezones = SQL.Statement sql HE.noParams decodeTimezones
+timezones :: SQL.Statement () TimezoneNames
+timezones = SQL.preparable sql HE.noParams decodeTimezones
   where
     sql = "SELECT name FROM pg_timezone_names"
     decodeTimezones :: HD.Result TimezoneNames
@@ -1103,8 +1102,8 @@ param = HE.param . HE.nonNullable
 arrayParam :: HE.Value a -> HE.Params [a]
 arrayParam = param . HE.foldableArray . HE.nonNullable
 
-compositeArrayColumn :: HD.Composite a -> HD.Row [a]
-compositeArrayColumn = arrayColumn . HD.composite
+recordArrayColumn :: HD.Composite a -> HD.Row [a]
+recordArrayColumn = arrayColumn . HD.record
 
 compositeField :: HD.Value a -> HD.Composite a
 compositeField = HD.field . HD.nonNullable

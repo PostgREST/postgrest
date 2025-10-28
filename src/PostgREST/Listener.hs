@@ -3,17 +3,17 @@
 
 module PostgREST.Listener (runListener) where
 
-import qualified Data.ByteString.Char8 as BS
+import qualified Data.ByteString.Char8     as BS
+import qualified Hasql.Connection          as SQL
+import qualified Hasql.Connection.Settings as SQL
+import qualified Hasql.Notifications       as SQL
 
-import qualified Hasql.Connection      as SQL
-import qualified Hasql.Notifications   as SQL
 import           PostgREST.AppState    (AppState, getConfig)
 import           PostgREST.Config      (AppConfig (..))
 import           PostgREST.Observation (Observation (..))
-import           PostgREST.Version     (prettyVersion)
 
 import qualified PostgREST.AppState as AppState
-import qualified PostgREST.Config   as Config
+import qualified PostgREST.Version  as Version
 
 import Protolude
 
@@ -46,7 +46,13 @@ retryingListen appState = do
 
   -- forkFinally allows to detect if the thread dies
   void . flip forkFinally handleFinally $ do
-    dbOrError <- SQL.acquire $ toUtf8 (Config.addTargetSessionAttrs $ Config.addFallbackAppName prettyVersion configDbUri)
+    dbOrError <- SQL.acquire $ mconcat $
+      [ SQL.connectionString configDbUri,
+        SQL.noPreparedStatements (not configDbPreparedStatements),
+        SQL.other
+          "fallback_application_name"
+          ("PostgREST " <> Version.prettyVersionText)
+      ]
     case dbOrError of
       Right db -> do
         SQL.listen db $ SQL.toPgIdentifier dbChannel

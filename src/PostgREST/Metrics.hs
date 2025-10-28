@@ -53,9 +53,9 @@ observationMetrics MetricsState{..} obs = case obs of
   (PoolAcqTimeoutObs _) -> do
     incCounter poolTimeouts
   (HasqlPoolObs (SQL.ConnectionObservation _ status)) -> case status of
-     SQL.ReadyForUseConnectionStatus  -> do
+     SQL.ReadyForUseConnectionStatus _ -> do
       incGauge poolAvailable
-     SQL.InUseConnectionStatus        -> do
+     SQL.InUseConnectionStatus         -> do
       decGauge poolAvailable
      SQL.TerminatedConnectionStatus  _ -> do
       decGauge poolAvailable

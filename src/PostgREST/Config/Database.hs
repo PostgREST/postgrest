@@ -70,11 +70,11 @@ dbSettingsNames =
   ,"server_timing_enabled"
   ]
 
-queryPgVersion :: Bool -> Session PgVersion
-queryPgVersion prepared = statement mempty $ pgVersionStatement prepared
+queryPgVersion :: Session PgVersion
+queryPgVersion = statement mempty pgVersionStatement
 
-pgVersionStatement :: Bool -> SQL.Statement () PgVersion
-pgVersionStatement = SQL.Statement sql HE.noParams versionRow
+pgVersionStatement :: SQL.Statement () PgVersion
+pgVersionStatement = SQL.preparable sql HE.noParams versionRow
   where
     sql = "SELECT current_setting('server_version_num')::integer, current_setting('server_version'), version()"
     versionRow = HD.singleRow $ PgVersion <$> column HD.int4 <*> column HD.text <*> column HD.text
@@ -90,12 +90,11 @@ pgVersionStatement = SQL.Statement sql HE.noParams versionRow
 --
 -- The example above will result in <prefix>jwt_aud = 'val'
 -- A setting on the database only will have no effect: ALTER DATABASE postgres SET <prefix>jwt_aud = 'xx'
-queryDbSettings :: Maybe Text -> Bool -> Session [(Text, Text)]
-queryDbSettings preConfFunc prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.Statement sql (arrayParam HE.text) decodeSettings prepared
+queryDbSettings :: Maybe Text -> Session [(Text, Text)]
+queryDbSettings preConfFunc  =
+  SQL.transaction SQL.ReadCommitted SQL.Read $ SQL.statement dbSettingsNames $ SQL.preparable sql (arrayParam HE.text) decodeSettings
   where
-    sql = encodeUtf8 [trimming|
+    sql = [trimming|
       WITH
       role_setting AS (
         SELECT setdatabase as database,
@@ -131,12 +130,11 @@ queryDbSettings preConfFunc prepared =
       |]::Text
     decodeSettings = HD.rowList $ (,) <$> column HD.text <*> column HD.text
 
-queryRoleSettings :: PgVersion -> Bool -> Session (RoleSettings, RoleIsolationLvl)
-queryRoleSettings pgVer prepared =
-  let transaction = if prepared then SQL.transaction else SQL.unpreparedTransaction in
-  transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.Statement sql HE.noParams (processRows <$> rows) prepared
+queryRoleSettings :: PgVersion -> Session (RoleSettings, RoleIsolationLvl)
+queryRoleSettings pgVer =
+  SQL.transaction SQL.ReadCommitted SQL.Read $ SQL.statement mempty $ SQL.preparable sql HE.noParams (processRows <$> rows)
   where
-    sql = encodeUtf8 [trimming|
+    sql = [trimming|
       with
       role_setting as (
         select r.rolname, unnest(r.rolconfig) as setting
@@ -181,7 +179,7 @@ queryRoleSettings pgVer prepared =
       )
 
     rows :: HD.Result [(Text, Maybe Text, [(Text, Text)])]
-    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> compositeArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
+    rows = HD.rowList $ (,,) <$> column HD.text <*> nullableColumn HD.text <*> recordArrayColumn ((,) <$> compositeField HD.text <*> compositeField HD.text)
 
 column :: HD.Value a -> HD.Row a
 column = HD.column . HD.nonNullable
@@ -192,8 +190,8 @@ nullableColumn = HD.column . HD.nullable
 compositeField :: HD.Value a -> HD.Composite a
 compositeField = HD.field . HD.nonNullable
 
-compositeArrayColumn :: HD.Composite a -> HD.Row [a]
-compositeArrayColumn = arrayColumn . HD.composite
+recordArrayColumn :: HD.Composite a -> HD.Row [a]
+recordArrayColumn = arrayColumn . HD.record
 
 arrayColumn :: HD.Value a -> HD.Row [a]
 arrayColumn = column . HD.listArray . HD.nonNullable
