@@ -90,7 +90,7 @@ parseCfgAud = fmap CfgAud . (fmap . ParsedValue . Just <*> parseRegex)
     bounded = ("\\`(" <>) . (<> "\\')")
 
 defaultCfgAud :: CfgAud
-defaultCfgAud = CfgAud $ ParsedValue Nothing $ R.makeRegex (".*"::Text)
+defaultCfgAud = CfgAud $ ParsedValue Nothing $ R.makeRegex ("\\`\\'"::Text)
 
 audMatchesCfg :: AppConfig -> Text -> Bool
 audMatchesCfg = R.matchTest . parsedValue . unCfgAud . configJwtAudience

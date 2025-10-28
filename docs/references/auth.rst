@@ -203,7 +203,7 @@ It works this way:
 Examples:
 - To make PostgREST accept ``aud`` claim value from a set ``audience1``, ``audience2``, ``otheraudience``, :ref:`jwt-aud` claim should be set to ``audience1|audience2|otheraudience``.
 - To make PostgREST accept ``aud`` claim value matching any ``https`` URI pointing to a host in ``example.com`` domain, :ref:`jwt-aud` claim should be set to ``https://[a-zA-Z0-9_]*\.example\.com``.
-- To make PostgREST accept any ``aud`` claim value , :ref:`jwt-aud` claim should be set to ``.*`` (which is the default).
+- To make PostgREST accept any ``aud`` claim value , :ref:`jwt-aud` claim should be set to ``.*``.
 
 .. _jwt_caching:
 
