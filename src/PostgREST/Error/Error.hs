@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
-{-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Error.Error
   ( Error (..)
