@@ -5,8 +5,9 @@ module PostgREST.Error.PgError.CommandError where
 import qualified Data.Aeson as JSON
 import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as SQL
+import qualified Network.HTTP.Types as HTTP
 import PostgREST.Error.Algebra
-import PostgREST.Error.PgError.ResultError ()
+import qualified PostgREST.Error.PgError.ResultError as ResultError
 import Protolude
 
 instance JSON.ToJSON SQL.CommandError where
@@ -30,3 +31,12 @@ instance ErrorBody SQL.CommandError where
 
   hint (SQL.ResultError resultError) = hint resultError
   hint _ = Nothing
+
+pgErrorStatus :: Bool -> SQL.CommandError -> HTTP.Status
+pgErrorStatus _      (SQL.ClientError _)      = HTTP.status503
+pgErrorStatus authed (SQL.ResultError rError) =
+  ResultError.pgErrorStatus authed rError
+
+maybeHeaders :: SQL.CommandError -> Maybe [HTTP.Header]
+maybeHeaders (SQL.ResultError rError) = ResultError.maybeHeaders rError
+maybeHeaders _ = Nothing

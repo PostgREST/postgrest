@@ -7,16 +7,12 @@ module PostgREST.Error.PgError
     Authenticated,
   ) where
 
-import qualified Data.Aeson                          as JSON
-import qualified Hasql.Pool                          as SQL
-import qualified Hasql.Session                       as SQL
-import qualified Network.HTTP.Types                  as HTTP
-import qualified PostgREST.Error.PgError.ResultError as ResultError
+import qualified Data.Aeson                         as JSON
+import qualified Hasql.Pool                         as SQL
+import qualified Network.HTTP.Types                 as HTTP
+import qualified PostgREST.Error.PgError.UsageError as UsageError
 
 import PostgREST.Error.Algebra
-import PostgREST.Error.PgError.CommandError ()
-import PostgREST.Error.PgError.ResultError ()
-import PostgREST.Error.PgError.UsageError ()
 import Protolude
 
 data PgError = PgError Authenticated SQL.UsageError
@@ -25,9 +21,9 @@ data PgError = PgError Authenticated SQL.UsageError
 type Authenticated = Bool
 
 instance PgrstError PgError where
-  status (PgError authed usageError) = pgErrorStatus authed usageError
+  status (PgError authed usageError) = UsageError.pgErrorStatus authed usageError
 
-  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (ResultError.maybeHeaders -> Just matchingHeaders))))) =
+  headers (PgError _ (UsageError.maybeHeaders -> Just matchingHeaders)) =
     matchingHeaders
 
   headers err =
@@ -44,10 +40,3 @@ instance ErrorBody PgError where
   message (PgError _ usageError) = message usageError
   details (PgError _ usageError) = details usageError
   hint    (PgError _ usageError) = hint usageError
-
-pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
-pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
-pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
-pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
-pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
-  ResultError.pgErrorStatus authed rError

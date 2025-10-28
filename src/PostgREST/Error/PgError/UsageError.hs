@@ -2,13 +2,14 @@
 
 module PostgREST.Error.PgError.UsageError where
 
-import qualified Data.Aeson                  as JSON
-import qualified Data.Text.Encoding          as T
-import qualified Hasql.Pool                  as SQL
-import qualified Hasql.Session               as SQL
+import qualified Data.Aeson                           as JSON
+import qualified Data.Text.Encoding                   as T
+import qualified Hasql.Pool                           as SQL
+import qualified Hasql.Session                        as SQL
+import qualified Network.HTTP.Types                   as HTTP
+import qualified PostgREST.Error.PgError.CommandError as CommandError
 
 import PostgREST.Error.Algebra
-import PostgREST.Error.PgError.CommandError ()
 import Protolude
 
 
@@ -32,3 +33,14 @@ instance ErrorBody SQL.UsageError where
   hint    (SQL.ConnectionUsageError _)                   = Nothing
   hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
   hint    SQL.AcquisitionTimeoutUsageError               = Nothing
+
+pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
+pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
+pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
+pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ commandError)) =
+  CommandError.pgErrorStatus authed commandError
+
+maybeHeaders :: SQL.UsageError -> Maybe [HTTP.Header]
+maybeHeaders (SQL.SessionUsageError (SQL.QueryError _ _ commandError)) =
+  CommandError.maybeHeaders commandError
+maybeHeaders _ = Nothing
