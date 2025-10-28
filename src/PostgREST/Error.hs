@@ -29,7 +29,6 @@ import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 
-import Data.Aeson  ((.:), (.:?))
 import Network.HTTP.Types.Header (Header)
 import PostgREST.Error.Algebra
 import PostgREST.Error.ApiRequestError
@@ -326,43 +325,3 @@ invalidTokenHeader m =
 
 requiredTokenHeader :: Header
 requiredTokenHeader = ("WWW-Authenticate", "Bearer")
-
--- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Maybe Text,
-  getHint    :: Maybe Text
-}
-
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus     :: Int,
-  getStatusText :: Maybe Text,
-  getHeaders    :: Map Text Text
-}
-
-instance JSON.FromJSON PgRaiseErrMessage where
-  parseJSON (JSON.Object m) =
-    PgRaiseErrMessage
-      <$> m .: "code"
-      <*> m .: "message"
-      <*> m .:? "details"
-      <*> m .:? "hint"
-
-  parseJSON _ = mzero
-
-instance JSON.FromJSON PgRaiseErrDetails where
-  parseJSON (JSON.Object d) =
-    PgRaiseErrDetails
-      <$> d .: "status"
-      <*> d .:? "status_text"
-      <*> d .: "headers"
-
-  parseJSON _ = mzero
-
-parseRaisePGRST :: ByteString -> Maybe ByteString -> Either ApiRequestError (PgRaiseErrMessage, PgRaiseErrDetails)
-parseRaisePGRST m d = do
-  msgJson <- maybeToRight (PGRSTParseError $ MsgParseError m) (JSON.decodeStrict m)
-  det <- maybeToRight (PGRSTParseError NoDetail) d
-  detJson <- maybeToRight (PGRSTParseError $ DetParseError det) (JSON.decodeStrict det)
-  return (msgJson, detJson)
