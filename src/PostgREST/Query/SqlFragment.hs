@@ -6,13 +6,22 @@ Module      : PostgREST.Query.SqlFragment
 Description : Helper functions for PostgREST.QueryBuilder.
 -}
 module PostgREST.Query.SqlFragment
-  ( noLocationF
-  , handlerF
+  ( accessibleFuncs
+  , accessibleTables
+  , addConfigPgrstInserted
   , countF
-  , groupF
+  , currentSettingF
+  , escapeIdent
+  , escapeIdentList
+  , explainF
+  , fromJsonBodyF
   , fromQi
+  , groupF
+  , handlerF
+  , intercalateSnippet
   , limitOffsetF
   , locationF
+  , noLocationF
   , orderF
   , pgFmtColumn
   , pgFmtFilter
@@ -21,28 +30,19 @@ module PostgREST.Query.SqlFragment
   , pgFmtLogicTree
   , pgFmtOrderTerm
   , pgFmtSelectItem
-  , pgFmtSpreadSelectItem
   , pgFmtSpreadJoinSelectItem
-  , fromJsonBodyF
+  , pgFmtSpreadSelectItem
   , responseHeadersF
   , responseStatusF
-  , addConfigPgrstInserted
-  , currentSettingF
   , returningF
+  , schemaDescription
+  , setConfigWithConstantName
+  , setConfigWithConstantNameJSON
+  , setConfigWithDynamicName
   , singleParameter
   , sourceCTE
   , sourceCTEName
   , unknownEncoder
-  , intercalateSnippet
-  , explainF
-  , setConfigWithConstantName
-  , setConfigWithDynamicName
-  , setConfigWithConstantNameJSON
-  , escapeIdent
-  , escapeIdentList
-  , schemaDescription
-  , accessibleTables
-  , accessibleFuncs
   ) where
 
 import qualified Data.Aeson                      as JSON
