@@ -27,9 +27,8 @@ import qualified Data.Map.Internal         as M
 import qualified Data.Text.Encoding        as T
 import qualified Hasql.Pool                as SQL
 import qualified Hasql.Session             as SQL
-import qualified Network.HTTP.Types.Status as HTTP
+import qualified Network.HTTP.Types        as HTTP
 
-import Network.HTTP.Types.Header (Header)
 import PostgREST.Error.Algebra
 import PostgREST.Error.ApiRequestError
 import PostgREST.Error.SchemaCacheError
@@ -53,10 +52,10 @@ instance PgrstError PgError where
 
   headers err =
     if status err == HTTP.status401
-       then [("WWW-Authenticate", "Bearer") :: Header]
+       then [("WWW-Authenticate", "Bearer") :: HTTP.Header]
        else mempty
 
-proxyStatusHeader :: Text -> Header
+proxyStatusHeader :: Text -> HTTP.Header
 proxyStatusHeader code' = ("Proxy-Status", "PostgREST; error=" <> T.encodeUtf8 code')
 
 instance JSON.ToJSON PgError where
@@ -319,9 +318,9 @@ instance ErrorBody JwtError where
 
   hint _    = Nothing
 
-invalidTokenHeader :: Text -> Header
+invalidTokenHeader :: Text -> HTTP.Header
 invalidTokenHeader m =
   ("WWW-Authenticate", "Bearer error=\"invalid_token\", " <> "error_description=" <> encodeUtf8 (show m))
 
-requiredTokenHeader :: Header
+requiredTokenHeader :: HTTP.Header
 requiredTokenHeader = ("WWW-Authenticate", "Bearer")
