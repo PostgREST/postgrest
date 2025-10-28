@@ -30,6 +30,7 @@ import qualified PostgREST.Error.ResultError as ResultError
 
 import PostgREST.Error.Algebra
 import PostgREST.Error.ApiRequestError
+import PostgREST.Error.CommandError ()
 import PostgREST.Error.SchemaCacheError
 import Protolude
 
@@ -83,24 +84,6 @@ instance ErrorBody SQL.UsageError where
   hint    (SQL.ConnectionUsageError _)                   = Nothing
   hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
   hint    SQL.AcquisitionTimeoutUsageError               = Nothing
-
-instance JSON.ToJSON SQL.CommandError where
-  toJSON err = toJsonPgrstError
-    (code err) (message err) (details err) (hint err)
-
-instance ErrorBody SQL.CommandError where
-  -- Special error raised with code PGRST, to allow full response control
-  code (SQL.ResultError resultError) = code resultError
-  code (SQL.ClientError _) = "PGRST001"
-
-  message (SQL.ResultError resultError) = message resultError
-  message (SQL.ClientError _) = "Database client error. Retrying the connection."
-
-  details (SQL.ResultError resultError) = details resultError
-  details (SQL.ClientError d) = JSON.String . T.decodeUtf8 <$> d
-
-  hint (SQL.ResultError resultError) = hint resultError
-  hint _ = Nothing
 
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
