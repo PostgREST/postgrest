@@ -7,7 +7,7 @@ import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as SQL
 import qualified Network.HTTP.Types as HTTP
 import PostgREST.Error.Algebra
-import qualified PostgREST.Error.PgError.ResultError as ResultError
+import qualified PostgREST.Error.PgError.ServerError as ResultError
 import Protolude
 
 instance JSON.ToJSON SQL.CommandError where

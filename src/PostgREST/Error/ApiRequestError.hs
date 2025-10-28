@@ -45,8 +45,8 @@ data QPError = QPError Text Text
   deriving Show
 
 data RaiseError
-  = MsgParseError ByteString
-  | DetParseError ByteString
+  = MsgParseError Text
+  | DetParseError Text
   | NoDetail
   deriving Show
 
@@ -191,6 +191,6 @@ pgrstParseErrorHint err = case err of
 
 pgrstParseErrorDetails :: RaiseError -> Text
 pgrstParseErrorDetails err = case err of
-  MsgParseError m -> "Invalid JSON value for MESSAGE: '" <> T.decodeUtf8 m <> "'"
-  DetParseError d -> "Invalid JSON value for DETAIL: '" <> T.decodeUtf8 d <> "'"
+  MsgParseError m -> "Invalid JSON value for MESSAGE: '" <> m <> "'"
+  DetParseError d -> "Invalid JSON value for DETAIL: '" <> d <> "'"
   NoDetail        -> "DETAIL is missing in the RAISE statement"

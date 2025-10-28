@@ -1,4 +1,4 @@
-module PostgREST.Error.PgError.ResultError.RaisePgrst where
+module PostgREST.Error.PgError.ServerError.RaisePgrst where
 
 import qualified Data.Aeson as JSON
 import qualified PostgREST.Error.ApiRequestError as ApiRequestError
@@ -36,11 +36,11 @@ instance JSON.FromJSON PgRaiseErrDetails where
   parseJSON _ = mzero
 
 parseRaisePGRST ::
-  ByteString ->
-  Maybe ByteString ->
+  Text ->
+  Maybe Text ->
   Either ApiRequestError.ApiRequestError (PgRaiseErrMessage, PgRaiseErrDetails)
 parseRaisePGRST m d = do
-  msgJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.MsgParseError m) (JSON.decodeStrict m)
+  msgJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.MsgParseError m) (JSON.decodeStrictText m)
   det <- maybeToRight (ApiRequestError.PGRSTParseError ApiRequestError.NoDetail) d
-  detJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.DetParseError det) (JSON.decodeStrict det)
+  detJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.DetParseError det) (JSON.decodeStrictText det)
   return (msgJson, detJson)
