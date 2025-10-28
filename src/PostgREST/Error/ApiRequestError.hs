@@ -3,9 +3,6 @@ module PostgREST.Error.ApiRequestError
     QPError(..),
     RaiseError(..),
     RangeError(..),
-    PgRaiseErrMessage(..),
-    PgRaiseErrDetails(..),
-    parseRaisePGRST,
   ) where
 
 import qualified Data.Aeson                as JSON
@@ -197,45 +194,3 @@ pgrstParseErrorDetails err = case err of
   MsgParseError m -> "Invalid JSON value for MESSAGE: '" <> T.decodeUtf8 m <> "'"
   DetParseError d -> "Invalid JSON value for DETAIL: '" <> T.decodeUtf8 d <> "'"
   NoDetail        -> "DETAIL is missing in the RAISE statement"
-
-
-
--- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Maybe Text,
-  getHint    :: Maybe Text
-}
-
-instance JSON.FromJSON PgRaiseErrMessage where
-  parseJSON (JSON.Object m) =
-    PgRaiseErrMessage
-      <$> m JSON..: "code"
-      <*> m JSON..: "message"
-      <*> m JSON..:? "details"
-      <*> m JSON..:? "hint"
-
-  parseJSON _ = mzero
-
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus     :: Int,
-  getStatusText :: Maybe Text,
-  getHeaders    :: Map Text Text
-}
-
-instance JSON.FromJSON PgRaiseErrDetails where
-  parseJSON (JSON.Object d) =
-    PgRaiseErrDetails
-      <$> d JSON..: "status"
-      <*> d JSON..:? "status_text"
-      <*> d JSON..: "headers"
-
-  parseJSON _ = mzero
-
-parseRaisePGRST :: ByteString -> Maybe ByteString -> Either ApiRequestError (PgRaiseErrMessage, PgRaiseErrDetails)
-parseRaisePGRST m d = do
-  msgJson <- maybeToRight (PGRSTParseError $ MsgParseError m) (JSON.decodeStrict m)
-  det <- maybeToRight (PGRSTParseError NoDetail) d
-  detJson <- maybeToRight (PGRSTParseError $ DetParseError det) (JSON.decodeStrict det)
-  return (msgJson, detJson)
