@@ -1,12 +1,12 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PostgREST.Error.CommandError where
+module PostgREST.Error.PgError.CommandError where
 
 import qualified Data.Aeson as JSON
 import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as SQL
 import PostgREST.Error.Algebra
-import PostgREST.Error.ResultError ()
+import PostgREST.Error.PgError.ResultError ()
 import Protolude
 
 instance JSON.ToJSON SQL.CommandError where

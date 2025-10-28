@@ -7,16 +7,16 @@ module PostgREST.Error.PgError
     Authenticated,
   ) where
 
-import qualified Data.Aeson                  as JSON
-import qualified Hasql.Pool                  as SQL
-import qualified Hasql.Session               as SQL
-import qualified Network.HTTP.Types          as HTTP
-import qualified PostgREST.Error.ResultError as ResultError
+import qualified Data.Aeson                          as JSON
+import qualified Hasql.Pool                          as SQL
+import qualified Hasql.Session                       as SQL
+import qualified Network.HTTP.Types                  as HTTP
+import qualified PostgREST.Error.PgError.ResultError as ResultError
 
 import PostgREST.Error.Algebra
-import PostgREST.Error.CommandError ()
-import PostgREST.Error.ResultError ()
-import PostgREST.Error.UsageError ()
+import PostgREST.Error.PgError.CommandError ()
+import PostgREST.Error.PgError.ResultError ()
+import PostgREST.Error.PgError.UsageError ()
 import Protolude
 
 data PgError = PgError Authenticated SQL.UsageError

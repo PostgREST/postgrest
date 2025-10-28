@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PostgREST.Error.UsageError where
+module PostgREST.Error.PgError.UsageError where
 
 import qualified Data.Aeson                  as JSON
 import qualified Data.Text.Encoding          as T
@@ -8,7 +8,7 @@ import qualified Hasql.Pool                  as SQL
 import qualified Hasql.Session               as SQL
 
 import PostgREST.Error.Algebra
-import PostgREST.Error.CommandError ()
+import PostgREST.Error.PgError.CommandError ()
 import Protolude
 
 

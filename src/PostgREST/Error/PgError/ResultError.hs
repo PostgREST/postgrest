@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module PostgREST.Error.ResultError
+module PostgREST.Error.PgError.ResultError
   ( toHttpStatusByAuthed,
     toHeaders,
   ) where
@@ -12,7 +12,7 @@ import qualified Data.Map.Internal as M
 import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as SQL
 import qualified Network.HTTP.Types as HTTP
-import qualified PostgREST.Error.ResultError.RaisePgrst as RaisePgrst
+import qualified PostgREST.Error.PgError.ResultError.RaisePgrst as RaisePgrst
 
 import PostgREST.Error.Algebra
 import Protolude

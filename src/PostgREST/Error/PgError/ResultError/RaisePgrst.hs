@@ -1,4 +1,4 @@
-module PostgREST.Error.ResultError.RaisePgrst where
+module PostgREST.Error.PgError.ResultError.RaisePgrst where
 
 import qualified Data.Aeson as JSON
 import qualified PostgREST.Error.ApiRequestError as ApiRequestError

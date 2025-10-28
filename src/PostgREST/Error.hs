@@ -20,9 +20,6 @@ module PostgREST.Error
 
 import PostgREST.Error.Algebra
 import PostgREST.Error.ApiRequestError
-import PostgREST.Error.CommandError ()
-import PostgREST.Error.PgError
 import PostgREST.Error.Error
-import PostgREST.Error.ResultError ()
+import PostgREST.Error.PgError
 import PostgREST.Error.SchemaCacheError
-import PostgREST.Error.UsageError ()
