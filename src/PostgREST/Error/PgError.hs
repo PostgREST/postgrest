@@ -27,7 +27,7 @@ type Authenticated = Bool
 instance PgrstError PgError where
   status (PgError authed usageError) = pgErrorStatus authed usageError
 
-  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (ResultError.toHeaders -> Just matchingHeaders))))) =
+  headers (PgError _ (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError (ResultError.maybeHeaders -> Just matchingHeaders))))) =
     matchingHeaders
 
   headers err =
@@ -50,4 +50,4 @@ pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
 pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
 pgErrorStatus _      (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _)))      = HTTP.status503
 pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ResultError rError))) =
-  ResultError.toHttpStatusByAuthed rError authed
+  ResultError.pgErrorStatus authed rError

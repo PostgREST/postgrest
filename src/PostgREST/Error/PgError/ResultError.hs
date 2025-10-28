@@ -1,8 +1,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module PostgREST.Error.PgError.ResultError
-  ( toHttpStatusByAuthed,
-    toHeaders,
+  ( pgErrorStatus,
+    maybeHeaders,
   ) where
 
 import qualified Data.Aeson as JSON
@@ -47,8 +47,8 @@ instance ErrorBody SQL.ResultError where
   hint (SQL.ServerError _ _ _ h _) = JSON.String . T.decodeUtf8 <$> h
   hint _ = Nothing
 
-toHttpStatusByAuthed :: SQL.ResultError -> Bool -> HTTP.Status
-toHttpStatusByAuthed rError authed = case rError of
+pgErrorStatus :: Bool -> SQL.ResultError -> HTTP.Status
+pgErrorStatus authed rError = case rError of
   SQL.ServerError c m d _ _ ->
     case BS.unpack c of
       '0':'8':_ -> HTTP.status503 -- pg connection err
@@ -99,11 +99,11 @@ toHttpStatusByAuthed rError authed = case rError of
       _         -> HTTP.status400
   _             -> HTTP.status500
 
-toHeaders :: SQL.ResultError -> Maybe [HTTP.Header]
-toHeaders (SQL.ServerError "PGRST" m d _ _p) =
+maybeHeaders :: SQL.ResultError -> Maybe [HTTP.Header]
+maybeHeaders (SQL.ServerError "PGRST" m d _ _p) =
   Just $ case RaisePgrst.parseRaisePGRST m d of
     Right (_, r) -> map intoHeader (M.toList $ RaisePgrst.getHeaders r)
     Left e       -> headers e
   where
     intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
-toHeaders _ = Nothing
+maybeHeaders _ = Nothing
