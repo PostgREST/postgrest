@@ -70,6 +70,7 @@ library
                       PostgREST.Error.ApiRequestError
                       PostgREST.Error.SchemaCacheError
                       PostgREST.Error.ResultError
+                      PostgREST.Error.ResultError.RaisePgrst
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx

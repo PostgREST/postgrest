@@ -12,7 +12,7 @@ import qualified Data.Map.Internal as M
 import qualified Data.Text.Encoding as T
 import qualified Hasql.Session as SQL
 import qualified Network.HTTP.Types as HTTP
-import qualified PostgREST.Error.ApiRequestError as ApiRequestError
+import qualified PostgREST.Error.ResultError.RaisePgrst as RaisePgrst
 
 import PostgREST.Error.Algebra
 import Protolude
@@ -20,29 +20,29 @@ import Protolude
 instance ErrorBody SQL.ResultError where
   -- Special error raised with code PGRST, to allow full response control
   code (SQL.ServerError "PGRST" m d _ _) =
-    case parseRaisePGRST m d of
-      Right (r, _) -> getCode r
+    case RaisePgrst.parseRaisePGRST m d of
+      Right (r, _) -> RaisePgrst.getCode r
       Left e       -> code e
   code (SQL.ServerError c _ _ _ _) = T.decodeUtf8 c
   code _ = "PGRSTX00" -- Internal Error
 
   message (SQL.ServerError "PGRST" m d _ _) =
-    case parseRaisePGRST m d of
-      Right (r, _) -> getMessage r
+    case RaisePgrst.parseRaisePGRST m d of
+      Right (r, _) -> RaisePgrst.getMessage r
       Left e       -> message e
   message (SQL.ServerError _ m _ _ _) = T.decodeUtf8 m
   message resultError = show resultError -- We never really return this error, because we kill pgrst thread early in App.hs
 
   details (SQL.ServerError "PGRST" m d _ _) =
-    case parseRaisePGRST m d of
-      Right (r, _) -> JSON.String <$> getDetails r
+    case RaisePgrst.parseRaisePGRST m d of
+      Right (r, _) -> JSON.String <$> RaisePgrst.getDetails r
       Left e       -> details e
   details (SQL.ServerError _ _ d _ _) = JSON.String . T.decodeUtf8 <$> d
   details _ = Nothing
 
   hint (SQL.ServerError "PGRST" m d _ _p) =
-    case parseRaisePGRST m d of
-      Right (r, _) -> JSON.String <$> getHint r
+    case RaisePgrst.parseRaisePGRST m d of
+      Right (r, _) -> JSON.String <$> RaisePgrst.getHint r
       Left e       -> hint e
   hint (SQL.ServerError _ _ _ h _) = JSON.String . T.decodeUtf8 <$> h
   hint _ = Nothing
@@ -93,59 +93,17 @@ toHttpStatusByAuthed rError authed = case rError of
       "42501"   -> if authed then HTTP.status403 else HTTP.status401 -- insufficient privilege
       'P':'T':n -> fromMaybe HTTP.status500 (HTTP.mkStatus <$> readMaybe n <*> pure m)
       "PGRST"   ->
-        case parseRaisePGRST m d of
-          Right (_, r) -> maybe (toEnum $ getStatus r) (HTTP.mkStatus (getStatus r) . T.encodeUtf8) (getStatusText r)
+        case RaisePgrst.parseRaisePGRST m d of
+          Right (_, r) -> maybe (toEnum $ RaisePgrst.getStatus r) (HTTP.mkStatus (RaisePgrst.getStatus r) . T.encodeUtf8) (RaisePgrst.getStatusText r)
           Left e -> status e
       _         -> HTTP.status400
   _             -> HTTP.status500
 
 toHeaders :: SQL.ResultError -> Maybe [HTTP.Header]
 toHeaders (SQL.ServerError "PGRST" m d _ _p) =
-  Just $ case parseRaisePGRST m d of
-    Right (_, r) -> map intoHeader (M.toList $ getHeaders r)
+  Just $ case RaisePgrst.parseRaisePGRST m d of
+    Right (_, r) -> map intoHeader (M.toList $ RaisePgrst.getHeaders r)
     Left e       -> headers e
   where
     intoHeader (k,v) = (CI.mk $ T.encodeUtf8 k, T.encodeUtf8 v)
 toHeaders _ = Nothing
-
--- ** Helpers for parsing RAISE PGRST errors
-
--- For parsing byteString to JSON Object, used for allowing full response control
-data PgRaiseErrMessage = PgRaiseErrMessage {
-  getCode    :: Text,
-  getMessage :: Text,
-  getDetails :: Maybe Text,
-  getHint    :: Maybe Text
-}
-
-instance JSON.FromJSON PgRaiseErrMessage where
-  parseJSON (JSON.Object m) =
-    PgRaiseErrMessage
-      <$> m JSON..: "code"
-      <*> m JSON..: "message"
-      <*> m JSON..:? "details"
-      <*> m JSON..:? "hint"
-
-  parseJSON _ = mzero
-
-data PgRaiseErrDetails = PgRaiseErrDetails {
-  getStatus     :: Int,
-  getStatusText :: Maybe Text,
-  getHeaders    :: Map Text Text
-}
-
-instance JSON.FromJSON PgRaiseErrDetails where
-  parseJSON (JSON.Object d) =
-    PgRaiseErrDetails
-      <$> d JSON..: "status"
-      <*> d JSON..:? "status_text"
-      <*> d JSON..: "headers"
-
-  parseJSON _ = mzero
-
-parseRaisePGRST :: ByteString -> Maybe ByteString -> Either ApiRequestError.ApiRequestError (PgRaiseErrMessage, PgRaiseErrDetails)
-parseRaisePGRST m d = do
-  msgJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.MsgParseError m) (JSON.decodeStrict m)
-  det <- maybeToRight (ApiRequestError.PGRSTParseError ApiRequestError.NoDetail) d
-  detJson <- maybeToRight (ApiRequestError.PGRSTParseError $ ApiRequestError.DetParseError det) (JSON.decodeStrict det)
-  return (msgJson, detJson)
