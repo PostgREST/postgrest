@@ -139,7 +139,7 @@ ftsOperator = \case
   FilterFtsPhrase    -> "@@ phraseto_tsquery"
   FilterFtsWebsearch -> "@@ websearch_to_tsquery"
 
-singleParameter :: Maybe LBS.ByteString -> ByteString -> SQL.Snippet
+singleParameter :: Maybe LBS.ByteString -> Text -> SQL.Snippet
 singleParameter body typ =
   if typ == "bytea"
     -- TODO: Hasql fails when using HE.unknown with bytea(pg tries to utf8 encode).
@@ -161,7 +161,7 @@ pgBuildArrayLiteral vals =
 
 -- TODO: refactor by following https://github.com/PostgREST/postgrest/pull/1631#issuecomment-711070833
 pgFmtIdent :: Text -> SQL.Snippet
-pgFmtIdent x = SQL.sql . encodeUtf8 $ escapeIdent x
+pgFmtIdent x = SQL.sql $ escapeIdent x
 
 escapeIdent :: Text -> Text
 escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
@@ -233,7 +233,7 @@ customFuncF _ funcQi RelAnyElement            = fromQi funcQi <> "(_postgrest_t)
 customFuncF _ funcQi (RelId target)           = fromQi funcQi <> "(_postgrest_t::" <> fromQi target <> ")"
 
 locationF :: [Text] -> SQL.Snippet
-locationF pKeys = SQL.sql $ encodeUtf8 [trimming|(
+locationF pKeys = SQL.sql $ [trimming|(
   WITH data AS (SELECT row_to_json(_) AS row FROM ${sourceCTEName} AS _ LIMIT 1)
   SELECT array_agg(json_data.key || '=' || coalesce('eq.' || json_data.value, 'is.null'))
   FROM data CROSS JOIN json_each_text(data.row) AS json_data
@@ -253,7 +253,7 @@ pgFmtColumn table "*" = fromQi table <> ".*"
 pgFmtColumn table c   = fromQi table <> "." <> pgFmtIdent c
 
 pgFmtCallUnary :: Text -> SQL.Snippet -> SQL.Snippet
-pgFmtCallUnary f x = SQL.sql (encodeUtf8 f) <> "(" <> x <> ")"
+pgFmtCallUnary f x = SQL.sql f <> "(" <> x <> ")"
 
 pgFmtField :: QualifiedIdentifier -> CoercibleField -> SQL.Snippet
 pgFmtField table cf = case cfToTsVector cf of
@@ -291,7 +291,7 @@ pgFmtApplyAggregate (Just agg) aggCast snippet =
   where
     convertAggFunction :: AggregateFunction -> SQL.Snippet
     -- Convert from e.g. Sum (the data type) to SUM
-    convertAggFunction = SQL.sql . BS.map toUpper . BS.pack . show
+    convertAggFunction = SQL.sql . T.toUpper . T.pack . show
     aggregatedSnippet = convertAggFunction agg <> "(" <> snippet <> ")"
 
 pgFmtSpreadJoinSelectItem :: Alias -> [CoercibleOrderTerm] -> SpreadSelectField -> SQL.Snippet
@@ -307,7 +307,7 @@ pgFmtApplyCast Nothing snippet = snippet
 -- Ideally we'd quote the cast with "pgFmtIdent cast". However, that would invalidate common casts such as "int", "bigint", etc.
 -- Try doing: `select 1::"bigint"` - it'll err, using "int8" will work though. There's some parser magic that pg does that's invalidated when quoting.
 -- Not quoting should be fine, we validate the input on Parsers.
-pgFmtApplyCast (Just cast) snippet = "CAST( " <> snippet <> " AS " <> SQL.sql (encodeUtf8 cast) <> " )"
+pgFmtApplyCast (Just cast) snippet = "CAST( " <> snippet <> " AS " <> SQL.sql cast <> " )"
 
 pgFmtFullSelName :: Alias -> FieldName -> SQL.Snippet
 pgFmtFullSelName aggAlias fieldName = case fieldName of
@@ -329,7 +329,7 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
 
     namedCols = intercalateSnippet ", " $ fromQi  . QualifiedIdentifier "pgrst_body" . cfName <$> fields
     parsedCols = intercalateSnippet ", " $ pgFmtCoerceNamed <$> fields
-    typedCols = intercalateSnippet ", " $ pgFmtIdent . cfName <> const " " <> SQL.sql . encodeUtf8 . cfIRType <$> fields
+    typedCols = intercalateSnippet ", " $ pgFmtIdent . cfName <> const " " <> SQL.sql . cfIRType <$> fields
 
     lateralFieldsSource = if null fields then emptyFieldsSource else nonEmptyFieldsSource
       where
@@ -340,10 +340,10 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
                               then "(values(1)) _ " -- only 1 row for an empty json object '{}'
                               else jsonArrayElementsF <> "(" <> finalBodyF <> ") _ " -- extract rows of a json array of empty objects `[{}, {}]`
 
-    defsJsonb = SQL.sql $ "jsonb_build_object(" <> BS.intercalate "," fieldsWDefaults <> ")"
+    defsJsonb = SQL.sql $ "jsonb_build_object(" <> T.intercalate "," fieldsWDefaults <> ")"
     fieldsWDefaults = mapMaybe extractFieldDefault fields
       where
-        extractFieldDefault CoercibleField{cfName=nam, cfDefault=Just def} = Just $ encodeUtf8 (pgFmtLit nam <> ", " <> def)
+        extractFieldDefault CoercibleField{cfName=nam, cfDefault=Just def} = Just (pgFmtLit nam <> ", " <> def)
         extractFieldDefault CoercibleField{cfDefault=Nothing}              = Nothing
 
     (finalBodyF, jsonArrayElementsF, jsonToRecordsetF) =
@@ -360,7 +360,7 @@ fromJsonBodyF body fields includeSelect includeLimitOne includeDefaults =
 pgFmtOrderTerm :: QualifiedIdentifier -> CoercibleOrderTerm -> SQL.Snippet
 pgFmtOrderTerm qi ot =
   fmtOTerm ot <> " " <>
-  SQL.sql (BS.unwords [
+  SQL.sql (T.unwords [
     maybe mempty direction $ coDirection ot,
     maybe mempty nullOrder $ coNullOrder ot])
   where
@@ -540,17 +540,17 @@ unknownEncoder = SQL.encoderAndParam (HE.nonNullable HE.unknown)
 unknownLiteral :: Text -> SQL.Snippet
 unknownLiteral = unknownEncoder . encodeUtf8
 
-intercalateSnippet :: ByteString -> [SQL.Snippet] -> SQL.Snippet
+intercalateSnippet :: Text -> [SQL.Snippet] -> SQL.Snippet
 intercalateSnippet _ [] = mempty
 intercalateSnippet frag snippets = foldr1 (\a b -> a <> SQL.sql frag <> b) snippets
 
 explainF :: MTVndPlanFormat -> [MTVndPlanOption] -> SQL.Snippet -> SQL.Snippet
 explainF fmt opts snip =
   "EXPLAIN (" <>
-    SQL.sql (BS.intercalate ", " (fmtPlanFmt fmt : (fmtPlanOpt <$> opts))) <>
+    SQL.sql (T.intercalate ", " (fmtPlanFmt fmt : (fmtPlanOpt <$> opts))) <>
   ") " <> snip
   where
-    fmtPlanOpt :: MTVndPlanOption -> BS.ByteString
+    fmtPlanOpt :: MTVndPlanOption -> T.Text
     fmtPlanOpt PlanAnalyze  = "ANALYZE"
     fmtPlanOpt PlanVerbose  = "VERBOSE"
     fmtPlanOpt PlanSettings = "SETTINGS"
@@ -601,14 +601,14 @@ schemaDescription schema =
     encoded = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 schema
 
 accessibleTables :: Text -> SQL.Snippet
-accessibleTables schema = SQL.sql (encodeUtf8 [trimming|
+accessibleTables schema = SQL.sql ([trimming|
   SELECT
     n.nspname AS table_schema,
     c.relname AS table_name
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE c.relkind IN ('v','r','m','f','p')
-  AND c.relnamespace = |]) <> encodedSchema <> "::regnamespace " <> SQL.sql (encodeUtf8 [trimming|
+  AND c.relnamespace = |]) <> encodedSchema <> "::regnamespace " <> SQL.sql ([trimming|
   AND (
     pg_has_role(c.relowner, 'USAGE')
     or has_table_privilege(c.oid, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
@@ -625,7 +625,7 @@ accessibleFuncs schema = baseFuncSqlQuery <> "AND p.pronamespace = " <> encodedS
     encodedSchema = SQL.encoderAndParam (HE.nonNullable HE.text) schema
 
 baseFuncSqlQuery :: SQL.Snippet
-baseFuncSqlQuery = SQL.sql $ encodeUtf8 [trimming|
+baseFuncSqlQuery = SQL.sql $ [trimming|
   WITH
   base_types AS (
     WITH RECURSIVE
