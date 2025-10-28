@@ -66,6 +66,15 @@ library
                       PostgREST.SchemaCache.Representations
                       PostgREST.SchemaCache.Table
                       PostgREST.Error
+                      PostgREST.Error.Algebra
+                      PostgREST.Error.ApiRequestError
+                      PostgREST.Error.PgError.CommandError
+                      PostgREST.Error.Error
+                      PostgREST.Error.PgError
+                      PostgREST.Error.SchemaCacheError
+                      PostgREST.Error.PgError.ResultError
+                      PostgREST.Error.PgError.ResultError.RaisePgrst
+                      PostgREST.Error.PgError.UsageError
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx
