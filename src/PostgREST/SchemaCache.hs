@@ -42,11 +42,11 @@ import NeatInterpolation          (trimming)
 import PostgREST.Config                      (AppConfig (..))
 import PostgREST.Config.Database             (TimezoneNames,
                                               toIsolationLevel)
-import PostgREST.Query.SqlFragment           (escapeIdent)
 import PostgREST.SchemaCache.Identifiers     (FieldName,
                                               QualifiedIdentifier (..),
                                               RelIdentifier (..),
-                                              Schema, isAnyElement)
+                                              Schema, escapeIdent,
+                                              isAnyElement)
 import PostgREST.SchemaCache.Relationship    (Cardinality (..),
                                               Junction (..),
                                               Relationship (..),
