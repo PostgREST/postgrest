@@ -1,10 +1,12 @@
+with-compiler: ghc-9.4.8
+
 packages: postgrest.cabal
 tests: true
 
 source-repository-package
   type: git
   location: https://github.com/nikita-volkov/hasql
-  tag: db939c49c55a8853d912962086e6c5f819a02f7a
+  tag: 3b9cb47a20b7c3fa8b86a89e202fc10686211416
 
 source-repository-package
   type: git
