@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-binds -Wno-unused-imports -Wno-name-shadowing -Wno-incomplete-patterns -Wno-unused-matches -Wno-missing-methods -Wno-unused-record-wildcards -Wno-redundant-constraints -Wno-deprecations #-}
 {-# LANGUAGE RecordWildCards #-}
 {-|
 Module      : PostgREST.Logger
@@ -126,17 +127,7 @@ logWithZTime loggerState txt = do
 
 logMainQ :: LoggerState -> MainQuery -> IO ()
 logMainQ loggerState MainQuery{mqOpenAPI=(x, y, z),..} =
-  let snipts  = renderSnippet <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
+  let snipts  = SQL.toTemplate <$> [mqTxVars, fromMaybe mempty mqPreReq, mqMain, x, y, z, fromMaybe mempty mqExplain]
       -- Does not log SQL when it's empty (happens on OPTIONS requests and when the openapi queries are not generated)
-      logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' $ T.decodeUtf8 q in
+      logQ q = when (q /= mempty) $ logWithZTime loggerState $ showOnSingleLine '\n' q in
   mapM_ logQ snipts
-
--- TODO: maybe patch upstream hasql-dynamic-statements so we have a less hackish way to convert
--- the SQL.Snippet or maybe don't use hasql-dynamic-statements and resort to plain strings for the queries and use regular hasql
-renderSnippet :: SQL.Snippet -> ByteString
-renderSnippet snippet =
-  let SQL.Statement sql _ _ _ = SQL.dynamicallyParameterized snippet decoder prepared
-      decoder = HD.noResult -- unused
-      prepared = False  -- unused
-  in
-    sql

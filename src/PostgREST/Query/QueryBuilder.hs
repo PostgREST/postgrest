@@ -18,9 +18,9 @@ module PostgREST.Query.QueryBuilder
   ) where
 
 import qualified Data.Aeson                      as JSON
-import qualified Data.ByteString.Char8           as BS
 import qualified Data.HashMap.Strict             as HM
 import qualified Data.Set                        as S
+import qualified Data.Text                       as T
 import qualified Hasql.DynamicStatements.Snippet as SQL
 import qualified Hasql.Encoders                  as HE
 
@@ -177,7 +177,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
       DirectArgs args -> Just $ JSON.encode args
       JsonArgs json   -> json
     fromCall = case params of
-      OnePosParam prm -> "FROM " <> callIt (singleParameter jsonArgs $ encodeUtf8 $ ppType prm)
+      OnePosParam prm -> "FROM " <> callIt (singleParameter jsonArgs $ ppType prm)
       KeyParams []    -> "FROM " <> callIt mempty
       KeyParams prms  -> case arguments of
         DirectArgs args -> "FROM " <> callIt (fmtArgs prms args)
@@ -201,7 +201,7 @@ callPlanToQuery (FunctionCall qi params arguments returnsScalar returnsSetOfScal
           " := " <>
           encodeArg (HM.lookup ppName args) <>
           "::" <>
-          SQL.sql (encodeUtf8 ppTypeMaxLength)
+          SQL.sql ppTypeMaxLength
         encodeArg :: Maybe RpcParamValue -> SQL.Snippet
         encodeArg (Just (Variadic v)) = SQL.encoderAndParam (HE.nonNullable $ HE.foldableArray $ HE.nonNullable HE.text) v
         encodeArg (Just (Fixed v)) = SQL.encoderAndParam (HE.nonNullable HE.unknown) $ encodeUtf8 v
@@ -262,7 +262,7 @@ readPlanToCountQuery (Node ReadPlan{from=mainQi, fromAlias=tblAlias, where_=logi
     pgFmtLogicTreeCount qiCount (CoercibleStmnt flt) = pgFmtFilter qiCount flt
 
 limitedQuery :: SQL.Snippet -> Maybe Integer -> SQL.Snippet
-limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> BS.pack (show x)) maxRows)
+limitedQuery query maxRows = query <> SQL.sql (maybe mempty (\x -> " LIMIT " <> T.pack (show x)) maxRows)
 
 -- TODO refactor so this function is uneeded and ComputedRelationship QualifiedIdentifier comes from the ReadPlan type
 getQualifiedIdentifier :: Maybe Relationship -> QualifiedIdentifier -> Maybe Alias -> QualifiedIdentifier

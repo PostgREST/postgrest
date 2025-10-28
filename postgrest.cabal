@@ -70,9 +70,6 @@ library
                       PostgREST.Error.ApiRequestError
                       PostgREST.Error.Error
                       PostgREST.Error.PgError
-                      PostgREST.Error.PgError.CommandError
-                      PostgREST.Error.PgError.ResultError
-                      PostgREST.Error.PgError.ResultError.RaisePgrst
                       PostgREST.Error.PgError.ServerError
                       PostgREST.Error.PgError.ServerError.RaisePgrst
                       PostgREST.Error.PgError.UsageError
@@ -280,6 +277,7 @@ test-suite spec
                     , bytestring        >= 0.10.8 && < 0.13
                     , case-insensitive  >= 1.2 && < 1.3
                     , containers        >= 0.5.7 && < 0.7
+                    , hasql             >= 1.9 && < 1.11
                     , hasql-pool        >= 1.4 && < 1.5
                     , hasql-transaction >= 1.2 && < 1.3
                     , heredoc           >= 0.2 && < 0.3

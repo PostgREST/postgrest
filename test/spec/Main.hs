@@ -3,6 +3,7 @@ module Main where
 import qualified Hasql.Pool                 as P
 import qualified Hasql.Pool.Config          as P
 import qualified Hasql.Transaction.Sessions as HT
+import qualified Hasql.Connection.Settings  as ConnectionSettings
 
 import Data.Function (id)
 
@@ -77,10 +78,13 @@ main = do
     , P.acquisitionTimeout 10
     , P.agingTimeout 60
     , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+    , P.staticConnectionSettings $ mconcat $
+        [ ConnectionSettings.connectionString $ configDbUri testCfg
+        , ConnectionSettings.noPreparedStatements (not (configDbPreparedStatements testCfg))
+        ]
     ]
 
-  actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
+  actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg

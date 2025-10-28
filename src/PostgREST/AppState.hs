@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wno-unused-binds -Wno-unused-imports -Wno-name-shadowing -Wno-incomplete-patterns -Wno-unused-matches -Wno-missing-methods -Wno-unused-record-wildcards -Wno-redundant-constraints -Wno-deprecations #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -32,10 +33,12 @@ module PostgREST.AppState
 
 import qualified Data.ByteString.Char8      as BS
 import           Data.Either.Combinators    (whenLeft)
-import qualified Data.Text                  as T (unpack)
+import qualified Data.Text                  as T
 import qualified Hasql.Pool                 as SQL
 import qualified Hasql.Pool.Config          as SQL
+import qualified Hasql.Connection.Settings  as SQL
 import qualified Hasql.Session              as SQL
+import qualified Hasql.Errors               as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
 import qualified Network.Socket             as NS
@@ -43,8 +46,8 @@ import qualified PostgREST.Auth.JwtCache    as JwtCache
 import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
+import qualified PostgREST.Version          as Version
 import           PostgREST.Observation
-import           PostgREST.Version          (prettyVersion)
 import           System.TimeIt              (timeItT)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
@@ -59,7 +62,6 @@ import Data.Time.Clock    (UTCTime, getCurrentTime)
 
 import PostgREST.Auth.JwtCache           (JwtCacheState, update)
 import PostgREST.Config                  (AppConfig (..),
-                                          addFallbackAppName,
                                           readAppConfig)
 import PostgREST.Config.Database         (queryDbSettings,
                                           queryPgVersion,
@@ -125,7 +127,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   metricsState <- Metrics.init configDbPoolSize
   let observer = liftA2 (>>) (Logger.observationLogger loggerState configLogLevel) (Metrics.observationMetrics metricsState)
 
-  observer $ AppStartObs prettyVersion
+  observer $ AppStartObs Version.prettyVersion
 
   pool <- initPool conf observer
   (sock, adminSock) <- initSockets conf
@@ -207,7 +209,13 @@ initPool AppConfig{..} observer = do
     , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
     , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
     , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-    , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+    , SQL.staticConnectionSettings $ mconcat $
+        [ SQL.connectionString configDbUri
+        , SQL.noPreparedStatements (not configDbPreparedStatements)
+        , SQL.other
+            "fallback_application_name"
+            ("PostgREST " <> Version.prettyVersionText)
+        ]
     , SQL.observationHandler $ observer . HasqlPoolObs
     ]
 
@@ -223,47 +231,50 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
   whenLeft res (\case
     SQL.AcquisitionTimeoutUsageError ->
       observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
-    err@(SQL.ConnectionUsageError e) ->
-      let failureMessage = BS.unpack $ fromMaybe mempty e in
-      when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
-        observer $ ExitDBFatalError ServerAuthError err
+    err@(SQL.ConnectionUsageError (SQL.AuthenticationConnectionError msg)) -> do
+      observer $ ExitDBFatalError ServerAuthError err
+      killThread mainThreadId
+    err@(SQL.ConnectionUsageError _) -> pure ()
+    err@(SQL.SessionUsageError (SQL.StatementSessionError _ _ tpl _ _ statementErr)) -> case statementErr of
+      SQL.UnexpectedResultStatementError{} -> do
+        observer $ ExitDBFatalError ServerPgrstBug err
         killThread mainThreadId
-    err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) -> do
-      case resultErr of
-        SQL.UnexpectedResult{} -> do
+      SQL.RowStatementError{} -> do
+        observer $ ExitDBFatalError ServerPgrstBug err
+        killThread mainThreadId
+      SQL.UnexpectedRowCountStatementError{} -> do
+        observer $ ExitDBFatalError ServerPgrstBug err
+        killThread mainThreadId
+      SQL.UnexpectedColumnTypeStatementError{} -> do
+        observer $ ExitDBFatalError ServerPgrstBug err
+        killThread mainThreadId
+      -- Check for a syntax error (42601 is the pg code) only for queries that don't have `WITH pgrst_source` as prefix.
+      -- This would mean the error is on our schema cache queries, so we treat it as fatal.
+      -- TODO have a better way to mark this as a schema cache query
+      SQL.ServerStatementError (SQL.ServerError "42601" _ _ _ _) ->
+        unless ("WITH pgrst_source" `T.isPrefixOf` tpl) $ do
           observer $ ExitDBFatalError ServerPgrstBug err
           killThread mainThreadId
-        SQL.RowError{} -> do
-          observer $ ExitDBFatalError ServerPgrstBug err
-          killThread mainThreadId
-        SQL.UnexpectedAmountOfRows{} -> do
-          observer $ ExitDBFatalError ServerPgrstBug err
-          killThread mainThreadId
-        -- Check for a syntax error (42601 is the pg code) only for queries that don't have `WITH pgrst_source` as prefix.
-        -- This would mean the error is on our schema cache queries, so we treat it as fatal.
-        -- TODO have a better way to mark this as a schema cache query
-        SQL.ServerError "42601" _ _ _ _ ->
-          unless ("WITH pgrst_source" `BS.isPrefixOf` tpl) $ do
-            observer $ ExitDBFatalError ServerPgrstBug err
-            killThread mainThreadId
-        -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
-        -- This would mean that a connection pooler in transaction mode is being used
-        -- while prepared statements are enabled in the PostgREST configuration,
-        -- both of which are incompatible with each other.
-        SQL.ServerError "42P05" _ _ _ _ -> do
-          observer $ ExitDBFatalError ServerError42P05 err
-          killThread mainThreadId
-        -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
-        -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
-        SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _ -> do
-          observer $ ExitDBFatalError ServerError08P01 err
-          killThread mainThreadId
-        SQL.ServerError{} ->
-          when (Error.status (Error.PgError False err) >= HTTP.status500) $
-            observer $ QueryErrorCodeHighObs err
-    err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
-      -- An error on the client-side, usually indicates problems wth connection
-        observer $ QueryErrorCodeHighObs err
+      -- Check for a "prepared statement <name> already exists" error (Code 42P05: duplicate_prepared_statement).
+      -- This would mean that a connection pooler in transaction mode is being used
+      -- while prepared statements are enabled in the PostgREST configuration,
+      -- both of which are incompatible with each other.
+      SQL.ServerStatementError (SQL.ServerError "42P05" _ _ _ _) -> do
+        observer $ ExitDBFatalError ServerError42P05 err
+        killThread mainThreadId
+      -- Check for a "transaction blocks not allowed in statement pooling mode" error (Code 08P01: protocol_violation).
+      -- This would mean that a connection pooler in statement mode is being used which is not supported in PostgREST.
+      SQL.ServerStatementError (SQL.ServerError "08P01" "transaction blocks not allowed in statement pooling mode" _ _ _) -> do
+        observer $ ExitDBFatalError ServerError08P01 err
+        killThread mainThreadId
+      SQL.ServerStatementError _ ->
+        when (Error.status (Error.PgError False err) >= HTTP.status500) $
+          observer $ QueryErrorCodeHighObs err
+    err@(SQL.SessionUsageError (SQL.ConnectionSessionError _)) ->
+      observer $ QueryErrorCodeHighObs err
+    err@(SQL.SessionUsageError (SQL.DriverSessionError _)) ->
+      -- An error on the client-side, possibly indicates problems wth connection
+      observer $ QueryErrorCodeHighObs err
     )
 
   return res
@@ -328,7 +339,7 @@ isConnEstablished appState = do
   if configDbChannelEnabled then -- if the listener is enabled, we can be sure the connection is up
     readIORef $ stateIsListenerOn appState
   else -- otherwise the only way to check the connection is to make a query
-    isRight <$> usePool appState (SQL.sql "SELECT 1")
+    isRight <$> usePool appState (SQL.script "SELECT 1")
 
 putIsListenerOn :: AppState -> Bool -> IO ()
 putIsListenerOn = atomicWriteIORef . stateIsListenerOn
@@ -374,7 +385,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qPgVersion :: IO (Maybe PgVersion)
     qPgVersion = do
       AppConfig{..} <- getConfig appState
-      pgVersion <- usePool appState (queryPgVersion False) -- No need to prepare the query here, as the connection might not be established
+      pgVersion <- usePool appState queryPgVersion
       case pgVersion of
         Left e -> do
           observer $ QueryPgVersionError e
@@ -400,8 +411,7 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
       (resultTime, result) <-
-        let transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction in
-        timeItT $ usePool appState (transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (SQL.transaction SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
       case result of
         Left e -> do
           putSCacheStatus appState SCPending
@@ -441,7 +451,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
   pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig conf then do
-      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig conf) (configDbPreparedStatements conf))
+      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig conf))
       case qDbSettings of
         Left e -> do
           observer $ ConfigReadErrorObs e
@@ -451,7 +461,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
       pure mempty
   (roleSettings, roleIsolationLvl) <-
     if configDbConfig conf then do
-      rSettings <- usePool appState (queryRoleSettings pgVer (configDbPreparedStatements conf))
+      rSettings <- usePool appState (queryRoleSettings pgVer)
       case rSettings of
         Left e -> do
           observer $ QueryRoleSettingsErrorObs e

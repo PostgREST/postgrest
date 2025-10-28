@@ -2,12 +2,11 @@
 
 module PostgREST.Error.PgError.UsageError where
 
-import qualified Data.Aeson                           as JSON
-import qualified Data.Text.Encoding                   as T
-import qualified Hasql.Pool                           as SQL
-import qualified Hasql.Session                        as SQL
-import qualified Network.HTTP.Types                   as HTTP
-import qualified PostgREST.Error.PgError.CommandError as CommandError
+import qualified Data.Aeson                          as JSON
+import qualified Hasql.Pool                          as SQL
+import qualified Hasql.Errors                        as SQL
+import qualified Network.HTTP.Types                  as HTTP
+import qualified PostgREST.Error.PgError.ServerError as ServerError
 
 import PostgREST.Error.Algebra
 import Protolude
@@ -18,29 +17,46 @@ instance JSON.ToJSON SQL.UsageError where
     (code err) (message err) (details err) (hint err)
 
 instance ErrorBody SQL.UsageError where
-  code    (SQL.ConnectionUsageError _)                   = "PGRST000"
-  code    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = code e
-  code    SQL.AcquisitionTimeoutUsageError               = "PGRST003"
+  code    (SQL.ConnectionUsageError _) = "PGRST000"
+  code    SQL.AcquisitionTimeoutUsageError = "PGRST003"
+  code    (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) = code serverError
+  code    (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ _)) = "PGRSTX00"
+  code    (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) = code serverError
+  code    (SQL.SessionUsageError (SQL.ConnectionSessionError _)) = "PGRST001"
+  code    (SQL.SessionUsageError (SQL.DriverSessionError _)) = "PGRST001"
+  code    (SQL.SessionUsageError (SQL.MissingTypesSessionError _)) = "PGRSTX00"
 
   message (SQL.ConnectionUsageError _) = "Database connection error. Retrying the connection."
-  message (SQL.SessionUsageError (SQL.QueryError _ _ e)) = message e
   message SQL.AcquisitionTimeoutUsageError = "Timed out acquiring connection from connection pool."
+  message (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) = message serverError
+  message (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ _)) = "Result processing error."
+  message (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) = message serverError
+  message (SQL.SessionUsageError (SQL.ConnectionSessionError _)) = "Database connection error. Retrying the connection."
+  message (SQL.SessionUsageError (SQL.DriverSessionError _)) = "Database client error. Retrying the connection."
+  message (SQL.SessionUsageError (SQL.MissingTypesSessionError _)) = "Missing named types requested."
 
-  details (SQL.ConnectionUsageError e) = JSON.String . T.decodeUtf8 <$> e
-  details (SQL.SessionUsageError (SQL.QueryError _ _ e)) = details e
-  details SQL.AcquisitionTimeoutUsageError               = Nothing
+  details (SQL.ConnectionUsageError e) = Just (JSON.String (SQL.toErrorMessage e))
+  details SQL.AcquisitionTimeoutUsageError = Nothing
+  details (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) = details serverError
+  details (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) = details serverError
+  details (SQL.SessionUsageError sessionError) = Just (JSON.String (SQL.toErrorMessage sessionError))
 
-  hint    (SQL.ConnectionUsageError _)                   = Nothing
-  hint    (SQL.SessionUsageError (SQL.QueryError _ _ e)) = hint e
-  hint    SQL.AcquisitionTimeoutUsageError               = Nothing
+  hint    (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) =
+    hint serverError
+  hint    (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) =
+    hint serverError
+  hint    _ = Nothing
 
 pgErrorStatus :: Bool -> SQL.UsageError -> HTTP.Status
 pgErrorStatus _      (SQL.ConnectionUsageError _) = HTTP.status503
 pgErrorStatus _      SQL.AcquisitionTimeoutUsageError = HTTP.status504
-pgErrorStatus authed (SQL.SessionUsageError (SQL.QueryError _ _ commandError)) =
-  CommandError.pgErrorStatus authed commandError
+pgErrorStatus authed (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) =
+  ServerError.pgErrorStatus authed serverError
+pgErrorStatus authed (SQL.SessionUsageError (SQL.ScriptSessionError _ serverError)) =
+  ServerError.pgErrorStatus authed serverError
+pgErrorStatus _      (SQL.SessionUsageError _) = HTTP.status503
 
 maybeHeaders :: SQL.UsageError -> Maybe [HTTP.Header]
-maybeHeaders (SQL.SessionUsageError (SQL.QueryError _ _ commandError)) =
-  CommandError.maybeHeaders commandError
+maybeHeaders (SQL.SessionUsageError (SQL.StatementSessionError _ _ _ _ _ (SQL.ServerStatementError serverError))) =
+  ServerError.maybeHeaders serverError
 maybeHeaders _ = Nothing

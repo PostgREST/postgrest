@@ -95,18 +95,15 @@ data ResultSet
 
 mainTx :: MainQuery -> AppConfig -> AuthResult -> ApiRequest -> ActionPlan -> SchemaCache -> MainTx
 mainTx _ _ _ _ (NoDb x) _ = NoDbTx $ NoDbResult x
-mainTx genQ@MainQuery{..} conf@AppConfig{..} AuthResult{..} apiReq (Db plan) sCache =
-  DbTx isoLvl txMode dbHandler transaction
+mainTx genQ@MainQuery{..} conf AuthResult{..} apiReq (Db plan) sCache =
+  DbTx isoLvl txMode dbHandler SQL.transaction
   where
-    transaction = if configDbPreparedStatements then SQL.transaction else SQL.unpreparedTransaction
     isoLvl = planIsoLvl conf authRole plan
     txMode = planTxMode plan
     dbHandler = do
-      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqTxVars
-          HD.noResult configDbPreparedStatements
+      lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqTxVars HD.noResult True
       lift $ whenJust mqPreReq $ \q ->
-        SQL.statement mempty $ SQL.dynamicallyParameterized q
-          HD.noResult configDbPreparedStatements
+        SQL.statement mempty $ SQL.dynamicallyParameterized q HD.noResult True
       actionResult genQ plan conf apiReq sCache
 
 planTxMode :: DbActionPlan -> SQL.Mode
@@ -121,8 +118,8 @@ planIsoLvl AppConfig{configRoleIsoLvl} role actPlan = case actPlan of
     roleIsoLvl = HM.findWithDefault SQL.ReadCommitted role configRoleIsoLvl
 
 actionResult :: MainQuery -> DbActionPlan -> AppConfig -> ApiRequest -> SchemaCache -> ExceptT Error SQL.Transaction DbResult
-actionResult MainQuery{..} (DbCrud True plan) conf@AppConfig{..} apiReq _ = do
-  explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow configDbPreparedStatements
+actionResult MainQuery{..} (DbCrud True plan) conf apiReq _ = do
+  explRes <- lift $ SQL.statement mempty $ SQL.dynamicallyParameterized mqMain planRow True
   optionalRollback conf apiReq
   pure $ DbPlanResult (pMedia plan) explRes
 
@@ -131,7 +128,7 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
   failNotSingular pMedia resultSet
   optionalRollback conf apiReq
   explainTotal <- lift . fmap join $ traverse (\snip ->
-                    SQL.statement mempty $ SQL.dynamicallyParameterized snip decodeExplain configDbPreparedStatements)
+                    SQL.statement mempty $ SQL.dynamicallyParameterized snip decodeExplain True)
                     mqExplain
 
   pure $ DbCrudResult plan
@@ -142,20 +139,20 @@ actionResult MainQuery{..} (DbCrud _ plan@WrappedReadPlan{..}) conf@AppConfig{..
         else tableTotal
       _                   -> tableTotal}
   where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod True
 
     decodeExplain :: HD.Result (Maybe Int64)
     decodeExplain =
       let row = HD.singleRow $ column HD.bytea in
       (^? L.nth 0 . L.key "Plan" .  L.key "Plan Rows" . L._Integral) <$> row
 
-actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
   failMutation resultSet
   optionalRollback conf apiReq
   pure $ DbCrudResult plan resultSet
   where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod True
     failMutation resultSet = case mrMutation of
       MutationCreate -> do
         failNotSingular pMedia resultSet
@@ -169,14 +166,14 @@ actionResult MainQuery{..} (DbCrud _ plan@MutateReadPlan{..}) conf@AppConfig{..}
         failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
     decodeRow = fromMaybe (RSStandard Nothing 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow False)
 
-actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf@AppConfig{..} apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
+actionResult MainQuery{..} (DbCrud _ plan@CallReadPlan{..}) conf apiReq@ApiRequest{iPreferences=Preferences{..}} _ = do
   resultSet <- lift $ SQL.statement mempty $ dynStmt decodeRow
   optionalRollback conf apiReq
   failNotSingular pMedia resultSet
   failExceedsMaxAffectedPref (preferMaxAffected,preferHandling) resultSet
   pure $ DbCrudResult plan resultSet
   where
-    dynStmt decod = SQL.dynamicallyParameterized mqMain decod configDbPreparedStatements
+    dynStmt decod = SQL.dynamicallyParameterized mqMain decod True
     decodeRow = fromMaybe (RSStandard (Just 0) 0 mempty mempty Nothing Nothing Nothing) <$> HD.rowMaybe (standardRow True)
 
 actionResult MainQuery{mqOpenAPI=(tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPlan{ipSchema=tSchema}) AppConfig{..} _ sCache =
@@ -185,14 +182,14 @@ actionResult MainQuery{mqOpenAPI=(tblsQ, funcsQ, schQ)} (MayUseDb plan@InspectPl
     mainActionQuery = lift $
       case configOpenApiMode of
         OAFollowPriv -> do
-          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ  decodeAccessibleIdentifiers configDbPreparedStatements
-          accFuncs <-  SQL.statement mempty $ SQL.dynamicallyParameterized   funcsQ   SchemaCache.decodeFuncs configDbPreparedStatements
-          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized     schQ decodeSchemaDesc configDbPreparedStatements
+          tableAccess <- SQL.statement mempty $ SQL.dynamicallyParameterized tblsQ  decodeAccessibleIdentifiers True
+          accFuncs <-  SQL.statement mempty $ SQL.dynamicallyParameterized   funcsQ   SchemaCache.decodeFuncs True
+          schDesc <- SQL.statement mempty $ SQL.dynamicallyParameterized     schQ decodeSchemaDesc True
           let tbls = HM.filterWithKey (\qi _ -> S.member qi tableAccess) $ SchemaCache.dbTables sCache
 
           pure $ MaybeDbResult plan (Just (tbls, accFuncs, schDesc))
         OAIgnorePriv -> do
-          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized schQ decodeSchemaDesc configDbPreparedStatements)
+          schDesc <- SQL.statement mempty (SQL.dynamicallyParameterized schQ decodeSchemaDesc True)
 
           let tbls = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbTables sCache)
               routs = HM.filterWithKey (\(QualifiedIdentifier sch _) _ ->  sch == tSchema) (SchemaCache.dbRoutines sCache)
