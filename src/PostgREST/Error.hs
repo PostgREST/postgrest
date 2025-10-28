@@ -22,7 +22,6 @@ module PostgREST.Error
 
 import qualified Data.Aeson                as JSON
 import qualified Data.ByteString.Char8     as BS
-import qualified Data.ByteString.Lazy      as LBS
 import qualified Data.CaseInsensitive      as CI
 import qualified Data.FuzzySet             as Fuzzy
 import qualified Data.HashMap.Strict       as HM
@@ -34,12 +33,10 @@ import qualified Hasql.Session             as SQL
 import qualified Network.HTTP.Types.Status as HTTP
 
 import Data.Aeson  ((.:), (.:?), (.=))
-import Network.Wai (Response, responseLBS)
 
 import Network.HTTP.Types.Header (Header)
 
 import           PostgREST.MediaType (MediaType (..))
-import qualified PostgREST.MediaType as MediaType
 
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
@@ -50,29 +47,8 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
 import PostgREST.SchemaCache.Table        (Table (..))
+import PostgREST.Error.Algebra
 import Protolude
-
-
-class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
-  status   :: a -> HTTP.Status
-  headers  :: a -> [Header]
-
-  errorPayload :: a -> LByteString
-  errorPayload = JSON.encode
-
-  errorResponseFor :: a -> Response
-  errorResponseFor err =
-    let
-      baseHeader = MediaType.toContentType MTApplicationJSON
-      cLHeader body = (,) "Content-Length" (show $ LBS.length body) :: Header
-    in
-    responseLBS (status err) (baseHeader : cLHeader (errorPayload err) : headers err) $ errorPayload err
-
-class ErrorBody a where
-  code    :: a -> Text
-  message :: a -> Text
-  details :: a -> Maybe JSON.Value
-  hint    :: a -> Maybe JSON.Value
 
 data ApiRequestError
   = AggregatesNotAllowed
