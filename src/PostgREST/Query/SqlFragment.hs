@@ -90,7 +90,8 @@ import PostgREST.RangeQuery              (NonnegRange, allRange,
                                           rangeLimit, rangeOffset)
 import PostgREST.SchemaCache.Identifiers (FieldName,
                                           QualifiedIdentifier (..),
-                                          RelIdentifier (..))
+                                          RelIdentifier (..),
+                                          escapeIdent, trimNullChars)
 import PostgREST.SchemaCache.Routine     (MediaHandler (..),
                                           Routine (..),
                                           funcReturnsScalar,
@@ -163,9 +164,6 @@ pgBuildArrayLiteral vals =
 pgFmtIdent :: Text -> SQL.Snippet
 pgFmtIdent x = SQL.sql . encodeUtf8 $ escapeIdent x
 
-escapeIdent :: Text -> Text
-escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
-
 -- Only use it if the input comes from the database itself, like on `jsonb_build_object('column_from_a_table', val)..`
 pgFmtLit :: Text -> Text
 pgFmtLit x =
@@ -175,9 +173,6 @@ pgFmtLit x =
   if "\\" `T.isInfixOf` escaped
     then "E" <> slashed
     else slashed
-
-trimNullChars :: Text -> Text
-trimNullChars = T.takeWhile (/= '\x0')
 
 -- |
 -- Format a list of identifiers and separate them by commas.
