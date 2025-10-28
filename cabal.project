@@ -1,2 +1,4 @@
 packages: postgrest.cabal
 tests: true
+allow-newer:
+  *:postgresql-libpq,
