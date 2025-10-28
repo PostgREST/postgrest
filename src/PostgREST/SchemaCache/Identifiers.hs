@@ -2,14 +2,16 @@
 {-# LANGUAGE DeriveGeneric  #-}
 
 module PostgREST.SchemaCache.Identifiers
-  ( QualifiedIdentifier(..)
+  ( FieldName
+  , QualifiedIdentifier(..)
   , RelIdentifier(..)
-  , isAnyElement
   , Schema
   , TableName
-  , FieldName
   , dumpQi
+  , escapeIdent
+  , isAnyElement
   , toQi
+  , trimNullChars
   ) where
 
 import qualified Data.Aeson as JSON
@@ -45,6 +47,12 @@ toQi :: Text -> QualifiedIdentifier
 toQi txt = case T.drop 1 <$> T.breakOn "." txt of
   (i, "") -> QualifiedIdentifier mempty i
   (s, i)  -> QualifiedIdentifier s i
+
+escapeIdent :: Text -> Text
+escapeIdent x = "\"" <> T.replace "\"" "\"\"" (trimNullChars x) <> "\""
+
+trimNullChars :: Text -> Text
+trimNullChars = T.takeWhile (/= '\x0')
 
 type Schema = Text
 type TableName = Text
