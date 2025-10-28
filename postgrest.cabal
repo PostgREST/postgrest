@@ -68,13 +68,15 @@ library
                       PostgREST.Error
                       PostgREST.Error.Algebra
                       PostgREST.Error.ApiRequestError
-                      PostgREST.Error.PgError.CommandError
                       PostgREST.Error.Error
                       PostgREST.Error.PgError
-                      PostgREST.Error.SchemaCacheError
+                      PostgREST.Error.PgError.CommandError
+                      PostgREST.Error.PgError.ResultError
+                      PostgREST.Error.PgError.ResultError.RaisePgrst
                       PostgREST.Error.PgError.ServerError
                       PostgREST.Error.PgError.ServerError.RaisePgrst
                       PostgREST.Error.PgError.UsageError
+                      PostgREST.Error.SchemaCacheError
                       PostgREST.Listener
                       PostgREST.Logger
                       PostgREST.MainTx
