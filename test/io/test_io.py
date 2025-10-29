@@ -2046,3 +2046,29 @@ def test_log_listener_connection_errors(defaultenv):
             in line
             for line in output
         )
+
+
+def test_db_pre_config_with_pg_reserved_words(defaultenv):
+    "The db-pre-config should not fail unexpectedly when function name is a postgres reserved word"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PRE_CONFIG": "true",  # call true function
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.post("/rpc/true")
+        assert response.status_code == 200
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_PRE_CONFIG": "select",  # no "select" function in our fixtures, fail gracefully at startup
+    }
+
+    with run(env=env, no_startup_stdout=False, wait_for_readiness=False) as postgrest:
+        output = postgrest.read_stdout(nlines=8)
+        assert any(
+            'Failed to query database settings for the config parameters.{"code":"42883","details":null,"hint":"No function matches the given name and argument types. You might need to add explicit type casts.","message":"function select() does not exist"}'
+            in line
+            for line in output
+        )

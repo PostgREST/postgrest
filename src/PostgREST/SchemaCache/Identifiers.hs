@@ -10,6 +10,7 @@ module PostgREST.SchemaCache.Identifiers
   , dumpQi
   , escapeIdent
   , isAnyElement
+  , quoteQi
   , toQi
   , trimNullChars
   ) where
@@ -40,6 +41,10 @@ isAnyElement y = QualifiedIdentifier "pg_catalog" "anyelement" == y
 dumpQi :: QualifiedIdentifier -> Text
 dumpQi (QualifiedIdentifier s i) =
   (if T.null s then mempty else s <> ".") <> i
+
+quoteQi :: QualifiedIdentifier -> Text
+quoteQi (QualifiedIdentifier s i) =
+  (if T.null s then mempty else escapeIdent s <> ".") <> escapeIdent i
 
 -- TODO: Handle a case where the QI comes like this: "my.fav.schema"."my.identifier"
 -- Right now it only handles the schema.identifier case
