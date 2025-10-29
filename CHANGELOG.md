@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## Fixed
+
+- Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem #4380
+
 ## [14.0] - 2025-10-24
 
 ### Added

@@ -461,6 +461,23 @@
       pdSchema: public
       pdVolatility: Volatile
 
+- - qiName: 'true'
+    qiSchema: public
+  - - pdDescription: null
+      pdFuncSettings: []
+      pdHasVariadic: false
+      pdName: 'true'
+      pdParams: []
+      pdReturnType:
+        contents:
+          contents:
+            qiName: bool
+            qiSchema: pg_catalog
+          tag: Scalar
+        tag: Single
+      pdSchema: public
+      pdVolatility: Volatile
+
 - - qiName: create_function
     qiSchema: public
   - - pdDescription: null
