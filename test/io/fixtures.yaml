@@ -45,7 +45,7 @@ cli:
     expect: error
     use_defaultenv: true
     env:
-      PGRST_JWT_AUD: 'http://%%localhorst.invalid'
+      PGRST_JWT_AUD: '['
   - name: invalid log-level
     expect: error
     use_defaultenv: true
