@@ -69,7 +69,7 @@ import PostgREST.Config.PgVersion        (PgVersion (..),
 import PostgREST.SchemaCache             (SchemaCache (..),
                                           querySchemaCache,
                                           showSummary)
-import PostgREST.SchemaCache.Identifiers (dumpQi)
+import PostgREST.SchemaCache.Identifiers (quoteQi)
 import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
@@ -441,7 +441,7 @@ readInDbConfig startingUp appState@AppState{stateObserver=observer} = do
   pgVer <- getPgVersion appState
   dbSettings <-
     if configDbConfig conf then do
-      qDbSettings <- usePool appState (queryDbSettings (dumpQi <$> configDbPreConfig conf) (configDbPreparedStatements conf))
+      qDbSettings <- usePool appState (queryDbSettings (quoteQi <$> configDbPreConfig conf) (configDbPreparedStatements conf))
       case qDbSettings of
         Left e -> do
           observer $ ConfigReadErrorObs e
