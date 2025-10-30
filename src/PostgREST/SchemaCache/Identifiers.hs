@@ -7,7 +7,6 @@ module PostgREST.SchemaCache.Identifiers
   , RelIdentifier(..)
   , Schema
   , TableName
-  , dumpQi
   , escapeIdent
   , isAnyElement
   , quoteQi
@@ -38,10 +37,12 @@ instance Hashable QualifiedIdentifier
 isAnyElement :: QualifiedIdentifier -> Bool
 isAnyElement y = QualifiedIdentifier "pg_catalog" "anyelement" == y
 
-dumpQi :: QualifiedIdentifier -> Text
-dumpQi (QualifiedIdentifier s i) =
-  (if T.null s then mempty else s <> ".") <> i
-
+-- |
+-- Quote the qualified identifier when preparing the SQL. This avoids parse
+-- errors by postgres, for example on pg reserved words like "true" or "select".
+--
+-- >>> quoteQi (QualifiedIdentifier "" "true")
+-- "\"true\""
 quoteQi :: QualifiedIdentifier -> Text
 quoteQi (QualifiedIdentifier s i) =
   (if T.null s then mempty else escapeIdent s <> ".") <> escapeIdent i

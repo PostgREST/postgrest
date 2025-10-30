@@ -63,7 +63,7 @@ import PostgREST.Config.JSPath           (FilterExp (..), JSPath,
                                           pRoleClaimKey)
 import PostgREST.Config.Proxy            (Proxy (..),
                                           isMalformedProxyUri, toURI)
-import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier, dumpQi,
+import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..),
                                           toQi)
 
 import Protolude hiding (Proxy, toList)
@@ -197,6 +197,10 @@ toText conf =
 
     -- quote strings and replace " with \"
     q s = "\"" <> T.replace "\"" "\\\"" s <> "\""
+
+    dumpQi :: QualifiedIdentifier -> Text
+    dumpQi (QualifiedIdentifier s i) =
+      (if T.null s then mempty else s <> ".") <> i
 
     showTxEnd c = case (configDbTxRollbackAll c, configDbTxAllowOverride c) of
       ( False, False ) -> "commit"
