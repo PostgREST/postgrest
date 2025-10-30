@@ -23,4 +23,5 @@ main =
     , "src/PostgREST/Query/SqlFragment.hs"
     , "src/PostgREST/Response.hs"
     , "src/PostgREST/Response/Performance.hs"
+    , "src/PostgREST/SchemaCache/Identifiers.hs"
     ]
