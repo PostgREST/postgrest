@@ -193,12 +193,17 @@ PostgREST has built-in validation of the `JWT audience claim <https://datatracke
 It works this way:
 
 - If :ref:`jwt-aud` is not set (the default), PostgREST identifies with all audiences and allows the JWT for any ``aud`` claim.
-- If :ref:`jwt-aud` is set to a specific audience, PostgREST will check if this audience is present in the ``aud`` claim:
+- If :ref:`jwt-aud` is set, PostgREST will treat it as a regular expression and check if it matches the ``aud`` claim:
 
   + If the ``aud`` value is a JSON string, it will match it to the :ref:`jwt-aud`.
   + If the ``aud`` value is a JSON array of strings, it will search every element for a match.
   + If the match fails or if the ``aud`` value is not a string or array of strings, then the token will be rejected with a :ref:`401 Unauthorized <pgrst303>` error.
   + If the ``aud`` key **is not present** or if its value is ``null`` or ``[]``, PostgREST will interpret this token as allowed for all audiences and will complete the request.
+
+Examples:
+- To make PostgREST accept ``aud`` claim value from a set ``audience1``, ``audience2``, ``otheraudience``, :ref:`jwt-aud` claim should be set to ``audience1|audience2|otheraudience``.
+- To make PostgREST accept ``aud`` claim value matching any ``https`` URI pointing to a host in ``example.com`` domain, :ref:`jwt-aud` claim should be set to ``https://[a-zA-Z0-9_]*\.example\.com``.
+- To make PostgREST accept any ``aud`` claim value , :ref:`jwt-aud` claim should be set to ``.*``.
 
 .. _jwt_caching:
 
