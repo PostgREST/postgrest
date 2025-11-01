@@ -60,6 +60,16 @@ let
           }
           { };
 
+      # TODO: Remove once available in nixpkgs haskellPackages
+      streaming-commons =
+        prev.callHackageDirect
+          {
+            pkg = "streaming-commons";
+            ver = "0.2.3.1";
+            sha256 = "sha256-Gl2eaJcWe1sxmcE/octWlH9uSnERguf+5H66K4fV87s=";
+          }
+          { };
+
       # Downgrade hasql and related packages while we are still on GHC 9.4 for the static build.
       hasql = lib.dontCheck (lib.doJailbreak prev.hasql_1_6_4_4);
       hasql-dynamic-statements = lib.dontCheck prev.hasql-dynamic-statements_0_3_1_5;
