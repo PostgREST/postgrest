@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Fixed
 
-- Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem #4380
+- Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem in #4380
 
 ## [14.0] - 2025-10-24
 
