@@ -8,6 +8,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## Fixed
 
 - Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem in #4380
+- Fix `server-host=!6` incorrectly binds to IPv4 address by @taimoorzaeem in #3202
 
 ## [14.0] - 2025-10-24
 
