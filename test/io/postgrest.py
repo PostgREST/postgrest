@@ -94,11 +94,19 @@ def run(
     "Run PostgREST and yield an endpoint that is ready for connections."
 
     with tempfile.TemporaryDirectory() as tmpdir:
+
+        # with python requests, "localhost" doesn't automatically resolves
+        # to [::1], hence we use this explicitly when host is ipv6 special
+        # address
+        ipv6_special_addresses = ["*6", "!6"]
+
+        localhost = "[::1]" if host in ipv6_special_addresses else "localhost"
+
         if port:
             env["PGRST_SERVER_PORT"] = str(port)
-            env["PGRST_SERVER_HOST"] = host or "localhost"
+            env["PGRST_SERVER_HOST"] = host or localhost
             # When constructing IPv6 address, host address should be bracketed like [host]
-            apihost = f"[{host}]" if host and is_ipv6(host) else "localhost"
+            apihost = f"[{host}]" if host and is_ipv6(host) else localhost
             baseurl = f"http://{apihost}:{port}"
         else:
             socketfile = pathlib.Path(tmpdir) / "postgrest.sock"
@@ -107,7 +115,7 @@ def run(
 
         adminport = freeport(port)
         env["PGRST_ADMIN_SERVER_PORT"] = str(adminport)
-        adminhost = f"[{host}]" if host and is_ipv6(host) else "localhost"
+        adminhost = f"[{host}]" if host and is_ipv6(host) else localhost
         adminurl = f"http://{adminhost}:{adminport}"
 
         command = [POSTGREST_BIN]
