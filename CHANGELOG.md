@@ -7,7 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## Fixed
 
-- Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem #4380
+- Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem in #4380
 
 ## [14.0] - 2025-10-24
 
