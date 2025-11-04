@@ -5,6 +5,10 @@ Resource Embedding
 
 PostgREST allows including related resources in a single API call. This reduces the need for many API requests.
 
+.. note::
+
+  It is **not** possible to perform mutations *on* related resources. When combining mutations and resource embedding, the mutation is performed first and then the related resource is returned in combination with :ref:`prefer_return`.
+
 .. _fk_join:
 
 Foreign Key Joins
