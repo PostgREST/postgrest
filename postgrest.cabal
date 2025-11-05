@@ -128,6 +128,9 @@ library
                     , network-uri               >= 2.6.1 && < 2.8
                     , optparse-applicative      >= 0.13 && < 0.19
                     , parsec                    >= 3.1.11 && < 3.2
+                    -- Technically unused, can be removed after updating to hasql >= 1.7
+                    -- hasql-1.6.4.4 has postgresql-libpq lower-bound >= 0.9 but we need >= 0.10.1
+                    , postgresql-libpq          >= 0.10.1
                     , prometheus-client         >= 1.1.1 && < 1.2.0
                     , protolude                 >= 0.3.1 && < 0.4
                     , regex-tdfa                >= 1.2.2 && < 1.4
@@ -145,6 +148,11 @@ library
                     , wai                       >= 3.2.1 && < 3.3
                     , wai-cors                  >= 0.2.5 && < 0.3
                     , wai-extra                 >= 3.1.8 && < 3.2
+                    -- We already depend on wai-logger >= 2.3.7 indirectly via wai-extra,
+                    -- but we want to depend on 2.4.0 which fixes 'unknownSocket' log output
+                    -- for unix sockets; this is tested in test/io/test_io.py. See
+                    -- https://github.com/kazu-yamamoto/logger/commit/3a71ca70afdbb93d4ecf0083eeba1fbbbcab3fc3
+                    , wai-logger                >= 2.4.0
                     , warp                      >= 3.3.19 && < 3.5
                     , stm                       >= 2.5 && < 3
                     , stm-hamt                  >= 1.2 && < 2
@@ -155,7 +163,7 @@ library
                       -- -optP-Wno-nonportable-include-path
                       --   prevents build failures on case-insensitive filesystems (macos),
                       --   see https://github.com/commercialhaskell/stack/issues/3918
-  ghc-options:        -Werror -Wall -fwarn-identities -Wunused-packages
+  ghc-options:        -Werror -Wall -fwarn-identities
                       -fno-spec-constr -optP-Wno-nonportable-include-path
 
   if flag(dev)

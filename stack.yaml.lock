@@ -33,6 +33,13 @@ packages:
   original:
     hackage: jose-jwt-0.10.0
 - completed:
+    hackage: postgresql-libpq-0.10.1.0@sha256:6a45edff0a9e30b32cda6e443107950492322622c4fbefc8fb4dcf6452dcf0b4,3203
+    pantry-tree:
+      sha256: 1c0120f2cd6d15bfdf64060ebde4b037f01381a8d04d188d753b43e1c978d164
+      size: 1096
+  original:
+    hackage: postgresql-libpq-0.10.1.0
+- completed:
     hackage: streaming-commons-0.2.3.1@sha256:ed7999fea9e912b1211ea93d7e20a7998bf4753166370c94048885650f303bf0,4841
     pantry-tree:
       sha256: f08e83fb00fd45865fa8cfdef5ecef7161d5135257ee98050bfbe4b807ad65f8
