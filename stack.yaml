@@ -13,4 +13,5 @@ extra-deps:
   - fuzzyset-0.2.4
   - hasql-pool-1.0.1
   - jose-jwt-0.10.0
+  - postgresql-libpq-0.10.1.0
   - streaming-commons-0.2.3.1
