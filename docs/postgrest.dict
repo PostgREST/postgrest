@@ -4,6 +4,7 @@ API's
 APIs
 APISIX
 AST
+async
 aud
 Auth
 auth
@@ -30,6 +31,7 @@ DDL
 DOM
 DSL
 DevOps
+Dramatiq
 dockerize
 enum
 Enums
@@ -41,6 +43,7 @@ EveryLayout
 filename
 FreeBSD
 fts
+fullstack
 GeoJSON
 Github
 Google
@@ -188,6 +191,7 @@ verifier
 versioning
 Vondra
 Vue
+webapp
 webhooks
 websearch
 Websockets
