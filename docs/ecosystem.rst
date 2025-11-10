@@ -37,6 +37,7 @@ Example Apps
 * `archtika <https://github.com/thiloho/archtika>`_ - self-hosted CMS
 * `delibrium-postgrest <https://gitlab.com/delibrium/delibrium-postgrest/>`_ - example school API and front-end in Vue.js
 * `ETH-transactions-storage <https://github.com/Adamant-im/ETH-transactions-storage>`_ - indexer for Ethereum to get transaction list by ETH address
+* `fullstack template <https://github.com/jenstroeger/fullstack-webapp-template>`_ - a complete fullstack webapp template using PG as db and message queue, Python and Dramatiq to implement async jobs, db migrations, test runners, and more.
 * `general <https://github.com/PierreRochard/general>`_ - example auth back-end
 * `guild-operators <https://github.com/cardano-community/koios-artifacts/tree/main/files/grest>`_ - example queries and functions that the Cardano Community uses for their Guild Operators' Repository
 * `PostGUI <https://github.com/priyank-purohit/PostGUI>`_ - React Material UI admin panel
