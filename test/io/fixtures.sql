@@ -260,3 +260,41 @@ select * from infinite_recursion;
 create or replace function "true"() returns boolean as $_$
   select true;
 $_$ language sql;
+
+create or replace function notify_pgrst() returns void as $$
+  notify pgrst;
+$$ language sql;
+
+-- directors and films table can be used for resource embedding tests
+create table directors (
+  id int primary key,
+  name text
+);
+
+create table films (
+  id int primary key,
+  title text,
+  director_id int,
+
+  constraint fk_director
+    foreign key (director_id) references directors (id)
+    on update cascade
+    on delete cascade
+);
+
+-- data to test resource embedding
+truncate table directors cascade;
+insert into directors
+values (1, 'quentin tarantino'),
+       (2, 'christopher nolan'),
+       (3, 'yorgos lathinmos');
+
+truncate table films cascade;
+insert into films
+values (1, 'pulp fiction', 1),
+       (2, 'intersteller',2),
+       (3, 'dogtooth',3),
+       (4, 'reservoir dogs', 1);
+
+
+GRANT SELECT ON directors, films TO postgrest_test_anonymous, postgrest_test_w_superuser_settings;
