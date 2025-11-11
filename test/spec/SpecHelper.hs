@@ -34,10 +34,12 @@ import PostgREST.Config                  (AppConfig (..),
                                           JSPathExp (..),
                                           LogLevel (..),
                                           OpenAPIMode (..),
+                                          defaultCfgAud, parseCfgAud,
                                           parseSecret)
 import PostgREST.SchemaCache.Identifiers (QualifiedIdentifier (..))
 import Protolude                         hiding (get, toS)
 import Protolude.Conv                    (toS)
+import Protolude.Partial                 (fromJust)
 
 filterAndMatchCT :: BS.ByteString -> MatchHeader
 filterAndMatchCT val = MatchHeader $ \headers _ ->
@@ -135,7 +137,7 @@ baseCfg = let secret = encodeUtf8 "reallyreallyreallyreallyverysafe" in
   , configDbUri                     = "postgresql://"
   , configFilePath                  = Nothing
   , configJWKS                      = rightToMaybe $ parseSecret secret
-  , configJwtAudience               = Nothing
+  , configJwtAudience               = defaultCfgAud
   , configJwtRoleClaimKey           = [JSPKey "role"]
   , configJwtSecret                 = Just secret
   , configJwtSecretIsBase64         = False
@@ -218,7 +220,8 @@ testCfgAudienceJWT :: AppConfig
 testCfgAudienceJWT =
   baseCfg {
     configJwtSecret = Just generateSecret
-  , configJwtAudience = Just "youraudience"
+    -- parseCfgAud might fail on invalid regex but it is safe here
+  , configJwtAudience = fromJust $ parseCfgAud "urn..uriaudience|youraudience"
   , configJWKS = rightToMaybe $ parseSecret generateSecret
   }
 
