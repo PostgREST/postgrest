@@ -1,1 +1,39 @@
-[]
+- - - qiName: directors
+      qiSchema: public
+    - public
+  - - relCardinality:
+        relColumns:
+        - - id
+          - director_id
+        relCons: fk_director
+        tag: O2M
+      relFTableIsView: false
+      relForeignTable:
+        qiName: films
+        qiSchema: public
+      relIsSelf: false
+      relTable:
+        qiName: directors
+        qiSchema: public
+      relTableIsView: false
+      tag: Relationship
+
+- - - qiName: films
+      qiSchema: public
+    - public
+  - - relCardinality:
+        relColumns:
+        - - director_id
+          - id
+        relCons: fk_director
+        tag: M2O
+      relFTableIsView: false
+      relForeignTable:
+        qiName: directors
+        qiSchema: public
+      relIsSelf: false
+      relTable:
+        qiName: films
+        qiSchema: public
+      relTableIsView: false
+      tag: Relationship
