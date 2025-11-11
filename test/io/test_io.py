@@ -2072,3 +2072,51 @@ def test_db_pre_config_with_pg_reserved_words(defaultenv):
             in line
             for line in output
         )
+
+
+def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaultenv):
+    "requests that use the schema cache with resource embedding wait long for the schema cache to reload"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "2",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
+    }
+
+    with run(env=env, wait_max_seconds=30) as postgrest:
+        # reload the schema cache
+        response = postgrest.session.get("/rpc/notify_pgrst")
+        assert response.status_code == 204
+
+        postgrest.wait_until_scache_starts_loading()
+
+        response = postgrest.session.get("/directors?select=id,name,films(title)")
+        assert response.status_code == 200
+
+        assert response.elapsed.total_seconds() > 5
+
+
+def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaultenv):
+    "requests that use the schema cache without resource embedding wait less for the schema cache to reload"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_POOL": "2",
+        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1100",
+        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5000",
+    }
+
+    with run(env=env, wait_max_seconds=30) as postgrest:
+        # reload the schema cache
+        response = postgrest.session.get("/rpc/notify_pgrst")
+        assert response.status_code == 204
+
+        postgrest.wait_until_scache_starts_loading()
+
+        response = postgrest.session.get("/films")
+        assert response.status_code == 200
+
+        assert (
+            response.elapsed.total_seconds() > 1
+            and response.elapsed.total_seconds() < 5
+        )

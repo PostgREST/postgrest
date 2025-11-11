@@ -7,58 +7,6 @@ import pytest
 from postgrest import run
 
 
-def test_requests_with_resource_embedding_wait_for_schema_cache_reload(defaultenv):
-    "requests that use the schema cache with resource embedding wait long for the schema cache to reload"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_SCHEMAS": "apflora",
-        "PGRST_DB_POOL": "2",
-        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5100",
-    }
-
-    with run(env=env, wait_max_seconds=30) as postgrest:
-        # reload the schema cache
-        response = postgrest.session.get("/rpc/notify_pgrst")
-        assert response.status_code == 204
-
-        postgrest.wait_until_scache_starts_loading()
-
-        response = postgrest.session.get("/tpopmassn?select=*,tpop(*)")
-        assert response.status_code == 200
-
-        assert response.elapsed.total_seconds() > 5
-
-
-def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaultenv):
-    "requests that use the schema cache without resource embedding wait less for the schema cache to reload"
-
-    env = {
-        **defaultenv,
-        "PGRST_DB_SCHEMAS": "apflora",
-        "PGRST_DB_POOL": "2",
-        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
-        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1100",
-        "PGRST_INTERNAL_SCHEMA_CACHE_RELATIONSHIP_LOAD_SLEEP": "5000",
-    }
-
-    with run(env=env, wait_max_seconds=30) as postgrest:
-        # reload the schema cache
-        response = postgrest.session.get("/rpc/notify_pgrst")
-        assert response.status_code == 204
-
-        postgrest.wait_until_scache_starts_loading()
-
-        response = postgrest.session.get("/tpopmassn")
-        assert response.status_code == 200
-
-        assert (
-            response.elapsed.total_seconds() > 1
-            and response.elapsed.total_seconds() < 5
-        )
-
-
 def test_schema_cache_load_max_duration(defaultenv):
     "schema cache load should not surpass a max_duration of elapsed milliseconds"
 
