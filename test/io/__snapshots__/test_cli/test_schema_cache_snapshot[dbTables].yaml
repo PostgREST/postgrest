@@ -71,6 +71,37 @@
     tableSchema: public
     tableUpdatable: true
 
+- - qiName: directors
+    qiSchema: public
+  - tableColumns:
+      id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: id
+        colNominalType: integer
+        colNullable: false
+        colType: integer
+      name:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: name
+        colNominalType: text
+        colNullable: true
+        colType: text
+    tableDeletable: true
+    tableDescription: null
+    tableInsertable: true
+    tableIsView: false
+    tableName: directors
+    tablePKCols:
+    - id
+    tableSchema: public
+    tableUpdatable: true
+
 - - qiName: projects
     qiSchema: public
   - tableColumns: {}
@@ -94,6 +125,46 @@
     tablePKCols: []
     tableSchema: public
     tableUpdatable: false
+
+- - qiName: films
+    qiSchema: public
+  - tableColumns:
+      director_id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: director_id
+        colNominalType: integer
+        colNullable: true
+        colType: integer
+      id:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: id
+        colNominalType: integer
+        colNullable: false
+        colType: integer
+      title:
+        colDefault: null
+        colDescription: null
+        colEnum: []
+        colMaxLen: null
+        colName: title
+        colNominalType: text
+        colNullable: true
+        colType: text
+    tableDeletable: true
+    tableDescription: null
+    tableInsertable: true
+    tableIsView: false
+    tableName: films
+    tablePKCols:
+    - id
+    tableSchema: public
+    tableUpdatable: true
 
 - - qiName: items
     qiSchema: public
