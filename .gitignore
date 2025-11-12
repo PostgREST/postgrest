@@ -13,7 +13,6 @@ site
 *#*
 .#*
 *.swp
-result*
 dist-*
 postgrest.hp
 postgrest.prof
