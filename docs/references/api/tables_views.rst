@@ -246,6 +246,10 @@ When certain columns are wide (such as those holding binary data), it is more ef
 
 The default is ``*``, meaning all columns. This value will become more important below in :ref:`resource_embedding`.
 
+.. note::
+
+  It is **not** possible to perform mutations *on* filtered data. When combining mutations and vertical filtering, the mutation is performed first and then the filter is applied in combination with :ref:`prefer_return`.
+
 .. _renaming_columns:
 
 Renaming Columns
