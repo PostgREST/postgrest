@@ -49,7 +49,6 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
-import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
 
 
@@ -250,7 +249,6 @@ data SchemaCacheError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | ColumnNotFound Text Text
-  | TableNotFound Text Text [Table]
   deriving Show
 
 instance PgrstError SchemaCacheError where
@@ -259,7 +257,6 @@ instance PgrstError SchemaCacheError where
   status NoRelBetween{}        = HTTP.status400
   status NoRpc{}               = HTTP.status404
   status ColumnNotFound{}      = HTTP.status400
-  status TableNotFound{}       = HTTP.status404
 
   headers _ = mempty
 
@@ -269,7 +266,6 @@ instance ErrorBody SchemaCacheError where
   code NoRpc{}               = "PGRST202"
   code AmbiguousRpc{}        = "PGRST203"
   code ColumnNotFound{}      = "PGRST204"
-  code TableNotFound{}       = "PGRST205"
 
   message (NoRelBetween parent child _ _ _)  = "Could not find a relationship between '" <> parent <> "' and '" <> child <> "' in the schema cache"
   message (AmbiguousRelBetween parent child _) = "Could not embed because more than one relationship was found for '" <> parent <> "' and '" <> child <> "'"
@@ -282,7 +278,6 @@ instance ErrorBody SchemaCacheError where
         fmtPrms p = if null argumentKeys then " without parameters" else p
   message (AmbiguousRpc procs) = "Could not choose the best candidate function between: " <> T.intercalate ", " [pdSchema p <> "." <> pdName p <> "(" <> T.intercalate ", " [ppName a <> " => " <> ppType a | a <- pdParams p] <> ")" | p <- procs]
   message (ColumnNotFound rel col) = "Could not find the '" <> col <> "' column of '" <> rel <> "' in the schema cache"
-  message (TableNotFound schemaName relName _) = "Could not find the table '" <> schemaName <> "." <> relName <> "' in the schema cache"
 
   details (NoRelBetween parent child embedHint schema _) = Just $ JSON.String $ "Searched for a foreign key relationship between '" <> parent <> "' and '" <> child <> maybe mempty ("' using the hint '" <>) embedHint <> "' in the schema '" <> schema <> "', but no matches were found."
   details (AmbiguousRelBetween _ _ rels)       = Just $ JSON.toJSONList (compressedRel <$> rels)
@@ -313,7 +308,6 @@ instance ErrorBody SchemaCacheError where
       where
         onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
   hint (AmbiguousRpc _)      = Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-  hint (TableNotFound schemaName relName tbls) = JSON.String <$> tableNotFoundHint schemaName relName tbls
 
   hint _ = Nothing
 
@@ -425,16 +419,6 @@ noRpcHint schema procName params allProcs overloadedProcs =
     possibleProcs
       | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
       | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
-
--- |
--- Do a fuzzy search in all tables in the same schema and return closest result
-tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
-tableNotFoundHint schema tblName tblList
-  = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
-    where
-      perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
-      fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
-
 
 compressedRel :: Relationship -> JSON.Value
 -- An ambiguousness error cannot happen for computed relationships TODO refactor so this mempty is not needed

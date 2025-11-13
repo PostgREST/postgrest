@@ -937,6 +937,15 @@ def test_admin_works_with_host_special_values(specialhostvalue, defaultenv):
 def test_log_level(level, defaultenv):
     "log_level should filter request logging"
 
+    def drain_stdout(proc):
+        lines = []
+        while True:
+            chunk = proc.read_stdout(nlines=20)
+            if not chunk:
+                break
+            lines.extend(chunk)
+        return lines
+
     env = {**defaultenv, "PGRST_LOG_LEVEL": level}
 
     # any token to test 500 response for "Server lacks JWT secret"
@@ -953,57 +962,56 @@ def test_log_level(level, defaultenv):
         response = postgrest.session.get("/")
         assert response.status_code == 200
 
-        output = sorted(postgrest.read_stdout(nlines=7))
+        output = drain_stdout(postgrest)
+        http_lines = [line for line in output if line.startswith("- - ")]
+
+        def has_match(pattern):
+            return any(re.match(pattern, line) for line in http_lines)
 
         if level == "crit":
             assert len(output) == 0
         elif level == "error":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            assert has_match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+'
             )
-            assert len(output) == 1
+            assert len(http_lines) == 1
         elif level == "warn":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            assert has_match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+'
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[1],
+            assert has_match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+'
             )
-            assert len(output) == 2
+            assert len(http_lines) == 2
         elif level == "info":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            assert has_match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+'
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
-                output[1],
+            assert has_match(
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+'
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[2],
+            assert has_match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+'
             )
-            assert len(output) == 3
+            assert len(http_lines) == 3
         elif level == "debug":
-            assert re.match(
-                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+"',
-                output[0],
+            assert has_match(
+                r'- - - \[.+\] "GET / HTTP/1.1" 500 \d+ "" "python-requests/.+'
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+"',
-                output[1],
+            assert has_match(
+                r'- - postgrest_test_anonymous \[.+\] "GET / HTTP/1.1" 200 \d+ "" "python-requests/.+'
             )
-            assert re.match(
-                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+"',
-                output[2],
+            assert has_match(
+                r'- - postgrest_test_anonymous \[.+\] "GET /unknown HTTP/1.1" 404 \d+ "" "python-requests/.+'
             )
-
-            assert len(output) == 7
-            assert any("Connection" and "is available" in line for line in output)
-            assert any("Connection" and "is used" in line for line in output)
+            assert len(http_lines) == 3
+            connection_lines = [line for line in output if "Connection" in line]
+            available_lines = [
+                line for line in connection_lines if "is available" in line
+            ]
+            used_lines = [line for line in connection_lines if "is used" in line]
+            assert len(available_lines) == 2
+            assert len(used_lines) == 2
 
 
 @pytest.mark.parametrize("level", ["crit", "error", "warn", "info", "debug"])

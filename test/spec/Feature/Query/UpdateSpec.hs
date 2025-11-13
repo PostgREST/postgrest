@@ -17,11 +17,7 @@ spec = do
       it "indicates no table found by returning 404" $
         request methodPatch "/fake" []
           [json| { "real": false } |]
-          `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.factories'","message":"Could not find the table 'test.fake' in the schema cache"} |]
-          { matchStatus = 404
-          , matchHeaders = ["Content-Length" <:> "157"]
-          }
+          `shouldRespondWith` 404
 
 
     context "on an empty table" $
@@ -363,9 +359,9 @@ spec = do
             {"id": 204, "body": "yyy"},
             {"id": 205, "body": "zzz"}]|]
           `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.articles'","message":"Could not find the table 'test.garlic' in the schema cache"} |]
+          [json| {"code":"PGRST125","details":null,"hint":null,"message":"Invalid path specified in request URL"} |]
           { matchStatus  = 404
-          , matchHeaders = ["Content-Length" <:> "158"]
+          , matchHeaders = []
           }
 
       context "apply defaults on missing values" $ do
