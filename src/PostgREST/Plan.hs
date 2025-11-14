@@ -34,7 +34,6 @@ import qualified PostgREST.SchemaCache.Routine as Routine
 
 import Data.Either.Combinators (mapLeft, mapRight)
 import Data.List               (delete, lookup)
-import Data.Maybe              (fromJust)
 import Data.Tree               (Tree (..))
 
 import PostgREST.ApiRequest                  (ApiRequest (..))
@@ -172,20 +171,18 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
-  qi <- findTable identifier (dbTables sCache)
-  rPlan <- readPlan qi conf sCache apiRequest
-  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  rPlan <- readPlan identifier conf sCache apiRequest
+  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly qi
+  return $ WrappedReadPlan rPlan SQL.Read handler mediaType headersOnly identifier
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
-  qi <- findTable identifier (dbTables sCache)
-  rPlan <- readPlan qi conf sCache apiRequest
-  mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
+  rPlan <- readPlan identifier conf sCache apiRequest
+  mPlan <- mutatePlan mutation identifier apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
-  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
-  return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation qi
+  (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest identifier iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
+  return $ MutateReadPlan rPlan mPlan SQL.Write handler mediaType mutation identifier
 
 callReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> InvokeMethod -> Either Error CrudPlan
 callReadPlan identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{preferHandling, invalidPrefs, preferMaxAffected},..} invMethod = do
@@ -809,13 +806,6 @@ validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
   | not aggFunctionsAllowed && any (isJust . csAggFunction) select = Left $ ApiRequestError AggregatesNotAllowed
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
--- | Lookup table in the schema cache before creating read plan
-findTable :: QualifiedIdentifier -> TablesMap -> Either Error QualifiedIdentifier
-findTable qi@QualifiedIdentifier{..} tableMap =
-  case HM.lookup qi tableMap of
-    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName (HM.elems tableMap)
-    Just _ -> Right qi
-
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
 addFilters ctx ApiRequest{..} rReq =
   foldr addFilterToNode (Right rReq) flts
@@ -992,7 +982,21 @@ updateNode f (targetNodeName:remainingPath, a) (Right (Node rootNode forest)) =
     findNode = find (\(Node ReadPlan{relName, relAlias} _) -> relName == targetNodeName || relAlias == Just targetNodeName) forest
 
 mutatePlan :: Mutation -> QualifiedIdentifier -> ApiRequest -> SchemaCache -> ReadPlanTree -> Either Error MutatePlan
-mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq =
+mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{dbTables, dbRepresentations} readReq = do
+  tbl <- maybe (Left $ ApiRequestError InvalidResourcePath) Right $ HM.lookup qi dbTables
+  let ctx = ResolverContext dbTables dbRepresentations qi "json"
+      QueryParams.QueryParams{..} = iQueryParams
+      pkCols = tablePKCols tbl
+      confCols = fromMaybe pkCols qsOnConflict
+      returnings =
+        if preferRepresentation == Just None || isNothing preferRepresentation
+          then []
+          else S.toList $ inferColsEmbedNeeds readReq pkCols
+      logic = map (resolveLogicTree ctx . snd) qsLogic
+      combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
+      body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
+      applyDefaults = preferMissing == Just ApplyDefaults
+      typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
   case mutation of
     MutationCreate ->
       mapRight (\typedColumns -> Insert qi typedColumns body ((,) <$> preferResolution <*> Just confCols) [] returnings pkCols applyDefaults) typedColumnsOrError
@@ -1009,23 +1013,6 @@ mutatePlan mutation qi ApiRequest{iPreferences=Preferences{..}, ..} SchemaCache{
         else
           Left $ ApiRequestError InvalidFilters
     MutationDelete -> Right $ Delete qi combinedLogic returnings
-  where
-    ctx = ResolverContext dbTables dbRepresentations qi "json"
-    confCols = fromMaybe pkCols qsOnConflict
-    QueryParams.QueryParams{..} = iQueryParams
-    returnings =
-      if preferRepresentation == Just None || isNothing preferRepresentation
-        then []
-        else S.toList $ inferColsEmbedNeeds readReq pkCols
-    -- TODO: remove fromJust by refactoring later
-    -- we can use fromJust, we have already looked up the table before building mutatePlan
-    tbl = fromJust $ HM.lookup qi dbTables
-    pkCols = maybe mempty tablePKCols (Just tbl)
-    logic = map (resolveLogicTree ctx . snd) qsLogic
-    combinedLogic = foldr (addFilterToLogicForest . resolveFilter ctx) logic qsFiltersRoot
-    body = payRaw <$> iPayload -- the body is assumed to be json at this stage(ApiRequest validates)
-    applyDefaults = preferMissing == Just ApplyDefaults
-    typedColumnsOrError = resolveOrError ctx tbl `traverse` S.toList iColumns
 
 resolveOrError :: ResolverContext -> Table -> FieldName -> Either Error CoercibleField
 resolveOrError ctx table field = case resolveTableFieldName table field Nothing of
