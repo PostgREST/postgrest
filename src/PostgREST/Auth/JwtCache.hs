@@ -1,15 +1,20 @@
 {-|
-Module      : PostgREST.Auth.JwtCache
+Module      : PostgREST.Auth.Caching
 Description : PostgREST JWT validation results Cache.
 
 This module provides functions to deal with the JWT cache.
 -}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE DataKinds                 #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE NamedFieldPuns            #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE StrictData                #-}
+{-# LANGUAGE TypeApplications          #-}
+{-# LANGUAGE TypeOperators             #-}
 
 module PostgREST.Auth.JwtCache
   ( init
@@ -18,97 +23,116 @@ module PostgREST.Auth.JwtCache
   , lookupJwtCache
   ) where
 
-import qualified Data.Aeson        as JSON
-import qualified Data.Aeson.KeyMap as KM
+import qualified Data.Aeson as JSON
 
 import PostgREST.Error (Error (..), JwtError (JwtSecretMissing))
 
 import           Control.Concurrent.STM      (newTVarIO, readTVar,
                                               writeTVar)
 import           Control.Concurrent.STM.TVar (TVar)
-import           Control.Monad.Error.Class   (liftEither)
 import           Data.ByteString             hiding (all, init)
 import           Data.IORef                  (IORef, newIORef,
                                               readIORef, writeIORef)
+import           Data.Time.Clock             (UTCTime)
 import           Jose.Jwk                    (JwkSet)
-import           PostgREST.Auth.Jwt          (parseAndDecodeClaims)
+import           PostgREST.Auth.Jwt          (Validated (getValidated),
+                                              Validation (..),
+                                              parseAndDecodeClaims,
+                                              validateAud,
+                                              validateTimeClaims,
+                                              (>>>))
 import           PostgREST.Cache.Sieve       (alwaysValid)
 import qualified PostgREST.Cache.Sieve       as SC
-import           PostgREST.Config            (AppConfig (..))
+import           PostgREST.Config            (AppConfig (..),
+                                              audMatchesCfg)
 import           PostgREST.Observation       (Observation (JwtCacheEviction, JwtCacheLookup),
                                               ObservationHandler)
 import           Protolude
 
-data JwtCacheState = JwtCacheState ObservationHandler (IORef JwtCache)
+type Cache m v = SC.Cache m ByteString v
 
-class CacheVariant m v where
-  cached :: SC.Cache m ByteString v -> ByteString -> ExceptT Error IO JSON.Object
+type SelectedCacheVariant = Cache (ExceptT Error IO) (Validated '[Aud] JSON.Object)
 
-{-|
-Jwt caching can have three different configurations:
-* missing JWT Key (no caching and throw error when JWT token present in the request)
-* JWT cache turned off
-* JWT cache turned on
+data CacheState =
+  JwksNotConfigured |
+  NotCaching JwkSet (Text -> Bool) |
+  Caching JwkSet AppConfig (TVar Int) SelectedCacheVariant
 
-All three options are represented by JwtCache data type.
+data JwtCacheState = JwtCacheState ObservationHandler (IORef CacheState)
 
-Handling of reconfiguration is centralized in this module.
--}
-data JwtCache =
-  JwtNoJwks |
-  JwtNoCache JwkSet |
-  forall m v. CacheVariant m v => JwtCache JwkSet (TVar Int) (SC.Cache m ByteString v)
+parseAndValidateAud :: CacheState -> ByteString -> ExceptT Error IO (Validated '[Aud] JSON.Object)
+parseAndValidateAud (Caching _ config _ c) = lookup config c
+parseAndValidateAud (NotCaching key audMatches) = parseAndDecodeClaims key >=> validateAud audMatches
+parseAndValidateAud JwksNotConfigured = const $ throwError (JwtErr JwtSecretMissing)
 
-instance CacheVariant IO (Either Error JSON.Object) where
-  cached c = lift . SC.cached c >=> liftEither
+class NeedsReinitialize v where
+  needsReinitialize :: AppConfig -> AppConfig -> Bool
 
-instance CacheVariant (ExceptT Error IO) JSON.Object where
-  cached = SC.cached
+instance NeedsReinitialize JSON.Object where
+  needsReinitialize _ _ = False
 
-decode :: JwtCache -> ByteString -> ExceptT Error IO JSON.Object
-decode JwtNoJwks        = const $ throwError (JwtErr JwtSecretMissing)
-decode (JwtNoCache key) = parseAndDecodeClaims key
-decode (JwtCache _ _ c) = cached c
+instance NeedsReinitialize (Validated (Aud : rest) JSON.Object) where
+  needsReinitialize old new = configJwtAudience old /= configJwtAudience new
 
--- | Reconfigure JWT caching and update JwtCacheState accordingly
-update :: JwtCacheState -> AppConfig -> IO ()
-update (JwtCacheState observationHandler jwtCacheState) config@AppConfig{configJWKS, configJwtCacheMaxEntries} =
-  let reinitialize =
-        newJwtCache config observationHandler
-          >>= writeIORef jwtCacheState
-  in
-  readIORef jwtCacheState >>= \case
-    (JwtCache decodingKey maxSize _) ->
-      if configJWKS /= Just decodingKey || configJwtCacheMaxEntries <= 0 then
-        -- reinitialize if key changed or cache disabled
-        reinitialize
-      else
-        -- max size changed - set it and let the cache shrink itself if necessary
-        atomically $ writeTVar maxSize configJwtCacheMaxEntries
+instance NeedsReinitialize v => NeedsReinitialize (SC.Cache m k v) where
+  needsReinitialize = needsReinitialize @v
 
-    _ -> reinitialize
+class CacheVariant c where
+  newCache :: STM Int -> JwkSet -> ObservationHandler -> AppConfig -> IO c
+  lookup :: AppConfig -> c -> ByteString -> ExceptT Error IO (Validated '[Aud] JSON.Object)
 
-init :: AppConfig -> ObservationHandler -> IO JwtCacheState
-init config = fmap (<$>) JwtCacheState <*> (newJwtCache config >=> newIORef)
-
--- | Initialize JwtCacheState
-newJwtCache :: AppConfig -> ObservationHandler -> IO JwtCache
-newJwtCache AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler = do
-  maybe (pure JwtNoJwks) initCache configJWKS
-  where
-    initCache key = if configJwtCacheMaxEntries <= 0 then pure (JwtNoCache key) else createCache key configJwtCacheMaxEntries
-
-    createCache key maxSize = do
-          maxSizeTVar <- newTVarIO maxSize
-          JwtCache key maxSizeTVar <$>
-            notCachingErrors (readTVar maxSizeTVar) key
-
-    notCachingErrors :: STM Int -> JwkSet -> IO (SC.Cache (ExceptT Error IO) ByteString JSON.Object)
-    notCachingErrors maxSize key = SC.cacheIO (SC.CacheConfig maxSize
-            (parseAndDecodeClaims key)
+-- Cache parsed JWTs with valid signature and valid aud
+instance CacheVariant (Cache (ExceptT Error IO) (Validated '[Aud] JSON.Object)) where
+  newCache maxSize key observationHandler config = SC.cacheIO (SC.CacheConfig maxSize
+            (parseAndDecodeClaims key >=> validateAud (audMatchesCfg config))
             (lift . observationHandler . JwtCacheLookup) -- lookup metrics
             (const . const $ lift $ observationHandler JwtCacheEviction) -- evictions metrics
             alwaysValid) -- no invalidation for now
+  lookup _ = SC.cached
 
-lookupJwtCache :: JwtCacheState -> Maybe ByteString -> ExceptT Error IO JSON.Object
-lookupJwtCache (JwtCacheState _ cacheState) k = liftIO (readIORef cacheState) >>= flip (maybe (pure KM.empty)) k . decode
+-- | Reconfigure JWT caching and update JwtCacheState accordingly
+update :: JwtCacheState -> AppConfig -> IO ()
+update (JwtCacheState observationHandler ref) config@AppConfig{configJWKS, configJwtCacheMaxEntries} =
+  readIORef ref >>= \case
+    (Caching decodingKey oldConfig maxSize cache) ->
+      if configJWKS /= Just decodingKey ||
+        configJwtCacheMaxEntries <= 0 ||
+        needsReinitialize @SelectedCacheVariant oldConfig config
+      then
+        -- reinitialize if key changed or cache disabled or the cache requires reinitialization
+        reinitialize
+      else do
+        -- max size changed - set it and let the cache resize itself if necessary
+        atomically $ writeTVar maxSize configJwtCacheMaxEntries
+        -- save new config for future updates
+        writeIORef ref $ Caching decodingKey config maxSize cache
+    _ -> reinitialize
+  where
+    reinitialize = newJwtCacheState config observationHandler >>= writeIORef ref
+
+init :: AppConfig -> ObservationHandler -> IO JwtCacheState
+init config = fmap (<$>) JwtCacheState <*> (newJwtCacheState config >=> newIORef)
+
+-- | Initialize JwtCacheState
+newJwtCacheState :: AppConfig -> ObservationHandler -> IO CacheState
+newJwtCacheState config@AppConfig{configJWKS, configJwtCacheMaxEntries} observationHandler =
+  maybe (pure JwksNotConfigured) initCache configJWKS
+  where
+    initCache key =
+      if configJwtCacheMaxEntries <= 0 then
+        pure $ NotCaching key (audMatchesCfg config)
+      else
+        createCache key configJwtCacheMaxEntries
+
+    createCache key maxSize = do
+      maxSizeTVar <- newTVarIO maxSize
+      Caching key config maxSizeTVar <$>
+        newCache
+          (readTVar maxSizeTVar) key observationHandler config
+
+parseAndValidateClaims :: UTCTime -> ByteString -> CacheState -> ExceptT Error IO (Validated [Aud, Time] JSON.Object)
+parseAndValidateClaims time k c = (parseAndValidateAud c >>> validateTimeClaims time) k
+
+lookupJwtCache :: JwtCacheState -> UTCTime -> ByteString -> ExceptT Error IO JSON.Object
+lookupJwtCache (JwtCacheState _ cacheState) time k =
+  liftIO (readIORef cacheState) >>= fmap getValidated . parseAndValidateClaims time k
