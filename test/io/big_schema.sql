@@ -5,7 +5,7 @@ We use it to test our metadata generation because it contains a good amount of d
 
 Custom roles and privileges were removed.
 
-postgrest-with-postgresql-14 -f test/io/big_schema.sql psql
+postgrest-with-pg-14 -f test/io/big_schema.sql psql
 
 Has 12 functions:
 

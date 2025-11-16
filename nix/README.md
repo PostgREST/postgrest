@@ -91,11 +91,11 @@ postgrest-gen-ctags               postgrest-watch
 postgrest-gen-jwt                 postgrest-with-all
 postgrest-gen-secret              postgrest-with-git
 postgrest-git-hooks               postgrest-with-pgrst
-postgrest-hsie-graph-modules      postgrest-with-postgresql-13
-postgrest-hsie-graph-symbols      postgrest-with-postgresql-14
-postgrest-hsie-minimal-imports    postgrest-with-postgresql-15
-postgrest-lint                    postgrest-with-postgresql-16
-postgrest-loadtest                postgrest-with-postgresql-17
+postgrest-hsie-graph-modules      postgrest-with-pg-13
+postgrest-hsie-graph-symbols      postgrest-with-pg-14
+postgrest-hsie-minimal-imports    postgrest-with-pg-15
+postgrest-lint                    postgrest-with-pg-16
+postgrest-loadtest                postgrest-with-pg-17
 postgrest-loadtest-against        postgrest-with-slow-pg
 postgrest-loadtest-report         postgrest-with-slow-postgrest
 postgrest-nixpkgs-upgrade
@@ -174,7 +174,7 @@ $ nix-shell --run "postgrest-with-all postgrest-test-spec"
 
 # Run the tests against a specific version of PostgreSQL (use tab-completion in
 # nix-shell to see all available versions):
-$ nix-shell --run "postgrest-with-postgresql-13 postgrest-test-spec"
+$ nix-shell --run "postgrest-with-pg-13 postgrest-test-spec"
 
 ```
 
@@ -284,7 +284,7 @@ Tools like `postgrest-build`, `postgrest-run`, `postgrest-repl` etc. are simple 
 also run in CI, with the exception of the IO and Memory checks that need to be run
 separately.
 
-`postgrest-with-postgresql-*` take a command as an argument and will run it
+`postgrest-with-pg-*` take a command as an argument and will run it
 with a temporary database. `postgrest-with-all` will run the command against
 all supported PostgreSQL versions. Tests run without `postgrest-with-*` are
 run against the latest PostgreSQL version by default.
