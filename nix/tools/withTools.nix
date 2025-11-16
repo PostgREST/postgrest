@@ -46,7 +46,7 @@ let
         }
 
         # Avoid starting multiple layers of withTmpDb, but make sure to have the last invocation
-        # load fixtures. Otherwise postgrest-with-postgresql-xx postgrest-test-io would not be possible.
+        # load fixtures. Otherwise postgrest-with-pg-xx postgrest-test-io would not be possible.
         if ! test -v PGHOST; then
 
           mkdir -p "$tmpdir"/{db,socket}
@@ -74,7 +74,13 @@ let
             >> "$setuplog"
 
           log "Starting the database cluster..."
+
           # Instead of listening on a local port, we will listen on a unix domain socket.
+          # NOTE: unix domain socket filename name must remain under max limit.
+          # On Linux, it's 108 chars (including '\0' terminator)
+          # On MacOS, it's 104 chars
+          # See: https://serverfault.com/questions/641347/check-if-a-path-exceeds-maximum-for-unix-domain-socket
+
           pg_ctl -l "$tmpdir/db.log" -w start -o "-F -c listen_addresses=\"\" -c hba_file=$HBA_FILE -k $PGHOST -c log_statement=\"all\" " \
             >> "$setuplog"
 
@@ -433,7 +439,7 @@ buildToolbox
       withSlowPg
       withSlowPgrst;
   } // builtins.listToAttrs (
-    # Create a `postgrest-with-postgresql-` for each PostgreSQL version
+    # Create a `postgrest-with-pg-` for each PostgreSQL version
     builtins.map (pg: { inherit (pg) name; value = withTmpDb pg; }) postgresqlVersions
   );
   # make latest withPg available for other nix files
