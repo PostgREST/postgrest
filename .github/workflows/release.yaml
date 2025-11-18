@@ -81,9 +81,6 @@ jobs:
           tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-macos-aarch64.tar.xz" \
             -C artifacts/postgrest-macos-aarch64 postgrest
 
-          tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-macos-x86-64.tar.xz" \
-            -C artifacts/postgrest-macos-x86-64 postgrest
-
           tar cJvf "release-bundle/postgrest-${GITHUB_REF_NAME}-freebsd-x86-64.tar.xz" \
             -C artifacts/postgrest-freebsd-x86-64 postgrest
 

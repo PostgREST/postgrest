@@ -105,15 +105,6 @@ jobs:
             artifact: postgrest-macos-aarch64
             deps: brew link --force libpq
 
-          - name: MacOS x86-64
-            runs-on: macos-13
-            cache: |
-              ~/.stack/pantry
-              ~/.stack/snapshots
-              ~/.stack/stack.sqlite3
-            artifact: postgrest-macos-x86-64
-            deps: brew link --force libpq
-
           - name: Windows
             runs-on: windows-2022
             cache: |
