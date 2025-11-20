@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file. From versio
 - Fix not returning `Content-Length` on empty HTTP `201` responses by @laurenceisla in #4518
 - Fix inaccurate Server-Timing header durations by @steve-chavez in #4522
 - Fix inaccurate "Schema cache queried" logs by @steve-chavez in #4522
+- Fix performance and high memory usage of relation hint calculation by @mkleczek in #4462 #4463
 
 ## [14.1] - 2025-11-05
 
