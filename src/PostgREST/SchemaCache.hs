@@ -20,6 +20,7 @@ These queries are executed once at startup or when PostgREST is reloaded.
 
 module PostgREST.SchemaCache
   ( SchemaCache(..)
+  , TablesFuzzyIndex
   , querySchemaCache
   , showSummary
   , decodeFuncs
@@ -66,21 +67,28 @@ import PostgREST.SchemaCache.Table           (Column (..), ColumnMap,
 
 import qualified PostgREST.MediaType as MediaType
 
-import Control.Arrow    ((&&&))
-import Protolude
-import System.IO.Unsafe (unsafePerformIO)
+import           Control.Arrow    ((&&&))
+import qualified Data.FuzzySet    as Fuzzy
+import           Protolude
+import           System.IO.Unsafe (unsafePerformIO)
+
+type TablesFuzzyIndex = HM.HashMap Schema Fuzzy.FuzzySet
 
 data SchemaCache = SchemaCache
-  { dbTables          :: TablesMap
-  , dbRelationships   :: RelationshipsMap
-  , dbRoutines        :: RoutineMap
-  , dbRepresentations :: RepresentationsMap
-  , dbMediaHandlers   :: MediaHandlerMap
-  , dbTimezones       :: TimezoneNames
+  { dbTables           :: TablesMap
+  , dbRelationships    :: RelationshipsMap
+  , dbRoutines         :: RoutineMap
+  , dbRepresentations  :: RepresentationsMap
+  , dbMediaHandlers    :: MediaHandlerMap
+  , dbTimezones        :: TimezoneNames
+  -- Fuzzy index of table names per schema to support approximate matching
+  -- Since index construction can be expensive, we build it once and store in the SchemaCache
+  -- Haskell lazy evaluation ensures it's only built on first use and memoized afterwards
+  , dbTablesFuzzyIndex :: TablesFuzzyIndex
   }
 
 instance JSON.ToJSON SchemaCache where
-  toJSON (SchemaCache tabs rels routs reps hdlers tzs) = JSON.object [
+  toJSON (SchemaCache tabs rels routs reps hdlers tzs _) = JSON.object [
       "dbTables"          .= JSON.toJSON tabs
     , "dbRelationships"   .= JSON.toJSON rels
     , "dbRoutines"        .= JSON.toJSON routs
@@ -90,7 +98,7 @@ instance JSON.ToJSON SchemaCache where
     ]
 
 showSummary :: SchemaCache -> Text
-showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs) =
+showSummary (SchemaCache tbls rels routs reps mediaHdlrs tzs _) =
   T.intercalate ", "
   [ show (HM.size tbls)       <> " Relations"
   , show (HM.size rels)       <> " Relationships"
@@ -166,6 +174,8 @@ querySchemaCache conf@AppConfig{..} = do
     , dbRepresentations = reps
     , dbMediaHandlers = HM.union mHdlers initialMediaHandlers -- the custom handlers will override the initial ones
     , dbTimezones = tzones
+
+    , dbTablesFuzzyIndex = Fuzzy.fromList <$> HM.fromListWith (<>) ((qiSchema &&& pure . qiName) <$> HM.keys tabsWViewsPks)
     }
   where
     schemas = toList configDbSchemas
@@ -203,6 +213,7 @@ removeInternal schemas dbStruct =
     , dbRepresentations = dbRepresentations dbStruct -- no need to filter, not directly exposed through the API
     , dbMediaHandlers   = dbMediaHandlers dbStruct
     , dbTimezones       = dbTimezones dbStruct
+    , dbTablesFuzzyIndex = dbTablesFuzzyIndex dbStruct
     }
   where
     hasInternalJunction ComputedRelationship{} = False

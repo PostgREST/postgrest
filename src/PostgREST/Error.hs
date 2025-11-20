@@ -41,6 +41,7 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.MediaType (MediaType (..))
 import qualified PostgREST.MediaType as MediaType
 
+import PostgREST.SchemaCache              (TablesFuzzyIndex)
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -49,9 +50,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
-import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
-
 
 class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
   status   :: a -> HTTP.Status
@@ -250,7 +249,7 @@ data SchemaCacheError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | ColumnNotFound Text Text
-  | TableNotFound Text Text [Table]
+  | TableNotFound Text Text TablesFuzzyIndex
   deriving Show
 
 instance PgrstError SchemaCacheError where
@@ -428,12 +427,12 @@ noRpcHint schema procName params allProcs overloadedProcs =
 
 -- |
 -- Do a fuzzy search in all tables in the same schema and return closest result
-tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
-tableNotFoundHint schema tblName tblList
+tableNotFoundHint :: Text -> Text -> TablesFuzzyIndex -> Maybe Text
+tableNotFoundHint schema tblName dbTablesFuzzyIndex
   = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
     where
       perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
-      fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
+      fuzzyTableSet = fromMaybe Fuzzy.defaultSet (HM.lookup schema dbTablesFuzzyIndex)
 
 
 compressedRel :: Relationship -> JSON.Value
