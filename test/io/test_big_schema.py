@@ -70,3 +70,23 @@ def test_should_not_fail_with_stack_overflow(defaultenv):
         assert response.status_code == 404
         data = response.json()
         assert data["code"] == "PGRST205"
+
+
+def test_second_request_for_non_existent_table_should_be_quick(defaultenv):
+    "requesting a non-existent relationship should be quick after the fuzzy search index is loaded (2nd request)"
+
+    env = {
+        **defaultenv,
+        "PGRST_DB_SCHEMAS": "fuzzysearch",
+        "PGRST_DB_POOL": "2",
+        "PGRST_DB_ANON_ROLE": "postgrest_test_anonymous",
+    }
+
+    with run(env=env, wait_max_seconds=30) as postgrest:
+        response = postgrest.session.get("/unknown-table")
+        assert response.status_code == 404
+        data = response.json()
+        assert data["code"] == "PGRST205"
+        first_duration = response.elapsed.total_seconds()
+        response = postgrest.session.get("/unknown-table")
+        assert response.elapsed.total_seconds() < first_duration / 10
