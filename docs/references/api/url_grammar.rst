@@ -51,7 +51,7 @@ You can request table/columns with spaces in them by percent encoding the spaces
 Reserved characters
 ~~~~~~~~~~~~~~~~~~~
 
-If filters include PostgREST reserved characters(``,``, ``.``, ``:``, ``()``) you'll have to surround them in percent encoded double quotes ``%22`` for correct processing.
+If filters include PostgREST reserved characters(``,``, ``.``, ``:``, ``(``, ``)``) you'll have to surround them in percent encoded double quotes ``%22`` for correct processing.
 
 Here ``Hebdon,John`` and ``Williams,Mary`` are values.
 
