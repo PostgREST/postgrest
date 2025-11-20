@@ -170,7 +170,7 @@ dbActionPlan dbAct conf apiReq sCache = case dbAct of
 
 wrappedReadPlan :: QualifiedIdentifier -> AppConfig -> SchemaCache -> ApiRequest -> Bool -> Either Error CrudPlan
 wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Preferences{..},..} headersOnly = do
-  qi <- findTable identifier (dbTables sCache)
+  qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
   (handler, mediaType)  <- mapLeft ApiRequestError $ negotiateContent conf apiRequest qi iAcceptMediaType (dbMediaHandlers sCache) (hasDefaultSelect rPlan)
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
@@ -178,7 +178,7 @@ wrappedReadPlan  identifier conf sCache apiRequest@ApiRequest{iPreferences=Prefe
 
 mutateReadPlan :: Mutation -> ApiRequest -> QualifiedIdentifier -> AppConfig -> SchemaCache -> Either Error CrudPlan
 mutateReadPlan  mutation apiRequest@ApiRequest{iPreferences=Preferences{..},..} identifier conf sCache = do
-  qi <- findTable identifier (dbTables sCache)
+  qi <- findTable identifier sCache
   rPlan <- readPlan qi conf sCache apiRequest
   mPlan <- mutatePlan mutation qi apiRequest sCache rPlan
   if not (null invalidPrefs) && preferHandling == Just Strict then Left $ ApiRequestError $ InvalidPreferences invalidPrefs else Right ()
@@ -810,10 +810,10 @@ validateAggFunctions aggFunctionsAllowed (Node rp@ReadPlan {select} forest)
   | otherwise = Node rp <$> traverse (validateAggFunctions aggFunctionsAllowed) forest
 
 -- | Lookup table in the schema cache before creating read plan
-findTable :: QualifiedIdentifier -> TablesMap -> Either Error QualifiedIdentifier
-findTable qi@QualifiedIdentifier{..} tableMap =
-  case HM.lookup qi tableMap of
-    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName (HM.elems tableMap)
+findTable :: QualifiedIdentifier -> SchemaCache -> Either Error QualifiedIdentifier
+findTable qi@QualifiedIdentifier{..} sc@SchemaCache{dbTables} =
+  case HM.lookup qi dbTables of
+    Nothing -> Left $ SchemaCacheErr $ TableNotFound qiSchema qiName sc
     Just _ -> Right qi
 
 addFilters :: ResolverContext -> ApiRequest -> ReadPlanTree -> Either Error ReadPlanTree
