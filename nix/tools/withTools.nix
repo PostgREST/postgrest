@@ -361,6 +361,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
+            "ARG_USE_ENV([PGRST_CMD], [], [PostgREST executable to run])"
           ];
         positionalCompletion = "_command";
         workingDir = "/";
@@ -370,22 +371,24 @@ let
       ''
         export PGRST_SERVER_UNIX_SOCKET="$tmpdir"/postgrest.socket
 
-        rm -f result
-        if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
-          echo -n "Building postgrest (nix)... "
-          # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
-          nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
-            echo "failed, output:"
-            cat "$tmpdir"/build.log
-            exit 1
-          }
-          PGRST_CMD=$(echo ./result*/bin/postgrest)
-        else
-          echo -n "Building postgrest (cabal)... "
-          postgrest-build
-          PGRST_CMD=postgrest-run
+        if [ -z "''${PGRST_CMD:-}" ]; then
+          rm -f result
+          if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
+            echo -n "Building postgrest (nix)... "
+            # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
+            nix-build -E 'with import ./. {}; pkgs.lib.getBin postgrestPackage' > "$tmpdir"/build.log 2>&1 || {
+              echo "failed, output:"
+              cat "$tmpdir"/build.log
+              exit 1
+            }
+            PGRST_CMD=$(echo ./result*/bin/postgrest)
+          else
+            echo -n "Building postgrest (cabal)... "
+            postgrest-build
+            PGRST_CMD=postgrest-run
+          fi
+          echo "done."
         fi
-        echo "done."
 
         ver=$($PGRST_CMD ${legacyConfig} --version)
 
