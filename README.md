@@ -125,7 +125,7 @@ and limited with - range headers. More about
 ## Data Integrity
 
 Rather than relying on an Object Relational Mapper and custom
-imperative coding, this system requires you put declarative constraints
+imperative coding, this system requires you to put declarative constraints
 directly into your database. Hence no application can corrupt your
 data (including your API server).
 
