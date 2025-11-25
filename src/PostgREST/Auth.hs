@@ -1,4 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NamedFieldPuns   #-}
+{-# LANGUAGE RecordWildCards  #-}
 {-|
 Module      : PostgREST.Auth
 Description : PostgREST authentication functions.
@@ -30,13 +32,19 @@ import System.TimeIt    (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)
-import PostgREST.Auth.Jwt      (parseClaims)
 import PostgREST.Auth.JwtCache (lookupJwtCache)
 import PostgREST.Auth.Types    (AuthResult (..))
-import PostgREST.Config        (AppConfig (..))
-import PostgREST.Error         (Error (..))
+import PostgREST.Config        (AppConfig (..), FilterExp (..),
+                                JSPath, JSPathExp (..))
+import PostgREST.Error         (Error (..), JwtError (..))
 
-import Protolude
+import           Control.Monad.Except (liftEither)
+import qualified Data.Aeson           as JSON
+import qualified Data.Aeson.Key       as K
+import qualified Data.Aeson.KeyMap    as KM
+import qualified Data.Text            as T
+import qualified Data.Vector          as V
+import           Protolude
 
 -- | Validate authorization header
 --   Parse and store JWT claims for future use in the request.
@@ -46,7 +54,8 @@ middleware appState app req respond = do
   time <- getTime appState
 
   let token  = Wai.extractBearerAuth =<< lookup HTTP.hAuthorization (Wai.requestHeaders req)
-      parseJwt = runExceptT $ lookupJwtCache jwtCacheState token >>= parseClaims conf time
+      parseToken = maybe (pure KM.empty) (lookupJwtCache jwtCacheState time)
+      parseJwt = runExceptT $ parseToken >=> parseClaims conf $ token
       jwtCacheState = getJwtCacheState appState
 
   -- If ServerTimingEnabled -> calculate JWT validation time
@@ -58,6 +67,38 @@ middleware appState app req respond = do
       pure $ req { Wai.vault = Wai.vault req & Vault.insert authResultKey authResult }
 
   app req' respond
+
+parseClaims :: (MonadError Error m, MonadIO m) => AppConfig -> JSON.Object -> m AuthResult
+parseClaims AppConfig{configJwtRoleClaimKey, configDbAnonRole} mclaims = do
+  -- role defaults to anon if not specified in jwt
+  role <- liftEither . maybeToRight (JwtErr JwtTokenRequired) $
+    unquoted <$> walkJSPath (Just $ JSON.Object mclaims) configJwtRoleClaimKey <|> configDbAnonRole
+  pure AuthResult
+           { authClaims = mclaims & KM.insert "role" (JSON.toJSON $ decodeUtf8 role)
+           , authRole = role
+           }
+  where
+    walkJSPath :: Maybe JSON.Value -> JSPath -> Maybe JSON.Value
+    walkJSPath x                      []                = x
+    walkJSPath (Just (JSON.Object o)) (JSPKey key:rest) = walkJSPath (KM.lookup (K.fromText key) o) rest
+    walkJSPath (Just (JSON.Array ar)) (JSPIdx idx:rest) = walkJSPath (ar V.!? idx) rest
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EqualsCond txt)] = findFirstMatch (==) txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (NotEqualsCond txt)] = findFirstMatch (/=) txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (StartsWithCond txt)] = findFirstMatch T.isPrefixOf txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (EndsWithCond txt)] = findFirstMatch T.isSuffixOf txt ar
+    walkJSPath (Just (JSON.Array ar)) [JSPFilter (ContainsCond txt)] = findFirstMatch T.isInfixOf txt ar
+    walkJSPath _                      _                 = Nothing
+
+    findFirstMatch matchWith pattern = foldr checkMatch Nothing
+      where
+        checkMatch (JSON.String txt) acc
+            | pattern `matchWith` txt = Just $ JSON.String txt
+            | otherwise = acc
+        checkMatch _ acc = acc
+
+    unquoted :: JSON.Value -> BS.ByteString
+    unquoted (JSON.String t) = encodeUtf8 t
+    unquoted v               = BS.toStrict $ JSON.encode v
 
 authResultKey :: Vault.Key (Either Error AuthResult)
 authResultKey = unsafePerformIO Vault.newKey
