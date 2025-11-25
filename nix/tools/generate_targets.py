@@ -33,6 +33,7 @@ def generate_jwt(now: int, exp_inc: Optional[int], is_hs: bool) -> str:
     payload = {
         "sub": f"user_{random.getrandbits(32)}",
         "iat": now,
+        "aud": "veryveryveryveryverylonglonglonglonglongaudience",
         "role": "postgrest_test_author",
     }
 

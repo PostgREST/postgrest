@@ -63,6 +63,7 @@ let
         # load test works across branches
         # TODO clean once PGRST_JWT_CACHE_MAX_ENTRIES merged and released
         export PGRST_JWT_CACHE_MAX_LIFETIME="86400"
+        export PGRST_JWT_AUD="audience|([a-z]er[a-z])*(long)*aud..nce"
 
         mkdir -p "$(dirname "$_arg_output")"
         abs_output="$(realpath "$_arg_output")"

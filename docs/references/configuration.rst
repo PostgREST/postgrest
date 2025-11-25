@@ -596,14 +596,14 @@ jwt-aud
 -------
 
   =============== =================================
-  **Type**        String
-  **Default**     `n/a`
+  **Type**        String (must be a valid regular expression)
+  **Default**     `.*`
   **Reloadable**  Y
   **Environment** PGRST_JWT_AUD
   **In-Database** pgrst.jwt_aud
   =============== =================================
 
-    Specifies an audience for the JWT ``aud`` claim. See :ref:`jwt_aud`.
+    Specifies a regular expression to match against the JWT ``aud`` claim. See :ref:`jwt_aud`.
 
 .. _jwt-role-claim-key:
 
