@@ -104,7 +104,6 @@ let
         ''
 
         + lib.optionalString withTmpDir ''
-          mkdir -p "''${TMPDIR:-/tmp}"
           tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir ${name}-XXX)"
 
           # we keep the tmpdir when an error occurs for debugging
