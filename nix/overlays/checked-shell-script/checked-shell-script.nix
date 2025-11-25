@@ -104,8 +104,8 @@ let
         ''
 
         + lib.optionalString withTmpDir ''
-          mkdir -p "''${TMPDIR:-/tmp}/postgrest"
-          tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir postgrest/${name}-XXX)"
+          mkdir -p "''${TMPDIR:-/tmp}"
+          tmpdir="$(${coreutils}/bin/mktemp -d --tmpdir ${name}-XXX)"
 
           # we keep the tmpdir when an error occurs for debugging
           trap 'echo Temporary directory kept at: $tmpdir' ERR
