@@ -83,7 +83,7 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest
-        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/load.sql \
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures/load.sql \
           ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io "''${_arg_leftovers[@]}"
       '';
 
@@ -98,7 +98,7 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest
-        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/big_schema.sql \
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures/big_schema.sql \
           ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py "''${_arg_leftovers[@]}"
       '';
 
@@ -113,7 +113,7 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest
-        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} --replica -f test/io/replica.sql \
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} --replica -f test/io/fixtures/replica.sql \
           ${ioTestPython}/bin/pytest -v test/io/test_replica.py "''${_arg_leftovers[@]}"
       '';
 
@@ -164,15 +164,15 @@ let
 
           # collect all tests
           HPCTIXFILE="$tmpdir"/io.tix \
-            ${withTools.withPg} -f test/io/load.sql \
+            ${withTools.withPg} -f test/io/fixtures/load.sql \
             ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io
 
           HPCTIXFILE="$tmpdir"/big_schema.tix \
-            ${withTools.withPg} -f test/io/big_schema.sql \
+            ${withTools.withPg} -f test/io/fixtures/big_schema.sql \
             ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_big_schema.py
 
           HPCTIXFILE="$tmpdir"/replica.tix \
-            ${withTools.withPg} --replica -f test/io/replica.sql \
+            ${withTools.withPg} --replica -f test/io/fixtures/replica.sql \
             ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest -v test/io/test_replica.py
 
           HPCTIXFILE="$tmpdir"/spec.tix \
