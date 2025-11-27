@@ -83,7 +83,7 @@ let
       }
       ''
         ${cabal-install}/bin/cabal v2-build ${devCabalOptions} exe:postgrest
-        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/fixtures.sql \
+        ${cabal-install}/bin/cabal v2-exec -- ${withTools.withPg} -f test/io/load.sql \
           ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io "''${_arg_leftovers[@]}"
       '';
 
@@ -164,7 +164,7 @@ let
 
           # collect all tests
           HPCTIXFILE="$tmpdir"/io.tix \
-            ${withTools.withPg} -f test/io/fixtures.sql \
+            ${withTools.withPg} -f test/io/load.sql \
             ${cabal-install}/bin/cabal v2-exec ${devCabalOptions} -- ${ioTestPython}/bin/pytest --ignore=test/io/test_big_schema.py --ignore=test/io/test_replica.py -v test/io
 
           HPCTIXFILE="$tmpdir"/big_schema.tix \
