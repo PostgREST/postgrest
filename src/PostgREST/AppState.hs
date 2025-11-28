@@ -79,6 +79,8 @@ import Protolude
 data AppState = AppState
   -- | Database connection pool
   { statePool              :: SQL.Pool
+  -- | Semaphore to limit threads using the pool
+  , statePoolSemaphore     :: QSem
   -- | Database server version
   , statePgVersion         :: IORef PgVersion
   -- | Schema cache
@@ -133,10 +135,11 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
 initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
-initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
+initWithPool (sock, adminSock) pool conf@AppConfig{configDbPoolSize} loggerState metricsState observer = do
 
   appState <- AppState pool
-    <$> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
+    <$> newQSem configDbPoolSize
+    <*> newIORef minimumPgVersion -- assume we're in a supported version when starting, this will be corrected on a later step
     <*> newIORef Nothing
     <*> newIORef SCPending
     <*> newIORef False
@@ -216,7 +219,7 @@ usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
 usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} sess = do
   observer PoolRequest
 
-  res <- SQL.use statePool sess
+  res <- bracket_ (waitQSem statePoolSemaphore) (signalQSem statePoolSemaphore) (SQL.use statePool sess)
 
   observer PoolRequestFullfilled
 
