@@ -286,6 +286,7 @@ def test_jwt_secret_min_length(defaultenv):
     assert "The JWT secret must be at least 32 characters long." in error
 
 
+# TODO: Improve readability of "--ready" healthcheck tests
 @pytest.mark.parametrize("host", ["127.0.0.1", "::1"], ids=["IPv4", "IPv6"])
 def test_cli_ready_flag_success(host, defaultenv):
     "test PostgREST ready flag succeeds when ready"
@@ -340,8 +341,11 @@ def test_cli_ready_flag_fail_with_http_exception(defaultenv):
 
     # when healthcheck process sends the request to a wrong endpoint
     with run(env=defaultenv, port=port) as postgrest:
-        # we set it to some freeport where admin is not running
-        postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(freeport())
+        # we set it to some freeport where server and admin server is not running
+        admin_port = int(postgrest.config["PGRST_ADMIN_SERVER_PORT"])
+        used_ports = [port, admin_port]
+
+        postgrest.config["PGRST_ADMIN_SERVER_PORT"] = str(freeport(used_ports))
         output = cli(["--ready"], env=postgrest.config, expect_error=True)
         (admin_host, admin_port) = get_admin_host_and_port_from_config(postgrest.config)
 
