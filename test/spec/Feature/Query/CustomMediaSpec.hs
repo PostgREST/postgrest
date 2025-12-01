@@ -28,14 +28,11 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "1.twkb"
         simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
-    it "will fail if there's no aggregate defined for the table" $ do
-      request methodGet "/lines" (acceptHdrs "text/plain") ""
-        `shouldRespondWith`
-        [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/plain"} |]
-        { matchStatus  = 406
-        , matchHeaders = [ matchContentTypeJson
-                         , "Content-Length" <:> "110" ]
-        }
+    it "will succeed if an aggregate exist with the correct media type" $ do
+      r <- request methodGet "/lines" (acceptHdrs "text/plain") ""
+      liftIO $ do
+        simpleBody r `shouldBe` readFixtureFile "lines.twkb"
+        simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
     it "can get raw xml output with Accept: text/xml if there's an aggregate defined" $ do
       request methodGet "/xmltest" (acceptHdrs "text/xml") ""
@@ -116,14 +113,22 @@ spec = describe "custom media types" $ do
         , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
         }
 
-    it "should fail with function returning text and Accept: text/xml" $ do
+    it "should get the return type of function when accept is */*" $ do
+      request methodGet "/rpc/javascript"
+        [("Accept", "*/*")]
+        ""
+        `shouldRespondWith`
+        "This is Javascript."
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "text/javascript"]
+        }
+
+    it "should return the content-type as given in function return type" $ do
       request methodGet "/rpc/welcome" (acceptHdrs "text/xml") ""
         `shouldRespondWith`
-        [json|
-          {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: text/xml"}
-        |]
-        { matchStatus = 406
-        , matchHeaders = ["Content-Type" <:> "application/json; charset=utf-8"]
+        "Welcome to PostgREST"
+        { matchStatus = 200
+        , matchHeaders = ["Content-Type" <:> "text/plain; charset=utf-8"]
         }
 
     it "should not fail when the function doesn't return a row" $ do
@@ -160,12 +165,11 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "lines.twkb"
         simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
-    it "fails if doesn't have an aggregate defined" $ do
-      request methodGet "/rpc/get_lines"
-          (acceptHdrs "application/octet-stream") ""
-        `shouldRespondWith`
-          [json| {"code":"PGRST107","details":null,"hint":null,"message":"None of these media types are available: application/octet-stream"} |]
-          { matchStatus = 406 }
+    it "return the content with the available aggregate and media type" $ do
+      r <- request methodGet "/rpc/get_lines" (acceptHdrs "application/octet-stream") ""
+      liftIO $ do
+        simpleBody r `shouldBe` readFixtureFile "lines.twkb"
+        simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
     -- TODO SOH (start of heading) is being added to results
     it "works if there's an anyelement aggregate defined" $ do

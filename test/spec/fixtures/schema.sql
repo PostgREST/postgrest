@@ -107,7 +107,7 @@ SET search_path = test, pg_catalog;
 SET default_tablespace = '';
 
 SET default_with_oids = false;
-
+create domain "text/javascript" as text;
 create domain "text/plain" as text;
 create domain "text/html" as text;
 create domain "text/xml" as pg_catalog.xml;
@@ -1882,6 +1882,10 @@ $_$ language plpgsql;
 
 create or replace function welcome() returns "text/plain" as $$
 select 'Welcome to PostgREST'::"text/plain";
+$$ language sql;
+
+create or replace function javascript() returns "text/javascript" as $$
+select 'This is Javascript.'::"text/javascript";
 $$ language sql;
 
 create or replace function welcome_twice() returns setof "text/plain" as $$

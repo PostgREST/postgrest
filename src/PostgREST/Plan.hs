@@ -1127,7 +1127,10 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
     (ActDb (ActRoutine  _ (InvRead True)), Just (_, mt))             -> Right (NoAgg, mt)
     (_, Just (x, mt))                                        -> Right (x, mt)
   where
-    firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.
+    -- If there are multiple accepted media types, pick the first. This is usual in content negotiation.
+    firstAcceptedPick = listToMaybe $ mapMaybe matchMT accepts <|> mapMaybe matchMTAny accepts
+
+    -- TODO: Needs a refactoring and code cleanup, do not merge
     matchMT mt = case mt of
       -- all the vendored media types have special handling as they have media type parameters, they cannot be overridden
       m@(MTVndSingularJSON strip)                 -> Just (BuiltinAggSingleJson strip, m)
@@ -1138,11 +1141,19 @@ negotiateContent conf ApiRequest{iAction=act, iPreferences=Preferences{preferRep
       m@(MTVndPlan mType _ _)                     -> mtPlanToNothing $ ((,) . fst <$> lookupHandler mType) <*> pure m
       -- all the other media types can be overridden
       x                                           -> lookupHandler x
+
+    matchMTAny mt = case mt of
+      m@(MTVndPlan{}) -> mtPlanToNothing $ ((,) . fst <$> lookupAnyHandler) <*> pure m
+      _               -> lookupAnyHandler
+
     mtPlanToNothing x = if configDbPlanEnabled conf then x else Nothing -- don't find anything if the plan media type is not allowed
+
     lookupHandler mt =
-      when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces) <|> -- lookup for identifier and `*/*`
-      when' defaultSelect (HM.lookup (RelId identifier, mt) produces) <|>    -- lookup for identifier and a particular media type
-      HM.lookup (RelAnyElement, mt) produces                                    -- lookup for anyelement and a particular media type
+      when' defaultSelect (HM.lookup (RelId identifier, mt) produces) <|>  -- lookup for identifier and a particular media type
+                           HM.lookup (RelAnyElement   , mt) produces  -- lookup for anyelement and a particular media type
+
+    lookupAnyHandler = when' defaultSelect (HM.lookup (RelId identifier, MTAny) produces) -- lookup for identifier and */* media type
+
     when' :: Bool -> Maybe a -> Maybe a
     when' True (Just a) = Just a
     when' _ _           = Nothing
