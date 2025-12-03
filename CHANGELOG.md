@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## Fixed
+
+- Fix `Content-Type` not set with custom domain type and `Accept: */*` by @taimoorzaeem in #3391
+
 ## [14.1] - 2025-11-05
 
 ## Fixed

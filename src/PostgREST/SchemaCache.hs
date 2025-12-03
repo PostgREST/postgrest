@@ -1078,17 +1078,45 @@ mediaHandlers =
         proc.pronamespace = ANY($$1::regnamespace[]) and NOT proretset
         and prokind = 'f'|]
 
+-- We take the union of two maps:
+-- First map builds the mapping of domain types -> resolved media type
+-- Second map creates the same mapping, but with "*/*" key
+-- Example:
+-- +------------------------------------------------+
+-- |    domain type    |     resolved media type    |
+-- +------------------------------------------------+
+-- |    text/plain     |        text/plain          |
+-- +------------------------------------------------+
+-- |       */*         |        text/plain          |
+-- +------------------------------------------------+
+-- This allows us to resolve to "text/plain" on both
+--  "Accept: text/plain" and
+--  "Accept: */*"
+--
+-- TODO: This basically doubles the size of the map, so we should do some
+--       production scale memory tests to make sure with aren't hitting OOM errors
 decodeMediaHandlers :: HD.Result MediaHandlerMap
-decodeMediaHandlers =
-  HM.fromList . fmap (\(x, y, z, w) ->
-    let rel = if isAnyElement y then RelAnyElement else RelId y
-    in ((rel, z), (CustomFunc x rel, w)) ) <$> HD.rowList caggRow
-  where
-    caggRow = (,,,)
-              <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-              <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
-              <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
-              <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
+decodeMediaHandlers = mapFromList <$> HD.rowList caggRow
+    where
+      mapFromList aggRowList =
+        HM.union
+          (HM.fromList . fmap (aggRowToList False) $ aggRowList) -- type -> type map
+          (HM.fromList . fmap (aggRowToList True) $ aggRowList)  --  */* -> type map
+
+      caggRow = (,,,)
+                <$> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+                <*> (QualifiedIdentifier <$> column HD.text <*> column HD.text)
+                <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
+                <*> (MediaType.decodeMediaType . encodeUtf8 <$> column HD.text)
+
+      aggRowToList withMTAny (x,y,z,w) = ((rel, mt), (CustomFunc x rel, w))
+        where
+          -- we don't add the */* mapping when rel is "anyelement" because we
+          -- already have (RelAnyElement, MTAny) in the initial media handler
+          -- map which maps to "application/json"
+          mt = if withMTAny && (rel /= RelAnyElement) then MediaType.MTAny else z
+          rel = if isAnyElement y then RelAnyElement else RelId y
+
 
 timezones :: Bool -> SQL.Statement () TimezoneNames
 timezones = SQL.Statement sql HE.noParams decodeTimezones

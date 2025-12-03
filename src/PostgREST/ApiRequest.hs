@@ -98,7 +98,7 @@ userApiRequest conf prefs req reqBody = do
   , iMethod = method
   , iSchema = schema
   , iNegotiatedByProfile = negotiatedByProfile
-  , iAcceptMediaType = maybe [MTAny] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
+  , iAcceptMediaType = maybe [MTApplicationJSON] (map MediaType.decodeMediaType . parseHttpAccept) $ lookupHeader "accept"
   , iContentMediaType = contentMediaType
   }
   where
