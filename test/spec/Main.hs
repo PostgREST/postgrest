@@ -1,7 +1,7 @@
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import qualified Hasql.Pool                 as P
-import qualified Hasql.Pool.Config          as P
 import qualified Hasql.Transaction.Sessions as HT
 
 import Data.Function (id)
@@ -68,19 +68,27 @@ import qualified Feature.Query.UpdateSpec
 import qualified Feature.Query.UpsertSpec
 import qualified Feature.RollbackSpec
 import qualified Feature.RpcPreRequestGucsSpec
+import qualified Hasql.Connection                      as C
+import qualified Hasql.Session                         as S
+import qualified PostgREST.SemPool                     as Sem
 
+usepool :: Sem.Pool C.ConnectionError C.Connection -> S.Session a -> IO (Either P.UsageError a)
+usepool p sess = join . first (\case
+    Sem.AcquireTimeout -> P.AcquisitionTimeoutUsageError
+    (Sem.ResourceError e) -> P.ConnectionUsageError e) <$> Sem.use p (fmap (first P.SessionUsageError ) . S.run sess)
 
 main :: IO ()
 main = do
-  pool <- P.acquire $ P.settings
-    [ P.size 3
-    , P.acquisitionTimeout 10
-    , P.agingTimeout 60
-    , P.idlenessTimeout 60
-    , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
-    ]
+  pool <- Sem.pool 3 10 (C.acquire (toUtf8 $ configDbUri testCfg)) (const $ pure mempty) C.release
+  -- P.acquire $ P.settings
+  --   [ P.size 3
+  --   , P.acquisitionTimeout 10
+  --   , P.agingTimeout 60
+  --   , P.idlenessTimeout 60
+  --   , P.staticConnectionSettings (toUtf8 $ configDbUri testCfg)
+  --   ]
 
-  actualPgVersion <- either (panic . show) id <$> P.use pool (queryPgVersion False)
+  actualPgVersion <- either (panic . show) id <$> usepool pool (queryPgVersion False)
 
   -- cached schema cache so most tests run fast
   baseSchemaCache <- loadSCache pool testCfg
@@ -280,4 +288,4 @@ main = do
 
   where
     loadSCache pool conf =
-      either (panic.show) id <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+      either (panic.show) id <$> usepool pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)

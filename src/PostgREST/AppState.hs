@@ -33,8 +33,6 @@ module PostgREST.AppState
 import qualified Data.ByteString.Char8      as BS
 import           Data.Either.Combinators    (whenLeft)
 import qualified Data.Text                  as T (unpack)
-import qualified Hasql.Pool                 as SQL
-import qualified Hasql.Pool.Config          as SQL
 import qualified Hasql.Session              as SQL
 import qualified Hasql.Transaction.Sessions as SQL
 import qualified Network.HTTP.Types.Status  as HTTP
@@ -74,11 +72,14 @@ import PostgREST.Unix                    (createAndBindDomainSocket)
 
 import Data.Streaming.Network (bindPortTCP, bindRandomPortTCP)
 import Data.String            (IsString (..))
+import qualified Hasql.Connection       as SQL
+import qualified PostgREST.SemPool      as Sem
 import Protolude
+import Hasql.Pool (UsageError(..))
 
 data AppState = AppState
   -- | Database connection pool
-  { statePool              :: SQL.Pool
+  { statePool              :: Sem.Pool SQL.ConnectionError SQL.Connection
   -- | Database server version
   , statePgVersion         :: IORef PgVersion
   -- | Schema cache
@@ -132,7 +133,7 @@ init conf@AppConfig{configLogLevel, configDbPoolSize} = do
   state' <- initWithPool (sock, adminSock) pool conf loggerState metricsState observer
   pure state' { stateSocketREST = sock, stateSocketAdmin = adminSock}
 
-initWithPool :: AppSockets -> SQL.Pool -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
+initWithPool :: AppSockets -> Sem.Pool SQL.ConnectionError SQL.Connection -> AppConfig -> Logger.LoggerState -> Metrics.MetricsState -> ObservationHandler -> IO AppState
 initWithPool (sock, adminSock) pool conf loggerState metricsState observer = do
 
   appState <- AppState pool
@@ -200,35 +201,40 @@ initSockets AppConfig{..} = do
 
   pure (sock, adminSock)
 
-initPool :: AppConfig -> ObservationHandler -> IO SQL.Pool
-initPool AppConfig{..} observer = do
-  SQL.acquire $ SQL.settings
-    [ SQL.size configDbPoolSize
-    , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
-    , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
-    , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
-    , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
-    , SQL.observationHandler $ observer . HasqlPoolObs
-    ]
+initPool :: AppConfig -> ObservationHandler -> IO (Sem.Pool SQL.ConnectionError SQL.Connection)
+initPool AppConfig{..} _ = do
+  Sem.pool configDbPoolSize configDbPoolAcquisitionTimeout (SQL.acquire (toUtf8 $ addFallbackAppName prettyVersion configDbUri)) (const $ pure mempty) SQL.release
+  -- where
+  --   settings =
+  --     SQL.settings
+  --       [ SQL.size configDbPoolSize
+  --       , SQL.acquisitionTimeout $ fromIntegral configDbPoolAcquisitionTimeout
+  --       , SQL.agingTimeout $ fromIntegral configDbPoolMaxLifetime
+  --       , SQL.idlenessTimeout $ fromIntegral configDbPoolMaxIdletime
+  --       , SQL.staticConnectionSettings (toUtf8 $ addFallbackAppName prettyVersion configDbUri)
+  --       , SQL.observationHandler $ observer . HasqlPoolObs
+  --       ]
 
 -- | Run an action with a database connection.
-usePool :: AppState -> SQL.Session a -> IO (Either SQL.UsageError a)
+usePool :: AppState -> SQL.Session a -> IO (Either UsageError a)
 usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} sess = do
   observer PoolRequest
 
-  res <- SQL.use statePool sess
+  res <- join . first (\case
+    Sem.AcquireTimeout -> AcquisitionTimeoutUsageError
+    (Sem.ResourceError e) -> ConnectionUsageError e) <$> Sem.use statePool (fmap (first SessionUsageError ) . SQL.run sess)
 
   observer PoolRequestFullfilled
 
   whenLeft res (\case
-    SQL.AcquisitionTimeoutUsageError ->
-      observer $ PoolAcqTimeoutObs SQL.AcquisitionTimeoutUsageError
-    err@(SQL.ConnectionUsageError e) ->
+    AcquisitionTimeoutUsageError ->
+      observer $ PoolAcqTimeoutObs AcquisitionTimeoutUsageError
+    err@(ConnectionUsageError e) ->
       let failureMessage = BS.unpack $ fromMaybe mempty e in
       when (("FATAL:  password authentication failed" `isInfixOf` failureMessage) || ("no password supplied" `isInfixOf` failureMessage)) $ do
         observer $ ExitDBFatalError ServerAuthError err
         killThread mainThreadId
-    err@(SQL.SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) -> do
+    err@(SessionUsageError (SQL.QueryError tpl _ (SQL.ResultError resultErr))) -> do
       case resultErr of
         SQL.UnexpectedResult{} -> do
           observer $ ExitDBFatalError ServerPgrstBug err
@@ -261,7 +267,7 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
         SQL.ServerError{} ->
           when (Error.status (Error.PgError False err) >= HTTP.status500) $
             observer $ QueryErrorCodeHighObs err
-    err@(SQL.SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
+    err@(SessionUsageError (SQL.QueryError _ _ (SQL.ClientError _))) ->
       -- An error on the client-side, usually indicates problems wth connection
         observer $ QueryErrorCodeHighObs err
     )
@@ -271,11 +277,11 @@ usePool AppState{stateObserver=observer, stateMainThreadId=mainThreadId, ..} ses
 -- | Flush the connection pool so that any future use of the pool will
 -- use connections freshly established after this call.
 flushPool :: AppState -> IO ()
-flushPool AppState{..} = SQL.release statePool
+flushPool AppState{..} = Sem.release statePool
 
 -- | Destroy the pool on shutdown.
 destroyPool :: AppState -> IO ()
-destroyPool AppState{..} = SQL.release statePool
+destroyPool AppState{..} = Sem.release statePool
 
 getPgVersion :: AppState -> IO PgVersion
 getPgVersion = readIORef . statePgVersion
