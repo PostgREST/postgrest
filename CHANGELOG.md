@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Added
+
+- Log error when `db-schemas` config contains schema `pg_catalog` or `information_schema` by @taimoorzaeem in #4359
+
 ## [14.1] - 2025-11-05
 
 ## Fixed
