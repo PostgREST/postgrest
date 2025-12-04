@@ -23,10 +23,13 @@ spec = describe "When raw-media-types config variable is missing or left empty" 
       `shouldRespondWith` [json| [{"id":1}] |]
         { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
 
+  -- FIXME: This shouldn't default to application/json because text/tab-separated-values aggregate exist
   it "responds json to a GET request to RPC with Firefox Accept headers" $
     request methodGet "/rpc/get_projects_below?id=3" firefoxAcceptHdrs ""
       `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
         { matchHeaders= ["Content-Type" <:> "application/json; charset=utf-8"] }
+
+  -- FIXME: This shouldn't default to application/json because text/tab-separated-values aggregate exist
   it "responds json to a GET request to RPC with Chrome Accept headers" $
     request methodGet "/rpc/get_projects_below?id=3" chromeAcceptHdrs ""
       `shouldRespondWith` [json|[{"id":1,"name":"Windows 7","client_id":1}, {"id":2,"name":"Windows 10","client_id":1}]|]
