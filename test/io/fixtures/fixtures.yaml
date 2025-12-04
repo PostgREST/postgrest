@@ -237,3 +237,7 @@ specialhostvalues:
   - '*6'
   - '!6'
   - '*'
+
+restrictedschemas:
+  - 'pg_catalog'
+  - 'information_schema'
