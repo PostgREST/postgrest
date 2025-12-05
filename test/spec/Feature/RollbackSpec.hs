@@ -20,7 +20,9 @@ postItem =
     `shouldRespondWith`
       ""
       { matchStatus  = 201
-      , matchHeaders = [matchHeaderAbsent hContentType]  }
+      , matchHeaders = [ matchHeaderAbsent hContentType
+                       , "Content-Length" <:> "0" ]
+      }
 
 -- removes Items left over from POST, PUT, and PATCH
 deleteItems =
