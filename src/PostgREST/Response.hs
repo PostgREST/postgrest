@@ -65,7 +65,7 @@ actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaC
 actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
   let
     (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
-    cLHeader = if headersOnly then mempty else [contentLengthHeaderStrict rsBody]
+    cLHeader = if headersOnly then mempty else [contentLengthHeaderLazy bod]
     prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
     headers =
       [ contentRange
