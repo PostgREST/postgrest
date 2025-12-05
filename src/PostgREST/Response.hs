@@ -106,7 +106,6 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
               )
         , Just . RangeQuery.contentRangeH 1 0 $
             if shouldCount preferCount then Just rsQueryTotal else Nothing
-        , Just $ contentLengthHeaderStrict rsBody
         , prefHeader ]
 
     isInsertIfGTZero i =
@@ -121,7 +120,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
       Just HeadersOnly -> (headers, mempty)
       Nothing -> (headers, mempty)
 
-  (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status headers'
+  (ovStatus, ovHeaders) <- overrideStatusHeaders rsGucStatus rsGucHeaders status $ contentLengthHeaderLazy bod:headers'
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
