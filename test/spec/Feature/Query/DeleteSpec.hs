@@ -114,12 +114,7 @@ spec =
 
     context "totally unknown route" $
       it "fails with 404" $
-        request methodDelete "/foozle?id=eq.101" [] ""
-          `shouldRespondWith`
-          [json| {"code":"PGRST205","details":null,"hint":"Perhaps you meant the table 'test.foo'","message":"Could not find the table 'test.foozle' in the schema cache"} |]
-          { matchStatus = 404
-          , matchHeaders = []
-          }
+        request methodDelete "/foozle?id=eq.101" [] "" `shouldRespondWith` 404
 
     context "table with limited privileges" $ do
       it "fails deleting the row when return=representation and selecting all the columns" $

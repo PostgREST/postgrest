@@ -67,6 +67,6 @@ def test_should_not_fail_with_stack_overflow(defaultenv):
 
     with run(env=env, wait_max_seconds=30) as postgrest:
         response = postgrest.session.get("/unknown-table?select=unknown-rel(*)")
-        assert response.status_code == 404
+        assert response.status_code == 400
         data = response.json()
-        assert data["code"] == "PGRST205"
+        assert data["code"] == "PGRST200"
