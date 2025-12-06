@@ -3,6 +3,7 @@ Module      : PostgREST.Error
 Description : PostgREST error HTTP responses
 -}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE NamedFieldPuns  #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module PostgREST.Error
@@ -41,6 +42,7 @@ import Network.HTTP.Types.Header (Header)
 import           PostgREST.MediaType (MediaType (..))
 import qualified PostgREST.MediaType as MediaType
 
+import PostgREST.SchemaCache              (SchemaCache (SchemaCache, dbTablesFuzzyIndex, dbTablesSize))
 import PostgREST.SchemaCache.Identifiers  (QualifiedIdentifier (..),
                                            Schema)
 import PostgREST.SchemaCache.Relationship (Cardinality (..),
@@ -49,9 +51,7 @@ import PostgREST.SchemaCache.Relationship (Cardinality (..),
                                            RelationshipsMap)
 import PostgREST.SchemaCache.Routine      (Routine (..),
                                            RoutineParam (..))
-import PostgREST.SchemaCache.Table        (Table (..))
 import Protolude
-
 
 class (ErrorBody a, JSON.ToJSON a) => PgrstError a where
   status   :: a -> HTTP.Status
@@ -250,7 +250,7 @@ data SchemaCacheError
   | NoRelBetween Text Text (Maybe Text) Text RelationshipsMap
   | NoRpc Text Text [Text] MediaType Bool [QualifiedIdentifier] [Routine]
   | ColumnNotFound Text Text
-  | TableNotFound Text Text [Table]
+  | TableNotFound Text Text SchemaCache
   deriving Show
 
 instance PgrstError SchemaCacheError where
@@ -313,7 +313,7 @@ instance ErrorBody SchemaCacheError where
       where
         onlySingleParams = isInvPost && contentType `elem` [MTTextPlain, MTTextXML, MTOctetStream]
   hint (AmbiguousRpc _)      = Just "Try renaming the parameters or the function itself in the database so function overloading can be resolved"
-  hint (TableNotFound schemaName relName tbls) = JSON.String <$> tableNotFoundHint schemaName relName tbls
+  hint (TableNotFound schemaName relName schemaCache) = JSON.String <$> tableNotFoundHint schemaName relName schemaCache
 
   hint _ = Nothing
 
@@ -426,14 +426,20 @@ noRpcHint schema procName params allProcs overloadedProcs =
       | null overloadedProcs = Fuzzy.getOne fuzzySetOfProcs procName
       | otherwise            = (procName <>) <$> Fuzzy.getOne fuzzySetOfParams (listToText params)
 
+maxDbTablesForFuzzySearch :: Int
+maxDbTablesForFuzzySearch = 4000
+
 -- |
 -- Do a fuzzy search in all tables in the same schema and return closest result
-tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
-tableNotFoundHint schema tblName tblList
-  = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
+tableNotFoundHint :: Text -> Text -> SchemaCache -> Maybe Text
+tableNotFoundHint schema tblName SchemaCache{dbTablesSize, dbTablesFuzzyIndex}
+  = if dbTablesSize < maxDbTablesForFuzzySearch then
+      fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
+    else
+      Nothing
     where
       perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
-      fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]
+      fuzzyTableSet = fromMaybe Fuzzy.defaultSet (HM.lookup schema dbTablesFuzzyIndex)
 
 
 compressedRel :: Relationship -> JSON.Value
