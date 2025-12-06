@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## [14.1] - 2025-11-05
 
+- Fix regression where the `PGRST103` error response was truncated by @laurenceisla in #4455
+  + Happened when an `offset` was greater than the rows requested and `Prefer: count=exact` was sent.
+- Fix not returning `Content-Length` on empty HTTP `201` responses by @laurenceisla in #4518
+
 ## Fixed
 
 - Fix `db-pre-config` function failing when function names are pg reserved words by @taimoorzaeem in #4380

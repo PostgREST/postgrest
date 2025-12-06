@@ -126,7 +126,8 @@ spec = do
                 "hint":null
               }|]
             { matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/0"]
+            , matchHeaders = [ "Content-Range" <:> "*/0"
+                             , "Content-Length" <:> "144"]
             }
 
         it "refuses a range requesting start past last item" $
@@ -288,7 +289,8 @@ spec = do
                 "hint":null
               }|]
             { matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/0"]
+            , matchHeaders = [ "Content-Range" <:> "*/0"
+                             , "Content-Length" <:>  "144"]
             }
 
         it "refuses a range requesting start past last item" $
@@ -470,7 +472,8 @@ spec = do
                 "hint":null
               }|]
             { matchStatus  = 416
-            , matchHeaders = ["Content-Range" <:> "*/0"]
+            , matchHeaders = [ "Content-Range" <:> "*/0"
+                             , "Content-Length" <:> "144"]
             }
 
         it "refuses a range requesting start past last item" $

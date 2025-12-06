@@ -138,6 +138,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/projects?id=eq.11"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -151,6 +152,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/car_models?name=eq.Enzo&year=eq.2021"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -163,7 +165,8 @@ spec actualPgVersion = do
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , matchHeaderAbsent hLocation ]
+                             , matchHeaderAbsent hLocation
+                             , "Content-Length" <:> "0"]
             }
 
     context "from an html form" $
@@ -175,7 +178,8 @@ spec actualPgVersion = do
           `shouldRespondWith`
             ""
             { matchStatus = 201
-            , matchHeaders = [ matchHeaderAbsent hContentType ]
+            , matchHeaders = [ matchHeaderAbsent hContentType
+                             , "Content-Length" <:> "0"]
             }
 
     context "with no pk supplied" $ do
@@ -199,6 +203,7 @@ spec actualPgVersion = do
               ""
               { matchStatus  = 201
               , matchHeaders = [ matchHeaderAbsent hContentType
+                               , "Content-Length" <:> "0"
                                , "Location" <:> "/auto_incrementing_pk?id=eq.2"
                                , "Preference-Applied" <:> "return=headers-only"]
               }
@@ -741,6 +746,7 @@ spec actualPgVersion = do
           ""
           { matchStatus = 201
           , matchHeaders = [matchHeaderAbsent hContentType
+                           , "Content-Length" <:> "0"
                            , "Preference-Applied" <:> "return=minimal"]
           }
 
@@ -753,7 +759,8 @@ spec actualPgVersion = do
             ""
             { matchStatus  = 201
             , matchHeaders = [ matchHeaderAbsent hContentType
-                             , matchHeaderAbsent hLocation ]
+                             , matchHeaderAbsent hLocation
+                             , "Content-Length" <:> "0"]
             }
 
       it "returns a location header with pks from both tables" $
@@ -765,6 +772,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/with_multiple_pks?pk1=eq.1&pk2=eq.2"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -778,6 +786,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/compound_pk_view?k1=eq.1&k2=eq.test"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -790,6 +799,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/test_null_pk_competitors_sponsors?id=eq.1&sponsor_id=is.null"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -807,6 +817,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/datarep_todos?id=eq.5"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
@@ -862,6 +873,7 @@ spec actualPgVersion = do
             , matchHeaders = [ matchHeaderAbsent hContentType
                              , "Location" <:> "/datarep_todos_computed?id=eq.5"
                              , "Content-Range" <:> "*/*"
+                             , "Content-Length" <:> "0"
                              , "Preference-Applied" <:> "return=headers-only"]
             }
 
