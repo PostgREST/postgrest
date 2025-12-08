@@ -428,9 +428,12 @@ noRpcHint schema procName params allProcs overloadedProcs =
 
 -- |
 -- Do a fuzzy search in all tables in the same schema and return closest result
+-- We have a upper limit for hint generation as 4000 tables to avoid memory
+-- and performance issues.
 tableNotFoundHint :: Text -> Text -> [Table] -> Maybe Text
 tableNotFoundHint schema tblName tblList
-  = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
+  | length tblList <= 4000 = fmap (\tbl -> "Perhaps you meant the table '" <> schema <> "." <> tbl <> "'") perhapsTable
+  | otherwise              = Nothing
     where
       perhapsTable = Fuzzy.getOne fuzzyTableSet tblName
       fuzzyTableSet = Fuzzy.fromList [ tableName tbl | tbl <- tblList, tableSchema tbl == schema]

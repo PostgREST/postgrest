@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- Fix out of memory errors for large number of tables by @taimoorzaeem in #4523
+  + Disables the table not found error `hint` generation for more than 4000 tables
+
 ## [14.1] - 2025-11-05
 
 ## Fixed
