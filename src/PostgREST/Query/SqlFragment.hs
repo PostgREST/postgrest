@@ -485,15 +485,13 @@ pgFmtGroup _  CoercibleSelectField{csAggFunction=Just _} = Nothing
 pgFmtGroup _  CoercibleSelectField{csAlias=Just alias, csAggFunction=Nothing} = Just $ pgFmtIdent alias
 pgFmtGroup qi CoercibleSelectField{csField=fld, csAlias=Nothing, csAggFunction=Nothing} = Just $ pgFmtField qi fld
 
-countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SQL.Snippet)
-countF countQuery shouldCount =
-  if shouldCount
-    then (
-        ", pgrst_source_count AS (" <> countQuery <> ")"
-      , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)" )
-    else (
-        mempty
-      , "null::bigint")
+countF :: SQL.Snippet -> Bool -> Bool -> (SQL.Snippet, SQL.Snippet)
+countF countQuery shouldCountPage shouldCountTotal
+  | shouldCountPage = if shouldCountTotal
+      then ( ", pgrst_source_count AS (" <> countQuery <> ")"
+           , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)" )
+      else ( mempty, "pg_catalog.count(_postgrest_t)" ) -- does the same count as the page_count
+  | otherwise = (mempty, "null::bigint")
 
 returningF :: QualifiedIdentifier -> [FieldName] -> SQL.Snippet
 returningF qi returnings =

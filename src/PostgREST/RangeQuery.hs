@@ -16,6 +16,7 @@ module PostgREST.RangeQuery (
 , NonnegRange
 , rangeStatusHeader
 , contentRangeH
+, shouldCountTotal
 ) where
 
 import qualified Data.ByteString.Char8 as BS
@@ -119,3 +120,6 @@ contentRangeH lower upper total =
       totalString   = maybe "*" show total
       totalNotZero  = Just 0 /= total
       fromInRange   = lower <= upper
+
+shouldCountTotal :: Maybe Integer -> NonnegRange -> Bool
+shouldCountTotal maxRows range = isJust maxRows || range /= allRange
