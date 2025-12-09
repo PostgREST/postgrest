@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+### Fixed
+
+- Fix misleading logs on unsupported PostgreSQL versions by @taimoorzaeem in #4519
+
 ## [14.1] - 2025-11-05
 
 ## Fixed

@@ -382,14 +382,16 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer, stateMainThrea
             observer ExitDBNoRecoveryObs
             killThread mainThreadId
           return Nothing
-        Right actualPgVersion -> do
-          when (actualPgVersion < minimumPgVersion) $ do
+        Right actualPgVersion ->
+          if actualPgVersion < minimumPgVersion then do
             observer $ ExitUnsupportedPgVersion actualPgVersion minimumPgVersion
             killThread mainThreadId
-          observer $ DBConnectedObs $ pgvFullName actualPgVersion
-          observer $ PoolInit configDbPoolSize
-          putPgVersion appState actualPgVersion
-          return $ Just actualPgVersion
+            return Nothing
+          else do
+            observer $ DBConnectedObs $ pgvFullName actualPgVersion
+            observer $ PoolInit configDbPoolSize
+            putPgVersion appState actualPgVersion
+            return $ Just actualPgVersion
 
     qInDbConfig :: IO ()
     qInDbConfig = do
