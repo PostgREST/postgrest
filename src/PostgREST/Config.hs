@@ -274,8 +274,7 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
     <*> (fromMaybe True <$> optBool "db-prepared-statements")
     <*> (fmap toQi <$> optWithAlias (optString "db-root-spec")
                                     (optString "root-spec"))
-    <*> (fromList . maybe ["public"] splitOnCommas <$> optWithAlias (optString "db-schemas")
-                                                                    (optString "db-schema"))
+    <*> parseDbSchemas "db-schemas" "db-schema"
     <*> (fromMaybe True <$> optBool "db-config")
     <*> (fmap toQi <$> optString "db-pre-config")
     <*> parseTxEnd "db-tx-end" snd
@@ -328,6 +327,18 @@ parser optPath env dbSettings roleSettings roleIsolationLvl =
         Nothing -> pure Nothing
         Just asp | asp == serverPort -> fail "admin-server-port cannot be the same as server-port"
                  | otherwise         -> pure $ Just asp
+
+    parseDbSchemas :: C.Key -> C.Key -> C.Parser C.Config (NonEmpty Text)
+    parseDbSchemas k al =
+      optWithAlias (optString k) (optString al) >>= \case
+        Nothing  -> pure $ fromList ["public"]
+        Just s
+          | "pg_catalog"         `elem` schemas -> fail (errMsg "pg_catalog")
+          | "information_schema" `elem` schemas -> fail (errMsg "information_schema")
+          | otherwise -> pure $ fromList schemas
+          where
+            schemas = splitOnCommas s
+            errMsg x = ("db-schemas does not allow schema: '" <> x <> "'")
 
     parseSocketFileMode :: C.Key -> C.Parser C.Config FileMode
     parseSocketFileMode k =

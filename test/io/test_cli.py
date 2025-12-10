@@ -286,6 +286,21 @@ def test_jwt_secret_min_length(defaultenv):
     assert "The JWT secret must be at least 32 characters long." in error
 
 
+@pytest.mark.parametrize("restricted_schema", FIXTURES["restrictedschemas"])
+def test_restricted_db_schemas(restricted_schema, defaultenv):
+    "Should print error when db-schemas config contain pg_catalog or information_schema"
+
+    # test when single schema is given in db-schemas
+    env = {**defaultenv, "PGRST_DB_SCHEMAS": restricted_schema}
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert f"db-schemas does not allow schema: '{restricted_schema}'" in error
+
+    # test when multiple schemas are given in db-schemas
+    env = {**defaultenv, "PGRST_DB_SCHEMAS": f"public, {restricted_schema}"}
+    error = cli(["--dump-config"], env=env, expect_error=True)
+    assert f"db-schemas does not allow schema: '{restricted_schema}'" in error
+
+
 # TODO: Improve readability of "--ready" healthcheck tests
 @pytest.mark.parametrize("host", ["127.0.0.1", "::1"], ids=["IPv4", "IPv6"])
 def test_cli_ready_flag_success(host, defaultenv):
