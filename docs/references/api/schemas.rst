@@ -5,6 +5,10 @@ Schemas
 
 PostgREST can expose a single or multiple schema's tables, views and functions. The :ref:`active database role <roles>` must have the usage privilege on the schemas to access them.
 
+.. important::
+  
+  ``pg_catalog`` and ``information_schema`` are not allowed in :ref:`db-schemas`. This is done to prevent leaking sensitive information and hence they cannot be accessed directly. If you wish to expose objects of these schemas, expose another schema that contains wrapper views or functions over ``pg_catalog`` or ``information_schema`` objects.
+
 Single schema
 -------------
 
