@@ -156,7 +156,7 @@ observationMessage = \case
     "Evicted entry from JWT cache"
   where
     showMillis :: Double -> Text
-    showMillis x = toS $ showFFloat (Just 1) (x * 1000) ""
+    showMillis x = toS $ showFFloat (Just 1) x ""
 
     jsonMessage err = T.decodeUtf8 . LBS.toStrict . Error.errorPayload $ Error.PgError False err
 
