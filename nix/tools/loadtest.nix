@@ -69,33 +69,33 @@ let
 
         case "$_arg_kind" in
           jwt-hs)
-            ${genTargetsHS} "$_arg_testdir"/gen_targets.http
+            ${genTargets} "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
             ;;
 
           jwt-hs-cache)
-            ${genTargetsHS} "$_arg_testdir"/gen_targets.http
+            ${genTargets} "$_arg_testdir"/gen_targets.http
             ;;
 
           jwt-hs-cache-worst)
-            ${genTargetsHS} --worst "$_arg_testdir"/gen_targets.http
+            ${genTargets} --worst "$_arg_testdir"/gen_targets.http
             ;;
 
           jwt-rsa)
-            ${genTargetsHS} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 
           jwt-rsa-cache)
-            ${genTargetsHS} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 
           jwt-rsa-cache-worst)
-            ${genTargetsHS} --worst --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --worst --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 
@@ -250,8 +250,8 @@ let
           | ${mergeMonitorResults}
       '';
 
-  genTargetsHS =
-    writers.writePython3 "postgrest-gen-loadtest-targets-hs"
+  genTargets =
+    writers.writePython3 "postgrest-gen-loadtest-targets"
       {
         libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
       }
