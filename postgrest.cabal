@@ -94,6 +94,7 @@ library
                       PostgREST.Response.OpenAPI
                       PostgREST.Response.GucHeader
                       PostgREST.Response.Performance
+                      PostgREST.TimeIt
                       PostgREST.Version
   build-depends:      base                      >= 4.9 && < 4.20
                     , HTTP                      >= 4000.3.7 && < 4000.5
@@ -139,7 +140,6 @@ library
                     , swagger2                  >= 2.4 && < 2.9
                     , text                      >= 1.2.2 && < 2.2
                     , time                      >= 1.6 && < 1.13
-                    , timeit                    >= 2.0 && < 2.1
                     , unordered-containers      >= 0.2.8 && < 0.3
                     , unix-compat               >= 0.5.4 && < 0.8
                     , vault                     >= 0.3.1.5 && < 0.4
