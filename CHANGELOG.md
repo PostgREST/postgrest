@@ -12,6 +12,8 @@ All notable changes to this project will be documented in this file. From versio
 - Fix regression where the `PGRST103` error response was truncated by @laurenceisla in #4455
   + Happened when an `offset` was greater than the rows requested and `Prefer: count=exact` was sent.
 - Fix not returning `Content-Length` on empty HTTP `201` responses by @laurenceisla in #4518
+- Fix inaccurate Server-Timing header durations by @steve-chavez in #4522
+- Fix inaccurate "Schema cache queried" logs by @steve-chavez in #4522
 
 ## [14.1] - 2025-11-05
 

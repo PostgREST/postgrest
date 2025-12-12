@@ -7,7 +7,7 @@ import time
 import pytest
 
 from config import CONFIGSDIR, FIXTURES, SECRET
-from util import Thread, jwtauthheader
+from util import Thread, jwtauthheader, parse_server_timings_header
 from postgrest import (
     freeport,
     is_ipv6,
@@ -1058,6 +1058,56 @@ def test_schema_cache_concurrent_notifications(slow_schema_cache_env):
         assert response.status_code == 200
 
 
+def test_schema_cache_query_sleep_logs(defaultenv):
+    """Schema cache sleep should be reflected in the logged query duration."""
+
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_QUERY_SLEEP": "1000",
+    }
+    log_pattern = re.compile(r"Schema cache queried in ([\d.]+) milliseconds")
+
+    with run(env=env, wait_max_seconds=3, no_startup_stdout=False) as postgrest:
+        observed_ms = None
+        collected = []
+
+        lines = postgrest.read_stdout(nlines=10)
+        collected.extend(lines)
+        for line in lines:
+            match = log_pattern.search(line)
+            if match:
+                observed_ms = float(match.group(1))
+                break
+
+        assert observed_ms is not None
+        assert 1000 < observed_ms < 2000
+
+
+def test_schema_cache_load_sleep_logs(defaultenv):
+    """Schema cache load sleep should be reflected in the logged load duration."""
+
+    env = {
+        **defaultenv,
+        "PGRST_INTERNAL_SCHEMA_CACHE_LOAD_SLEEP": "1000",
+    }
+    log_pattern = re.compile(r"Schema cache loaded in ([\d.]+) milliseconds")
+
+    with run(env=env, wait_max_seconds=3, no_startup_stdout=False) as postgrest:
+        observed_ms = None
+        collected = []
+
+        lines = postgrest.read_stdout(nlines=10)
+        collected.extend(lines)
+        for line in lines:
+            match = log_pattern.search(line)
+            if match:
+                observed_ms = float(match.group(1))
+                break
+
+        assert observed_ms is not None
+        assert 1000 < observed_ms < 2000
+
+
 @pytest.mark.parametrize("dburi_type", ["no_params", "no_params_qmark", "with_params"])
 def test_get_pgrst_version_with_uri_connection_string(dburi_type, dburi, defaultenv):
     "The fallback_application_name should be added to the db-uri if it has a URI format"
@@ -1662,3 +1712,29 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
             response.elapsed.total_seconds() > 1
             and response.elapsed.total_seconds() < 5
         )
+
+
+def test_server_timing_transaction_duration(defaultenv, metapostgrest):
+    "server-timing transaction duration should be accurate"
+
+    # just to ensure we don't timeout
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 3000)  # 3 seconds
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_SERVER_TIMING_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=2")
+
+        assert response.status_code == 204
+
+        response_dur = parse_server_timings_header(response.headers["Server-Timing"])[
+            "transaction"
+        ]
+
+        assert 2000 <= response_dur < 3000

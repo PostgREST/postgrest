@@ -44,8 +44,8 @@ import qualified PostgREST.Error            as Error
 import qualified PostgREST.Logger           as Logger
 import qualified PostgREST.Metrics          as Metrics
 import           PostgREST.Observation
+import           PostgREST.TimeIt           (timeItT)
 import           PostgREST.Version          (prettyVersion)
-import           System.TimeIt              (timeItT)
 
 import Control.AutoUpdate (defaultUpdateSettings, mkAutoUpdate,
                            updateAction)
