@@ -42,7 +42,9 @@ let
           "ARG_OPTIONAL_SINGLE([output], [o], [Filename to dump json output to], [./loadtest/result.bin])"
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
+          "ARG_OPTIONAL_SINGLE([method],, [HTTP method used for the jwt loadtests], [OPTIONS])"
           "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs,jwt-hs-cache,jwt-hs-cache-worst,jwt-rsa,jwt-rsa-cache,jwt-rsa-cache-worst])"
+          "ARG_TYPE_GROUP_SET([METHOD], [METHOD], [method], [OPTIONS,GET])"
           "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
         ];
@@ -69,33 +71,33 @@ let
 
         case "$_arg_kind" in
           jwt-hs)
-            ${genTargets} "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
             ;;
 
           jwt-hs-cache)
-            ${genTargets} "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
             ;;
 
           jwt-hs-cache-worst)
-            ${genTargets} --worst "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" --worst "$_arg_testdir"/gen_targets.http
             ;;
 
           jwt-rsa)
-            ${genTargets} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 
           jwt-rsa-cache)
-            ${genTargets} --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 
           jwt-rsa-cache-worst)
-            ${genTargets} --worst --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genTargets} --method "$_arg_method" --worst --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
             ;;
 

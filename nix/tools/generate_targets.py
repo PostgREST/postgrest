@@ -18,6 +18,7 @@ import jwt
 import jwcrypto.jwk as jwk
 from typing import Optional
 from pathlib import Path
+from enum import Enum
 
 URL = "http://postgrest"
 
@@ -44,8 +45,21 @@ def generate_jwt(now: int, exp_inc: Optional[int], is_hs: bool) -> str:
     return jwt.encode(payload, k, alg)
 
 
-def append_targets(lines: list[str], token: str):
-    lines.append(f"OPTIONS {URL}/authors_only")
+HTTP_METHODS = (
+    "GET",
+    "OPTIONS",
+)
+
+HttpMethod = Enum(
+    "HttpMethod",
+    {method: method for method in HTTP_METHODS},
+    type=str,
+    module=__name__,
+)
+
+
+def append_targets(lines: list[str], token: str, http_method: HttpMethod):
+    lines.append(f"{http_method.value} {URL}/authors_only")
     lines.append(f"Authorization: Bearer {token}")
     lines.append("")  # blank line to separate requests
 
@@ -73,10 +87,19 @@ def main():
         default=None,
         help="Path for generating a RSA JWK file to sign tokens with",
     )
+    parser.add_argument(
+        "--method",
+        dest="http_method",
+        choices=list(HTTP_METHODS),
+        default=None,
+        help="HTTP method for the vegeta targets",
+    )
 
     args = parser.parse_args()
 
     is_hs = args.jwk_path is None
+
+    http_method = HttpMethod(args.http_method)
 
     nsamples = 1000
     if is_hs:
@@ -122,13 +145,13 @@ def main():
 
         for i in range(ntargets):
             token = generate_jwt(now, inc + i // 1000, is_hs)
-            append_targets(lines, token)
+            append_targets(lines, token, http_method)
 
     else:
         tokens = [generate_jwt(now, None, is_hs) for _ in range(nsamples)]
         for i in range(ntargets):
             token = random.choice(tokens)
-            append_targets(lines, token)
+            append_targets(lines, token, http_method)
 
     try:
         with open(args.output, "w") as f:
