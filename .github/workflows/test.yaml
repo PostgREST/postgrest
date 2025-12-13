@@ -138,6 +138,7 @@ jobs:
       - name: Run loadtest
         env:
           TARGET_BRANCH: ${{ github.base_ref || github.ref_name }}
+          OTEL_SDK_DISABLED: "true"
         run: |
           if [ "$TARGET_BRANCH" = "main" ]; then
             latest_tag=$(git tag --sort=-creatordate --list "v*" | head -n1)
