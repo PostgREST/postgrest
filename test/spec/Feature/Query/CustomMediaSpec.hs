@@ -28,6 +28,7 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "1.twkb"
         simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
+    -- FIXME: This is a bug, twkb_agg exists for "lines" table
     it "will fail if there's no aggregate defined for the table" $ do
       request methodGet "/lines" (acceptHdrs "text/plain") ""
         `shouldRespondWith`
@@ -116,6 +117,7 @@ spec = describe "custom media types" $ do
         , matchHeaders = ["Content-Type" <:> "text/xml; charset=utf-8"]
         }
 
+    -- FIXME: This is a bug, this should return text/plain
     it "should fail with function returning text and Accept: text/xml" $ do
       request methodGet "/rpc/welcome" (acceptHdrs "text/xml") ""
         `shouldRespondWith`
@@ -160,6 +162,7 @@ spec = describe "custom media types" $ do
         simpleBody r `shouldBe` readFixtureFile "lines.twkb"
         simpleHeaders r `shouldContain` [("Content-Type", "application/vnd.twkb")]
 
+    -- FIXME: This is a bug, application/vnd.twkb aggregate exists for "get_lines" table
     it "fails if doesn't have an aggregate defined" $ do
       request methodGet "/rpc/get_lines"
           (acceptHdrs "application/octet-stream") ""
