@@ -11375,12 +11375,34 @@ ALTER TABLE ONLY apflora.zielber
 
 ALTER TABLE apflora."user" ENABLE ROW LEVEL SECURITY;
 
+
+CREATE SCHEMA fuzzysearch;
+
+-- Create many tables to test fuzzy string search
+-- computing hints for non existing tables
+DO
+$$
+DECLARE
+  r record;
+BEGIN
+  FOR r IN
+    SELECT
+      format('CREATE TABLE fuzzysearch.unknown_table_%s ()', n) AS ct
+    FROM
+      generate_series(1, 499) n
+    LOOP
+      EXECUTE r.ct;
+    END LOOP;
+END
+$$;
+
 DROP ROLE IF EXISTS postgrest_test_anonymous;
 CREATE ROLE postgrest_test_anonymous;
 
 GRANT postgrest_test_anonymous TO :PGUSER;
 
 GRANT USAGE ON SCHEMA apflora TO postgrest_test_anonymous;
+GRANT USAGE ON SCHEMA fuzzysearch TO postgrest_test_anonymous;
 
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA apflora
 TO postgrest_test_anonymous;
