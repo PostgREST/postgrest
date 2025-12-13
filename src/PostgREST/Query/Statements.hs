@@ -20,6 +20,7 @@ import PostgREST.Plan.MutatePlan        as MTPlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
+import PostgREST.RangeQuery             (shouldCountTotal, NonnegRange)
 import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine,
                                          funcReturnsSingle)
 
@@ -64,8 +65,8 @@ mainWrite rPlan mtplan mt handler rep resolution = mtSnippet mt snippet
     _ -> (False,False, mempty);
 
 mainRead :: ReadPlanTree -> SQL.Snippet -> Maybe PreferCount -> Maybe Integer ->
-            MediaType -> MediaHandler -> SQL.Snippet
-mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
+            NonnegRange -> MediaType -> MediaHandler -> SQL.Snippet
+mainRead rPlan countQuery pCount maxRows range mt handler = mtSnippet mt snippet
  where
   snippet =
     "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
@@ -79,7 +80,7 @@ mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
       "''" <> " AS response_inserted " <>
     "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
-  (countCTEF, countResultF) = countF countQ $ shouldCount pCount
+  (countCTEF, countResultF) = countF countQ (shouldCount pCount) (shouldCountTotal maxRows range)
   selectQuery = readPlanToQuery rPlan
   countQ =
     if pCount == Just EstimatedCount then
@@ -88,9 +89,9 @@ mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
     else
       countQuery
 
-mainCall :: Routine -> CallPlan -> ReadPlanTree -> Maybe PreferCount ->
-            MediaType -> MediaHandler -> SQL.Snippet
-mainCall rout cPlan rPlan pCount mt handler = mtSnippet mt snippet
+mainCall :: Routine -> CallPlan -> ReadPlanTree -> Maybe PreferCount -> Maybe Integer ->
+            NonnegRange-> MediaType -> MediaHandler -> SQL.Snippet
+mainCall rout cPlan rPlan pCount maxRows range mt handler = mtSnippet mt snippet
   where
     snippet =
       "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
@@ -106,7 +107,7 @@ mainCall rout cPlan rPlan pCount mt handler = mtSnippet mt snippet
         "''" <> " AS response_inserted " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
-    (countCTEF, countResultF) = countF countQuery $ shouldCount pCount
+    (countCTEF, countResultF) = countF countQuery (shouldCount pCount) (shouldCountTotal maxRows range)
     selectQuery = readPlanToQuery rPlan
     callProcQuery = callPlanToQuery cPlan
     countQuery = readPlanToCountQuery rPlan
