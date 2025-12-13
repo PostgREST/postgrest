@@ -62,11 +62,12 @@ data PgrstResponse = PgrstResponse {
 
 actionResponse :: DbResult -> ApiRequest -> (Text, Text) -> AppConfig -> SchemaCache -> Schema -> Bool -> Either Error.Error PgrstResponse
 
-actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, crudQi=identifier} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
     (status, contentRange) = RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
     cLHeader = if headersOnly then mempty else [ contentLengthHeader bod ]
-    prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+    prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
+
     headers =
       [ contentRange
       , ( "Content-Location"
@@ -87,12 +88,10 @@ actionResponse (DbCrudResult WrappedReadPlan{pMedia, wrHdrsOnly=headersOnly, cru
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan, pMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}, ..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationCreate, pMedia, crudQi=QualifiedIdentifier{..}} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
-    pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols; _ -> mempty;}
-    prefHeader = prefAppliedHeader $
-      Preferences (if null pkCols && isNothing (qsOnConflict iQueryParams) then Nothing else preferResolution)
-      preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone Nothing []
+    prefHeader = prefAppliedHeader $ responsePreferences plan ctxApiRequest
+
     headers =
       catMaybes
         [ if null rsLocation then
@@ -105,16 +104,16 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
                   <> HTTP.renderSimpleQuery True rsLocation
               )
         , Just . RangeQuery.contentRangeH 1 0 $
-            if shouldCount preferCount then Just rsQueryTotal else Nothing
+            if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
         , prefHeader ]
 
     isInsertIfGTZero i =
-        if i <= 0 && preferResolution == Just MergeDuplicates then
+        if i <= 0 && preferResolution iPreferences == Just MergeDuplicates then
           HTTP.status200
         else
           HTTP.status201
     status = maybe HTTP.status200 isInsertIfGTZero rsInserted
-    (headers', bod) = case preferRepresentation of
+    (headers', bod) = case preferRepresentation iPreferences of
       Just Full -> (headers ++ contentTypeHeaders pMedia ctxApiRequest, LBS.fromStrict rsBody)
       Just None -> (headers, mempty)
       Just HeadersOnly -> (headers, mempty)
@@ -124,17 +123,19 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationCreate, mrMutateP
 
   Right $ PgrstResponse ovStatus ovHeaders bod
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationUpdate, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
     contentRangeHeader =
       Just . RangeQuery.contentRangeH 0 (rsQueryTotal - 1) $
-        if shouldCount preferCount then Just rsQueryTotal else Nothing
-    prefHeader = prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction preferMissing preferHandling preferTimezone preferMaxAffected []
+        if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
+
+    prefHeader = prefAppliedHeader $ responsePreferences plan ctxApiRequest
+
     headers = catMaybes [contentRangeHeader, prefHeader]
     lbsBody = LBS.fromStrict rsBody
 
   let (status, headers', body) =
-        case preferRepresentation of
+        case preferRepresentation iPreferences of
           Just Full -> (HTTP.status200, headers ++ [contentLengthHeader lbsBody] ++ contentTypeHeaders pMedia ctxApiRequest, lbsBody)
           Just None -> (HTTP.status204, headers, mempty)
           _         -> (HTTP.status204, headers, mempty)
@@ -143,9 +144,9 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationUpdate, pMedia} R
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationSingleUpsert, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
-    prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone Nothing []
+    prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
     lbsBody = LBS.fromStrict rsBody
     cLHeader = [contentLengthHeader lbsBody]
     cTHeader = contentTypeHeaders pMedia ctxApiRequest
@@ -153,7 +154,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, pMe
   let isInsertIfGTZero i = if i > 0 then HTTP.status201 else HTTP.status200
       upsertStatus       = isInsertIfGTZero $ fromJust rsInserted
       (status, headers, body) =
-        case preferRepresentation of
+        case preferRepresentation iPreferences of
           Just Full -> (upsertStatus, cLHeader ++ cTHeader ++ prefHeader, lbsBody)
           Just None -> (HTTP.status204,  prefHeader, mempty)
           _ -> (HTTP.status204, prefHeader, mempty)
@@ -161,14 +162,14 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationSingleUpsert, pMe
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..}} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@MutateReadPlan{mrMutation=MutationDelete, pMedia} RSStandard{..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
-    contentRangeHeader = RangeQuery.contentRangeH 1 0 $ if shouldCount preferCount then Just rsQueryTotal else Nothing
-    prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing preferRepresentation preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+    contentRangeHeader = RangeQuery.contentRangeH 1 0 $ if shouldCount (preferCount iPreferences) then Just rsQueryTotal else Nothing
+    prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
     headers = contentRangeHeader : prefHeader
     lbsBody = LBS.fromStrict rsBody
     (status, headers', body) =
-        case preferRepresentation of
+        case preferRepresentation iPreferences of
             Just Full -> (HTTP.status200, headers ++ [contentLengthHeader lbsBody] ++ contentTypeHeaders pMedia ctxApiRequest, lbsBody)
             Just None -> (HTTP.status204, headers, mempty)
             _ -> (HTTP.status204, headers, mempty)
@@ -177,7 +178,7 @@ actionResponse (DbCrudResult MutateReadPlan{mrMutation=MutationDelete, pMedia} R
 
   Right $ PgrstResponse ovStatus ovHeaders body
 
-actionResponse (DbCrudResult CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{iPreferences=Preferences{..},..} _ _ _ _ _ = do
+actionResponse (DbCrudResult plan@CallReadPlan{pMedia, crInvMthd=invMethod, crProc=proc} RSStandard {..}) ctxApiRequest@ApiRequest{..} _ _ _ _ _ = do
   let
     (status, contentRange) =
       RangeQuery.rangeStatusHeader iTopLevelRange rsQueryTotal rsTableTotal
@@ -186,7 +187,7 @@ actionResponse (DbCrudResult CallReadPlan{pMedia, crInvMthd=invMethod, crProc=pr
         $ Error.OutOfBounds (show $ RangeQuery.rangeOffset iTopLevelRange) (maybe "0" show rsTableTotal)
       else LBS.fromStrict rsBody
     isHeadMethod = invMethod == InvRead True
-    prefHeader = maybeToList . prefAppliedHeader $ Preferences Nothing Nothing preferCount preferTransaction Nothing preferHandling preferTimezone preferMaxAffected []
+    prefHeader = maybeToList . prefAppliedHeader $ responsePreferences plan ctxApiRequest
     cLHeader = if isHeadMethod then mempty else [contentLengthHeader rsOrErrBody]
     headers = contentRange : prefHeader
     (status', headers', body) =
@@ -271,3 +272,31 @@ addHeadersIfNotIncluded :: [HTTP.Header] -> [HTTP.Header] -> [HTTP.Header]
 addHeadersIfNotIncluded newHeaders initialHeaders =
   filter (\(nk, _) -> isNothing $ find (\(ik, _) -> ik == nk) initialHeaders) newHeaders ++
   initialHeaders
+
+-- | Get Preferences for Preference-Applied header per plan
+responsePreferences :: CrudPlan -> ApiRequest -> Preferences
+responsePreferences plan ApiRequest{iPreferences=Preferences{..}, iQueryParams=QueryParams{..}} =
+  let
+    -- Only returned on Inserts
+    preferResolution' = case plan of
+      MutateReadPlan{mrMutation=MutationCreate, mrMutatePlan} ->
+        let pkCols = case mrMutatePlan of { Insert{insPkCols} -> insPkCols ; _ -> mempty; }
+        in (if null pkCols && isNothing qsOnConflict then Nothing else preferResolution)
+      _ -> Nothing
+
+    preferRepresentation' = case plan of
+      MutateReadPlan{} -> preferRepresentation
+      _                -> Nothing
+
+    preferMissing' = case plan of
+      MutateReadPlan{mrMutation=MutationCreate} -> preferMissing
+      MutateReadPlan{mrMutation=MutationUpdate} -> preferMissing
+      _                                         -> Nothing
+
+    preferMaxAffected' = case plan of
+      MutateReadPlan{mrMutation=MutationUpdate} -> preferMaxAffected
+      MutateReadPlan{mrMutation=MutationDelete} -> preferMaxAffected
+      CallReadPlan{}                            -> preferMaxAffected
+      _                                         -> Nothing
+
+    in Preferences preferResolution' preferRepresentation' preferCount preferTransaction preferMissing' preferHandling preferTimezone preferMaxAffected' []
