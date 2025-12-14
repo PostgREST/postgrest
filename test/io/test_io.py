@@ -7,7 +7,7 @@ import time
 import pytest
 
 from config import CONFIGSDIR, FIXTURES, SECRET
-from util import Thread, jwtauthheader
+from util import Thread, jwtauthheader, parse_server_timings_header
 from postgrest import (
     freeport,
     is_ipv6,
@@ -1662,3 +1662,29 @@ def test_requests_without_resource_embedding_wait_for_schema_cache_reload(defaul
             response.elapsed.total_seconds() > 1
             and response.elapsed.total_seconds() < 5
         )
+
+
+def test_server_timing_transaction_duration(defaultenv, metapostgrest):
+    "server-timing transaction duration should be accurate"
+
+    # just to ensure we don't timeout
+    role = "timeout_authenticator"
+    set_statement_timeout(metapostgrest, role, 3000)  # 3 seconds
+
+    env = {
+        **defaultenv,
+        "PGUSER": role,
+        "PGRST_DB_ANON_ROLE": role,
+        "PGRST_SERVER_TIMING_ENABLED": "true",
+    }
+
+    with run(env=env) as postgrest:
+        response = postgrest.session.get("/rpc/sleep?seconds=2")
+
+        assert response.status_code == 204
+
+        response_dur = parse_server_timings_header(response.headers["Server-Timing"])[
+            "transaction"
+        ]
+
+        assert 2000 <= response_dur < 3000

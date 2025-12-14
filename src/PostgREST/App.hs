@@ -51,13 +51,13 @@ import PostgREST.Observation          (Observation (..))
 import PostgREST.Response.Performance (ServerTiming (..),
                                        serverTimingHeader)
 import PostgREST.SchemaCache          (SchemaCache (..))
+import PostgREST.TimeIt               (timeItT)
 import PostgREST.Version              (docsVersion, prettyVersion)
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.List             as L
 import qualified Network.HTTP.Types    as HTTP
 import           Protolude             hiding (Handler)
-import           System.TimeIt         (timeItT)
 
 type Handler = ExceptT Error
 

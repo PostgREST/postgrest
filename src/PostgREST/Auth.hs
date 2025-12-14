@@ -25,8 +25,8 @@ import qualified Network.Wai                     as Wai
 import qualified Network.Wai.Middleware.HttpAuth as Wai
 
 import Data.List        (lookup)
+import PostgREST.TimeIt (timeItT)
 import System.IO.Unsafe (unsafePerformIO)
-import System.TimeIt    (timeItT)
 
 import PostgREST.AppState      (AppState, getConfig, getJwtCacheState,
                                 getTime)

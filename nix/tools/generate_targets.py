@@ -132,7 +132,7 @@ def main():
     # clean cached expired JWTs
     if args.worst:
         # estimated time takes to build and run postgrest itself
-        build_run_postgrest_time = 2
+        build_run_postgrest_time = 2.5
         # estimated time it takes to generate the targets file
         # the division numbers are tuned by hand
         if is_hs:  # hs generation is much faster
