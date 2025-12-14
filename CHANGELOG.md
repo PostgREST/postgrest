@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ### Fixed
 
+- Fix `hasSingleUnnamedParam` incorrectly matching functions with named parameters by @joelonsql in #xxxx
+  + Functions with a single named parameter (e.g., `foo(data json)`) no longer incorrectly match the single-param fallback, returning a clean `PGRST202` error instead of a confusing PostgreSQL `42883` error.
 - Fix misleading logs on unsupported PostgreSQL versions by @taimoorzaeem in #4519
 - Fix regression where the `PGRST103` error response was truncated by @laurenceisla in #4455
   + Happened when an `offset` was greater than the rows requested and `Prefer: count=exact` was sent.
