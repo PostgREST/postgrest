@@ -113,15 +113,43 @@ let
           ${withTools.withSlowPgrst} \
           sh -c "cd \"$_arg_testdir\" && \
           ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+
+          ${vegeta}/bin/vegeta report -type=text "$_arg_output"
         else
           # shellcheck disable=SC2145
           ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
           ${withTools.withPgrst} -m "$_arg_monitor" \
           sh -c "cd \"$_arg_testdir\" && \
           ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-        fi
 
-        ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+          ${vegeta}/bin/vegeta report -type=text "$_arg_output"
+
+          # fail in case 401 happened on jwt loadtests
+          unauthorized_count="$(${vegeta}/bin/vegeta report -type=json "$_arg_output" \
+            | ${jq}/bin/jq -r '.status_codes["401"] // 0')"
+
+          if [ "$unauthorized_count" -gt 0 ]; then
+            last_unauthorized_body="$(${vegeta}/bin/vegeta encode "$_arg_output" \
+              | ${jq}/bin/jq -rn '
+                  reduce inputs as $item (null;
+                    if $item.code == 401 then $item else . end
+                  )
+                  | if . == null then
+                      empty
+                    else
+                      (.body | @base64d)
+                    end
+                ')"
+
+            echo "loadtest failed: found $unauthorized_count 401 Unauthorized responses" >&2
+            if [ -n "$last_unauthorized_body" ]; then
+              printf '%s\n' "Last 401 response body:" >&2
+              printf '%s\n' "$last_unauthorized_body" >&2
+            fi
+
+            exit 1
+          fi
+        fi
       '';
 
   loadtestAgainst =
