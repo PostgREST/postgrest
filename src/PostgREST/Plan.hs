@@ -256,14 +256,16 @@ findProc qi argumentsKeys allProcs contentMediaType isInvPost =
       | hasSingleUnnamedParam proc = (ts,proc:fs)
       | otherwise                  = (ts,fs)
     -- If the function is called with post and has a single unnamed parameter
-    -- it can be called depending on content type and the parameter type
-    hasSingleUnnamedParam Function{pdParams=[RoutineParam{ppType}]} = isInvPost && case (contentMediaType, ppType) of
-      (MTApplicationJSON, "json")  -> True
-      (MTApplicationJSON, "jsonb") -> True
-      (MTTextPlain, "text")        -> True
-      (MTTextXML, "xml")           -> True
-      (MTOctetStream, "bytea")     -> True
-      _                            -> False
+    -- it can be called depending on content type and the parameter type.
+    -- The parameter must have no declared name (ppName == mempty).
+    hasSingleUnnamedParam Function{pdParams=[RoutineParam{ppName, ppType}]} =
+      isInvPost && ppName == mempty && case (contentMediaType, ppType) of
+        (MTApplicationJSON, "json")  -> True
+        (MTApplicationJSON, "jsonb") -> True
+        (MTTextPlain, "text")        -> True
+        (MTTextXML, "xml")           -> True
+        (MTOctetStream, "bytea")     -> True
+        _                            -> False
     hasSingleUnnamedParam _ = False
     matchesParams proc =
       let

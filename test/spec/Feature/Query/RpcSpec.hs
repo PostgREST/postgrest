@@ -1146,11 +1146,23 @@ spec =
             }
 
       context "single unnamed param" $ do
-        it "can insert json directly" $
+        it "can insert json directly with unnamed parameter" $
           post "/rpc/unnamed_json_param"
               [json|{"A": 1, "B": 2, "C": 3}|]
             `shouldRespondWith`
               [json|{"A": 1, "B": 2, "C": 3}|]
+
+        it "rejects json body when single param has a name" $
+          post "/rpc/named_json_param"
+              [json|{"A": 1, "B": 2, "C": 3}|]
+            `shouldRespondWith`
+              [json|{
+                "code":"PGRST202",
+                "message":"Could not find the function test.named_json_param(A, B, C) in the schema cache",
+                "details":"Searched for the function test.named_json_param with parameters A, B, C or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache.",
+                "hint":null
+              }|]
+              { matchStatus = 404 }
 
         it "can insert text directly" $ do
           request methodPost "/rpc/unnamed_text_param"

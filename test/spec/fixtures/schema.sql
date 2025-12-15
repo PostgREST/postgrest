@@ -2356,6 +2356,11 @@ create or replace function test.unnamed_json_param(json) returns json as $$
   select $1;
 $$ language sql;
 
+-- Function with a NAMED json parameter (for testing single param fallback behavior)
+create or replace function test.named_json_param(data json) returns json as $$
+  select data;
+$$ language sql;
+
 create or replace function test.unnamed_text_param(text) returns "text/plain" as $$
   select $1::"text/plain";
 $$ language sql;
