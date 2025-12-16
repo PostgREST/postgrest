@@ -373,6 +373,7 @@ let
 
         if [ -z "''${PGRST_CMD:-}" ]; then
           rm -f result
+          build_start=$SECONDS
           if [ -z "''${PGRST_BUILD_CABAL:-}" ]; then
             echo -n "Building postgrest (nix)... "
             # Using lib.getBin to also make this work with older checkouts, where .bin was not a thing, yet.
@@ -387,7 +388,8 @@ let
             postgrest-build
             PGRST_CMD=postgrest-run
           fi
-          echo "done."
+          build_end=$((SECONDS - build_start))
+          printf "done in %ss.\n" "$build_end"
         fi
 
         ver=$($PGRST_CMD ${legacyConfig} --version)
