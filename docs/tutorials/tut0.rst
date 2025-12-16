@@ -22,7 +22,7 @@ Step 1. Install PostgreSQL
 
 If you're already familiar with using PostgreSQL and have it installed on your system you can use the existing installation (see :ref:`pg-dependency` for minimum requirements). For this tutorial we'll describe how to use the database in Docker because database configuration is otherwise too complicated for a simple tutorial.
 
-If Docker is not installed, you can get it `here <https://www.docker.com/get-started>`_. Next, let's pull and start the database image:
+If Docker is not installed, you can get it `here <https://www.docker.com/get-started>`_. Make sure that Docker service is `started <https://docs.docker.com/engine/daemon/start/#start-the-daemon-using-operating-system-utilities>`_. Next, let's pull and start the database image:
 
 .. code-block:: bash
 
