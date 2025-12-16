@@ -18,6 +18,8 @@ let
         ];
       }
       ''
+        echo "Starting vegeta loadtest..."
+
         # ARG_USE_ENV only adds defaults or docs for environment variables
         # We manually implement a required check here
         # See also: https://github.com/matejak/argbash/issues/80
@@ -71,59 +73,90 @@ let
 
         case "$_arg_kind" in
           jwt-hs)
-            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-hs-cache)
-            ${genTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-hs-cache-worst)
-            ${genTargets} --method "$_arg_method" --worst "$_arg_testdir"/gen_targets.http
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" --worst "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-rsa)
-            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_CACHE_MAX_ENTRIES="0"
             export PGRST_JWT_CACHE_MAX_LIFETIME="0"
+
+            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-rsa-cache)
-            ${genTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
+            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
           jwt-rsa-cache-worst)
-            ${genTargets} --method "$_arg_method" --worst --rsa="$_arg_testdir"/gen_jwk.json "$_arg_testdir"/gen_targets.http
             export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+
+            ${genRsaMaterials} --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json
+            export PGRST_JWT_SECRET="@$_arg_testdir/gen_jwk.json"
+
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withGenTargets} --method "$_arg_method" --worst --rsa="$_arg_testdir"/gen_jwk.json --private-key="$_arg_testdir"/gen_private.json "$_arg_testdir"/gen_targets.http \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
 
-          *)
+          mixed)
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
+            ${withTools.withSlowPg} \
+            ${withTools.withPgrst} -m "$_arg_monitor" \
+            ${withTools.withSlowPgrst} \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
         esac
 
-        if [ "$_arg_kind" == "mixed" ]; then
-          # shellcheck disable=SC2145
-          ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-          ${withTools.withSlowPg} \
-          ${withTools.withPgrst} -m "$_arg_monitor" \
-          ${withTools.withSlowPgrst} \
-          sh -c "cd \"$_arg_testdir\" && \
-          ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+        ${vegeta}/bin/vegeta report -type=text "$_arg_output"
 
-          ${vegeta}/bin/vegeta report -type=text "$_arg_output"
-        else
-          # shellcheck disable=SC2145
-          ${withTools.withPg} -f "$_arg_testdir"/fixtures.sql \
-          ${withTools.withPgrst} -m "$_arg_monitor" \
-          sh -c "cd \"$_arg_testdir\" && \
-          ${runner} -lazy -targets gen_targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
-
-          ${vegeta}/bin/vegeta report -type=text "$_arg_output"
-
+        if [ "$_arg_kind" != "mixed" ]; then
           # fail in case 401 happened on jwt loadtests
           unauthorized_count="$(${vegeta}/bin/vegeta report -type=json "$_arg_output" \
             | ${jq}/bin/jq -r '.status_codes["401"] // 0')"
@@ -280,12 +313,21 @@ let
           | ${mergeMonitorResults}
       '';
 
-  genTargets =
-    writers.writePython3 "postgrest-gen-loadtest-targets"
+  withGenTargets =
+    writers.writePython3 "postgrest-with-gen-loadtest-targets"
       {
         libraries = [ python3Packages.pyjwt python3Packages.jwcrypto ];
+        doCheck = false; # postgrest-style conflicts with this
       }
       (builtins.readFile ./generate_targets.py);
+
+  genRsaMaterials =
+    writers.writePython3 "postgrest-gen-rsa-materials"
+      {
+        libraries = [ python3Packages.jwcrypto ];
+        doCheck = false; # postgrest-style conflicts with this
+      }
+      (builtins.readFile ./gen_rsa_materials.py);
 
   mergeMonitorResults =
     writers.writePython3 "postgrest-merge-monitor-results"
