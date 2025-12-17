@@ -63,8 +63,9 @@ runAppCommand conf@AppConfig{..} runCmd = do
 dumpSchema :: AppState -> IO LBS.ByteString
 dumpSchema appState = do
   conf@AppConfig{..} <- AppState.getConfig appState
+  pgVer <- AppState.getPgVersion appState
   result <-
-    AppState.usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+    AppState.usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
   case result of
     Left e -> do
       let observer = AppState.getObserver appState

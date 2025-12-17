@@ -88,7 +88,7 @@ main = do
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
   -- cached schema cache so most tests run fast
-  baseSchemaCache <- loadSCache pool baseCfg
+  baseSchemaCache <- loadSCache pool actualPgVersion baseCfg
   metricsState <- Metrics.init (configDbPoolSize baseCfg)
 
   let
@@ -105,7 +105,7 @@ main = do
 
     -- For tests that run with a different SchemaCache (depends on configSchemas)
     appDbs config = do
-      customSchemaCache <- loadSCache pool config
+      customSchemaCache <- loadSCache pool actualPgVersion config
       initApp customSchemaCache config
 
     withConfig config = before (app config)
@@ -187,5 +187,5 @@ main = do
     describe "Feature.Query.PgSafeUpdateSpec.spec" $ Feature.Query.PgSafeUpdateSpec.spec withConfig
 
   where
-    loadSCache pool conf =
-      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+    loadSCache pool pgVersion conf =
+      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)

@@ -48,7 +48,7 @@ main = do
   actualPgVersion <- either (panic . show) id <$> P.use pool queryPgVersion
 
   -- cached schema cache so most tests run fast
-  baseSchemaCache <- loadSCache pool testCfg
+  baseSchemaCache <- loadSCache pool actualPgVersion testCfg
 
   let
     initApp sCache config = do
@@ -72,5 +72,5 @@ main = do
       describe "Feature.SchemaCacheSpec" Observation.SchemaCacheSpec.spec
 
   where
-    loadSCache pool conf =
-      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache conf)
+    loadSCache pool pgVersion conf =
+      either (panic.show) fst <$> P.use pool (HT.transaction HT.ReadCommitted HT.Read $ querySchemaCache pgVersion conf)
