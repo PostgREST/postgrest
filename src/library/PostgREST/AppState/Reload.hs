@@ -92,8 +92,9 @@ retryingSchemaCacheLoad appState@AppState{stateObserver=observer} =
     qSchemaCache :: IO (Maybe SchemaCache)
     qSchemaCache = do
       conf@AppConfig{..} <- getConfig appState
+      pgVer <- getPgVersion appState
       (resultTime, result) <-
-        timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache conf)
+        timeItT $ usePool appState (SQL.transactionNoRetry SQL.ReadCommitted SQL.Read $ querySchemaCache pgVer conf)
       case result of
         Left e -> do
           markSchemaCachePending appState

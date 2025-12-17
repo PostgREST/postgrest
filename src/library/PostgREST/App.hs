@@ -219,7 +219,8 @@ postgrestResponse appState conf@AppConfig{..} maybeSchemaCache jwtTime authResul
   liftIO $ when shouldShowWarnings $
     observer $ LegacyTargetNameWarningObs (legacyWarnMsg, legacyWarnHint) iMethod (iPath <> Wai.rawQueryString req) -- TODO maybe store rawQueryString in ApiRequest for consistency
 
-  let mainQ = Query.mainQuery plan conf apiReq authResult configDbPreRequest
+  pgVer <- liftIO $ AppState.getPgVersion appState
+  let mainQ = Query.mainQuery pgVer plan conf apiReq authResult configDbPreRequest
       tx = MainTx.mainTx mainQ conf authResult apiReq plan sCache
       obsQuery s = when configLogQuery $ observer $ QueryObs mainQ s
 
