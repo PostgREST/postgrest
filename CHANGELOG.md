@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. From versio
 
 ## Unreleased
 
+## [14.2] - 2025-12-18
+
 ### Fixed
 
 - Fix `hasSingleUnnamedParam` incorrectly matching functions with named parameters by @joelonsql in #4553
