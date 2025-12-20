@@ -3851,3 +3851,7 @@ $$ language sql;
 
 create function do_nothing() returns void as $_$
 $_$ language sql;
+
+create or replace function test.get_tiobe_pls() returns setof test.tiobe_pls as $$
+  select * from test.tiobe_pls;
+$$ language sql;

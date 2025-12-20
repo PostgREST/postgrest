@@ -455,6 +455,80 @@ spec actualPgVersion = do
         nextValSnip `shouldBe`
           Just [aesonQQ| ["jsonb_agg((jsonb_build_object('id', nextval('\"Surr_Gen_Default_Upsert_id_seq\"'::regclass)) || elem.value))"] |]
 
+  describe "count preference plan costs" $ do
+    context "tables with count=exact" $ do
+      it "shows only 1 count aggregate when no limits/max-rows are set" $ do
+        _ <- request methodPost "/tiobe_pls"
+              [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+              (getInsertDataForTiobePlsTable 1000)
+
+        r <- request methodGet "/tiobe_pls"
+          (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;") ""
+
+        let resBody = simpleBody r
+            resHeaders = simpleHeaders r
+            totalCost = planCost r
+            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
+          totalCost `shouldSatisfy` (< 33.0)
+          aggregateQty `shouldBe` 1
+
+      it "shows relevant count aggregates when limits are set" $ do
+        _ <- request methodPost "/tiobe_pls"
+              [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+              (getInsertDataForTiobePlsTable 1000)
+
+        r <- request methodGet "/tiobe_pls?limit=1000"
+          (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;") ""
+
+        let resBody = simpleBody r
+            resHeaders = simpleHeaders r
+            totalCost = planCost r
+            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
+          totalCost `shouldSatisfy` (> 49.0)
+          aggregateQty `shouldSatisfy` (> 1)
+
+    context "functions with count=exact" $ do
+      it "shows only 1 count aggregate when no limits/max-rows are set" $ do
+        _ <- request methodPost "/tiobe_pls"
+              [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json"), ("Prefer", "return=representation")]
+              (getInsertDataForTiobePlsTable 1000)
+
+        r <- request methodGet "/rpc/get_tiobe_pls"
+          (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;") ""
+
+        let resBody = simpleBody r
+            resHeaders = simpleHeaders r
+            totalCost = planCost r
+            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
+          totalCost `shouldSatisfy` (< 38.0)
+          aggregateQty `shouldBe` 1
+
+      it "shows relevant count aggregates when limits are set" $ do
+        _ <- request methodPost "/tiobe_pls"
+              [("Prefer","resolution=merge-duplicates"), ("Accept","application/vnd.pgrst.plan+json")]
+              (getInsertDataForTiobePlsTable 1000)
+
+        r <- request methodGet "/rpc/get_tiobe_pls?limit=1000"
+          (("Prefer", "count=exact") : acceptHdrs "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze;") ""
+
+        let resBody = simpleBody r
+            resHeaders = simpleHeaders r
+            totalCost = planCost r
+            aggregateQty = subtract 1 $ length $ T.splitOn "Aggregate" (decodeUtf8 $ LBS.toStrict resBody)
+
+        liftIO $ do
+          resHeaders `shouldSatisfy` elem ("Content-Type", "application/vnd.pgrst.plan+json; for=\"application/json\"; options=analyze; charset=utf-8")
+          totalCost `shouldSatisfy` (> 67.0)
+          aggregateQty `shouldSatisfy` (> 1)
 
 disabledSpec :: SpecWith ((), Application)
 disabledSpec =

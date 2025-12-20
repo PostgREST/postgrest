@@ -20,6 +20,7 @@ import PostgREST.Plan.MutatePlan        as MTPlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
+import PostgREST.RangeQuery             (NonnegRange)
 import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine)
 
 import Protolude
@@ -63,23 +64,24 @@ mainWrite rPlan mtplan mt handler rep resolution = mtSnippet mt snippet
     _ -> (False,False, mempty);
 
 mainRead :: ReadPlanTree -> SQL.Snippet -> Maybe PreferCount -> Maybe Integer ->
-            MediaType -> MediaHandler -> SQL.Snippet
-mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
+            NonnegRange -> MediaType -> MediaHandler -> SQL.Snippet
+mainRead rPlan countQuery pCount maxRows range mt handler = mtSnippet mt snippet
  where
   snippet =
     "WITH " <> sourceCTE <> " AS ( " <> selectQuery <> " ) " <>
     countCTEF <> " " <>
     "SELECT " <>
       countResultF <> " AS total_result_set, " <>
-      pageCountSelectF Nothing <> " AS page_total, " <>
+      pageCountSelect <> " AS page_total, " <>
       handlerF Nothing handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status, " <>
       "''" <> " AS response_inserted " <>
     "FROM ( SELECT * FROM " <> sourceCTE <> " ) _postgrest_t"
 
-  (countCTEF, countResultF) = countF countQ $ shouldCount pCount
+  (countCTEF, countResultF) = countF countQ pageCountSelect (shouldCount pCount) maxRows range
   selectQuery = readPlanToQuery rPlan
+  pageCountSelect = pageCountSelectF Nothing
   countQ =
     if pCount == Just EstimatedCount then
       -- LIMIT maxRows + 1 so we can determine below that maxRows was surpassed
@@ -87,26 +89,27 @@ mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
     else
       countQuery
 
-mainCall :: Routine -> CallPlan -> ReadPlanTree -> Maybe PreferCount ->
-            MediaType -> MediaHandler -> SQL.Snippet
-mainCall rout cPlan rPlan pCount mt handler = mtSnippet mt snippet
+mainCall :: Routine -> CallPlan -> ReadPlanTree -> Maybe PreferCount -> Maybe Integer ->
+            NonnegRange-> MediaType -> MediaHandler -> SQL.Snippet
+mainCall rout cPlan rPlan pCount maxRows range mt handler = mtSnippet mt snippet
   where
     snippet =
       "WITH " <> sourceCTE <> " AS (" <> callProcQuery <> ") " <>
       countCTEF <>
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
-        pageCountSelectF (Just rout) <> " AS page_total, " <>
+        pageCountSelect <> " AS page_total, " <>
         handlerF (Just rout) handler <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
         responseStatusF <> " AS response_status, " <>
         "''" <> " AS response_inserted " <>
       "FROM (" <> selectQuery <> ") _postgrest_t"
 
-    (countCTEF, countResultF) = countF countQuery $ shouldCount pCount
+    (countCTEF, countResultF) = countF countQuery pageCountSelect (shouldCount pCount) maxRows range
     selectQuery = readPlanToQuery rPlan
     callProcQuery = callPlanToQuery cPlan
     countQuery = readPlanToCountQuery rPlan
+    pageCountSelect = pageCountSelectF (Just rout)
 
 -- This occurs after the main query runs, that's why it's prefixed with "post"
 postExplain :: SQL.Snippet -> SQL.Snippet
