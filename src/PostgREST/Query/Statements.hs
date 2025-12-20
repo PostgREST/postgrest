@@ -20,8 +20,7 @@ import PostgREST.Plan.MutatePlan        as MTPlan
 import PostgREST.Plan.ReadPlan
 import PostgREST.Query.QueryBuilder
 import PostgREST.Query.SqlFragment
-import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine,
-                                         funcReturnsSingle)
+import PostgREST.SchemaCache.Routine    (MediaHandler (..), Routine)
 
 import Protolude
 
@@ -72,7 +71,7 @@ mainRead rPlan countQuery pCount maxRows mt handler = mtSnippet mt snippet
     countCTEF <> " " <>
     "SELECT " <>
       countResultF <> " AS total_result_set, " <>
-      "pg_catalog.count(_postgrest_t) AS page_total, " <>
+      pageCountSelectF Nothing <> " AS page_total, " <>
       handlerF Nothing handler <> " AS body, " <>
       responseHeadersF <> " AS response_headers, " <>
       responseStatusF <> " AS response_status, " <>
@@ -97,9 +96,7 @@ mainCall rout cPlan rPlan pCount mt handler = mtSnippet mt snippet
       countCTEF <>
       "SELECT " <>
         countResultF <> " AS total_result_set, " <>
-        (if funcReturnsSingle rout
-          then "1"
-          else "pg_catalog.count(_postgrest_t)") <> " AS page_total, " <>
+        pageCountSelectF (Just rout) <> " AS page_total, " <>
         handlerF (Just rout) handler <> " AS body, " <>
         responseHeadersF <> " AS response_headers, " <>
         responseStatusF <> " AS response_status, " <>
