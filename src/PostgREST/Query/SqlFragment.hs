@@ -23,6 +23,7 @@ module PostgREST.Query.SqlFragment
   , locationF
   , noLocationF
   , orderF
+  , pageCountSelectF
   , pgFmtColumn
   , pgFmtFilter
   , pgFmtIdent
@@ -96,6 +97,7 @@ import PostgREST.SchemaCache.Routine     (MediaHandler (..),
                                           Routine (..),
                                           funcReturnsScalar,
                                           funcReturnsSetOfScalar,
+                                          funcReturnsSingle,
                                           funcReturnsSingleComposite)
 
 import Protolude hiding (Sum, cast)
@@ -494,6 +496,12 @@ countF countQuery shouldCount =
     else (
         mempty
       , "null::bigint")
+
+pageCountSelectF :: Maybe Routine -> SQL.Snippet
+pageCountSelectF rout =
+  if maybe False funcReturnsSingle rout
+    then "1"
+    else "pg_catalog.count(_postgrest_t)"
 
 returningF :: QualifiedIdentifier -> [FieldName] -> SQL.Snippet
 returningF qi returnings =
