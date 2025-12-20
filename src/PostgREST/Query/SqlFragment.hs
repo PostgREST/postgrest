@@ -487,15 +487,15 @@ pgFmtGroup _  CoercibleSelectField{csAggFunction=Just _} = Nothing
 pgFmtGroup _  CoercibleSelectField{csAlias=Just alias, csAggFunction=Nothing} = Just $ pgFmtIdent alias
 pgFmtGroup qi CoercibleSelectField{csField=fld, csAlias=Nothing, csAggFunction=Nothing} = Just $ pgFmtField qi fld
 
-countF :: SQL.Snippet -> Bool -> (SQL.Snippet, SQL.Snippet)
-countF countQuery shouldCount =
-  if shouldCount
-    then (
-        ", pgrst_source_count AS (" <> countQuery <> ")"
-      , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)" )
-    else (
-        mempty
-      , "null::bigint")
+countF :: SQL.Snippet -> SQL.Snippet -> Bool -> Maybe Integer -> NonnegRange -> (SQL.Snippet, SQL.Snippet)
+countF countQuery pageCountSelect shouldCount maxRows range
+  | shouldCount = if isJust maxRows || range /= allRange
+      then ( ", pgrst_source_count AS (" <> countQuery <> ")"
+           , "(SELECT pg_catalog.count(*) FROM pgrst_source_count)" )
+      -- When there are no db-max-rows and limits/offsets, the total count will be the same as the page count,
+      -- so we use the same page count here to avoid doing a separate aggregated count.
+      else ( mempty, pageCountSelect )
+  | otherwise = ( mempty, "null::bigint" )
 
 pageCountSelectF :: Maybe Routine -> SQL.Snippet
 pageCountSelectF rout =
