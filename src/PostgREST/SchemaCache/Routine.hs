@@ -90,7 +90,7 @@ data RoutineParam = RoutineParam
 instance Ord Routine where
   Function schema1 name1 des1 prms1 rt1 vol1 hasVar1 iso1 sets1 `compare` Function schema2 name2 des2 prms2 rt2 vol2 hasVar2 iso2 sets2
     | schema1 == schema2 && name1 == name2 && length prms1 < length prms2  = LT
-    | schema2 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
+    | schema1 == schema2 && name1 == name2 && length prms1 > length prms2  = GT
     | otherwise = (schema1, name1, des1, prms1, rt1, vol1, hasVar1, iso1, sets1) `compare` (schema2, name2, des2, prms2, rt2, vol2, hasVar2, iso2, sets2)
 
 -- | A map of all procs, all of which can be overloaded(one entry will have more than one Routine).
