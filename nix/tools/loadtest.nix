@@ -45,7 +45,7 @@ let
           "ARG_OPTIONAL_SINGLE([testdir], [t], [Directory to load tests and fixtures from], [./test/load])"
           "ARG_OPTIONAL_SINGLE([kind], [k], [Kind of loadtest], [mixed])"
           "ARG_OPTIONAL_SINGLE([method],, [HTTP method used for the jwt loadtests], [OPTIONS])"
-          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,jwt-hs,jwt-hs-cache,jwt-hs-cache-worst,jwt-rsa,jwt-rsa-cache,jwt-rsa-cache-worst])"
+          "ARG_TYPE_GROUP_SET([KIND], [KIND], [kind], [mixed,errors,jwt-hs,jwt-hs-cache,jwt-hs-cache-worst,jwt-rsa,jwt-rsa-cache,jwt-rsa-cache-worst])"
           "ARG_TYPE_GROUP_SET([METHOD], [METHOD], [method], [OPTIONS,GET])"
           "ARG_OPTIONAL_SINGLE([monitor], [m], [Monitoring file], [./loadtest/result.csv])"
           "ARG_LEFTOVERS([additional vegeta arguments])"
@@ -152,11 +152,20 @@ let
             sh -c "cd \"$_arg_testdir\" && \
             ${runner} -targets targets.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
             ;;
+
+          # here we sleep purposefully to check how much memory does the schema cache consume in the final report
+          errors)
+            # shellcheck disable=SC2145
+            ${withTools.withPg} -f "$_arg_testdir"/errors.sql \
+            ${withTools.withPgrst} --timeout 2 --sleep 5 -m "$_arg_monitor" \
+            sh -c "cd \"$_arg_testdir\" && \
+            ${runner} -targets errors.http -output \"$abs_output\" \"''${_arg_leftovers[@]}\""
+            ;;
         esac
 
         ${vegeta}/bin/vegeta report -type=text "$_arg_output"
 
-        if [ "$_arg_kind" != "mixed" ]; then
+        if [ "$_arg_kind" != "errors" ]; then
           # fail in case 401 happened on jwt loadtests
           unauthorized_count="$(${vegeta}/bin/vegeta report -type=json "$_arg_output" \
             | ${jq}/bin/jq -r '.status_codes["401"] // 0')"
