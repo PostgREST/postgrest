@@ -120,7 +120,7 @@ jobs:
   loadtest:
     strategy:
       matrix:
-        kind: ['mixed', 'jwt-hs', 'jwt-hs-cache', 'jwt-hs-cache-worst', 'jwt-rsa', 'jwt-rsa-cache', 'jwt-rsa-cache-worst']
+        kind: ['mixed', 'errors', 'jwt-hs', 'jwt-hs-cache', 'jwt-hs-cache-worst', 'jwt-rsa', 'jwt-rsa-cache', 'jwt-rsa-cache-worst']
     name: Loadtest
     runs-on: ubuntu-24.04
     steps:
