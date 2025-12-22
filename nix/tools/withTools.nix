@@ -361,6 +361,7 @@ let
             "ARG_POSITIONAL_SINGLE([command], [Command to run])"
             "ARG_LEFTOVERS([command arguments])"
             "ARG_OPTIONAL_SINGLE([monitor], [m], [Enable CPU and memory monitoring of the PostgREST process and output to the designated file as markdown])"
+            "ARG_OPTIONAL_SINGLE([timeout], [t], [Timeout for the PostgREST process], [5])"
             "ARG_USE_ENV([PGRST_CMD], [], [PostgREST executable to run])"
           ];
         positionalCompletion = "_command";
@@ -412,7 +413,7 @@ let
         }
         trap cleanup EXIT
 
-        timeout -s TERM 5 ${waitForPgrstReady} || {
+        timeout -s TERM "$_arg_timeout" ${waitForPgrstReady} || {
           echo "timed out, output:"
           cat "$tmpdir"/run.log
           exit 1
