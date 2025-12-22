@@ -12,6 +12,7 @@
 , silver-searcher
 , statix
 , stylish-haskell
+, writeText
 }:
 let
   style =
@@ -51,6 +52,20 @@ let
         ${git}/bin/git diff-index --exit-code HEAD -- '*.hs' '*.lhs' '*.nix' '*.py'
       '';
 
+  hlintConfig = writeText "hlintConfig.yml" ''
+
+    # Arguments passed to hlint
+    - arguments: [-j, -XQuasiQuotes, -XNoPatternSynonyms]
+
+    # Warnings
+    - warn: { lhs: "a == a", rhs: "True",  note: "This comparison always evaluates to True" }
+    - warn: { lhs: "a /= a", rhs: "False", note: "This comparison always evaluates to False" }
+    - warn: { lhs: "a < a",  rhs: "False", note: "This comparison always evaluates to False" }
+    - warn: { lhs: "a > a",  rhs: "False", note: "This comparison always evaluates to False" }
+    - warn: { lhs: "a <= a", rhs: "True",  note: "This comparison always evaluates to True" }
+    - warn: { lhs: "a >= a", rhs: "True",  note: "This comparison always evaluates to True" }
+  '';
+
   lint =
     checkedShellScript
       {
@@ -79,7 +94,7 @@ let
         echo "Linting Haskell files..."
         # --vimgrep fixes a bug in ag: https://github.com/ggreer/the_silver_searcher/issues/753
         ${silver-searcher}/bin/ag -l --vimgrep -g '\.l?hs$' . \
-          | xargs ${hlint}/bin/hlint -j -X QuasiQuotes -X NoPatternSynonyms
+          | xargs ${hlint}/bin/hlint --hint=${hlintConfig}
       '';
 
 in
