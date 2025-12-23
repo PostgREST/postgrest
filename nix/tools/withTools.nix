@@ -132,9 +132,11 @@ let
         fi
 
         if test "$_arg_fixtures"; then
-          log "Loading fixtures under the postgres role..."
+          load_start=$SECONDS
+          >&2 printf "${commandName}: Loading fixtures under the postgres role..."
           psql -U postgres -v PGUSER="$PGUSER" -v ON_ERROR_STOP=1 -f "$_arg_fixtures" >> "$setuplog"
-          log "Done. Running command..."
+          load_end=$((SECONDS - load_start))
+          >&2 printf " done in %ss. Running command...\n" "$load_end"
         fi
 
         ("$_arg_command" "''${_arg_leftovers[@]}")
