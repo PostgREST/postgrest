@@ -413,12 +413,14 @@ let
         }
         trap cleanup EXIT
 
+        wait_start=$SECONDS
         timeout -s TERM "$_arg_timeout" ${waitForPgrstReady} || {
           echo "timed out, output:"
           cat "$tmpdir"/run.log
           exit 1
         }
-        echo "done."
+        wait_duration=$((SECONDS - wait_start))
+        printf "done in %ss.\n" "$wait_duration"
 
         if [[ -n "$_arg_monitor" ]]; then
           ${monitorPid} "$pid" > "$_arg_monitor" &
